@@ -1,0 +1,82 @@
+{
+  "head": "9ab49c9de8323795756e1c4f3a16aab1faa3843e",
+  "main": "b14888f7632bf5fe60b61a640dd23e732797974e",
+  "wasmBefore": {
+    "bytes": 2135164,
+    "sha256": "a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83",
+    "pythonGzip9Bytes": 644968
+  },
+  "host": "expose-builder-pixel",
+  "wasmAfterBuild": {
+    "bytes": 2135164,
+    "sha256": "a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83",
+    "pythonGzip9Bytes": 644968
+  },
+  "wasmUnchanged": true,
+  "requestedFilesPassed": 24,
+  "requestedTests": {
+    "tests": 885,
+    "pass": 884,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 1,
+    "todo": 0
+  },
+  "fullClientPool": {
+    "files": 339,
+    "failedFiles": 1,
+    "tests": 6726,
+    "pass": 6670,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 55,
+    "todo": 0
+  },
+  "rustInventory": {
+    "binaries": 311,
+    "executions": 1024,
+    "failedExecutions": 1,
+    "workspaceDoctests": "passed"
+  },
+  "witnessRerun": {
+    "pass": 23,
+    "fail": 0
+  },
+  "scratchRerun": {
+    "pass": 3,
+    "fail": 0,
+    "skipped": 1
+  },
+  "wasmAfterFullSuite": {
+    "bytes": 2135164,
+    "sha256": "a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83",
+    "pythonGzip9Bytes": 644968
+  },
+  "fullModels": {
+    "files": 2,
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0,
+    "sessionHistoriesPerTier": 5000,
+    "onlineSequences": 3000
+  },
+  "fullSuite": {
+    "seconds": 2131,
+    "exitCode": 1,
+    "failedStages": [
+      "cargo test",
+      "client tests"
+    ],
+    "failures": [
+      "witness cleanup /proc group race",
+      "identity-organizations TMPDIR inside Git"
+    ],
+    "affectedRerunsPassed": true
+  },
+  "canonicalWasmBudgetMeasurement": {
+    "rawBytes": 2135164,
+    "gzipBytes": 645264,
+    "budgetBytes": 645564,
+    "method": "gzip -9 -c on snapback4_device_bg.wasm, including filename header, as scripts/build-wasm.sh; matches full-suite build output"
+  }
+}

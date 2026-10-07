@@ -7,7 +7,7 @@ import { IntentJournal, intentOutcome, type Intent, type Proposal } from "./inte
 import { intentStorage } from "./intent-store";
 import type { Cursor, ResultOf, Write } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
-import { useOnlineArm } from "./useOnlineArm";
+import { useOnline } from "snapback4/react";
 import { useTyping } from "./useTyping";
 import { useOnceMedia } from "./useOnceMedia";
 import { PhotoPicker } from "./ui";
@@ -19,7 +19,7 @@ export function ConversationScreen({ conversation, url, visible = true, ownerKey
 }
 function OwnedConversation({ conversation, url, visible, viewer, proposed, other }: { conversation: string; url: string; visible: boolean; viewer: string; proposed?: string; other?: string }) {
   const client = useClient(), link = useLink();
-  const online = useOnlineArm(url);
+  const online = useOnline();
   const typing = useTyping(online, conversation);
   // SDK default: plain revalidation retains; change evidence is bounded.
   // We never retain a previous answer in application state.

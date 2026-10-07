@@ -9,6 +9,9 @@ export interface Session {
   readonly kind: string;
   readonly token: string;
   readonly expiresAt: number;
+  /** Absent on legacy persisted sessions; authority always comes from the server. */
+  readonly scope?: "full" | "read";
+  readonly capExpiresAt?: number;
 }
 
 export type SignIn = { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly why: Refusal };
@@ -282,6 +285,7 @@ export interface Residency {
 }
 
 export interface Client {
+  readonly readOnly?: boolean;
   /** Local storage diagnostics; null on the online tier or mock. Rejects with
    * a coded error on a closed/signed-out local client or a failed device read. */
   residency(): Promise<Residency | null>;

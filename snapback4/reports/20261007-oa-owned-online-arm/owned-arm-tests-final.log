@@ -1,0 +1,59 @@
+✔ owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (681.059806ms)
+✖ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (178.428141ms)
+✖ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (1168.641182ms)
+✔ account fences cached arms, observations and late server data (243.043919ms)
+✔ logout fences cached arms, observations and late server data (119.078247ms)
+✔ close fences cached arms, observations and late server data (195.287312ms)
+✔ offline drops signals, refuses snapshots/actions; observed reads recover without replay (181.478954ms)
+✔ no-device app reuses its own client (readOnly=false) and obeys shared logout (174.702396ms)
+✔ no-device app reuses its own client (readOnly=true) and obeys shared logout (203.552822ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 7
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3312.676924
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/app-online-arm.test.mjs:63:41
+✖ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (178.428141ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + false
+  - 'rotation must not abort the dispatched call'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/app-online-arm.test.mjs:85:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: 'rotation must not abort the dispatched call',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/app-online-arm.test.mjs:63:41
+✖ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (1168.641182ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + false
+  - 'rotation must not abort the dispatched call'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/app-online-arm.test.mjs:85:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: 'rotation must not abort the dispatched call',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

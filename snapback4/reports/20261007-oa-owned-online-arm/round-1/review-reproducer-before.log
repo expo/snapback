@@ -1,0 +1,101 @@
+✔ owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (214.987284ms)
+queued-after-retirement {
+  outcome: { state: 'sent', id: '01M4AZQWMDNY0V3JNCJS53EWFA', result: null },
+  dispatchCount: 2
+}
+✖ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (189.195872ms)
+✔ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (183.057779ms)
+retired-bearer-dispatch {
+  oldBearerDispatches: 1,
+  outcome: {
+    state: 'failed',
+    id: '01M4AZQWZZ2DQ0Z3NG1PT94PXR',
+    why: {
+      code: 'E_AUTH',
+      family: 'auth',
+      guide: 'personas',
+      message: 'this session is not live; sign in again'
+    }
+  }
+}
+✖ no-device: storage-awaited signal cannot dispatch its retired bearer (206.084676ms)
+account-replacement {
+  sends: 2,
+  oldAccountWhileHidden: 1,
+  outcome: {
+    state: 'failed',
+    id: '01M4AZQX6A11TPWXRVEQHXJ6PY',
+    why: {
+      code: 'E_CLOSED',
+      family: 'client',
+      message: 'this client is closed'
+    }
+  }
+}
+✖ no-device: queued signal cannot send as the old account during replacement (88.884244ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1028.281697
+
+✖ failing tests:
+
+test at ../../reviews/oa-r0.astra.evidence/no-device-rotation.test.mjs:66:41
+✖ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (189.195872ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 'E_AUTH'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/oa-r0.astra.evidence/no-device-rotation.test.mjs:92:129)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_AUTH',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../reviews/oa-r0.astra.evidence/no-device-rotation.test.mjs:99:1
+✖ no-device: storage-awaited signal cannot dispatch its retired bearer (206.084676ms)
+  AssertionError [ERR_ASSERTION]: no HTTP request may dispatch with the retired bearer
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/oa-r0.astra.evidence/no-device-rotation.test.mjs:133:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../reviews/oa-r0.astra.evidence/no-device-rotation.test.mjs:136:1
+✖ no-device: queued signal cannot send as the old account during replacement (88.884244ms)
+  AssertionError [ERR_ASSERTION]: retired arm must not issue an old-account request during provisional replacement
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/reviews/oa-r0.astra.evidence/no-device-rotation.test.mjs:159:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

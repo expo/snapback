@@ -7,7 +7,7 @@ import {api} from './snapback/generated/api';
 import config from './ua-config.json';
 const originalFetch=globalThis.fetch;
 const mode=(config as typeof config & {mode?:string}).mode??'ordinary';
-const run=(__DEV__?'debug-r3-':'release-r3-')+mode;
+const run=(__DEV__?'debug-r4-':'release-r4-')+mode;
 const trace=(event:string,fields:object={})=>{console.log('UA',event,fields);void originalFetch(config.url+'/ua-log',{method:'POST',body:JSON.stringify({run,event,...fields})}).catch(()=>{});};
 (globalThis as any).uaTrace=trace;
 const fetcher:typeof fetch=async (input,init)=>{

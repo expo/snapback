@@ -1,0 +1,31 @@
+{
+  "classification": "harness-defect-environment-leak",
+  "backend": "convex",
+  "authority": "User Lane P3 Round 2, 2026-10-07: machine-local CocoaPods env is operator setup",
+  "outcomeClass": "operator-setup",
+  "productOutcome": null,
+  "setupRerunsConsumed": 0,
+  "originalAttempt": "results/convex/attempt-01",
+  "original": {
+    "originalContent": "export NODE_BINARY=/opt/homebrew/Cellar/node/26.9.0/bin/node\n",
+    "originalSha256": "cc70dc8b45e87482e84e8af4dd32497aa7038788eac5cf62107d5bcc29c37a63",
+    "auditSha256": "af5d19b05121ea4295e863d721dce2eb8f1a137f6057ee3070e3f371b2423080"
+  },
+  "previousPacketSha256": "b83eed3bc825b49cf042400272a5e01070b4dd19b512c9930d4f051baba99046",
+  "priorChains": [
+    "chain-59196a49-2371-4a52-af62-446dc08d1e80",
+    "chain-fec3cb18-ab16-41cd-b308-1a679a8e034c",
+    "chain-ff244727-a6b9-4f63-8af4-2204a9ab4df8"
+  ],
+  "builderEndSha256": "7f7f2ee0038d8baeed69efa1457636b178cc97ecc8b791b3199a3cfb425c8741",
+  "manifests": {
+    "attempt.json": "432a3348f811a2fa5b7da8e47fc15b2a219bb75e106381caa95a65f85f4e65b0",
+    "work.json": "a6f64e8755dbc732d4ae7df6a2139cb8bf603b04c61f451d3cd5fc1a38c86b72",
+    "lane.json": "4713f6b7bd22b7a7df4e4333788cdc51d658bae61e094e1a158710200a8c5670",
+    "custody.json": "2d477b5ca263b770710e7f5eb9b27c6b0ffa043164a3e0d9880afc28619f9c0c",
+    "snapback4-results.json": "38047890d9147f659c5ff93c2d91fe468d963818519e9891a0001b844716f042",
+    "chains.json": "ee2cd2fcf33e12a14fb46ba1f6f40bca6186269b606f3e1f083a5e1720cc5f55"
+  },
+  "continuation": "Unchanged custody, fresh work copy, pinned generated env, both audits, semantic handoff, Release build, M6 and M8",
+  "at": 1791362432.660537
+}

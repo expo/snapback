@@ -26,7 +26,7 @@ impl Drop for UploadPermit<'_> {
 
 pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     let principal = match principal_of(&request, shared) {
-        Ok(principal) => principal,
+        Ok(principal) => principal.0,
         Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
     };
     if body.is_empty() {
@@ -52,8 +52,8 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
 }
 
 pub fn serve(request: Request, id: &str, shared: &Shared) {
-    let principal = match principal_of(&request, shared) {
-        Ok(principal) => principal,
+    let (principal, _, scope) = match principal_of(&request, shared) {
+        Ok(capability) => capability,
         Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
     };
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
@@ -76,6 +76,11 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
             return respond(request, status, json!({ "denied": refusal_json(&refusal) }));
         }
     };
+    // @ref LLP 3000.033#1.5 — refuse only an otherwise successful once grant,
+    // after authorization/range/viewed checks and before opening any bytes.
+    if grant.once && scope == snapback4_core::identity::SessionScope::Read {
+        return respond(request, 403, json!({"denied": Refusal::new("E_ASSET_READ_ONLY", "asset", "this read session cannot consume a view-once asset").guide("read-only")}));
+    }
     let Ok(mut file) = std::fs::File::open(&grant.path) else {
         return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")) }));
     };

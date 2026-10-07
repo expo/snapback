@@ -26,6 +26,7 @@ import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider } from "snapback4/react";
 import { createClient } from "real-client";
+import { instrumentOnline } from "snapback4/client";
 import { createApp } from "snapback4/app";
 import { webDevice } from "snapback4/web";
 import { keepSession, localStorageSessionStore } from "snapback4/auth";
@@ -117,7 +118,9 @@ function controlled() {
 }
 const listeners = new Set();
 let snapshot = { state: "signed-in", viewer: alice.principal };
-const app = { client: controlled(), auth: { getSnapshot: () => snapshot,
+let online = instrumentOnline(ownerApp.online);
+const app = { client: controlled(), get online() { return online; },
+  onOnlineChange(listener) { listeners.add(listener); return () => listeners.delete(listener); }, auth: { getSnapshot: () => snapshot,
   onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); } } };
 function Mounted() {
   useEffect(() => { window.components.mounts++; return () => { window.components.unmounts++; }; }, []);
@@ -144,7 +147,7 @@ window.peerTyping = () => peer.mutate(api.setTyping, { conversation });
 window.peerStop = () => peer.mutate(api.stopTyping, { conversation });
 window.drop = async () => { disconnected = true; link = "offline"; for (const listener of linkListeners) listener(link); await Promise.all(window.onlineArms.map(arm => arm.query(api.typingIn, { conversation }))); };
 window.reconnect = async () => { disconnected = false; link = "online"; for (const listener of linkListeners) listener(link); await raw.sync(); };
-window.outboxes = async () => Promise.all(window.onlineArms.map(arm => arm.pendingWrites()));
+window.outboxes = async () => [await raw.pendingWrites()];
 window.savedSends = () => app.client.pendingWrites();
 window.sendOutcomes = async () => { const key = "snapback4-social:" + JSON.stringify([url, alice.principal]); const intents = JSON.parse(localStorage.getItem(key) ?? '{"intents":[]}').intents; return Promise.all(intents.map(async i => ({ id: i.id, outcome: await raw.write(i.id) }))); };
 window.restoreRoute = () => { window.navigate(conversation); };
@@ -155,13 +158,26 @@ window.rejoin = () => window.rejoinSession();
 window.holdAsset = () => { holdAsset = true; };
 window.assetHeld = () => !!releaseAsset;
 window.releaseAsset = () => { releaseAsset?.(); releaseAsset = null; };
-window.accountSwitch = () => {
+window.accountSwitch = async () => {
+  await ownerApp.auth.logout();
+  online = instrumentOnline(other);
   session = carol; currentRaw = other; app.client = controlled();
   snapshot = { state: "signed-in", viewer: carol.principal };
   window.setRead("history", ready([])); window.setRead("conversationScreen", ready(null)); window.setRead("receiptMember", ready(null));
   for (const listener of listeners) listener();
+  // The real app fences before React cleanup, so stopTyping cannot use the
+  // retired credential. Wait for the declared 4s expiry. The pinned Playwright
+  // waitForFunction treats an async predicate's Promise as truthy, so it cannot
+  // provide this barrier in the unchanged screen assertions.
+  const deadline = realPerformance() + 8000;
+  for (;;) {
+    const read = await peer.query(api.typingIn, { conversation });
+    if (read.data?.length === 0) break;
+    if (realPerformance() >= deadline) throw Error("retired typing did not expire");
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
 };
-window.finish = async () => { root.unmount(); await Promise.all([ownerApp.close(), peer.close(), other.close(), ...window.onlineArms.map(arm => arm.close())]); };
+window.finish = async () => { root.unmount(); await Promise.all([ownerApp.close(), peer.close(), other.close()]); };
 window.fixtureReady = true;
 `;
 
@@ -185,16 +201,15 @@ window.focusRoute = value => { focused = value; for (const listener of listeners
 `;
 export const onlineClientHarness = `
 export * from "real-client";
-import { createClient as realCreateClient } from "real-client";
 window.onlineArms = [];
 window.typingResults = [];
 let holdTyping = false, releaseTyping;
 window.holdTypingFailure = () => { holdTyping = true; };
 window.typingFailureHeld = () => !!releaseTyping;
 window.releaseTypingFailure = () => { releaseTyping(); releaseTyping = null; };
-export function createClient(options) {
-  const client = realCreateClient(options), observe = client.observe, mutate = client.mutate;
-  window.onlineArms.push(client);
+export function instrumentOnline(client) {
+  const observe = client.observe, mutate = client.mutate;
+  window.onlineArms = [client];
   client.mutate = async (op, args, options) => {
     const held = op.name === "setTyping" && holdTyping;
     if (held) holdTyping = false;

@@ -59,7 +59,7 @@ fn refusal(code: &str, family: &str, message: &str, rewrite: &str) -> Refusal {
     Refusal::new(code, family, message).site(ENDPOINT).rewrite(rewrite).guide("services")
 }
 
-fn denied(request: Request) {
+pub(super) fn denied(request: Request) {
     respond_with_cors(request, 403, json!({"denied": refusal("E_AUTH", "auth",
         "service token minting requires a loopback peer and this server's private store proof",
         "run snapback4 token --service <name> on the server host as the store owner (add --release <dir> for serve)")}), false);
@@ -182,5 +182,5 @@ pub(crate) fn mint_live(path: &Path, name: &str, days: i64) -> Result<Session, (
     if session["principal"] != principal || session["kind"] != "service" || token.is_none() || session["expires_at"].as_i64().is_none() {
         return Err(unavailable("server returned an invalid mint reply; a session may have been minted"));
     }
-    Ok(Session { principal, kind: "service".into(), token: token.unwrap().into(), expires_at: session["expires_at"].as_i64().unwrap() })
+    Ok(Session { scope: snapback4_core::identity::SessionScope::Full, cap_expires_at: None, principal, kind: "service".into(), token: token.unwrap().into(), expires_at: session["expires_at"].as_i64().unwrap() })
 }

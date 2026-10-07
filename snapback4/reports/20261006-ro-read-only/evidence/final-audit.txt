@@ -1,0 +1,6 @@
+git diff --check: pass
+JOURNAL: byte prefix equals HEAD, pure append
+Affected code files: all below 1,500 lines
+Device wasm: 2117335 raw / 639888 gzip / cap 639941
+Device wasm sha256: 2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944
+Paired state sha256: e15809273ad09307d18d1d0e443d46dd93a8a424aa9ceca31ab2b6bcb0930136

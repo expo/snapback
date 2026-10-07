@@ -1,3 +1,4 @@
+import { readOnlyRefusal } from "./read-only.ts";
 import { pendingItems, pendingState, observeIntents, intentReadSequence, type PendingItemsOptions, type PendingStateOptions, type PendingIntent, type MutationArgs } from "./pending-items.ts";
 import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
@@ -11,7 +12,7 @@ export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
-import type { App, AppAuth, AuthSnapshot } from "./app.ts";
+import type { App, AppAuth, AuthSnapshot, Online } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
@@ -57,6 +58,13 @@ export function useClient(): Client {
   const client = useContext(ClientContext);
   if (!client) throw new Error("useClient: no <AppProvider> or <SnapbackProvider> above this component");
   return client;
+}
+
+/** The app-owned server arm; follows account changes and credential rotation. */
+export function useOnline(): Online {
+  const app = useContext(AppContext);
+  if (!app) throw new Error("useOnline: no <AppProvider> above this component");
+  return useSyncExternalStore(app.onOnlineChange, () => app.online, () => app.online);
 }
 
 /** Server time for a render deadline. Re-render at that deadline and whenever
@@ -510,6 +518,7 @@ export function useSeen<M extends { id: string; pending?: boolean }, S extends s
   family: ReceiptFamily<M, S, T>, options: SeenOptions,
 ): SeenSnapshot & { retry(): void } {
   const client = useClient();
+  if (client.readOnly && options.active !== false) throw Object.assign(new Error("E_READ_ONLY: active useSeen requires a full session"), { why: readOnlyRefusal() });
   const owner = useMemo(() => new SeenOwner(client, family as unknown as ConstructorParameters<typeof SeenOwner>[1], options.scope), [client, family, options.scope]);
   const snapshot = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getServerSnapshot);
   useEffect(() => { owner.update(options.through, options.active); });

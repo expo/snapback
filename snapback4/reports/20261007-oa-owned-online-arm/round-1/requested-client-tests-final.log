@@ -1,0 +1,1884 @@
+-- client file start: packages/snapback4/test/app-online-arm.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/social-browser.test.mjs; stall bound 907500 ms
+-- client file start: packages/snapback4/test/social-starter.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/ephemeral-adoption.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: device: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface
+ok 1 - device: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface
+  ---
+  duration_ms: 743.027988
+  type: 'test'
+  ...
+# Subtest: device: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in
+ok 2 - device: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in
+  ---
+  duration_ms: 199.840456
+  type: 'test'
+  ...
+# Subtest: device: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in
+ok 3 - device: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in
+  ---
+  duration_ms: 204.552891
+  type: 'test'
+  ...
+# Subtest: device: account fences cached arms, observations and late server data
+ok 4 - device: account fences cached arms, observations and late server data
+  ---
+  duration_ms: 266.783356
+  type: 'test'
+  ...
+# Subtest: device: logout fences cached arms, observations and late server data
+ok 5 - device: logout fences cached arms, observations and late server data
+  ---
+  duration_ms: 140.814425
+  type: 'test'
+  ...
+# Subtest: device: close fences cached arms, observations and late server data
+ok 6 - device: close fences cached arms, observations and late server data
+  ---
+  duration_ms: 232.695597
+  type: 'test'
+  ...
+# Subtest: device: offline drops signals, refuses snapshots/actions; observed reads recover without replay
+ok 7 - device: offline drops signals, refuses snapshots/actions; observed reads recover without replay
+  ---
+  duration_ms: 193.317218
+  type: 'test'
+  ...
+# Subtest: device: an arm waiting for shared authority cannot dispatch after synchronous logout fencing
+ok 8 - device: an arm waiting for shared authority cannot dispatch after synchronous logout fencing
+  ---
+  duration_ms: 106.243782
+  type: 'test'
+  ...
+# Subtest: device: failed account opening restores a new arm without reviving the old exposed handle
+ok 9 - device: failed account opening restores a new arm without reviving the old exposed handle
+  ---
+  duration_ms: 202.042516
+  type: 'test'
+  ...
+# Subtest: device: an old action response cannot retry under the replacement credential or sign out its owner
+ok 10 - device: an old action response cannot retry under the replacement credential or sign out its owner
+  ---
+  duration_ms: 203.000223
+  type: 'test'
+  ...
+# Subtest: device: a dispatched signal keeps its transport failure after rotation
+ok 11 - device: a dispatched signal keeps its transport failure after rotation
+  ---
+  duration_ms: 193.13896
+  type: 'test'
+  ...
+# Subtest: device: renewal reuse never crosses arm retirement
+ok 12 - device: renewal reuse never crosses arm retirement
+  ---
+  duration_ms: 198.287989
+  type: 'test'
+  ...
+# Subtest: online: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface
+ok 13 - online: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface
+  ---
+  duration_ms: 207.312477
+  type: 'test'
+  ...
+# Subtest: online: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in
+ok 14 - online: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in
+  ---
+  duration_ms: 212.139272
+  type: 'test'
+  ...
+# Subtest: online: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in
+ok 15 - online: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in
+  ---
+  duration_ms: 188.889089
+  type: 'test'
+  ...
+# Subtest: online: account fences cached arms, observations and late server data
+ok 16 - online: account fences cached arms, observations and late server data
+  ---
+  duration_ms: 209.288208
+  type: 'test'
+  ...
+# Subtest: online: logout fences cached arms, observations and late server data
+ok 17 - online: logout fences cached arms, observations and late server data
+  ---
+  duration_ms: 112.566621
+  type: 'test'
+  ...
+# Subtest: online: close fences cached arms, observations and late server data
+ok 18 - online: close fences cached arms, observations and late server data
+  ---
+  duration_ms: 190.032824
+  type: 'test'
+  ...
+# Subtest: online: offline drops signals, refuses snapshots/actions; observed reads recover without replay
+ok 19 - online: offline drops signals, refuses snapshots/actions; observed reads recover without replay
+  ---
+  duration_ms: 203.916967
+  type: 'test'
+  ...
+# Subtest: online: no-device app reuses its own client (readOnly=false) and obeys shared logout
+ok 20 - online: no-device app reuses its own client (readOnly=false) and obeys shared logout
+  ---
+  duration_ms: 263.796969
+  type: 'test'
+  ...
+# Subtest: online: no-device app reuses its own client (readOnly=true) and obeys shared logout
+ok 21 - online: no-device app reuses its own client (readOnly=true) and obeys shared logout
+  ---
+  duration_ms: 188.356382
+  type: 'test'
+  ...
+# Subtest: online: an arm waiting for shared authority cannot dispatch after synchronous logout fencing
+ok 22 - online: an arm waiting for shared authority cannot dispatch after synchronous logout fencing
+  ---
+  duration_ms: 86.629189
+  type: 'test'
+  ...
+# Subtest: online: failed account opening restores a new arm without reviving the old exposed handle
+ok 23 - online: failed account opening restores a new arm without reviving the old exposed handle
+  ---
+  duration_ms: 198.038515
+  type: 'test'
+  ...
+# Subtest: online: an old action response cannot retry under the replacement credential or sign out its owner
+ok 24 - online: an old action response cannot retry under the replacement credential or sign out its owner
+  ---
+  duration_ms: 220.27624
+  type: 'test'
+  ...
+# Subtest: online: a dispatched signal keeps its transport failure after rotation
+ok 25 - online: a dispatched signal keeps its transport failure after rotation
+  ---
+  duration_ms: 230.29593
+  type: 'test'
+  ...
+# Subtest: online: renewal reuse never crosses arm retirement
+ok 26 - online: renewal reuse never crosses arm retirement
+  ---
+  duration_ms: 236.172148
+  type: 'test'
+  ...
+# Subtest: online: an action auth retry keeps its originating arm while waiting for shared rotation
+ok 27 - online: an action auth retry keeps its originating arm while waiting for shared rotation
+  ---
+  duration_ms: 216.415884
+  type: 'test'
+  ...
+# Subtest: online: retired observations do not share queued work with the new arm or app client
+ok 28 - online: retired observations do not share queued work with the new arm or app client
+  ---
+  duration_ms: 235.463196
+  type: 'test'
+  ...
+# Subtest: online: an action waiting for the shared refresh cannot use its replacement credential
+ok 29 - online: an action waiting for the shared refresh cannot use its replacement credential
+  ---
+  duration_ms: 214.141705
+  type: 'test'
+  ...
+# Subtest: online: no-device: storage-awaited signal cannot dispatch its retired bearer
+ok 30 - online: no-device: storage-awaited signal cannot dispatch its retired bearer
+  ---
+  duration_ms: 218.224996
+  type: 'test'
+  ...
+# Subtest: online: no-device: queued signal cannot send as the old account during replacement
+ok 31 - online: no-device: queued signal cannot send as the old account during replacement
+  ---
+  duration_ms: 139.995887
+  type: 'test'
+  ...
+# Subtest: retirement bounds an unresponsive action drain and preserves its pending ID
+ok 32 - retirement bounds an unresponsive action drain and preserves its pending ID
+  ---
+  duration_ms: 2.660478
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6864.536646
+-- process inspection: {"snapshots":3,"unrelatedRows":3564}
+-- client file ok: packages/snapback4/test/app-online-arm.test.mjs (7197 ms)
+-- client file start: packages/snapback4/test/ephemeral-capability.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: durable-only dev adoption answers a held legacy poll with the new generation within 500 ms
+ok 1 - durable-only dev adoption answers a held legacy poll with the new generation within 500 ms
+  ---
+  duration_ms: 502.625939
+  type: 'test'
+  ...
+# Subtest: online: durable-only changes retain base wire bytes plus the preservation certificate
+ok 2 - online: durable-only changes retain base wire bytes plus the preservation certificate
+  ---
+  duration_ms: 2178.335322
+  type: 'test'
+  ...
+# Subtest: online: adoption replaces mounted ephemeral interests, including removal
+ok 3 - online: adoption replaces mounted ephemeral interests, including removal
+  ---
+  duration_ms: 1404.306724
+  type: 'test'
+  ...
+# Subtest: wasm: durable-only changes retain base wire bytes plus the preservation certificate
+ok 4 - wasm: durable-only changes retain base wire bytes plus the preservation certificate
+  ---
+  duration_ms: 3737.922942
+  type: 'test'
+  ...
+# Subtest: wasm: adoption replaces mounted ephemeral interests, including removal
+ok 5 - wasm: adoption replaces mounted ephemeral interests, including removal
+  ---
+  duration_ms: 2023.680567
+  type: 'test'
+  ...
+# Subtest: a self-invalidating guard is sent twice and returns its second refusal
+ok 6 - a self-invalidating guard is sent twice and returns its second refusal
+  ---
+  duration_ms: 175.056715
+  type: 'test'
+  ...
+# Subtest: online: a durable mounted watch discovers ephemeral capability on adoption
+ok 7 - online: a durable mounted watch discovers ephemeral capability on adoption
+  ---
+  duration_ms: 991.77412
+  type: 'test'
+  ...
+# Subtest: wasm: a durable mounted watch discovers ephemeral capability on adoption
+ok 8 - wasm: a durable mounted watch discovers ephemeral capability on adoption
+  ---
+  duration_ms: 763.703355
+  type: 'test'
+  ...
+# Subtest: online capability discovery cannot swallow a generation invalidation for durable watches
+ok 9 - online capability discovery cannot swallow a generation invalidation for durable watches
+  ---
+  duration_ms: 23.273578
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11967.625549
+-- process inspection: {"snapshots":3,"unrelatedRows":3543}
+-- client file ok: packages/snapback4/test/ephemeral-adoption.test.mjs (12305 ms)
+-- client file start: packages/snapback4/test/ephemeral-e2e.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: schema retries retire a known obsolete durable answer before adoption completes
+ok 1 - schema retries retire a known obsolete durable answer before adoption completes
+  ---
+  duration_ms: 618.091888
+  type: 'test'
+  ...
+# Subtest: schema retries still deliver durable inserts during initial discovery
+ok 2 - schema retries still deliver durable inserts during initial discovery
+  ---
+  duration_ms: 691.343865
+  type: 'test'
+  ...
+# Subtest: schema E_AUTH after revocation terminates discovery without retrying
+ok 3 - schema E_AUTH after revocation terminates discovery without retrying
+  ---
+  duration_ms: 291.876141
+  type: 'test'
+  ...
+# Subtest: schema E_AUTH from an obsolete bearer waits for rotation before retrying
+ok 4 - schema E_AUTH from an obsolete bearer waits for rotation before retrying
+  ---
+  duration_ms: 673.745905
+  type: 'test'
+  ...
+# Subtest: adoption during initial capability discovery invalidates a durable watch
+ok 5 - adoption during initial capability discovery invalidates a durable watch
+  ---
+  duration_ms: 3192.660536
+  type: 'test'
+  ...
+# Subtest: initial capability discovery retries one schema 503 and restores watch interests
+ok 6 - initial capability discovery retries one schema 503 and restores watch interests
+  ---
+  duration_ms: 509.419246
+  type: 'test'
+  ...
+# Subtest: a poll generation fences stale schema facts until bounded retries catch up
+ok 7 - a poll generation fences stale schema facts until bounded retries catch up
+  ---
+  duration_ms: 93.651958
+  type: 'test'
+  ...
+# Subtest: initial backend installation rejects a query already in flight
+ok 8 - initial backend installation rejects a query already in flight
+  ---
+  duration_ms: 60.324799
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6260.996082
+-- process inspection: {"snapshots":3,"unrelatedRows":3558}
+-- client file ok: packages/snapback4/test/ephemeral-capability.test.mjs (6587 ms)
+-- client file start: packages/snapback4/test/ephemeral-fencing.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: poll coverage uses the smallest watch answer, and stale revisions precede incarnation checks
+ok 1 - poll coverage uses the smallest watch answer, and stale revisions precede incarnation checks
+  ---
+  duration_ms: 1.33411
+  type: 'test'
+  ...
+# Subtest: online: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+ok 2 - online: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+  ---
+  duration_ms: 814.77242
+  type: 'test'
+  ...
+# Subtest: wasm: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+ok 3 - wasm: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+  ---
+  duration_ms: 1834.485514
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2800.402935
+-- process inspection: {"snapshots":3,"unrelatedRows":3568}
+-- client file ok: packages/snapback4/test/ephemeral-fencing.test.mjs (3095 ms)
+-- client file start: packages/snapback4/test/ephemeral-keep.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:2177853) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: generated feed, chats, profile and search preserve read-state text and controls
+ok 1 - generated feed, chats, profile and search preserve read-state text and controls
+  ---
+  duration_ms: 275.046942
+  type: 'test'
+  ...
+# Subtest: social seed script creates two password accounts, signs in and refuses cross-user writes
+ok 2 - social seed script creates two password accounts, signs in and refuses cross-user writes
+  ---
+  duration_ms: 4294.89277
+  type: 'test'
+  ...
+# Subtest: new requires an explicit template and names what init creates
+ok 3 - new requires an explicit template and names what init creates
+  ---
+  duration_ms: 9.297017
+  type: 'test'
+  ...
+# Subtest: social starter native: cold owner keys prove old likes and unqueried absence offline
+ok 4 - social starter native: cold owner keys prove old likes and unqueried absence offline
+  ---
+  duration_ms: 3389.623623
+  type: 'test'
+  ...
+# Subtest: social starter web: cold owner keys prove old likes and unqueried absence offline
+ok 5 - social starter web: cold owner keys prove old likes and unqueried absence offline
+  ---
+  duration_ms: 3043.406148
+  type: 'test'
+  ...
+# Subtest: published social starter and guide snippets typecheck against generated operations
+ok 6 - published social starter and guide snippets typecheck against generated operations
+  ---
+  duration_ms: 1658.594104
+  type: 'test'
+  ...
+# Subtest: bounded substitution in both installed and client documentation typechecks
+ok 7 - bounded substitution in both installed and client documentation typechecks
+  ---
+  duration_ms: 2436.664988
+  type: 'test'
+  ...
+# Subtest: installed bounded placeholder documentation makes neither existence claim
+ok 8 - installed bounded placeholder documentation makes neither existence claim
+  ---
+  duration_ms: 114.617676
+  type: 'test'
+  ...
+# Subtest: social starter runs through the public client: feed, likes, receipts, typing, media and retained history
+ok 9 - social starter runs through the public client: feed, likes, receipts, typing, media and retained history
+  ---
+  duration_ms: 3052.326959
+  type: 'test'
+  ...
+# Subtest: social DM native: concurrent opens converge, held keys resolve offline and an offline race settles
+ok 10 - social DM native: concurrent opens converge, held keys resolve offline and an offline race settles
+  ---
+  duration_ms: 1828.322047
+  type: 'test'
+  ...
+# Subtest: social DM web: concurrent opens converge, held keys resolve offline and an offline race settles
+ok 11 - social DM web: concurrent opens converge, held keys resolve offline and an offline race settles
+  ---
+  duration_ms: 673.930436
+  type: 'test'
+  ...
+# Subtest: guide aliases send schedules, DMs and Expo readers to their owning cards
+ok 12 - guide aliases send schedules, DMs and Expo readers to their owning cards
+  ---
+  duration_ms: 170.285263
+  type: 'test'
+  ...
+# Subtest: social proposal associations are durable, account/backend scoped and preserve every send's arguments
+ok 13 - social proposal associations are durable, account/backend scoped and preserve every send's arguments
+  ---
+  duration_ms: 126.865806
+  type: 'test'
+  ...
+# Subtest: social starter wasm: offline history predicts in compose order and settles once with receipts
+ok 14 - social starter wasm: offline history predicts in compose order and settles once with receipts
+  ---
+  duration_ms: 1900.543762
+  type: 'test'
+  ...
+# Subtest: social starter wasm: receipt-derived unread badges leave sends pending in history
+ok 15 - social starter wasm: receipt-derived unread badges leave sends pending in history
+  ---
+  duration_ms: 1275.068043
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24781.088892
+-- process inspection: {"snapshots":3,"unrelatedRows":3556}
+-- client file ok: packages/snapback4/test/social-starter.test.mjs (25076 ms)
+-- client file start: packages/snapback4/test/ephemeral-lanes.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: social recipes in React/browser: real online signals and media, controlled read interleavings
+    # Subtest: route, history and decorations revalidate independently without draft/focus loss
+    ok 1 - route, history and decorations revalidate independently without draft/focus loss
+      ---
+      duration_ms: 175.143855
+      type: 'test'
+      ...
+    # Subtest: loading, revalidating and offline membership allow custody and eventual server delivery
+    ok 2 - loading, revalidating and offline membership allow custody and eventual server delivery
+      ---
+      duration_ms: 2202.19452
+      type: 'test'
+      ...
+    # Subtest: older bubbles share the history cursor and retain text when receipts withdraw
+    ok 3 - older bubbles share the history cursor and retain text when receipts withdraw
+      ---
+      duration_ms: 91.379831
+      type: 'test'
+      ...
+    # Subtest: renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+    ok 4 - renewal, idle without blur, Send, route visibility/key and unmount stop before expiry
+      ---
+      duration_ms: 840.035146
+      type: 'test'
+      ...
+    # Subtest: a late failed renewal cannot stop a newer successful typing lease
+    ok 5 - a late failed renewal cannot stop a newer successful typing lease
+      ---
+      duration_ms: 197.905766
+      type: 'test'
+      ...
+    # Subtest: typing expires, drops on disconnect, needs a fresh keystroke and never queues
+    ok 6 - typing expires, drops on disconnect, needs a fresh keystroke and never queues
+      ---
+      duration_ms: 1541.170769
+      type: 'test'
+      ...
+    # Subtest: one handle survives list remount, closes, rejects second open and cleans a late result
+    ok 7 - one handle survives list remount, closes, rejects second open and cleans a late result
+      ---
+      duration_ms: 488.376201
+      type: 'test'
+      ...
+    # Subtest: the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+    ok 8 - the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight
+      ---
+      duration_ms: 252.105964
+      type: 'test'
+      ...
+    # Subtest: two offline sends keep independent failures and attachment arguments after another session leaves
+    ok 9 - two offline sends keep independent failures and attachment arguments after another session leaves
+      ---
+      duration_ms: 489.324052
+      type: 'test'
+      ...
+    # Subtest: observations make retention explicit
+    ok 10 - observations make retention explicit
+      ---
+      duration_ms: 3.771744
+      type: 'test'
+      ...
+    # Subtest: account reset clears draft and stops the prior typing owner
+    ok 11 - account reset clears draft and stops the prior typing owner
+      ---
+      duration_ms: 4188.450878
+      type: 'test'
+      ...
+    1..11
+ok 1 - social recipes in React/browser: real online signals and media, controlled read interleavings
+  ---
+  duration_ms: 13611.57268
+  type: 'test'
+  ...
+# Subtest: social search in React/browser uses current server and retained device pages
+    # Subtest: search spans a live and a departed conversation
+    ok 1 - search spans a live and a departed conversation
+      ---
+      duration_ms: 1494.22394
+      type: 'test'
+      ...
+    # Subtest: leave followed by a search
+    ok 2 - leave followed by a search
+      ---
+      duration_ms: 1267.25703
+      type: 'test'
+      ...
+    # Subtest: pagination accumulates both domains with no duplicate
+    ok 3 - pagination accumulates both domains with no duplicate
+      ---
+      duration_ms: 1444.652383
+      type: 'test'
+      ...
+    1..3
+ok 2 - social search in React/browser uses current server and retained device pages
+  ---
+  duration_ms: 5367.780571
+  type: 'test'
+  ...
+# Subtest: social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+    # Subtest: failed provisional sends survive Profile reopen and a full reload
+    ok 1 - failed provisional sends survive Profile reopen and a full reload
+      ---
+      duration_ms: 716.680721
+      type: 'test'
+      ...
+    # Subtest: a sent receipt without result recovers the route from its replicated key
+    ok 2 - a sent receipt without result recovers the route from its replicated key
+      ---
+      duration_ms: 51.092951
+      type: 'test'
+      ...
+    # Subtest: real stale negative membership after leave, sync, disconnect and re-invite permits Send
+    ok 3 - real stale negative membership after leave, sync, disconnect and re-invite permits Send
+      ---
+      duration_ms: 380.166333
+      type: 'test'
+      ...
+    # Subtest: stale absent membership queues offline and server refuses at sync without re-invitation
+    ok 4 - stale absent membership queues offline and server refuses at sync without re-invitation
+      ---
+      duration_ms: 266.252632
+      type: 'test'
+      ...
+    # Subtest: leaving before settlement recovers failed sends on a bare canonical route
+    ok 5 - leaving before settlement recovers failed sends on a bare canonical route
+      ---
+      duration_ms: 1017.98114
+      type: 'test'
+      ...
+    # Subtest: failed and abandoned openings without sends leave no associations
+    ok 6 - failed and abandoned openings without sends leave no associations
+      ---
+      duration_ms: 110.226644
+      type: 'test'
+      ...
+    # Subtest: a bare route recovers its sends with one lookup despite 100 unresolved peers
+    ok 7 - a bare route recovers its sends with one lookup despite 100 unresolved peers
+      ---
+      duration_ms: 751.174568
+      type: 'test'
+      ...
+    1..7
+ok 3 - social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ---
+  duration_ms: 6356.242344
+  type: 'test'
+  ...
+1..3
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 25897.742937
+-- process inspection: {"snapshots":3,"unrelatedRows":3540}
+-- client file ok: packages/snapback4/test/social-browser.test.mjs (26161 ms)
+-- client file start: packages/snapback4/test/ephemeral-mock.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes
+ok 1 - mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes
+  ---
+  duration_ms: 15.715719
+  type: 'test'
+  ...
+# Subtest: mock supplied ids execute and emit once (online)
+ok 2 - mock supplied ids execute and emit once (online)
+  ---
+  duration_ms: 22.78824
+  type: 'test'
+  ...
+# Subtest: mock supplied ids execute and emit once (offline)
+ok 3 - mock supplied ids execute and emit once (offline)
+  ---
+  duration_ms: 20.595554
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 145.929053
+-- process inspection: {"snapshots":3,"unrelatedRows":3539}
+-- client file ok: packages/snapback4/test/ephemeral-mock.test.mjs (411 ms)
+-- client file start: packages/snapback4/test/ephemeral-reclamation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online: lane order, renewal suppression, refusals, bound and offline waiting
+ok 1 - online: lane order, renewal suppression, refusals, bound and offline waiting
+  ---
+  duration_ms: 159.872064
+  type: 'test'
+  ...
+# Subtest: wasm: lane order, renewal suppression, refusals, bound and offline waiting
+ok 2 - wasm: lane order, renewal suppression, refusals, bound and offline waiting
+  ---
+  duration_ms: 1660.957908
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1977.170501
+-- process inspection: {"snapshots":3,"unrelatedRows":3543}
+-- client file ok: packages/snapback4/test/ephemeral-lanes.test.mjs (2248 ms)
+-- client file start: packages/snapback4/test/ephemeral-routing.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online: kept typing survives member commits and expires during a held re-read
+ok 1 - online: kept typing survives member commits and expires during a held re-read
+  ---
+  duration_ms: 5227.595585
+  type: 'test'
+  ...
+# burst: 23 default loading publications; 26 kept publications, all visible
+# expiry: server deadline 1791371384211, visible at 1791371384210, withdrawn at 1791371384211; 21 member commits, no renewal
+# Subtest: wasm: kept typing survives member commits and expires during a held re-read
+ok 2 - wasm: kept typing survives member commits and expires during a held re-read
+  ---
+  duration_ms: 1939.182944
+  type: 'test'
+  ...
+# burst: 64 default loading publications; 65 kept publications, all visible
+# expiry: server deadline 1791371389506, visible at 1791371389505, withdrawn at 1791371389506; 21 member commits, no renewal
+# Subtest: process: kept typing survives member commits and expires during a held re-read
+ok 3 - process: kept typing survives member commits and expires during a held re-read
+  ---
+  duration_ms: 6068.359198
+  type: 'test'
+  ...
+# burst: 64 default loading publications; 65 kept publications, all visible
+# expiry: server deadline 1791371391430, visible at 1791371391429, withdrawn at 1791371391430; 21 member commits, no renewal
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13410.548034
+-- process inspection: {"snapshots":3,"unrelatedRows":3545}
+-- client file ok: packages/snapback4/test/ephemeral-keep.test.mjs (13687 ms)
+-- client file start: packages/snapback4/test/ephemeral-sender.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: one in-flight request, renews coalesces at the tail and set/set/stop stays stopped
+ok 1 - one in-flight request, renews coalesces at the tail and set/set/stop stays stopped
+  ---
+  duration_ms: 23.043123
+  type: 'test'
+  ...
+# Subtest: coalesced replacement moves behind an intervening stop
+ok 2 - coalesced replacement moves behind an intervening stop
+  ---
+  duration_ms: 2.199928
+  type: 'test'
+  ...
+# Subtest: window applies at call and dequeue using send time; stop closes it
+ok 3 - window applies at call and dequeue using send time; stop closes it
+  ---
+  duration_ms: 1.162563
+  type: 'test'
+  ...
+# Subtest: nonrenewals never coalesce or suppress; waiting is bounded at 256
+ok 4 - nonrenewals never coalesce or suppress; waiting is bounded at 256
+  ---
+  duration_ms: 25.970471
+  type: 'test'
+  ...
+# Subtest: offline fails waiting and new calls immediately, without replay
+ok 5 - offline fails waiting and new calls immediately, without replay
+  ---
+  duration_ms: 0.487912
+  type: 'test'
+  ...
+# Subtest: rate/capacity refusals preserve online; malformed transport goes offline
+ok 6 - rate/capacity refusals preserve online; malformed transport goes offline
+  ---
+  duration_ms: 0.829213
+  type: 'test'
+  ...
+# Subtest: argument custody and closed request settle without waiting for fetch
+ok 7 - argument custody and closed request settle without waiting for fetch
+  ---
+  duration_ms: 0.242774
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 112.808474
+-- process inspection: {"snapshots":3,"unrelatedRows":3550}
+-- client file ok: packages/snapback4/test/ephemeral-sender.test.mjs (381 ms)
+-- client file start: packages/snapback4/test/ephemeral-types.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online: ephemeral bypasses writes, admission and journals
+ok 1 - online: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 193.620845
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral bypasses writes, admission and journals
+ok 2 - wasm: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 1572.24825
+  type: 'test'
+  ...
+# Subtest: app-online: ephemeral bypasses writes, admission and journals
+ok 3 - app-online: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 177.406188
+  type: 'test'
+  ...
+# Subtest: app-wasm: ephemeral bypasses writes, admission and journals
+ok 4 - app-wasm: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 1179.437052
+  type: 'test'
+  ...
+# Subtest: app-online: session storage waits stay inside the bounded lane
+ok 5 - app-online: session storage waits stay inside the bounded lane
+  ---
+  duration_ms: 156.996183
+  type: 'test'
+  ...
+# Subtest: app-wasm: session storage waits stay inside the bounded lane
+ok 6 - app-wasm: session storage waits stay inside the bounded lane
+  ---
+  duration_ms: 1179.58171
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4610.636893
+-- process inspection: {"snapshots":3,"unrelatedRows":3542}
+-- client file ok: packages/snapback4/test/ephemeral-routing.test.mjs (4877 ms)
+-- client file start: packages/snapback4/test/ephemeral-watches.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online: a real hidden prefix expires silently and incomplete polling reaches the visible row
+ok 1 - online: a real hidden prefix expires silently and incomplete polling reaches the visible row
+  ---
+  duration_ms: 2447.580716
+  type: 'test'
+  ...
+# Subtest: wasm: a real hidden prefix expires silently and incomplete polling reaches the visible row
+ok 2 - wasm: a real hidden prefix expires silently and incomplete polling reaches the visible row
+  ---
+  duration_ms: 3756.989625
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6346.097856
+-- process inspection: {"snapshots":3,"unrelatedRows":3579}
+-- client file ok: packages/snapback4/test/ephemeral-reclamation.test.mjs (6616 ms)
+-- client file start: packages/snapback4/test/typing-expiry.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: generated ephemeral API and React preserve disjoint mutation outcomes
+ok 1 - generated ephemeral API and React preserve disjoint mutation outcomes
+  ---
+  duration_ms: 2155.707982
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2585.393197
+-- process inspection: {"snapshots":3,"unrelatedRows":3569}
+-- client file ok: packages/snapback4/test/ephemeral-types.test.mjs (2854 ms)
+-- client file start: packages/snapback4/test/read-only-allocation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: read-only apps allocate no write owners, including unused WriteHistory
+ok 1 - read-only apps allocate no write owners, including unused WriteHistory
+  ---
+  duration_ms: 891.921496
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1000.817115
+-- process inspection: {"snapshots":3,"unrelatedRows":3609}
+-- client file ok: packages/snapback4/test/read-only-allocation.test.mjs (1274 ms)
+-- client file start: packages/snapback4/test/read-only-custody-races.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: fence notifies a subscribed rendered value on logout
+ok 1 - fence notifies a subscribed rendered value on logout
+  ---
+  duration_ms: 32.745127
+  type: 'test'
+  ...
+# Subtest: fence notifies a subscribed rendered value on peer switch
+ok 2 - fence notifies a subscribed rendered value on peer switch
+  ---
+  duration_ms: 18.75227
+  type: 'test'
+  ...
+# Subtest: fence notifies a subscribed rendered value on close
+ok 3 - fence notifies a subscribed rendered value on close
+  ---
+  duration_ms: 11.96778
+  type: 'test'
+  ...
+# Subtest: fence notifies a subscribed rendered value on replacement
+ok 4 - fence notifies a subscribed rendered value on replacement
+  ---
+  duration_ms: 12.97473
+  type: 'test'
+  ...
+# Subtest: a peer logout fences a login already waiting for its response
+ok 5 - a peer logout fences a login already waiting for its response
+  ---
+  duration_ms: 5.758983
+  type: 'test'
+  ...
+# Subtest: a fenced handle cannot signOut a replacement account
+ok 6 - a fenced handle cannot signOut a replacement account
+  ---
+  duration_ms: 6.375116
+  type: 'test'
+  ...
+# Subtest: a fenced handle cannot close a replacement account
+ok 7 - a fenced handle cannot close a replacement account
+  ---
+  duration_ms: 4.16272
+  type: 'test'
+  ...
+# Subtest: peer logout while login credential verification is held
+ok 8 - peer logout while login credential verification is held
+  ---
+  duration_ms: 8.795825
+  type: 'test'
+  ...
+# Subtest: peer logout while guest credential verification is held
+ok 9 - peer logout while guest credential verification is held
+  ---
+  duration_ms: 6.332513
+  type: 'test'
+  ...
+# Subtest: old signOut during replacement verification cannot cancel the opener
+ok 10 - old signOut during replacement verification cannot cancel the opener
+  ---
+  duration_ms: 5.133425
+  type: 'test'
+  ...
+# Subtest: old close during replacement verification cannot cancel the opener
+ok 11 - old close during replacement verification cannot cancel the opener
+  ---
+  duration_ms: 4.067267
+  type: 'test'
+  ...
+# Subtest: peer refresh refuses during held probe on restart
+ok 12 - peer refresh refuses during held probe on restart
+  ---
+  duration_ms: 3.40869
+  type: 'test'
+  ...
+# Subtest: peer refresh refuses during held storage on restart
+ok 13 - peer refresh refuses during held storage on restart
+  ---
+  duration_ms: 2.770634
+  type: 'test'
+  ...
+# Subtest: retirement rechecks custody after its held verification probe
+ok 14 - retirement rechecks custody after its held verification probe
+  ---
+  duration_ms: 28.642296
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 264.373627
+-- process inspection: {"snapshots":3,"unrelatedRows":3576}
+-- client file ok: packages/snapback4/test/read-only-custody-races.test.mjs (543 ms)
+-- client file start: packages/snapback4/test/read-only-custody-server.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients
+ok 1 - useQuery expires 4.5 s typing rows aged 0 ms before mount on both clients
+  ---
+  duration_ms: 2373.322407
+  type: 'test'
+  ...
+# expiry 1791375001234; React expiry lateness online=1000 ms local=0 ms; online queries 3
+# Subtest: useQuery expires 4.5 s typing rows aged 3000 ms before mount on both clients
+ok 2 - useQuery expires 4.5 s typing rows aged 3000 ms before mount on both clients
+  ---
+  duration_ms: 1974.10826
+  type: 'test'
+  ...
+# expiry 1791375003230; React expiry lateness online=1000 ms local=0 ms; online queries 2
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4461.837006
+-- process inspection: {"snapshots":3,"unrelatedRows":3554}
+-- client file ok: packages/snapback4/test/typing-expiry.test.mjs (4743 ms)
+-- client file start: packages/snapback4/test/read-only-custody.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: peer logout vs held committed login, readOnly=true
+ok 1 - peer logout vs held committed login, readOnly=true
+  ---
+  duration_ms: 873.032151
+  type: 'test'
+  ...
+# Subtest: peer logout vs held committed login, readOnly=false
+ok 2 - peer logout vs held committed login, readOnly=false
+  ---
+  duration_ms: 848.714418
+  type: 'test'
+  ...
+# Subtest: simultaneous read refresh refusals preserve live custody across restart
+ok 3 - simultaneous read refresh refusals preserve live custody across restart
+  ---
+  duration_ms: 566.363182
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2405.774076
+-- process inspection: {"snapshots":3,"unrelatedRows":3545}
+-- client file ok: packages/snapback4/test/read-only-custody-server.test.mjs (2675 ms)
+-- client file start: packages/snapback4/test/read-only-peer-rotation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: logout fences a login held inside persistence and restart stays signed out
+ok 1 - logout fences a login held inside persistence and restart stays signed out
+  ---
+  duration_ms: 25.384392
+  type: 'test'
+  ...
+# Subtest: account mismatch permanently withdraws old observations and bearer without deleting the new account
+ok 2 - account mismatch permanently withdraws old observations and bearer without deleting the new account
+  ---
+  duration_ms: 29.883217
+  type: 'test'
+  ...
+# Subtest: refused refresh preserves custody and authenticates after restart without a save
+ok 3 - refused refresh preserves custody and authenticates after restart without a save
+  ---
+  duration_ms: 4.315088
+  type: 'test'
+  ...
+# Subtest: logout after repeated refresh refusals retires the same user in a newer epoch
+ok 4 - logout after repeated refresh refusals retires the same user in a newer epoch
+  ---
+  duration_ms: 11.784445
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 179.774439
+-- process inspection: {"snapshots":3,"unrelatedRows":3542}
+-- client file ok: packages/snapback4/test/read-only-custody.test.mjs (449 ms)
+-- client file start: packages/snapback4/test/read-only-round4.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: full-session logout must complete while self refresh response is held
+ok 1 - full-session logout must complete while self refresh response is held
+  ---
+  duration_ms: 680.573158
+  type: 'test'
+  ...
+# Subtest: full-session logout must complete while peer refresh response is held
+ok 2 - full-session logout must complete while peer refresh response is held
+  ---
+  duration_ms: 567.923312
+  type: 'test'
+  ...
+# Subtest: three read apps refuse refresh and share the original credential until logout
+ok 3 - three read apps refuse refresh and share the original credential until logout
+  ---
+  duration_ms: 574.58674
+  type: 'test'
+  ...
+# Subtest: raw signOut after a refresh attempt; readOnly=true, held=true
+ok 4 - raw signOut after a refresh attempt; readOnly=true, held=true
+  ---
+  duration_ms: 562.937357
+  type: 'test'
+  ...
+# Subtest: raw signOut after a refresh attempt; readOnly=true, held=false
+ok 5 - raw signOut after a refresh attempt; readOnly=true, held=false
+  ---
+  duration_ms: 558.264973
+  type: 'test'
+  ...
+# Subtest: raw signOut after a refresh attempt; readOnly=false, held=true
+ok 6 - raw signOut after a refresh attempt; readOnly=false, held=true
+  ---
+  duration_ms: 575.460982
+  type: 'test'
+  ...
+# Subtest: raw signOut after a refresh attempt; readOnly=false, held=false
+ok 7 - raw signOut after a refresh attempt; readOnly=false, held=false
+  ---
+  duration_ms: 546.693878
+  type: 'test'
+  ...
+# Subtest: bearer spelling and whitespace guard every door; readOnly=true
+ok 8 - bearer spelling and whitespace guard every door; readOnly=true
+  ---
+  duration_ms: 630.593708
+  type: 'test'
+  ...
+# Subtest: bearer spelling and whitespace guard every door; readOnly=false
+ok 9 - bearer spelling and whitespace guard every door; readOnly=false
+  ---
+  duration_ms: 696.88344
+  type: 'test'
+  ...
+# Subtest: malformed and invalid credentials cannot become anonymous dev writes
+ok 10 - malformed and invalid credentials cannot become anonymous dev writes
+  ---
+  duration_ms: 650.522643
+  type: 'test'
+  ...
+# Subtest: stale Bob logout fences another Bob login after an epoch change; readOnly=true
+ok 11 - stale Bob logout fences another Bob login after an epoch change; readOnly=true
+  ---
+  duration_ms: 1348.931259
+  type: 'test'
+  ...
+# Subtest: stale Bob logout fences another Bob login after an epoch change; readOnly=false
+ok 12 - stale Bob logout fences another Bob login after an epoch change; readOnly=false
+  ---
+  duration_ms: 1365.826717
+  type: 'test'
+  ...
+# Subtest: Bob logout preserves Alice and fences Bob's in-flight return; readOnly=true
+ok 13 - Bob logout preserves Alice and fences Bob's in-flight return; readOnly=true
+  ---
+  duration_ms: 1717.735475
+  type: 'test'
+  ...
+# Subtest: Bob logout preserves Alice and fences Bob's in-flight return; readOnly=false
+ok 14 - Bob logout preserves Alice and fences Bob's in-flight return; readOnly=false
+  ---
+  duration_ms: 1685.922537
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12293.845736
+-- process inspection: {"snapshots":3,"unrelatedRows":3560}
+-- client file ok: packages/snapback4/test/read-only-round4.test.mjs (12570 ms)
+-- client file start: packages/snapback4/test/read-only-round5.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: logout after peer refresh attempt; readOnly=true
+ok 1 - logout after peer refresh attempt; readOnly=true
+  ---
+  duration_ms: 598.105745
+  type: 'test'
+  ...
+# Subtest: peer refresh attempt then logout fences a pending login; readOnly=true
+ok 2 - peer refresh attempt then logout fences a pending login; readOnly=true
+  ---
+  duration_ms: 886.852209
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for same principal, new epoch; readOnly=true
+ok 3 - stale logout follows principal ruling for same principal, new epoch; readOnly=true
+  ---
+  duration_ms: 943.09476
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for different principal; readOnly=true
+ok 4 - stale logout follows principal ruling for different principal; readOnly=true
+  ---
+  duration_ms: 967.017742
+  type: 'test'
+  ...
+# Subtest: committed login stays successful across logout without public adoption; readOnly=true
+ok 5 - committed login stays successful across logout without public adoption; readOnly=true
+  ---
+  duration_ms: 832.509859
+  type: 'test'
+  ...
+# Subtest: logout after peer refresh attempt; readOnly=false
+ok 6 - logout after peer refresh attempt; readOnly=false
+  ---
+  duration_ms: 578.304624
+  type: 'test'
+  ...
+# Subtest: peer refresh attempt then logout fences a pending login; readOnly=false
+ok 7 - peer refresh attempt then logout fences a pending login; readOnly=false
+  ---
+  duration_ms: 854.199252
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for same principal, new epoch; readOnly=false
+ok 8 - stale logout follows principal ruling for same principal, new epoch; readOnly=false
+  ---
+  duration_ms: 923.261771
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for different principal; readOnly=false
+ok 9 - stale logout follows principal ruling for different principal; readOnly=false
+  ---
+  duration_ms: 984.725639
+  type: 'test'
+  ...
+# Subtest: committed login stays successful across logout without public adoption; readOnly=false
+ok 10 - committed login stays successful across logout without public adoption; readOnly=false
+  ---
+  duration_ms: 894.057793
+  type: 'test'
+  ...
+# Subtest: a read peer stays usable after both clients refuse refresh
+ok 11 - a read peer stays usable after both clients refuse refresh
+  ---
+  duration_ms: 570.720697
+  type: 'test'
+  ...
+# Subtest: full-session ordinary peer rejection preserves the completed successor
+ok 12 - full-session ordinary peer rejection preserves the completed successor
+  ---
+  duration_ms: 662.474841
+  type: 'test'
+  ...
+# Subtest: full-session late predecessor rejection preserves the committed successor
+ok 13 - full-session late predecessor rejection preserves the committed successor
+  ---
+  duration_ms: 564.093342
+  type: 'test'
+  ...
+# Subtest: malformed stored JSON is collected; readOnly=true
+ok 14 - malformed stored JSON is collected; readOnly=true
+  ---
+  duration_ms: 450.240311
+  type: 'test'
+  ...
+# Subtest: malformed stored JSON is collected; readOnly=false
+ok 15 - malformed stored JSON is collected; readOnly=false
+  ---
+  duration_ms: 453.00769
+  type: 'test'
+  ...
+# Subtest: logout honors the legacy committed epoch; readOnly=true
+ok 16 - logout honors the legacy committed epoch; readOnly=true
+  ---
+  duration_ms: 432.856012
+  type: 'test'
+  ...
+# Subtest: logout honors the legacy committed epoch; readOnly=false
+ok 17 - logout honors the legacy committed epoch; readOnly=false
+  ---
+  duration_ms: 470.341534
+  type: 'test'
+  ...
+# Subtest: logout owns the unchanged credential after two peer refresh refusals
+ok 18 - logout owns the unchanged credential after two peer refresh refusals
+  ---
+  duration_ms: 584.458862
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12760.780193
+-- process inspection: {"snapshots":3,"unrelatedRows":3557}
+-- client file ok: packages/snapback4/test/read-only-peer-rotation.test.mjs (13047 ms)
+-- client file start: packages/snapback4/test/read-only-round7.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: offline direct refuses server-valid read credential, padded=false
+ok 1 - offline direct refuses server-valid read credential, padded=false
+  ---
+  duration_ms: 574.248686
+  type: 'test'
+  ...
+# Subtest: offline direct refuses server-valid read credential, padded=true
+ok 2 - offline direct refuses server-valid read credential, padded=true
+  ---
+  duration_ms: 553.761255
+  type: 'test'
+  ...
+# Subtest: offline restored refuses server-valid read credential, padded=false
+ok 3 - offline restored refuses server-valid read credential, padded=false
+  ---
+  duration_ms: 557.40716
+  type: 'test'
+  ...
+# Subtest: offline restored refuses server-valid read credential, padded=true
+ok 4 - offline restored refuses server-valid read credential, padded=true
+  ---
+  duration_ms: 559.813738
+  type: 'test'
+  ...
+# Subtest: offline app refuses server-valid read credential, padded=false
+ok 5 - offline app refuses server-valid read credential, padded=false
+  ---
+  duration_ms: 538.275081
+  type: 'test'
+  ...
+# Subtest: offline app refuses server-valid read credential, padded=true
+ok 6 - offline app refuses server-valid read credential, padded=true
+  ---
+  duration_ms: 540.238673
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=true padded=false scope=read
+ok 7 - token-only expiry readOnly=true padded=false scope=read
+  ---
+  duration_ms: 4.591293
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=true padded=false scope=full
+ok 8 - token-only expiry readOnly=true padded=false scope=full
+  ---
+  duration_ms: 1.229784
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=true padded=false scope=undefined
+ok 9 - token-only expiry readOnly=true padded=false scope=undefined
+  ---
+  duration_ms: 1.209023
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=true padded=true scope=read
+ok 10 - token-only expiry readOnly=true padded=true scope=read
+  ---
+  duration_ms: 1.331907
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=true padded=true scope=full
+ok 11 - token-only expiry readOnly=true padded=true scope=full
+  ---
+  duration_ms: 1.081361
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=true padded=true scope=undefined
+ok 12 - token-only expiry readOnly=true padded=true scope=undefined
+  ---
+  duration_ms: 1.006348
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=false padded=false scope=read
+ok 13 - token-only expiry readOnly=false padded=false scope=read
+  ---
+  duration_ms: 1.194932
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=false padded=false scope=full
+ok 14 - token-only expiry readOnly=false padded=false scope=full
+  ---
+  duration_ms: 0.952448
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=false padded=false scope=undefined
+ok 15 - token-only expiry readOnly=false padded=false scope=undefined
+  ---
+  duration_ms: 1.098637
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=false padded=true scope=read
+ok 16 - token-only expiry readOnly=false padded=true scope=read
+  ---
+  duration_ms: 1.072357
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=false padded=true scope=full
+ok 17 - token-only expiry readOnly=false padded=true scope=full
+  ---
+  duration_ms: 0.851516
+  type: 'test'
+  ...
+# Subtest: token-only expiry readOnly=false padded=true scope=undefined
+ok 18 - token-only expiry readOnly=false padded=true scope=undefined
+  ---
+  duration_ms: 0.838156
+  type: 'test'
+  ...
+# Subtest: padded session explicit refresh preserves asset credentials and bearer
+ok 19 - padded session explicit refresh preserves asset credentials and bearer
+  ---
+  duration_ms: 3.947006
+  type: 'test'
+  ...
+# Subtest: padded token explicit refresh preserves asset credentials and bearer
+ok 20 - padded token explicit refresh preserves asset credentials and bearer
+  ---
+  duration_ms: 0.909263
+  type: 'test'
+  ...
+# Subtest: padded near-expiry startup schedules expiry without attempting refresh
+ok 21 - padded near-expiry startup schedules expiry without attempting refresh
+  ---
+  duration_ms: 1.568983
+  type: 'test'
+  ...
+# Subtest: read-token recognition uses the server ASCII whitespace set, not JavaScript trim
+ok 22 - read-token recognition uses the server ASCII whitespace set, not JavaScript trim
+  ---
+  duration_ms: 1.647339
+  type: 'test'
+  ...
+# Subtest: padded full sessions still refresh automatically and explicitly
+ok 23 - padded full sessions still refresh automatically and explicitly
+  ---
+  duration_ms: 1.906038
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3477.321304
+-- process inspection: {"snapshots":3,"unrelatedRows":3543}
+-- client file ok: packages/snapback4/test/read-only-round7.test.mjs (3767 ms)
+-- client file start: packages/snapback4/test/read-only-server.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online keep: 1.15 s replies publish on the incomplete 1 s cadence (active)
+ok 1 - online keep: 1.15 s replies publish on the incomplete 1 s cadence (active)
+  ---
+  duration_ms: 2461.823082
+  type: 'test'
+  ...
+# Subtest: online keep: 1.15 s replies publish on the incomplete 1 s cadence (lingering)
+ok 2 - online keep: 1.15 s replies publish on the incomplete 1 s cadence (lingering)
+  ---
+  duration_ms: 2430.384407
+  type: 'test'
+  ...
+# Subtest: online: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+ok 3 - online: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+  ---
+  duration_ms: 4434.450792
+  type: 'test'
+  ...
+# mutation reply 5.8 ms; publication after reply 3.3 ms; old elapsed 16.6 ms
+# Subtest: online: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+ok 4 - online: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+  ---
+  duration_ms: 4382.749677
+  type: 'test'
+  ...
+# request cadence 1000.6 ms; delayed response gap 101.5 ms
+# Subtest: wasm: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+ok 5 - wasm: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+  ---
+  duration_ms: 4865.238669
+  type: 'test'
+  ...
+# mutation reply 4.1 ms; publication after reply 8.0 ms; old elapsed 14.2 ms
+# Subtest: wasm: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+ok 6 - wasm: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+  ---
+  duration_ms: 5394.513928
+  type: 'test'
+  ...
+# request cadence 999.8 ms; delayed response gap 99.9 ms
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24086.528924
+-- process inspection: {"snapshots":3,"unrelatedRows":3549}
+-- client file ok: packages/snapback4/test/ephemeral-watches.test.mjs (24361 ms)
+-- client file start: packages/snapback4/test/read-only.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: held probe gates near-expiry startup, query, observe, asset, refresh and exported sources
+ok 1 - held probe gates near-expiry startup, query, observe, asset, refresh and exported sources
+  ---
+  duration_ms: 50.367944
+  type: 'test'
+  ...
+# Subtest: scope unsupported refuses forged Session.scope
+ok 2 - scope unsupported refuses forged Session.scope
+  ---
+  duration_ms: 1.186068
+  type: 'test'
+  ...
+# Subtest: scope full refuses forged Session.scope
+ok 3 - scope full refuses forged Session.scope
+  ---
+  duration_ms: 0.715703
+  type: 'test'
+  ...
+# Subtest: local write refusals, no manifest acceptance and no at-cap automatic rotation
+ok 4 - local write refusals, no manifest acceptance and no at-cap automatic rotation
+  ---
+  duration_ms: 354.06428
+  type: 'test'
+  ...
+# Subtest: explicit refresh leaves the verified bearer and asset source unchanged
+ok 5 - explicit refresh leaves the verified bearer and asset source unchanged
+  ---
+  duration_ms: 1.186268
+  type: 'test'
+  ...
+# Subtest: successful custody is SecureStore-legal and cannot consume the interactive journal
+ok 6 - successful custody is SecureStore-legal and cannot consume the interactive journal
+  ---
+  duration_ms: 6.914395
+  type: 'test'
+  ...
+# Subtest: failed app startup preserves full credentials without retirement
+ok 7 - failed app startup preserves full credentials without retirement
+  ---
+  duration_ms: 1.823143
+  type: 'test'
+  ...
+# Subtest: offline device admission rejects token with scope undefined
+ok 8 - offline device admission rejects token with scope undefined
+  ---
+  duration_ms: 2.645676
+  type: 'test'
+  ...
+# Subtest: offline device admission rejects token with scope full
+ok 9 - offline device admission rejects token with scope full
+  ---
+  duration_ms: 0.600691
+  type: 'test'
+  ...
+# Subtest: offline device admission rejects token with scope forged
+ok 10 - offline device admission rejects token with scope forged
+  ---
+  duration_ms: 0.66662
+  type: 'test'
+  ...
+# Subtest: legacy preservation, synchronous option validation and scoped auth helpers
+ok 11 - legacy preservation, synchronous option validation and scoped auth helpers
+  ---
+  duration_ms: 0.889353
+  type: 'test'
+  ...
+# Subtest: useSeen throws during an active render before observation; inactive rendering is legal
+ok 12 - useSeen throws during an active render before observation; inactive rendering is legal
+  ---
+  duration_ms: 26.287997
+  type: 'test'
+  ...
+# Subtest: read session expires without renewal (cap offset undefined)
+ok 13 - read session expires without renewal (cap offset undefined)
+  ---
+  duration_ms: 102.667694
+  type: 'test'
+  ...
+# Subtest: read session expires without renewal (cap offset 0)
+ok 14 - read session expires without renewal (cap offset 0)
+  ---
+  duration_ms: 102.642105
+  type: 'test'
+  ...
+# Subtest: read session expires without renewal (cap offset 86400000)
+ok 15 - read session expires without renewal (cap offset 86400000)
+  ---
+  duration_ms: 101.983098
+  type: 'test'
+  ...
+# Subtest: read bearer never auto-refreshes even below cap; readOnly=true
+ok 16 - read bearer never auto-refreshes even below cap; readOnly=true
+  ---
+  duration_ms: 31.658137
+  type: 'test'
+  ...
+# Subtest: read bearer never auto-refreshes even below cap; readOnly=false
+ok 17 - read bearer never auto-refreshes even below cap; readOnly=false
+  ---
+  duration_ms: 30.583196
+  type: 'test'
+  ...
+# Subtest: legacy full session restores offline and rejects a read successor before persistence
+ok 18 - legacy full session restores offline and rejects a read successor before persistence
+  ---
+  duration_ms: 1007.346433
+  type: 'test'
+  ...
+# Subtest: device guest refuses a read credential before opening or persisting
+ok 19 - device guest refuses a read credential before opening or persisting
+  ---
+  duration_ms: 0.655133
+  type: 'test'
+  ...
+# Subtest: device refresh refuses a read credential before opening or persisting
+ok 20 - device refresh refuses a read credential before opening or persisting
+  ---
+  duration_ms: 0.296354
+  type: 'test'
+  ...
+# Subtest: refused read refresh cannot issue a late successor after signOut
+ok 21 - refused read refresh cannot issue a late successor after signOut
+  ---
+  duration_ms: 0.632779
+  type: 'test'
+  ...
+# Subtest: refused read refresh cannot issue a late successor after close
+ok 22 - refused read refresh cannot issue a late successor after close
+  ---
+  duration_ms: 0.27362
+  type: 'test'
+  ...
+# Subtest: crossing the automatic refresh window never rotates a read session (missing)
+ok 23 - crossing the automatic refresh window never rotates a read session (missing)
+  ---
+  duration_ms: 1.320589
+  type: 'test'
+  ...
+# Subtest: crossing the automatic refresh window never rotates a read session (at expiry)
+ok 24 - crossing the automatic refresh window never rotates a read session (at expiry)
+  ---
+  duration_ms: 0.524026
+  type: 'test'
+  ...
+# Subtest: crossing the automatic refresh window never rotates a read session (later)
+ok 25 - crossing the automatic refresh window never rotates a read session (later)
+  ---
+  duration_ms: 0.443394
+  type: 'test'
+  ...
+# Subtest: retryable scope-probe failures never create a successor or trigger refresh recovery
+ok 26 - retryable scope-probe failures never create a successor or trigger refresh recovery
+  ---
+  duration_ms: 0.765918
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1940.100508
+-- process inspection: {"snapshots":3,"unrelatedRows":3556}
+-- client file ok: packages/snapback4/test/read-only.test.mjs (2226 ms)
+-- client file start: packages/snapback4/test/readme-examples.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: no read rotation: read before dispatch, refresh first
+ok 1 - no read rotation: read before dispatch, refresh first
+  ---
+  duration_ms: 678.993163
+  type: 'test'
+  ...
+# Subtest: no read rotation: read before dispatch, peer first
+ok 2 - no read rotation: read before dispatch, peer first
+  ---
+  duration_ms: 584.835567
+  type: 'test'
+  ...
+# Subtest: no read rotation: read response, refresh first
+ok 3 - no read rotation: read response, refresh first
+  ---
+  duration_ms: 572.427036
+  type: 'test'
+  ...
+# Subtest: no read rotation: read response, peer first
+ok 4 - no read rotation: read response, peer first
+  ---
+  duration_ms: 555.509034
+  type: 'test'
+  ...
+# Subtest: no read rotation: restart probe, refresh first
+ok 5 - no read rotation: restart probe, refresh first
+  ---
+  duration_ms: 568.618316
+  type: 'test'
+  ...
+# Subtest: no read rotation: restart probe, peer first
+ok 6 - no read rotation: restart probe, peer first
+  ---
+  duration_ms: 560.00835
+  type: 'test'
+  ...
+# Subtest: no read rotation: close waiting reader, refresh first
+ok 7 - no read rotation: close waiting reader, refresh first
+  ---
+  duration_ms: 553.994736
+  type: 'test'
+  ...
+# Subtest: no read rotation: close waiting reader, peer first
+ok 8 - no read rotation: close waiting reader, peer first
+  ---
+  duration_ms: 199.790787
+  type: 'test'
+  ...
+# Subtest: logout cancels a held read after refresh refusal: waiting peer
+ok 9 - logout cancels a held read after refresh refusal: waiting peer
+  ---
+  duration_ms: 209.739831
+  type: 'test'
+  ...
+# Subtest: logout cancels a held read after refresh refusal: third app
+ok 10 - logout cancels a held read after refresh refusal: third app
+  ---
+  duration_ms: 224.419236
+  type: 'test'
+  ...
+# Subtest: 24 account switches bound sign-out watermarks; readOnly=true
+ok 11 - 24 account switches bound sign-out watermarks; readOnly=true
+  ---
+  duration_ms: 1330.02919
+  type: 'test'
+  ...
+# Subtest: 24 account switches bound sign-out watermarks; readOnly=false
+ok 12 - 24 account switches bound sign-out watermarks; readOnly=false
+  ---
+  duration_ms: 1451.725449
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7624.222053
+-- process inspection: {"snapshots":3,"unrelatedRows":3560}
+-- client file ok: packages/snapback4/test/read-only-round5.test.mjs (7920 ms)
+TAP version 13
+# Subtest: README TypeScript examples compile and call every public function
+ok 1 - README TypeScript examples compile and call every public function
+  ---
+  duration_ms: 2628.807888
+  type: 'test'
+  ...
+# 42 README blocks; 56 public functions; 2626.35 ms
+# Subtest: Queries teach predicate reads and engine-chosen scope lanes
+ok 2 - Queries teach predicate reads and engine-chosen scope lanes
+  ---
+  duration_ms: 9.251388
+  type: 'test'
+  ...
+# Subtest: Expo Go README session store preserves encoded SecureStore keys and round-trips a session
+ok 3 - Expo Go README session store preserves encoded SecureStore keys and round-trips a session
+  ---
+  duration_ms: 14.35614
+  type: 'test'
+  ...
+# Subtest: W9a expiry client form drops deadlines locally and keeps null lifetimes
+ok 4 - W9a expiry client form drops deadlines locally and keeps null lifetimes
+  ---
+  duration_ms: 9.901183
+  type: 'test'
+  ...
+# Subtest: W10b typing guidance hides a short-lived server answer before the next answer
+ok 5 - W10b typing guidance hides a short-lived server answer before the next answer
+  ---
+  duration_ms: 7.597529
+  type: 'test'
+  ...
+# Subtest: client card composer clears at submit and offers refused text without replacing edits
+ok 6 - client card composer clears at submit and offers refused text without replacing edits
+  ---
+  duration_ms: 31.691107
+  type: 'test'
+  ...
+# Subtest: client card composer disables only denied or fresh non-revalidating absent membership
+ok 7 - client card composer disables only denied or fresh non-revalidating absent membership
+  ---
+  duration_ms: 16.388267
+  type: 'test'
+  ...
+# Subtest: profile screen waits for proven existence and uses each replacement
+ok 8 - profile screen waits for proven existence and uses each replacement
+  ---
+  duration_ms: 2.562571
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3196.203623
+-- process inspection: {"snapshots":3,"unrelatedRows":3567}
+-- client file ok: packages/snapback4/test/readme-examples.test.mjs (3476 ms)
+TAP version 13
+# Subtest: ephemeral typing: five real-server trials beside a durable typing control
+ok 1 - ephemeral typing: five real-server trials beside a durable typing control
+  ---
+  duration_ms: 63336.447087
+  type: 'test'
+  ...
+# {"trial":1,"ephemeralEmptyAfterLastMs":4024.435,"ephemeralFirstMs":38.335,"ephemeralGoneAfterLastMs":3820.354,"ephemeralRequests":2,"durableFirstMs":63.85,"durableGoneAfterLastMs":4034.859,"durableRequests":45}
+# {"trial":2,"ephemeralEmptyAfterLastMs":4003.768,"ephemeralFirstMs":11.122,"ephemeralGoneAfterLastMs":3800.491,"ephemeralRequests":2,"durableFirstMs":42.345,"durableGoneAfterLastMs":4042.897,"durableRequests":45}
+# {"trial":3,"ephemeralEmptyAfterLastMs":4025.009,"ephemeralFirstMs":12.063,"ephemeralGoneAfterLastMs":3824.3,"ephemeralRequests":2,"durableFirstMs":38.266,"durableGoneAfterLastMs":4071.621,"durableRequests":45}
+# {"trial":4,"ephemeralEmptyAfterLastMs":4003.38,"ephemeralFirstMs":10.194,"ephemeralGoneAfterLastMs":3801.249,"ephemeralRequests":2,"durableFirstMs":40.536,"durableGoneAfterLastMs":4061.177,"durableRequests":45}
+# {"trial":5,"ephemeralEmptyAfterLastMs":4025.043,"ephemeralFirstMs":8.433,"ephemeralGoneAfterLastMs":3824.087,"ephemeralRequests":2,"durableFirstMs":40.481,"durableGoneAfterLastMs":4005.568,"durableRequests":45}
+# EPHEMERAL_ACCEPTANCE=[{"trial":1,"ephemeralEmptyAfterLastMs":4024.435,"ephemeralFirstMs":38.335,"ephemeralGoneAfterLastMs":3820.354,"ephemeralRequests":2,"durableFirstMs":63.85,"durableGoneAfterLastMs":4034.859,"durableRequests":45},{"trial":2,"ephemeralEmptyAfterLastMs":4003.768,"ephemeralFirstMs":11.122,"ephemeralGoneAfterLastMs":3800.491,"ephemeralRequests":2,"durableFirstMs":42.345,"durableGoneAfterLastMs":4042.897,"durableRequests":45},{"trial":3,"ephemeralEmptyAfterLastMs":4025.009,"ephemeralFirstMs":12.063,"ephemeralGoneAfterLastMs":3824.3,"ephemeralRequests":2,"durableFirstMs":38.266,"durableGoneAfterLastMs":4071.621,"durableRequests":45},{"trial":4,"ephemeralEmptyAfterLastMs":4003.38,"ephemeralFirstMs":10.194,"ephemeralGoneAfterLastMs":3801.249,"ephemeralRequests":2,"durableFirstMs":40.536,"durableGoneAfterLastMs":4061.177,"durableRequests":45},{"trial":5,"ephemeralEmptyAfterLastMs":4025.043,"ephemeralFirstMs":8.433,"ephemeralGoneAfterLastMs":3824.087,"ephemeralRequests":2,"durableFirstMs":40.481,"durableGoneAfterLastMs":4005.568,"durableRequests":45}]
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 63486.35875
+-- process inspection: {"snapshots":3,"unrelatedRows":3491}
+-- client file ok: packages/snapback4/test/ephemeral-e2e.test.mjs (63770 ms)
+TAP version 13
+# (node:2221944) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Phase-2 oracle: fresh read-only Bob login and generated pagination leave delivery unchanged; live ephemeral adoption converges
+ok 1 - Phase-2 oracle: fresh read-only Bob login and generated pagination leave delivery unchanged; live ephemeral adoption converges
+  ---
+  duration_ms: 833.006318
+  type: 'test'
+  ...
+# Subtest: previous published binary refuses migrated read credentials and logoutAll survives re-upgrade
+ok 2 - previous published binary refuses migrated read credentials and logoutAll survives re-upgrade # SKIP set SNAPBACK4_PREVIOUS_PUBLISHED_BIN to the verified npm 0.4.13 binary
+  ---
+  duration_ms: 0.144006
+  type: 'test'
+  ...
+# Subtest: forbidden reads leave no transient row, ephemeral write, provider call or poisoned id; full sibling executes fresh
+ok 3 - forbidden reads leave no transient row, ephemeral write, provider call or poisoned id; full sibling executes fresh
+  ---
+  duration_ms: 24257.60452
+  type: 'test'
+  ...
+# Subtest: later sign-ins collect read families expired across repeated eight-day advances
+ok 4 - later sign-ins collect read families expired across repeated eight-day advances
+  ---
+  duration_ms: 348.015346
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 25566.335737
+-- process inspection: {"snapshots":3,"unrelatedRows":3468}
+-- client file ok: packages/snapback4/test/read-only-server.test.mjs (25834 ms)
+-- client files: 27/27; failed 0; tests {"tests":251,"pass":250,"fail":0,"cancelled":0,"skipped":1,"todo":0}

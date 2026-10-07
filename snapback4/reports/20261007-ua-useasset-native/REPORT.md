@@ -1,5 +1,22 @@
 # UA — ordinary native images and visible asset waits
 
+## Round 4 — merge current main, 2026-10-07
+
+Merged `b14888f763` into the READY UA lane `9ab49c9de8`, preserving OA's
+originating-arm dispatch fence, read-only verification/guards and all native
+asset/wait fixes. Both journal histories are retained; the P3 evidence
+clarification is folded verbatim into the closed issue, with the open copy
+still deleted. The two delivery-record conflicts preserve both rationales and
+the combined 62-await client seal. Details: [round-4 merge report](round4/REPORT.md).
+
+Requested suites: **884 passed**, one labelled optional published-binary skip;
+guide **113 passed**, typechecks/builds pass. Full suite completed: **6,670 client
+passes**, 55 labelled skips, **79 model passes**. Its witness cleanup failure and
+TMPDIR scratch-control failure both pass complete scoped reruns; this is not a
+single-green-run receipt. Wasm is unchanged at 645,264 B gzip with the same SHA-256.
+The report preserves the full run, reruns and source comparisons. Local merge
+commit only, no push; operator iOS Release recheck remains pending.
+
 ## Round 3 — wait explanations survive React batching, 2026-10-07
 
 Base `df8ec3e6fae9a416f67556369cbbf1ab0af2a543`, same UA branch/worktree on
@@ -95,7 +112,7 @@ CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
 
 Ran `./ref-check --verbose` at the repository root. Reused this lane's existing
 CLI/wasm prerequisites. The operator fixture labels now identify round 3;
-[Release recheck steps](#repeating-the-fixture--operators-round-3-recheck) still
+[Release recheck steps](#repeating-the-fixture--operators-round-4-recheck) still
 require stock native conversion and separately recorded image-load evidence.
 
 ## Round 2 — sealed responses and bounded wait explanations, 2026-10-07
@@ -371,7 +388,7 @@ included to connect the observations. The Debug screenshot includes Expo's
 first-run developer-menu overlay; the app's ready state and image are visible
 behind it, and the image-load event supplies the independent render observation.
 
-### Repeating the fixture — operator's round-3 recheck
+### Repeating the fixture — operator's round-4 recheck
 
 The small [schema](repro/schema.q), [Expo app](repro/ExpoApp.tsx),
 [web app](repro/WebApp.tsx), [dependency pins](repro/expo-package.json),
@@ -431,12 +448,12 @@ config JSON inside Metro's app root. Successful build log sizes/hashes are in
 `target/ua/` in this worktree.
 
 The retained fixture now reads optional `mode` from `ua-config.json` and labels
-traces `release-r3-<mode>` or `debug-r3-<mode>`. Rebuild Release after changing
+traces `release-r4-<mode>` or `debug-r4-<mode>`. Rebuild Release after changing
 config/mode, and uninstall/reinstall the app between cases to clear its media
 store. The proxy writes `mode` from `UA_MODE` (default `ordinary`); it can also
 deliver successful asset bodies in twelve chunks with `UA_CHUNK_MS=500`.
 
-| Operator case | Expected round-3 result |
+| Operator case | Expected round-4 result |
 | --- | --- |
 | `ordinary` | One GET/206, ready and image-load; online throughout. |
 | `ordinary` with `UA_CHUNK_MS=500` on the proxy | Six-second healthy transfer, no E_ASSET_WAIT, ready/image-load and one GET. Native opaque conversion exposes stage/known total, not fabricated received bytes. |
@@ -453,7 +470,7 @@ the Node regressions above execute Expo's **actual** duplicate-module fallback
 and injected native-store conversion. Do not describe a fixture injection as
 a second observed stock iOS defect. Return to `ordinary` for the final Release
 success record. Stop only owned server PIDs and shut down/delete only the run's
-owned simulator afterward. Round-3 operator results are not yet present here.
+owned simulator afterward. Round-4 operator results are not yet present here.
 
 Retain complete hook waiting objects in the trace, including any
 `waiting.interrupted` snapshot during backoff. The busy-thread streaming cases

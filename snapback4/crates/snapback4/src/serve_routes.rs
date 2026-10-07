@@ -47,11 +47,11 @@ fn pause(shared: &Shared, deadline: Instant) {
 /// Bearer sessions are valid on declared public routes even in dev. Personas
 /// still pass through the full loopback Host/Origin/peer checks.
 fn principal(request: &Request, shared: &Shared) -> Result<String, Refusal> {
-    if !matches!(single_header(request, "x-snapback-persona"), Ok(None)) { return principal_of(request, shared); }
+    if !matches!(single_header(request, "x-snapback-persona"), Ok(None)) { return principal_of(request, shared).map(|c| c.0); }
     let token = crate::auth::bearer_token(request).map_err(|e| e.refusal())?;
     let engine = lock(&shared.engine);
     snapback4_core::identity::resolve_supervised(engine.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }).map_err(|e| e.refusal())?
-        .map(|(principal, _)| principal).ok_or_else(|| Refusal::new("E_AUTH", "auth", "a session route requires a live bearer session").guide("routes"))
+        .map(|(principal, _, _)| principal).ok_or_else(|| Refusal::new("E_AUTH", "auth", "a session route requires a live bearer session").guide("routes"))
 }
 
 // @ref LLP 3000.009#5.1 — every provider delivery verifies before durable admission or result collection.

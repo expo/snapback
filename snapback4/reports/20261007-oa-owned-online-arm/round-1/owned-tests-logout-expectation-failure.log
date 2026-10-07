@@ -1,0 +1,51 @@
+✔ device: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (769.499583ms)
+✔ device: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (185.409595ms)
+✔ device: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (187.159398ms)
+✔ device: account fences cached arms, observations and late server data (261.054727ms)
+✔ device: logout fences cached arms, observations and late server data (142.47636ms)
+✔ device: close fences cached arms, observations and late server data (210.813686ms)
+✔ device: offline drops signals, refuses snapshots/actions; observed reads recover without replay (186.516224ms)
+✔ device: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (97.133612ms)
+✔ device: failed account opening restores a new arm without reviving the old exposed handle (188.195852ms)
+✔ online: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (177.252053ms)
+✔ online: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (181.157168ms)
+✔ online: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (176.815589ms)
+✔ online: account fences cached arms, observations and late server data (187.751686ms)
+✔ online: logout fences cached arms, observations and late server data (83.705659ms)
+✔ online: close fences cached arms, observations and late server data (184.463516ms)
+✔ online: offline drops signals, refuses snapshots/actions; observed reads recover without replay (172.52804ms)
+✔ online: no-device app reuses its own client (readOnly=false) and obeys shared logout (166.91222ms)
+✔ online: no-device app reuses its own client (readOnly=true) and obeys shared logout (179.36377ms)
+✖ online: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (75.836419ms)
+✔ online: failed account opening restores a new arm without reviving the old exposed handle (161.468076ms)
+✔ retirement bounds an unresponsive action drain and preserves its pending ID (1.370204ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 20
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4116.542645
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-online-arm.test.mjs:48:38
+✖ online: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (75.836419ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'E_CLOSED'
+  - 'E_AUTH'
+       ^
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/app-online-arm.test.mjs:192:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_CLOSED',
+    expected: 'E_AUTH',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

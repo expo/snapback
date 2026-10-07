@@ -1,0 +1,35 @@
+{
+  "baseline": "ce5793386d",
+  "current": "3c8b06f2e80457d3cb4808f42219c62906e0157a",
+  "toolchain": "pinned Vite 8 / oxc, es2022, gzip-9",
+  "tiers": {
+    "online": {
+      "before": {
+        "raw": 154818,
+        "gzip": 43681
+      },
+      "after": {
+        "raw": 153725,
+        "gzip": 43408
+      },
+      "removed": {
+        "raw": 1093,
+        "gzip": 273
+      }
+    },
+    "app": {
+      "before": {
+        "raw": 353719,
+        "gzip": 98308
+      },
+      "after": {
+        "raw": 349916,
+        "gzip": 97513
+      },
+      "removed": {
+        "raw": 3803,
+        "gzip": 795
+      }
+    }
+  }
+}

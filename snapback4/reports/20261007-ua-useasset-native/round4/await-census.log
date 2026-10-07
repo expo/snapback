@@ -1,0 +1,13 @@
+[
+  {
+    "file": "client.ts",
+    "before": {
+      "count": 62,
+      "sha256": "ad440d009d0719c4d3007f615e98565cf876fac8a1c764fdf7d7c4dd9544bc36"
+    },
+    "after": {
+      "count": 62,
+      "sha256": "cf7b96199ada7099e3850138348ce2e7111719077ac10586cd418167b812669d"
+    }
+  }
+]

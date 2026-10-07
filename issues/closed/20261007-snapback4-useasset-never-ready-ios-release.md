@@ -1,7 +1,7 @@
 # Snapback 4: useAsset never became ready for an ordinary image in an iOS Release app
 
 **Opened:** 2026-10-07, from the native Phase-2 rerun (LLP 0201.000, native.2)
-**Status:** Resolved in Lane UA; round-3 review corrections verified on eb1000 (not yet published); operator iOS Release recheck pending
+**Status:** Resolved in Lane UA; round-4 merge with main qualified on eb1000 (not yet published); operator iOS Release recheck pending
 **Area:** `snapback4-expo` / `snapback4` asset hooks (`useAsset`) on iOS Release builds
 **Related:** LLP 0201.000; the pilot packet on the Apartment mini, `~/clique-native-pilot2-20261006-round2`, which holds `results/snapback4/attempt-02/m6` and `attempt-03/m8`, plus `preparation/revision10/DIAGNOSIS.md`
 
@@ -27,6 +27,14 @@ A silent wait with no request and no refusal looks like a product problem whiche
 1. Reproduce with a minimal Expo Release app on the simulator: a seeded ordinary image, rendered through `useAsset`.
 2. Instrument the hook's state transitions.
 3. Fix it, or add a diagnostic that names the blocking precondition.
+
+## P3 Round 2 evidence clarification
+
+The complete retained videos and all native trees corroborate the missing ready
+render branch in both segments. The logs contain no asset request/error trace,
+but they are not a complete HTTP trace. Their silence does not prove that no
+fetch occurred. The hook's exact state and the responsible SDK/app precondition
+remain unestablished; the next reproduction must observe them directly.
 
 ## Resolution — 2026-10-07, Lane UA
 
@@ -126,3 +134,19 @@ between callbacks. Existing act-separated and opaque-expiry cases remain and
 also assert that backoff retains the earlier explanation. The report records
 requested suite results and current Release recheck steps. No simulator or
 other host was used; the operator's iOS recheck remains pending. Nothing pushed.
+
+## Round-4 integration — 2026-10-07, eb1000
+
+Merged main b14888f763 into the READY UA lane. Preserve read-only scope
+verification before the progress-aware asset reader and verified-only asset
+credential export; all other shared client code retains main's owned-arm
+fences/read-only guards. Both journal histories and the P3 Round 2 evidence
+clarification above are retained. The open issue remains deleted.
+
+Requested Node suites pass 884 tests (one optional published-binary skip),
+guide passes 113, and typechecks/builds pass. The full suite completes with
+6,670 client passes and 79 model passes; an unchanged witness cleanup failure
+and a scratch TMPDIR setup failure pass their complete scoped reruns. The
+[round-4 report](../../snapback4/reports/20261007-ua-useasset-native/round4/REPORT.md)
+retains those failures and qualification limits. Wasm bytes are unchanged.
+No push, publication or new iOS run; the operator's Release recheck is pending.

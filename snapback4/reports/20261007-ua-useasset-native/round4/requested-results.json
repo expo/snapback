@@ -1,0 +1,290 @@
+[
+  {
+    "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "milliseconds": 7463,
+    "counts": {
+      "tests": 64,
+      "pass": 64,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-buffered.test.mjs",
+    "milliseconds": 7643,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-pressure.test.mjs",
+    "milliseconds": 7533,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-retry.test.mjs",
+    "milliseconds": 11503,
+    "counts": {
+      "tests": 38,
+      "pass": 38,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/react.test.mjs",
+    "milliseconds": 4425,
+    "counts": {
+      "tests": 70,
+      "pass": 70,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-types.test.mjs",
+    "milliseconds": 9841,
+    "counts": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/app-online-arm.test.mjs",
+    "milliseconds": 6449,
+    "counts": {
+      "tests": 32,
+      "pass": 32,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-allocation.test.mjs",
+    "milliseconds": 618,
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-custody-races.test.mjs",
+    "milliseconds": 514,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-custody-server.test.mjs",
+    "milliseconds": 891,
+    "counts": {
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-custody.test.mjs",
+    "milliseconds": 437,
+    "counts": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-peer-rotation.test.mjs",
+    "milliseconds": 3637,
+    "counts": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-round4.test.mjs",
+    "milliseconds": 3496,
+    "counts": {
+      "tests": 14,
+      "pass": 14,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-round5.test.mjs",
+    "milliseconds": 5694,
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-round7.test.mjs",
+    "milliseconds": 1556,
+    "counts": {
+      "tests": 23,
+      "pass": 23,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-avatars.test.mjs",
+    "milliseconds": 65105,
+    "counts": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only.test.mjs",
+    "milliseconds": 2198,
+    "counts": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/read-only-server.test.mjs",
+    "milliseconds": 25596,
+    "counts": {
+      "tests": 4,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+    "milliseconds": 41755,
+    "counts": {
+      "tests": 57,
+      "pass": 57,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/asset-lists.test.mjs",
+    "milliseconds": 120774,
+    "counts": {
+      "tests": 42,
+      "pass": 42,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/social-starter.test.mjs",
+    "milliseconds": 14267,
+    "counts": {
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/readme-examples.test.mjs",
+    "milliseconds": 3325,
+    "counts": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/client-seams.test.mjs",
+    "milliseconds": 51401,
+    "counts": {
+      "tests": 65,
+      "pass": 65,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  {
+    "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "milliseconds": 142261,
+    "counts": {
+      "tests": 339,
+      "pass": 339,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  }
+]

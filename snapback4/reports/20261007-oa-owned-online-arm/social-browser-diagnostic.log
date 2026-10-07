@@ -1,0 +1,56 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (165.414445ms)
+  ✔ loading, revalidating and offline membership allow custody and eventual server delivery (2344.692806ms)
+  ✔ older bubbles share the history cursor and retain text when receipts withdraw (57.099155ms)
+  ✔ renewal, idle without blur, Send, route visibility/key and unmount stop before expiry (333.706805ms)
+  ✔ a late failed renewal cannot stop a newer successful typing lease (137.506299ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1496.177274ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (470.555619ms)
+  ✔ the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight (304.207134ms)
+  ✔ two offline sends keep independent failures and attachment arguments after another session leaves (502.386375ms)
+  ✔ observations make retention explicit (6.546664ms)
+  ✖ account reset clears draft and stops the prior typing owner (193.605977ms)
+✖ social recipes in React/browser: real online signals and media, controlled read interleavings (8922.036354ms)
+▶ social search in React/browser uses current server and retained device pages
+  ✔ search spans a live and a departed conversation (1100.72452ms)
+  ✔ leave followed by a search (1058.171621ms)
+  ✔ pagination accumulates both domains with no duplicate (1238.087845ms)
+✔ social search in React/browser uses current server and retained device pages (4354.887609ms)
+▶ social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft
+  ✔ failed provisional sends survive Profile reopen and a full reload (716.700567ms)
+  ✔ a sent receipt without result recovers the route from its replicated key (47.967787ms)
+  ✔ real stale negative membership after leave, sync, disconnect and re-invite permits Send (303.175188ms)
+  ✔ stale absent membership queues offline and server refuses at sync without re-invitation (262.638401ms)
+  ✔ leaving before settlement recovers failed sends on a bare canonical route (900.573944ms)
+  ✔ failed and abandoned openings without sends leave no associations (129.230444ms)
+  ✔ a bare route recovers its sends with one lookup despite 100 unresolved peers (733.710216ms)
+✔ social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft (5797.88301ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 22
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19566.376082
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/social-browser.test.mjs:385:11
+✖ account reset clears draft and stops the prior typing owner (193.605977ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/social-browser.test.mjs:398:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/social-browser.test.mjs:385:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

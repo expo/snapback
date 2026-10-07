@@ -1,0 +1,20 @@
+✔ owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (697.291685ms)
+✔ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (214.23495ms)
+✔ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (175.155765ms)
+✔ account fences cached arms, observations and late server data (238.446608ms)
+✔ logout fences cached arms, observations and late server data (131.363333ms)
+✔ close fences cached arms, observations and late server data (221.05825ms)
+✔ offline drops signals, refuses snapshots/actions; observed reads recover without replay (175.73237ms)
+✔ no-device app reuses its own client (readOnly=false) and obeys shared logout (167.765406ms)
+✔ no-device app reuses its own client (readOnly=true) and obeys shared logout (166.13381ms)
+✔ an arm waiting for shared authority cannot dispatch after synchronous logout fencing (94.819148ms)
+✔ failed account opening restores a new arm without reviving the old exposed handle (190.225818ms)
+✔ retirement bounds an unresponsive action drain and preserves its pending ID (2.191595ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3000.726003

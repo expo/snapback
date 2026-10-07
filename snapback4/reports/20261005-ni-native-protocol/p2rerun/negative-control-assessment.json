@@ -1,0 +1,258 @@
+{
+  "method": "Read the complete qualified ledger, both source-audit pairs, every retained SB4 video frame/native tree and final Convex gate. No native controls were rerun in Round 2.",
+  "liveLedgerSha256": "d8a6d04da3e300b1ed3d2cb7f9507877a5a05af40a56401245ea7cdd529d5e4f",
+  "artifactLedgerSha256": "6448b62e232de8af9cf362b9abb65c10c29caea89cd7d55f44f25822d1027e54",
+  "liveCells": [
+    {
+      "control": "none",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "none",
+      "segment": "m8",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "pre-reopen-viewonce",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "elsewhere-viewonce",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "bright-viewonce",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "delayed-refusal",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "scroll-no-screen",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "All captured SB4 trees preserve stable row IDs through history scrolling, but cold/reconnect assertions were not reached. This does not replace qualified parity/inversion controls."
+    },
+    {
+      "control": "stale-restart-capture",
+      "segment": "m8",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "async-viewonce",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "newest-first",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "All captured SB4 trees preserve stable row IDs through history scrolling, but cold/reconnect assertions were not reached. This does not replace qualified parity/inversion controls."
+    },
+    {
+      "control": "stale-viewonce",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "placeholder",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "SB4 ordinary image branch is absent, with zero media events. Selector refusal occurs before pixel validation. No placeholder or fabricated load was accepted."
+    },
+    {
+      "control": "volatile-outbox",
+      "segment": "m8",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "duplicate-sends",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "reversed-sends",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "wrong-conversation",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "navigation-claim",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "collapsed-receipt",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "SB4 captured trees lack receipt children, but the receipt assertion was not reached. No collapsed receipt was granted a pass; historical rejection is not contradicted."
+    },
+    {
+      "control": "bob-wrong-conversation",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "delayed-bob",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "late-bob",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "wrong-receipts",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "wrong-receipts",
+      "segment": "m8",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Not reached: SB4 stops at ordinary-media prime; Convex stops at prepared-source audit."
+    },
+    {
+      "control": "undecodable-video",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "All encoded SB4 frames decode; separate strict endpoint coverage refuses both startup captures. No invalid measured movie was promoted."
+    },
+    {
+      "control": "wrong-fixture",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "SB4 ordinary/view-once row identities and image hashes match retained fixtures; parent rows are hittable. Missing media child is distinct from the wrong-fixture control."
+    },
+    {
+      "control": "journal-failure",
+      "segment": "m6",
+      "historicalSource": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Both source audits establish passive call sites. This run injects no journal fault and does not re-establish fault/drain controls; qualified bytes remain unchanged."
+    },
+    {
+      "control": "journal-overflow",
+      "segment": "m6",
+      "historicalSource": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Both source audits establish passive call sites. This run injects no journal fault and does not re-establish fault/drain controls; qualified bytes remain unchanged."
+    },
+    {
+      "control": "recycling",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "All captured SB4 trees preserve stable row IDs through history scrolling, but cold/reconnect assertions were not reached. This does not replace qualified parity/inversion controls."
+    },
+    {
+      "control": "stalled-writer",
+      "segment": "m6",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "Both source audits establish passive call sites. This run injects no journal fault and does not re-establish fault/drain controls; qualified bytes remain unchanged."
+    },
+    {
+      "control": "newest-first",
+      "segment": "m8",
+      "historicalSource": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "historicalExpectedMatched": true,
+      "contradictedByRerun": false,
+      "assessment": "All captured SB4 trees preserve stable row IDs through history scrolling, but cold/reconnect assertions were not reached. This does not replace qualified parity/inversion controls."
+    }
+  ],
+  "artifactControls": {
+    "count": 52,
+    "contradictionObserved": false,
+    "limits": "No new measured pass. Endpoint, hash, nonce, receipt, pixel and sequence rejection premises were not bypassed. New kit/dependency/type/capture changes require affected controls and an admissible independent-app pilot."
+  },
+  "newPremiseConcerns": [
+    "Shared UI installed dependency closure can differ from the required native pin.",
+    "Both independent consumer typechecks expose the supplied helper optional-config error.",
+    "Startup diagnostic capture may miss endpoint coverage."
+  ],
+  "recommendation": "Another candidate and affected rerun after named changes; no native admission from this inspection."
+}

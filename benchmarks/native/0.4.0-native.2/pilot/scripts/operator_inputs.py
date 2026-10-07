@@ -23,7 +23,8 @@ def clean_environment():
     return env
 
 def execution_environment(backend):
-    env = clean_environment()
+    from xcode_environment import pinned_environment
+    env = pinned_environment(clean_environment())
     env.update(CLIQUE_NATIVE_ORIGIN='http://127.0.0.1:' + str(PORTS[backend][0]),
         CLIQUE_NATIVE_WEB_ORIGIN='http://127.0.0.1:' + str(PORTS[backend][0] + 2),
         CLIQUE_NATIVE_BUNDLE_ID='dev.clique.pilot.' + backend,

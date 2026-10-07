@@ -1,0 +1,16 @@
+[package]
+name = "snapback4-difftest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+snapback4-core = { path = "../snapback4-core" }
+snapback4-lang = { path = "../snapback4-lang" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[[test]]
+name = "smoke"
+path = "tests/smoke.rs"

@@ -14,6 +14,16 @@ test('generated ephemeral API and React preserve disjoint mutation outcomes', as
 import type { Client, Signal, Write, ResultOf, Mutation as Durable, Ephemeral as Eph } from './src/contract.ts';
 import { useMutation, usePendingWrite, useQuery } from './src/react.tsx';
 declare const client: Client;
+declare const app: import('./src/app.ts').App;
+const onlineSignal: Promise<Signal<ResultOf<typeof api.setTyping>>> = app.online.mutate(api.setTyping, { room: 'r' });
+// @ts-expect-error the owned arm does not expose the app's bearer
+app.online.session();
+// @ts-expect-error callers cannot sign out through the owned arm
+app.online.signOut();
+// @ts-expect-error callers cannot close the owned arm
+app.online.close();
+// @ts-expect-error durable writes keep app.mutate's custody
+app.online.mutate(api.add, { body: 'hi' });
 type Result = ResultOf<typeof api.setTyping>;
 const signal: Promise<Signal<Result>> = client.mutate(api.setTyping, { room: 'r' });
 const durable: Promise<Write<unknown>> = client.mutate(api.add, { body: 'hi' });

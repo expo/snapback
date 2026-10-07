@@ -18,6 +18,9 @@ cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; 
 cd apps/chat && bun run dev                            # the app on the real client (?as=bob picks a persona)
 bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
+cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and replay of found cases (in test.sh, ~1–2 s)
+cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --workers 6 --out /tmp/quarry-difftest
+cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
 cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
 cargo test -p snapback4-sim --test exhaustive   # every sequence of two writes (two viewers, two groups): disclosure and write authority against a model of the rules
 SNAPBACK4_EXHAUSTIVE_DEPTH=3 cargo test -p snapback4-sim --test exhaustive -- --ignored   # three writes: ~7,000 states, minutes
@@ -45,7 +48,9 @@ SQLite store, rules with hoisting, the meter, the interpreter, the partition
 log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
 (Quarry lexer, parser, binder, diagnostics, the TypeScript emitter),
 `snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
-world hosting the engine and a replica device), `snapback4-device` (the
+world hosting the engine and a replica device), `snapback4-difftest` (seeded
+Quarry source generator, rewrite and meter oracles, structural shrinking and
+replay; not published or linked by shipped crates), `snapback4-device` (the
 interpreter over a `DeviceStore`: the core's SQLite under the native
 module for Expo and Exact2 hosts, memory under wasm on the web; one
 dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is

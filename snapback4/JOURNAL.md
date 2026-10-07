@@ -88659,3 +88659,525 @@ this lane and host; no other worktree/process touched, no simulator, no push.
 The operator's iOS Release recheck is pending; the
 [UA report](reports/20261007-ua-useasset-native/REPORT.md#round-3--wait-explanations-survive-react-batching-2026-10-07)
 retains the red control, final evidence and current reproduction instructions.
+## 2026-10-06 — RO: server-enforced read-only clients (LLP 3000.033)
+
+Implemented Accepted revision 3: independent capped read families and generation
+revocation, atomic narrowing, capability triples in both authority adapters, a
+closed HTTP allow-list, presence-free changes polls, view-once refusal and
+request-scoped manifest skipping. The online SDK verifies scope before any other
+traffic or asset credential export, isolates `.read` custody, omits write owners,
+and refuses read tokens on device paths before opening or persisting. Added the
+read-only guide, receipt/client entries and five registered diagnostics. Extracted
+HTTP identity resolution to keep `serve.rs` below 1,500 lines; shared the local
+result type with `local-types.ts` to keep the local client below that limit.
+
+The acceptance tests cover real receipts, barriers and idempotency, overlapping
+polls, narrowing writer races, published 0.4.13 downgrade/logoutAll/re-upgrade,
+offline and SecureStore admission, refresh caps and late-successor cleanup,
+ephemeral-schema live queries, HTTP parity, asset disclosure and construction
+counters. The Phase-2 oracle equivalent signs Bob in fresh and pages a generated
+query without moving his delivered watermark; the original was read over SSH
+from the Apartment mini without writing there. Paired application digests,
+including `_ops` and every full session, equal
+`e15809273ad09307d18d1d0e443d46dd93a8a424aa9ceca31ab2b6bcb0930136`.
+
+The complete Rust/JS suite ran; its initial failures were addressed and every
+failed target/file has passing scoped evidence. Both full-count client models
+passed. The report preserves initial failures as well as final reruns; this is
+not a single-green-run publication receipt. PostgreSQL builds. Wasm is unchanged
+byte-for-byte at 2,117,335 raw / 639,888 gzip bytes (cap 639,941). No schema
+capability, budget, publication or push. Builds used the shared target with
+incremental compilation disabled; 1.78 GB of completed lane-local SQLite test
+sidecars were removed. No black M5 or office M1 use. See the
+[report](reports/20261006-ro-read-only/REPORT.md) for evidence and limits.
+
+## 2026-10-06 — RO Round 1: fold blind code reviews
+
+Fenced read-session openers across logout and persistence, permanently withdrew
+facades after account custody changed, and retained refresh successors privately
+through transient verification failures until notification/persistence completed.
+Consumed predecessor custody is dropped after persistence. Permanent tests derive
+from all four Astra reproduction scripts. Sign-in now collects read rows expired
+by either timestamp; read refresh still deletes only its own family.
+
+The legacy unflagged probe body is restored. Session JSON's `scope`, opt-in
+probe `kind`/`scope`, new POST probe, and stricter auth-body scope validation are
+now stated explicitly in LLP 3000.033 §7 and the report. Added forbidden-method,
+forged-scope, asset-overlap, detached-reader construction, held-poll revocation,
+and narrowing rollback coverage. The PostgreSQL adapter has no production mint
+path in this checkout; new scope and construction regressions are compile-only
+here because Docker, PostgreSQL tools and a configured database are absent.
+Round 1 verification and checkpoint commits are recorded in the lane report.
+
+Round 1 final verification: the complete suite passed with zero failures in
+1,993 seconds: 300 Rust binaries / 1,013 executions plus doctests; all 326
+client files (6,486 passed, 47 labelled skips); both full-count models (52 + 27
+passed, no skips). Wasm remains 639,888 gzip bytes under 639,941. Final reference,
+line-limit and append-only checks pass. Removed 1.78 GB of this completed lane's
+SQLite fixture sidecars; shared build products remain. No push or publication.
+
+
+## 2026-10-06 — RO Round 2: one app custody implementation
+
+Removed app-read-only.ts. Read-only policy selects the `.read` namespace,
+verification gate, read-scoped sign-in, no device/write owners, capped refresh
+and conditional family retirement in the full-session app state machine.
+Logout epochs, provisional opening, facade guards and auth-before-withdrawal
+notifications now have one implementation. Refresh retains a private successor
+receipt under the shared storage lock through verification failures; peers and
+restart recover it without refreshing the consumed predecessor. The server
+parity assertion checks numeric heapBytes, and read /sync has a positive test.
+Round 0 and Round 2 reproductions and alternate interleavings are permanent.
+Validation results and checkpoint commits are recorded in the Round 2 report.
+
+Round 2 self-review also held the read retirement probe while a peer reclaimed
+its token. The new regression failed before repair. Retirement now repeats its
+custody comparison under the shared lock immediately before logout dispatch.
+The complete suite was stopped during Rust qualification and restarted after
+this repair so its SDK build and execution use the same final source.
+
+Round 2 final verification: the complete suite passed with zero failures in
+1,975 seconds. All 300 Rust binaries / 1,013 executions plus doctests passed;
+328/328 client files passed (6,508 tests, 47 labelled skips); the 79 model tests
+passed with all 5,000 online and 5,000 local session histories. Wasm remains
+2,117,335 raw / 639,888 gzip bytes under 639,941, byte-identical to Round 1.
+Final references, source limits and append-only checks pass. The complete log
+and original failing retirement reproduction are retained in the Round 2
+report evidence. No push or publication.
+
+## 2026-10-06 — RO Round 3: peer rotation and logout epochs
+
+Explicit logout now compares the owned principal and committed epoch under the
+storage lock in both modes. It includes a peer's rotations and fences pending
+peer logins; stale logout preserves another principal or a later same-principal
+login. Full sessions had the latter latent replacement-deletion gap too.
+Terminal rejection of a consumed predecessor preserves a pending successor and
+its epoch. Ordinary reads recover an observed successor through the existing
+refresh probe and commit before dispatching again. Malformed read-session JSON
+reaches restore's existing garbage collection. The read-only guide now names
+its isolated retirement queue.
+
+The permanent real-server reproductions include full-session controls, late
+predecessor rejection, pending login, replacement epochs and committed-login
+success assertions. Round 3 evidence and full-suite results are recorded in the
+lane report. No server production changes, push or publication.
+
+Round 3 qualification reconciled the await census with five new auth/read-only
+custody waits and updated the old full-session logout-retry fixture to preserve
+a peer's replacement account while still revoking the deferred original token.
+All 417 tests in the affected app and delivery-fault files passed on rerun; no
+additional production change was needed. The native witness's existing open
+process-inspection issue also recurred in two tests; seven focused tests and
+the complete 326-test CLI unit target passed unchanged afterward. Original
+failures remain in the evidence and do not become a green complete-run receipt.
+
+Round 3 complete verification finished in 2,122 seconds, with full model counts.
+The run had two failed phases: two native witness inspection subtests and three
+client subtests (the revised logout expectation, await census, and an unchanged
+export-maintenance queue-drain timeout). Every failed target/file has a passing
+final rerun: CLI 326 passes / 4 ignores, app and fault matrix 417 passes, export
+58 passes / 36 platform skips. Original failures remain in the report; this is
+not a single-green qualification receipt. All 79 full-suite model tests passed,
+including 5,000 online and 5,000 local session histories. The existing native
+inspection ticket and a new export-maintenance ticket preserve the unresolved
+causes. Wasm remains 2,117,335 raw / 639,888 gzip bytes under 639,941, unchanged
+from Round 2. Final references, source limits and append-only checks pass.
+No push or publication.
+
+## 2026-10-06 — RO Round 4: principal logout and unblocked retirement
+
+The lead's ruling supersedes Round 3's epoch-scoped explicit logout: both full
+and read apps sign the user out of shared custody, including newer same-user
+logins, peer rotations, pending successors and in-flight same-user sign-ins.
+A different principal's later login remains live. When Alice is already stored,
+Bob's stale logout preserves her token/epoch and records Bob's sign-out watermark
+in the same record; a pending Bob login cannot replace her, even across Alice's
+rotation. A later deliberate sign-in remains allowed. The full-session retry
+regression again requires both same-user credentials to be retired; it now uses
+password login so the two principals are actually the same.
+
+Bearer parsing is shared and case-insensitive, including detached poll checks.
+Read and malformed credentials pass the early guard; public/dev doors resolve
+all supplied credentials. Full authenticated handlers keep their established
+input-validation and refusal ordering. Raw sign-out retains an unverified
+successor for independent verified retirement. Read rotation holds a separate
+rotation lock; session selection and successor persistence use short custody
+transactions around network work. Logout completes while refresh is held, and
+its late successor is retired rather than adopted.
+
+The permanent Round 4 file incorporates all three Astra reproductions, controls
+for full sessions, whitespace/case matrices, failed-verification and own/peer
+logout variations, and principal-switch interleavings. The public promise,
+guide and RFC §1.4 now state the lead's rule. Focused custody tests and the HTTP
+suite pass; complete-suite results and wasm evidence follow in the lane report.
+No push or publication.
+
+Round 4's full Rust run caught one early-guard compatibility regression:
+`token_live` requires the private-proof `/dev/token` endpoint's uniform 403,
+including invalid bearer/persona combinations. Early credential rejection now
+uses that endpoint's existing denial response; it still never enters minting.
+The complete 20-test `token_live` target passes after the correction. The
+original full-run failure is retained and the rest of the suite continues.
+
+The full client pool found one remaining Round 3 expectation in the 32-rotation
+custody test: it preserved the same user's newer epoch. Updated it to require a
+logout tombstone and retirement of both the owned rotation and the newer kept
+credential, matching the lead's ruling. The entire four-test file passes; no
+production change was required. The new Round 4 cases and full app tests pass
+inside the complete run.
+
+Round 4 complete verification finished in 1,956 seconds at full default counts.
+All 300 Rust binaries / 1,013 executions and doctests ran; only the corrected
+private-proof refusal failed in that run (20/20 on the final target rerun).
+All 330 client files ran: 6,544 passes, the one superseded custody assertion
+(four-test file passes after correction), and 47 labelled skips. All 79 model
+tests passed, including 5,000 online and 5,000 local session histories plus
+3,000 online-client sequences. Fixture wrappers and all preflight checks passed.
+The original two failures remain in the complete log; this is not a single-green
+qualification receipt. Wasm is unchanged at 2,117,335 raw / 639,888 gzip bytes
+against 639,941. Final references, source limits and pure-append checks pass.
+Grok's completed review contributed only the public logout wording finding,
+resolved under the lead's overriding ruling. The lane report retains the full
+run and passing corrected target/file evidence. No push or publication.
+
+
+### 2026-10-07 — RO Round 5: peer rejection recovery and bounded fences
+
+A read peer whose predecessor is rejected waits for the separate rotation
+owner, then rechecks custody and verifies/adopts the successor through the
+existing refresh path. The wait owns neither persistence nor the session lock;
+explicit logout still fences immediately and cancels the caller's wait. Tests
+cover reads dispatched before and after rotation, a third app, restart, and
+logout by both the waiting peer and a third app while refresh remains held.
+The prior late-rejection test now requires read-peer recovery; its full-session
+control retains the existing refusal behavior.
+
+Epoch advances discard sign-out watermarks because their pending openers are
+already fenced. Same-epoch rotations retain them. Both modes complete 24 account
+switches with at most one retained watermark per switch, retain that watermark
+through rotation, then discard it at logout and keep it absent after login.
+A load-time constructor/factory counter proves read-only apps allocate no write
+history, mutation-ID owner, pending-write presentation, delivery queue,
+ephemeral write lane or online write custody, with positive full-session controls.
+
+Grok's round-5 exit marker is present, but its output contains progress notes
+only, with no findings or verdict; no completed review is claimed. Astra's two
+findings and surviving-mutation note have permanent tests. Verification details
+and the complete full-count run are recorded in the Round 5 lane report. No push.
+
+
+Round 5 complete verification finished in 2,037 seconds at full default counts.
+The affected suites passed 525/525. The full run executed 300 Rust binaries /
+1,013 executions and doctests, all 332 client files (6,552 passes, zero failures,
+47 labelled skips), and all 79 models, including 5,000 online and 5,000 local
+session histories plus 3,000 online-client sequences. Preflight, fixtures and
+wasm budget passed; wasm remains 2,117,335 raw / 639,888 gzip against 639,941.
+The sole full-run failure was the unchanged native witness cleanup diagnostic
+`invalid /proc process group`; the complete unchanged CLI rerun passed 326 tests
+with four existing ignores. Its existing ticket records the recurrence without
+claiming a cause or erasing the original failure. The report retains both logs,
+so this is not a single-green-run qualification receipt. Final reference, source
+and append-only audits pass. Grok's output remains progress-only. No push.
+
+
+### 2026-10-07 — RO Round 6: no SDK read-session rotation
+
+The lead amended LLP 3000.033 §1.3/§1.4 as revision 4 (implementation
+simplification). Read clients retain their credential until expiresAt, then
+surface E_AUTH. Explicit refresh refuses E_READ_ONLY_REFRESH locally and tells
+the caller to sign in or narrow again. The SDK auth helper refuses ro. tokens
+too. Server refresh remains available over raw HTTP with its existing cap,
+family, generation and no-sweep rules.
+
+Removed the read successor receipt, rotation lock, waiting-peer recovery,
+successor verification/retirement owner and cap-aware refresh scheduling. The
+app facade refuses refresh without waiting for session storage. Scope probes,
+asset gating, isolated custody, principal-wide logout and different-principal
+protection remain. Full-session rotation and retirement behavior is unchanged.
+
+Converted the read-refresh races to assert stable tokens and no refresh traffic
+across simultaneous peers, held reads, restoration probes, storage waits, close,
+logout and restart. Full-session controls and the custody, device, asset and
+allocation coverage remain. All four live resolver entry points now assert
+Read scope before the generation-revocation assertions. The RFC, guide and
+client cards describe fixed read-session lifetimes. Complete-suite results and
+net removals follow in the Round 6 lane report. No push or publication.
+
+The full Round 6 run found the new code's missing default-card mapping and
+definition/action pins, plus a client-card word-budget overflow. Completed the
+diagnostic registration and shortened the client card to its unchanged
+1,200-word limit. The complete affected guide, CLI check and CLI unit targets
+now pass: 113, 89 and 326 tests respectively, with four existing CLI ignores.
+The original full-run failures remain in the evidence. The auth helper also
+refuses padded read tokens, matching the server's bearer whitespace handling.
+
+The full client pool also flagged the expected await-boundary drift from the
+removed rotation code. Reviewed the four changed source entries: 25 awaits
+removed, no delivery I/O added, and every classified delivery site and fault
+recipe unchanged. Updated only those census entries and documented the
+classification; the complete delivery matrix passes all 339 tests.
+
+Round 6 complete verification ran at full counts in 2,093 seconds: 300 Rust
+binaries / 1,013 executions and doctests; all 332 client files (6,553 passes,
+one corrected census failure, 47 labelled skips); all 79 model tests with
+5,000 online and 5,000 local session histories plus 3,000 online-client
+sequences. The complete run retains its diagnostic and census reds; all
+corrected targets pass their complete reruns. This is not a single-green-run
+qualification receipt. All 96 read-only tests passed in the full pool.
+
+Final SDK source is 133 net lines smaller. The online bundle loses 270 gzip
+bytes and the app bundle 788; wasm remains 639,888 gzip bytes against 639,941.
+References, source limits and append-only checks pass. The Round 6 report
+retains full logs, corrected reruns and final size evidence. No push or publication.
+
+
+## 2026-10-07 — RO Round 7: one normalized read-token predicate
+
+Centralized SDK read-token recognition in `auth.ts::isReadToken`. It ignores
+leading HT, LF, FF, CR and space, matching the server bearer parser's Rust
+`split_ascii_whitespace`; vertical tab and Unicode whitespace are not separators.
+Device admission (direct, restore, app startup and returned sessions), online
+startup, expiry scheduling, explicit refresh and the auth helper all use it.
+Credentials remain unchanged at intake, in storage and on requests. The predicate
+only recognizes the prefix; stored server scope remains authoritative.
+
+Made Astra's two padding reproductions permanent in `read-only-round7.test.mjs`,
+with missing/forged scope, near-expiry startup, explicit refresh, ASCII boundary
+vectors and a padded full-session refresh control. The server unit test pins the
+same whitespace boundary. All 23 new tests and all 119 read-only tests pass;
+40 session/refresh controls and four auth unit tests pass. The pre-fix tests
+reproduced seven failures. Removing only the token-based expiry condition makes
+all six `readOnly: false` expiry cases fail, with the six `readOnly: true` controls
+still green. The mutation was applied only to generated output and restored.
+The complete suite is running at full counts; final results follow below.
+
+
+The full client pool found one packaging failure: placing `isReadToken` in
+`auth.ts` accidentally exported it from the public auth entry point, so the
+README public-function census correctly required an example. Moved the unchanged
+predicate to the internal `read-token.ts` module; auth, client and device admission
+import it directly. There is no new public API and no import cycle. The final
+build/typecheck and affected test rerun follow this correction. The original
+full-run failure is retained in the evidence.
+
+
+Round 7 complete verification ran at full default counts in 2,016 seconds:
+300 Rust binaries / 1,013 executions plus doctests, all passed; 333 client files
+with 6,575 passes, two failures and 47 labelled skips; all 79 model tests with
+5,000 histories per session tier and 3,000 online-client sequences passed.
+The unintended public-helper export was corrected with the internal
+`read-token.ts`; the complete affected rerun passes 167 tests. The other full-run
+failure was a recreated offline watch's 122-second guard in `residency.test.mjs`;
+all ten tests pass its complete rerun without a residency change. This is not
+a single-green-run qualification receipt; the original failures are retained.
+
+The internal module also needed a zero-await census entry. A complete comparison
+found no other entry/hash, delivery site or recipe change. Added that entry and
+its classification note; all 339 delivery-matrix tests pass. The final build
+kills the token-only expiry mutation in six cases while six readOnly controls pass; after
+restoration all 23 Round 7 tests pass. References and append-only checks pass.
+Wasm stays 2,117,335 raw / 639,888 gzip bytes against the unchanged 639,941 budget.
+An earlier disk-exhausted attempt is preserved separately from the complete
+run. No other lane's files were deleted. The Round 7 report records every
+failure, correction and passing rerun. No push or publication.
+
+## 2026-10-07 — P3 Round 2: Xcode environment repair and native.2 rerun record
+
+Revision 11 makes CocoaPods' ignored `.xcode.env.local` operator-owned, preserving
+its original bytes/hash before pinning Node 24.18.0 in work copies. Both custody
+files carried Node 26.9.0; Snapback 4's measured Release had regenerated the file
+and used pinned Node 24.18.0 in all 16 build records. Its native results stand.
+Future builder login/non-login shells now retain the exact Node pin. The harness
+passes all 92 mini tests; Linux completes 92 with four macOS-only skips.
+
+The sealed Convex attempt-01 reclassification records an environment leak, no
+product outcome and zero setup reruns consumed. The normal revision-11
+continuation passed its initial audit, then stopped at the prepared-source
+audit on the shared UI kit's installed nested RN 0.86.2 versus required 0.86.3.
+No semantic check, operator Release build or M6/M8 ran after that refusal.
+No app repair or audit bypass was performed.
+
+Every retained Snapback 4 frame (2,030 M6 and 2,028 M8) and all 46 native trees
+were inspected. Both support the ordinary-media prime failure and unmeasured
+native assertions. Missing receipt/view-once child exposure, startup-video
+endpoint shortfall, the shared dependency/type gaps and the unresolved useAsset
+finding remain explicit. No qualified negative-control verdict is contradicted;
+the affected assertions were not reached. The
+[rerun report](reports/20261005-ni-native-protocol/PHASE-2-RERUN-RESULTS.md)
+recommends another candidate/pilot after named changes, with large evidence on
+eb1000 and committed indexes. Only the Apartment mini's dedicated simulator was
+used. The work is committed locally and not pushed.
+
+## 2026-10-07 — DT-A: seeded Quarry differential testing
+
+Continued the source generator in `snapback4-difftest`, an unpublished crate
+outside shipped dependencies. Cases carry typed Quarry structure, rows, viewer,
+arguments, clock and ceilings. Exact repeats, meaning-preserving rewrites and
+meter-boundary/continuation comparisons retain public outcome records. Structural
+shrinking saves replayable source and inputs by stable signature. Process workers
+own disjoint seed ranges; the runner reports coverage and named unsupported
+reasons, and exits nonzero for disagreements or unexpected refusals.
+
+The old 30-case pilot generated only one page, with no item rows, and mostly
+swept heap bytes. Fuller pages now reach resumable cuts. Heap, step, output and
+opening cuts retain the reads card's named non-resumable outcomes. Cost-changing
+rewrites still compare all non-meter fields. Both prior site-only differences
+were harness defects: helper expansion moves an update's IR address, and a
+return binding moves a null assertion's source column. Their shrunk raw records,
+diagnoses and passing replays remain under `cases/found/`. Helper calls return
+3 for `identity(1) + identity(2)`; skipped null assertions do not run.
+
+The release campaign ran seeds 0–99,999 on SQLite on the Linux fleet host in
+266.239 s with 12 process workers: 100,000 compiled cases, 3,153,140 engine calls,
+zero disagreements, zero unexpected refusals. Resumable cuts passed on
+14,305/21,163 pageable reads (67.59%). Source verification matched 626 files.
+The fixed-seed and oracle tests passed all five tests in 1.98 s on that host.
+The orchestrator kept the smoke in the workspace inventory: the suite already
+runs far past its 60 s budget, and 1–2 s more does not change that. AGENTS.md
+lists the commands. No shipped crate, public accessor, runtime ceiling or wasm budget
+changed; no engine or binder defect was fixed. Slice B still owns store/prefetch
+comparisons, schedules and ticket filing; slice C owns real device acquisition.
+The lane report is `~/projects/snapback-difftest-lane/report-a.md`. Full-suite
+verification is recorded in the follow-up below.
+
+Final verification: local warm `cargo build` passed in 0.14 s wall time; the
+five harness tests passed in 0.96 s (1.55 s including Cargo). Both saved case
+replays print `pass`. The corrected warm Linux `scripts/test.sh` run exited 0:
+`== 0 failure(s) in 2163 s`. Rust passed 5,120 tests with 33 declared ignores;
+all 328 client files passed (6,480 tests, 54 skips), all nine fixture tests
+passed, and both model files passed all 79 tests. Build, wasm/byte budget,
+docs, release guard and typechecks passed. The local whole-suite attempt was
+interrupted after sandbox process restrictions and other test failures; its
+retained log supplies no green local claim. The first Linux attempt exposed
+this lane's symlinked-target setup mistake; moving the actual target directory
+into the isolated checkout fixed that setup, and the entire script was rerun.
+The report retains both earlier attempts and the final green log. No shipped
+source, assertion or deadline changed. Final diff checks pass.
+
+Negative controls (orchestrator, before landing). Two faults were planted in
+the engine one at a time, seeds 0–1,999 were run, and the engine was then
+reverted. In the first, integer `+` added one when the left operand was larger.
+`rewrite-commute` caught it with 252 disagreements; no other oracle moved. In
+the second, decoded cursors flipped their inclusive bit, which skips or repeats
+a row on resume. The meter continuation oracle caught it with 1,105
+`meter--continued-data--array` disagreements. Both runs exited 1. The zero
+above is therefore a result and not a blind harness.
+
+## 2026-10-07 — OA: createApp owns its online arm
+
+On eb1000, branch `sb4-intent/oa-owned-online-arm`, starting from
+`2a5fc454aa`: added `app.online` and React `useOnline()` for server queries,
+observations, ephemeral signals and actions. The explicit projection exposes no
+bearer or lifecycle method. It uses the app's shared authority and checks the
+exact exposed arm again after asynchronous authority reads. Rotation, account
+change and sign-out fence old handles; dispatched signals/actions drain before
+private client closure, bounded by the existing 30-second one-shot lifetime.
+No retirement signs the app out. Read-only/no-device apps reuse their existing
+client; LLP 3000.033's fixed read lifetimes, epochs and sign-out watermarks remain
+unchanged. The decision and cited inventory are in LLP 3000.033 §1.8 and
+[the OA report](reports/20261007-oa-owned-online-arm/REPORT.md).
+
+Deleted the social starter's bearer-borrowing useOnlineArm. Conversation changes
+only its import/call to useOnline; useTyping's algorithm and all original typing
+assertions remain unchanged. Added the installed TrendingSnapshot recipe with
+matchRead, incomplete-coverage presentation, explicit Refresh and account-bound
+publication. Updated client/social guides, the client reference and starter
+README. The client card stays at 112 lines / 1,200 words; no budget increased.
+
+The requested full suite completed in 2,153 seconds with the SQLite memory-
+management flag: 308 Rust binaries / 1,021 executions plus doctests passed;
+339 client files reported 6,594 passes, 16 failures and 55 labelled skips; all
+79 model tests passed at 5,000 histories per session tier / 3,000 online-client
+sequences. The sole failed file's helper still copied the deleted hook; removing
+that entry makes all 16 unchanged screen-lifetime tests pass. This is a full run
+plus a corrected affected rerun, not a single-green-run qualification receipt.
+All 12 new lifecycle tests pass. Final generated-starter tests pass 15/15, guide
+113/113, published API/type examples 9/9; package typecheck/build passed. No
+persisted state changed; the optional published-binary downgrade control remains
+explicitly skipped. The report retains failures and reruns.
+
+Wasm is unchanged: 2,135,164 raw / 645,264 gzip bytes against the unchanged
+645,564 budget; SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83.
+The whole worktree uses about 14 GB, below 30 GB. Work stayed on this machine and
+in this worktree. No push or publication.
+
+
+## 2026-10-07 — OA round 1: the arm fence survives shared-client queues
+
+Astra's P1 reproduced three no-device escapes at `2447b74854`: a queued signal
+borrowed the replacement credential, an authority-waiting signal dispatched a
+retired bearer, and an old-account signal dispatched during provisional account
+replacement. The unchanged review reproducer failed all three before the fix
+and passes all five tests afterward. Grok's supplied review was READY; no new
+independent review verdict is claimed by this implementation entry.
+
+The owned arm now binds private operation copies to its originating arm and
+credential. Signal queues, refresh waits, observations and retries retain that
+fence; the app checks it after asynchronous shared authority, immediately before
+transport dispatch. Observation/renewal identities are private to the arm, while
+sharing within an arm remains. No metadata enters HTTP or persistent storage.
+Retiring one arm cannot revoke the shared client's current credential.
+Dispatched outcomes, including transport failures, remain intact. Both no-device
+modes still reuse their existing raw client; fixed read expiry, no refresh/write
+machinery, epochs and principal sign-out watermarks are unchanged.
+
+Typing retirement deliberately relies on the four-second schema expiry. Ordinary
+unmount can send stopTyping, but retirement cannot delay fencing or borrow a
+retired/replacement credential for cleanup. The guide, reference, starter README
+and LLP 3000.033 §1.8 state this explicitly. No Conversation/useTyping source or
+original typing/starter assertion changed in this round.
+
+Owned-arm tests grow from 12 to 32, covering both tiers plus all three review
+schedules, action refresh/retry waits, observation ownership, renewal reuse and
+transport-outcome preservation. The requested 27-file run passes 250 tests with
+one labelled downgrade-control skip; guide 113/113 and final client build/typecheck
+pass. The full suite with the SQLite flag completed in 2,055 seconds: 339 client
+files / 6,630 passes / 55 labelled skips, and all 79 full-count model tests pass.
+Of 1,021 scheduled Rust executions across 308 binaries, one CLI witness cleanup
+test failed on an invalid /proc process group; all others and doctests passed.
+The complete witness-preparation module passes 16/16 on its canonical single-
+thread rerun. Two earlier manual reruns used default parallelism and failed a
+fixture-startup case; those and the original full red remain in the evidence.
+This is a full run plus a passing affected rerun, not a single-green-run receipt.
+
+Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
+unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
+no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
+
+## 2026-10-07 — UA round 4: merge main with owned-arm and read-only custody
+
+Merged b14888f763 into UA 9ab49c9de8 (merge, not rebase), after both UA
+round-3 reviews returned READY. Resolve client.ts by keeping UA's assetReader
+and progress-preserving retries with main's readGate.verify first, plus main's
+verified-only assetSource. Everything outside the asset method/import equals
+main: OA's arm propagation and final dispatch fence, read-only guards and
+write-machinery omission are preserved. Both journal histories remain intact.
+Fold main's P3 Round 2 evidence clarification verbatim into the closed UA issue;
+keep the open path deleted. Keep both delivery-instrument rationales and
+recompute only the combined client's 62-await seal; no fault recipe changes.
+A root audit also exposed main's existing difftest long-fragment @ref failure;
+replace that comment's fragment with LLP 3000.035 §5.1, with no executable change.
+
+Requested scope: 24 files, 884 passes, zero failures and one labelled optional
+published-binary skip. Includes assets/Blob/buffered/avatars/lists/pressure,
+React, delivery-fault/census, read-types, 32 owned-arm tests, every read-only
+client file including round 4, client lifecycle/seams, starter and README.
+Full canonical suite completed in 2,131 seconds: Rust 311 binaries / 1,024
+executions plus doctests, client pool 339 files (6,670 pass, one failure,
+55 labelled skips), then 79/79 full-count seeded models. Guide 113, package/
+starter typechecks, builds, release guard, docs budget and fixture wrappers pass.
+
+Two full-run failures are retained, not called a single-green-run receipt.
+The unchanged witness shrinking-group cleanup case returned invalid /proc
+process group; the complete canonical single-thread preparation rerun passes
+23/23. The identity-organizations outside-Git scratch control rejected this
+run's worktree-local TMPDIR; its unchanged whole-file rerun with a private
+/tmp directory passes three active checks, one expected managed-provider skip.
+No test count, timeout, assertion or budget was lowered. Reference audit passes.
+
+Wasm remains 2,135,164 B raw / 645,264 B gzip against the unchanged 645,564 B
+cap, SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83,
+before/after the integrated full suite. No other lane/host was used; nothing
+pushed or published. Operator iOS Release recheck remains pending. The
+[round-4 report](reports/20261007-ua-useasset-native/round4/REPORT.md) records all
+conflicts, exact source comparisons, original failures and passing reruns.
