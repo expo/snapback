@@ -131,6 +131,7 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
     let outcome = scope.and_then(|scope| perform(&request, shared, path, email, password, scope));
     drop(kdf);
     match outcome {
+        Ok(Outcome::Refused(why)) => respond_refused(request, shared, why),
         Ok(Outcome::SupervisedRefresh) => respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new(
             "E_WORKER_REFRESH", "auth", "supervised worker tokens are rotated by the supervisor; keep using the injected token",
         ).guide("effects")) })),
@@ -144,23 +145,46 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
             respond_timed(request, shared, 200, json!({ "session": wire }));
         },
         Err(error) => {
-            let status = if path == "/auth/logout" && matches!(&error, RuntimeError::Auth(_)) {
-                401
-            } else if error.is_refusal() {
-                200
-            } else {
-                503
-            };
+            if matches!(path, "/auth/logout" | "/auth/narrow" | "/auth/refresh" | "/auth/logout-all")
+                && let RuntimeError::Auth(message) = &error {
+                return respond_refused(request, shared, Refusal::new("E_AUTH", "auth", message).guide("personas"));
+            }
+            let status = if error.is_refusal() { 200 } else { 503 };
             respond_timed(request, shared, status, json!({ "denied": refusal_json(&error.refusal()) }));
         }
     }
 }
 
 enum Outcome {
+    Refused(Refusal),
     Session(identity::Session),
     SupervisedRefresh,
     Logout,
     LogoutAll(u64),
+}
+
+// @ref LLP 3000.007#20.2 — identity operations preserve the same refusal envelope as data doors.
+fn respond_refused(request: Request, shared: &Shared, why: Refusal) {
+    respond_timed(request, shared, if why.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&why) }));
+}
+
+fn refused_bearer(request: &Request, shared: &Shared, engine: &snapback4_core::Engine, token: &str) -> Outcome {
+    Outcome::Refused(identity::diagnostics::refused(engine.store(), token, shared.now(), crate::serve::trusted_dev_request(request, shared)))
+}
+
+/// Translate only after the identity operation's own transactional check failed.
+/// A still-live but wrong-kind credential keeps its endpoint-specific explanation.
+fn credential_result(request: &Request, shared: &Shared, engine: &snapback4_core::Engine, token: &str,
+    result: Result<Outcome, RuntimeError>) -> Result<Outcome, RuntimeError> {
+    match result {
+        Err(RuntimeError::Auth(message)) => {
+            let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
+            if identity::resolve_supervised(engine.store(), token, sample)?.is_none() {
+                Ok(refused_bearer(request, shared, engine, token))
+            } else { Ok(Outcome::Refused(Refusal::new("E_AUTH", "auth", message).guide("personas"))) }
+        }
+        result => result,
+    }
 }
 
 // RFC 7235: the authentication scheme is case-insensitive. Accept HTTP
@@ -258,16 +282,17 @@ fn perform(
         "/auth/narrow" => {
             let token = bearer_token(request)?;
             let mut engine = shared.engine.lock().unwrap();
-            identity::narrow_session(engine.store_mut(), token, || identity::ServiceSample {
+            let result = identity::narrow_session(engine.store_mut(), token, || identity::ServiceSample {
                 now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
-            }).map(Outcome::Session)
+            }).map(Outcome::Session);
+            credential_result(request, shared, &engine, token, result)
         }
         "/auth/refresh" => {
             let token = bearer_token(request)?;
             let engine = shared.engine.lock().unwrap();
             let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) };
             if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
-                return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+                return Ok(refused_bearer(request, shared, &engine, token));
             }
             // @ref LLP 3000.009#5.3 — only the supervisor replaces its bearer;
             // returning a refresh successor would escape its live log redactors.
@@ -281,21 +306,25 @@ fn perform(
                 [format!("{:x}", Sha256::digest(token.as_bytes()))], |row| row.get(0),
             )?;
             if supervised { return Ok(Outcome::SupervisedRefresh); }
-            identity::rotate_session(engine.store(), token, shared.now())?
-                .map(Outcome::Session)
-                .ok_or_else(|| RuntimeError::Auth("this session is not live; sign in again".into()))
+            #[cfg(test)]
+            crate::serve::test_work(&shared.auth_work);
+            let result = identity::rotate_session(engine.store(), token, shared.now())
+                .map(|session| session.map(Outcome::Session).unwrap_or_else(|| refused_bearer(request, shared, &engine, token)));
+            credential_result(request, shared, &engine, token, result)
         }
         "/auth/logout-all" => {
-            let principal = principal_of(request, shared)
-                .map_err(|refusal| RuntimeError::Auth(refusal.message))?;
+            let principal = match principal_of(request, shared) {
+                Ok(principal) => principal,
+                Err(why) => return Ok(Outcome::Refused(why)),
+            };
             let engine = shared.engine.lock().unwrap();
             identity::revoke_principal(engine.store(), &principal.0).map(Outcome::LogoutAll)
         }
         _ => {
             let token = bearer_token(request)?;
             let mut engine = shared.engine.lock().unwrap();
-            identity::logout_session(engine.store_mut(), token, || shared.now())?;
-            Ok(Outcome::Logout)
+            let result = identity::logout_session(engine.store_mut(), token, || shared.now()).map(|()| Outcome::Logout);
+            credential_result(request, shared, &engine, token, result)
         }
     }
 }

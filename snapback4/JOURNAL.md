@@ -90205,3 +90205,102 @@ no push. Darwin execution awaits the user's soak; this is no Mac or publication
 qualification claim.
 
 [Round-7 resolution, complete Darwin audit and controls](reports/20261007-fl-dry-run-flakes/round-7/REPORT.md).
+## 2026-10-07 — DK: dev clock and stale sessions explain themselves
+
+Calibration #31 d-01/d-04 now have product diagnostics. Dev startup and doctor
+report `N_CLOCK_STORE_AHEAD` for retained write stamps more than five seconds
+ahead, naming the maximum lead, tables and repairs. Doctor also shows offset
+from wall time; clock advance's CLI/endpoint report cumulative offset and restart
+lifetime, with an isolated-test hint when data already exists. The jobs card
+uses the existing `dev --fresh --port 4401` recipe. `check --store` remains a
+schema-adoption check because it has no running-clock selector. Detection uses
+minted row times and time fields matching recorded commits, not arbitrary future
+expiry/appointment values; it never rewrites data.
+
+Dev auth distinguishes unknown-store, expired and signed-out/revoked/refreshed
+bearers. A bounded SQLite history keeps 4,096 retired-token digests/deadlines,
+installed after accepted opening; serve removes it and keeps all three causes
+generic to avoid disclosing token membership. `E_AUTH`/`auth` and the public type
+shape are unchanged. Online/local SDKs retain the validated reason through
+terminal cleanup and app online custody/fences. Generated declarations and docs
+were updated consistently. LLP 3000.007 §20.2/§20.12 and its Revised line carry
+the lasting decisions; LLP 3000.033's read-session authority/opening rules stand.
+
+Affected checks passed: 191 server units (four ignored), 64 clock/replay/dev-refusal
+integration tests, one clock tolerance test, 23 core identity/session tests,
+113 guide checks, SDK build/typecheck, the new 30-test reason matrix, app/transport/
+read-only regressions and the full 52-test app session model (5,000 sequences per
+tier). Root ref-check passed. The broader CLI unit run retained an unrelated
+witness retention-lock failure (329 passed/one failed/four ignored), passing alone;
+no full-suite-green claim. No web/device engine changes: a fresh local wasm build
+measured 2,135,336 raw / 645,448 gzip bytes against the inherited 645,607 cap (159 B
+margin); no macOS margin or raised budget is claimed. Work stayed in this lane;
+nothing pushed. Details, privacy rationale, detection limits and harness outcomes:
+[DK report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+
+## 2026-10-07 — DK round 1: trusted dev explanations and bounded clock evidence
+
+Astra's r0 NOT READY review identified public-route disclosure and an unbounded
+startup scan that could mistake an ordinary appointment for a future write.
+Detailed E_AUTH wording now requires the dev-only endpoint peer/Host/Origin
+trust check, even on public POST routes. Serve and untrusted dev callers get the
+same generic text for unknown, expired and signed-out/refreshed tokens. Removed
+r0's persistent diagnostic objects and lifecycle hooks entirely; the preceding
+DK entry's storage design is superseded. No process cache is kept. Existing
+records can explain expiry; absent records explain the possible earlier-store,
+expiry or sign-out causes and tell the developer to sign in and discard saved
+old-store tokens. The SDK's reason preservation remains intact.
+
+Clock startup/doctor inspect only the latest 64 commit stamps, never application
+row values. Table metadata is bounded before loading (4 KiB per commit), the
+printed table list is bounded, and omitted names are explicit. This deliberately
+can miss older future commits and can still report historical stamps after rows
+are deleted; the guide and LLP now state those limits. The matching-appointment
+control, public-route controls, session/read-only regressions, affected Rust
+suites and guide checks passed. Doctor offsets, cumulative advance/restart
+wording and the isolated `dev --fresh --port 4401` recipe remain. Governing LLP
+3000.007 §20.2/§20.12 and Revised were updated. Production benchmark evidence,
+final model counts and full commands are in
+[the round-1 report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-1 final evidence: the 100,001-row production benchmark measured
+4.918–5.681 ms startup against published 0.4.14's 5.404–6.565 ms (five
+interleaved runs each); SQLite schema remained unchanged. All 52 app-session
+model tests passed at 5,000 sequences per tier. The final ref-check passed
+531 LLP documents and 10,539 references with zero errors/unchecked.
+
+## 2026-10-07 — DK round 2: refusal custody on restored apps and identity doors
+
+Astra's round-1 review found that a device app restoring a saved foreign-store
+token kept the repair in ready/auth but lost it on the signed-out online facade.
+The failed-opening path now passes the terminal refusal into that facade when
+no valid previous owner is being restored. A real two-store startup regression
+checks query, mutate and act, then proves a new sign-in replaces the cause.
+Never-signed-in online/device apps stay generic. Local logout-everywhere also
+keeps an already retained terminal cause, addressing Grok's round-0 finding.
+
+Logout/narrow retain their transactional authority checks and now use the same
+HTTP 401 E_AUTH/auth envelope and personas guide as the data doors. Refresh's
+fallback and logout-all's recheck preserve the actual refusal instead of
+stringifying it. Expanded door controls check status, wording, guide and public
+privacy; a deterministic expiry between refresh resolution and rotation covers
+the rare fallback. Live wrong-kind credentials retain their operation-specific
+explanation. No session authority or stored format changed.
+
+Round 1 already avoided all application row images during clock inspection.
+A new real-startup control confirms an unparsable image cannot break that check.
+Other inspection failures now print unavailable and allow dev startup to continue;
+a malformed commit-stamp control proves it. Ordinary store/schema admission
+still applies. The bounded query and its documented limitations are unchanged.
+Focused tests, 193 affected HTTP tests, 23 clock integrations, session-security
+and read-only regressions, 113 guide tests and ref-check passed. LLP 3000.007
+§20.2/§20.12 and Revised were updated with the guide/client docs. Final model
+counts and commands are in [the report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-2 final evidence: all 52 app-session model tests passed at 5,000
+sequences per tier; 92 restoration/account-custody regressions also passed.
+The SDK selection passed 231 tests with one optional 0.4.13 downgrade test
+skipped because that verified binary was not supplied. Ref-check passed 531 LLP
+documents and 10,540 references with zero errors/unchecked.

@@ -1,3 +1,4 @@
+import { bindSessionRefusal } from "./session-refusal.ts";
 import { bindFollowing } from "./following-transport.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
 import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification } from "./read-only.ts";
@@ -307,7 +308,7 @@ export function createClient(options: ClientOptions): Client {
   }
   const ephemeral = options.readOnly ? undefined : ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
-    unavailable: () => storeRefusal ?? (closed ? ended() : null), storeId: () => storeIdentity });
+    unavailable: () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), storeId: () => storeIdentity });
 
   const pending: { owner: Principal | null; retired?: boolean; id: string; op: Mutation<unknown, unknown>; args: unknown; state: "queued" | "sent" | "held"; reason?: string; done?: boolean; response: ClosingResponse; resolve: (write: Write) => void }[] = [];
   let sending: (typeof pending)[number] | null = null;
@@ -333,9 +334,11 @@ export function createClient(options: ClientOptions): Client {
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const refreshBeforeExpiry = 24 * 60 * 60 * 1000;
 
-  const endCredentials = () => {
+  let authRefusal: Refusal | undefined;
+  const endCredentials = (why?: Refusal) => {
     void delivery?.stop();
     if (!credentials) return;
+    authRefusal = why;
     session = null;
     stopRefresh(auth());
     credentialRevision += 1;
@@ -395,7 +398,7 @@ export function createClient(options: ClientOptions): Client {
 
   let transportFailure: Refusal | undefined, changesRefusal: Refusal | undefined;
   const offline = (): Refusal => transportFailure ?? transportRefusal();
-  const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
+  const auth = (): Refusal => authRefusal ?? ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
   function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
@@ -478,7 +481,7 @@ export function createClient(options: ClientOptions): Client {
     if (readGate || isReadToken(token)) return Promise.resolve({ ok: false, why: readOnlyRefusal("E_READ_ONLY_REFRESH") });
     if (closed || storeRefusal) return Promise.resolve({ ok: false, why: storeRefusal ?? ended() });
     if (refreshing) return refreshing;
-    if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+    if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
     const deliverReset = resetWatches(false, "credentials");
@@ -502,7 +505,7 @@ export function createClient(options: ClientOptions): Client {
       if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
       credentialRevision += 1;
       if (!refreshed.ok) {
-        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials();
+        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials(refreshed.why);
         else if (refreshed.why.retryable) scheduleRefresh(60_000);
         return refreshed;
       }
@@ -536,7 +539,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) await refreshing;
     if (storeRefusal || closed) return false;
     if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
-    if (!closed) endCredentials();
+    if (!closed) endCredentials(why);
     return false;
   }
 
@@ -637,7 +640,7 @@ export function createClient(options: ClientOptions): Client {
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
     if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
-    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
+    if (!credentials || link === "signed-out") return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal, operationArm(op));
     if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, valueDevice: null, valueServer: null, nextExpiry: null };
     if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, valueDevice: null, valueServer: null, nextExpiry: null };
@@ -1122,7 +1125,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
-      if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
+      if (!credentials || link === "signed-out") return { ok: false, why: auth() };
       const requestHeaders = { ...headers };
       const sameSession = () => !refreshing && requestHeaders.authorization === headers.authorization;
       const uploaded = await waitForCaller(uploadAsset(base, requestHeaders, doFetch, bytes,
@@ -1131,7 +1134,7 @@ export function createClient(options: ClientOptions): Client {
       // handed to another session. A stopped retry also returns this refusal.
       if (!uploaded || storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
       if (!sameSession()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } };
-      if (!uploaded.ok && uploaded.why.code === "E_AUTH") endCredentials();
+      if (!uploaded.ok && uploaded.why.code === "E_AUTH" && !uploaded.why.retryable) endCredentials(uploaded.why);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
@@ -1193,7 +1196,7 @@ export function createClient(options: ClientOptions): Client {
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       const bearer = headers.authorization?.slice("Bearer ".length);
-      if (!credentials || !bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
+      if (!credentials || !bearer) return { ok: false, why: auth() };
       const revision = credentialRevision;
       const revoked = await waitForCaller(revokeAllSessions(base, bearer, doFetch), aborter.signal);
       if (!revoked || storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
@@ -1279,5 +1282,6 @@ export function createClient(options: ClientOptions): Client {
     return scope != null && scope === intentScope() && epoch === intentEpoch && revision === credentialRevision ? intentPresentation.sync(pending) : [];
   } });
   if (intentPresentation) registerIntentObserver(client, ids => intentPresentation.observed(ids));
+  bindSessionRefusal(client, () => authRefusal);
   return client;
 }

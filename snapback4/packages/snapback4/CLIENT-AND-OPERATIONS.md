@@ -3237,3 +3237,31 @@ A later different visible position above that floor starts a new attempt, even
 below the rejected position. Repeated input and retry never resubmit the rejected
 position; membership/session reset clears it.
 See `snapback4 guide receipts` for the full rules and two-read recipe.
+
+### Refused sessions and dev time tests
+
+`E_AUTH` retains family `auth` and the server's message on the local tier,
+online tier and app online arm, including calls after terminal refusal. Detailed
+dev explanations require the dev-only endpoint trust check (loopback peer, Host and
+browser Origin). A remaining record can identify expiry; absent records may mean an
+earlier/replaced store, another instance, expiry or sign-out, including before server
+startup. No token history is kept. Sign in again and discard saved earlier-store tokens.
+Serve and untrusted dev requests, including public POST routes, use the same generic
+"this session is not live; sign in again" for each case. Clients without credentials
+still ask you to sign in. There is no new refusal field; avoid matching message text.
+Refused session tokens on logout, narrow, refresh and logout-all use the same
+HTTP 401 and `guide: personas` envelope as data requests, without a code prefix
+inside the message. Device-app restoration keeps its terminal refusal on
+`app.ready`, `app.auth.why` and the signed-out `app.online` query/mutate/act facade.
+Local `logoutAll` preserves an already retained refusal; a new sign-in replaces it.
+
+For time-travel tests use `snapback4 dev --fresh --port 4401`, point the suite's
+client URL at `http://127.0.0.1:4401`, then run `snapback4 clock advance 25h --port 4401`.
+Stop that disposable server after the suite. Each new store needs new sessions.
+The advance reports its cumulative offset and restart lifetime. `doctor --url
+http://127.0.0.1:4401` reports that clock; dev startup and doctor flag future stamps
+in the latest 64 commits with `N_CLOCK_STORE_AHEAD`. Older commits can be missed,
+even when their rows remain; historical commit stamps can outlive deleted rows. See `snapback4 guide jobs` for the
+complete recipe and detection scope. Inspection failures print "unavailable" and
+leave dev startup running; ordinary store admission still applies. No row image
+is inspected. Restarting resets time, not written rows.

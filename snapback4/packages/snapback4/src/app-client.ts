@@ -1,3 +1,4 @@
+import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
 import { guardFollowing, notifyFollowing } from "./following-transport.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
 import { guardPendingIntents, forwardIntentObserver } from "./pending-items.ts";
@@ -320,6 +321,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   // LocalClient's existing runtime helper also crosses the data boundary.
   const local = raw as Client & { sync?: () => Promise<void> };
   if (local.sync) Object.assign(client, { async sync() { if (!await refusal()) await local.sync!(); } });
+  bindSessionRefusal(client, () => sessionRefusal(raw) ?? (!valid() ? why() : undefined));
   return { client, fence() {
     if (!active) return () => {};
     active = false;

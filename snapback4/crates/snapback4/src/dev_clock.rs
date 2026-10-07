@@ -96,7 +96,10 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
         stream.take(65_536).read_to_string(&mut answer).map_err(|e| e.to_string())?;
         let (headers, body) = answer.split_once("\r\n\r\n").ok_or("dev returned an incomplete HTTP response")?;
         let json: serde_json::Value = serde_json::from_str(body).map_err(|e| format!("dev returned invalid JSON: {e}"))?;
-        if let Some(denied) = json.get("denied") { return Err(format!("{}: {}\n  guide: clock", denied["code"].as_str().unwrap_or("E_CLOCK_INPUT"), denied["message"].as_str().unwrap_or("clock advance failed"))); }
+        if let Some(denied) = json.get("denied") {
+            let clock = json["message"].as_str().map(|message| format!("; time remains advanced: {message}")).unwrap_or_default();
+            return Err(format!("{}: {}{clock}\n  guide: clock", denied["code"].as_str().unwrap_or("E_CLOCK_INPUT"), denied["message"].as_str().unwrap_or("clock advance failed")));
+        }
         if !headers.starts_with("HTTP/1.1 200 ") { return Err(format!("dev refused clock advance: {body}")); }
         Ok(json.to_string())
     })();
