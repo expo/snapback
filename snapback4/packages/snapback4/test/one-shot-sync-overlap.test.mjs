@@ -162,3 +162,22 @@ for (const tier of tiers) for (const change of ['store', 'generation']) {
     assert.equal(finalRead.data?.length, change === 'store' ? 0 : 1, JSON.stringify({ finalRead, pending: await f.client.pendingWrites() }));
   });
 }
+
+for (const tier of ['wasm', 'process']) test(`${tier}: adopted receipt keeps its dispatch store through late settlement`, async t => {
+  let core;
+  const f = await setup(t, tier, { program: source, device: device => { core = device; return device; } });
+  const currentStore = (await core.call({ op: 'sync_state', capture: false })).ok.store_id;
+  await f.offline();
+  const pending = await f.client.mutate(m('edit'), { body: 'must not become a B effect' }, { waitSeconds: 0 });
+  const receipt = { state: 'sent', id: pending.id, seq: 999, replayed: true, store_id: 'dispatch-store-A' };
+  // Receipt-window adoption must keep the proof, even if another owner already installed B.
+  assert.ok((await core.call({ op: 'keep_write', value: JSON.stringify([receipt]) })).ok !== undefined);
+  const stored = JSON.parse((await core.call({ op: 'meta', key: 'write-history' })).ok);
+  assert.equal(stored.find(w => w.id === pending.id).store_id, 'dispatch-store-A');
+  const result = await core.call({ op: 'settle', id: pending.id, seq: receipt.seq, store_id: stored.find(w => w.id === pending.id).store_id });
+  assert.equal(result.denied, undefined, JSON.stringify(result));
+  assert.equal((await core.call({ op: 'queued' })).ok.length, 0);
+  assert.equal((await core.call({ op: 'sync_state', capture: false })).ok.store_id, currentStore);
+  assert.equal((await f.client.query(q('item'), {})).data?.body, 'image-1');
+  assert.equal((await f.client.write(pending.id)).seq, 999, 'the successful A outcome survives');
+});

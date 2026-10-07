@@ -38,7 +38,7 @@ class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 export interface QueryEnvironment {
   current?(): boolean;
   /** Captured hard evidence fence; only the whole-server route may use it. */
-  serverCurrent?(cut: number): boolean;
+  serverCurrent?(cut: number, tables: ReadonlySet<string>): boolean;
   inputsCurrent?(tables: ReadonlySet<string>): boolean;
   retainedCurrent?(watermark: number | undefined): boolean;
   revalidate?: boolean;
@@ -108,7 +108,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
   let serverCut: number | undefined;
   const serverCurrent = env.serverCurrent;
-  const covered = () => serverCut !== undefined && serverCurrent?.(serverCut) === true;
+  const covered = () => serverCut !== undefined && serverCurrent?.(serverCut, tables) === true;
   const inputsCurrent = env.inputsCurrent;
   // Keep static and observed authorization dependencies, including branches
   // not taken. This proof never uses the server cut to validate local rows.
@@ -396,7 +396,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // also needs its own covering cut; recovery cannot renew an old cache ticket.
     publishingCurrent = () => routeCurrent() && (candidate.origin === "server" && covered() || unchanged()
       && (candidate.origin === "local" || (candidate.origin === "server" || candidate.origin === "composed")
-        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq) === true));
+        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq, tables) === true));
     for (let attempt = 0; ; attempt++) {
       checkpoint();
       // Rules 1/5: the same delivery fence applies after retry routing, including

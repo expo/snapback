@@ -33,8 +33,8 @@ export class QueryCustody {
     for (const entry of entries) if (entry.observed_seq == null) this.operations.set(entry.id, entry.op);
   }
   settled(id: string): void { this.operations.delete(id); }
-  tables(id: string): string[] | undefined {
+  effects(id: string) {
     const operation = this.operations.get(id), writes = operation && dependencies(this.backend(), operation)?.writes;
-    return writes ? Object.keys(writes) : undefined;
+    return writes || undefined;
   }
 }

@@ -1,4 +1,4 @@
-import { QueryChanges, type QueryDependencies } from "./query-dependencies.ts";
+import { QueryChanges, validateDependencies, type Changes, type QueryDependencies } from "./query-dependencies.ts";
 import { registerPendingIntents, pendingIntent } from "./pending-items.ts";
 import { readyRead } from "./read-existence.ts";
 import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
@@ -94,7 +94,7 @@ export function createMockClient(options: MockOptions): MockClient {
   };
   const queue: { id: string; touched: readonly string[]; table: string; resolve: (w: Write) => void }[] = [];
   const delay = options.commitDelayMs ?? 30;
-  const bump = (tables?: readonly string[]) => { queryChanges.change(tables); version += 1; for (const l of listeners) l(); };
+  const bump = (tables?: Changes) => { queryChanges.change(tables); version += 1; for (const l of listeners) l(); };
   const isRefusal = (v: unknown): v is Refusal => typeof v === "object" && v !== null && "code" in v && "family" in v;
 
   const signals = mockSignals(options, tables, () => viewer, () => link, mockId, () => bump());
@@ -142,12 +142,12 @@ export function createMockClient(options: MockOptions): MockClient {
     },
     tables,
     query: settledQuery(async (op, args) => {
-      const revision = version, unchanged = queryChanges.capture(), inputs = options.dependencies?.[op.name]?.reads;
+      const revision = version, unchanged = queryChanges.capture(), inputs = validateDependencies(options.dependencies?.[op.name])?.reads;
       const read = evaluate(op, args);
       // Every admitted mock handler has already applied its complete prediction.
       // As on a complete device answer, pending custody adds no barrier.
       return () => {
-        if (revision !== version && !(inputs && unchanged(new Set(Object.keys(inputs))))) return;
+        if (revision !== version && !(inputs && unchanged(inputs))) return;
         return "loading" in read && link === "offline"
           ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
       };
@@ -181,8 +181,8 @@ export function createMockClient(options: MockOptions): MockClient {
         }
         const table = op.name.split(".")[0] ?? "";
         for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
-        const writes = options.dependencies?.[op.name]?.writes;
-        const touched = writes ? Object.keys(writes) : undefined;
+        const writes = validateDependencies(options.dependencies?.[op.name])?.writes;
+        const touched = writes;
         bump(touched);
         history.remember({ state: "pending", id });
         pending.set(id, { id, op: op.name, args: JSON.parse(JSON.stringify(snapshot)),

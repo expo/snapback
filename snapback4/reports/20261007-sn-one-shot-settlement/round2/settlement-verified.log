@@ -1,0 +1,2482 @@
+-- client file start: packages/snapback4/test/one-shot-bounds.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/one-shot-commit-evidence.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/one-shot-dependencies.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/one-shot-generation.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/one-shot-model.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/one-shot-review-races.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"oldGeneration":1,"newGeneration":2,"oldWrites":{"profiles":null},"newWrites":{"messages":null}}
+# {"doneBeforeWrite":false,"schemaReads":2,"checks":4,"pending":[{"id":"01M4C6FPMZ40S0FJMWCKY05BA2","op":"rename","args":{"name":"changed by v2"},"state":"sent","predicted":[]}]}
+# {"read":{"data":{"at":1,"body":"changed by v2","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":790,"indexEntries":0,"outputBytes":102,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}}
+# Subtest: discovery of a new generation fences a prior facade candidate and its old write summary
+ok 1 - discovery of a new generation fences a prior facade candidate and its old write summary
+  ---
+  duration_ms: 684.399074
+  type: 'test'
+  ...
+# Subtest: a late discovery response cannot replace newer generation facts
+ok 2 - a late discovery response cannot replace newer generation facts
+  ---
+  duration_ms: 665.730508
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1473.125454
+-- process inspection: {"snapshots":3,"unrelatedRows":4152}
+-- client file ok: packages/snapback4/test/one-shot-generation.test.mjs (1778 ms)
+-- client file start: packages/snapback4/test/one-shot-review.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"tier":"wasm","adopt":false,"earlier":{"id":"01M4C6FPQJ3P2XVT6KWVQ08TYZ","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C6FPQXCMYQ43STAN9AD2VE","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: wasm: observation overlapping a committed POST preserves its outcome; adopt=false
+ok 1 - wasm: observation overlapping a committed POST preserves its outcome; adopt=false
+  ---
+  duration_ms: 683.480206
+  type: 'test'
+  ...
+# {"tier":"wasm","adopt":true,"earlier":{"id":"01M4C6FPYHTV6GHPC4A8SB1TD4","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C6FPYJRHVWY32Q42CS5XNT","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: wasm: observation overlapping a committed POST preserves its outcome; adopt=true
+ok 2 - wasm: observation overlapping a committed POST preserves its outcome; adopt=true
+  ---
+  duration_ms: 587.626654
+  type: 'test'
+  ...
+# {"tier":"process","adopt":false,"earlier":{"id":"01M4C6FQJ4J8849AM930DP8Q2E","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C6FQJ6B21K534RC223TJ64","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: process: observation overlapping a committed POST preserves its outcome; adopt=false
+ok 3 - process: observation overlapping a committed POST preserves its outcome; adopt=false
+  ---
+  duration_ms: 233.961269
+  type: 'test'
+  ...
+# {"tier":"process","adopt":true,"earlier":{"id":"01M4C6FQSPSWDW4ATW5SEYGBWN","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C6FQSRJPRM63X0N5Y09P18","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: process: observation overlapping a committed POST preserves its outcome; adopt=true
+ok 4 - process: observation overlapping a committed POST preserves its outcome; adopt=true
+  ---
+  duration_ms: 625.388552
+  type: 'test'
+  ...
+# Subtest: online: gap receipt cannot hide a relevant commit
+ok 5 - online: gap receipt cannot hide a relevant commit
+  ---
+  duration_ms: 183.769827
+  type: 'test'
+  ...
+# Subtest: online: replay receipt cannot hide a relevant commit
+ok 6 - online: replay receipt cannot hide a relevant commit
+  ---
+  duration_ms: 185.809505
+  type: 'test'
+  ...
+# Subtest: online: dependent receipt cannot hide a relevant commit
+ok 7 - online: dependent receipt cannot hide a relevant commit
+  ---
+  duration_ms: 178.867147
+  type: 'test'
+  ...
+# Subtest: app-online: gap receipt cannot hide a relevant commit
+ok 8 - app-online: gap receipt cannot hide a relevant commit
+  ---
+  duration_ms: 197.941351
+  type: 'test'
+  ...
+# Subtest: app-online: replay receipt cannot hide a relevant commit
+ok 9 - app-online: replay receipt cannot hide a relevant commit
+  ---
+  duration_ms: 199.330154
+  type: 'test'
+  ...
+# Subtest: app-online: dependent receipt cannot hide a relevant commit
+ok 10 - app-online: dependent receipt cannot hide a relevant commit
+  ---
+  duration_ms: 185.557557
+  type: 'test'
+  ...
+# {"tier":"wasm","replacementRead":{"data":{"at":1,"body":"image-1","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C6FSGKHXB4NH5HZKHJN5MY","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+# {"tier":"wasm","oldStore":"4c2eeb6f1f285a5bd2d7fe98df3f5fa6","newStore":"ad1c6fec2507dd2efd5b2ad93c4e5e4e","remaining":{"ok":[]},"current":{"ok":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"006b1ccfd90db870c8e490d2f8903d330cc2d71d3bcabc0045a4ed0eae9eb6ca","device:backend-required":"","device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":"","device:restore-refused":null,"device:send_revision":"4","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"ad1c6fec2507dd2efd5b2ad93c4e5e4e","device:watermark":"1"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":2,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":1,"send_revision":4,"snapshot_catchup":false,"store_id":"ad1c6fec2507dd2efd5b2ad93c4e5e4e","transfer_store_id":"ad1c6fec2507dd2efd5b2ad93c4e5e4e","transfer_watermark":1,"watermark":1}}}
+# {"tier":"wasm","profile":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"observationRequests":0}
+# Subtest: wasm: store replacement during observation does not rewrite the held POST outcome
+ok 11 - wasm: store replacement during observation does not rewrite the held POST outcome
+  ---
+  duration_ms: 327.60618
+  type: 'test'
+  ...
+# {"tier":"process","replacementRead":{"data":{"at":1,"body":"image-1","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C6FSW5GSX7XHQ84EEMPX79","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+# {"tier":"process","oldStore":"096569312a25ed54a139ae8051342075","newStore":"1c398c37bc78572b847a38fcf53b4d57","remaining":{"ok":[]},"current":{"ok":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"006b1ccfd90db870c8e490d2f8903d330cc2d71d3bcabc0045a4ed0eae9eb6ca","device:backend-required":"","device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":"","device:restore-refused":null,"device:send_revision":"4","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"1c398c37bc78572b847a38fcf53b4d57","device:watermark":"1"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":2,"pending_complete":true,"pending_ids":[],"pending_through":0,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":1,"send_revision":4,"snapshot_catchup":false,"store_id":"1c398c37bc78572b847a38fcf53b4d57","transfer_store_id":"1c398c37bc78572b847a38fcf53b4d57","transfer_watermark":1,"watermark":1}}}
+# {"tier":"process","profile":{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"observationRequests":0}
+# Subtest: process: store replacement during observation does not rewrite the held POST outcome
+ok 12 - process: store replacement during observation does not rewrite the held POST outcome
+  ---
+  duration_ms: 383.307351
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4122.357285
+-- process inspection: {"snapshots":3,"unrelatedRows":4165}
+-- client file ok: packages/snapback4/test/one-shot-review-races.test.mjs (4436 ms)
+-- client file start: packages/snapback4/test/one-shot-sync-overlap.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"tier":"online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+# Subtest: online: unrelated commits do not exhaust a server aggregate
+ok 1 - online: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 184.236056
+  type: 'test'
+  ...
+# {"tier":"wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: wasm: unrelated commits do not exhaust a server aggregate
+ok 2 - wasm: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 598.296549
+  type: 'test'
+  ...
+# {"tier":"process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: process: unrelated commits do not exhaust a server aggregate
+ok 3 - process: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 236.248447
+  type: 'test'
+  ...
+# {"tier":"app-online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+# Subtest: app-online: unrelated commits do not exhaust a server aggregate
+ok 4 - app-online: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 162.714623
+  type: 'test'
+  ...
+# {"tier":"app-wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: app-wasm: unrelated commits do not exhaust a server aggregate
+ok 5 - app-wasm: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 198.098927
+  type: 'test'
+  ...
+# {"tier":"app-process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: app-process: unrelated commits do not exhaust a server aggregate
+ok 6 - app-process: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 235.398573
+  type: 'test'
+  ...
+# Subtest: wasm: field-disjoint server commits use fields evidence
+ok 7 - wasm: field-disjoint server commits use fields evidence
+  ---
+  duration_ms: 178.470503
+  type: 'test'
+  ...
+# Subtest: wasm: field-disjoint server commits use unknown evidence
+ok 8 - wasm: field-disjoint server commits use unknown evidence
+  ---
+  duration_ms: 390.93087
+  type: 'test'
+  ...
+# Subtest: wasm: field-disjoint server commits use gap evidence
+ok 9 - wasm: field-disjoint server commits use gap evidence
+  ---
+  duration_ms: 381.926141
+  type: 'test'
+  ...
+# Subtest: process: field-disjoint server commits use fields evidence
+ok 10 - process: field-disjoint server commits use fields evidence
+  ---
+  duration_ms: 219.177086
+  type: 'test'
+  ...
+# Subtest: process: field-disjoint server commits use unknown evidence
+ok 11 - process: field-disjoint server commits use unknown evidence
+  ---
+  duration_ms: 456.169578
+  type: 'test'
+  ...
+# Subtest: process: field-disjoint server commits use gap evidence
+ok 12 - process: field-disjoint server commits use gap evidence
+  ---
+  duration_ms: 493.153009
+  type: 'test'
+  ...
+# Subtest: app-wasm: field-disjoint server commits use fields evidence
+ok 13 - app-wasm: field-disjoint server commits use fields evidence
+  ---
+  duration_ms: 180.565093
+  type: 'test'
+  ...
+# Subtest: app-wasm: field-disjoint server commits use unknown evidence
+ok 14 - app-wasm: field-disjoint server commits use unknown evidence
+  ---
+  duration_ms: 387.503512
+  type: 'test'
+  ...
+# Subtest: app-wasm: field-disjoint server commits use gap evidence
+ok 15 - app-wasm: field-disjoint server commits use gap evidence
+  ---
+  duration_ms: 417.903143
+  type: 'test'
+  ...
+# Subtest: app-process: field-disjoint server commits use fields evidence
+ok 16 - app-process: field-disjoint server commits use fields evidence
+  ---
+  duration_ms: 234.314347
+  type: 'test'
+  ...
+# Subtest: app-process: field-disjoint server commits use unknown evidence
+ok 17 - app-process: field-disjoint server commits use unknown evidence
+  ---
+  duration_ms: 440.780738
+  type: 'test'
+  ...
+# Subtest: app-process: field-disjoint server commits use gap evidence
+ok 18 - app-process: field-disjoint server commits use gap evidence
+  ---
+  duration_ms: 548.810815
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6126.974972
+-- process inspection: {"snapshots":3,"unrelatedRows":4172}
+-- client file ok: packages/snapback4/test/one-shot-commit-evidence.test.mjs (6424 ms)
+-- client file start: packages/snapback4/test/one-shot.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online: four retired publications refuse with a retryable code
+ok 1 - online: four retired publications refuse with a retryable code
+  ---
+  duration_ms: 396.916523
+  type: 'test'
+  ...
+# Subtest: online: ignored transport abort still settles and fences the late answer
+ok 2 - online: ignored transport abort still settles and fences the late answer
+  ---
+  duration_ms: 169.843571
+  type: 'test'
+  ...
+# Subtest: online: close settles an outstanding one-shot without waiting for transport
+ok 3 - online: close settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 138.656878
+  type: 'test'
+  ...
+# Subtest: online: signOut settles an outstanding one-shot without waiting for transport
+ok 4 - online: signOut settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 136.488809
+  type: 'test'
+  ...
+# Subtest: wasm: four retired publications refuse with a retryable code
+ok 5 - wasm: four retired publications refuse with a retryable code
+  ---
+  duration_ms: 782.464313
+  type: 'test'
+  ...
+# Subtest: wasm: ignored transport abort still settles and fences the late answer
+ok 6 - wasm: ignored transport abort still settles and fences the late answer
+  ---
+  duration_ms: 181.179254
+  type: 'test'
+  ...
+# Subtest: wasm: close settles an outstanding one-shot without waiting for transport
+ok 7 - wasm: close settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 177.205887
+  type: 'test'
+  ...
+# Subtest: wasm: signOut settles an outstanding one-shot without waiting for transport
+ok 8 - wasm: signOut settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 166.868481
+  type: 'test'
+  ...
+# Subtest: process: four retired publications refuse with a retryable code
+ok 9 - process: four retired publications refuse with a retryable code
+  ---
+  duration_ms: 462.618225
+  type: 'test'
+  ...
+# Subtest: process: ignored transport abort still settles and fences the late answer
+ok 10 - process: ignored transport abort still settles and fences the late answer
+  ---
+  duration_ms: 240.772229
+  type: 'test'
+  ...
+# Subtest: process: close settles an outstanding one-shot without waiting for transport
+ok 11 - process: close settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 225.640145
+  type: 'test'
+  ...
+# Subtest: process: signOut settles an outstanding one-shot without waiting for transport
+ok 12 - process: signOut settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 203.953414
+  type: 'test'
+  ...
+# Subtest: app-online: four retired publications refuse with a retryable code
+ok 13 - app-online: four retired publications refuse with a retryable code
+  ---
+  duration_ms: 363.538025
+  type: 'test'
+  ...
+# Subtest: app-online: ignored transport abort still settles and fences the late answer
+ok 14 - app-online: ignored transport abort still settles and fences the late answer
+  ---
+  duration_ms: 171.15762
+  type: 'test'
+  ...
+# Subtest: app-online: close settles an outstanding one-shot without waiting for transport
+ok 15 - app-online: close settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 141.96647
+  type: 'test'
+  ...
+# Subtest: app-online: signOut settles an outstanding one-shot without waiting for transport
+ok 16 - app-online: signOut settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 139.252191
+  type: 'test'
+  ...
+# Subtest: app-wasm: four retired publications refuse with a retryable code
+ok 17 - app-wasm: four retired publications refuse with a retryable code
+  ---
+  duration_ms: 396.564205
+  type: 'test'
+  ...
+# Subtest: app-wasm: ignored transport abort still settles and fences the late answer
+ok 18 - app-wasm: ignored transport abort still settles and fences the late answer
+  ---
+  duration_ms: 195.64551
+  type: 'test'
+  ...
+# Subtest: app-wasm: close settles an outstanding one-shot without waiting for transport
+ok 19 - app-wasm: close settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 219.271137
+  type: 'test'
+  ...
+# Subtest: app-wasm: signOut settles an outstanding one-shot without waiting for transport
+ok 20 - app-wasm: signOut settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 168.58883
+  type: 'test'
+  ...
+# Subtest: app-process: four retired publications refuse with a retryable code
+ok 21 - app-process: four retired publications refuse with a retryable code
+  ---
+  duration_ms: 481.984287
+  type: 'test'
+  ...
+# Subtest: app-process: ignored transport abort still settles and fences the late answer
+ok 22 - app-process: ignored transport abort still settles and fences the late answer
+  ---
+  duration_ms: 302.894876
+  type: 'test'
+  ...
+# Subtest: app-process: close settles an outstanding one-shot without waiting for transport
+ok 23 - app-process: close settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 216.960853
+  type: 'test'
+  ...
+# Subtest: app-process: signOut settles an outstanding one-shot without waiting for transport
+ok 24 - app-process: signOut settles an outstanding one-shot without waiting for transport
+  ---
+  duration_ms: 222.291054
+  type: 'test'
+  ...
+# Subtest: wasm: device queue wait behind observations is inside the one-shot deadline
+ok 25 - wasm: device queue wait behind observations is inside the one-shot deadline
+  ---
+  duration_ms: 166.549021
+  type: 'test'
+  ...
+# Subtest: wasm: an unexpired permitted remembered answer still serves offline
+ok 26 - wasm: an unexpired permitted remembered answer still serves offline
+  ---
+  duration_ms: 169.495869
+  type: 'test'
+  ...
+# Subtest: process: device queue wait behind observations is inside the one-shot deadline
+ok 27 - process: device queue wait behind observations is inside the one-shot deadline
+  ---
+  duration_ms: 207.908002
+  type: 'test'
+  ...
+# Subtest: process: an unexpired permitted remembered answer still serves offline
+ok 28 - process: an unexpired permitted remembered answer still serves offline
+  ---
+  duration_ms: 212.011223
+  type: 'test'
+  ...
+# Subtest: app-wasm: device queue wait behind observations is inside the one-shot deadline
+ok 29 - app-wasm: device queue wait behind observations is inside the one-shot deadline
+  ---
+  duration_ms: 180.547757
+  type: 'test'
+  ...
+# Subtest: app-wasm: an unexpired permitted remembered answer still serves offline
+ok 30 - app-wasm: an unexpired permitted remembered answer still serves offline
+  ---
+  duration_ms: 194.869987
+  type: 'test'
+  ...
+# Subtest: app-process: device queue wait behind observations is inside the one-shot deadline
+ok 31 - app-process: device queue wait behind observations is inside the one-shot deadline
+  ---
+  duration_ms: 229.668152
+  type: 'test'
+  ...
+# Subtest: app-process: an unexpired permitted remembered answer still serves offline
+ok 32 - app-process: an unexpired permitted remembered answer still serves offline
+  ---
+  duration_ms: 215.268055
+  type: 'test'
+  ...
+# Subtest: app-online: blocked facade authority shares the same deadline
+ok 33 - app-online: blocked facade authority shares the same deadline
+  ---
+  duration_ms: 140.734323
+  type: 'test'
+  ...
+# Subtest: app-wasm: blocked facade authority shares the same deadline
+ok 34 - app-wasm: blocked facade authority shares the same deadline
+  ---
+  duration_ms: 178.911093
+  type: 'test'
+  ...
+# Subtest: app-process: blocked facade authority shares the same deadline
+ok 35 - app-process: blocked facade authority shares the same deadline
+  ---
+  duration_ms: 214.833814
+  type: 'test'
+  ...
+1..35
+# tests 35
+# suites 0
+# pass 35
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8585.86171
+-- process inspection: {"snapshots":3,"unrelatedRows":4170}
+-- client file ok: packages/snapback4/test/one-shot-bounds.test.mjs (8882 ms)
+-- client file start: packages/snapback4/test/query-dependencies.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: column proofs distinguish receipt watermarks from membership authorization
+ok 1 - column proofs distinguish receipt watermarks from membership authorization
+  ---
+  duration_ms: 0.710395
+  type: 'test'
+  ...
+# Subtest: unrelated commits preserve captures; unknown changes and relevant cuts fence them
+ok 2 - unrelated commits preserve captures; unknown changes and relevant cuts fence them
+  ---
+  duration_ms: 0.301843
+  type: 'test'
+  ...
+# Subtest: an observation during asynchronous custody inspection cannot be missed
+ok 3 - an observation during asynchronous custody inspection cannot be missed
+  ---
+  duration_ms: 1.025097
+  type: 'test'
+  ...
+# Subtest: custody wait cancellation releases its subscription without an observation
+ok 4 - custody wait cancellation releases its subscription without an observation
+  ---
+  duration_ms: 0.334011
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 52.200664
+-- process inspection: {"snapshots":3,"unrelatedRows":4190}
+-- client file ok: packages/snapback4/test/query-dependencies.test.mjs (345 ms)
+-- client file start: packages/snapback4/test/query-publication-session.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm: seeded one-shot/write/link/deadline/close model
+    # Subtest: session 0
+    ok 1 - session 0
+      ---
+      duration_ms: 905.048927
+      type: 'test'
+      ...
+    # Subtest: session 1
+    ok 2 - session 1
+      ---
+      duration_ms: 409.35609
+      type: 'test'
+      ...
+    # Subtest: session 2
+    ok 3 - session 2
+      ---
+      duration_ms: 399.152855
+      type: 'test'
+      ...
+    # Subtest: session 3
+    ok 4 - session 3
+      ---
+      duration_ms: 458.761864
+      type: 'test'
+      ...
+    # Subtest: session 4
+    ok 5 - session 4
+      ---
+      duration_ms: 304.374404
+      type: 'test'
+      ...
+    # Subtest: session 5
+    ok 6 - session 5
+      ---
+      duration_ms: 441.591405
+      type: 'test'
+      ...
+    # Subtest: session 6
+    ok 7 - session 6
+      ---
+      duration_ms: 379.366513
+      type: 'test'
+      ...
+    # Subtest: session 7
+    ok 8 - session 7
+      ---
+      duration_ms: 325.708986
+      type: 'test'
+      ...
+    # Subtest: session 8
+    ok 9 - session 8
+      ---
+      duration_ms: 399.858714
+      type: 'test'
+      ...
+    # Subtest: session 9
+    ok 10 - session 9
+      ---
+      duration_ms: 344.466426
+      type: 'test'
+      ...
+    # Subtest: session 10
+    ok 11 - session 10
+      ---
+      duration_ms: 452.250944
+      type: 'test'
+      ...
+    # Subtest: session 11
+    ok 12 - session 11
+      ---
+      duration_ms: 331.663833
+      type: 'test'
+      ...
+    1..12
+ok 1 - wasm: seeded one-shot/write/link/deadline/close model
+  ---
+  duration_ms: 5155.259636
+  type: 'test'
+  ...
+# Subtest: process: seeded one-shot/write/link/deadline/close model
+    # Subtest: session 0
+    ok 1 - session 0
+      ---
+      duration_ms: 834.249924
+      type: 'test'
+      ...
+    # Subtest: session 1
+    ok 2 - session 1
+      ---
+      duration_ms: 697.668255
+      type: 'test'
+      ...
+    # Subtest: session 2
+    ok 3 - session 2
+      ---
+      duration_ms: 529.289431
+      type: 'test'
+      ...
+    # Subtest: session 3
+    ok 4 - session 3
+      ---
+      duration_ms: 524.588073
+      type: 'test'
+      ...
+    # Subtest: session 4
+    ok 5 - session 4
+      ---
+      duration_ms: 456.099554
+      type: 'test'
+      ...
+    # Subtest: session 5
+    ok 6 - session 5
+      ---
+      duration_ms: 564.957962
+      type: 'test'
+      ...
+    # Subtest: session 6
+    ok 7 - session 6
+      ---
+      duration_ms: 491.33193
+      type: 'test'
+      ...
+    # Subtest: session 7
+    ok 8 - session 7
+      ---
+      duration_ms: 510.33673
+      type: 'test'
+      ...
+    # Subtest: session 8
+    ok 9 - session 8
+      ---
+      duration_ms: 709.023548
+      type: 'test'
+      ...
+    # Subtest: session 9
+    ok 10 - session 9
+      ---
+      duration_ms: 429.800508
+      type: 'test'
+      ...
+    # Subtest: session 10
+    ok 11 - session 10
+      ---
+      duration_ms: 719.228156
+      type: 'test'
+      ...
+    # Subtest: session 11
+    ok 12 - session 11
+      ---
+      duration_ms: 422.147425
+      type: 'test'
+      ...
+    1..12
+ok 2 - process: seeded one-shot/write/link/deadline/close model
+  ---
+  duration_ms: 6890.47131
+  type: 'test'
+  ...
+1..2
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12211.721851
+-- process inspection: {"snapshots":3,"unrelatedRows":4156}
+-- client file ok: packages/snapback4/test/one-shot-model.test.mjs (12511 ms)
+-- client file start: packages/snapback4/test/live-margin-settlement.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm: observation before the held POST reply preserves its own sent outcome
+ok 1 - wasm: observation before the held POST reply preserves its own sent outcome
+  ---
+  duration_ms: 705.300988
+  type: 'test'
+  ...
+# Subtest: wasm: observation before the held POST reply preserves its own failed outcome
+ok 2 - wasm: observation before the held POST reply preserves its own failed outcome
+  ---
+  duration_ms: 200.55575
+  type: 'test'
+  ...
+# Subtest: process: observation before the held POST reply preserves its own sent outcome
+ok 3 - process: observation before the held POST reply preserves its own sent outcome
+  ---
+  duration_ms: 353.583683
+  type: 'test'
+  ...
+# Subtest: process: observation before the held POST reply preserves its own failed outcome
+ok 4 - process: observation before the held POST reply preserves its own failed outcome
+  ---
+  duration_ms: 270.492252
+  type: 'test'
+  ...
+# Subtest: app-wasm: observation before the held POST reply preserves its own sent outcome
+ok 5 - app-wasm: observation before the held POST reply preserves its own sent outcome
+  ---
+  duration_ms: 235.828508
+  type: 'test'
+  ...
+# Subtest: app-wasm: observation before the held POST reply preserves its own failed outcome
+ok 6 - app-wasm: observation before the held POST reply preserves its own failed outcome
+  ---
+  duration_ms: 239.733522
+  type: 'test'
+  ...
+# Subtest: app-process: observation before the held POST reply preserves its own sent outcome
+ok 7 - app-process: observation before the held POST reply preserves its own sent outcome
+  ---
+  duration_ms: 279.446555
+  type: 'test'
+  ...
+# Subtest: app-process: observation before the held POST reply preserves its own failed outcome
+ok 8 - app-process: observation before the held POST reply preserves its own failed outcome
+  ---
+  duration_ms: 260.186252
+  type: 'test'
+  ...
+# Subtest: wasm: a new send invalidates an overlap page captured before its receipt
+ok 9 - wasm: a new send invalidates an overlap page captured before its receipt
+  ---
+  duration_ms: 226.5509
+  type: 'test'
+  ...
+# Subtest: process: a new send invalidates an overlap page captured before its receipt
+ok 10 - process: a new send invalidates an overlap page captured before its receipt
+  ---
+  duration_ms: 283.307072
+  type: 'test'
+  ...
+# Subtest: app-wasm: a new send invalidates an overlap page captured before its receipt
+ok 11 - app-wasm: a new send invalidates an overlap page captured before its receipt
+  ---
+  duration_ms: 239.427383
+  type: 'test'
+  ...
+# Subtest: app-process: a new send invalidates an overlap page captured before its receipt
+ok 12 - app-process: a new send invalidates an overlap page captured before its receipt
+  ---
+  duration_ms: 294.027052
+  type: 'test'
+  ...
+# Subtest: wasm: custody wait wakes promptly when the link becomes offline
+ok 13 - wasm: custody wait wakes promptly when the link becomes offline
+  ---
+  duration_ms: 151.863527
+  type: 'test'
+  ...
+# Subtest: process: custody wait wakes promptly when the link becomes offline
+ok 14 - process: custody wait wakes promptly when the link becomes offline
+  ---
+  duration_ms: 185.885739
+  type: 'test'
+  ...
+# Subtest: app-wasm: custody wait wakes promptly when the link becomes offline
+ok 15 - app-wasm: custody wait wakes promptly when the link becomes offline
+  ---
+  duration_ms: 141.589885
+  type: 'test'
+  ...
+# Subtest: app-process: custody wait wakes promptly when the link becomes offline
+ok 16 - app-process: custody wait wakes promptly when the link becomes offline
+  ---
+  duration_ms: 186.15313
+  type: 'test'
+  ...
+# Subtest: online: custody wait wakes promptly when the link becomes offline
+ok 17 - online: custody wait wakes promptly when the link becomes offline
+  ---
+  duration_ms: 117.775295
+  type: 'test'
+  ...
+# Subtest: app-online: custody wait wakes promptly when the link becomes offline
+ok 18 - app-online: custody wait wakes promptly when the link becomes offline
+  ---
+  duration_ms: 113.425124
+  type: 'test'
+  ...
+# Subtest: wasm: store adoption during overlap preserves the old POST outcome
+ok 19 - wasm: store adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 278.076771
+  type: 'test'
+  ...
+# Subtest: wasm: generation adoption during overlap preserves the old POST outcome
+ok 20 - wasm: generation adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 634.900312
+  type: 'test'
+  ...
+# Subtest: process: store adoption during overlap preserves the old POST outcome
+ok 21 - process: store adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 370.007735
+  type: 'test'
+  ...
+# Subtest: process: generation adoption during overlap preserves the old POST outcome
+ok 22 - process: generation adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 676.705661
+  type: 'test'
+  ...
+# Subtest: app-wasm: store adoption during overlap preserves the old POST outcome
+ok 23 - app-wasm: store adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 268.097733
+  type: 'test'
+  ...
+# Subtest: app-wasm: generation adoption during overlap preserves the old POST outcome
+ok 24 - app-wasm: generation adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 646.890185
+  type: 'test'
+  ...
+# Subtest: app-process: store adoption during overlap preserves the old POST outcome
+ok 25 - app-process: store adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 346.964781
+  type: 'test'
+  ...
+# Subtest: app-process: generation adoption during overlap preserves the old POST outcome
+ok 26 - app-process: generation adoption during overlap preserves the old POST outcome
+  ---
+  duration_ms: 674.028558
+  type: 'test'
+  ...
+# Subtest: wasm: adopted receipt keeps its dispatch store through late settlement
+ok 27 - wasm: adopted receipt keeps its dispatch store through late settlement
+  ---
+  duration_ms: 176.021762
+  type: 'test'
+  ...
+# Subtest: process: adopted receipt keeps its dispatch store through late settlement
+ok 28 - process: adopted receipt keeps its dispatch store through late settlement
+  ---
+  duration_ms: 284.329415
+  type: 'test'
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9022.933328
+-- process inspection: {"snapshots":3,"unrelatedRows":4181}
+-- client file ok: packages/snapback4/test/one-shot-sync-overlap.test.mjs (9325 ms)
+-- client file start: packages/snapback4/test/sync-after-call.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: ten explicit calls during one round share exactly one follow-up
+ok 1 - ten explicit calls during one round share exactly one follow-up
+  ---
+  duration_ms: 25.830382
+  type: 'test'
+  ...
+# Subtest: a call during the follow-up waits for its own newer round
+ok 2 - a call during the follow-up waits for its own newer round
+  ---
+  duration_ms: 3.12196
+  type: 'test'
+  ...
+# Subtest: a wake-driven round is not doubled
+ok 3 - a wake-driven round is not doubled
+  ---
+  duration_ms: 3.317914
+  type: 'test'
+  ...
+# Subtest: explicit sync during a held wake-driven round observes the newer head
+ok 4 - explicit sync during a held wake-driven round observes the newer head
+  ---
+  duration_ms: 4.621728
+  type: 'test'
+  ...
+# Subtest: a wake during an explicit round coalesces without an extra round
+ok 5 - a wake during an explicit round coalesces without an extra round
+  ---
+  duration_ms: 1.864144
+  type: 'test'
+  ...
+# Subtest: explicit sync waits for the follow-up's offline fetch
+ok 6 - explicit sync waits for the follow-up's offline fetch
+  ---
+  duration_ms: 1.811396
+  type: 'test'
+  ...
+# Subtest: explicit sync waits for the follow-up's device rejection
+ok 7 - explicit sync waits for the follow-up's device rejection
+  ---
+  duration_ms: 1.912988
+  type: 'test'
+  ...
+# Subtest: an older round returning false after network error cannot skip the explicit follow-up
+ok 8 - an older round returning false after network error cannot skip the explicit follow-up
+  ---
+  duration_ms: 1.832627
+  type: 'test'
+  ...
+# Subtest: an older round returning false after HTTP 500 cannot skip the explicit follow-up
+ok 9 - an older round returning false after HTTP 500 cannot skip the explicit follow-up
+  ---
+  duration_ms: 1.60749
+  type: 'test'
+  ...
+# Subtest: a failed older round cannot skip the explicit follow-up attempt
+ok 10 - a failed older round cannot skip the explicit follow-up attempt
+  ---
+  duration_ms: 1.583013
+  type: 'test'
+  ...
+# Subtest: explicit sync follows a priority observation even when it succeeds
+ok 11 - explicit sync follows a priority observation even when it succeeds
+  ---
+  duration_ms: 0.171137
+  type: 'test'
+  ...
+# Subtest: explicit sync follows a priority observation even when it fails
+ok 12 - explicit sync follows a priority observation even when it fails
+  ---
+  duration_ms: 0.08667
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 165.960379
+-- process inspection: {"snapshots":3,"unrelatedRows":4189}
+-- client file ok: packages/snapback4/test/sync-after-call.test.mjs (460 ms)
+TAP version 13
+# Subtest: process: two offline sends settle without a once column
+ok 1 - process: two offline sends settle without a once column
+  ---
+  duration_ms: 398.761999
+  type: 'test'
+  ...
+# Subtest: process: two offline sends settle with a once column
+ok 2 - process: two offline sends settle with a once column
+  ---
+  duration_ms: 410.46285
+  type: 'test'
+  ...
+# Subtest: wasm: two offline sends settle without a once column
+ok 3 - wasm: two offline sends settle without a once column
+  ---
+  duration_ms: 732.613382
+  type: 'test'
+  ...
+# Subtest: wasm: two offline sends settle with a once column
+ok 4 - wasm: two offline sends settle with a once column
+  ---
+  duration_ms: 240.255323
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1927.882235
+-- process inspection: {"snapshots":3,"unrelatedRows":4146}
+-- client file ok: packages/snapback4/test/live-margin-settlement.test.mjs (2219 ms)
+TAP version 13
+# Subtest: wasm: a terminal change-stream refusal wins a blocked query deadline
+ok 1 - wasm: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 613.638408
+  type: 'test'
+  ...
+# Subtest: wasm: restore refusal wins a blocked query deadline
+ok 2 - wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 190.032495
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: wasm: partition refusal wins a blocked query deadline
+ok 3 - wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 191.796029
+  type: 'test'
+  ...
+# Subtest: wasm: impossible held count refuses in one evaluation and never contacts the server
+ok 4 - wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 194.51188
+  type: 'test'
+  ...
+# Subtest: wasm: a held query retries a concurrent prediction and can answer its other branch
+ok 5 - wasm: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 218.693131
+  type: 'test'
+  ...
+# Subtest: process: a terminal change-stream refusal wins a blocked query deadline
+ok 6 - process: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 205.030068
+  type: 'test'
+  ...
+# Subtest: process: restore refusal wins a blocked query deadline
+ok 7 - process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 222.573216
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: process: partition refusal wins a blocked query deadline
+ok 8 - process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 246.638573
+  type: 'test'
+  ...
+# Subtest: process: impossible held count refuses in one evaluation and never contacts the server
+ok 9 - process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 223.985504
+  type: 'test'
+  ...
+# Subtest: process: a held query retries a concurrent prediction and can answer its other branch
+ok 10 - process: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 217.717287
+  type: 'test'
+  ...
+# Subtest: app-wasm: a terminal change-stream refusal wins a blocked query deadline
+ok 11 - app-wasm: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 203.367335
+  type: 'test'
+  ...
+# Subtest: app-wasm: restore refusal wins a blocked query deadline
+ok 12 - app-wasm: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 208.116384
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-wasm: partition refusal wins a blocked query deadline
+ok 13 - app-wasm: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 187.074582
+  type: 'test'
+  ...
+# Subtest: app-wasm: impossible held count refuses in one evaluation and never contacts the server
+ok 14 - app-wasm: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 201.637682
+  type: 'test'
+  ...
+# Subtest: app-wasm: a held query retries a concurrent prediction and can answer its other branch
+ok 15 - app-wasm: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 189.3149
+  type: 'test'
+  ...
+# Subtest: app-process: a terminal change-stream refusal wins a blocked query deadline
+ok 16 - app-process: a terminal change-stream refusal wins a blocked query deadline
+  ---
+  duration_ms: 248.607975
+  type: 'test'
+  ...
+# Subtest: app-process: restore refusal wins a blocked query deadline
+ok 17 - app-process: restore refusal wins a blocked query deadline
+  ---
+  duration_ms: 303.05797
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-process: partition refusal wins a blocked query deadline
+ok 18 - app-process: partition refusal wins a blocked query deadline
+  ---
+  duration_ms: 250.62572
+  type: 'test'
+  ...
+# Subtest: app-process: impossible held count refuses in one evaluation and never contacts the server
+ok 19 - app-process: impossible held count refuses in one evaluation and never contacts the server
+  ---
+  duration_ms: 247.701616
+  type: 'test'
+  ...
+# Subtest: app-process: a held query retries a concurrent prediction and can answer its other branch
+ok 20 - app-process: a held query retries a concurrent prediction and can answer its other branch
+  ---
+  duration_ms: 293.362627
+  type: 'test'
+  ...
+# Subtest: online: restore wins the transport deadline
+ok 21 - online: restore wins the transport deadline
+  ---
+  duration_ms: 3.049932
+  type: 'test'
+  ...
+# Subtest: online: reset wins the transport deadline
+ok 22 - online: reset wins the transport deadline
+  ---
+  duration_ms: 1.053359
+  type: 'test'
+  ...
+# Subtest: facade: restore wins the transport deadline
+ok 23 - facade: restore wins the transport deadline
+  ---
+  duration_ms: 10.848112
+  type: 'test'
+  ...
+# Subtest: facade: restore wins the authority deadline
+ok 24 - facade: restore wins the authority deadline
+  ---
+  duration_ms: 0.830545
+  type: 'test'
+  ...
+# Subtest: facade: reset wins the transport deadline
+ok 25 - facade: reset wins the transport deadline
+  ---
+  duration_ms: 11.384797
+  type: 'test'
+  ...
+# Subtest: facade: reset wins the authority deadline
+ok 26 - facade: reset wins the authority deadline
+  ---
+  duration_ms: 0.810235
+  type: 'test'
+  ...
+# Subtest: app-online: logout scope change wins a blocked authority deadline
+ok 27 - app-online: logout scope change wins a blocked authority deadline
+  ---
+  duration_ms: 140.472891
+  type: 'test'
+  ...
+# Subtest: app-online: viewer scope change wins a blocked authority deadline
+ok 28 - app-online: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 143.228933
+  type: 'test'
+  ...
+# {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1792274828193}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+# Subtest: app-wasm: logout scope change wins a blocked authority deadline
+ok 29 - app-wasm: logout scope change wins a blocked authority deadline
+  ---
+  duration_ms: 171.581736
+  type: 'test'
+  ...
+# Subtest: app-wasm: viewer scope change wins a blocked authority deadline
+ok 30 - app-wasm: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 195.828925
+  type: 'test'
+  ...
+# {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1792274828532}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+# Subtest: app-process: logout scope change wins a blocked authority deadline
+ok 31 - app-process: logout scope change wins a blocked authority deadline
+  ---
+  duration_ms: 215.958792
+  type: 'test'
+  ...
+# Subtest: app-process: viewer scope change wins a blocked authority deadline
+ok 32 - app-process: viewer scope change wins a blocked authority deadline
+  ---
+  duration_ms: 264.418296
+  type: 'test'
+  ...
+# {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1792274828978}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+# Subtest: online: held queries retain the terminal server refusal
+ok 33 - online: held queries retain the terminal server refusal
+  ---
+  duration_ms: 147.559064
+  type: 'test'
+  ...
+# Subtest: app-online: held queries retain the terminal server refusal
+ok 34 - app-online: held queries retain the terminal server refusal
+  ---
+  duration_ms: 165.041552
+  type: 'test'
+  ...
+# Subtest: mock: a retired one-shot rereads instead of returning the old value
+ok 35 - mock: a retired one-shot rereads instead of returning the old value
+  ---
+  duration_ms: 27.996128
+  type: 'test'
+  ...
+# Subtest: mock: genuine publication exhaustion uses the shared retryable refusal
+ok 36 - mock: genuine publication exhaustion uses the shared retryable refusal
+  ---
+  duration_ms: 177.077484
+  type: 'test'
+  ...
+# Subtest: mock: closed and signed-out clients preserve terminal refusals
+ok 37 - mock: closed and signed-out clients preserve terminal refusals
+  ---
+  duration_ms: 0.591176
+  type: 'test'
+  ...
+# Subtest: mock: a throwing evaluator settles with the shared client refusal
+ok 38 - mock: a throwing evaluator settles with the shared client refusal
+  ---
+  duration_ms: 0.295122
+  type: 'test'
+  ...
+# Subtest: guide: stale one-shot continuations refuse and retain the first-page recovery
+ok 39 - guide: stale one-shot continuations refuse and retain the first-page recovery
+  ---
+  duration_ms: 0.497136
+  type: 'test'
+  ...
+# Subtest: guide: server-needing decorations remain separate
+ok 40 - guide: server-needing decorations remain separate
+  ---
+  duration_ms: 0.170465
+  type: 'test'
+  ...
+# Subtest: online: terminal changes refusal at transport deadline
+ok 41 - online: terminal changes refusal at transport deadline
+  ---
+  duration_ms: 151.454413
+  type: 'test'
+  ...
+# {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+# Subtest: app-online: terminal changes refusal at transport deadline
+ok 42 - app-online: terminal changes refusal at transport deadline
+  ---
+  duration_ms: 146.820277
+  type: 'test'
+  ...
+# {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+# Subtest: app-online: terminal changes refusal at authority deadline
+ok 43 - app-online: terminal changes refusal at authority deadline
+  ---
+  duration_ms: 151.15913
+  type: 'test'
+  ...
+# {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+# Subtest: wasm: a time-dependent held miss rereads across its cutoff
+ok 44 - wasm: a time-dependent held miss rereads across its cutoff
+  ---
+  duration_ms: 169.459555
+  type: 'test'
+  ...
+# Subtest: wasm: a held miss dependent on arguments remains retryable
+ok 45 - wasm: a held miss dependent on arguments remains retryable
+  ---
+  duration_ms: 266.581209
+  type: 'test'
+  ...
+# Subtest: wasm: a held miss dependent on coverage remains retryable
+ok 46 - wasm: a held miss dependent on coverage remains retryable
+  ---
+  duration_ms: 362.639919
+  type: 'test'
+  ...
+# Subtest: wasm: a held miss dependent on membership remains retryable
+ok 47 - wasm: a held miss dependent on membership remains retryable
+  ---
+  duration_ms: 368.46404
+  type: 'test'
+  ...
+# Subtest: process: a time-dependent held miss rereads across its cutoff
+ok 48 - process: a time-dependent held miss rereads across its cutoff
+  ---
+  duration_ms: 204.318011
+  type: 'test'
+  ...
+# Subtest: process: a held miss dependent on arguments remains retryable
+ok 49 - process: a held miss dependent on arguments remains retryable
+  ---
+  duration_ms: 311.204273
+  type: 'test'
+  ...
+# Subtest: process: a held miss dependent on coverage remains retryable
+ok 50 - process: a held miss dependent on coverage remains retryable
+  ---
+  duration_ms: 425.092692
+  type: 'test'
+  ...
+# Subtest: process: a held miss dependent on membership remains retryable
+ok 51 - process: a held miss dependent on membership remains retryable
+  ---
+  duration_ms: 433.825342
+  type: 'test'
+  ...
+# Subtest: app-wasm: a time-dependent held miss rereads across its cutoff
+ok 52 - app-wasm: a time-dependent held miss rereads across its cutoff
+  ---
+  duration_ms: 168.781058
+  type: 'test'
+  ...
+# Subtest: app-wasm: a held miss dependent on arguments remains retryable
+ok 53 - app-wasm: a held miss dependent on arguments remains retryable
+  ---
+  duration_ms: 286.176073
+  type: 'test'
+  ...
+# Subtest: app-wasm: a held miss dependent on coverage remains retryable
+ok 54 - app-wasm: a held miss dependent on coverage remains retryable
+  ---
+  duration_ms: 370.052982
+  type: 'test'
+  ...
+# Subtest: app-wasm: a held miss dependent on membership remains retryable
+ok 55 - app-wasm: a held miss dependent on membership remains retryable
+  ---
+  duration_ms: 381.448785
+  type: 'test'
+  ...
+# Subtest: app-process: a time-dependent held miss rereads across its cutoff
+ok 56 - app-process: a time-dependent held miss rereads across its cutoff
+  ---
+  duration_ms: 234.678713
+  type: 'test'
+  ...
+# Subtest: app-process: a held miss dependent on arguments remains retryable
+ok 57 - app-process: a held miss dependent on arguments remains retryable
+  ---
+  duration_ms: 334.457631
+  type: 'test'
+  ...
+# Subtest: app-process: a held miss dependent on coverage remains retryable
+ok 58 - app-process: a held miss dependent on coverage remains retryable
+  ---
+  duration_ms: 478.08429
+  type: 'test'
+  ...
+# Subtest: app-process: a held miss dependent on membership remains retryable
+ok 59 - app-process: a held miss dependent on membership remains retryable
+  ---
+  duration_ms: 488.238102
+  type: 'test'
+  ...
+# Subtest: guide: the client contract names only proven permanent held refusals
+ok 60 - guide: the client contract names only proven permanent held refusals
+  ---
+  duration_ms: 0.45317
+  type: 'test'
+  ...
+# Subtest: app-wasm: changes wins a blocked opening authority deadline
+ok 61 - app-wasm: changes wins a blocked opening authority deadline
+  ---
+  duration_ms: 183.585511
+  type: 'test'
+  ...
+# Subtest: app-wasm: changes wins a blocked final authority deadline
+ok 62 - app-wasm: changes wins a blocked final authority deadline
+  ---
+  duration_ms: 181.166594
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-wasm: partition wins a blocked opening authority deadline
+ok 63 - app-wasm: partition wins a blocked opening authority deadline
+  ---
+  duration_ms: 197.897045
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-wasm: partition wins a blocked final authority deadline
+ok 64 - app-wasm: partition wins a blocked final authority deadline
+  ---
+  duration_ms: 203.754376
+  type: 'test'
+  ...
+# Subtest: app-wasm: restore wins a blocked opening authority deadline
+ok 65 - app-wasm: restore wins a blocked opening authority deadline
+  ---
+  duration_ms: 201.664743
+  type: 'test'
+  ...
+# Subtest: app-wasm: restore wins a blocked final authority deadline
+ok 66 - app-wasm: restore wins a blocked final authority deadline
+  ---
+  duration_ms: 199.257915
+  type: 'test'
+  ...
+# Subtest: app-process: changes wins a blocked opening authority deadline
+ok 67 - app-process: changes wins a blocked opening authority deadline
+  ---
+  duration_ms: 250.353272
+  type: 'test'
+  ...
+# Subtest: app-process: changes wins a blocked final authority deadline
+ok 68 - app-process: changes wins a blocked final authority deadline
+  ---
+  duration_ms: 222.120568
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-process: partition wins a blocked opening authority deadline
+ok 69 - app-process: partition wins a blocked opening authority deadline
+  ---
+  duration_ms: 230.415433
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_SYNC: partition refused
+# Subtest: app-process: partition wins a blocked final authority deadline
+ok 70 - app-process: partition wins a blocked final authority deadline
+  ---
+  duration_ms: 257.120516
+  type: 'test'
+  ...
+# Subtest: app-process: restore wins a blocked opening authority deadline
+ok 71 - app-process: restore wins a blocked opening authority deadline
+  ---
+  duration_ms: 243.051375
+  type: 'test'
+  ...
+# Subtest: app-process: restore wins a blocked final authority deadline
+ok 72 - app-process: restore wins a blocked final authority deadline
+  ---
+  duration_ms: 249.154444
+  type: 'test'
+  ...
+1..72
+# tests 72
+# suites 0
+# pass 72
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15059.13971
+-- process inspection: {"snapshots":3,"unrelatedRows":4127}
+-- client file ok: packages/snapback4/test/one-shot-review.test.mjs (15347 ms)
+TAP version 13
+# Subtest: rule 1: sign-out during local cannot publish private data
+ok 1 - rule 1: sign-out during local cannot publish private data
+  ---
+  duration_ms: 1022.844554
+  type: 'test'
+  ...
+# Subtest: rule 1: sign-out during dispatch cannot publish private data
+ok 2 - rule 1: sign-out during dispatch cannot publish private data
+  ---
+  duration_ms: 1002.766505
+  type: 'test'
+  ...
+# Subtest: rule 1: sign-out during transport cannot publish private data
+ok 3 - rule 1: sign-out during transport cannot publish private data
+  ---
+  duration_ms: 1002.958262
+  type: 'test'
+  ...
+# Subtest: rule 1: sign-out during delivery cannot publish private data
+ok 4 - rule 1: sign-out during delivery cannot publish private data
+  ---
+  duration_ms: 1002.700776
+  type: 'test'
+  ...
+# Subtest: rule 1: sign-out during publication cannot publish private data
+ok 5 - rule 1: sign-out during publication cannot publish private data
+  ---
+  duration_ms: 1003.948036
+  type: 'test'
+  ...
+# Subtest: rule 1: close during local cannot publish private data
+ok 6 - rule 1: close during local cannot publish private data
+  ---
+  duration_ms: 1002.849499
+  type: 'test'
+  ...
+# Subtest: rule 1: close during dispatch cannot publish private data
+ok 7 - rule 1: close during dispatch cannot publish private data
+  ---
+  duration_ms: 1003.630881
+  type: 'test'
+  ...
+# Subtest: rule 1: close during transport cannot publish private data
+ok 8 - rule 1: close during transport cannot publish private data
+  ---
+  duration_ms: 1002.961557
+  type: 'test'
+  ...
+# Subtest: rule 1: close during delivery cannot publish private data
+ok 9 - rule 1: close during delivery cannot publish private data
+  ---
+  duration_ms: 1003.142378
+  type: 'test'
+  ...
+# Subtest: rule 1: close during publication cannot publish private data
+ok 10 - rule 1: close during publication cannot publish private data
+  ---
+  duration_ms: 1004.135097
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10167.091552
+-- process inspection: {"snapshots":3,"unrelatedRows":4135}
+-- client file ok: packages/snapback4/test/query-publication-session.test.mjs (10471 ms)
+TAP version 13
+# Subtest: online: server aggregate settles while unrelated like remains unobserved
+ok 1 - online: server aggregate settles while unrelated like remains unobserved
+  ---
+  duration_ms: 85.776337
+  type: 'test'
+  ...
+# Subtest: online: unrelated commits at every publication do not spend the round budget
+ok 2 - online: unrelated commits at every publication do not spend the round budget
+  ---
+  duration_ms: 154.6145
+  type: 'test'
+  ...
+# Subtest: wasm: server aggregate settles while unrelated like remains unobserved
+ok 3 - wasm: server aggregate settles while unrelated like remains unobserved
+  ---
+  duration_ms: 565.472433
+  type: 'test'
+  ...
+# Subtest: wasm: unrelated commits at every publication do not spend the round budget
+ok 4 - wasm: unrelated commits at every publication do not spend the round budget
+  ---
+  duration_ms: 179.880627
+  type: 'test'
+  ...
+# Subtest: process: server aggregate settles while unrelated like remains unobserved
+ok 5 - process: server aggregate settles while unrelated like remains unobserved
+  ---
+  duration_ms: 122.113639
+  type: 'test'
+  ...
+# Subtest: process: unrelated commits at every publication do not spend the round budget
+ok 6 - process: unrelated commits at every publication do not spend the round budget
+  ---
+  duration_ms: 227.945601
+  type: 'test'
+  ...
+# Subtest: app-online: server aggregate settles while unrelated like remains unobserved
+ok 7 - app-online: server aggregate settles while unrelated like remains unobserved
+  ---
+  duration_ms: 63.560482
+  type: 'test'
+  ...
+# Subtest: app-online: unrelated commits at every publication do not spend the round budget
+ok 8 - app-online: unrelated commits at every publication do not spend the round budget
+  ---
+  duration_ms: 159.053114
+  type: 'test'
+  ...
+# Subtest: app-wasm: server aggregate settles while unrelated like remains unobserved
+ok 9 - app-wasm: server aggregate settles while unrelated like remains unobserved
+  ---
+  duration_ms: 98.445688
+  type: 'test'
+  ...
+# Subtest: app-wasm: unrelated commits at every publication do not spend the round budget
+ok 10 - app-wasm: unrelated commits at every publication do not spend the round budget
+  ---
+  duration_ms: 190.586737
+  type: 'test'
+  ...
+# Subtest: app-process: server aggregate settles while unrelated like remains unobserved
+ok 11 - app-process: server aggregate settles while unrelated like remains unobserved
+  ---
+  duration_ms: 132.143635
+  type: 'test'
+  ...
+# Subtest: app-process: unrelated commits at every publication do not spend the round budget
+ok 12 - app-process: unrelated commits at every publication do not spend the round budget
+  ---
+  duration_ms: 241.540731
+  type: 'test'
+  ...
+# Subtest: online: history settles while receipt watermark writes stay unobserved
+ok 13 - online: history settles while receipt watermark writes stay unobserved
+  ---
+  duration_ms: 160.118111
+  type: 'test'
+  ...
+# Subtest: wasm: history settles while receipt watermark writes stay unobserved
+ok 14 - wasm: history settles while receipt watermark writes stay unobserved
+  ---
+  duration_ms: 221.944314
+  type: 'test'
+  ...
+# Subtest: process: history settles while receipt watermark writes stay unobserved
+ok 15 - process: history settles while receipt watermark writes stay unobserved
+  ---
+  duration_ms: 254.230594
+  type: 'test'
+  ...
+# Subtest: app-online: history settles while receipt watermark writes stay unobserved
+ok 16 - app-online: history settles while receipt watermark writes stay unobserved
+  ---
+  duration_ms: 153.77397
+  type: 'test'
+  ...
+# Subtest: app-wasm: history settles while receipt watermark writes stay unobserved
+ok 17 - app-wasm: history settles while receipt watermark writes stay unobserved
+  ---
+  duration_ms: 207.465109
+  type: 'test'
+  ...
+# Subtest: app-process: history settles while receipt watermark writes stay unobserved
+ok 18 - app-process: history settles while receipt watermark writes stay unobserved
+  ---
+  duration_ms: 327.698449
+  type: 'test'
+  ...
+# Subtest: wasm: complete dependent prediction settles promptly online
+ok 19 - wasm: complete dependent prediction settles promptly online
+  ---
+  duration_ms: 102.497433
+  type: 'test'
+  ...
+# Subtest: wasm: dependent non-predicting custody refuses promptly when already offline
+ok 20 - wasm: dependent non-predicting custody refuses promptly when already offline
+  ---
+  duration_ms: 179.223502
+  type: 'test'
+  ...
+# Subtest: wasm: complete dependent prediction settles promptly offline
+ok 21 - wasm: complete dependent prediction settles promptly offline
+  ---
+  duration_ms: 167.777533
+  type: 'test'
+  ...
+# Subtest: process: complete dependent prediction settles promptly online
+ok 22 - process: complete dependent prediction settles promptly online
+  ---
+  duration_ms: 145.170993
+  type: 'test'
+  ...
+# Subtest: process: dependent non-predicting custody refuses promptly when already offline
+ok 23 - process: dependent non-predicting custody refuses promptly when already offline
+  ---
+  duration_ms: 212.524443
+  type: 'test'
+  ...
+# Subtest: process: complete dependent prediction settles promptly offline
+ok 24 - process: complete dependent prediction settles promptly offline
+  ---
+  duration_ms: 204.374675
+  type: 'test'
+  ...
+# Subtest: app-wasm: complete dependent prediction settles promptly online
+ok 25 - app-wasm: complete dependent prediction settles promptly online
+  ---
+  duration_ms: 90.235111
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent non-predicting custody refuses promptly when already offline
+ok 26 - app-wasm: dependent non-predicting custody refuses promptly when already offline
+  ---
+  duration_ms: 199.154
+  type: 'test'
+  ...
+# Subtest: app-wasm: complete dependent prediction settles promptly offline
+ok 27 - app-wasm: complete dependent prediction settles promptly offline
+  ---
+  duration_ms: 174.110627
+  type: 'test'
+  ...
+# Subtest: app-process: complete dependent prediction settles promptly online
+ok 28 - app-process: complete dependent prediction settles promptly online
+  ---
+  duration_ms: 146.941539
+  type: 'test'
+  ...
+# Subtest: app-process: dependent non-predicting custody refuses promptly when already offline
+ok 29 - app-process: dependent non-predicting custody refuses promptly when already offline
+  ---
+  duration_ms: 217.962545
+  type: 'test'
+  ...
+# Subtest: app-process: complete dependent prediction settles promptly offline
+ok 30 - app-process: complete dependent prediction settles promptly offline
+  ---
+  duration_ms: 314.444921
+  type: 'test'
+  ...
+# Subtest: online: dependent row custody waits for observation or failure without spending rounds
+ok 31 - online: dependent row custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 763.774314
+  type: 'test'
+  ...
+# Subtest: online: dependent count custody waits for observation or failure without spending rounds
+ok 32 - online: dependent count custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 782.234809
+  type: 'test'
+  ...
+# Subtest: online: dependent rule custody waits for observation or failure without spending rounds
+ok 33 - online: dependent rule custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 773.675627
+  type: 'test'
+  ...
+# Subtest: online: dependent unknown custody waits for observation or failure without spending rounds
+ok 34 - online: dependent unknown custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 769.72165
+  type: 'test'
+  ...
+# Subtest: online: dependent failure custody waits for observation or failure without spending rounds
+ok 35 - online: dependent failure custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 764.075836
+  type: 'test'
+  ...
+# Subtest: wasm: dependent row custody waits for observation or failure without spending rounds
+ok 36 - wasm: dependent row custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 797.110158
+  type: 'test'
+  ...
+# Subtest: wasm: dependent count custody waits for observation or failure without spending rounds
+ok 37 - wasm: dependent count custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 803.412054
+  type: 'test'
+  ...
+# Subtest: wasm: dependent rule custody waits for observation or failure without spending rounds
+ok 38 - wasm: dependent rule custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 797.01837
+  type: 'test'
+  ...
+# Subtest: wasm: dependent unknown custody waits for observation or failure without spending rounds
+ok 39 - wasm: dependent unknown custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 803.202251
+  type: 'test'
+  ...
+# Subtest: wasm: dependent failure custody waits for observation or failure without spending rounds
+ok 40 - wasm: dependent failure custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 804.026215
+  type: 'test'
+  ...
+# Subtest: process: dependent row custody waits for observation or failure without spending rounds
+ok 41 - process: dependent row custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 850.271081
+  type: 'test'
+  ...
+# Subtest: process: dependent count custody waits for observation or failure without spending rounds
+ok 42 - process: dependent count custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 861.389468
+  type: 'test'
+  ...
+# Subtest: process: dependent rule custody waits for observation or failure without spending rounds
+ok 43 - process: dependent rule custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 839.678491
+  type: 'test'
+  ...
+# Subtest: process: dependent unknown custody waits for observation or failure without spending rounds
+ok 44 - process: dependent unknown custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 835.797444
+  type: 'test'
+  ...
+# Subtest: process: dependent failure custody waits for observation or failure without spending rounds
+ok 45 - process: dependent failure custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 819.615275
+  type: 'test'
+  ...
+# Subtest: app-online: dependent row custody waits for observation or failure without spending rounds
+ok 46 - app-online: dependent row custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 767.899999
+  type: 'test'
+  ...
+# Subtest: app-online: dependent count custody waits for observation or failure without spending rounds
+ok 47 - app-online: dependent count custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 779.752889
+  type: 'test'
+  ...
+# Subtest: app-online: dependent rule custody waits for observation or failure without spending rounds
+ok 48 - app-online: dependent rule custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 789.015443
+  type: 'test'
+  ...
+# Subtest: app-online: dependent unknown custody waits for observation or failure without spending rounds
+ok 49 - app-online: dependent unknown custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 779.330024
+  type: 'test'
+  ...
+# Subtest: app-online: dependent failure custody waits for observation or failure without spending rounds
+ok 50 - app-online: dependent failure custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 768.462934
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent row custody waits for observation or failure without spending rounds
+ok 51 - app-wasm: dependent row custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 819.243477
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent count custody waits for observation or failure without spending rounds
+ok 52 - app-wasm: dependent count custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 810.116045
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent rule custody waits for observation or failure without spending rounds
+ok 53 - app-wasm: dependent rule custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 809.327262
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent unknown custody waits for observation or failure without spending rounds
+ok 54 - app-wasm: dependent unknown custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 822.449854
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent failure custody waits for observation or failure without spending rounds
+ok 55 - app-wasm: dependent failure custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 795.146344
+  type: 'test'
+  ...
+# Subtest: app-process: dependent row custody waits for observation or failure without spending rounds
+ok 56 - app-process: dependent row custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 854.622134
+  type: 'test'
+  ...
+# Subtest: app-process: dependent count custody waits for observation or failure without spending rounds
+ok 57 - app-process: dependent count custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 876.10591
+  type: 'test'
+  ...
+# Subtest: app-process: dependent rule custody waits for observation or failure without spending rounds
+ok 58 - app-process: dependent rule custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 851.390139
+  type: 'test'
+  ...
+# Subtest: app-process: dependent unknown custody waits for observation or failure without spending rounds
+ok 59 - app-process: dependent unknown custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 877.646079
+  type: 'test'
+  ...
+# Subtest: app-process: dependent failure custody waits for observation or failure without spending rounds
+ok 60 - app-process: dependent failure custody waits for observation or failure without spending rounds
+  ---
+  duration_ms: 847.944403
+  type: 'test'
+  ...
+# Subtest: online: receipt-owned returned field waits for seen observation
+ok 61 - online: receipt-owned returned field waits for seen observation
+  ---
+  duration_ms: 567.202627
+  type: 'test'
+  ...
+# Subtest: wasm: receipt-owned returned field waits for seen observation
+ok 62 - wasm: receipt-owned returned field waits for seen observation
+  ---
+  duration_ms: 539.60204
+  type: 'test'
+  ...
+# Subtest: process: receipt-owned returned field waits for seen observation
+ok 63 - process: receipt-owned returned field waits for seen observation
+  ---
+  duration_ms: 584.032767
+  type: 'test'
+  ...
+# Subtest: app-online: receipt-owned returned field waits for seen observation
+ok 64 - app-online: receipt-owned returned field waits for seen observation
+  ---
+  duration_ms: 568.13215
+  type: 'test'
+  ...
+# Subtest: app-wasm: receipt-owned returned field waits for seen observation
+ok 65 - app-wasm: receipt-owned returned field waits for seen observation
+  ---
+  duration_ms: 536.178388
+  type: 'test'
+  ...
+# Subtest: app-process: receipt-owned returned field waits for seen observation
+ok 66 - app-process: receipt-owned returned field waits for seen observation
+  ---
+  duration_ms: 622.33824
+  type: 'test'
+  ...
+# Subtest: online: held dependent custody expires on the single 30-second timer
+ok 67 - online: held dependent custody expires on the single 30-second timer
+  ---
+  duration_ms: 64.408504
+  type: 'test'
+  ...
+# Subtest: wasm: held dependent custody expires on the single 30-second timer
+ok 68 - wasm: held dependent custody expires on the single 30-second timer
+  ---
+  duration_ms: 87.806039
+  type: 'test'
+  ...
+# Subtest: process: held dependent custody expires on the single 30-second timer
+ok 69 - process: held dependent custody expires on the single 30-second timer
+  ---
+  duration_ms: 161.602556
+  type: 'test'
+  ...
+# Subtest: app-online: held dependent custody expires on the single 30-second timer
+ok 70 - app-online: held dependent custody expires on the single 30-second timer
+  ---
+  duration_ms: 80.329881
+  type: 'test'
+  ...
+# Subtest: app-wasm: held dependent custody expires on the single 30-second timer
+ok 71 - app-wasm: held dependent custody expires on the single 30-second timer
+  ---
+  duration_ms: 89.991626
+  type: 'test'
+  ...
+# Subtest: app-process: held dependent custody expires on the single 30-second timer
+ok 72 - app-process: held dependent custody expires on the single 30-second timer
+  ---
+  duration_ms: 128.85875
+  type: 'test'
+  ...
+# Subtest: wasm: dependent observation does not wait for later unrelated custody
+ok 73 - wasm: dependent observation does not wait for later unrelated custody
+  ---
+  duration_ms: 103.633055
+  type: 'test'
+  ...
+# Subtest: process: dependent observation does not wait for later unrelated custody
+ok 74 - process: dependent observation does not wait for later unrelated custody
+  ---
+  duration_ms: 169.808879
+  type: 'test'
+  ...
+# Subtest: app-wasm: dependent observation does not wait for later unrelated custody
+ok 75 - app-wasm: dependent observation does not wait for later unrelated custody
+  ---
+  duration_ms: 135.296492
+  type: 'test'
+  ...
+# Subtest: app-process: dependent observation does not wait for later unrelated custody
+ok 76 - app-process: dependent observation does not wait for later unrelated custody
+  ---
+  duration_ms: 167.413778
+  type: 'test'
+  ...
+# Subtest: mock: known disjoint effects use the same custody rule
+ok 77 - mock: known disjoint effects use the same custody rule
+  ---
+  duration_ms: 102.281549
+  type: 'test'
+  ...
+# Subtest: mock: unknown effects use the same custody rule
+ok 78 - mock: unknown effects use the same custody rule
+  ---
+  duration_ms: 100.0875
+  type: 'test'
+  ...
+# Subtest: wasm: a newly started read observes an acknowledged write behind an unrelated held send
+ok 79 - wasm: a newly started read observes an acknowledged write behind an unrelated held send
+  ---
+  duration_ms: 103.515029
+  type: 'test'
+  ...
+# Subtest: process: a newly started read observes an acknowledged write behind an unrelated held send
+ok 80 - process: a newly started read observes an acknowledged write behind an unrelated held send
+  ---
+  duration_ms: 164.758527
+  type: 'test'
+  ...
+# Subtest: app-wasm: a newly started read observes an acknowledged write behind an unrelated held send
+ok 81 - app-wasm: a newly started read observes an acknowledged write behind an unrelated held send
+  ---
+  duration_ms: 116.756608
+  type: 'test'
+  ...
+# Subtest: app-process: a newly started read observes an acknowledged write behind an unrelated held send
+ok 82 - app-process: a newly started read observes an acknowledged write behind an unrelated held send
+  ---
+  duration_ms: 163.800881
+  type: 'test'
+  ...
+# Subtest: online: maintained likeCount waits for its source write
+ok 83 - online: maintained likeCount waits for its source write
+  ---
+  duration_ms: 492.135815
+  type: 'test'
+  ...
+# Subtest: wasm: maintained likeCount waits for its source write
+ok 84 - wasm: maintained likeCount waits for its source write
+  ---
+  duration_ms: 526.704186
+  type: 'test'
+  ...
+# Subtest: process: maintained likeCount waits for its source write
+ok 85 - process: maintained likeCount waits for its source write
+  ---
+  duration_ms: 569.939209
+  type: 'test'
+  ...
+# Subtest: app-online: maintained likeCount waits for its source write
+ok 86 - app-online: maintained likeCount waits for its source write
+  ---
+  duration_ms: 486.19571
+  type: 'test'
+  ...
+# Subtest: app-wasm: maintained likeCount waits for its source write
+ok 87 - app-wasm: maintained likeCount waits for its source write
+  ---
+  duration_ms: 557.347593
+  type: 'test'
+  ...
+# Subtest: app-process: maintained likeCount waits for its source write
+ok 88 - app-process: maintained likeCount waits for its source write
+  ---
+  duration_ms: 599.188206
+  type: 'test'
+  ...
+# Subtest: online: dependency discovery cannot cross store identity
+ok 89 - online: dependency discovery cannot cross store identity
+  ---
+  duration_ms: 152.407212
+  type: 'test'
+  ...
+# Subtest: app-online: dependency discovery cannot cross store identity
+ok 90 - app-online: dependency discovery cannot cross store identity
+  ---
+  duration_ms: 59.839465
+  type: 'test'
+  ...
+# Subtest: mock: complete dependent prediction settles online with opaque handlers
+ok 91 - mock: complete dependent prediction settles online with opaque handlers
+  ---
+  duration_ms: 0.622363
+  type: 'test'
+  ...
+# Subtest: mock: complete dependent prediction settles offline with opaque handlers
+ok 92 - mock: complete dependent prediction settles offline with opaque handlers
+  ---
+  duration_ms: 0.357887
+  type: 'test'
+  ...
+# Subtest: online: completing receipt commits preserve a history candidate
+ok 93 - online: completing receipt commits preserve a history candidate
+  ---
+  duration_ms: 271.937979
+  type: 'test'
+  ...
+# Subtest: wasm: completing receipt commits preserve a history candidate
+ok 94 - wasm: completing receipt commits preserve a history candidate
+  ---
+  duration_ms: 262.831347
+  type: 'test'
+  ...
+# Subtest: process: completing receipt commits preserve a history candidate
+ok 95 - process: completing receipt commits preserve a history candidate
+  ---
+  duration_ms: 439.820229
+  type: 'test'
+  ...
+# Subtest: app-online: completing receipt commits preserve a history candidate
+ok 96 - app-online: completing receipt commits preserve a history candidate
+  ---
+  duration_ms: 281.819923
+  type: 'test'
+  ...
+# Subtest: app-wasm: completing receipt commits preserve a history candidate
+ok 97 - app-wasm: completing receipt commits preserve a history candidate
+  ---
+  duration_ms: 328.80012
+  type: 'test'
+  ...
+# Subtest: app-process: completing receipt commits preserve a history candidate
+ok 98 - app-process: completing receipt commits preserve a history candidate
+  ---
+  duration_ms: 392.350829
+  type: 'test'
+  ...
+# Subtest: mock: malformed reads cannot hide a concurrent change
+ok 99 - mock: malformed reads cannot hide a concurrent change
+  ---
+  duration_ms: 56.681421
+  type: 'test'
+  ...
+# Subtest: mock: malformed writes cannot hide a concurrent change
+ok 100 - mock: malformed writes cannot hide a concurrent change
+  ---
+  duration_ms: 56.253679
+  type: 'test'
+  ...
+1..100
+# tests 100
+# suites 0
+# pass 100
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 41060.469094
+-- process inspection: {"snapshots":3,"unrelatedRows":4113}
+-- client file ok: packages/snapback4/test/one-shot-dependencies.test.mjs (41347 ms)
+TAP version 13
+# Subtest: online: online-only view settles with link up and refuses offline without a served answer
+ok 1 - online: online-only view settles with link up and refuses offline without a served answer
+  ---
+  duration_ms: 193.883668
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: online: concurrent write retires the final continuation and query rereads
+ok 2 - online: concurrent write retires the final continuation and query rereads
+  ---
+  duration_ms: 192.244231
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":782,"indexEntries":0,"outputBytes":98,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: online: deadline crossed after evaluation rereads before return
+ok 3 - online: deadline crossed after evaluation rereads before return
+  ---
+  duration_ms: 184.009126
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: wasm: online-only view settles with link up and refuses offline without a served answer
+ok 4 - wasm: online-only view settles with link up and refuses offline without a served answer
+  ---
+  duration_ms: 588.212453
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791410828811}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: wasm: concurrent write retires the final continuation and query rereads
+ok 5 - wasm: concurrent write retires the final continuation and query rereads
+  ---
+  duration_ms: 184.429386
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: wasm: deadline crossed after evaluation rereads before return
+ok 6 - wasm: deadline crossed after evaluation rereads before return
+  ---
+  duration_ms: 192.17721
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: process: online-only view settles with link up and refuses offline without a served answer
+ok 7 - process: online-only view settles with link up and refuses offline without a served answer
+  ---
+  duration_ms: 223.338665
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791410829403}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: process: concurrent write retires the final continuation and query rereads
+ok 8 - process: concurrent write retires the final continuation and query rereads
+  ---
+  duration_ms: 221.196012
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: process: deadline crossed after evaluation rereads before return
+ok 9 - process: deadline crossed after evaluation rereads before return
+  ---
+  duration_ms: 257.034468
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-online: online-only view settles with link up and refuses offline without a served answer
+ok 10 - app-online: online-only view settles with link up and refuses offline without a served answer
+  ---
+  duration_ms: 158.313906
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-online: concurrent write retires the final continuation and query rereads
+ok 11 - app-online: concurrent write retires the final continuation and query rereads
+  ---
+  duration_ms: 196.560481
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":782,"indexEntries":0,"outputBytes":98,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: app-online: deadline crossed after evaluation rereads before return
+ok 12 - app-online: deadline crossed after evaluation rereads before return
+  ---
+  duration_ms: 176.026299
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: app-wasm: online-only view settles with link up and refuses offline without a served answer
+ok 13 - app-wasm: online-only view settles with link up and refuses offline without a served answer
+  ---
+  duration_ms: 184.669506
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791410830601}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-wasm: concurrent write retires the final continuation and query rereads
+ok 14 - app-wasm: concurrent write retires the final continuation and query rereads
+  ---
+  duration_ms: 197.362854
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-wasm: deadline crossed after evaluation rereads before return
+ok 15 - app-wasm: deadline crossed after evaluation rereads before return
+  ---
+  duration_ms: 218.224257
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-process: online-only view settles with link up and refuses offline without a served answer
+ok 16 - app-process: online-only view settles with link up and refuses offline without a served answer
+  ---
+  duration_ms: 264.118146
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791410831276}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-process: concurrent write retires the final continuation and query rereads
+ok 17 - app-process: concurrent write retires the final continuation and query rereads
+  ---
+  duration_ms: 321.386847
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-process: deadline crossed after evaluation rereads before return
+ok 18 - app-process: deadline crossed after evaluation rereads before return
+  ---
+  duration_ms: 276.945065
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: wasm: an unavailable held online-only view refuses instead of returning loading
+ok 19 - wasm: an unavailable held online-only view refuses instead of returning loading
+  ---
+  duration_ms: 169.451332
+  type: 'test'
+  ...
+# {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: wasm: online-only view with an admitted unobserved write, link up
+ok 20 - wasm: online-only view with an admitted unobserved write, link up
+  ---
+  duration_ms: 30081.106287
+  type: 'test'
+  ...
+# [{"id":"01M4C6G0V1R65N83H1D8QDES09","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6G0V1R65N83H1D8QDES0A"]}]
+# {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+# Subtest: wasm: online-only view with an admitted unobserved write, link down
+ok 21 - wasm: online-only view with an admitted unobserved write, link down
+  ---
+  duration_ms: 162.724378
+  type: 'test'
+  ...
+# [{"id":"01M4C6GY6Q7NA61NEH7MC1A6GR","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6GY6RXKH6P63RVEE7SM0W"]}]
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: process: an unavailable held online-only view refuses instead of returning loading
+ok 22 - process: an unavailable held online-only view refuses instead of returning loading
+  ---
+  duration_ms: 213.7094
+  type: 'test'
+  ...
+# {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: process: online-only view with an admitted unobserved write, link up
+ok 23 - process: online-only view with an admitted unobserved write, link up
+  ---
+  duration_ms: 30118.798865
+  type: 'test'
+  ...
+# [{"id":"01M4C6GYKV64X6J57WPTTV4J3X","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6GYKW9J3GR9J13V1NRMGF"]}]
+# {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+# Subtest: process: online-only view with an admitted unobserved write, link down
+ok 24 - process: online-only view with an admitted unobserved write, link down
+  ---
+  duration_ms: 208.322945
+  type: 'test'
+  ...
+# [{"id":"01M4C6HW16D6RX7QCCJ24566Q4","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6HW16D6RX7QCCJ24566Q5"]}]
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-wasm: an unavailable held online-only view refuses instead of returning loading
+ok 25 - app-wasm: an unavailable held online-only view refuses instead of returning loading
+  ---
+  duration_ms: 179.685464
+  type: 'test'
+  ...
+# {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-wasm: online-only view with an admitted unobserved write, link up
+ok 26 - app-wasm: online-only view with an admitted unobserved write, link up
+  ---
+  duration_ms: 30080.425454
+  type: 'test'
+  ...
+# [{"id":"01M4C6HWC38JCM8VGYTPXHV3BE","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6HWC46B6Q8KN3V7SJX74G"]}]
+# {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+# Subtest: app-wasm: online-only view with an admitted unobserved write, link down
+ok 27 - app-wasm: online-only view with an admitted unobserved write, link down
+  ---
+  duration_ms: 175.238288
+  type: 'test'
+  ...
+# [{"id":"01M4C6JSR9AZD1BJ2FPGJ20EEF","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6JSRAW0CY25HSY574SADW"]}]
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-process: an unavailable held online-only view refuses instead of returning loading
+ok 28 - app-process: an unavailable held online-only view refuses instead of returning loading
+  ---
+  duration_ms: 226.465372
+  type: 'test'
+  ...
+# {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: app-process: online-only view with an admitted unobserved write, link up
+ok 29 - app-process: online-only view with an admitted unobserved write, link up
+  ---
+  duration_ms: 30142.570247
+  type: 'test'
+  ...
+# [{"id":"01M4C6JT6DPP26AESQX7PSNXPQ","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6JT6EJR3P7789VE2FX2FE"]}]
+# {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+# Subtest: app-process: online-only view with an admitted unobserved write, link down
+ok 30 - app-process: online-only view with an admitted unobserved write, link down
+  ---
+  duration_ms: 230.076235
+  type: 'test'
+  ...
+# [{"id":"01M4C6KQMFGC2RKKGCNE245NGZ","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M4C6KQMFGC2RKKGCNE245NH0"]}]
+# {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+# Subtest: online: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+ok 31 - online: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+  ---
+  duration_ms: 192.681106
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+ok 32 - wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+  ---
+  duration_ms: 214.728226
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: process: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+ok 33 - process: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+  ---
+  duration_ms: 274.864726
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-online: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+ok 34 - app-online: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+  ---
+  duration_ms: 208.666159
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: app-wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+ok 35 - app-wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+  ---
+  duration_ms: 220.105517
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-process: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+ok 36 - app-process: a mounted answer's withdrawn deadline cannot return loading to a one-shot
+  ---
+  duration_ms: 275.358977
+  type: 'test'
+  ...
+# {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-online: a write during facade approval forces another read
+ok 37 - app-online: a write during facade approval forces another read
+  ---
+  duration_ms: 187.825517
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":792,"indexEntries":0,"outputBytes":103,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+# Subtest: app-wasm: a write during facade approval forces another read
+ok 38 - app-wasm: a write during facade approval forces another read
+  ---
+  duration_ms: 207.77325
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-process: a write during facade approval forces another read
+ok 39 - app-process: a write during facade approval forces another read
+  ---
+  duration_ms: 238.206363
+  type: 'test'
+  ...
+# {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: online: mounted observations do not starve a one-shot
+ok 40 - online: mounted observations do not starve a one-shot
+  ---
+  duration_ms: 177.943493
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+# Subtest: wasm: mounted observations do not starve a one-shot
+ok 41 - wasm: mounted observations do not starve a one-shot
+  ---
+  duration_ms: 191.08945
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: process: mounted observations do not starve a one-shot
+ok 42 - process: mounted observations do not starve a one-shot
+  ---
+  duration_ms: 230.81351
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-online: mounted observations do not starve a one-shot
+ok 43 - app-online: mounted observations do not starve a one-shot
+  ---
+  duration_ms: 172.688135
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+# Subtest: app-wasm: mounted observations do not starve a one-shot
+ok 44 - app-wasm: mounted observations do not starve a one-shot
+  ---
+  duration_ms: 197.299129
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+# Subtest: app-process: mounted observations do not starve a one-shot
+ok 45 - app-process: mounted observations do not starve a one-shot
+  ---
+  duration_ms: 242.208882
+  type: 'test'
+  ...
+# {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+1..45
+# tests 45
+# suites 0
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 129601.962012
+-- process inspection: {"snapshots":3,"unrelatedRows":4048}
+-- client file ok: packages/snapback4/test/one-shot.test.mjs (129899 ms)
+-- client files: 13/13; failed 0; tests {"tests":368,"pass":368,"fail":0,"cancelled":0,"skipped":0,"todo":0}

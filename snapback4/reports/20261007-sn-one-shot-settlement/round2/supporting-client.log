@@ -1,0 +1,389 @@
+-- client file start: packages/snapback4/test/local-reads.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/online-read-order.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/pending-writes.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/ephemeral-mock.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: a local commit unconditionally retires retained answers and in-flight publication
+ok 1 - a local commit unconditionally retires retained answers and in-flight publication
+  ---
+  duration_ms: 1.825156
+  type: 'test'
+  ...
+# Subtest: clearing starts the order again: a replaced store's first answer is remembered at any cut
+ok 2 - clearing starts the order again: a replaced store's first answer is remembered at any cut
+  ---
+  duration_ms: 0.16648
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 58.134179
+-- process inspection: {"snapshots":3,"unrelatedRows":4036}
+-- client file ok: packages/snapback4/test/local-reads.test.mjs (364 ms)
+TAP version 13
+# Subtest: mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes
+ok 1 - mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes
+  ---
+  duration_ms: 19.210177
+  type: 'test'
+  ...
+# Subtest: mock supplied ids execute and emit once (online)
+ok 2 - mock supplied ids execute and emit once (online)
+  ---
+  duration_ms: 22.715262
+  type: 'test'
+  ...
+# Subtest: mock supplied ids execute and emit once (offline)
+ok 3 - mock supplied ids execute and emit once (offline)
+  ---
+  duration_ms: 21.498819
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 151.198419
+-- process inspection: {"snapshots":3,"unrelatedRows":4041}
+-- client file ok: packages/snapback4/test/ephemeral-mock.test.mjs (436 ms)
+TAP version 13
+# Subtest: online keep:false reruns publish loading instead of keeping a previous answer
+ok 1 - online keep:false reruns publish loading instead of keeping a previous answer
+  ---
+  duration_ms: 38.012284
+  type: 'test'
+  ...
+# Subtest: online query discards a response older than observed write
+ok 2 - online query discards a response older than observed write
+  ---
+  duration_ms: 39.451511
+  type: 'test'
+  ...
+# Subtest: online query discards a response older than observed changes
+ok 3 - online query discards a response older than observed changes
+  ---
+  duration_ms: 49.791532
+  type: 'test'
+  ...
+# Subtest: online observation discards a response older than observed write
+ok 4 - online observation discards a response older than observed write
+  ---
+  duration_ms: 41.714243
+  type: 'test'
+  ...
+# Subtest: online observation discards a response older than observed changes
+ok 5 - online observation discards a response older than observed changes
+  ---
+  duration_ms: 52.695224
+  type: 'test'
+  ...
+# Subtest: a generation reset between fetch publication and its caller continuation cannot republish the old answer
+ok 6 - a generation reset between fetch publication and its caller continuation cannot republish the old answer
+  ---
+  duration_ms: 44.081703
+  type: 'test'
+  ...
+# Subtest: direct online reads fence a generation change even when its sequence does not advance
+ok 7 - direct online reads fence a generation change even when its sequence does not advance
+  ---
+  duration_ms: 47.602811
+  type: 'test'
+  ...
+# Subtest: direct query rechecks replacement after fetch accepts its answer
+ok 8 - direct query rechecks replacement after fetch accepts its answer
+  ---
+  duration_ms: 3.064614
+  type: 'test'
+  ...
+# Subtest: direct query rechecks regression after fetch accepts its answer
+ok 9 - direct query rechecks regression after fetch accepts its answer
+  ---
+  duration_ms: 2.903092
+  type: 'test'
+  ...
+# Subtest: direct query rechecks revoke after fetch accepts its answer
+ok 10 - direct query rechecks revoke after fetch accepts its answer
+  ---
+  duration_ms: 28.395307
+  type: 'test'
+  ...
+# Subtest: direct query rechecks close after fetch accepts its answer
+ok 11 - direct query rechecks close after fetch accepts its answer
+  ---
+  duration_ms: 1.736193
+  type: 'test'
+  ...
+# Subtest: direct query rechecks sign-out after fetch accepts its answer
+ok 12 - direct query rechecks sign-out after fetch accepts its answer
+  ---
+  duration_ms: 2.305567
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 448.720442
+-- process inspection: {"snapshots":3,"unrelatedRows":4038}
+-- client file ok: packages/snapback4/test/online-read-order.test.mjs (726 ms)
+TAP version 13
+# Subtest: wasm: local unsaved hold survives save throws until dispatch
+ok 1 - wasm: local unsaved hold survives save throws until dispatch
+  ---
+  duration_ms: 903.78914
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until hold
+ok 2 - wasm: local unsaved hold survives save throws until hold
+  ---
+  duration_ms: 172.734965
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until settlement
+ok 3 - wasm: local unsaved hold survives save throws until settlement
+  ---
+  duration_ms: 157.769901
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until signOut
+ok 4 - wasm: local unsaved hold survives save throws until signOut
+  ---
+  duration_ms: 161.781224
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until close
+ok 5 - wasm: local unsaved hold survives save throws until close
+  ---
+  duration_ms: 163.420041
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until adoption
+ok 6 - wasm: local unsaved hold survives save throws until adoption
+  ---
+  duration_ms: 213.819064
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until dispatch
+ok 7 - wasm: local unsaved hold survives device refuses until dispatch
+  ---
+  duration_ms: 360.511629
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until hold
+ok 8 - wasm: local unsaved hold survives device refuses until hold
+  ---
+  duration_ms: 156.151235
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until settlement
+ok 9 - wasm: local unsaved hold survives device refuses until settlement
+  ---
+  duration_ms: 161.44491
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until signOut
+ok 10 - wasm: local unsaved hold survives device refuses until signOut
+  ---
+  duration_ms: 159.713064
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until close
+ok 11 - wasm: local unsaved hold survives device refuses until close
+  ---
+  duration_ms: 156.874849
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until adoption
+ok 12 - wasm: local unsaved hold survives device refuses until adoption
+  ---
+  duration_ms: 185.083316
+  type: 'test'
+  ...
+# Subtest: online: dispatch subscriber signOut prevents the POST
+ok 13 - online: dispatch subscriber signOut prevents the POST
+  ---
+  duration_ms: 161.528886
+  type: 'test'
+  ...
+# Subtest: online: dispatch subscriber close prevents the POST
+ok 14 - online: dispatch subscriber close prevents the POST
+  ---
+  duration_ms: 151.69922
+  type: 'test'
+  ...
+# Subtest: wasm: dispatch subscriber signOut prevents the POST
+ok 15 - wasm: dispatch subscriber signOut prevents the POST
+  ---
+  duration_ms: 169.507206
+  type: 'test'
+  ...
+# Subtest: wasm: dispatch subscriber close prevents the POST
+ok 16 - wasm: dispatch subscriber close prevents the POST
+  ---
+  duration_ms: 176.270585
+  type: 'test'
+  ...
+# Subtest: process: dispatch subscriber signOut prevents the POST
+ok 17 - process: dispatch subscriber signOut prevents the POST
+  ---
+  duration_ms: 211.29538
+  type: 'test'
+  ...
+# Subtest: process: dispatch subscriber close prevents the POST
+ok 18 - process: dispatch subscriber close prevents the POST
+  ---
+  duration_ms: 213.098844
+  type: 'test'
+  ...
+# Subtest: online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 19 - online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 339.354692
+  type: 'test'
+  ...
+# Subtest: online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 20 - online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 327.762946
+  type: 'test'
+  ...
+# Subtest: app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 21 - app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 339.496705
+  type: 'test'
+  ...
+# Subtest: app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 22 - app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 341.872407
+  type: 'test'
+  ...
+# Subtest: wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 23 - wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 349.953832
+  type: 'test'
+  ...
+# Subtest: wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 24 - wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 363.275142
+  type: 'test'
+  ...
+# Subtest: process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 25 - process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 394.124257
+  type: 'test'
+  ...
+# Subtest: process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 26 - process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 492.140482
+  type: 'test'
+  ...
+# Subtest: online: custody waits and dropped connections preserve sent until settlement
+ok 27 - online: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 899.325479
+  type: 'test'
+  ...
+# Subtest: app-online: custody waits and dropped connections preserve sent until settlement
+ok 28 - app-online: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 905.612043
+  type: 'test'
+  ...
+# Subtest: wasm: custody waits and dropped connections preserve sent until settlement
+ok 29 - wasm: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 977.1671
+  type: 'test'
+  ...
+# Subtest: process: custody waits and dropped connections preserve sent until settlement
+ok 30 - process: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 1002.879454
+  type: 'test'
+  ...
+# Subtest: app-online: reload preserves held head and queued tail, then settles the same ids once
+ok 31 - app-online: reload preserves held head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 175.319109
+  type: 'test'
+  ...
+# Subtest: app-online: reload preserves sent head and queued tail, then settles the same ids once
+ok 32 - app-online: reload preserves sent head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 156.32223
+  type: 'test'
+  ...
+# Subtest: wasm: reload preserves held head and queued tail, then settles the same ids once
+ok 33 - wasm: reload preserves held head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 209.165838
+  type: 'test'
+  ...
+# Subtest: wasm: reload preserves sent head and queued tail, then settles the same ids once
+ok 34 - wasm: reload preserves sent head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 177.777234
+  type: 'test'
+  ...
+# Subtest: process: reload preserves held head and queued tail, then settles the same ids once
+ok 35 - process: reload preserves held head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 351.613419
+  type: 'test'
+  ...
+# Subtest: process: reload preserves sent head and queued tail, then settles the same ids once
+ok 36 - process: reload preserves sent head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 312.974867
+  type: 'test'
+  ...
+# Subtest: raw online queue is in memory; reopening never invents durable intent
+ok 37 - raw online queue is in memory; reopening never invents durable intent
+  ---
+  duration_ms: 130.160983
+  type: 'test'
+  ...
+# Subtest: online pending-list subscriber can admit a successor without redispatching the head
+ok 38 - online pending-list subscriber can admit a successor without redispatching the head
+  ---
+  duration_ms: 141.829034
+  type: 'test'
+  ...
+# Subtest: account facade fences both an outstanding list and its subscription
+ok 39 - account facade fences both an outstanding list and its subscription
+  ---
+  duration_ms: 2.852365
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12582.713501
+-- process inspection: {"snapshots":3,"unrelatedRows":4025}
+-- client file ok: packages/snapback4/test/pending-writes.test.mjs (12867 ms)
+-- client files: 4/4; failed 0; tests {"tests":56,"pass":56,"fail":0,"cancelled":0,"skipped":0,"todo":0}

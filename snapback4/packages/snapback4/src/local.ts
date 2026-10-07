@@ -1,4 +1,5 @@
 import { LocalNetwork } from "./local-network.ts";
+import { intervalChanges, type Changes, type Footprint } from "./query-dependencies.ts";
 import { QueryCustody } from "./query-custody.ts";
 import { notifyFollowing } from "./following-transport.ts";
 import { refuseReadDevice, validateReadOptions, refreshDeviceSession as rotateSession } from "./read-only.ts";
@@ -37,7 +38,7 @@ import { evaluateLocal } from "./local-query.ts";
 import { FollowingIntents, FollowingHistory } from "./local-following.ts";
 import { answerIdentity } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, retainedWatch, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, publishedApplyCut, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, retainedWatch, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, publishedApplyCut, applyChanges, localApplyChanges, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
@@ -47,7 +48,7 @@ import { episodeDeadline } from "./read-episode.ts";
 import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { deliverAcknowledgedReceipt, resolveClosingWrites, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
+import { deliverAcknowledgedReceipt, publicWrite, resolveClosingWrites, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts"; export type { MediaStorage, AssetRetention } from "./local-assets.ts";
@@ -186,7 +187,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
   const completeWrite = (write: Exclude<Write, { state: "pending" }>) => {
-    settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
+    write = publicWrite(write); settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
   };
   const answers = new LocalReads();
   followingIntents = new FollowingIntents(() => backend, queued, tables => { const delivery: (() => void)[] = []; invalidateAnswers(delivery, "admit", tables); for (const notify of delivery) notify(); }, principal);
@@ -257,11 +258,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     if (delivery) delivery.push(deliver); else deliver();
   }
-  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number, oneShotTables: readonly string[] | null | undefined = touched) {
+  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number, oneShotTables: Changes | null | undefined = touched, external?: Footprint) {
     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
     const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup || retainedWatch(backend!, watch)) || (touched.length > 0
       && evidenceTouches(watch, touched)));
-    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved, publishedCut, oneShotTables));
+    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved, publishedCut, oneShotTables, external));
     // Warm applies return every invalidated owner for sync's resumption set; cold acquisition remains progressive.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
     return affected;
@@ -289,7 +290,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     const entry = request.entry as { id: string; op: string } | undefined;
     if (request.op === "admit" && entry) queryCustody.admitted(entry.id, entry.op);
-    const writeTables = queryCustody.tables(entry?.id ?? String(request.id));
+    const writeTables = queryCustody.effects(entry?.id ?? String(request.id));
     const endAdmission = request.op === "admit" ? answers.admitting(() => watches.values(), writeTables) : undefined;
     let observed = false;
     const delivery: (() => void)[] = [];
@@ -305,8 +306,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       const touched = (result.ok as { touched?: string[] } | undefined)?.touched;
       const cut = request.op === "apply" ? publishedApplyCut(request.page as Record<string, unknown>, (result.ok as { published?: boolean })?.published) : undefined;
-      const queryTables = ["admit", "settle"].includes(String(request.op)) ? writeTables ?? null : cut === undefined ? null : touched ?? null;
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), touched, (result as { preserved?: unknown }).preserved, cut, queryTables)) committedTables?.resumed.add(watch);
+      const external = request.op === "apply" ? applyChanges(request.page as Record<string, unknown>, cut) : undefined;
+      const queryTables = ["admit", "settle"].includes(String(request.op)) ? writeTables ?? null : cut === undefined ? null : answers.predictions?.length === 0 && external ? localApplyChanges(request.page as Record<string, unknown>, external, touched) ?? null : touched ?? null;
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), touched, (result as { preserved?: unknown }).preserved, cut, queryTables, external)) committedTables?.resumed.add(watch);
       if (!result.denied && request.op === "apply") {
         delivery.push(answers.withdrawScopes(watches.values(), request.page as Parameters<LocalReads["withdrawScopes"]>[1], (result.ok as { published?: boolean })?.published !== false, link === "offline" ? offline() : undefined));
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
@@ -377,8 +379,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const notifySession = !sessionDead;
     const work = Promise.resolve().then(async () => {
       try {
-        // A store write already in progress must finish before deletion. A
-        // still-pending network refresh has no permission to start a write.
+        // Finish an in-progress store write before deletion; a pending refresh cannot start another.
         try { await persistingSession; } catch {}
         await forgetSession(base, sessions);
         await media?.clear();
@@ -447,8 +448,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     retireRotation = retire;
     void rotation.then(refreshed => { if (closed) retire(refreshed); }).catch(() => {});
     const work = (async (): Promise<SignIn> => {
-      // Sign-out stops adoption, but lets a committed rotation return its
-      // successor for best-effort family revocation, even after close.
+      // Sign-out stops adoption; a committed rotation still returns its successor for family revocation.
       const refreshed = await Promise.race([rotation, refreshStopped]);
       if (sessionDead) return signedOut();
       if (closed) { retire(refreshed); return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } }; }
@@ -479,9 +479,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!closed) {
         for (const listener of [...sessionListeners]) listener(session);
         setLink("online");
-        // A successful rotation makes the replacement bearer authoritative.
-        // Let an older sync drain, then run one round at this credential
-        // revision before reporting refresh completion.
+        // Rotation makes the replacement bearer authoritative. Drain older sync,
+        // then sync this credential revision before reporting completion.
         const priorSync = network.current;
         if (priorSync) try { await priorSync; } catch {}
         if (!closed && !sessionDead && credentialRevision === refreshedRevision) {
@@ -818,7 +817,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
-      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq);
+      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq, json.store_id === storeIdentity && json.generation === generation ? intervalChanges(json.changes, seq, json.seq) : undefined);
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
@@ -864,7 +863,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = { current: () => !owner || owner.changeVersion === changeVersion,
-      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner), inputsCurrent: answers.inputsCurrent(owner) } : signal ? { serverCurrent: answers.serverCurrent(), inputsCurrent: answers.oneShotChanges.capture() } : {}),
+      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner), inputsCurrent: answers.inputsCurrent(owner) } : signal ? { ...answers.oneShotCurrent(backend!, op.name) } : {}),
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
@@ -1116,7 +1115,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
                 try {
                   await settleReceipt(history, receiptCall, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
-                    : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined);
+                    : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding);
                 } catch { return { ...response, persistencePending: true }; }
               }
             }

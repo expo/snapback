@@ -275,3 +275,33 @@ for (const link of ['online', 'offline']) test(`mock: complete dependent predict
   assert.equal((await client.query(q('item'), {})).data?.body, 'predicted');
   assert.ok((await client.pendingWrites()).some(w => w.id === write.id));
 });
+
+for (const tier of tiers) test(`${tier}: completing receipt commits preserve a history candidate`, async t => {
+  const f = await setup(t, tier, { program: source + receiptSource });
+  const room = await f.post('/m/createConversation', { id: 'create-room', args: { title: 'Receipts' } });
+  const conversation = room.result;
+  assert.equal((await f.post('/m/add', { id: 'add-bob', args: { conversation, principal: 'dev:bob' } })).state, 'sent');
+  for (let n = 0; n < 5; n++) assert.equal((await f.post('/m/receiptSend', { id: `seed-${n}`, args: { conversation, text: `hello-${n}`, photo: null } })).state, 'sent');
+  if (f.client.sync) await f.client.sync();
+  let rounds = 0;
+  f.controls.boundary = async () => {
+    rounds++;
+    // A burst of actual watermark changes, not repeated no-op receipts.
+    for (let through = 1; through <= 5; through++) assert.equal((await f.client.mutate(m('seen'), { conversation, through })).state, 'sent');
+    if (f.client.sync) await f.client.sync();
+  };
+  const read = await f.client.query(q('receiptHistory'), { conversation, c: null });
+  assert.equal(read.data?.length, 5, JSON.stringify(read)); assert.equal(rounds, 1);
+});
+
+const { guardClient } = await import('../dist/app-client.js');
+for (const malformed of ['reads', 'writes']) test(`mock: malformed ${malformed} cannot hide a concurrent change`, async t => {
+  let value = 'before', evaluations = 0;
+  const raw = createMockClient({ viewer: 'dev:bob', tables: {},
+    dependencies: { item: { reads: malformed === 'reads' ? [] : { messages: null }, writes: {} },
+      edit: { reads: {}, writes: malformed === 'writes' ? [] : { messages: null } } },
+    ops: { queries: { item: () => { evaluations++; return value; } }, mutations: { edit: () => { value = 'after'; return []; } } } });
+  t.after(() => raw.close()); let checks = 0;
+  const { client } = guardClient(raw, async () => { if (++checks === 2) await raw.mutate(m('edit'), {}); return true; }, () => true, () => ({ code: 'E_SCOPE', family: 'client', message: 'expired' }));
+  assert.equal((await client.query(q('item'), {})).data, 'after'); assert.equal(evaluations, 2);
+});

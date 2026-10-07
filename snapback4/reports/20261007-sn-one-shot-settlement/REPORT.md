@@ -1,7 +1,9 @@
 # Lane SN: one-shot settlement
 
-**Round-0 record.** [Round 1](round1/REPORT.md) corrects the prediction guarantee
-and qualifies the sync/POST overlap. The historical findings below describe round 0.
+**Latest: [Round 2](round2/REPORT.md).** Final generation/store fences, authoritative
+field-level commit evidence, and dispatch-bound receipt recovery address both
+round-0 reviews. [Round 1](round1/REPORT.md) restored complete predicted one-shots
+and ordered identity adoption. The historical findings below describe round 0.
 
 2026-10-07. Branch `sb4-intent/sn-one-shot-settlement`, base
 `46803201b49980417cc3f2109289c22cbed8a439`.

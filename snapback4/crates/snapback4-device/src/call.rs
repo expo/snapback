@@ -205,7 +205,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 encoded(&device.admit_checked(queued_entry(entry)?, replay, identified)?)?
             }
             "settle" => {
-                device.settle(text(&request, "id")?, request.get("seq").and_then(Json::as_u64))?;
+                device.settle_from(text(&request, "id")?, request.get("seq").and_then(Json::as_u64), request.get("store_id").and_then(Json::as_str))?;
                 Json::Null
             }
             "predict" => {

@@ -90003,3 +90003,53 @@ remains separate from this corrective round.
 Final validation: 330 one-shot/settlement tests, 419 affected-client tests (one
 unavailable historical-binary skip), and 118 compiler/guide tests passed. Build,
 typecheck and ref-check passed (10,547 references, zero errors/unchecked).
+
+## 2026-10-08 — SN round 2: bind publication facts and narrow completing commits
+
+Addressed both round-0 reviews on round-1 tip c6217f0eda, preserving the compiler
+summary design and the complete-prediction exception. The reviewers' original
+25 tests were run first: 17 passed, 8 failed. Five failures were outstanding
+product bugs; three asserted the pre-round-1 prediction barrier. The unchanged
+scripts now pass 22, and permanent adaptations cover the three intended hazards
+without strengthening the barrier. The report records every result and adaptation.
+
+Online final publication and custody waits now bind installed facts, store and
+highest discovered generation, including final facade approval and late discovery.
+Receipt history carries the dispatch store through persistence, adoption and
+recovery. Device settlement retires foreign-store custody without losing the
+original success or stamping its sequence into the replacement. Public Write
+shape stays unchanged. Round 1's FIFO identity/schema adoption guard remains.
+
+Completing commits retain compiler field sets. Complete authoritative sync/change
+intervals reuse the existing bounded recorder; private maintained targets project
+to public owner columns, with unmapped private changes unknown. Local input and
+server cut proofs stay independent; composed/retained answers still require their
+local coverage. Five completing receipt commits against history and unrelated
+aggregate commits settle in one round across all six tiers. Unknown/gapped
+intervals, relevant commits and malformed mock summaries retain their barriers.
+Empty same-cut sync preserves delivery debt, with a real-commit withdrawal control.
+The broader suite caught and fixed private-name exposure and a public receipt
+shape regression before commit. Its prediction-replay test now controls the
+query deadline before the independently parked change-stream watchdog.
+
+Validation: 368 settlement tests; 576 affected-client tests with two documented
+opt-in/unavailable-artifact skips; 205 custody tests; 56 supporting client tests;
+118 compiler/guide tests; 191 serve tests with four existing ignores; three core
+revocation and thirteen device receipt/authority tests. Final discovery, wasm and
+reference checks are recorded in the [round-2 report](reports/20261007-sn-one-shot-settlement/round2/REPORT.md).
+
+Locked Linux wasm: 2,135,614 raw / 645,498 gzip bytes, +278/+50 against round 1.
+The budget is 645,998: 500 bytes of headroom as requested for macOS's observed
+up-to-435-byte difference. The 391-byte cap increase includes restoring 341 bytes
+of missing platform allowance. No macOS measurement or interpreter ceiling
+change. local.ts stays under 1,500 lines. All work stayed in the assigned lane-sn
+worktree on eb1000; nothing pushed or published.
+
+Round-2 final checks: discovery/adoption/fencing passed 20 tests; the final wasm
+rebuild matched the recorded bytes and passed 30 overlap/budget tests. The final
+commit-evidence file also retains the reviewers' four relevant external-commit
+controls and compiler branch/helper closure case. Ref-check passed 531 documents
+and 10,553 references with zero errors or unchecked references. Two frozen
+change-wire expectations now include the additive interval certificate. The
+client batch's skips are specifically the optional Following shaped measurement
+and the unavailable historical 0.2.32 binary.

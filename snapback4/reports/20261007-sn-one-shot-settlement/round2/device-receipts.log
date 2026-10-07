@@ -1,0 +1,30 @@
+   Compiling snapback4-device v0.4.14 (/home/ccheever/sb4-intent/lane-sn/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:454:51
+    |
+454 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 35.04s
+     Running tests/device.rs (target/debug/deps/device-fd26af1d2d44ca4d)
+
+running 3 tests
+test receipt_history::caller_id_replay_candidate_rolls_back_partial_predictions_on_both_stores ... ok
+test receipt_history::caller_id_admission_compares_before_prediction_on_both_stores ... ok
+test receipt_history::receipt_history_adoption_fills_only_spare_capacity_on_both_stores ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 434 filtered out; finished in 0.30s

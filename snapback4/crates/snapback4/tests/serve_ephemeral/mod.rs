@@ -184,13 +184,13 @@ fn unrelated_interest_keeps_waiting_and_absent_interest_means_all() {
     std::fs::remove_dir_all(dir.unwrap()).unwrap();
 }
 #[test]
-fn legacy_poll_reply_has_base_shape_plus_preservation() {
+fn legacy_poll_reply_has_base_shape_plus_change_evidence() {
     let h = Host::new(true);
     let wire = h.request("GET", "/changes?since=0&wait=0", ALICE, "");
     assert!(!wire.to_ascii_lowercase().contains("x-snapback-ephemeral"));
     let reply = body(&wire);
-    // RV adds only preservation to the frozen route; ephemeral negotiation is unchanged.
-    let expected = json!({"seq":0,"tables":[],"preserved":["items"],"generation":1,"store_id":lock(&h.shared.engine).store().meta("store_id").unwrap().unwrap()});
+    // Durable evidence is additive; ephemeral negotiation is unchanged.
+    let expected = json!({"changes":{"after":0,"through":0,"writes":{}},"seq":0,"tables":[],"preserved":["items"],"generation":1,"store_id":lock(&h.shared.engine).store().meta("store_id").unwrap().unwrap()});
     assert_eq!(
         serde_json::to_string(&reply).unwrap(),
         serde_json::to_string(&expected).unwrap()
