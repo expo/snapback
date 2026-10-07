@@ -1,0 +1,36 @@
+-- client file start: packages/snapback4/test/.fl-r8-replaced-243159.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo succeeds)
+not ok 1 - maintenance crash matrix: publication-committed (off, next Expo succeeds)
+  ---
+  duration_ms: 15426.341898
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-243159.test.mjs:6:39'
+  failureType: 'testCodeFailure'
+  error: |-
+    coalesced maintenance queue drained
+    MAINTENANCE_SNAPSHOT {"records":{"request":{"attempts":0,"producer":{"pid":246882,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","13672492"]},"state":"pending"},"claimed":null,"parked":null,"next":{"at":1791413036150,"expiresAt":1791416636149,"process":{"pid":243507,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","13671888"]},"state":"pending"},"active":null,"result":null,"done":null},"processes":{"next":{"inspection":"TEST_SIGNAL_REFUSED: PID 243507 identity unavailable: ENOENT"},"active":null},"log":"witness: evidence cleanup deferred: E_WITNESS_PROCESS: No such file or directory (os error 2)\n"}
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-243159.test.mjs:32:12)
+    async maintenanceIdle (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-243159.test.mjs:658:5)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-243159.test.mjs:1114:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15541.994124
+-- process inspection: {"snapshots":3,"unrelatedRows":3513}
+-- client file FAIL: packages/snapback4/test/.fl-r8-replaced-243159.test.mjs (15814 ms)
+REPLACED_BINARY_CONTROL {"file":"packages/snapback4/test/.fl-r8-replaced-243159.test.mjs","code":1,"signal":null,"passed":false,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3513},"elapsed":15814,"counts":{"tests":1,"pass":0,"fail":1,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-243159.test.mjs"}

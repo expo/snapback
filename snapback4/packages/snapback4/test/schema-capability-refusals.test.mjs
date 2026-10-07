@@ -4,7 +4,8 @@
 // regression exercises those physical exceptions (LLP 3000.033 §1.3).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {spawnSync} from 'node:child_process';
+import {checkedSpawnSync as spawnSync} from './helpers/fixture-command.mjs';
+import {hangBudget} from './helpers/wait.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -23,7 +24,7 @@ function dump(path) {
 function native(dir,path,backend,requests=[]) {
   const file=join(dir,'backend.json');
   if(backend)writeFileSync(file,JSON.stringify(backend));
-  const result=spawnSync(binary,['device',path,...(backend?[file]:[])],{input:requests.map(r=>JSON.stringify(r)+'\n').join(''),encoding:'utf8',timeout:30000});
+  const result=spawnSync(binary,['device',path,...(backend?[file]:[])],{input:requests.map(r=>JSON.stringify(r)+'\n').join(''),encoding:'utf8',timeout:hangBudget(),killSignal:'SIGKILL'});
   const replies=result.stdout.trim().split('\n').filter(Boolean).map(line=>JSON.parse(line));
   return {...result,replies};
 }
@@ -32,7 +33,9 @@ async function request(url,path,body) {
   const json=await response.json();assert.equal(response.status,200,JSON.stringify(json));return json;
 }
 
-for(const f of fixtures)test(`refused native open and adoption preserve the ${f.name} fixture`,{timeout:60000},async t=>{
+// Two servers, four HTTP operations and six native device invocations. Keep
+// the existing client work allowance; this does not measure launch latency.
+for(const f of fixtures)test(`refused native open and adoption preserve the ${f.name} fixture`,{timeout:hangBudget(12)},async t=>{
   const old=await server(t,undefined,f.plain), next=await server(t,undefined,f.source);
   await request(old.url,'/seed',f.seed);
   const prior=await request(old.url,'/schema'), candidate=await request(next.url,'/schema');

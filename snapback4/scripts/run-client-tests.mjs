@@ -7,8 +7,9 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ownedProcesses, processTable, cleanupProcesses } from './test-processes.mjs';
+import { FILE_STALL_FLOOR_MS, fixtureTestMs } from './test-work-bounds.mjs';
 
-export const FILE_STALL_FLOOR_MS = 15 * 60_000;
+export { FILE_STALL_FLOOR_MS } from './test-work-bounds.mjs';
 // Largest SINGLE declared test guard, not the sum of sequential guards.
 // The complete source census is retained in the QF round-2 report. Files below
 // the floor need no entry. A guard gets 25% scheduling slack, at least a minute.
@@ -25,6 +26,11 @@ export function largestGuard(file, env = process.env) {
     + (seed % 10 === 0 && seed % 11 !== 0 && seed % 12 !== 0 && seed % 75 !== 0 ? 8 : 0)
     + (seed % 25 === 0 ? 100 : 0) + (seed % 75 === 0 ? Math.ceil(8195 / 200) : 1), 0);
   return ({
+    'test-processes.test.mjs': fixtureTestMs(6),
+    'test-file-runner.test.mjs': fixtureTestMs(2),
+    'test-signals.test.mjs': fixtureTestMs(),
+    'export-background.test.mjs': fixtureTestMs(),
+    'export-failure.test.mjs': fixtureTestMs(12),
     'ordinary-search-oracle.test.mjs': Math.max(hang(searchWork), hang(108)),
     'web-admission-review.test.mjs': 56 * hang(1),
     'mixed-evidence-oracle.test.mjs': Math.max(240_000, count('RL_SEEDS', 300) * 3 * 2000),

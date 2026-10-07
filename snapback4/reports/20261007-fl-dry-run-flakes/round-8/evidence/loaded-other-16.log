@@ -1,0 +1,158 @@
+-- client file start: packages/snapback4/test/test-processes.test.mjs; stall bound 6900000 ms
+TAP version 13
+# Subtest: a ps taking over two seconds recovers and passes the file (before release)
+ok 1 - a ps taking over two seconds recovers and passes the file (before release)
+  ---
+  duration_ms: 6255.874478
+  type: 'test'
+  ...
+# Subtest: a ps taking over two seconds recovers and passes the file (cleanup verification)
+ok 2 - a ps taking over two seconds recovers and passes the file (cleanup verification)
+  ---
+  duration_ms: 6013.294672
+  type: 'test'
+  ...
+# Subtest: real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+ok 3 - real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+  ---
+  duration_ms: 19562.25478
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31989.578127
+-- process inspection: {"snapshots":3,"unrelatedRows":3890}
+-- client file ok: packages/snapback4/test/test-processes.test.mjs (32767 ms)
+LOAD_RESULT {"key":"processes","file":"test-processes.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3890},"elapsed":32767,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":6900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-processes.test.mjs"}
+-- client file start: packages/snapback4/test/test-file-runner.test.mjs; stall bound 2400000 ms
+TAP version 13
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 1 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 1405.85198
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 2 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 1505.147853
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 3 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 1811.046962
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 4 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 1.851655
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 5 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 1749.396642
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 6 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 1686.118333
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 7 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 1728.846546
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 8 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 1647.725499
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 9 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 1870.026558
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 10 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 1995.960823
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 11 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 1266.775302
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16865.363256
+-- process inspection: {"snapshots":3,"unrelatedRows":3957}
+-- client file ok: packages/snapback4/test/test-file-runner.test.mjs (17747 ms)
+LOAD_RESULT {"key":"parity","file":"test-file-runner.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3957},"elapsed":17747,"counts":{"tests":11,"pass":11,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":2400000,"progressCount":24,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-file-runner.test.mjs"}
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 1 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 661.825121
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 950.216384
+-- process inspection: {"snapshots":3,"unrelatedRows":3949}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (1816 ms)
+LOAD_RESULT {"key":"signals","file":"test-signals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3949},"elapsed":1816,"counts":{"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-signals.test.mjs"}
+-- client file start: packages/snapback4/test/export-failure.test.mjs; stall bound 13650000 ms
+TAP version 13
+# Subtest: installed CLI shim preserves each forwarded child termination signal
+ok 1 - installed CLI shim preserves each forwarded child termination signal
+  ---
+  duration_ms: 1959.5033
+  type: 'test'
+  ...
+# Subtest: real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim
+ok 2 - real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim
+  ---
+  duration_ms: 21780.400577
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23939.702081
+-- process inspection: {"snapshots":3,"unrelatedRows":3971}
+-- client file ok: packages/snapback4/test/export-failure.test.mjs (24951 ms)
+LOAD_RESULT {"key":"failure","file":"export-failure.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3971},"elapsed":24951,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":13650000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-failure.test.mjs"}

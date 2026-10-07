@@ -6,6 +6,8 @@ import os from 'node:os';
 import { once } from 'node:events';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { inspectSignalTarget, signalChild, spawnTracked } from '../../../scripts/test-signals.mjs';
+import { fixtureCommand } from './helpers/fixture-command.mjs';
+import { fixtureTestMs } from '../../../scripts/test-work-bounds.mjs';
 import { signalFixture } from './helpers/fixture-signals.mjs';
 import { killOwned, runOwnedCommand } from '../../../scripts/test-owned-command.mjs';
 import { runProcess, processExists } from '../../../scripts/test-processes.mjs';
@@ -20,7 +22,7 @@ async function waitFor(predicate) {
   while (!predicate()) { assert.ok(performance.now() < end, 'fixture state deadline'); await sleep(20); }
 }
 
-test('fixture signals bind every native command to the selected binary and exact root', { timeout: 120000 }, async t => {
+test('fixture signals bind every native command to the selected binary and exact root', { timeout: fixtureTestMs() }, async t => {
   const dir = fs.realpathSync(fixture(t)), root = path.join(dir, 'project.[fixture]');
   fs.mkdirSync(root);
   const alias = path.join(dir, 'project-alias'); fs.symlinkSync(root, alias);
@@ -28,7 +30,7 @@ test('fixture signals bind every native command to the selected binary and exact
   // A native stand-in preserves argv[0] and all witness arguments. It remains
   // under our child handle and exits on stdin EOF even if an assertion fails.
   fs.writeFileSync(original + '.c', '#include <stdio.h>\nint main(void) { puts("ready"); fflush(stdout); while (getchar() != EOF) {} return 0; }\n');
-  const built = await runOwnedCommand('cc', [original + '.c', '-o', original], { timeout: 30000 });
+  const built = await fixtureCommand('cc', [original + '.c', '-o', original], { label: 'native copied-binary identity fixture' });
   assert.equal(built.error, undefined); assert.equal(built.status, 0, built.stderr.toString());
   fs.copyFileSync(original, selected);
   const artifacts = path.join(root, 'artifacts/native-smoke'), run = path.join(artifacts, '123-456');
@@ -67,7 +69,7 @@ test('fixture signals bind every native command to the selected binary and exact
 });
 
 for (const mode of ['shebang', 'env shebang', 'node file'])
-test(`tracked identity accepts ${mode} with its exact interpreter argv`, { timeout: 20000 }, async t => {
+test(`tracked identity accepts ${mode} with its exact interpreter argv`, { timeout: fixtureTestMs() }, async t => {
   const dir = fixture(t), file = path.join(dir, 'child.cjs');
   const prefix = mode === 'env shebang' ? '#!/usr/bin/env node' : `#!${process.execPath}`;
   fs.writeFileSync(file, `${prefix}\nprocess.stdin.resume();process.stdin.on('end',()=>process.exit(0));console.log('ready');\n`, { mode: 0o755 });
@@ -121,14 +123,14 @@ test('owned cleanup refuses a borrowed numeric PID or imitation child object', (
   assert.throws(() => killOwned({ pid: process.pid, kill() { assert.fail('borrowed dispatch'); } }, 'SIGKILL'), /no owned ChildProcess handle/);
 });
 
-test('self-directed cleanup loads synchronously without the Darwin inspector', async t => {
+test('self-directed cleanup loads synchronously without the Darwin inspector', { timeout: fixtureTestMs() }, async t => {
   const dir = fixture(t), compiled = path.join(dir, 'compiled');
   fs.writeFileSync(path.join(dir, 'cc'), `#!/bin/sh\ntouch '${compiled}'\nexit 1\n`, { mode: 0o755 });
   const helper = new URL('../../../scripts/test-owned-command.mjs', import.meta.url).pathname;
   const script = `Object.defineProperty(process,'platform',{value:'darwin'});
 process.kill=(...args)=>console.log(JSON.stringify(args));
 require(${JSON.stringify(helper)}).signalSelf('SIGKILL',{group:true});`;
-  const result = await runOwnedCommand(process.execPath, ['-e', script], { timeout: 5000, env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } });
+  const result = await fixtureCommand(process.execPath, ['-e', script], { label: 'synchronous self-cleanup import', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr.toString());
   assert.deepEqual(JSON.parse(result.stdout), [0, 'SIGKILL']);
@@ -166,4 +168,54 @@ catch(error) { console.log(error.message); }`;
     fs.writeFileSync(stop, '');
     if (fs.existsSync(ready)) await waitFor(() => !processExists(Number(fs.readFileSync(ready, 'utf8'))));
   }
+});
+
+
+// /proc can publish an empty command while env execs its interpreter. Only
+// initial capture may wait for a complete command, within the same live birth.
+for (const fault of ['none', 'different birth', 'malformed command'])
+test(`newborn command capture after empty exec state: ${fault}`, { skip: process.platform !== 'linux', timeout: fixtureTestMs() }, async t => {
+  const dir = fixture(t), file = path.join(dir, 'exec-child.cjs');
+  fs.writeFileSync(file, '#!/usr/bin/env node\nprocess.stdin.resume();process.stdin.on("end",()=>process.exit(0));console.log("ready");\n', { mode: 0o755 });
+  const read = fs.readFileSync;
+  let target, statReads = 0, commandReads = 0, child;
+  const mocked = t.mock.method(fs, 'readFileSync', function(name, ...args) {
+    const raw = read.call(this, name, ...args);
+    const stat = /^\/proc\/(\d+)\/stat$/.exec(String(name));
+    if (stat && (target === undefined || target === stat[1])) {
+      target ??= stat[1]; statReads++;
+      if (fault === 'different birth' && statReads > 2) {
+        const text = String(raw), end = text.lastIndexOf(')') + 1;
+        const fields = text.slice(end).trim().split(/\s+/);
+        fields[19] = String(BigInt(fields[19]) + 1n);
+        return text.slice(0, end) + ' ' + fields.join(' ') + '\n';
+      }
+    }
+    if (String(name) === `/proc/${target}/cmdline`) {
+      if (++commandReads === 1) return '';
+      if (fault === 'malformed command') return 'unterminated argv';
+    }
+    return raw;
+  });
+  try { child = spawnTracked(file, []); }
+  finally { mocked.mock.restore(); }
+  const exited = once(child, 'exit');
+  try {
+    await once(child.stdout, 'data');
+    const attempted = [];
+    const kill = t.mock.method(child, 'kill', signal => { attempted.push(signal); return true; });
+    try {
+      if (fault === 'none') {
+        signalChild(child, 'SIGTERM');
+        assert.deepEqual(attempted, ['SIGTERM']);
+        assert.ok(commandReads >= 2, 'a fresh complete command must be captured');
+      } else {
+        assert.throws(() => signalChild(child, 'SIGTERM'), fault === 'different birth'
+          ? /no captured child birth: .*stale publisher birth/
+          : /no captured child birth: .*incomplete process command/);
+        assert.deepEqual(attempted, [], 'an invalid initial capture must never dispatch');
+        if (fault === 'malformed command') assert.equal(commandReads, 2, 'malformed nonempty bytes are not retried');
+      }
+    } finally { kill.mock.restore(); }
+  } finally { child.stdin.end(); await exited; }
 });

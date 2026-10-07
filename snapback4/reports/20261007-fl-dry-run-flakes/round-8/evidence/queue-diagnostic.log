@@ -1,0 +1,840 @@
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1181,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 12666.7129
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1164,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 11505.580139
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1127,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 11467.70843
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1250,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 12222.847484
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 47995.272586
+-- process inspection: {"snapshots":3,"unrelatedRows":3624}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (48477 ms)
+DIAGNOSTIC_RESULT {"n":1,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3624},"elapsed":48477,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1129,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 12532.199691
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1138,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 12705.679235
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1142,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 14251.308676
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1092,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 12176.381315
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51739.987177
+-- process inspection: {"snapshots":3,"unrelatedRows":3548}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (52106 ms)
+DIAGNOSTIC_RESULT {"n":2,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3548},"elapsed":52106,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1073,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 11349.823464
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1252,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 11623.502022
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1164,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 13054.713113
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":621,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 11345.696838
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 47484.901104
+-- process inspection: {"snapshots":3,"unrelatedRows":3528}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (47829 ms)
+DIAGNOSTIC_RESULT {"n":3,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3528},"elapsed":47829,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":975,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 11809.244645
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1116,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 12009.238264
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1039,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 12156.327436
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1166,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 12682.110149
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 48726.274703
+-- process inspection: {"snapshots":3,"unrelatedRows":3577}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (49085 ms)
+DIAGNOSTIC_RESULT {"n":4,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3577},"elapsed":49085,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1206,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 12589.121435
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1195,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 11891.25416
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1079,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 12152.39917
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1051,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 11527.0145
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 48240.372396
+-- process inspection: {"snapshots":3,"unrelatedRows":3523}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (48637 ms)
+DIAGNOSTIC_RESULT {"n":5,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3523},"elapsed":48637,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1197,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 11565.075069
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":696,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 11446.544104
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1050,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 12401.894153
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1221,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 12843.087701
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 48363.414288
+-- process inspection: {"snapshots":3,"unrelatedRows":3554}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (48734 ms)
+DIAGNOSTIC_RESULT {"n":6,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3554},"elapsed":48734,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1161,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 12626.75953
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1086,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 12673.864157
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1209,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 11885.323191
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1845,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 21073.506225
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 58367.432472
+-- process inspection: {"snapshots":3,"unrelatedRows":3873}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (59030 ms)
+DIAGNOSTIC_RESULT {"n":7,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3873},"elapsed":59030,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1709,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 25702.391082
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":2186,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 29437.734702
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":2148,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 31869.544218
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1488,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 25794.231658
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 113043.430433
+-- process inspection: {"snapshots":3,"unrelatedRows":3916}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (113839 ms)
+DIAGNOSTIC_RESULT {"n":8,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3916},"elapsed":113839,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1715,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 23426.495641
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1263,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 29093.110701
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1846,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 29986.114699
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":891,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 25482.508891
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 108180.192641
+-- process inspection: {"snapshots":3,"unrelatedRows":3965}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (108820 ms)
+DIAGNOSTIC_RESULT {"n":9,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3965},"elapsed":108820,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1938,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 27142.567316
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1945,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 29511.357933
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1863,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 29049.822049
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1543,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 25772.712586
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 111671.785223
+-- process inspection: {"snapshots":3,"unrelatedRows":3885}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (112442 ms)
+DIAGNOSTIC_RESULT {"n":10,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3885},"elapsed":112442,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1968,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 28328.778835
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1875,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 28652.330223
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1672,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 28363.794899
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":2012,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 28327.087316
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 113903.019345
+-- process inspection: {"snapshots":3,"unrelatedRows":4028}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (114889 ms)
+DIAGNOSTIC_RESULT {"n":11,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":4028},"elapsed":114889,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1769,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 26071.852448
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1915,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 29510.377191
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1872,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 29545.92248
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1656,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 28489.501228
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 113835.166277
+-- process inspection: {"snapshots":3,"unrelatedRows":3963}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (114735 ms)
+DIAGNOSTIC_RESULT {"n":12,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3963},"elapsed":114735,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1678,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 26702.355053
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1657,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 26236.631026
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1917,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 29417.951827
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1233,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 27722.899679
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 110339.21227
+-- process inspection: {"snapshots":3,"unrelatedRows":4110}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (111199 ms)
+DIAGNOSTIC_RESULT {"n":13,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":4110},"elapsed":111199,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1858,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 25947.477388
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1653,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 28172.09563
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1867,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 28798.906267
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1854,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 28426.875122
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 111543.772071
+-- process inspection: {"snapshots":3,"unrelatedRows":3998}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (112423 ms)
+DIAGNOSTIC_RESULT {"n":14,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3998},"elapsed":112423,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":2005,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 28231.812247
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1466,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 28392.221318
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1972,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 29112.80553
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1883,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 28709.828564
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 114691.404622
+-- process inspection: {"snapshots":3,"unrelatedRows":4033}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (115595 ms)
+DIAGNOSTIC_RESULT {"n":15,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":4033},"elapsed":115595,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1827,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 29077.178566
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1231,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 27249.886536
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1763,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 28593.239943
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1238,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 26959.705232
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 112091.805015
+-- process inspection: {"snapshots":3,"unrelatedRows":4003}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (113057 ms)
+DIAGNOSTIC_RESULT {"n":16,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":4003},"elapsed":113057,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1848,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 28269.949004
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1613,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 28188.738284
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1775,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 27493.46608
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1784,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 26638.446361
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 110830.491639
+-- process inspection: {"snapshots":3,"unrelatedRows":3951}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (111713 ms)
+DIAGNOSTIC_RESULT {"n":17,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3951},"elapsed":111713,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1979,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 29919.193955
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1887,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 29986.614977
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1658,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 26657.273138
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1953,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 28185.723822
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 114979.652051
+-- process inspection: {"snapshots":3,"unrelatedRows":3891}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (115880 ms)
+DIAGNOSTIC_RESULT {"n":18,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3891},"elapsed":115880,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1920,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 28817.545962
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1820,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 29174.227449
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1569,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 25722.681294
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1731,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 26985.348411
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 110974.144382
+-- process inspection: {"snapshots":3,"unrelatedRows":3634}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (111902 ms)
+DIAGNOSTIC_RESULT {"n":19,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3634},"elapsed":111902,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1780,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 1 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 28285.579364
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1796,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 2 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 27729.694693
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1386,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 3 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 18564.204142
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1145,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 4 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 17598.676954
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 92463.289818
+-- process inspection: {"snapshots":3,"unrelatedRows":3715}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs (93012 ms)
+DIAGNOSTIC_RESULT {"n":20,"file":"packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3715},"elapsed":93012,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-diagnostic.test.mjs"}

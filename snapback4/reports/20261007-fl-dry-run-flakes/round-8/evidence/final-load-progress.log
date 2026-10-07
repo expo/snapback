@@ -1,0 +1,45 @@
+{"round": 4, "group": "other", "status": 0, "seconds": 107.09}
+{"round": 3, "group": "other", "status": 0, "seconds": 107.36}
+{"round": 2, "group": "other", "status": 0, "seconds": 107.59}
+{"round": 1, "group": "other", "status": 0, "seconds": 108.34}
+{"round": 6, "group": "other", "status": 0, "seconds": 101.49}
+{"round": 5, "group": "other", "status": 0, "seconds": 102.7}
+{"round": 7, "group": "other", "status": 0, "seconds": 105.32}
+{"round": 4, "group": "background", "status": 0, "seconds": 993.75}
+{"round": 1, "group": "background", "status": 0, "seconds": 994.2}
+{"round": 2, "group": "background", "status": 1, "seconds": 1083.43}
+{"round": 3, "group": "background", "status": 1, "seconds": 1087.57}
+{"round": 5, "group": "background", "status": 0, "seconds": 990.71}
+{"round": 8, "group": "other", "status": 0, "seconds": 105.81}
+{"round": 6, "group": "background", "status": 0, "seconds": 994.27}
+{"round": 9, "group": "other", "status": 0, "seconds": 105.28}
+{"round": 7, "group": "background", "status": 0, "seconds": 990.54}
+{"round": 10, "group": "other", "status": 0, "seconds": 105.48}
+{"round": 11, "group": "other", "status": 0, "seconds": 106.61}
+{"round": 8, "group": "background", "status": 0, "seconds": 987.96}
+{"round": 12, "group": "other", "status": 0, "seconds": 105.91}
+{"round": 13, "group": "other", "status": 0, "seconds": 105.46}
+{"round": 14, "group": "other", "status": 0, "seconds": 97.91}
+{"round": 15, "group": "other", "status": 0, "seconds": 77.26}
+{"round": 9, "group": "background", "status": 0, "seconds": 799.04}
+{"round": 10, "group": "background", "status": 0, "seconds": 796.9}
+{"round": 16, "group": "other", "status": 0, "seconds": 94.97}
+{"round": 11, "group": "background", "status": 0, "seconds": 798.41}
+{"round": 12, "group": "background", "status": 0, "seconds": 786.2}
+{"round": 17, "group": "other", "status": 0, "seconds": 92.98}
+{"round": 13, "group": "background", "status": 0, "seconds": 787.55}
+{"round": 18, "group": "other", "status": 0, "seconds": 94.07}
+{"round": 14, "group": "background", "status": 0, "seconds": 768.93}
+{"round": 19, "group": "other", "status": 0, "seconds": 92.25}
+{"round": 15, "group": "background", "status": 0, "seconds": 772.39}
+{"round": 20, "group": "other", "status": 0, "seconds": 87.02}
+{"round": 16, "group": "background", "status": 0, "seconds": 793.64}
+{"round": 17, "group": "background", "status": 0, "seconds": 627.72}
+{"round": 18, "group": "background", "status": 0, "seconds": 620.63}
+{"round": 19, "group": "background", "status": 0, "seconds": 578.65}
+{"round": 20, "group": "background", "status": 0, "seconds": 535.02}
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-8/reproduce/load-final.py", line 49, in <module>
+    assert len(results) == 40 and all(r['status'] == 0 for r in results), 'a loaded case failed'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: a loaded case failed

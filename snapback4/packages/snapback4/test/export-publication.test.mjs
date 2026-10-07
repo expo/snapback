@@ -31,7 +31,7 @@ const publish = (source, root, lease) => spawnSync(process.execPath, [shim, 'wit
   encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: binary }, stdio: ['ignore', 'pipe', 'pipe', lease],
 });
 
-for (const point of ['before', 'after']) test(`publisher ${point} barrier publishes a complete identity and rejects unsafe fault requests`, { timeout: 30000 }, async () => {
+for (const point of ['before', 'after']) test(`publisher ${point} barrier publishes a complete identity and rejects unsafe fault requests`, { timeout: 300000 }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-publisher-barrier-'));
   const barrier = path.join(root, 'paused'), resume = path.join(root, 'resume-write');
   const probe = path.join(root, 'probe'), writing = path.join(root, 'writing');
@@ -61,7 +61,7 @@ int main(void) { boundary(getenv("SB4_FAULT_TARGET"), ${point === 'after' ? 1 : 
     assert.equal(built.status, 0, built.stderr);
     child = spawn(probe, [], { env: { ...process.env, SB4_FAULT: 'pause-' + point, SB4_FAULT_TARGET: root, SB4_FAULT_BARRIER: barrier, WRITE_ENTERED: writing, WRITE_RESUME: resume }, stdio: 'ignore' });
     exited = once(child, 'exit');
-    const end = performance.now() + 10000;
+    const end = performance.now() + 120000;
     while (!fs.existsSync(writing)) { assert.ok(performance.now() < end, 'fixture reached its PID write'); await new Promise(r => setTimeout(r, 10)); }
     assert.equal(fs.existsSync(barrier), false, 'incomplete PID record must not be published');
     fs.writeFileSync(resume, '');
@@ -181,10 +181,11 @@ test('publisher inherits custody if its Node wrapper is killed while publication
     assert.equal(fs.existsSync(path.join(dir, 'finished.json')), false);
     assert.equal(fs.existsSync(source), true);
     fs.closeSync(lock); unlocked = true;
-    const deadline = Date.now() + 10_000;
+    let deadline = Date.now() + 120000;
     while (!fs.existsSync(path.join(dir, 'publication.json')) && Date.now() < deadline) await new Promise(r => setTimeout(r, 10));
     assert.equal(fs.existsSync(path.join(dir, 'publication.json')), true);
     assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
+    deadline = Date.now() + 120000;
     while (!fs.existsSync(path.join(dir, 'finished.json')) && Date.now() < deadline) {
       retainEvidence(path.join(root, 'runs'), dir, binary); await new Promise(r => setTimeout(r, 10));
     }

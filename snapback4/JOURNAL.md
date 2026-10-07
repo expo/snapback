@@ -90205,3 +90205,50 @@ no push. Darwin execution awaits the user's soak; this is no Mac or publication
 qualification claim.
 
 [Round-7 resolution, complete Darwin audit and controls](reports/20261007-fl-dry-run-flakes/round-7/REPORT.md).
+
+## 2026-10-08 — FL round 8: bound correctness work independently of launch latency
+
+Fetched and merged origin/main at 2797247960, installed the frozen Snapback 4
+workspace dependencies, and obtained deps-ok from the requested SDK check.
+The real runner CLI parity case now awaits its six invocations through the
+existing owned-command keeper. Each receives the ordinary fifteen-minute
+file-stall floor as a work allowance; one aggregate guard covers the six calls
+and cleanup. The runner's declared-guard census preserves its outer margin.
+Timeouts report TEST_FIXTURE_COMMAND_TIMEOUT distinctly. Verdicts, counts,
+PATH-shim hits, KEPT_FAILURE and inspection/keeper-error refusals are unchanged.
+The sibling audit fixes short correctness-work and readiness bounds in native
+parity, process, signal, export and schema-refusal tests. Intentional watchdog
+and product-deadline assertions retain their clocks and required outcomes.
+
+Loaded repetition also exposed empty Linux cmdline bytes during an env exec.
+Initial child capture now waits only for that incomplete state, retaining the
+first live birth and parent. Changed births, malformed nonempty commands and
+read errors refuse. Three regressions and two mutations cover the distinction.
+Signal dispatch still rechecks exact identity immediately; owned groups and
+retained handles are preferred. Recorded-PID dispatch retains the small
+exit/reuse race between its last inspection and the syscall.
+
+The affected ten-file suite passed 200 tests with 33 Darwin skips; unchanged
+dev_refusals passed 22/22. The frozen load replay ran each changed Linux case
+20 times with eight busy loops and eight test jobs confined to CPUs 80–87.
+The primary and other non-background cases passed 20/20 each. Background
+passed 18/20: two unchanged maintenance-drain predicates failed. Totals were
+2,018 passes, two failures and 640 skips; all keepers acknowledged cleanup and
+all owned load loops were reaped. Both failed cases then passed 60 focused
+repetitions each, which does not explain or erase their failures. The new
+maintenance-drain ticket records them. Failure diagnostics now retain queue
+records, maintenance logs and fresh process observations without changing
+the predicate or its 90-second bound. A later diagnostic candidate run hit
+the existing native invalid-/proc-group error, recorded on its own open ticket.
+No native custody check was relaxed. The final canonical background file with
+diagnostics then passed 63 tests with 32 skips; that rerun does not erase the
+earlier failures. This is not clean loaded qualification.
+
+A twelve-second startup-delay control passes the fixed six-invocation case
+and fails the landed ten-second version. A real hung-runner control fails
+distinctly, drains its private group and detached test descendants, and never
+uses its emergency release. Diagnostic controls preserve the original drain
+assertion. Ref-check passes with zero errors. Work stayed on eb1000 in this
+worktree; no Mac execution or push.
+
+[Round-8 audit, controls, all outcomes and unresolved tickets](reports/20261007-fl-dry-run-flakes/round-8/REPORT.md).

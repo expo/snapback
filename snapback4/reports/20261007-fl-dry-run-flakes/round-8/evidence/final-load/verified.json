@@ -1,0 +1,25 @@
+{
+  "loadedResults": 160,
+  "passes": 2018,
+  "skips": 640,
+  "failures": 2,
+  "failedCases": [
+    {
+      "round": 2,
+      "group": "background",
+      "cases": [
+        "skipped maintenance never blocks publication and drains under SIGTERM (off)"
+      ]
+    },
+    {
+      "round": 3,
+      "group": "background",
+      "cases": [
+        "retention cannot remove a run between directory creation and export lease acquisition"
+      ]
+    }
+  ],
+  "allKeeperReleasesAcknowledged": true,
+  "ownedLoopsReaped": true,
+  "replayInputsFixed": true
+}

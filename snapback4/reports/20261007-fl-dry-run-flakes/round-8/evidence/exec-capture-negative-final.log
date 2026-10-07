@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: newborn command capture after empty exec state: none
+not ok 1 - newborn command capture after empty exec state: none
+  ---
+  duration_ms: 75.631678
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-old-2201506.test.mjs:177:1'
+  failureType: 'testCodeFailure'
+  error: 'TEST_SIGNAL_REFUSED: no captured child birth: TEST_SIGNAL_REFUSED: incomplete process command'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-old-2201506.mjs:15:27)
+    signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-old-2201506.mjs:129:22)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-old-2201506.test.mjs:209:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 242.53482
+
+{"label":"old","expectedFailure":true,"groupDrained":true}
+TAP version 13
+# Subtest: newborn command capture after empty exec state: different birth
+not ok 1 - newborn command capture after empty exec state: different birth
+  ---
+  duration_ms: 91.386587
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-2201506.test.mjs:177:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /no captured child birth: .*stale publisher birth/. Input:
+    
+    'Error: TEST_SIGNAL_REFUSED: stale publisher birth / process birth must not authorize a fault'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'TEST_SIGNAL_REFUSED: stale publisher birth / process birth must not authorize a fault'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-2201506.mjs:15:27)
+    sameBirth (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-2201506.mjs:71:66)
+    inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-2201506.mjs:84:28)
+    checkSignalRecord (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-2201506.mjs:99:10)
+    signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-2201506.mjs:157:3)
+    file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-2201506.test.mjs:213:29
+    getActual (node:assert:611:5)
+    strict.throws (node:assert:759:24)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-2201506.test.mjs:213:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-2201506.test.mjs:213:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 263.302232
+
+{"label":"unbound","expectedFailure":true,"groupDrained":true}

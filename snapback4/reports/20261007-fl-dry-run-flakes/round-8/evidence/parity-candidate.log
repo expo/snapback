@@ -1,0 +1,86 @@
+-- client file start: packages/snapback4/test/.fl-r8-final-parity.test.mjs; stall bound 2400000 ms
+TAP version 13
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 1 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 842.37768
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 2 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 864.552952
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 3 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 810.803318
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 4 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 3.289892
+  type: 'test'
+  ...
+# Subtest: native buffered synchronous tests are bounded until Node delivers progress
+ok 5 - native buffered synchronous tests are bounded until Node delivers progress
+  ---
+  duration_ms: 4789.043537
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 6 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 632.415413
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 7 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 767.366373
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 8 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 663.009456
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 9 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 746.437741
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 10 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 854.074786
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 11 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 650.459492
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 12 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 516.343424
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12211.397193
+-- process inspection: {"snapshots":3,"unrelatedRows":3705}
+-- client file ok: packages/snapback4/test/.fl-r8-final-parity.test.mjs (12647 ms)
+LOAD_RESULT {"file":"packages/snapback4/test/.fl-r8-final-parity.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3705},"elapsed":12647,"counts":{"tests":12,"pass":12,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":2400000,"progressCount":26,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-final-parity.test.mjs"}

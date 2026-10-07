@@ -1,0 +1,20 @@
+✔ fixture signals bind every native command to the selected binary and exact root (237.676917ms)
+✔ tracked identity accepts shebang with its exact interpreter argv (24.192426ms)
+✔ tracked identity accepts env shebang with its exact interpreter argv (25.517803ms)
+✔ tracked identity accepts node file with its exact interpreter argv (23.833529ms)
+✔ owned shebang timeout reaps before resolving (identity refusal=false) (3011.423247ms)
+✔ owned shebang timeout reaps before resolving (identity refusal=true) (3011.136768ms)
+✔ owned cleanup refuses a borrowed numeric PID or imitation child object (0.42687ms)
+✔ self-directed cleanup loads synchronously without the Darwin inspector (179.415548ms)
+✔ Darwin inspector compiler escalates when its child handles SIGTERM (31353.826708ms)
+✔ newborn command capture after empty exec state: none (25.796141ms)
+✔ newborn command capture after empty exec state: different birth (21.91332ms)
+✔ newborn command capture after empty exec state: malformed command (21.71362ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37987.72534

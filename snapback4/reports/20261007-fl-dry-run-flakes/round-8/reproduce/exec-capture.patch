@@ -1,0 +1,57 @@
+--- a/snapback4/scripts/test-signals.mjs
++++ b/snapback4/scripts/test-signals.mjs
+@@ -38,10 +38,16 @@
+   try {
+     if (process.platform === 'linux') {
+       const before = linuxBirth(pid);
+-      const argv = command(fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8'));
++      const raw = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8');
+       const after = linuxBirth(pid);
+       sameBirth(after.start, before.start);
+-      return { pid, ...after, argv };
++      // exec can temporarily expose an empty cmdline. Retain both birth reads
++      // so initial capture can wait within this exact live birth; dispatch
++      // inspection still refuses incomplete commands immediately.
++      if (raw === '') throw Object.assign(refusal('incomplete process command'), {
++        code: 'TEST_SIGNAL_COMMAND_PENDING', record: { pid, ...after },
++      });
++      return { pid, ...after, argv: command(raw) };
+     }
+     if (process.platform !== 'darwin') throw refusal(`unsupported platform ${process.platform}`);
+     const result = spawnSync(probe, [String(pid)], { timeout: 10000, killSignal: 'SIGKILL', maxBuffer: 16 * 1024 * 1024 });
+@@ -98,11 +104,33 @@
+   process.kill(record.pid, signal);
+ }
+ const children = new WeakMap();
++function captureChild(child) {
++  const deadline = performance.now() + 120000;
++  const pause = new Int32Array(new SharedArrayBuffer(4));
++  let start;
++  for (;;) {
++    try {
++      const record = snapshot(child.pid);
++      if (record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
++      if (start !== undefined) sameBirth(record.start, start);
++      return record;
++    } catch (error) {
++      // Only the kernel's empty command during newborn exec gets a state wait.
++      // Preserve its first birth and require the same parent on every sample.
++      // Malformed nonempty commands, changed births and read failures refuse.
++      if (error.code !== 'TEST_SIGNAL_COMMAND_PENDING') throw error;
++      if (error.record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
++      if (start !== undefined) sameBirth(error.record.start, start);
++      else start = error.record.start;
++      if (performance.now() >= deadline) throw error;
++      Atomics.wait(pause, 0, 0, 10);
++    }
++  }
++}
+ export function spawnTracked(...args) {
+   const child = nativeSpawn(...args);
+   try {
+-    const record = snapshot(child.pid);
+-    if (record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
++    const record = captureChild(child);
+     // The kernel inserts a shebang interpreter before the script path. Capture
+     // the actual complete argv of this newborn child as well as spawnargs;
+     // neither permits another birth, a changed script path or extra arguments.

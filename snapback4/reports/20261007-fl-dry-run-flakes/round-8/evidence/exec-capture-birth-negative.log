@@ -1,0 +1,39 @@
+✖ newborn command capture after empty exec state: different birth (26.25614ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77.438256
+
+✖ failing tests:
+
+test at packages/snapback4/test/.fl-r8-unbound-signals.test.mjs:177:1
+✖ newborn command capture after empty exec state: different birth (26.25614ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /no captured child birth: .*stale publisher birth/. Input:
+  
+  'Error: TEST_SIGNAL_REFUSED: stale publisher birth / process birth must not authorize a fault'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-signals.test.mjs:213:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: TEST_SIGNAL_REFUSED: stale publisher birth / process birth must not authorize a fault
+        at refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-signals.mjs:15:27)
+        at sameBirth (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-signals.mjs:71:66)
+        at inspectSignalTarget (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-signals.mjs:84:28)
+        at checkSignalRecord (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-signals.mjs:99:10)
+        at signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/.fl-r8-unbound-signals.mjs:157:3)
+        at file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-signals.test.mjs:213:29
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-unbound-signals.test.mjs:213:16)
+        at process.processTicksAndRejections (node:internal/process/task_queues:103:5),
+    expected: /no captured child birth: .*stale publisher birth/,
+    operator: 'throws',
+    diff: 'simple'
+  }

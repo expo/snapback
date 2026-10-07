@@ -1,0 +1,680 @@
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1288288) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 504.962755
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 426.163057
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 447.118401
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1477.495059
+-- process inspection: {"snapshots":3,"unrelatedRows":3546}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1883 ms)
+LOAD_RESULT {"round":1,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3546},"elapsed":1883,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1289304) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 578.694295
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 426.056607
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 446.114285
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1536.273714
+-- process inspection: {"snapshots":3,"unrelatedRows":3526}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1903 ms)
+LOAD_RESULT {"round":2,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3526},"elapsed":1903,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1290335) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 675.6633
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 554.011142
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 430.276083
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1733.693253
+-- process inspection: {"snapshots":3,"unrelatedRows":3555}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (2129 ms)
+LOAD_RESULT {"round":3,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3555},"elapsed":2129,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1291608) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 657.199832
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 442.210283
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 542.633757
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1718.44229
+-- process inspection: {"snapshots":3,"unrelatedRows":3526}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (2121 ms)
+LOAD_RESULT {"round":4,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3526},"elapsed":2121,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1293083) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 622.901515
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 750.173027
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 1253.915523
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2707.665566
+-- process inspection: {"snapshots":3,"unrelatedRows":3541}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (3160 ms)
+LOAD_RESULT {"round":5,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3541},"elapsed":3160,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1294420) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 1205.422807
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 1147.570582
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 580.72566
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3026.386817
+-- process inspection: {"snapshots":3,"unrelatedRows":3559}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (3465 ms)
+LOAD_RESULT {"round":6,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3559},"elapsed":3465,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1296276) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 577.865974
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 470.776767
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 487.219216
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1610.260896
+-- process inspection: {"snapshots":3,"unrelatedRows":3567}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1950 ms)
+LOAD_RESULT {"round":7,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3567},"elapsed":1950,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1299344) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 581.960041
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 432.387037
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 440.949223
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1538.218589
+-- process inspection: {"snapshots":3,"unrelatedRows":3561}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1829 ms)
+LOAD_RESULT {"round":8,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3561},"elapsed":1829,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1300062) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 485.763413
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 432.908759
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 435.407775
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1434.337181
+-- process inspection: {"snapshots":3,"unrelatedRows":3556}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1849 ms)
+LOAD_RESULT {"round":9,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3556},"elapsed":1849,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1300974) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 510.654688
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 531.074429
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 433.891403
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1555.597351
+-- process inspection: {"snapshots":3,"unrelatedRows":3559}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1906 ms)
+LOAD_RESULT {"round":10,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3559},"elapsed":1906,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1302051) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 607.482361
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 434.974867
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 434.761637
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1580.988615
+-- process inspection: {"snapshots":3,"unrelatedRows":3550}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (2047 ms)
+LOAD_RESULT {"round":11,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3550},"elapsed":2047,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1302930) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 500.080536
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 437.316477
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 445.947425
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1465.596001
+-- process inspection: {"snapshots":3,"unrelatedRows":3543}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1843 ms)
+LOAD_RESULT {"round":12,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3543},"elapsed":1843,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1303514) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 519.332997
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 439.636695
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 461.955103
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1502.398321
+-- process inspection: {"snapshots":3,"unrelatedRows":3539}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1901 ms)
+LOAD_RESULT {"round":13,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3539},"elapsed":1901,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1304378) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 599.883881
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 406.910435
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 434.346725
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1512.435137
+-- process inspection: {"snapshots":3,"unrelatedRows":3540}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1912 ms)
+LOAD_RESULT {"round":14,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3540},"elapsed":1912,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1305363) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 503.057299
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 432.895219
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 436.473663
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1439.018849
+-- process inspection: {"snapshots":3,"unrelatedRows":3528}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1772 ms)
+LOAD_RESULT {"round":15,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3528},"elapsed":1772,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1306179) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 495.490325
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 440.678808
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 439.251988
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1458.145592
+-- process inspection: {"snapshots":3,"unrelatedRows":3527}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1809 ms)
+LOAD_RESULT {"round":16,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3527},"elapsed":1809,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1306849) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 605.479569
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 410.147949
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 672.789433
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1766.416929
+-- process inspection: {"snapshots":3,"unrelatedRows":3531}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (2089 ms)
+LOAD_RESULT {"round":17,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3531},"elapsed":2089,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1307726) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 758.834281
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 529.040059
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 428.115123
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1797.454787
+-- process inspection: {"snapshots":3,"unrelatedRows":3527}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (2167 ms)
+LOAD_RESULT {"round":18,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3527},"elapsed":2167,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1309653) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 508.035111
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 433.391553
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 415.97831
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1440.81342
+-- process inspection: {"snapshots":3,"unrelatedRows":3530}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1761 ms)
+LOAD_RESULT {"round":19,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3530},"elapsed":1761,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1311002) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 474.538426
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 406.201212
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 419.099027
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1394.78572
+-- process inspection: {"snapshots":3,"unrelatedRows":3527}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (1796 ms)
+LOAD_RESULT {"round":20,"file":"packages/snapback4/test/schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3527},"elapsed":1796,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs","sourceSha256":"6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f"}

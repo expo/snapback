@@ -1,0 +1,106 @@
+-- client file start: packages/snapback4/test/.fl-r8-final-parity-851221.test.mjs; stall bound 2400000 ms
+TAP version 13
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 1 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 1129.930271
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 2 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 992.300023
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 3 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 1013.960673
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 4 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 8.154844
+  type: 'test'
+  ...
+# Subtest: native buffered synchronous tests are bounded until Node delivers progress
+ok 5 - native buffered synchronous tests are bounded until Node delivers progress
+  ---
+  duration_ms: 5137.236888
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 6 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 1113.773792
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 7 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 1124.334673
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 8 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 994.878669
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 9 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 981.298802
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 10 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 1188.315184
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 11 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 950.483587
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 12 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 820.897679
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15573.511096
+-- process inspection: {"snapshots":3,"unrelatedRows":3735}
+-- client file ok: packages/snapback4/test/.fl-r8-final-parity-851221.test.mjs (16183 ms)
+LOAD_RESULT {"file":"packages/snapback4/test/.fl-r8-final-parity-851221.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3735},"elapsed":16183,"counts":{"tests":12,"pass":12,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":2400000,"progressCount":26,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-final-parity-851221.test.mjs","candidateSha256":"6000226cfcbb74789100a3b3a36fbaf83f7ee3dbcd31fb7f7ed5b53062893671"}
+-- client file start: packages/snapback4/test/export-native.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: retention keeps five completed runs, compresses older receipts and leaves active runs alone
+ok 1 - retention keeps five completed runs, compresses older receipts and leaves active runs alone
+  ---
+  duration_ms: 3578.419975
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3718.588548
+-- process inspection: {"snapshots":3,"unrelatedRows":3701}
+-- client file ok: packages/snapback4/test/export-native.test.mjs (4223 ms)
+LOAD_RESULT {"file":"packages/snapback4/test/export-native.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3701},"elapsed":4223,"counts":{"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-native.test.mjs"}

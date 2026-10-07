@@ -1,0 +1,45 @@
+{"round": 2, "group": "other", "status": 0, "seconds": 38.74}
+{"round": 1, "group": "other", "status": 0, "seconds": 39.11}
+{"round": 3, "group": "other", "status": 0, "seconds": 40.15}
+{"round": 2, "group": "background", "status": 0, "seconds": 525.94}
+{"round": 1, "group": "background", "status": 0, "seconds": 528.98}
+{"round": 4, "group": "other", "status": 0, "seconds": 53.81}
+{"round": 3, "group": "background", "status": 0, "seconds": 544.23}
+{"round": 5, "group": "other", "status": 0, "seconds": 54.71}
+{"round": 4, "group": "background", "status": 0, "seconds": 563.37}
+{"round": 6, "group": "other", "status": 0, "seconds": 43.61}
+{"round": 7, "group": "other", "status": 0, "seconds": 42.46}
+{"round": 5, "group": "background", "status": 0, "seconds": 605.53}
+{"round": 6, "group": "background", "status": 0, "seconds": 587.7}
+{"round": 8, "group": "other", "status": 0, "seconds": 41.87}
+{"round": 9, "group": "other", "status": 0, "seconds": 39.3}
+{"round": 7, "group": "background", "status": 0, "seconds": 580.09}
+{"round": 10, "group": "other", "status": 0, "seconds": 37.75}
+{"round": 8, "group": "background", "status": 0, "seconds": 570.5}
+{"round": 11, "group": "other", "status": 0, "seconds": 39.88}
+{"round": 9, "group": "background", "status": 1, "seconds": 587.01}
+{"round": 10, "group": "background", "status": 1, "seconds": 581.35}
+{"round": 12, "group": "other", "status": 0, "seconds": 40.02}
+{"round": 12, "group": "background", "status": 0, "seconds": 489.83}
+{"round": 11, "group": "background", "status": 1, "seconds": 564.18}
+{"round": 13, "group": "other", "status": 0, "seconds": 37.91}
+{"round": 14, "group": "other", "status": 0, "seconds": 39.32}
+{"round": 15, "group": "other", "status": 0, "seconds": 40.09}
+{"round": 13, "group": "background", "status": 0, "seconds": 548.92}
+{"round": 14, "group": "background", "status": 0, "seconds": 592.05}
+{"round": 16, "group": "other", "status": 0, "seconds": 77.37}
+{"round": 15, "group": "background", "status": 0, "seconds": 612.33}
+{"round": 17, "group": "other", "status": 0, "seconds": 76.54}
+{"round": 18, "group": "other", "status": 0, "seconds": 80.33}
+{"round": 16, "group": "background", "status": 0, "seconds": 693.18}
+{"round": 19, "group": "other", "status": 0, "seconds": 79.0}
+{"round": 17, "group": "background", "status": 0, "seconds": 991.52}
+{"round": 18, "group": "background", "status": 0, "seconds": 993.77}
+{"round": 20, "group": "other", "status": 0, "seconds": 81.7}
+{"round": 19, "group": "background", "status": 0, "seconds": 992.15}
+{"round": 20, "group": "background", "status": 0, "seconds": 989.74}
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-8/reproduce/load.py", line 43, in <module>
+    assert before == after, 'sources changed during load run'
+           ^^^^^^^^^^^^^^^
+AssertionError: sources changed during load run

@@ -1,0 +1,49 @@
+
+// /proc can publish an empty command while env execs its interpreter. Only
+// initial capture may wait for a complete command, within the same live birth.
+for (const fault of ['none', 'different birth', 'malformed command'])
+test(`newborn command capture after empty exec state: ${fault}`, { skip: process.platform !== 'linux', timeout: fixtureTestMs() }, async t => {
+  const dir = fixture(t), file = path.join(dir, 'exec-child.cjs');
+  fs.writeFileSync(file, '#!/usr/bin/env node\nprocess.stdin.resume();process.stdin.on("end",()=>process.exit(0));console.log("ready");\n', { mode: 0o755 });
+  const read = fs.readFileSync;
+  let target, statReads = 0, commandReads = 0, child;
+  const mocked = t.mock.method(fs, 'readFileSync', function(name, ...args) {
+    const raw = read.call(this, name, ...args);
+    const stat = /^\/proc\/(\d+)\/stat$/.exec(String(name));
+    if (stat && (target === undefined || target === stat[1])) {
+      target ??= stat[1]; statReads++;
+      if (fault === 'different birth' && statReads > 2) {
+        const text = String(raw), end = text.lastIndexOf(')') + 1;
+        const fields = text.slice(end).trim().split(/\s+/);
+        fields[19] = String(BigInt(fields[19]) + 1n);
+        return text.slice(0, end) + ' ' + fields.join(' ') + '\n';
+      }
+    }
+    if (String(name) === `/proc/${target}/cmdline`) {
+      if (++commandReads === 1) return '';
+      if (fault === 'malformed command') return 'unterminated argv';
+    }
+    return raw;
+  });
+  try { child = spawnTracked(file, []); }
+  finally { mocked.mock.restore(); }
+  const exited = once(child, 'exit');
+  try {
+    await once(child.stdout, 'data');
+    const attempted = [];
+    const kill = t.mock.method(child, 'kill', signal => { attempted.push(signal); return true; });
+    try {
+      if (fault === 'none') {
+        signalChild(child, 'SIGTERM');
+        assert.deepEqual(attempted, ['SIGTERM']);
+        assert.ok(commandReads >= 2, 'a fresh complete command must be captured');
+      } else {
+        assert.throws(() => signalChild(child, 'SIGTERM'), fault === 'different birth'
+          ? /no captured child birth: .*stale publisher birth/
+          : /no captured child birth: .*incomplete process command/);
+        assert.deepEqual(attempted, [], 'an invalid initial capture must never dispatch');
+        if (fault === 'malformed command') assert.equal(commandReads, 2, 'malformed nonempty bytes are not retried');
+      }
+    } finally { kill.mock.restore(); }
+  } finally { child.stdin.end(); await exited; }
+});

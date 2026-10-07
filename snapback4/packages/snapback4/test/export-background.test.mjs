@@ -1,14 +1,18 @@
 // @ref LLP 3000.030#15 — the real detached driver, with host tools replaced by owned fixtures.
-import { test } from 'node:test';
+import { test as nodeTest } from 'node:test';
+import { fixtureWorkMs, fixtureTestMs } from '../../../scripts/test-work-bounds.mjs';
+// Each case keeps its state and product-deadline assertions. The outer guard
+// allows real wrapper/native process work under the ordinary file allowance.
+const test = (name, options, body) => nodeTest(name, { ...(typeof options === 'function' ? {} : options), timeout: fixtureTestMs() }, body ?? options);
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { checkedSpawnSync as spawnSync } from './helpers/fixture-command.mjs';
 import { once } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
-import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
-import { signalFixture } from './helpers/fixture-signals.mjs';
+import { checkSignalRecord, signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+import { fixtureCommands, signalFixture } from './helpers/fixture-signals.mjs';
 import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from './helpers/publication-barrier.mjs';
 
 // Use one spelling for launch and exact identity checks, including Darwin's
@@ -53,14 +57,14 @@ if(args.join(' ')==='simctl list runtimes --json') {
   delete env.SNAPBACK4_NATIVE_SMOKE;
   const maintainers = [];
   const invoke = (bytes = 'export one') => {
-    const result = spawnSync(process.execPath, [wrapper], { cwd: root, env: { ...env, EXPORT_BYTES: bytes }, encoding: 'utf8', timeout: 20000 });
+    const result = spawnSync(process.execPath, [wrapper], { cwd: root, env: { ...env, EXPORT_BYTES: bytes }, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
     const dir = read(path.join(root, 'artifacts/native-smoke/latest.json'))?.artifacts;
     const pid = dir && read(path.join(dir, 'maintenance-launch.json'))?.process?.pid;
     if (pid) maintainers.push(pid);
     return result;
   };
   const latest = () => read(path.join(root, 'artifacts/native-smoke/latest.json'));
-  const status = (...args) => spawnSync(binary, ['witness', 'status', ...args], { cwd: root, env, encoding: 'utf8', timeout: 30000 });
+  const status = (...args) => spawnSync(binary, ['witness', 'status', ...args], { cwd: root, env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
   const events = () => { try { return fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } };
   return { root, put, env, invoke, latest, status, events, maintainers };
 }
@@ -97,7 +101,7 @@ test('export publishes before smoke completes, reports pending, then surfaces sk
     const pending = f.status(); assert.equal(pending.status, 2); assert.match(pending.stdout, /native smoke pending/);
     f.put('continue', '');
     const done = f.status('--wait'); assert.equal(done.status, 2, done.stderr); assert.match(done.stdout, /native smoke skipped/);
-    const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10000 });
+    const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
     assert.match(doctor.stdout, /native smoke skipped/);
     const next = f.invoke('export two'); assert.equal(next.status, 0, next.stderr);
     assert.match(next.stdout, /native smoke skipped/);
@@ -257,7 +261,7 @@ function alive(pid) {
       const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
       return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0] !== 'Z';
     }
-    const status = spawnSync('ps', ['-p', String(pid), '-o', 'stat='], { encoding: 'utf8', timeout: 10000 });
+    const status = spawnSync('ps', ['-p', String(pid), '-o', 'stat='], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
     if (status.status === 1 && !status.stdout.trim()) return false;
     assert.equal(status.status, 0, status.error?.message ?? status.stderr);
     return !status.stdout.trim().startsWith('Z');
@@ -286,7 +290,7 @@ function noOldPass(f) {
   assert.equal(status.status, 2, status.stdout + status.stderr);
   assert.match(status.stdout, /no proof for the current export/);
   assert.doesNotMatch(status.stdout, /native smoke passed/);
-  const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10000 });
+  const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
   assert.match(doctor.stdout, /no proof for the current export/);
   assert.doesNotMatch(doctor.stdout, /native smoke passed/);
 }
@@ -414,7 +418,7 @@ for (const [phase, mode] of [['before','SIGTERM'], ['before','SIGKILL'], ['befor
   assert.ok(custody?.guardian?.pid && custody?.group, 'retention journal exists before arbitrary compression');
   for (const pid of [compressor.pid, compressor.child]) assert.equal(Number(spawnSync('ps', ['-o','pgid=','-p',String(pid)], {encoding:'utf8'}).stdout.trim()), custody.group, 'compressor descendants share the recorded anchor group');
   // The second retention invocation must defer without waiting for the lock.
-  const contender = spawnSync(binary, ['witness', 'export-cleanup', retentionRoot], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: 10000 });
+  const contender = spawnSync(binary, ['witness', 'export-cleanup', retentionRoot], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
   assert.equal(contender.status, 1, contender.stdout + contender.stderr);
   assert.match(contender.stderr, /retention lock busy/);
   const started = performance.now();
@@ -647,9 +651,29 @@ for(const [mode, fault] of [['off','SIGTERM'],['non-macOS','SIGKILL'],['off','de
 // observer which was launched by the preceding custodian rather than a wrapper.
 async function maintenanceIdle(f, allowParked = false) {
   const root=path.join(f.root,'artifacts/native-smoke');
-  await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
-    ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
-    'coalesced maintenance queue drained',90000);
+  try {
+    await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
+      ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
+      'coalesced maintenance queue drained',90000);
+  } catch (error) {
+    // Preserve the first failure and evidence before fixture cleanup removes
+    // the queue. A later passing rerun cannot explain a missing transition.
+    try {
+      const records = Object.fromEntries(['request','claimed','parked','next','active','result','done']
+        .map(name => [name, read(path.join(root, `maintenance-${name}.json`))]));
+      const processes = Object.fromEntries(['next','active'].map(name => {
+        const record = records[name]?.process;
+        if (!record) return [name, null];
+        try { return [name, { verified: checkSignalRecord(record, fixtureCommands(f.env.SNAPBACK4_BIN, f.root)) }]; }
+        catch (failure) { return [name, { inspection: failure.message }]; }
+      }));
+      let log;
+      try { log = fs.readFileSync(path.join(root, 'maintenance.log'), 'utf8').slice(-65536); }
+      catch (failure) { log = `unavailable: ${failure.code}`; }
+      error.message += '\nMAINTENANCE_SNAPSHOT ' + JSON.stringify({ records, processes, log });
+    } catch (failure) { error.message += `\nMAINTENANCE_SNAPSHOT unavailable: ${failure.message}`; }
+    throw error;
+  }
 }
 for(const mode of ['off','non-macOS']) test(`held retention lock coalesces 28 skipped exports into one pending observer (${mode})`,{timeout:120000},async()=>{
   const f=fixture(); let holder, exited;
@@ -747,7 +771,7 @@ fs.closeSync=function(fd){if(held.has(fd)){fs.mkdirSync('wrapper-held',{recursiv
     // lease acquired after the observer's passive probe but before its worker.
     let scan;
     for(let i=0;i<20;i++) {
-      scan=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8',timeout:10000});
+      scan=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8',timeout:fixtureWorkMs,killSignal:'SIGKILL'});
       if(scan.status===0)break;
       assert.match(scan.stderr,/retention lock busy/);await pause();
     }

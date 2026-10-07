@@ -1,0 +1,340 @@
+{
+  "cpus": "80-87",
+  "busyLoops": 8,
+  "concurrentJobs": 8,
+  "loopPids": [
+    2082209,
+    2082210,
+    2082211,
+    2082212,
+    2082213,
+    2082214,
+    2082215,
+    2082216
+  ],
+  "loopsReaped": true,
+  "inputs": {
+    "sourceHashes": {
+      "scripts/test-command-group.mjs": "6c0798ec3d989a6073519ca14b1a98ff50b633e67068b37320542036a6ddc88d",
+      "scripts/test-file-owner.mjs": "4e708993ba827a01fe390508be43bf56096e50807d6fe528a261b12ec5f73fbc",
+      "scripts/test-work-bounds.mjs": "b11f8d9ae6199448381d4c55f6d7fdabc6a297c778b9c78abfa15f49c82fc0b0",
+      "scripts/test-command-owner.mjs": "fbb398f8b8e8dfd80c75508cc74bd5dacfbf41b4803e2d3e98ddd40b793654b9",
+      "scripts/test-owned-command.mjs": "28929a418aaa4c689c939a6ea43e4af8ac615cedcda0ec6561be912dc67d21c1",
+      "scripts/test-signals.mjs": "5004777d3c8634476d6979028229dc0bdae66e51d5de223c270231ba670d5772",
+      "scripts/test-progress-reporter.mjs": "d0f14f8f0e9ff6dbf2c176e0350b9c50bee4ee38babbdf974c02a95765dc80a5",
+      "scripts/test-processes.mjs": "74d05aa5d102d68db31a7c7581ec975cab74ef9c3c95a4f99396e877c447125f",
+      "scripts/run-client-tests.mjs": "291911b7a7eb926dcfb95ca87121807c6abe05a6df9b3d868975f74f8d29137d",
+      "packages/snapback4/test/export-background.test.mjs": "2e2d32bf95a4691d19bbcc368ff68db220ae9342d4b4c7f8080bb19f0499638a",
+      "packages/snapback4/test/export-failure.test.mjs": "597c98b13ce78305783ddc91110b247e1aeb3c7d6fb89ad3935de2b7901f5503",
+      "packages/snapback4/test/export-native.test.mjs": "1b8ef440b62f14a0e0dddcbb829a5a0f76c63696df367cfdd6732673507347f7",
+      "packages/snapback4/test/export-publication.test.mjs": "b6a7e32e4df21bf53ebb95720bc45d20c10aec6999d5fdecc6a832d195f4ba11",
+      "packages/snapback4/test/schema-capability-refusals.test.mjs": "6b89029dd84bdd5a107bd09c48a24791f5f6e0c32e125edd8c9ba2469281b79f",
+      "packages/snapback4/test/test-processes.test.mjs": "7b2d74b4fc4bd6ee8f750aa971fa4cae4a2bc22faf915aa96d99a80702840f71",
+      "packages/snapback4/test/test-file-runner.test.mjs": "ca9beb1c892aa0e41dcfbfa2018bbd762f9b1e50b570c144b53641115af48809",
+      "packages/snapback4/test/test-signals.test.mjs": "a3d1d5c440946443d42eb4919847412de9c21cfd0795f07141b82b50febfcb3f",
+      "packages/snapback4/test/helpers/astra-search.mjs": "9ee2530f8aac680a860a219b56cdc1f354999ba0ad21dbc13b32f4aaa089bb8d",
+      "packages/snapback4/test/helpers/one-shot.mjs": "901f9dcf50bf2ad75a3078ec10ebb5c8324b6d5dd0001580a3d3ed7aef0c49d3",
+      "packages/snapback4/test/helpers/subscription-pressure-driver.mjs": "1b54bac55d2c659f1101ccfb2ae4a421363f9312dc5dc500b9065d8f963f244d",
+      "packages/snapback4/test/helpers/live-margin.mjs": "1f1d278944ca10a717cc7a8b28dcc959e4b61ff5f1bd3167169e40342a10a63a",
+      "packages/snapback4/test/helpers/react-asset-recovery.mjs": "251ecfba5ea8c32541df1a82bde035f50d3a1c5fa1581c5415b6aa4a730c0d62",
+      "packages/snapback4/test/helpers/delivery-crash-worker.mjs": "f70ce73032298e44f820a35f888e5ec8c018e702dabbb892a9c8aaec46610ac7",
+      "packages/snapback4/test/helpers/pr-authority-fixture.mjs": "6fe32a03e3bcbd2798ed14e0c29708b19e3a50f6a5a9f52a40f9b57b0f8313c4",
+      "packages/snapback4/test/helpers/search-oracle.mjs": "e8c79fc3104170ef343547a243088ea46a3563bd5808f81d1ab1e39c5672e7f9",
+      "packages/snapback4/test/helpers/fixture-signals.mjs": "e708a18995c1c852c575dda60279f16758b8043b5ad220bf0c858e6e3a7f03ca",
+      "packages/snapback4/test/helpers/linux-proof-harness.mjs": "39928a8d39f3e39d2b5ef20e9240a7b06a27acfd66b0912badb82ef777d0a920",
+      "packages/snapback4/test/helpers/elf-fixture.mjs": "3a9458811b1789223374e7a9f5b71ec737c7a6c407c4e4db4818beb51e9058f1",
+      "packages/snapback4/test/helpers/social-direct-browser.mjs": "e46b1d1e5022e98ed8be63775880070b3bd46eb021d02ebd89ecb526354cc580",
+      "packages/snapback4/test/helpers/delivery-fixture.mjs": "b6f4ca51bae8e2e8822d4155d16b630dd5582e9aceb1fed7acbe3d6dfc41949f",
+      "packages/snapback4/test/helpers/live-margin-probe.mjs": "daf5b1eff5dbea5214907156e07db5b0b91a7456de17bdac4405fca049adda88",
+      "packages/snapback4/test/helpers/published-capabilities.mjs": "157396f1de571e3dff67da71ab69d307063ad629ec2fb51b6717ef9fe156e9b3",
+      "packages/snapback4/test/helpers/cleanup.mjs": "f66edc75bd935af6b8211316f817d700fc5c87f157ff4b8e73370cff838df64e",
+      "packages/snapback4/test/helpers/mixed-evidence-oracle.mjs": "7c943d43a23a7ecb6ede2b6ecd30ba0a657968b10d48a10eee2a80a9e4e4851f",
+      "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+      "packages/snapback4/test/helpers/server-output.mjs": "4ad80813ba1bbd9a271f2495153375353704e208170d5926496d0c9fbbab8c3a",
+      "packages/snapback4/test/helpers/avatar-fixture.mjs": "8fb0929f6211c42288be12fa9acc9fd3bf4d6a50d5e0c8d02d97e755960353d9",
+      "packages/snapback4/test/helpers/native-blob.mjs": "571abfe1823e84ed1d60a9ef135f6596278473c5fdcb201d9bcdda1f41b9f908",
+      "packages/snapback4/test/helpers/live-margin-notification.mjs": "3469ce82fb5380790597e9d32195a1c3d1c42346a3f90f8530f14fbdf3b14e4e",
+      "packages/snapback4/test/helpers/approval-oracle.mjs": "e7177d8332961ea9f3a4f609d5754b196a6c72d4f163fcc506547f74b2229a47",
+      "packages/snapback4/test/helpers/ephemeral-server.mjs": "e5c63dfdf3135d5ec0b907a8633df8cb3b083499833e6da1bcf5933b534bd20b",
+      "packages/snapback4/test/helpers/react-pending-items.mjs": "99c18f9fbec6716b1bab2e50ecca4f48eb42003e3b24a404e56f03baf77c13ab",
+      "packages/snapback4/test/helpers/authority-fixture.mjs": "493b74569eed39a3b25c92d640c0d475e83025177fd9a34ec877e30b26ccae6b",
+      "packages/snapback4/test/helpers/live-margin-load.mjs": "b06271e95b9b01f8eff84ce6dac773fdd5b92f90c0d10e4d598959bf22ba7551",
+      "packages/snapback4/test/helpers/social-browser.mjs": "2efd5b950e30c999a5c3719890468fd21290f26aa5c4efac21b06922a19273b3",
+      "packages/snapback4/test/helpers/sync-control.mjs": "265adc01236ca595139afb299871753e44b2a5a57a37ca138c41df8e0f869494",
+      "packages/snapback4/test/helpers/online-client-model.mjs": "402ada943acf2245bebb55777334ffca0aaa6b1868895d5ddf6d729aa858f7d6",
+      "packages/snapback4/test/helpers/app-model-device.mjs": "8ca6da6384156ade59207423d6b9e5304d6c57fd02eab392d8ddca7cdb8d1bd7",
+      "packages/snapback4/test/helpers/fixture-command.mjs": "1f4609803cbd16fa5b3566cb9f98cfb5000dac44f49ba79b823eefb35ba78011",
+      "packages/snapback4/test/helpers/publication-roundtrip-mock.mjs": "fe86fc010d1486d53efe166fda34e7910337ff39017c4f4f42036f8dc0109d49",
+      "packages/snapback4/test/helpers/screen-lifetimes.mjs": "70144b24dc1736858cfeb4ab78b7380972757e0e1f711385c3644a68f87c3a0e",
+      "packages/snapback4/test/helpers/generation-evidence-schedule.mjs": "a720f0d9148f149a0931f4a149ba88a3f7b62695f0ef79ea3003dbf873b10628",
+      "packages/snapback4/test/helpers/search-oracle-categories.mjs": "1b7444140c4beb96cc28c186b5c778678b4449cbeab65a3ff8acab3f01d27542",
+      "packages/snapback4/test/helpers/publication-barrier.mjs": "cd1cf7a29f7002dd23a31748765e58153680cd1aa8c461e71476285b6bb7496c",
+      "packages/snapback4/test/helpers/react-harness.mjs": "fb75afd4842838d7fb5e9ef7d7aaba5f34ade9bb67d4a96a7cca12dbc5badad0",
+      "packages/snapback4/test/helpers/live-margin-summary.mjs": "6ba80b95486c866aedf33d4150f47047a0521c19339afe0418084e75f9ff86be",
+      "packages/snapback4/test/helpers/read-through-server.mjs": "87af17d1cdd0feb0c76dc9deb1ce62f48c2c1b834b0d160acdcef86fc1e66b36",
+      "packages/snapback4/test/helpers/native-oracle-read-only.mjs": "886b91939fe14a1c39660064c8ede1ad86891d36393cdec01492344c2c6feebd",
+      "packages/snapback4/test/helpers/delivery-app-fixture.mjs": "2dbbea7bec1065f96573be05db891e618046d0f3bb82b97e2c4793653c8df68a",
+      "packages/snapback4/test/helpers/browser-server.mjs": "dccaa65a5091eb186ab73b8280fe541450cc07ed4b7b9c692d2866f36d82adb2",
+      "packages/snapback4/test/helpers/app-server.mjs": "df5b276cb9cb3c370b856834785705a959ce71d72ede5a67a0e4f18746470b22",
+      "packages/snapback4/test/helpers/answers-stay.mjs": "224987ece73778d259eaad1f4a8d060369d6eac98b5b40bf803440cf1828b166",
+      "packages/snapback4/test/helpers/app-session-model.mjs": "7ab4aa8c64f841918cde993418ab2a47be1337dd2c8320f6a4ef6a0365c265f6",
+      "packages/snapback4/test/helpers/live-margin-browser.mjs": "7e3c9b7b3cfe89c1c29ce6b838431f7b44d81738236c74d7a98c23b73b721700",
+      "packages/snapback4/test/helpers/timeline-recovery.mjs": "e849c9f132991bd4769071fe66973a12ba7e670c466bac24bd3b93c84a2fb22e",
+      "packages/snapback4/test/helpers/publish-fixture.mjs": "be3325678d193d63ae12ea6b3bb54e5af6379503f5a3ef68f2a9bc579a9e0f01",
+      "packages/snapback4/test/helpers/replacement-server.mjs": "52b335dc00ca4750c6a2954d54497c2dac27adf37abc242323d265f875443c77",
+      "packages/snapback4/test/helpers/react-pending-peer.mjs": "b7142974a4d4732571d51dd06ae0d346a70769ed51640bda42426fde0f7fef47",
+      "packages/snapback4/test/helpers/schema-capability-fixtures.mjs": "16b57e6257358ca851f2de03450ab14c74c29c875b1cee073641622f4b3ee281",
+      "packages/snapback4/test/helpers/notification-evidence-schedule.mjs": "cd2d8e55e37641ae617f9f2e9e4e53b1c00313168046cb09bd71b905e3b1eb2e"
+    },
+    "binary": {
+      "sha256": "ffb15a67a26620edc81ed3586663738286c0b3ef857cab32d912d1676633928b",
+      "device": 66310,
+      "inode": 102942183,
+      "mtimeNs": 1791409504135458595
+    }
+  },
+  "inputsUnchanged": true,
+  "rounds": [
+    {
+      "round": 1,
+      "group": "background",
+      "status": 0,
+      "seconds": 994.2
+    },
+    {
+      "round": 1,
+      "group": "other",
+      "status": 0,
+      "seconds": 108.34
+    },
+    {
+      "round": 2,
+      "group": "background",
+      "status": 1,
+      "seconds": 1083.43
+    },
+    {
+      "round": 2,
+      "group": "other",
+      "status": 0,
+      "seconds": 107.59
+    },
+    {
+      "round": 3,
+      "group": "background",
+      "status": 1,
+      "seconds": 1087.57
+    },
+    {
+      "round": 3,
+      "group": "other",
+      "status": 0,
+      "seconds": 107.36
+    },
+    {
+      "round": 4,
+      "group": "background",
+      "status": 0,
+      "seconds": 993.75
+    },
+    {
+      "round": 4,
+      "group": "other",
+      "status": 0,
+      "seconds": 107.09
+    },
+    {
+      "round": 5,
+      "group": "background",
+      "status": 0,
+      "seconds": 990.71
+    },
+    {
+      "round": 5,
+      "group": "other",
+      "status": 0,
+      "seconds": 102.7
+    },
+    {
+      "round": 6,
+      "group": "background",
+      "status": 0,
+      "seconds": 994.27
+    },
+    {
+      "round": 6,
+      "group": "other",
+      "status": 0,
+      "seconds": 101.49
+    },
+    {
+      "round": 7,
+      "group": "background",
+      "status": 0,
+      "seconds": 990.54
+    },
+    {
+      "round": 7,
+      "group": "other",
+      "status": 0,
+      "seconds": 105.32
+    },
+    {
+      "round": 8,
+      "group": "background",
+      "status": 0,
+      "seconds": 987.96
+    },
+    {
+      "round": 8,
+      "group": "other",
+      "status": 0,
+      "seconds": 105.81
+    },
+    {
+      "round": 9,
+      "group": "background",
+      "status": 0,
+      "seconds": 799.04
+    },
+    {
+      "round": 9,
+      "group": "other",
+      "status": 0,
+      "seconds": 105.28
+    },
+    {
+      "round": 10,
+      "group": "background",
+      "status": 0,
+      "seconds": 796.9
+    },
+    {
+      "round": 10,
+      "group": "other",
+      "status": 0,
+      "seconds": 105.48
+    },
+    {
+      "round": 11,
+      "group": "background",
+      "status": 0,
+      "seconds": 798.41
+    },
+    {
+      "round": 11,
+      "group": "other",
+      "status": 0,
+      "seconds": 106.61
+    },
+    {
+      "round": 12,
+      "group": "background",
+      "status": 0,
+      "seconds": 786.2
+    },
+    {
+      "round": 12,
+      "group": "other",
+      "status": 0,
+      "seconds": 105.91
+    },
+    {
+      "round": 13,
+      "group": "background",
+      "status": 0,
+      "seconds": 787.55
+    },
+    {
+      "round": 13,
+      "group": "other",
+      "status": 0,
+      "seconds": 105.46
+    },
+    {
+      "round": 14,
+      "group": "background",
+      "status": 0,
+      "seconds": 768.93
+    },
+    {
+      "round": 14,
+      "group": "other",
+      "status": 0,
+      "seconds": 97.91
+    },
+    {
+      "round": 15,
+      "group": "background",
+      "status": 0,
+      "seconds": 772.39
+    },
+    {
+      "round": 15,
+      "group": "other",
+      "status": 0,
+      "seconds": 77.26
+    },
+    {
+      "round": 16,
+      "group": "background",
+      "status": 0,
+      "seconds": 793.64
+    },
+    {
+      "round": 16,
+      "group": "other",
+      "status": 0,
+      "seconds": 94.97
+    },
+    {
+      "round": 17,
+      "group": "background",
+      "status": 0,
+      "seconds": 627.72
+    },
+    {
+      "round": 17,
+      "group": "other",
+      "status": 0,
+      "seconds": 92.98
+    },
+    {
+      "round": 18,
+      "group": "background",
+      "status": 0,
+      "seconds": 620.63
+    },
+    {
+      "round": 18,
+      "group": "other",
+      "status": 0,
+      "seconds": 94.07
+    },
+    {
+      "round": 19,
+      "group": "background",
+      "status": 0,
+      "seconds": 578.65
+    },
+    {
+      "round": 19,
+      "group": "other",
+      "status": 0,
+      "seconds": 92.25
+    },
+    {
+      "round": 20,
+      "group": "background",
+      "status": 0,
+      "seconds": 535.02
+    },
+    {
+      "round": 20,
+      "group": "other",
+      "status": 0,
+      "seconds": 87.02
+    }
+  ],
+  "seconds": 2604.08
+}
