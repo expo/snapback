@@ -88837,3 +88837,58 @@ the affected assertions were not reached. The
 recommends another candidate/pilot after named changes, with large evidence on
 eb1000 and committed indexes. Only the Apartment mini's dedicated simulator was
 used. The work is committed locally and not pushed.
+
+## 2026-10-07 — DT-A: seeded Quarry differential testing
+
+Continued the source generator in `snapback4-difftest`, an unpublished crate
+outside shipped dependencies. Cases carry typed Quarry structure, rows, viewer,
+arguments, clock and ceilings. Exact repeats, meaning-preserving rewrites and
+meter-boundary/continuation comparisons retain public outcome records. Structural
+shrinking saves replayable source and inputs by stable signature. Process workers
+own disjoint seed ranges; the runner reports coverage and named unsupported
+reasons, and exits nonzero for disagreements or unexpected refusals.
+
+The old 30-case pilot generated only one page, with no item rows, and mostly
+swept heap bytes. Fuller pages now reach resumable cuts. Heap, step, output and
+opening cuts retain the reads card's named non-resumable outcomes. Cost-changing
+rewrites still compare all non-meter fields. Both prior site-only differences
+were harness defects: helper expansion moves an update's IR address, and a
+return binding moves a null assertion's source column. Their shrunk raw records,
+diagnoses and passing replays remain under `cases/found/`. Helper calls return
+3 for `identity(1) + identity(2)`; skipped null assertions do not run.
+
+The release campaign ran seeds 0–99,999 on SQLite on the Linux fleet host in
+266.239 s with 12 process workers: 100,000 compiled cases, 3,153,140 engine calls,
+zero disagreements, zero unexpected refusals. Resumable cuts passed on
+14,305/21,163 pageable reads (67.59%). Source verification matched 626 files.
+The fixed-seed and oracle tests passed all five tests in 1.98 s on that host.
+The orchestrator kept the smoke in the workspace inventory: the suite already
+runs far past its 60 s budget, and 1–2 s more does not change that. AGENTS.md
+lists the commands. No shipped crate, public accessor, runtime ceiling or wasm budget
+changed; no engine or binder defect was fixed. Slice B still owns store/prefetch
+comparisons, schedules and ticket filing; slice C owns real device acquisition.
+The lane report is `~/projects/snapback-difftest-lane/report-a.md`. Full-suite
+verification is recorded in the follow-up below.
+
+Final verification: local warm `cargo build` passed in 0.14 s wall time; the
+five harness tests passed in 0.96 s (1.55 s including Cargo). Both saved case
+replays print `pass`. The corrected warm Linux `scripts/test.sh` run exited 0:
+`== 0 failure(s) in 2163 s`. Rust passed 5,120 tests with 33 declared ignores;
+all 328 client files passed (6,480 tests, 54 skips), all nine fixture tests
+passed, and both model files passed all 79 tests. Build, wasm/byte budget,
+docs, release guard and typechecks passed. The local whole-suite attempt was
+interrupted after sandbox process restrictions and other test failures; its
+retained log supplies no green local claim. The first Linux attempt exposed
+this lane's symlinked-target setup mistake; moving the actual target directory
+into the isolated checkout fixed that setup, and the entire script was rerun.
+The report retains both earlier attempts and the final green log. No shipped
+source, assertion or deadline changed. Final diff checks pass.
+
+Negative controls (orchestrator, before landing). Two faults were planted in
+the engine one at a time, seeds 0–1,999 were run, and the engine was then
+reverted. In the first, integer `+` added one when the left operand was larger.
+`rewrite-commute` caught it with 252 disagreements; no other oracle moved. In
+the second, decoded cursors flipped their inclusive bit, which skips or repeats
+a row on resume. The meter continuation oracle caught it with 1,105
+`meter--continued-data--array` disagreements. Both runs exited 1. The zero
+above is therefore a result and not a blind harness.
