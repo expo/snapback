@@ -1,5 +1,9 @@
 # QJ — jump to a quoted message
 
+**Round 1:** [settling and durable browser evidence](round1/REPORT.md) supersedes
+the scrolling/oracle details below. This page retains the round-0 design and
+full-suite qualification record.
+
 2026-10-07 · eb1000 · branch `sb4-intent/qj-quote-jump` · commit only, no push.
 Base: `8e530ff2419387cb97ff841b4a2aa8b7828c7229` (`origin/main` at lane creation).
 

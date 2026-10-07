@@ -160,16 +160,25 @@ function History(props: HistoryProps) {
     <Text>{matchRead(receipts.read, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text>
     <Text accessibilityLiveRegion="polite">{jump.jumping ? "Finding quoted message…" : jump.problem}</Text>
     {jump.through !== null && <Button title="Latest messages" onPress={jump.latest} />}
-    {isReady(jump.page.read) && <FlatList ref={jump.list} testID="history" style={{ flex: 1 }} data={jump.rows} keyExtractor={row => row.id}
+    <View ref={jump.viewport} collapsable={false} onLayout={jump.onLayout} style={{ flex: 1, minHeight: 0 }}>
+    {isReady(jump.page.read) && <FlatList ref={jump.bindList} testID="history" style={{ flex: 1 }} data={jump.rows} keyExtractor={row => row.id}
       onViewableItemsChanged={jump.onViewableItemsChanged} viewabilityConfig={viewabilityConfig}
-      onScrollToIndexFailed={jump.onScrollToIndexFailed} extraData={jump.highlighted}
-      renderItem={({ item: row }) => <View testID={`message-${row.id}`} accessibilityLabel={jump.highlighted === row.id ? "Highlighted message" : undefined}
+      onScrollToIndexFailed={jump.onScrollToIndexFailed} onContentSizeChange={jump.onLayout}
+      onScroll={jump.onScroll} scrollEventThrottle={16} onScrollBeginDrag={jump.cancel} onTouchStart={jump.cancel}
+      {...jump.webScrollHandlers} extraData={[jump.highlighted, jump.completed]}
+      renderItem={({ item: row }) => <View testID={`message-${row.id}`} nativeID={jump.completed === row.id ? `jump-completed-${row.id}` : undefined}
+        ref={node => { if (node) jump.bubbles.current.set(row.id, node); else jump.bubbles.current.delete(row.id); }}
+        collapsable={false} onLayout={jump.onLayout} accessibilityLabel={jump.highlighted === row.id ? "Highlighted message" : undefined}
         style={{ padding: 8, backgroundColor: jump.highlighted === row.id ? "#ffe89a" : "transparent" }}>
         {row.replyTo && <QuotedMessage id={row.replyTo} onJump={jump.onJump} />}
+        <View ref={node => { if (node) jump.bodies.current.set(row.id, node); else jump.bodies.current.delete(row.id); }}
+          collapsable={false} onLayout={jump.onLayout} testID={`jump-body-${row.id}`}>
         <Text>{row.text}{row.pending ? " · Sending…" : byId.has(row.id) ? ` · ${byId.get(row.id)}` : ""}</Text>
         <Button title="Reply" disabled={!!row.pending} onPress={() => props.reply(row.id)} />
         {row.photo && <Button title="View once photo" onPress={() => props.select({ message: row.id, asset: row.photo!.id })} />}
+        </View>
       </View>} />}
+    </View>
     <Button title="Older messages" disabled={!jump.page.hasMore} onPress={() => { jump.page.loadMore(); receipts.loadMore(); }} />
   </View>;
 }

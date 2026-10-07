@@ -88526,3 +88526,36 @@ the original in 126.9 ms online and 130.3 ms on the wasm replica, against the
 four-second bound. All four wasm artifacts are byte-identical to the baseline;
 the device remains 2,135,164 B raw / 645,264 B canonical gzip. Checkout disk use
 is 15.24 GB, below 30 GB. Earlier failed/interrupted runs remain in the report.
+
+## 2026-10-07 — QJ round 1: quote layout settling and durable browser evidence
+
+Astra's round-0 review reproduced an original pushed below the viewport by a
+late nested quote and a successful jump missed by a driver paused for 2.3 seconds.
+Grok returned READY; this round addresses Astra's two findings. The hook now
+keeps scroll ownership for four seconds after arrival, measures the original's
+own content when its quoted bubble is taller than the viewport, and corrects
+row/content layout changes with portable View measurement and FlatList offsets.
+Touch/drag, pointer/wheel and scrolling keys revoke ownership synchronously,
+including queued measurements. The 1.8-second highlight does not extend the
+settle deadline. Read-state guards, composer/draft ownership and history/receipt
+queries remain unchanged.
+
+The browser oracle is armed before the click and latches browser-timestamped
+completion, geometry and highlight. A persistent completion ID lets the driver
+poll current geometry after the highlight expires. Added nested-quote and
+separate-row expansion regressions, plus wheel/key/drag-callback cancellation.
+The first distant jump always pauses the driver for 2.3 seconds; a dedicated
+run pauses it after every asserted jump. All four runs of the final fixture pass
+22/22. The complete affected run passes 98/98, the guide 113/113, docs budget and
+client typecheck pass, and the reference audit reports no errors or unchecked
+references. The broader run also exposed a test-ID prefix collision, fixed by
+using a distinct prefix for inner content without changing existing bubble
+assertions. Development failures remain in the report logs.
+
+The README, guide social and LLP 3000.028 §8 describe the revised recipe. Native
+API typing and the drag-callback binding are checked; no iOS/Android UI scrolling
+or gesture execution is claimed on eb1000. Wasm and all generated bindings are
+byte-identical to the baseline. Final disk use is 15.24 GB, under 30 GB. This round ran
+the requested affected checks; the prior entry retains the round-0 full-suite
+result. The [round-1 report](reports/20261007-qj-quote-jump/round1/REPORT.md) records
+measurements, commands and limits. Commit only; nothing pushed or published.

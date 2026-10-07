@@ -95,10 +95,15 @@ Reply saves only `replyTo`; the composer stays above the history owner. Pass
 it opens `history({ conversation, through: ordinal })`, one indexed 20-row window
 ending at the original. Receipts use the same bound. Latest messages returns home.
 One FlatList owns scrolling on native and web. Failed index measurements approach
-the offset and retry for at most four seconds; full visibility starts a 1.8-second
-highlight. Unknown/offline coverage or a timeout shows a failure, never a guessed
-absence. Loading, denied and absent quotes have no jump action. Test a quote
-behind 30 messages by its viewport rectangle and highlight, and keep a typed draft.
+the offset and retry for at most four seconds; measured visibility starts a
+1.8-second highlight and four-second settle period. Row/content layout changes
+remeasure the target and correct its offset; for an oversized bubble, keep its
+own text visible below any nested quote. Touch, drag, wheel or scrolling keys
+end correction immediately. Unknown coverage or timeout shows a failure, never
+a guessed absence. Loading, denied and absent quotes have no jump action. Arm
+a browser observation before tapping; latch completion/geometry/highlight, then
+poll the durable completion marker and current rectangle with a generous hang
+guard. Test 30 intervening messages, delayed quote expansion and draft survival.
 
 ```tsx
 // src/QuotedMessage.tsx

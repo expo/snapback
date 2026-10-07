@@ -249,14 +249,23 @@ and keep incomplete coverage uncertain. Latest messages restores the newest wind
 
 The single variable-height `FlatList` uses `scrollToIndex` and
 `onScrollToIndexFailed`: approach an unmeasured offset, then retry as cells mount,
-for at most **four seconds**. Full visibility starts a **1.8-second** highlight;
-failure shows a retry message. Absent/denied quotes have no jump action; loading,
+for at most **four seconds**. Measured visibility starts a **1.8-second** highlight
+and a bounded **four-second settle period**. Row and content layout changes
+remeasure the target using `measureInWindow` and correct its `scrollToOffset`.
+Short bubbles fit fully; when a nested quote makes a bubble taller than the
+viewport, its own text stays visible. Touch, drag, wheel and scrolling keys
+relinquish scroll ownership immediately, including queued measurements.
+Failure shows a retry message. Absent/denied quotes have no jump action; loading,
 partial and revalidating quotes never authorize a jump. Expiry in an extended
 schema must flow through these live reads, never a saved excerpt or ordinal alone.
 No read/window change replaces the composer, draft, reply selection or once viewer.
-Browser tests seed an original, 30 messages and a reply, then check its actual
-viewport rectangle and highlight within the four-second bound, plus a visible
-original, unavailable original and draft preservation.
+Browser tests seed an original, 30 messages and a reply. An observer armed before
+tapping latches completion, geometry and highlight within the four-second bound;
+the `jump-completed-<id>` native ID persists after the highlight, so delayed test
+drivers can poll completion and current geometry without racing the highlight.
+Other cases cover visible/unavailable originals, draft preservation, delayed
+quote expansion and user cancellation. Native scrolling uses portable React
+Native APIs and typechecks; the browser witness is not an iOS/Android UI run.
 
 ## Rendering read states
 
