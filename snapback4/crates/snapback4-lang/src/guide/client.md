@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQuery`/`usePage` and `readPresentation`; keep composers and receipts above transient rows.
+**Start here:** `useQuery`/`usePage`, `readPresentation`; keep composers and receipts above rows. Following: `useFollowing` (`guide feeds`).
 
 ```tsx
 import { usePage } from "snapback4/react";

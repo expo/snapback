@@ -2,12 +2,12 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
-    ("E_FOLLOWING_INPUT", &["correct the opening or token envelope before retrying"]),
-    ("E_FOLLOWING_DECLARATION", &["Use a live declared Following view"]),
-    ("E_FOLLOWING_PAGE_SIZE", &["request between 1 and 100 events, using a fresh opening if changing an issued binding"]),
-    ("E_FOLLOWING_QUOTA", &["run bounded reclaim on expired or cancelled state, then retry admission"]),
-    ("E_FOLLOWING_REQUEST_TOO_SMALL", &["retry the same unit only when its full allowance can be reserved"]),
-    ("E_FOLLOWING_ROW_TOO_LARGE", &["keep the omission's event identity and continue with its issued successor"]),
+    ("E_FOLLOWING_INPUT", &["the SDK owns tokens and fresh revisions"]),
+    ("E_FOLLOWING_DECLARATION", &["See `guide feeds` for the frozen-domain guarantee and stalled exceptions"]),
+    ("E_FOLLOWING_PAGE_SIZE", &["requires 1–100 events per declared page"]),
+    ("E_FOLLOWING_QUOTA", &["Close unused consumers or wait for the five-minute idle expiry and reclamation, then call `retry`"]),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", &["Use a smaller declared page or simpler card projection, then open a new revision"]),
+    ("E_FOLLOWING_ROW_TOO_LARGE", &["Keep its event identity and display the omission; `loadMore` continues beyond that event's key"]),
 
     ("E_JOB_VIEWER_CONTEXT", &["Put as recipient.principal: inside the recipient loop."]),
     ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),

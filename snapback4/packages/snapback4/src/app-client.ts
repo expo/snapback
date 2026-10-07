@@ -1,3 +1,4 @@
+import { guardFollowing } from "./following-transport.ts";
 import { guardPendingIntents, forwardIntentObserver } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
@@ -285,6 +286,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       cleanups.add(stop); return () => { cleanups.delete(stop); stop(); };
     },
   };
+  guardFollowing(client, raw, refusal, valid);
   guardPendingIntents(client, raw, valid, refusal);
   forwardIntentObserver(client, raw, valid);
   guardAcquisition(client, raw, valid);

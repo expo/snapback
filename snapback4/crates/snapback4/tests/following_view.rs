@@ -55,3 +55,19 @@ fn bounded_target_certificate_names_whole_partition_floors_and_card_fallback() {
     assert!(text.contains("setFollow: predicts: never"), "{text}");
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn generated_card_query_has_a_separate_exact_history_certificate() {
+    let dir=std::env::temp_dir().join(format!("sb4-fh2-cost-{}-{}",std::process::id(),snapback4_core::now_ms()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::write(dir.join("snapback/schema.q"),include_str!("../../snapback4-lang/tests/fixtures/following-view.q")).unwrap();
+    let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check","--cost","--json"]).current_dir(&dir).output().unwrap();
+    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+    let json:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
+    let history=json["followingHistory"].as_array().unwrap().iter().find(|c|c["operation"]=="cards").unwrap();
+    assert!(history["guarantee"].as_str().unwrap().contains("correct prefix"));
+    assert!(history["guarantee"].as_str().unwrap().contains("stalled"));
+    assert_eq!(history["limits"]["rows_written"],1024);
+    assert!(json["scale"].as_array().unwrap().iter().all(|c|c.get("followingHistory").is_none()));
+    fs::remove_dir_all(dir).unwrap();
+}

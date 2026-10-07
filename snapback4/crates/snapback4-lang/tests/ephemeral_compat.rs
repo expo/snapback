@@ -65,7 +65,7 @@ fn durable_schema_and_types_keep_base_bytes() {
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");
-        assert_eq!(strip_row_keys(&types), expected[&name].1, "TypeScript bytes: {name}");
+        assert_eq!(strip_following(&strip_row_keys(&types), &schema), expected[&name].1, "TypeScript bytes: {name}");
     }
 }
 
@@ -104,4 +104,23 @@ fn strip_row_keys(types: &str) -> String {
     }
     out.push_str(rest);
     out
+}
+
+// @ref LLP 3000.026#9.10 — the exact-history binding is an additive SDK
+// descriptor. Validate and remove only that addition; all stored schema and
+// every preceding emitted byte continue to match the original frozen files.
+fn strip_following(types: &str, schema: &str) -> String {
+    let schema: snapback4_core::Schema=serde_json::from_str(schema).unwrap();
+    let mut types=types.replace(", FollowingQuery", "").replace(": FollowingQuery<", ": Query<");
+    const PREFIX: &str=", following: ";
+    while let Some(start)=types.find(PREFIX) {
+        let value=start+PREFIX.len();let end=value+types[value..].find('}').unwrap()+1;
+        let binding:serde_json::Value=serde_json::from_str(&types[value..end]).unwrap();
+        assert_eq!(binding.as_object().unwrap().len(),3);
+        assert!(schema.timelines.iter().any(|t|Some(t.name.as_str())==binding["declaration"].as_str()));
+        assert!((1..=100).contains(&binding["pageSize"].as_u64().unwrap()));
+        assert!(binding["cursor"].is_null()||binding["cursor"].as_str()==Some("c"));
+        types.replace_range(start..end, "");
+    }
+    types
 }

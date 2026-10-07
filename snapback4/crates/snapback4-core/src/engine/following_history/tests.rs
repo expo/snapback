@@ -472,3 +472,5 @@ fn original_removal_keeps_repost_but_revoked_replay_restarts() {
 mod matrix;
 #[path = "tests/scale.rs"]
 mod scale;
+
+mod scale_projection;

@@ -1,0 +1,244 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-lang)
+warning: field `programs` is never read
+ --> crates/snapback4-core/tests/schema_capabilities_legacy.rs:9:34
+  |
+9 | struct Backend { schema: Schema, programs: Vec<Program> }
+  |        -------                   ^^^^^^^^
+  |        |
+  |        field in this struct
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-core/tests/../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "schema_capabilities_legacy") generated 1 warning
+warning: field `schema` is never read
+ --> crates/snapback4-core/tests/common/acquisition.rs:7:9
+  |
+6 | pub struct Fixture {
+  |            ------- field in this struct
+7 |     pub schema: Schema,
+  |         ^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "rows") generated 1 warning
+warning: `snapback4-core` (test "lane_source") generated 1 warning
+    Finished `test` profile [optimized] target(s) in 3m 03s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/snapback4_core-78afa38362958c09)
+
+running 1 test
+snapback4: atomic adoption: estimated write work up to 0.01 s on a host like measured eb1000 (not a host/load SLO); 0.01 s subtotal excludes row-view visits and is not a floor; source rows [follows=1, posts=1100, reposts=1]; 1102 row projections, 1 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 0 stored rows and 1101 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic feed adoption: view feed: 1102 source rows, 1101 events, 1 follows; 2101 rows to copy; estimated writer lock 0.77 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+FH_ROUND2 {"label":"sparse-1100","measurements":[{"events":1101,"first_page_us":1812,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1565,"later_page_median_us":1533,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":0,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1562,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1552,"later_page_median_us":1482,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":1,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1529,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1515,"later_page_median_us":1486,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":2,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1518,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1501,"later_page_median_us":1484,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":3,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1543,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1510,"later_page_median_us":1482,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":4,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1518,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1498,"later_page_median_us":1473,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":5,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1527,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1488,"later_page_median_us":1474,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":6,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}}]}
+snapback4: atomic adoption: estimated write work up to 0.25 s on a host like measured eb1000 (not a host/load SLO); 0.25 s subtotal excludes row-view visits and is not a floor; source rows [follows=1, posts=50000, reposts=1]; 50002 row projections, 1 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 0 stored rows and 50001 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic feed adoption: view feed: 50002 source rows, 50001 events, 1 follows; 51001 rows to copy; estimated writer lock 28.71 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+FH_ROUND2 {"label":"sparse-50000","measurements":[{"events":1101,"first_page_us":6164,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":2250,"later_page_median_us":1997,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":0,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1985,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1716,"later_page_median_us":1594,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":1,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1664,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1836,"later_page_median_us":1593,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":2,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1658,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1778,"later_page_median_us":1603,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":3,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1657,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":2031,"later_page_median_us":1582,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":4,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1667,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":1862,"later_page_median_us":1585,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":5,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}},{"events":1101,"first_page_us":1669,"first_request_meter":{"examined":292,"heap_bytes":3324054,"index_entries":24,"output_bytes":5812,"rows_written":5,"rule_probes":124,"steps":8628},"last_request_meter":{"examined":26,"heap_bytes":2172716,"index_entries":5,"output_bytes":512,"rows_written":5,"rule_probes":10,"steps":857},"later_page_max_us":2227,"later_page_median_us":1596,"max_storage_bytes":298676,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":0,"requests":56,"sample":6,"total_read_meter":{"examined":16086,"heap_bytes":184823966,"index_entries":1325,"output_bytes":311910,"rows_written":280,"rule_probes":6830,"steps":475397}}]}
+snapback4: atomic adoption: estimated write work up to 0.10 s on a host like measured eb1000 (not a host/load SLO); 0.10 s subtotal excludes row-view visits and is not a floor; source rows [follows=8200, posts=8200]; 16400 row projections, 8200 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 0 stored rows and 8200 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic feed adoption: view feed: 16400 source rows, 8200 events, 8200 follows; 16400 rows to copy; estimated writer lock 7.03 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test engine::following_history::tests::scale_projection::shaped_fifty_thousand_and_eight_thousand_two_hundred_follows has been running for over 60 seconds
+FH_ROUND2 {"label":"follows-8200","measurements":[{"events":8200,"first_page_us":203504,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":2623,"later_page_median_us":1792,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":0,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}},{"events":8200,"first_page_us":201385,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":1413,"later_page_median_us":1341,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":1,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}},{"events":8200,"first_page_us":201217,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":1395,"later_page_median_us":1339,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":2,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}},{"events":8200,"first_page_us":201055,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":1411,"later_page_median_us":1339,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":3,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}},{"events":8200,"first_page_us":201774,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":1400,"later_page_median_us":1337,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":4,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}},{"events":8200,"first_page_us":202421,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":2354,"later_page_median_us":1343,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":5,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}},{"events":8200,"first_page_us":200353,"first_request_meter":{"examined":8112,"heap_bytes":5507934,"index_entries":3244,"output_bytes":512,"rows_written":31,"rule_probes":3244,"steps":259648},"last_request_meter":{"examined":283,"heap_bytes":2666024,"index_entries":20,"output_bytes":5578,"rows_written":6,"rule_probes":120,"steps":8324},"later_page_max_us":1384,"later_page_median_us":1334,"max_storage_bytes":17287792,"opening_meter":{"examined":1,"heap_bytes":65536,"index_entries":0,"output_bytes":512,"rows_written":3,"rule_probes":0,"steps":64},"preparation_requests":5,"requests":415,"sample":6,"total_read_meter":{"examined":183433,"heap_bytes":1173790186,"index_entries":24602,"output_bytes":2353678,"rows_written":2745,"rule_probes":65602,"steps":5147848}}]}
+test engine::following_history::tests::scale_projection::shaped_fifty_thousand_and_eight_thousand_two_hundred_follows ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 63.29s
+
+     Running tests/action_context.rs (snapback4/target/debug/deps/action_context-59409480e41c0048)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/adoption_scale.rs (snapback4/target/debug/deps/adoption_scale-633029a512b4254c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/asset_lists.rs (snapback4/target/debug/deps/asset_lists-89b9c0722fe2f200)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests/born_perf.rs (snapback4/target/debug/deps/born_perf-dbaba6812c2347ba)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/bound_session.rs (snapback4/target/debug/deps/bound_session-700ad0693bb369cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/corpus.rs (snapback4/target/debug/deps/corpus-2cbc67051b49df48)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.00s
+
+     Running tests/disclosure.rs (snapback4/target/debug/deps/disclosure-14833e57bb24e3aa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+     Running tests/effect_policy.rs (snapback4/target/debug/deps/effect_policy-78496a0d10bff91a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/ephemeral.rs (snapback4/target/debug/deps/ephemeral-b6625073a4c9b8fd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/event_slot_snapshot.rs (snapback4/target/debug/deps/event_slot_snapshot-5baea9290a70af14)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/expiring_adoption.rs (snapback4/target/debug/deps/expiring_adoption-0e6eccac38e0e8b5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/identity.rs (snapback4/target/debug/deps/identity-2285fb764665e001)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/lane_source.rs (snapback4/target/debug/deps/lane_source-31921807397a348c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/maintained_columns_review.rs (snapback4/target/debug/deps/maintained_columns_review-1ca7575c0126a791)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/meter.rs (snapback4/target/debug/deps/meter-514e81ffd7853bb2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/pending_metadata_heap.rs (snapback4/target/debug/deps/pending_metadata_heap-85170a57bfd9eb73)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/review_walk.rs (snapback4/target/debug/deps/review_walk-d3a46642be87b3e3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/revocation_history.rs (snapback4/target/debug/deps/revocation_history-0319041680d44546)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/routes.rs (snapback4/target/debug/deps/routes-d8d6d322e48ade18)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/row_view_accounting.rs (snapback4/target/debug/deps/row_view_accounting-c3e12b56a9e67116)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/row_view_disclosure.rs (snapback4/target/debug/deps/row_view_disclosure-9bf6c64c84506e2d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/row_view_legacy.rs (snapback4/target/debug/deps/row_view_legacy-4a13e520f1e53d73)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/row_view_witness.rs (snapback4/target/debug/deps/row_view_witness-3e6c9c9cfb109c2b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/rows.rs (snapback4/target/debug/deps/rows-bdfd31567921e72c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/schema_capabilities.rs (snapback4/target/debug/deps/schema_capabilities-926f095dc7d573a9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/schema_capabilities_legacy.rs (snapback4/target/debug/deps/schema_capabilities_legacy-f8ad5683642c47be)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/sequence_by.rs (snapback4/target/debug/deps/sequence_by-50a8f4a1fa41520a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/sequence_disclosure.rs (snapback4/target/debug/deps/sequence_disclosure-a76d1e60a01fd456)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+     Running tests/stream_receipts.rs (snapback4/target/debug/deps/stream_receipts-20c527042af40f1d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/sync_count_batch.rs (snapback4/target/debug/deps/sync_count_batch-35754b8508906fa1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/unicode_fold.rs (snapback4/target/debug/deps/unicode_fold-1730e8f9fcdb37e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/work_records.rs (snapback4/target/debug/deps/work_records-bbfcdd57108c5610)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+

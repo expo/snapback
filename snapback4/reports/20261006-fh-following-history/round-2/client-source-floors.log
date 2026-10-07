@@ -1,0 +1,10 @@
+✔ Following wasm routes history past source floors online and keeps pending own posts ahead of it (767.5766ms)
+✔ Following native routes history past source floors online and keeps pending own posts ahead of it (382.223071ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1297.856991

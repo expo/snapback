@@ -1,0 +1,14 @@
+{
+  "base_commit": "8adc7879dd",
+  "raw_bytes": 2117507,
+  "gzip_script_bytes": 639879,
+  "sha256": "e57e450ff8b0d1ad61655dd1a5fd1fd69b846ff4790cfaa5ac08b944ca7fd07b",
+  "raw_delta": 172,
+  "gzip_delta": -9,
+  "cap": 640009,
+  "macos_allowance": 130,
+  "macos_measured": false,
+  "persisted_schema_catalog_ir_change": false,
+  "new_engine_tables": 0,
+  "gzip_command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm"
+}

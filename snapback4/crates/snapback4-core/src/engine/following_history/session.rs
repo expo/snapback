@@ -5,10 +5,12 @@ use read::Live;
 
 pub(super) fn replay(
     tx: &Tx<'_>,
+    schema: &crate::schema::Schema,
     t: &Timeline,
     s: &Session,
     u: &Unit,
     mut b: Budget,
+    now: i64,
 ) -> Result<Outcome, RuntimeError> {
     let count = u.witnesses.len() as u64;
     let cost = Metered {
@@ -32,6 +34,21 @@ pub(super) fn replay(
             return simple(Response::Restart, b);
         }
     }
+    for cards in &u.cards {
+        if !b.fits(projection::reservation()) {
+            return simple(
+                Response::Refused {
+                    code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+                },
+                b,
+            );
+        }
+        let (visible, used) = projection::authorized(tx, schema, s, cards, now)?;
+        assert!(b.take(used));
+        if !visible {
+            return simple(Response::Restart, b);
+        }
+    }
     Ok(Outcome {
         answer: u.answer.clone(),
         metered: b.used,
@@ -41,6 +58,9 @@ pub(super) fn replay(
 
 pub(super) fn advance(
     tx: &Tx<'_>,
+    schema: &crate::schema::Schema,
+    projection: Option<&projection::Plan<'_>>,
+    now: i64,
     t: &Timeline,
     s: &mut Session,
     mut b: Budget,
@@ -132,7 +152,13 @@ pub(super) fn advance(
             let epoch = edge.field("epoch")?.as_str()?.to_owned();
             s.edge_after = Some(vec![Value::Id(actor.clone()), edge.field("id")?.clone()]);
             progress = true;
-            if actor == s.viewer || epoch > s.bound {
+            if epoch > s.bound {
+                // Post-bound follow churn can obstruct the discovery range just
+                // as post-bound backdated births can obstruct an event lane.
+                obstructed = true;
+                continue;
+            }
+            if actor == s.viewer {
                 continue;
             }
             s.pending = Some(Lane {
@@ -168,16 +194,31 @@ pub(super) fn advance(
             progress = true;
             continue;
         }
-        let mut item = Item::Event(head.event.clone());
+        let (mut item, mut cards) = if let Some(plan) = projection {
+            if !b.fits(budget::add(projection::reservation(), b.publication)) {
+                break;
+            }
+            let (item, cards, used) = projection::shape(tx, schema, plan, s, &head.event, now)?;
+            assert!(b.take(used));
+            (item, cards)
+        } else {
+            (Item::Event(head.event.clone()), Vec::new())
+        };
+        let page_output = if projection.is_some() {
+            b.remaining_output().min(256 << 10)
+        } else {
+            b.remaining_output()
+        };
         let mut bytes = serde_json::to_string(&item).unwrap().len() as u64 + 1;
-        if bytes > b.remaining_output() {
+        if bytes > page_output || projection.is_some() && item.retained_bytes() > (1 << 20) {
+            cards.clear();
             item = Item::Omitted {
                 id: head.event.id.clone(),
                 code: "E_FOLLOWING_ROW_TOO_LARGE",
             };
             bytes = serde_json::to_string(&item).unwrap().len() as u64 + 1;
         }
-        if bytes > b.remaining_output() {
+        if bytes > page_output {
             return simple(
                 Response::Refused {
                     code: "E_FOLLOWING_REQUEST_TOO_SMALL",
@@ -185,13 +226,26 @@ pub(super) fn advance(
                 b,
             );
         }
-        if s.item_bytes + bytes > b.remaining_output() {
+        if s.item_bytes + bytes > page_output {
             ready = true;
             break;
         }
-        let staged_bytes = head.bytes() + bytes * 8 + 256;
+        let card_bytes = cards.iter().map(projection::Witness::bytes).sum::<u64>();
+        let payload = if projection.is_some() {
+            item.retained_bytes() + bytes * 2
+        } else {
+            bytes * 8
+        };
+        let staged_bytes = head.bytes() + payload + 256 + card_bytes;
+        // The fixed publication reservation covers two copies of at most 1 MiB
+        // of staged card objects. A fitting next card begins another page.
+        if projection.is_some() && !s.staged.is_empty() && s.staged_bytes + staged_bytes > (1 << 20)
+        {
+            ready = true;
+            break;
+        }
         // The existing head allocation is transferred; the projection copy is new.
-        let growth = bytes * 8 + 256;
+        let growth = payload + 256 + card_bytes;
         if s.bytes().saturating_add(growth) > session_limit.min(total_limit) {
             if progress {
                 break;
@@ -218,6 +272,7 @@ pub(super) fn advance(
         s.item_bytes += bytes;
         s.staged_bytes += staged_bytes;
         s.staged.push(Staged {
+            cards,
             head,
             item,
             bytes: staged_bytes,
@@ -243,6 +298,21 @@ pub(super) fn advance(
             ..Default::default()
         }));
         for staged in &s.staged {
+            if !staged.cards.is_empty() {
+                if !b.fits(projection::reservation()) {
+                    return simple(
+                        Response::Refused {
+                            code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+                        },
+                        b,
+                    );
+                }
+                let (visible, used) = projection::authorized(tx, schema, s, &staged.cards, now)?;
+                assert!(b.take(used));
+                if !visible {
+                    return simple(Response::Restart, b);
+                }
+            }
             if !matches!(read::live(tx, t, s, &staged.head)?, Live::Yes) {
                 s.abandoned = true;
                 return simple(Response::Restart, b);
@@ -272,9 +342,21 @@ pub(super) fn advance(
     } else {
         0
     };
-    let response_bytes = answer.bytes.len() as u64 * 4 + 512;
+    let response_bytes = if projection.is_some() {
+        answer.bytes.len() as u64 * 2
+            + 512
+            + s.staged
+                .iter()
+                .map(|x| x.item.retained_bytes())
+                .sum::<u64>()
+    } else {
+        answer.bytes.len() as u64 * 4 + 512
+    };
     let witnesses_bytes = if ready {
-        s.staged.iter().map(|x| x.head.bytes()).sum::<u64>()
+        s.staged
+            .iter()
+            .map(|x| x.head.bytes() + x.cards.iter().map(projection::Witness::bytes).sum::<u64>())
+            .sum::<u64>()
     } else {
         0
     };
@@ -317,14 +399,15 @@ pub(super) fn advance(
         "publication reservation must cover the whole atomic checkpoint"
     );
     let mut witnesses = Vec::new();
+    let mut cards = Vec::new();
     if ready {
         if let Some(last) = s.staged.last() {
             s.after = Some(last.head.event.position());
         }
-        witnesses = std::mem::take(&mut s.staged)
-            .into_iter()
-            .map(|x| x.head)
-            .collect();
+        for x in std::mem::take(&mut s.staged) {
+            witnesses.push(x.head);
+            cards.push(x.cards);
+        }
         s.staged_bytes = 0;
         s.item_bytes = 0;
         if !retain_frontier {
@@ -339,6 +422,7 @@ pub(super) fn advance(
         token: s.pending_token.clone(),
         answer: answer.clone(),
         witnesses,
+        cards,
         bytes: keep_bytes,
     }));
     s.pending_token = next.unwrap_or_default();

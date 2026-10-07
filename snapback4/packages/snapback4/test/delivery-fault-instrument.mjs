@@ -173,6 +173,16 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// FH round 2 (LLP 3000.026 §9.10): following/following-transport await only
+// session authority, the read protocol and mounted-card refresh. Their server
+// state is volatile read custody; they cannot admit, dispatch or settle an app
+// mutation. The new client/local transport awaits are the same read-only path;
+// local's pending wait reads existing own-edge custody before and after it.
+// Failures withhold history and retry the same unit token. following-history
+// covers a lost committed response, delayed reply across unfollow, bearer
+// revocation, expiry, and own-post admission on both device hosts. The new
+// historyWrite wrapper adds only a synchronous fence around the unchanged
+// mutation path. No delivery I/O site, classification or fault recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

@@ -1,3 +1,4 @@
+import { bindFollowing, notifyFollowing } from "./following-transport.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
@@ -47,7 +48,7 @@ import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, P
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts"; export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
-import type { BackendJson, ProgramJson, SchemaJson } from "./backend.ts";
+import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -1174,6 +1175,26 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch { return false; } // Failed validation or persistence cannot authorize exit transport.
   }
   let stopHost: void | (() => void);
+  // A history page is server-only, but mutation admission starts synchronously.
+  // Keep this fence separate from the device inbox's existing prediction path.
+  const historyCalls = new Set<{inputs: Set<string> | null}>();
+  const historyInputs = (op: { name: string; following: { declaration: string } }) => {
+    const program = backend?.programs.find(p => p.name === op.name);
+    if (!backend || !program) return null;
+    const inputs = operationTables(program, backend.schema);
+    const timeline = backend.schema.timelines?.find(t => t.name === op.following.declaration);
+    if (timeline) for (const source of [timeline.posts[0], timeline.reposts[0], timeline.edges?.[0]]) if (source) inputs.add(source);
+    return inputs;
+  };
+  const historyCallPending = (inputs: ReadonlySet<string>) => [...historyCalls].some(({inputs: tables}) => !tables || [...tables].some(t => inputs.has(t)));
+  const historyWrite = <T>(operation: string, run: () => Promise<T>): Promise<T> => {
+    const program = backend?.programs.find(p => p.name === operation);
+    const inputs = backend && program ? operationTables(program,backend.schema) : null;
+    const ticket={inputs}; historyCalls.add(ticket); notifyFollowing(client);
+    const release = () => { historyCalls.delete(ticket); notifyFollowing(client); };
+    try { const work=run(); void work.then(release,release); return work; }
+    catch (error) { release(); throw error; }
+  };
   const client: LocalClient = {
     residency: () => readResidency(call, unavailable),
     now: clock.issuedDeviceNow,
@@ -1210,7 +1231,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (!mutationIds.knows(id)) emitLocalFailure(failed);
         return failedAdmission<R>(id, unavailableWhy);
       }
-      return followingIntents.track(op.name, () => mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
+      return historyWrite(op.name, () => followingIntents.track(op.name, () => mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
         const waiting = !identified || identification.size > 0;
         const identity = waiting ? localAdmissionIdentity(backend, generation) : undefined;
         const submit = (release = () => {}): Promise<Write<R>> => {
@@ -1261,7 +1282,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (ready === true) { storeIdentity = state!.store_id!; identified = true; }
           return ready;
         }, submit, why => emitLocalFailure({ state: "failed", id, why }));
-      }));
+      })));
     }),
     write(id) { return unavailable() ? Promise.resolve(undefined) : identification.write(id) ?? lookupWrite(history, queued, id, unavailable, () => acquired); },
     pendingWrites: async () => identification.visible(await localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired, holds), !unavailable()),
@@ -1480,6 +1501,23 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     scheduleRefresh();
   };
   registerLocalPendingIntents(client, queued, history, identification, holds, () => unavailable() || partitionDenied ? undefined : `${viewer}:${storeIdentity}`, () => acquired, () => `${credentialRevision}:${incarnation}`);
+  bindFollowing(client, async (op, args, body, signal) => {
+    const revision = credentialRevision, epoch = incarnation, inputsCurrent = answers.inputsCurrent();
+    const program = backend?.programs.find(p => p.name === op.name);
+    if (!backend || !program || program.native) return;
+    const tables = historyInputs(op)!;
+    const blocked = async () => !!unavailable() || !!partitionDenied || link !== "online" || !!refreshing
+      || historyCallPending(tables) || pendingRead(tables) || await followingIntents.pending(tables);
+    if (await blocked()) return;
+    const result = await post(`/following/${op.name}`, { ...body, args }, undefined, undefined, false, undefined, undefined, signal);
+    if (await blocked() || revision !== credentialRevision || epoch !== incarnation || !inputsCurrent(tables) || !result.ok || result.obsoleteAuth) return;
+    return { ...result.json, __followingCurrent: () => revision === credentialRevision && epoch === incarnation && inputsCurrent(tables) && !unavailable() && !partitionDenied && link === "online" && !historyCallPending(tables) && !pendingRead(tables) };
+  }, op => {
+    const program = backend?.programs.find(p => p.name === op.name);
+    if (!backend || !program) return true;
+    const tables = historyInputs(op)!;
+    return historyCallPending(tables) || !!unavailable() || !!partitionDenied || link !== "online" || pendingRead(tables) || followingIntents.blocked(tables);
+  });
   progress.bind(client); readWork.bind(client, watches);
   bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);

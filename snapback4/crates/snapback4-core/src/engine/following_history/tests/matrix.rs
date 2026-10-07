@@ -683,6 +683,9 @@ fn discovery_checkpoints_post_bound_follow_churn_without_a_false_end() {
             .as_str()
             .unwrap()
             .to_owned();
+        if key.starts_with('z') {
+            assert!(matches!(out.answer.response, Response::Stalled { .. }));
+        }
         assert!(previous.as_ref().is_none_or(|p| p < &key));
         previous = Some(key);
         advance(&mut q, &out);
@@ -759,4 +762,52 @@ fn lifecycle_allocation_reservations_precede_key_clones_and_tree_changes() {
         assert!(m.rows_written > 0);
     }
     assert!(r.openings.is_empty() && r.expiry.is_empty() && r.counts.is_empty());
+}
+
+#[test]
+fn shaped_pages_preserve_the_independent_owned_event_prefix_oracle() {
+    let mut e = seeded(
+        (0..100)
+            .map(|n| {
+                post(
+                    &format!("p{n:03}"),
+                    if n % 3 == 0 { "a" } else { "noise" },
+                    n / 2,
+                )
+            })
+            .chain([edge("a")]),
+    );
+    let oracle = Oracle::freeze(&e);
+    let mut r = Reader::new().unwrap();
+    let mut q = r
+        .opening_projected(
+            &e,
+            "cards",
+            Context::new("reader", BTreeMap::new()).at(1_000_000),
+        )
+        .unwrap()
+        .request;
+    let mut after = None;
+    let mut ids = Vec::new();
+    for _ in 0..100 {
+        let o = r
+            .request_projected(
+                &mut e,
+                q.clone(),
+                Context::new("reader", BTreeMap::new()).at(1_000_000),
+                "cards",
+            )
+            .unwrap();
+        assert!(budget::fits(e.ceilings(), o.metered));
+        if let Response::Page { items, next } = &o.answer.response {
+            after = oracle.page(&e, items, after.as_ref());
+            ids.extend(items.iter().map(|i| i.id().to_owned()));
+            if next.is_none() {
+                assert_eq!(ids.len(), 34);
+                return;
+            }
+        }
+        q.token = o.answer.response.next().map(str::to_owned);
+    }
+    panic!("shaped reader did not terminate");
 }

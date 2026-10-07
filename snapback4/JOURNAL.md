@@ -88098,3 +88098,87 @@ both full-count models pass all 79 tests. The full script finishes in 3,734 s,
 exit 1, with the one retained witness failure; no zero-failure suite claim is
 made. The server route, shaped cards, generated binding and SDK journeys remain deferred,
 as does the explicit author decision about continual post-B follow churn.
+
+## 2026-10-07 — FH round 2: exact server history and the generated Following hook
+
+The authenticated `/following/<operation>` protocol now exposes the approved
+server-first reader through generated `FollowingQuery` bindings and
+`useFollowing`. Online history starts at the exact per-author merge. The
+existing inbox supplies live prepend and the unchanged offline view; devices
+never traverse author heads. Preparation is distinct from an empty feed. The
+hook owns tokens, preparation polling, lost-response replay, explicit restarts,
+identity deduplication, withdrawal and per-consumer cancellation. Pending own
+posts and own-edge intent fences precede server pages, including the synchronous
+mutation-admission turn and replies crossing an unfollow. Four independent
+sessions may coexist per viewer/declaration; five-minute idle expiry restarts,
+and bounded maintenance reclaims abandoned custody without evicting another tab.
+
+The delegated round-2 ruling closes the discovery finding: continuous post-B
+follow additions in the unscanned range checkpoint actor-key progress and report
+`stalled`, exactly like backdated post-B births. They never join the frozen
+domain. Continuation finishes against the independent owned-event oracle once
+obstructing additions stop, within admission, session-lifetime and byte quotas.
+LLP 3000.026 §9 and the original review dispositions record that decision.
+
+Card projection is a bounded one-for-one compiler collector with ordinary,
+non-expiring unique point reads. Maintained aggregates, independent scans and
+control-flow collectors remain outside the generated history binding. Shaping
+prices map nodes, strings, capacities, witnesses and serialization; oversized
+cards yield ordered `E_FOLLOWING_ROW_TOO_LARGE` omissions and consume their key.
+Fitting cards shorten pages under the unchanged meters. Stored unit bytes never
+change on replay: current source/edge authority and disclosed card fields are
+rechecked, while body edits do not rewrite the pinned image. No birth token,
+unpublished head or work count leaves the server. The guide and the separate
+history certificate were updated after the real protocol and SDK journeys passed.
+The ordinary inbox program and its `scale` certificate object remain unchanged.
+
+The independent oracle covers every published prefix and the round-1 matrix;
+round 2 adds shaped prefixes, argument/viewer/operation binding, private-field
+revocation, body-edit replay, oversized continuation and object-heavy cards.
+Real server/SDK journeys cross the 1,000-copy boundary, prepare 8,200 follows,
+exercise offline/live/replay/expiry/two tabs, lose a committed reply and delay a
+reply across unfollow. Both wasm/native clients read complete server history
+with a three-post source floor, preserve the offline inbox's unavailable state,
+and withhold pending own posts. Chromium mounts the public hook under Strict
+Mode and verifies independent consumers. Eight projection tests, 112 guide
+checks, the frozen-schema comparison, 339 delivery fault cases and all eight
+published-example tests pass their final focused runs. New query/authority awaits
+have explicit reachability classification; delivery fault sites and recipes are
+unchanged.
+
+On sampled-idle eb1000 CPUs, seven native shaped-reader samples give first/later
+page medians of 1.667/1.594 ms for 50k sparse posts and 201.385/1.339 ms for
+8,200 follows. Preparation counts are zero/five; accounted custody peaks at
+298,676/17,287,792 B. Every first-run page is checked against the independent
+oracle, every request against all seven meters, and both traversals exhaust.
+Adding 48,900 unrelated posts changes none of the traversal meters or custody.
+Separate unoptimized HTTP/SDK observations, including registration, preparation
+polling and mounted reauthorization, give first displayed pages of 39.818 ms
+and 2,178.417 ms (zero/six preparation responses), with later-page medians
+42.150/42.480 ms. These are shared-host measurements, not production SLOs.
+
+No persisted schema, catalog, IR, index, source table, stored cursor, sync or
+sidecar bytes change; state is volatile. No new-table old-engine refusal test
+applies. The commissioning user owns the Darwin fence and Mac measurement.
+Locked Linux wasm is 2,117,507 B raw / 639,879 B gzip, +172 raw / −9 gzip versus
+round 1. The shared point-read wrapper records card witnesses only in SQLite
+builds; no device traversal is added. Ratchet the cap down nine bytes to
+640,009 B, exactly Linux plus 130 B for macOS. No runtime ceiling changed.
+Work stayed on eb1000 in this worktree, under taskset; disk is about 20 GiB.
+See reports/20261006-fh-following-history/round-2/REPORT.md. Nothing is pushed.
+
+**FH round-2 verification closeout:** the full script completes in 2,684 s,
+exit 1: all 1,014 native executions, 324 client files and both full-count models
+ran. Guide budgets/outline, the additive TypeScript golden, the await inventory
+and public-hook example initially failed; the corrections retain the existing
+budgets and delivery recipes, and all affected reruns pass. The original pool
+records 6,448 passes, two failures and 48 skips; both failed files pass reruns.
+The full-count models pass all 79 tests. The unchanged native witness SIGINT
+case again refuses a `/proc` process-group snapshot during evidence cleanup;
+its exact rerun passes in 1.00 s, and the full CLI target passes 318 tests with
+four ignores in 37.23 s. The existing issue records this recurrence, without
+inferring an unobserved cause or relaxing ownership inspection. Doctests,
+builds, wasm, release guard, package/app typechecks and fixture-wrapper tests
+pass. Root inventory failures are byte-identical to round 1's inherited
+Snapback 1 failures. Reference checks pass. The report retains the original
+full-suite failures and final reruns; no zero-failure full-script claim is made.

@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[path = "scale/display.rs"]
 mod display;
+#[path = "scale/following.rs"]
+pub(crate) mod following;
 #[path = "scale/search.rs"]
 mod search;
 #[path = "scale/writes.rs"]

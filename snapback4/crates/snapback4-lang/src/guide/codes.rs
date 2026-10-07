@@ -1,10 +1,10 @@
 pub const CODES: &[(&str, &str)] = &[
-    ("E_FOLLOWING_INPUT", "invalid internal Following opening or token envelope. This server integration milestone has no public route or SDK binding. guide refusals."),
-    ("E_FOLLOWING_DECLARATION", "the internal Following declaration is absent. This server integration milestone has no public route or SDK binding. guide refusals."),
-    ("E_FOLLOWING_PAGE_SIZE", "the internal reader accepts page sizes from 1 through 100. This server integration milestone has no public route or SDK binding. guide refusals."),
-    ("E_FOLLOWING_QUOTA", "the internal Following controller has no session or byte quota available; it never evicts another consumer. This server integration milestone has no public route or SDK binding. guide refusals."),
-    ("E_FOLLOWING_REQUEST_TOO_SMALL", "the internal Following unit cannot reserve its full request and checkpoint allowance. This server integration milestone has no public route or SDK binding. guide refusals."),
-    ("E_FOLLOWING_ROW_TOO_LARGE", "an internal Following metadata projection exceeds the page allowance; its named omission consumes its ordered event key. This server integration milestone has no public route or SDK binding. guide refusals."),
+    ("E_FOLLOWING_INPUT", "invalid Following opening, arguments or protocol envelope. Use the generated useFollowing binding; guide feeds."),
+    ("E_FOLLOWING_DECLARATION", "this query has no admitted Following history projection. Use a descending Following page with bounded ordinary card point reads; guide feeds."),
+    ("E_FOLLOWING_PAGE_SIZE", "Following history accepts declared page sizes from 1 through 100. Change the declaration and start a fresh revision; guide feeds."),
+    ("E_FOLLOWING_QUOTA", "Following session or byte custody is full; another consumer is never evicted. Close unused consumers or wait for idle reclamation, then retry; guide feeds."),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", "the Following unit cannot reserve its work and checkpoint under the request ceilings. Reduce page size or card work before retrying; guide feeds."),
+    ("E_FOLLOWING_ROW_TOO_LARGE", "a Following card exceeds its shaping allowance; the named omission consumes its ordered event key. Render the omission and continue; guide feeds."),
 
     ("E_QUARRY_RULE_HOP", "this rule position cannot follow that reference. Use table[.ref].field in a mutation require, or read through .ref for inherited read authority; guide rules."),
     ("E_JOB_VIEWER_CONTEXT", "as belongs inside a server job sweep and cannot nest. Put as recipient.principal: inside the recipient loop; guide jobs."),

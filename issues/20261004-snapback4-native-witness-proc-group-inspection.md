@@ -59,3 +59,18 @@ These results and the complete suite disposition are recorded in the
 Raw logs `full-suite-resumed.log`, `witness-sigint-rerun.log` and
 `cli-target-rerun.log` live beside that report. A passing rerun does not erase
 the suite failure or close this issue. No inspection check is weakened by FH.
+
+## FH round 2 recurrence, 2026-10-07
+
+The full native suite on `8adc7879dd` plus FH round 2 again failed
+`stalled_resolver_sigint_is_bounded_journalled_and_drained` at
+`preparation.rs:523:45`: evidence cleanup refused an invalid `/proc` process
+group after the resolver's launcher and descendant drained. The target had
+317 passes, one failure and four ignores. Witness source remains unchanged;
+the failed stat snapshot is still unavailable, so its cause remains unclassified.
+
+The exact test passes its first isolated rerun (1.00 s), and the complete CLI
+unit target passes all 318 tests with four ignores (37.23 s). The
+[FH round-2 report](../snapback4/reports/20261006-fh-following-history/round-2/REPORT.md)
+retains the full-suite failure and both rerun logs. No ownership inspection or
+group-drain check was relaxed. This recurrence does not close the issue.

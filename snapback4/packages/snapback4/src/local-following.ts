@@ -7,6 +7,7 @@ import type { Queued } from "./local-types.ts";
 export class FollowingIntents {
   private readonly calls = new Map<object, string>();
   private waiting = new Set<string>();
+  private queuedCalls = new Set<string>();
   constructor(private readonly backend: () => BackendJson | null,
     private readonly queued: () => Promise<Queued[]>,
     private readonly changed: (tables: string[]) => void,
@@ -49,11 +50,16 @@ export class FollowingIntents {
     } catch (error) { release(); throw error; }
   }
 
+  blocked(reads: ReadonlySet<string>): boolean {
+    return [...this.calls.values(), ...this.queuedCalls].some(op => this.feeds(op).some(table => reads.has(table)));
+  }
+
   async pending(reads: ReadonlySet<string>): Promise<boolean> {
     const backend = this.backend();
     if (!backend?.schema.timelines?.some(t => reads.has(`${t.name}Feed`) || reads.has(`${t.name}Edges`) || reads.has(`${t.name}Work`))) return false;
     const intersects = (op: string) => this.feeds(op).some(table => reads.has(table));
     const entries = await this.queued();
+    this.queuedCalls = new Set(entries.filter(e => this.ownPending(e)).map(e => e.op));
     const pending = [...this.calls.values()].some(intersects)
       || entries.some(entry => this.ownPending(entry) && intersects(entry.op));
     if (pending) for (const timeline of backend.schema.timelines ?? []) {

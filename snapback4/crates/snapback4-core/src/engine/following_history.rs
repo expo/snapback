@@ -7,7 +7,10 @@
 mod budget;
 mod frontier;
 mod read;
+mod refresh;
 mod session;
+pub use refresh::{Mounted, Refresh};
+pub mod projection;
 
 use super::{Context, Engine};
 use crate::{
@@ -60,13 +63,41 @@ pub struct Event {
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Item {
     Event(Event),
-    Omitted { id: String, code: &'static str },
+    Shaped {
+        id: String,
+        value: serde_json::Value,
+        authority: Vec<projection::Witness>,
+    },
+    Omitted {
+        id: String,
+        code: &'static str,
+    },
 }
 impl Item {
+    fn retained_bytes(&self) -> u64 {
+        match self {
+            Self::Event(e) => {
+                256 + (e.id.len() + e.actor.len() + e.author.len() + e.post.len()) as u64
+            }
+            Self::Omitted { id, .. } => 256 + id.len() as u64,
+            Self::Shaped {
+                id,
+                value,
+                authority,
+            } => {
+                512 + id.len() as u64
+                    + projection::json_heap(value)
+                    + authority
+                        .iter()
+                        .map(projection::Witness::bytes)
+                        .sum::<u64>()
+            }
+        }
+    }
     pub fn id(&self) -> &str {
         match self {
             Self::Event(e) => &e.id,
-            Self::Omitted { id, .. } => id,
+            Self::Omitted { id, .. } | Self::Shaped { id, .. } => id,
         }
     }
 }
@@ -156,6 +187,7 @@ impl Event {
 
 #[derive(Clone)]
 struct Staged {
+    cards: Vec<projection::Witness>,
     head: Head,
     item: Item,
     bytes: u64,
@@ -165,6 +197,7 @@ struct Unit {
     token: String,
     answer: Arc<Pinned>,
     witnesses: Vec<Head>,
+    cards: Vec<Vec<projection::Witness>>,
     bytes: u64,
 }
 
@@ -174,6 +207,7 @@ struct Session {
     declaration: String,
     page_size: usize,
     arguments: BTreeMap<String, Value>,
+    projection: Option<String>,
     store: String,
     generation: u64,
     bound: String,
@@ -197,6 +231,11 @@ struct Session {
 impl Session {
     fn bytes(&self) -> u64 {
         SESSION_BASE
+            + self
+                .arguments
+                .values()
+                .map(super::runner::expression_copy)
+                .sum::<u64>()
             + self.frontier.bytes
             + self.staged_bytes
             + self.units.iter().map(|u| u.bytes).sum::<u64>()
@@ -225,6 +264,9 @@ pub struct Opening {
     pub metered: Metered,
 }
 struct Registration {
+    identity: Option<(String, u64)>,
+    projection: Option<String>,
+    arguments: Option<String>,
     declaration: String,
     page_size: usize,
     touched: i64,
@@ -307,6 +349,9 @@ impl Reader {
         self.openings.insert(
             key.clone(),
             Registration {
+                identity: None,
+                projection: None,
+                arguments: None,
                 declaration: declaration.into(),
                 page_size,
                 touched: now,
@@ -326,6 +371,77 @@ impl Reader {
             metered: b.used,
         })
     }
+    /// Bind the generated operation and normalized arguments before the host
+    /// hands the opening to its consumer. The digest keeps registration small.
+    pub fn opening_projected(
+        &mut self,
+        engine: &Engine,
+        operation: &str,
+        mut context: Context,
+    ) -> Result<Opening, RuntimeError> {
+        let p = engine
+            .programs
+            .get(operation)
+            .ok_or_else(|| RuntimeError::Input("unknown Following operation".into()))?;
+        let plan = projection::plan(&engine.schema, p).ok_or_else(|| RuntimeError::Structural {
+            code: "E_FOLLOWING_DECLARATION",
+            message: "not a generated Following projection".into(),
+        })?;
+        super::validate::validate_inputs(&engine.schema, p, &mut context.args)?;
+        if plan
+            .binding
+            .cursor
+            .as_ref()
+            .is_some_and(|c| context.args.get(c).is_some_and(|v| v != &Value::Null))
+        {
+            return Err(RuntimeError::Structural {
+                code: "E_FOLLOWING_INPUT",
+                message: "history starts without an inbox cursor".into(),
+            });
+        }
+        let args_heap = context
+            .args
+            .values()
+            .map(super::runner::expression_copy)
+            .sum::<u64>()
+            .saturating_mul(4);
+        let mut admission = Budget::new(engine.ceilings, 0);
+        if !admission.take(Metered {
+            heap_bytes: LIFECYCLE_SCRATCH.saturating_add(args_heap),
+            rows_written: 3,
+            output_bytes: ENVELOPE,
+            examined: 1,
+            steps: 64,
+            ..Default::default()
+        }) {
+            return Err(RuntimeError::Structural {
+                code: "E_FOLLOWING_REQUEST_TOO_SMALL",
+                message: "Following arguments exceed admission allowance".into(),
+            });
+        }
+        let identity = (
+            engine.store.meta("store_id")?.unwrap_or_default(),
+            engine.generation,
+        );
+        let digest = argument_digest(&context.args);
+        let mut o = self.opening(
+            &context.viewer,
+            &plan.binding.declaration,
+            plan.binding.page_size,
+            context.now.unwrap_or_else(crate::now_ms),
+            engine.ceilings,
+        )?;
+        let registered = self
+            .openings
+            .get_mut(&(context.viewer, o.request.opening.clone()))
+            .unwrap();
+        registered.identity = Some(identity);
+        registered.projection = Some(operation.into());
+        registered.arguments = Some(digest);
+        o.metered = admission.used;
+        Ok(o)
+    }
+
     pub fn accounted_bytes(&self) -> u64 {
         self.bytes
     }
@@ -336,8 +452,57 @@ impl Reader {
         request: Request,
         context: Context,
     ) -> Result<Outcome, RuntimeError> {
+        self.request_inner(engine, request, context, None)
+    }
+
+    pub fn request_projected(
+        &mut self,
+        engine: &mut Engine,
+        request: Request,
+        context: Context,
+        operation: &str,
+    ) -> Result<Outcome, RuntimeError> {
+        self.request_inner(engine, request, context, Some(operation))
+    }
+
+    fn request_inner(
+        &mut self,
+        engine: &mut Engine,
+        request: Request,
+        mut context: Context,
+        operation: Option<&str>,
+    ) -> Result<Outcome, RuntimeError> {
+        let plan = operation
+            .map(|name| {
+                let p = engine
+                    .programs
+                    .get(name)
+                    .ok_or_else(|| RuntimeError::Input("unknown Following projection".into()))?;
+                let plan = projection::plan(&engine.schema, p).ok_or_else(|| {
+                    RuntimeError::Structural {
+                        code: "E_FOLLOWING_DECLARATION",
+                        message: "operation is not a generated Following projection".into(),
+                    }
+                })?;
+                super::validate::validate_inputs(&engine.schema, p, &mut context.args)?;
+                Ok::<_, RuntimeError>(plan)
+            })
+            .transpose()?;
         let now = context.now.unwrap_or_else(crate::now_ms);
         let mut budget = Budget::new(engine.ceilings, request.page_size.min(100));
+        if plan.is_some() {
+            budget.publication.heap_bytes = 4 << 20;
+        }
+        if plan.as_ref().is_some_and(|p| {
+            p.binding.declaration != request.declaration
+                || p.binding.page_size != request.page_size
+                || p.binding
+                    .cursor
+                    .as_ref()
+                    .is_some_and(|c| context.args.get(c).is_some_and(|v| v != &Value::Null))
+        }) {
+            return simple(Response::Restart, budget);
+        }
         if !budget.take(Metered {
             examined: 2,
             steps: 64,
@@ -422,6 +587,7 @@ impl Reader {
                 || now.saturating_sub(s.touched) >= IDLE_MS
                 || s.declaration != request.declaration
                 || s.page_size != request.page_size
+                || s.projection.as_deref() != operation
                 || s.arguments != context.args
                 || s.store != store
                 || s.generation != engine.generation
@@ -430,7 +596,7 @@ impl Reader {
                 return simple(Response::Restart, budget);
             }
             if let Some(unit) = s.units.iter().find(|u| &u.token == token) {
-                let outcome = session::replay(&tx, timeline, s, unit, budget)?;
+                let outcome = session::replay(&tx, &engine.schema, timeline, s, unit, budget, now)?;
                 if !matches!(
                     outcome.answer.response,
                     Response::Restart | Response::Refused { .. }
@@ -456,16 +622,39 @@ impl Reader {
                 || now.saturating_sub(o.touched) >= IDLE_MS
                 || request.declaration != o.declaration
                 || request.page_size != o.page_size
-                || !context.args.is_empty()
+                || o.identity
+                    .as_ref()
+                    .is_some_and(|(incarnation, generation)| {
+                        incarnation != &store || *generation != engine.generation
+                    })
+                || o.projection.as_deref() != operation
+                || o.arguments
+                    .as_ref()
+                    .is_some_and(|a| a != &argument_digest(&context.args))
+                || (operation.is_none() && !context.args.is_empty())
             {
                 return simple(Response::Restart, budget);
             }
         }
         // The bounded record map is copied; its head records are copy-on-write.
         // Refusals, storage errors and failed publication leave the old unit intact.
-        let fork = existing.map_or(SESSION_BASE, |s| {
-            SESSION_BASE + s.frontier.fork_bytes() + s.staged_bytes
-        });
+        let fork = existing.map_or(
+            SESSION_BASE
+                + context
+                    .args
+                    .values()
+                    .map(super::runner::expression_copy)
+                    .sum::<u64>(),
+            |s| {
+                SESSION_BASE
+                    + s.arguments
+                        .values()
+                        .map(super::runner::expression_copy)
+                        .sum::<u64>()
+                    + s.frontier.fork_bytes()
+                    + s.staged_bytes
+            },
+        );
         let nodes = existing.map_or(0, |s| s.frontier.block_count() as u64);
         if !budget.work(
             Metered {
@@ -493,6 +682,7 @@ impl Reader {
                 declaration: request.declaration.clone(),
                 page_size: request.page_size,
                 arguments: context.args.clone(),
+                projection: operation.map(str::to_owned),
                 store,
                 generation: engine.generation,
                 bound: format!("{head:016x}ffffffffffffffff"),
@@ -519,6 +709,9 @@ impl Reader {
         session.dirty.clear();
         let outcome = session::advance(
             &tx,
+            &engine.schema,
+            plan.as_ref(),
+            now,
             timeline,
             &mut session,
             budget,
@@ -604,3 +797,10 @@ fn simple(response: Response, budget: Budget) -> Result<Outcome, RuntimeError> {
 
 #[cfg(test)]
 mod tests;
+
+fn argument_digest(args: &BTreeMap<String, Value>) -> String {
+    use sha2::{Digest, Sha256};
+    crate::value::encode_bytes_hex(&Sha256::digest(
+        crate::value::canonical_json(args).as_bytes(),
+    ))
+}

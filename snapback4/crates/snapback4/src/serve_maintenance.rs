@@ -287,6 +287,9 @@ pub(super) fn maintain(shared: Arc<Shared>) {
         }
         if last_tick.elapsed() >= Duration::from_secs(1) {
             tick += 1; last_tick = Instant::now();
+            // One bounded reclamation slice; abandoned bytes remain charged
+            // until their actual records are dropped. No engine lock is held.
+            lock(&shared.following).reclaim(shared.now(), snapback4_core::Ceilings { heap_bytes: 1 << 20, ..Default::default() });
             if let Err(error) = timely(&shared, tick) { snapback4_core::diagnostic!("snapback4: maintenance failed: {error}"); }
         }
         promote_aged(&shared, Instant::now());

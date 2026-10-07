@@ -60,7 +60,7 @@ See `reviews/implementation-1.md` and `reviews/implementation-2.md`.
 | Rewind checked only against B | Fixed: latest observed accepted/replayed head advances independently of B; rewind regression. Equal/higher-sequence replacement remains the host's invalidation responsibility. |
 | Registered opening with changed page size returns refusal | Fixed: both live sessions and registrations return restart on mismatched page-size binding; 0/101 regression. |
 | ID-width rationale | Corrected: engine validates all IDs; base reservation returns to 16 KiB. |
-| Post-B follow churn can obstruct discovery | **Open author clarification.** Strict key progress and eventual completion after churn stops are tested; current phase is preparing. The author must choose whether to extend stalled or require stronger roster enumeration. No guarantee is silently broadened. |
+| Post-B follow churn can obstruct discovery | **Closed by the round-2 author-delegated ruling, 2026-10-07.** Continuous post-B follow additions use stalled, with strict key progress and termination after additions stop. LLP 3000.026 §9.5 records the disposition. |
 
 Resumed fresh review (2026-10-07) found undersized lifecycle heap reservations
 and pre-admission key clones. Fixed with a separate 64 KiB scratch reservation
@@ -68,4 +68,4 @@ for opening, cancellation and each reclamation record; retained session prices
 stay 16 KiB. The 96-registration regression verifies refusal leaves expiry,
 abandonment and quota unchanged. Actual reviews are in
 `reviews/implementation-3.md` and `reviews/implementation-4.md`; final scoped
-verdict is APPROVE, with the follow-churn author decision still open.
+verdict was APPROVE, with the follow-churn decision then open; the round-2 ruling above closes it.

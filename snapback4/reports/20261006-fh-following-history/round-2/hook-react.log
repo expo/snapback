@@ -1,0 +1,9 @@
+✔ generated Following hook mounts independent consumers, preparing is not empty, and unmount releases only its consumer (1379.273983ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1457.32317

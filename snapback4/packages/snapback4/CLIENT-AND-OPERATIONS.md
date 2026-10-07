@@ -1255,6 +1255,31 @@ local credentials and closes the client; remote session revocation is best effor
 Applications keeping an online session with `keepSession` also call
 `forgetSession` on their own store (§6); the local client clears its managed store.
 
+### Following history
+
+Declare the Following view and card query from `guide feeds`; its generated
+handle supports `useFollowing`. Online, each history page is a correct prefix
+of the frozen author domain. The SDK owns preparation, replay, restarts, live
+prepend and withdrawal. Post-bound backdated posts or new follows obstructing
+the unscanned range report `stalled`; continuation finishes when that churn stops.
+
+```tsx
+import { useFollowing } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function useFollowingCards() {
+  return useFollowing(api.cards, { c: null });
+}
+```
+
+Render `items` and `phase`; `preparing` is not an empty feed. Call `loadMore`
+when `hasMore`. Show `omissions` for oversized cards and `code` for a refusal;
+`retry` retries after repair. Offline, `inbox` retains the original read state
+and `fact` says “older posts are not on this device”. Every mounted consumer
+owns its session; four may coexist per viewer and declaration. Five idle
+minutes, a server restart or changed authority restarts the revision explicitly.
+This reader is server-only; the existing inbox query and its device copy window
+are unchanged. See `guide feeds` for shaping and custody bounds.
+
 ### React
 
 Start with `snapback4 guide client` for composers, stable routes, receipts and one-view photos.
