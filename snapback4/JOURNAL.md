@@ -89013,3 +89013,36 @@ full publication dry run, push or publication is claimed. Closed the SIGKILL
 timeout ticket with its resolution.
 
 [FL report and retained evidence](reports/20261007-fl-dry-run-flakes/REPORT.md).
+
+
+## 2026-10-07 — FL round 1: sequence drift cannot hide another difference
+
+Astra's P1 was correct: the initial absent/hidden retry discarded all fields
+when sequences differed, so a transient disclosure or meter corruption could
+disappear on the next pair. The original controls separated field corruption
+from sequence drift and did not establish the combined-fault property claimed
+in the earlier FL entry. That read-test claim is superseded here.
+
+The shared comparison now removes only seq from copies and compares every
+remaining serialized field before permitting a retry. At equal numeric
+sequences it still requires complete serialized-envelope equality, including
+seq. The eight-pair bound, per-request trace evidence waits and hidden-read
+silence assertions remain. The new permanent regression uses a real wire
+envelope and Astra's 21 field cases at equal and advanced sequences, including
+data, existence and every meter field. Custody code and its fixture are unchanged.
+
+All 42 full-test corruption controls now fail on their first pair. One seq-only
+advance passes in both trace modes; perpetual advances fail at eight pairs.
+Temporarily removing the new guard makes the permanent regression fail on
+corruption with sequence drift; the source was restored and rebuilt afterward.
+
+On eb1000, the full 22-test dev_refusals suite passed 20/20 runs sharing CPUs
+80–81 with four owned busy loops: 440 passes, no failures or skips, an unchanged
+source hash, and all load processes reaped. Developer-evidence unit tests pass
+7/7, HTTP refusal tests 3/3 and Rust witness tests 72/72. The five surrounding
+export files pass 80 tests with 33 existing platform skips in one run and no
+runner leaks. No Darwin or full publication qualification, new independent
+review verdict, push or publication is claimed. The pending Grok review remains
+separate. Work stayed in this worktree on eb1000.
+
+[Round-1 report, controls and load evidence](reports/20261007-fl-dry-run-flakes/round-1/REPORT.md).

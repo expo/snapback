@@ -273,6 +273,48 @@ fn why_rechecks_liveness_after_reading_the_snapshot() {
  assert!(String::from_utf8_lossy(&answer.stderr).contains("stopped while reading"),"{}",String::from_utf8_lossy(&answer.stderr));
 }
 
+// A moving watermark permits a retry only if it is the sole difference.
+// Keep the originals intact for the complete comparison at a common seq.
+fn point_answers_share_watermark(missing: &Value, hidden: &Value) -> bool {
+ assert!(missing["seq"].is_u64() && hidden["seq"].is_u64());
+ let mut missing_fields=missing.clone();
+ let mut hidden_fields=hidden.clone();
+ missing_fields.as_object_mut().unwrap().remove("seq");
+ hidden_fields.as_object_mut().unwrap().remove("seq");
+ assert_eq!(serde_json::to_vec(&hidden_fields).unwrap(),serde_json::to_vec(&missing_fields).unwrap(),"hidden and absent wire answers differ beyond seq");
+ if missing["seq"]!=hidden["seq"] {return false;}
+ assert_eq!(serde_json::to_vec(hidden).unwrap(),serde_json::to_vec(missing).unwrap(),"hidden and absent wire answers at the same watermark");
+ true
+}
+
+#[test]
+fn point_answer_corruption_is_rejected_even_with_a_moving_sequence() {
+ let project=Project::new();
+ fs::write(project.0.join("snapback/schema.q"),format!("{SOURCE}\nquery point(id: rows):\n  return rows[id]\n")).unwrap();
+ let dev=Host::start(project,true,false);
+ assert_eq!(dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}}]))["seeded"],1);
+ let missing=dev.post("/q/point",json!({"args":{"id":"absent"}}));
+ let hidden=dev.post("/q/point",json!({"args":{"id":"hidden"}}));
+ assert!(point_answers_share_watermark(&missing,&hidden));
+ let mut advanced=hidden.clone();advanced["seq"]=json!(missing["seq"].as_u64().unwrap()+1);
+ assert!(!point_answers_share_watermark(&missing,&advanced),"seq alone permits a retry, never success");
+
+ // Astra's 21 corruption cases, using the real wire envelope so newly added
+ // fields join the matrix too: every non-seq field, every meter field, plus
+ // two added disclosure fields. Each must fail before a retry can discard it.
+ let fields=missing.as_object().unwrap().keys().filter(|k|k.as_str()!="seq").map(|k|format!("/{k}"))
+  .chain(missing["meter"].as_object().unwrap().keys().map(|k|format!("/meter/{k}")))
+  .chain(["/extraField".to_owned(),"/existence".to_owned()]).collect::<Vec<_>>();
+ for field in fields {
+  for drift in [false,true] {
+   let mut corrupt=if drift {advanced.clone()} else {hidden.clone()};
+   if field=="/extraField" || field=="/existence" {corrupt[field.trim_start_matches('/')]=json!("injected disclosure");}
+   else {*corrupt.pointer_mut(&field).unwrap()=json!({"injected_difference":true});}
+   assert!(std::panic::catch_unwind(||point_answers_share_watermark(&missing,&corrupt)).is_err(),"{field} corruption was accepted with seq drift={drift}");
+  }
+ }
+}
+
 #[test]
 fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
  for trace_empty in [false, true] {
@@ -303,7 +345,7 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
   }
   // The expired seed is physically deleted by serve_maintenance's expiry
   // sweep, committing a new seq even though all these query values stay null.
-  // Retry only different watermarks; compare every byte once they match.
+  // Retry only a seq-only difference; compare every byte once they match.
   let mut before=Value::Null;
   for attempt in 0..8 {
    let prior=snapshot();
@@ -321,11 +363,7 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
    before=snapshot();
    let hidden=dev.post("/q/point",json!({"args":{"id":"hidden"}}));
    assert_eq!(snapshot(),before,"a hidden point is never reported as a probe miss or filtered refusal");
-   assert!(missing["seq"].is_u64() && hidden["seq"].is_u64());
-   if missing["seq"]==hidden["seq"] {
-    assert_eq!(serde_json::to_vec(&hidden).unwrap(),serde_json::to_vec(&missing).unwrap(),"hidden and absent wire answers at the same watermark");
-    break;
-   }
+   if point_answers_share_watermark(&missing,&hidden) {break;}
    assert!(attempt<7,"no common watermark in eight read pairs: absent={missing}, hidden={hidden}");
   }
   let nested=dev.post("/q/nested",json!({})); assert_eq!(nested["data"],json!({"field":null}));

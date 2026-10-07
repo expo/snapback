@@ -1,0 +1,13 @@
+
+running 7 tests
+test serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes ... ok
+test serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes ... ok
+test serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect ... ok
+test serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts ... ok
+test serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line ... ok
+test serve::dev_refusals::tests::late_handoff_cannot_replace_a_newer_response ... dev refusal: newer:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M4BBJBV8EXY543T8EYW9XVT0"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1791382597480; first response 2; `snapback4 why recent --instance 01M4BBJBV8EXY543T8EYW9XVT0`
+dev refusal: older:  — cause not instrumented at <generated>; execution site null; phase null; generation null; store "store"; instance "01M4BBJBV8EXY543T8EYW9XVT0"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1791382597480; first response 1; `snapback4 why recent --instance 01M4BBJBV8EXY543T8EYW9XVT0`
+ok
+test serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 324 filtered out; finished in 4.02s

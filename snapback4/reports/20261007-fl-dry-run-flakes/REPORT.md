@@ -1,5 +1,10 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-1 correction:** Astra found that the initial read retry could discard
+non-sequence corruption together with a sequence change. The read comparison
+and its negative controls below are historical; [round 1](round-1/REPORT.md)
+records the corrected guard and combined-fault regressions. Custody is unchanged.
+
 2026-10-07. Based on `b14888f763`, branch `sb4-intent/fl-dry-run-flakes`.
 Work and verification stayed in this worktree on the assigned eb1000 host
 (`hostname` reports `expose-builder-pixel`). No other machines, worktrees or

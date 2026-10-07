@@ -1,0 +1,13 @@
+{
+  "baseCommit": "68c81efbb5e7618c771e021b4c2e35558fdf42f2",
+  "hostname": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "sourceSha256": {
+    "crates/snapback4/tests/dev_refusals.rs": "2e6a4d83eb43985671f53656b1b21df57f303c24ba0fab36859dea46d1008937",
+    "packages/snapback4/test/export-background.test.mjs": "90664d48e6322f878991aa9abd5b7ed2a26f71f9b8cbcacfdf2cd1fbc81a09d9",
+    "target/debug/snapback4": "0e555edce5aa0b7d58c723e1c7ef323da8d83d9de430fbf644c8136bf5b5ac40"
+  },
+  "reviewReproducerSha256": "509c0abf5922a652196eb43dc6cb82e6b447aec22d9d03881f02faf93b84c312",
+  "custodySourceMatchesRound0": true
+}
