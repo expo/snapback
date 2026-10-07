@@ -1,0 +1,479 @@
+{"round": 1, "test": "empty", "exit": 0, "seconds": 2.349}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.34s
+
+
+{"round": 1, "test": "custody", "exit": 0, "seconds": 12.294}
+retention before SIGTERM: complete custody drained in 206 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3528.051242ms)
+retention before SIGKILL: complete custody drained in 155 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (4055.661285ms)
+retention before supersede: complete custody drained in 651 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4416.846338ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12198.50761
+
+{"round": 2, "test": "empty", "exit": 0, "seconds": 2.317}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.31s
+
+
+{"round": 2, "test": "custody", "exit": 0, "seconds": 12.101}
+retention before SIGTERM: complete custody drained in 206 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3794.132689ms)
+retention before SIGKILL: complete custody drained in 200 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3747.848568ms)
+retention before supersede: complete custody drained in 609 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4339.08604ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12016.131064
+
+{"round": 3, "test": "empty", "exit": 0, "seconds": 2.492}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.48s
+
+
+{"round": 3, "test": "custody", "exit": 0, "seconds": 12.266}
+retention before SIGTERM: complete custody drained in 254 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3806.834019ms)
+retention before SIGKILL: complete custody drained in 168 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (4514.162898ms)
+retention before supersede: complete custody drained in 679 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3758.812902ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12189.494371
+
+{"round": 4, "test": "empty", "exit": 0, "seconds": 2.354}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.35s
+
+
+{"round": 4, "test": "custody", "exit": 0, "seconds": 11.313}
+retention before SIGTERM: complete custody drained in 209 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3811.829426ms)
+retention before SIGKILL: complete custody drained in 166 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3458.939686ms)
+retention before supersede: complete custody drained in 892 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3838.75665ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11254.577431
+
+{"round": 5, "test": "empty", "exit": 0, "seconds": 2.376}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.37s
+
+
+{"round": 5, "test": "custody", "exit": 0, "seconds": 12.322}
+retention before SIGTERM: complete custody drained in 258 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (4174.522809ms)
+retention before SIGKILL: complete custody drained in 207 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (4180.816093ms)
+retention before supersede: complete custody drained in 517 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3722.667046ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12253.839199
+
+{"round": 6, "test": "empty", "exit": 0, "seconds": 2.392}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.39s
+
+
+{"round": 6, "test": "custody", "exit": 0, "seconds": 11.196}
+retention before SIGTERM: complete custody drained in 256 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3405.402811ms)
+retention before SIGKILL: complete custody drained in 158 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3721.826314ms)
+retention before supersede: complete custody drained in 677 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3862.349224ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11137.994381
+
+{"round": 7, "test": "empty", "exit": 0, "seconds": 2.499}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.49s
+
+
+{"round": 7, "test": "custody", "exit": 0, "seconds": 11.603}
+retention before SIGTERM: complete custody drained in 204 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3950.612114ms)
+retention before SIGKILL: complete custody drained in 201 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3693.958528ms)
+retention before supersede: complete custody drained in 689 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3695.890013ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11507.741638
+
+{"round": 8, "test": "empty", "exit": 0, "seconds": 2.408}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.40s
+
+
+{"round": 8, "test": "custody", "exit": 0, "seconds": 11.581}
+retention before SIGTERM: complete custody drained in 211 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3807.644798ms)
+retention before SIGKILL: complete custody drained in 201 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3608.327342ms)
+retention before supersede: complete custody drained in 646 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4007.261743ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11536.287996
+
+{"round": 9, "test": "empty", "exit": 0, "seconds": 2.399}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.39s
+
+
+{"round": 9, "test": "custody", "exit": 0, "seconds": 12.362}
+retention before SIGTERM: complete custody drained in 206 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3858.911809ms)
+retention before SIGKILL: complete custody drained in 250 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (4147.37628ms)
+retention before supersede: complete custody drained in 639 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4069.148353ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12266.190061
+
+{"round": 10, "test": "empty", "exit": 0, "seconds": 2.554}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.55s
+
+
+{"round": 10, "test": "custody", "exit": 0, "seconds": 11.102}
+retention before SIGTERM: complete custody drained in 214 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3563.589946ms)
+retention before SIGKILL: complete custody drained in 209 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3610.953988ms)
+retention before supersede: complete custody drained in 679 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3792.893283ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11067.380897
+
+{"round": 11, "test": "empty", "exit": 0, "seconds": 2.447}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.44s
+
+
+{"round": 11, "test": "custody", "exit": 0, "seconds": 11.745}
+retention before SIGTERM: complete custody drained in 202 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (4073.02317ms)
+retention before SIGKILL: complete custody drained in 212 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3627.014151ms)
+retention before supersede: complete custody drained in 757 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3783.669845ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11670.209622
+
+{"round": 12, "test": "empty", "exit": 0, "seconds": 2.375}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.37s
+
+
+{"round": 12, "test": "custody", "exit": 0, "seconds": 12.091}
+retention before SIGTERM: complete custody drained in 204 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (4214.629293ms)
+retention before SIGKILL: complete custody drained in 153 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3826.969984ms)
+retention before supersede: complete custody drained in 822 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3778.107837ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12001.582082
+
+{"round": 13, "test": "empty", "exit": 0, "seconds": 2.326}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.32s
+
+
+{"round": 13, "test": "custody", "exit": 0, "seconds": 12.387}
+retention before SIGTERM: complete custody drained in 203 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (4313.049799ms)
+retention before SIGKILL: complete custody drained in 204 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3501.640619ms)
+retention before supersede: complete custody drained in 673 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4304.414994ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12290.574772
+
+{"round": 14, "test": "empty", "exit": 0, "seconds": 2.307}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.30s
+
+
+{"round": 14, "test": "custody", "exit": 0, "seconds": 11.942}
+retention before SIGTERM: complete custody drained in 205 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3667.718536ms)
+retention before SIGKILL: complete custody drained in 161 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3990.230297ms)
+retention before supersede: complete custody drained in 808 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4167.257759ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11902.605155
+
+{"round": 15, "test": "empty", "exit": 0, "seconds": 2.41}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.40s
+
+
+{"round": 15, "test": "custody", "exit": 0, "seconds": 12.676}
+retention before SIGTERM: complete custody drained in 208 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (4078.845014ms)
+retention before SIGKILL: complete custody drained in 204 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3957.82574ms)
+retention before supersede: complete custody drained in 782 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (4388.570159ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12593.937664
+
+{"round": 16, "test": "empty", "exit": 0, "seconds": 2.44}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.44s
+
+
+{"round": 16, "test": "custody", "exit": 0, "seconds": 11.476}
+retention before SIGTERM: complete custody drained in 207 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3732.180355ms)
+retention before SIGKILL: complete custody drained in 207 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3849.346543ms)
+retention before supersede: complete custody drained in 690 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3644.089738ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11389.352209
+
+{"round": 17, "test": "empty", "exit": 0, "seconds": 2.388}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.38s
+
+
+{"round": 17, "test": "custody", "exit": 0, "seconds": 10.771}
+retention before SIGTERM: complete custody drained in 207 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3607.831149ms)
+retention before SIGKILL: complete custody drained in 204 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3419.374644ms)
+retention before supersede: complete custody drained in 629 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3502.78437ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10691.817112
+
+{"round": 18, "test": "empty", "exit": 0, "seconds": 2.433}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.43s
+
+
+{"round": 18, "test": "custody", "exit": 0, "seconds": 11.945}
+retention before SIGTERM: complete custody drained in 207 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3828.212955ms)
+retention before SIGKILL: complete custody drained in 205 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (4040.789055ms)
+retention before supersede: complete custody drained in 752 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3857.195433ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11856.072253
+
+{"round": 19, "test": "empty", "exit": 0, "seconds": 2.414}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.41s
+
+
+{"round": 19, "test": "custody", "exit": 0, "seconds": 11.056}
+retention before SIGTERM: complete custody drained in 155 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (3268.126612ms)
+retention before SIGKILL: complete custody drained in 201 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3872.960399ms)
+retention before supersede: complete custody drained in 767 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3674.659397ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10979.368766
+
+{"round": 20, "test": "empty", "exit": 0, "seconds": 2.39}
+
+running 1 test
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 2.39s
+
+
+{"round": 20, "test": "custody", "exit": 0, "seconds": 12.232}
+retention before SIGTERM: complete custody drained in 154 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGTERM (4319.820048ms)
+retention before SIGKILL: complete custody drained in 155 ms; newer proof started
+✔ blocked retention has bounded custody: before SIGKILL (3820.961503ms)
+retention before supersede: complete custody drained in 819 ms; newer proof started
+✔ blocked retention has bounded custody: before supersede (3829.607339ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12142.467116

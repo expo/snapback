@@ -88973,3 +88973,43 @@ This is a full run plus a passing affected rerun, not a single-green-run receipt
 Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
 unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
 no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
+
+
+## 2026-10-07 — FL: publication dry-run flakes retain their assertions
+
+The developer-evidence test compared an absent point before the fixture's
+expired-row sweep with a hidden point afterward. The sweep records the
+sequence-2 to sequence-3 expiry commit. It now retries at most eight adjacent
+read pairs until their numeric watermarks match, then compares the complete
+serialized answers. Each traced absence waits for its new request's evidence;
+hidden reads still cannot alter that evidence. No response field is normalized.
+
+The export retention custody cases now wait for compressor, child, keeper and
+guardian exit, lease release and a newer publication's outcome, bounded by the
+existing work/drain contract plus observation slack. The 300-second outer guard
+includes setup and teardown; the 30-second product deadline, lock-busy refusal
+and CLI status assertions remain. Abort-aware waits and an awaited after-hook
+release the fixture lease and reap custody on timeout. A teardown-only marker
+lets the live fixture members kill their own group without reusable PID signals.
+Pre-driver custody now also runs against the real Linux process machinery;
+Darwin still runs its original mocked simulator path. No product behavior changes.
+
+Final verification on this worktree's eb1000 host: 20 loaded empty-read runs
+and 20 each of SIGKILL, SIGTERM and supersede custody, zero failures, with four
+owned busy loops and all tested descendants pinned to CPUs 80–81. SIGKILL's
+median complete drain was 201 ms versus 206.5 ms for SIGTERM and
+684 ms for supersede; no SIGKILL-specific slowness was found. All load
+processes were reaped. Twenty field-corruption controls and endless sequence
+drift fail; a single moving sequence followed by equal answers passes. Disabling
+native group killing fails the custody state check; forcing a Node test timeout
+also fails while its cleanup reaps the groups, with no runner leak.
+
+The developer-evidence suite passes 21/21; the Rust witness module passes 72/72;
+five export files pass 80 tests with 33 existing platform skips and no leaks.
+The full reference check retains one unchanged difftest-to-LLP-3000.035 anchor
+error outside this scope. A fresh client build needs generated wasm artifacts;
+these affected Node suites use its emitted CLI shim dependency. No Darwin run,
+full publication dry run, push or publication is claimed. Closed the SIGKILL
+timeout ticket with its resolution.
+
+[FL report and retained evidence](reports/20261007-fl-dry-run-flakes/REPORT.md).

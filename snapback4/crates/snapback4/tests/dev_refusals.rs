@@ -286,12 +286,10 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
   assert_eq!(snapshot()["traceEmpty"],trace_empty);
   let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}},{"table":"expired","row":{"id":"expired","until":1}}]));
   assert_eq!(seed["seeded"],2);
-  let mut missing=Value::Null;
   for (op,args,cause) in [("point",json!({"id":"absent"}),"no-candidate"), ("publicPoint",json!({}),"no-candidate"), ("expiredPoint",json!({}),"unrecorded"), ("literal",json!({}),"unrecorded")] {
    let before=snapshot();
    let reply=dev.post(&format!("/q/{op}"),json!({"args":args}));
    assert!(reply["data"].is_null()); assert!(reply.get("existence").is_none());
-   if op=="point" { missing=reply; }
    if trace_empty {
     let record=dev.project.wait_record(store,op);
     let last=record["records"].as_array().unwrap().last().unwrap();
@@ -303,10 +301,33 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
     } else { assert_eq!(last["clause"],"no probe miss and no rule cause were recorded"); }
    } else { assert_eq!(snapshot(),before,"default {op} advances no evidence"); }
   }
-  let before=snapshot();
-  let hidden=dev.post("/q/point",json!({"args":{"id":"hidden"}}));
-  assert_eq!(serde_json::to_vec(&hidden).unwrap(),serde_json::to_vec(&missing).unwrap(),"hidden and absent wire answers at the same watermark");
-  assert_eq!(snapshot(),before,"a hidden point is never reported as a probe miss or filtered refusal");
+  // The expired seed is physically deleted by serve_maintenance's expiry
+  // sweep, committing a new seq even though all these query values stay null.
+  // Retry only different watermarks; compare every byte once they match.
+  let mut before=Value::Null;
+  for attempt in 0..8 {
+   let prior=snapshot();
+   let prior_id=prior["records"].as_array().unwrap().last().and_then(|r|r["requestId"].as_u64()).unwrap_or(0);
+   let missing=dev.post("/q/point",json!({"args":{"id":"absent"}}));
+   if trace_empty {
+    let deadline=Instant::now()+Duration::from_secs(10);
+    loop {
+     let record=dev.project.wait_record(store,"point");
+     if record["records"].as_array().unwrap().last().unwrap()["requestId"].as_u64().unwrap()>prior_id {break;}
+     assert!(Instant::now()<deadline,"new absent read evidence was not persisted");
+     std::thread::sleep(Duration::from_millis(10));
+    }
+   }
+   before=snapshot();
+   let hidden=dev.post("/q/point",json!({"args":{"id":"hidden"}}));
+   assert_eq!(snapshot(),before,"a hidden point is never reported as a probe miss or filtered refusal");
+   assert!(missing["seq"].is_u64() && hidden["seq"].is_u64());
+   if missing["seq"]==hidden["seq"] {
+    assert_eq!(serde_json::to_vec(&hidden).unwrap(),serde_json::to_vec(&missing).unwrap(),"hidden and absent wire answers at the same watermark");
+    break;
+   }
+   assert!(attempt<7,"no common watermark in eight read pairs: absent={missing}, hidden={hidden}");
+  }
   let nested=dev.post("/q/nested",json!({})); assert_eq!(nested["data"],json!({"field":null}));
   assert_eq!(snapshot(),before,"nested null is present");
   let filtered=dev.post("/q/filteredThenMissing",json!({})); assert!(filtered["data"].is_null());

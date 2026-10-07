@@ -1,0 +1,20 @@
+{
+  "SIGTERM": {
+    "runs": 20,
+    "minMs": 154,
+    "medianMs": 206.5,
+    "maxMs": 258
+  },
+  "SIGKILL": {
+    "runs": 20,
+    "minMs": 153,
+    "medianMs": 201.0,
+    "maxMs": 250
+  },
+  "supersede": {
+    "runs": 20,
+    "minMs": 517,
+    "medianMs": 684.0,
+    "maxMs": 892
+  }
+}

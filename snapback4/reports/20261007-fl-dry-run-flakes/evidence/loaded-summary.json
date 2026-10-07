@@ -1,0 +1,247 @@
+{
+  "cpus": "80,81",
+  "busyLoops": 4,
+  "runs": [
+    {
+      "round": 1,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.349
+    },
+    {
+      "round": 1,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.294
+    },
+    {
+      "round": 2,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.317
+    },
+    {
+      "round": 2,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.101
+    },
+    {
+      "round": 3,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.492
+    },
+    {
+      "round": 3,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.266
+    },
+    {
+      "round": 4,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.354
+    },
+    {
+      "round": 4,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.313
+    },
+    {
+      "round": 5,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.376
+    },
+    {
+      "round": 5,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.322
+    },
+    {
+      "round": 6,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.392
+    },
+    {
+      "round": 6,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.196
+    },
+    {
+      "round": 7,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.499
+    },
+    {
+      "round": 7,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.603
+    },
+    {
+      "round": 8,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.408
+    },
+    {
+      "round": 8,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.581
+    },
+    {
+      "round": 9,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.399
+    },
+    {
+      "round": 9,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.362
+    },
+    {
+      "round": 10,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.554
+    },
+    {
+      "round": 10,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.102
+    },
+    {
+      "round": 11,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.447
+    },
+    {
+      "round": 11,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.745
+    },
+    {
+      "round": 12,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.375
+    },
+    {
+      "round": 12,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.091
+    },
+    {
+      "round": 13,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.326
+    },
+    {
+      "round": 13,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.387
+    },
+    {
+      "round": 14,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.307
+    },
+    {
+      "round": 14,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.942
+    },
+    {
+      "round": 15,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.41
+    },
+    {
+      "round": 15,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.676
+    },
+    {
+      "round": 16,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.44
+    },
+    {
+      "round": 16,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.476
+    },
+    {
+      "round": 17,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.388
+    },
+    {
+      "round": 17,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 10.771
+    },
+    {
+      "round": 18,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.433
+    },
+    {
+      "round": 18,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.945
+    },
+    {
+      "round": 19,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.414
+    },
+    {
+      "round": 19,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 11.056
+    },
+    {
+      "round": 20,
+      "test": "empty",
+      "exit": 0,
+      "seconds": 2.39
+    },
+    {
+      "round": 20,
+      "test": "custody",
+      "exit": 0,
+      "seconds": 12.232
+    }
+  ],
+  "loadReaped": true
+}

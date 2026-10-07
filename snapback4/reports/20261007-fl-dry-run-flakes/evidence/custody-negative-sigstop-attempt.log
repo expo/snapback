@@ -1,0 +1,125 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms
+TAP version 13
+# NATIVE_CUSTODY_DISABLED {"guardian":1127949,"group":1127956,"compressor":{"pid":1128009,"child":1128019}}
+# retention before SIGKILL: complete custody drained in 103 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before SIGKILL
+not ok 1 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 1621.33046
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'
+  failureType: 'hookFailed'
+  error: 'kill ESRCH'
+  code: 'ESRCH'
+  stack: |-
+    process.kill (node:internal/process/per_thread:277:13)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:365:36)
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1103:25)
+    TestHook.run (node:internal/test_runner/test:1424:18)
+    TestHook.run (node:internal/util:589:20)
+    Test.runHook (node:internal/test_runner/test:1021:20)
+    after (node:internal/test_runner/test:1061:20)
+    Test.run (node:internal/test_runner/test:1129:13)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1691.144928
+-- process inspection: {"snapshots":3,"unrelatedRows":3515}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (1967 ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compressor, child, guardian and keeper drained without recovery/. Input:
+
+'-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms\n' +
+  'TAP version 13\n' +
+  '# NATIVE_CUSTODY_DISABLED {"guardian":1127949,"group":1127956,"compressor":{"pid":1128009,"child":1128019}}\n' +
+  '# retention before SIGKILL: complete custody drained in 103 ms; newer proof started\n' +
+  '# Subtest: blocked retention has bounded custody: before SIGKILL\n' +
+  'not ok 1 - blocked retention has bounded custody: before SIGKILL\n' +
+  '  ---\n' +
+  '  duration_ms: 1621.33046\n' +
+  "  type: 'test'\n" +
+  "  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'\n" +
+  "  failureType: 'hookFailed'\n" +
+  "  error: 'kill ESRCH'\n" +
+  "  code: 'ESRCH'\n" +
+  '  stack: |-\n' +
+  '    process.kill (node:internal/process/per_thread:277:13)\n' +
+  '    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:365:36)\n' +
+  '    TestHook.runInAsyncScope (node:async_hooks:214:14)\n' +
+  '    TestHook.run (node:internal/test_runner/test:1103:25)\n' +
+  '    TestHook.run (node:internal/test_runner/test:1424:18)\n' +
+  '    TestHook.run (node:internal/util:589:20)\n' +
+  '    Test.runHook (node:internal/test_runner/test:1021:20)\n' +
+  '    after (node:internal/test_runner/test:1061:20)\n' +
+  '    Test.run (node:internal/test_runner/test:1129:13)\n' +
+  '    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n' +
+  '  ...\n' +
+  '1..1\n' +
+  '# tests 1\n' +
+  '# suites 0\n' +
+  '# pass 0\n' +
+  '# fail 1\n' +
+  '# cancelled 0\n' +
+  '# skipped 0\n' +
+  '# todo 0\n' +
+  '# duration_ms 1691.144928\n' +
+  '-- process inspection: {"snapshots":3,"unrelatedRows":3515}\n' +
+  '-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (1967 ms)\n'
+
+    at file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.mjs:17:8
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms\n' +
+    'TAP version 13\n' +
+    '# NATIVE_CUSTODY_DISABLED {"guardian":1127949,"group":1127956,"compressor":{"pid":1128009,"child":1128019}}\n' +
+    '# retention before SIGKILL: complete custody drained in 103 ms; newer proof started\n' +
+    '# Subtest: blocked retention has bounded custody: before SIGKILL\n' +
+    'not ok 1 - blocked retention has bounded custody: before SIGKILL\n' +
+    '  ---\n' +
+    '  duration_ms: 1621.33046\n' +
+    "  type: 'test'\n" +
+    "  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'\n" +
+    "  failureType: 'hookFailed'\n" +
+    "  error: 'kill ESRCH'\n" +
+    "  code: 'ESRCH'\n" +
+    '  stack: |-\n' +
+    '    process.kill (node:internal/process/per_thread:277:13)\n' +
+    '    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:365:36)\n' +
+    '    TestHook.runInAsyncScope (node:async_hooks:214:14)\n' +
+    '    TestHook.run (node:internal/test_runner/test:1103:25)\n' +
+    '    TestHook.run (node:internal/test_runner/test:1424:18)\n' +
+    '    TestHook.run (node:internal/util:589:20)\n' +
+    '    Test.runHook (node:internal/test_runner/test:1021:20)\n' +
+    '    after (node:internal/test_runner/test:1061:20)\n' +
+    '    Test.run (node:internal/test_runner/test:1129:13)\n' +
+    '    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)\n' +
+    '  ...\n' +
+    '1..1\n' +
+    '# tests 1\n' +
+    '# suites 0\n' +
+    '# pass 0\n' +
+    '# fail 1\n' +
+    '# cancelled 0\n' +
+    '# skipped 0\n' +
+    '# todo 0\n' +
+    '# duration_ms 1691.144928\n' +
+    '-- process inspection: {"snapshots":3,"unrelatedRows":3515}\n' +
+    '-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (1967 ms)\n',
+  expected: /compressor, child, guardian and keeper drained without recovery/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

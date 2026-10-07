@@ -1,0 +1,35 @@
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs; stall bound 900000 ms
+TAP version 13
+# NATIVE_CUSTODY_DISABLED {"root":"/tmp/sb4-background-u0pMKY","guardian":1266609,"group":1266612,"compressor":{"pid":1266632,"child":1266642}}
+# NEGATIVE_CUSTODY_REAPED {"compressor":{"pid":1266632,"child":1266642},"rootRemoved":true}
+# Subtest: blocked retention has bounded custody: before SIGKILL
+not ok 1 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 106451.057293
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:338:187'
+  failureType: 'testCodeFailure'
+  error: 'compressor, child, guardian and keeper drained without recovery'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:20:12)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs:401:3)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 106514.585476
+-- process inspection: {"snapshots":3,"unrelatedRows":3676}
+-- client file FAIL: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-verification/custody-negative.test.mjs (106796 ms)
+EXPECTED FAILURE: undrained custody rejected; teardown reaped the recorded fixture processes without a runner leak
