@@ -89254,3 +89254,52 @@ limit checks pass. The user reported the prior commit's Darwin fence passed
 cluster is stopped. Nothing was pushed or published. The
 [round-1 report](reports/20261007-rs-read-sessions-refusal/round1/REPORT.md)
 retains the review dispositions, intermediate corrections and verification logs.
+
+## 2026-10-07 — SG: refused-open acceptance and the SQLite spill boundary
+
+Closed the three residual gaps from RS's round-1 Astra review. SQLite fast
+attachment now retains its validation transaction through upgrades and final
+construction reads. Version and catalog are checked after the writer wait.
+If attachment needs semantic repair, activation checks the exact captured
+backend and selected release under its writer lock before upgrading; all
+activation paths, including device installation, recheck the stored version.
+Server open/new/new_release carry validated identity and release metadata out
+of the accepting transaction, including identities generated during migration.
+Malformed metadata can no longer retain upgrades or a release-pointer change.
+In-place adoption also takes its fallible ephemeral-hub lock before activation.
+
+Used the task's explicit WAL-contract option: LLP 3000.033 and the fence comments
+promise complete logical state and main-file bytes, while allowing invisible
+uncommitted WAL frames from a rolled-back migration. Disabling spill would cost
+memory proportional to migration size; staging a copy would require a separate
+publication protocol for live SQLite owners. Existing small retained-WAL tests
+still require exact bytes. A new 1,500-row legacy native migration reproduces
+WAL growth from 8,272 to 11,470,112 bytes while preserving the entire logical
+dump and all 13,357,056 main-file bytes. DELETE also preserves its main file;
+correcting the refusal permits a subsequent successful migration.
+
+Eight-opener lock barriers cover changed versions/metadata/backend/catalog and
+successful concurrent legacy attachment. Another barrier changes admission
+inputs between validated attachment and semantic repair. Malformed metadata
+regressions cover all server constructors in both journal modes, with absent
+or existing releases; successful controls check generated identities through
+the constructed hub and reopen. The original code fails the new race and
+malformed-construction tests; the corrected implementation passes.
+
+Focused verification passes 286 core tests (plus its nested subprocess check),
+81 device tests and 20 JavaScript fence/round4 tests; seven Darwin-only cases
+remain for the operator's mini run. The final full-suite result and all retained
+logs are in the [SG report](reports/20261007-sg-refused-open-guarantee/REPORT.md).
+Source and packaged wasm are byte-identical to baseline: SHA-256
+`a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83`,
+2,135,164 raw / 645,264 gzip bytes against the unchanged 645,564-byte budget.
+The ticket is closed under `issues/closed/`. No PostgreSQL, SDK or web-device
+implementation changed. Work stayed in lane-sg on eb1000; nothing pushed.
+
+The complete canonical suite subsequently passed in one run: **0 failures in
+2,188 seconds**, Rust 312 binaries / 1,025 executions plus doctests, all 340
+client files (6,674 passed, 55 labelled skips), and all 79 serial model tests at
+the default work counts. All ten read-only client files also passed 119/119 with
+an integrity-verified npm Linux 0.4.13 binary, covering the optional downgrade
+control separately with no skip. Final source/dist wasm comparison, references,
+whitespace, source limits and JOURNAL-prefix checks pass.

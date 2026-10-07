@@ -101,6 +101,9 @@ fn explicit_backend_reopening_checks_kept_capabilities_sqlite() {
 
 // Linux counterpart of schema-capabilities.test.mjs's published-engine fence.
 // Include DDL (indexes/triggers/columns), every table and every stored value.
+// The general refusal contract covers logical state and main-file bytes.
+// WAL identity is asserted for the small no-spill cases below; a large rolled
+// back migration may retain uncommitted frames (LLP 3000.033 §1.3).
 fn sqlite_dump(path: &std::path::Path) -> Vec<(String, Vec<String>)> {
     let db = rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
     let mut tables = vec!["sqlite_schema".to_string()];
@@ -272,5 +275,58 @@ fn native_open_recovery_refusals_roll_back_installation() {
             assert_eq!(std::fs::read(&path).unwrap(), bytes, "{mode}/{refusal}: unchanged database bytes");
             assert_eq!(std::fs::read(&wal_path).ok(), wal, "{mode}/{refusal}: unchanged WAL bytes");
         }
+    }
+}
+
+#[test]
+fn spill_sized_native_refusal_preserves_logical_data_and_main_file() {
+    for mode in ["WAL", "DELETE"] {
+        let host = common::Sqlite::new("refused-migration-spill");
+        let path = host.path(mode);
+        legacy_device(&path, mode);
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute_batch("ALTER TABLE _ops ADD COLUMN args TEXT; BEGIN IMMEDIATE;").unwrap();
+        let payload = format!("\"{}\"", "x".repeat(8192));
+        for n in 0..1500 {
+            db.execute("INSERT INTO _ops(principal,id,seq,outcome,args) VALUES ('bob',?1,1,?2,'legacy')",
+                rusqlite::params![n.to_string(), payload]).unwrap();
+        }
+        db.execute_batch("DROP TABLE _effect_steps;
+            INSERT INTO _meta VALUES ('device:declaration:capture','{}');
+            INSERT OR REPLACE INTO _meta VALUES ('device:send_revision','9007199254740991'); COMMIT;").unwrap();
+        drop(db); // Checkpoint the large fixture before retaining a small WAL.
+        if mode == "WAL" {
+            let db = rusqlite::Connection::open(&path).unwrap();
+            db.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
+            db.execute_batch("PRAGMA wal_autocheckpoint=0; INSERT INTO _meta VALUES ('sg:sentinel','retained committed WAL');").unwrap();
+        }
+        let before = sqlite_dump(&path);
+        let bytes = std::fs::read(&path).unwrap();
+        let wal_path = std::path::PathBuf::from(format!("{}-wal", path.display()));
+        let wal = std::fs::read(&wal_path).ok();
+        let error = snapback4_device::native::Device::open(&path, None).err().expect("late recovery refusal");
+        assert!(error.to_string().contains("send revision overflow"), "{error}");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes, "{mode}: every main-file byte survives spill and rollback");
+        assert_eq!(sqlite_dump(&path), before, "{mode}: every schema entry and value survives, including legacy args and missing _effect_steps");
+        if let Some(wal) = wal {
+            assert!(wal.len() > 32 && wal.len() < 64 * 1024, "start with a small committed WAL");
+            let after = std::fs::read(&wal_path).unwrap();
+            assert!(after.len() > 8 * 1024 * 1024, "fixture must actually spill beyond the native cache: {} bytes", after.len());
+            assert!(after.starts_with(&wal), "committed uncheckpointed frames survive; only uncommitted frames are appended");
+            eprintln!("refused legacy migration: main {} bytes identical; WAL {} -> {} bytes; full logical dump identical", bytes.len(), wal.len(), after.len());
+        } else {
+            assert_eq!(mode, "DELETE");
+        }
+        // A later accepting open still performs the real migration and capture
+        // recovery. Rollback must not leave an unrecoverable physical store.
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute("UPDATE _meta SET value='0' WHERE key='device:send_revision'", []).unwrap();
+        drop(db);
+        drop(snapback4_device::native::Device::open(&path, None).unwrap());
+        let db = rusqlite::Connection::open(&path).unwrap();
+        assert_eq!(db.query_row("SELECT COUNT(*) FROM _ops", [], |r| r.get::<_, i64>(0)).unwrap(), 1500);
+        assert!(!db.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_ops') WHERE name='args')", [], |r| r.get::<_, bool>(0)).unwrap());
+        assert!(db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_effect_steps')", [], |r| r.get::<_, bool>(0)).unwrap());
+        assert_eq!(db.query_row("SELECT value FROM _meta WHERE key='device:send_revision'", [], |r| r.get::<_, String>(0)).unwrap(), "1");
     }
 }

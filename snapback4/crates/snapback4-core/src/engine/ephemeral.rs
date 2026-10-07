@@ -273,7 +273,7 @@ impl HubState {
     fn publish(&self) {
         if let Some(publish) = &self.publisher { publish(self.snapshot()); }
     }
-    fn rebind(&mut self, identity: String, generation: u64, schema: &Schema) {
+    pub(super) fn rebind(&mut self, identity: String, generation: u64, schema: &Schema) {
         let publisher = self.publisher.take();
         *self = Self::new(identity, generation, schema);
         self.publisher = publisher;

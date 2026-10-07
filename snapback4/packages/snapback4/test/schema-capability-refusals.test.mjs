@@ -1,4 +1,7 @@
 // @ref LLP 3000.033#1.3 — the Darwin fence's fixture kinds also exercise Linux refusal storage.
+// Byte comparisons cover the main database. A large rolled-back SQLite
+// migration can append uncommitted WAL frames; the Rust spill regression
+// separately proves full logical/main-file preservation with a live WAL.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
