@@ -254,13 +254,22 @@ and a bounded **four-second settle period**. Row and content layout changes
 remeasure the target using `measureInWindow` and correct its `scrollToOffset`.
 Short bubbles fit fully; when a nested quote makes a bubble taller than the
 viewport, its own text stays visible. Touch, drag, wheel and scrolling keys
-relinquish scroll ownership immediately, including queued measurements.
+relinquish scroll ownership immediately, including queued measurements. Web keys
+are captured at the document while the jump owns scrolling, including when the
+quote loses focus and the browser still scrolls its list; cleanup removes the
+listener when the jump ends or the history owner unmounts.
 Failure shows a retry message. Absent/denied quotes have no jump action; loading,
 partial and revalidating quotes never authorize a jump. Expiry in an extended
 schema must flow through these live reads, never a saved excerpt or ordinal alone.
 No read/window change replaces the composer, draft, reply selection or once viewer.
 Browser tests seed an original, 30 messages and a reply. An observer armed before
-tapping latches completion, geometry and highlight within the four-second bound;
+tapping records `performance.now()` for arrival, highlight transitions and the
+failure notice. This fixture requires arrival/completion within two seconds,
+1.7–2.3 seconds of actual highlight, and the four-second failure notice within
+3.9–4.5 seconds, allowing measurement/render and retry ticks. It retains every
+highlight on/off transition, including initial layout invalidation; repeated
+unhighlighted frames never extend a duration. These browser measurements remain
+independent of generous driver waits, checked with deliberately broken fixtures;
 the `jump-completed-<id>` native ID persists after the highlight, so delayed test
 drivers can poll completion and current geometry without racing the highlight.
 Other cases cover visible/unavailable originals, draft preservation, delayed

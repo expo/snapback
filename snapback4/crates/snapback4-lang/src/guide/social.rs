@@ -99,11 +99,16 @@ the offset and retry for at most four seconds; measured visibility starts a
 1.8-second highlight and four-second settle period. Row/content layout changes
 remeasure the target and correct its offset; for an oversized bubble, keep its
 own text visible below any nested quote. Touch, drag, wheel or scrolling keys
-end correction immediately. Unknown coverage or timeout shows a failure, never
+end correction immediately; web keys are captured even after focus leaves the
+list. That listener exists only while a jump owns scrolling. Unknown coverage
+or timeout shows a failure, never
 a guessed absence. Loading, denied and absent quotes have no jump action. Arm
 a browser observation before tapping; latch completion/geometry/highlight, then
 poll the durable completion marker and current rectangle with a generous hang
-guard. Test 30 intervening messages, delayed quote expansion and draft survival.
+guard. Use in-page `performance.now()` for arrival, highlight on/off transitions
+and the failure notice: generous driver waits do not relax product bounds. Test
+short-highlight and slow-deadline mutations too. Keep 30 intervening messages,
+delayed expansion and draft survival in the witness.
 
 ```tsx
 // src/QuotedMessage.tsx

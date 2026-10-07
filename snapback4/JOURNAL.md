@@ -88559,3 +88559,33 @@ byte-identical to the baseline. Final disk use is 15.24 GB, under 30 GB. This ro
 the requested affected checks; the prior entry retains the round-0 full-suite
 result. The [round-1 report](reports/20261007-qj-quote-jump/round1/REPORT.md) records
 measurements, commands and limits. Commit only; nothing pushed or published.
+
+## 2026-10-07 — QJ round 2: browser timing bounds reject broken fixtures
+
+Astra's round-1 review found that widening driver waits had lost the four-second
+failure assertion and that repeated unhighlighted frames extended a supposed
+highlight duration. The test now records browser `performance.now()` for tap,
+viewport/completed arrival, immutable highlight transitions and the failure
+notice. Arrival must take at most two seconds, actual highlight on-time must
+be 1.7–2.3 seconds, and the four-second failure must appear within 3.9–4.5 seconds.
+A durable sample accounts for the initial layout's brief color invalidation;
+unhighlighted frames never add time. Driver waits remain generous and state-based.
+The product's four-second search/settle and 1.8-second highlight are unchanged.
+
+Five disposable generated-fixture controls all fail their intended assertions,
+each with the 2.3-second driver pause: eight-second failure timeout, 100 ms
+highlight, both together (Astra's exact mutations), eight-second actual arrival,
+and list-only key observation. A scoped web document key listener fixes the
+conditional BODY-focus PageUp edge; it is removed when the jump owner ends.
+The regular body-keyboard regression and Astra's adapted trusted-input probe
+pass. Real PageUp after explicit blur moves the list 2,188 → 1,670 px, with no
+additional correction and no highlight. No common focus-loss journey is inferred.
+
+Qualification: affected tests 99/99, three final quote-fixture runs 23/23 each
+(including driver delay), guide 113/113, trusted keyboard probe 6/6, client
+typecheck and docs budget pass. Guide, README and LLP 3000.028 §8 are updated.
+All wasm artifacts are byte-identical; native UI scrolling remains unverified.
+The [round-2 report](reports/20261007-qj-quote-jump/round2/REPORT.md) retains the
+positive and deliberately negative evidence. This round runs affected checks;
+the round-0 full-suite result remains separate. eb1000 only, below 30 GB, commit
+only; nothing pushed or published.

@@ -112,8 +112,17 @@ export function useJumpToMessage(conversation: string) {
   }, [request, page.read, cancel]);
   // Native drag/touch and web wheel, scrollbar/pointer and scrolling keys all
   // relinquish ownership synchronously, including any in-flight measurement.
-  const webScrollHandlers = Platform.OS === "web" ? { onWheel: cancel, onPointerDown: cancel,
-    onKeyDown: (event: { key: string }) => { if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) cancel(); } } : {};
+  useEffect(() => {
+    if (!request || Platform.OS !== "web" || typeof document === "undefined") return;
+    // Browsers can scroll the last focused list after its quote loses focus.
+    // Capture body-targeted keys too, only while this jump owns scrolling.
+    const keyDown = (event: KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) cancel();
+    };
+    document.addEventListener("keydown", keyDown, true);
+    return () => document.removeEventListener("keydown", keyDown, true);
+  }, [request, cancel]);
+  const webScrollHandlers = Platform.OS === "web" ? { onWheel: cancel, onPointerDown: cancel } : {};
   const onScrollToIndexFailed = ({ index, averageItemLength }: { index: number; averageItemLength: number }) => {
     if (active.current) list.current?.scrollToOffset({ offset: Math.max(0, index * averageItemLength), animated: false });
   };
