@@ -90,7 +90,10 @@ pub(super) fn with_sqlite(test: impl FnOnce(snapback4_core::store::Store)) {
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let directory = std::env::temp_dir().join(format!("sb4-publication-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&directory).unwrap();
-    test(crate::sqlite::open(&directory.join("device.sqlite")).unwrap());
+    let mut store = crate::sqlite::open(&directory.join("device.sqlite")).unwrap();
+    // Storage-only probes need an accepted installation before side-table use.
+    DeviceStore::install(&mut store, &Schema::default(), &BTreeMap::new(), false).unwrap();
+    test(store);
     std::fs::remove_dir_all(directory).unwrap();
 }
 

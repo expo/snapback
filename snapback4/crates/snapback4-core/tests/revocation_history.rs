@@ -56,7 +56,7 @@ fn commits_preserve_schema_and_cached_statements() {
 }
 
 #[test]
-fn server_open_migrates_evidence_before_commits() {
+fn accepted_server_backend_migrates_evidence_before_commits() {
     let schema = schema();
     let dir = std::env::temp_dir().join(format!("rv-open-evidence-{}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
@@ -78,13 +78,16 @@ fn server_open_migrates_evidence_before_commits() {
         assert!(!evidence_exists(&device), "opening an old native device must not add evidence metadata");
         assert_eq!(schema_version(&device), version);
     }
-    let mut store = Store::open(&path).unwrap();
-    assert!(evidence_exists(&store), "server open must migrate before returning the store");
-    assert_eq!(stats(&store).0, 0);
+    let store = Store::open(&path).unwrap();
+    assert!(!evidence_exists(&store), "low-level open must preserve the predecessor");
+    let mut engine = snapback4_core::Engine::new(store, schema.clone(), []).unwrap();
+    let store = engine.store_mut();
+    assert!(evidence_exists(store), "accepted backend must migrate before commits can run");
+    assert_eq!(stats(store).0, 0);
     assert!(preserved_between(store.conn(), &schema, 0, 1).is_empty());
-    check_commits_reuse_plans(&mut store, &schema);
-    let version = schema_version(&store);
-    drop(store);
+    check_commits_reuse_plans(store, &schema);
+    let version = schema_version(store);
+    drop(engine);
     let store = Store::open(&path).unwrap();
     assert_eq!(schema_version(&store), version, "server reopen must be idempotent");
     assert_eq!(stats(&store).0, 1000);

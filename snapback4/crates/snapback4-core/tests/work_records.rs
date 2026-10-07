@@ -45,8 +45,12 @@ fn a_pre_binding_store_opens_legacy_receipts_replay_and_sessions_refresh() {
     let path = std::env::temp_dir().join(format!("sb4-legacy-work-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
     std::fs::create_dir_all(&path).unwrap();
     let file = path.join("store.sqlite");
+    // A real predecessor also has store identity/catalog metadata. Replace only
+    // the pre-binding tables; upgrades must wait for accepted activation.
+    drop(Store::open(&file).unwrap());
     let conn = rusqlite::Connection::open(&file).unwrap();
-    conn.execute_batch("CREATE TABLE _ops (principal TEXT NOT NULL, id TEXT NOT NULL, seq INTEGER NOT NULL, outcome TEXT NOT NULL, PRIMARY KEY(principal, id)) WITHOUT ROWID;
+    conn.execute_batch("DROP TABLE _ops; DROP TABLE _sessions; DROP TABLE _requests;
+        CREATE TABLE _ops (principal TEXT NOT NULL, id TEXT NOT NULL, seq INTEGER NOT NULL, outcome TEXT NOT NULL, PRIMARY KEY(principal, id)) WITHOUT ROWID;
         CREATE TABLE _sessions (token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
         CREATE TABLE _requests (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER, lease_until INTEGER, claimed_by TEXT, session_digest TEXT, result TEXT, error TEXT);
         INSERT INTO _ops VALUES ('member:alice', 'old-op', 7, '{\"state\":\"sent\",\"seq\":7,\"id\":\"old-op\"}');

@@ -98,3 +98,179 @@ fn explicit_backend_reopening_checks_kept_capabilities_sqlite() {
     let mut store = snapback4_core::store::Store::open(&path).unwrap();
     refused_reopen_preserves(&mut store);
 }
+
+// Linux counterpart of schema-capabilities.test.mjs's published-engine fence.
+// Include DDL (indexes/triggers/columns), every table and every stored value.
+fn sqlite_dump(path: &std::path::Path) -> Vec<(String, Vec<String>)> {
+    let db = rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+    let mut tables = vec!["sqlite_schema".to_string()];
+    tables.extend(db.prepare("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name").unwrap()
+        .query_map([], |r| r.get::<_, String>(0)).unwrap().map(Result::unwrap));
+    tables.into_iter().map(|name| {
+        let mut stmt = db.prepare(&format!("SELECT * FROM \"{}\"", name.replace('"', "\"\""))).unwrap();
+        let columns = stmt.column_count();
+        let mut rows = stmt.query_map([], |r| (0..columns).map(|i| r.get::<_, rusqlite::types::Value>(i)).collect::<rusqlite::Result<Vec<_>>>())
+            .unwrap().map(|r| format!("{:?}", r.unwrap())).collect::<Vec<_>>();
+        rows.sort();
+        (name, rows)
+    }).collect()
+}
+
+fn legacy_device(path: &std::path::Path, mode: &str) {
+    drop(snapback4_device::native::Device::open(path, Some(plain())).unwrap());
+    let db = rusqlite::Connection::open(path).unwrap();
+    db.execute("INSERT INTO r(t,id,data) SELECT num,'kept',?1 FROM _catalog WHERE name = 't'",
+        [serde_json::to_string(&object([("id", Value::Id("kept".into()))])).unwrap()]).unwrap();
+    db.execute_batch("DROP TABLE IF EXISTS _read_sessions;").unwrap();
+    let has_scope: bool = db.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_session_mint_bindings') WHERE name = 'scope')", [], |r| r.get(0)).unwrap();
+    if has_scope { db.execute_batch("ALTER TABLE _session_mint_bindings DROP COLUMN scope;").unwrap(); }
+    db.execute_batch(&format!("PRAGMA journal_mode = {mode};")).unwrap();
+}
+
+fn future_backend() -> Backend {
+    let mut future = plain();
+    future.generation = 2;
+    future.schema.tables.get_mut("t").unwrap().constraints.push(
+        snapback4_core::schema::Constraint::Capabilities(["future-derivation".into()].into()));
+    future
+}
+
+#[test]
+fn legacy_native_open_and_refused_adoption_preserve_complete_store() {
+    for mode in ["WAL", "DELETE"] {
+        let host = common::Sqlite::new("refused-legacy-adoption");
+        let path = host.path(mode);
+        legacy_device(&path, mode);
+        let before = sqlite_dump(&path);
+        let bytes = std::fs::read(&path).unwrap();
+        let mut device = snapback4_device::native::Device::open(&path, None).unwrap();
+        let answer = call::call(&mut device, json!({"op":"adopt", "backend":future_backend()}));
+        assert_eq!(answer["denied"]["code"], "E_SCHEMA_CAPABILITY");
+        drop(device);
+        assert_eq!(sqlite_dump(&path), before, "opening then refusing adoption must not add auth storage");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes, "every database byte survives");
+    }
+}
+
+#[test]
+fn refused_native_open_preserves_missing_tables_indexes_columns_and_meta() {
+    for mode in ["WAL", "DELETE"] {
+        let host = common::Sqlite::new("refused-legacy-open");
+        let path = host.path(mode);
+        legacy_device(&path, mode);
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute("UPDATE _meta SET value = ?1 WHERE key = 'device:backend'", [serde_json::to_string(&future_backend()).unwrap()]).unwrap();
+        // Exercise the older migrations too, not just _read_sessions.
+        db.execute_batch("DROP TABLE _effect_steps; DROP TABLE _device_snapshot; DROP INDEX _sessions_expiry;
+            ALTER TABLE _jobs DROP COLUMN domain; DELETE FROM _meta WHERE key = 'store_id';
+            CREATE INDEX _log_row_seq ON _log(seq);").unwrap();
+        drop(db);
+        let before = sqlite_dump(&path);
+        let bytes = std::fs::read(&path).unwrap();
+        for opening in [Opening::Kept, Opening::Install(plain()), Opening::Initial(plain())] {
+            let error = snapback4_device::native::Device::open_with(&path, opening).err().expect("refused open");
+            assert_eq!(error.code(), "E_SCHEMA_CAPABILITY");
+            assert_eq!(sqlite_dump(&path), before);
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        }
+    }
+}
+
+#[test]
+fn refused_store_version_and_server_adoption_preserve_complete_store() {
+    use snapback4_core::{Engine, Store};
+    for mode in ["WAL", "DELETE"] {
+        let host = common::Sqlite::new("refused-server-open");
+        let path = host.path(mode);
+        let (schema, programs) = (plain().schema, plain().programs);
+        drop(Engine::new(Store::open(&path).unwrap(), schema.clone(), programs.clone()).unwrap());
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute_batch(&format!("DROP TABLE IF EXISTS _read_sessions; DROP TABLE _change_evidence;
+            DROP TABLE _effect_steps; DROP INDEX _sessions_expiry; CREATE INDEX _log_row_seq ON _log(seq);
+            INSERT INTO _meta VALUES ('release','1');
+            ALTER TABLE _jobs DROP COLUMN domain; DELETE FROM _meta WHERE key = 'store_id'; PRAGMA journal_mode = {mode};")).unwrap();
+        drop(db);
+        let before = sqlite_dump(&path);
+        let bytes = std::fs::read(&path).unwrap();
+        // Selecting an obsolete release must refuse before attachment upgrades.
+        assert_eq!(Engine::attach_release(Store::open(&path).unwrap(), 999).err().expect("refused attachment").code(), "E_GENERATION");
+        assert_eq!(sqlite_dump(&path), before);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        // The release mismatch refuses from inside activation, after DDL work.
+        let error = Engine::new_release(Store::open(&path).unwrap(), schema, programs, 2, Some(999)).err().expect("refused adoption");
+        assert_eq!(error.code(), "E_GENERATION");
+        assert_eq!(sqlite_dump(&path), before);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute("UPDATE _generations SET schema = 'invalid json'", []).unwrap();
+        drop(db);
+        let before = sqlite_dump(&path);
+        let bytes = std::fs::read(&path).unwrap();
+        assert_eq!(Engine::open(Store::open(&path).unwrap()).err().expect("refused stored schema").code(), "E_STORE");
+        assert_eq!(sqlite_dump(&path), before);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute("UPDATE _meta SET value = 'future-store' WHERE key = 'version'", []).unwrap();
+        drop(db);
+        let before = sqlite_dump(&path);
+        let bytes = std::fs::read(&path).unwrap();
+        assert_eq!(Store::open(&path).err().expect("refused store version").code(), "E_STORE");
+        assert_eq!(sqlite_dump(&path), before);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    }
+}
+
+#[test]
+fn refused_open_preserves_uncheckpointed_database_and_wal() {
+    let host = common::Sqlite::new("refused-surviving-wal");
+    let path = host.path("store");
+    legacy_device(&path, "WAL");
+    let db = rusqlite::Connection::open(&path).unwrap();
+    db.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
+    db.execute_batch("PRAGMA wal_autocheckpoint=0; UPDATE _meta SET value='future-store' WHERE key='version';").unwrap();
+    drop(db); // Deliberately retain committed frames with no live connection.
+    let wal = std::path::PathBuf::from(format!("{}-wal", path.display()));
+    let before = (std::fs::read(&path).unwrap(), std::fs::read(&wal).unwrap());
+    assert!(before.1.len() > 32, "fixture must retain committed WAL frames");
+    let error = snapback4_core::Store::open(&path).err().expect("unsupported store");
+    assert!(error.to_string().contains("future-store"));
+    assert_eq!(std::fs::read(&path).unwrap(), before.0, "refused connection must not checkpoint");
+    assert_eq!(std::fs::read(&wal).unwrap(), before.1, "refused connection must retain WAL bytes");
+}
+
+#[test]
+fn native_open_recovery_refusals_roll_back_installation() {
+    for mode in ["WAL", "DELETE"] {
+        for refusal in ["overflow", "malformed", "native_cleanup"] {
+            let host = common::Sqlite::new("refused-open-recovery");
+            let path = host.path(refusal);
+            legacy_device(&path, mode);
+            let db = rusqlite::Connection::open(&path).unwrap();
+            if mode == "WAL" {
+                db.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
+                db.execute_batch("PRAGMA wal_autocheckpoint=0").unwrap();
+            }
+            db.execute_batch("DROP TABLE _effect_steps;").unwrap();
+            if refusal == "native_cleanup" {
+                db.execute_batch("INSERT INTO _meta VALUES ('device:native','invalid');
+                    CREATE TRIGGER refuse_native_cleanup BEFORE DELETE ON _meta WHEN old.key = 'device:native'
+                    BEGIN SELECT RAISE(ABORT, 'native cleanup refused'); END;").unwrap();
+            } else {
+                db.execute_batch("INSERT INTO _meta VALUES ('device:declaration:capture','{}');").unwrap();
+                db.execute("INSERT OR REPLACE INTO _meta VALUES ('device:send_revision',?1)",
+                    [if refusal == "overflow" { "9007199254740991" } else { "invalid" }]).unwrap();
+            }
+            drop(db);
+            let before = sqlite_dump(&path);
+            let bytes = std::fs::read(&path).unwrap();
+            let wal_path = std::path::PathBuf::from(format!("{}-wal", path.display()));
+            let wal = std::fs::read(&wal_path).ok();
+            if mode == "WAL" { assert!(wal.as_ref().is_some_and(|w| w.len() > 32)); }
+            let error = snapback4_device::native::Device::open(&path, None).err().expect("recovery must refuse");
+            assert_eq!(error.code(), "E_STORE", "{refusal}: {error}");
+            assert_eq!(sqlite_dump(&path), before, "{mode}/{refusal}: no installed upgrades or metadata changes");
+            assert_eq!(std::fs::read(&path).unwrap(), bytes, "{mode}/{refusal}: unchanged database bytes");
+            assert_eq!(std::fs::read(&wal_path).ok(), wal, "{mode}/{refusal}: unchanged WAL bytes");
+        }
+    }
+}

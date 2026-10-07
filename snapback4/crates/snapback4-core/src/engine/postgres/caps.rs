@@ -3,12 +3,10 @@ use crate::{error::RuntimeError, schema::Schema, value::Value};
 
 pub(super) const DDL: &str = "CREATE TABLE _cap_counts (t TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, n BIGINT NOT NULL CHECK(n >= 0), PRIMARY KEY(t,k))";
 
-pub(super) fn install(client: &mut postgres::Client, schema: &Schema) -> Result<(), RuntimeError> {
-    let mut tx = client.transaction()?;
-    tx.query_one("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?;
-    let present: Option<String> = tx.query_one("SELECT to_regclass('_cap_counts')::text", &[])?.get(0);
+pub(super) fn install(tx: &super::store::Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+    let present: Option<String> = tx.query("SELECT to_regclass('_cap_counts')::text", &[])?[0].get(0);
     if present.is_none() {
-        tx.batch_execute(DDL)?;
+        tx.batch(DDL)?;
         for (name, table) in &schema.tables {
             if !table.is_expiring() || !table.constraints.iter().any(|c| matches!(c, crate::schema::Constraint::Cap { .. })) { continue; }
             let mut after: Option<String> = None;
@@ -28,7 +26,6 @@ pub(super) fn install(client: &mut postgres::Client, schema: &Schema) -> Result<
             }
         }
     }
-    tx.commit()?;
     Ok(())
 }
 

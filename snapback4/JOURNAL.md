@@ -89181,3 +89181,76 @@ before/after the integrated full suite. No other lane/host was used; nothing
 pushed or published. Operator iOS Release recheck remains pending. The
 [round-4 report](reports/20261007-ua-useasset-native/round4/REPORT.md) records all
 conflicts, exact source comparisons, original failures and passing reruns.
+## 2026-10-07 — RS: refused opens and adoptions preserve storage
+
+Fixed the 0.4.15 publication blocker where opening an older device installed
+`_read_sessions` before a later capability adoption refused. SQLite now creates
+that table and its family index only in the read-session mint transaction;
+authority and cleanup treat absence as empty without creating storage. The
+mint-binding scope column joins authorized bound minting. Other existing-store
+upgrades, metadata and native side tables join accepted backend installation;
+existing journal modes are preserved. PostgreSQL attachment now owns one
+transaction through all physical upgrades, backend rechecks, cap rebuild and
+contribution adoption. Read snapshots no longer count as PostgreSQL writer
+fences. LLP 3000.033 records the refusal rule.
+
+Added Linux regressions comparing every table/row and SQLite file bytes in both
+WAL and DELETE modes, plus PostgreSQL schema/row snapshots after early and late
+refusals. Focused identity, read-only, store and adoption checks pass, including
+29 PostgreSQL adapter tests on this worktree's private cluster. Final wasm is
+byte-identical to baseline: 2,135,164 raw / 645,264 gzip bytes, with the existing
+645,564-byte budget unchanged.
+
+The complete suite ran in 1,508 seconds: 308 Rust test binaries / 1,021 executions
+and doctests passed, as did build/typecheck/fixture steps and all 79 full-count
+client-model tests. The 338 client files had 6,598 passes, one failure and 54
+labelled skips. The failure was an existing logout recorder observing response
+completion instead of dispatch; a revocation probe could finish first. Moved
+recording before the fetch await, retaining the revocation and no-refresh
+assertions. All ten read-only files then passed all 119 tests with no skips,
+including the verified published Linux 0.4.13 downgrade/re-upgrade witness.
+This is a complete run with a corrected affected rerun, not a single-green-run
+receipt. The Darwin 0.2.33 fence remains for the user's mini run.
+
+The [RS report](reports/20261007-rs-read-sessions-refusal/REPORT.md) records exact
+base-commit paths, the wider pre-refusal-write audit, all corrections and logs.
+Work stayed on eb1000 in this worktree; its private PostgreSQL cluster is stopped.
+No other host or worktree was used. Nothing was pushed or published.
+
+## 2026-10-07 — RS round 1: version race, WAL preservation and native recovery
+
+Closed the three remaining refusal gaps from Astra's round-0 review. PostgreSQL
+rechecks version, decoded schema/programs and supported-surface admission after
+acquiring the head lock, before upgrades. SQLite opening disables checkpoint on
+close before its first read and retains that setting on refusal, preserving
+committed WAL frames as well as main-file bytes. Accepted activation restores
+ordinary close behavior. Native capture recovery, send-revision checks, native
+cache validation/cleanup and final metadata reads now join installation's
+transaction; construction after commit performs no fallible storage work.
+
+Added regressions for eight attachers waiting through a version change and
+eight successful concurrent legacy attachers. Added refused-version and native
+recovery checks with surviving WAL frames, plus malformed-revision and failed
+native-cache cleanup controls. The Linux and Darwin capability tests now share
+the exact timeline-v2, recorded-attribution and maintained-column fixture
+sources; all three Linux controls compare full schema/rows and bytes in WAL and
+DELETE modes. LLP 3000.033 records the strengthened boundaries.
+
+Focused checks passed: 297 core tests (29 labelled ignores, PostgreSQL rerun
+separately), 80 device/adoption/capability tests, 31 PostgreSQL tests, and 122
+client read-only/shared-fixture tests. The full suite completed in 1,912 seconds:
+308 Rust binaries / 1,021 executions and doctests passed, as did all 79 full-count
+client model tests. The 339 client files reported 6,601 passes, one failure and
+54 labelled skips. The failure was an omitted shared `ordinary` fixture export;
+its import/export correction passed the original fence, Linux refusal and
+round4 rerun (20 passes, seven Darwin-only skips). This is a full run plus a
+corrected affected rerun, not a single-green-run receipt.
+
+Native-only source placement preserves the web implementation and embedded
+panic locations. Final wasm is byte-identical to round 0: 2,135,164 raw /
+645,264 gzip bytes, unchanged 645,564 budget. Reference, append-only and source
+limit checks pass. The user reported the prior commit's Darwin fence passed
+10/10 on the mini; this round did not use another host. The private PostgreSQL
+cluster is stopped. Nothing was pushed or published. The
+[round-1 report](reports/20261007-rs-read-sessions-refusal/round1/REPORT.md)
+retains the review dispositions, intermediate corrections and verification logs.
