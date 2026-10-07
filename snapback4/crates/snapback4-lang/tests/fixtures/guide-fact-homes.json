@@ -9,7 +9,7 @@
     "id": "reads-01",
     "card": "reads",
     "home": "Details",
-    "text": "State the rows, then the order and page. `messages where .roomId = roomId\nlast 20 by .at after c` means the newest matching messages. The compiler\nchooses the index. `messages[messageId]` always reads one id. A full declared\nunique key also reads one row, using named columns when its arity is ambiguous.\nThe rules run before any projection, count or order reaches the caller."
+    "text": "State the rows, then the order and page. `messages where .roomId = roomId\nlast 20 by .at after c` means the newest matching messages. The compiler\nchooses the index. Positional keys select identity for `id`/same-table references,\notherwise the declared unique key accepting types in order; ambiguous types need named columns.\nThe rules run before any projection, count or order reaches the caller."
   },
   {
     "id": "reads-02",
@@ -51,13 +51,13 @@
     "id": "reads-08",
     "card": "reads",
     "home": "E_QUARRY_AMBIGUOUS",
-    "text": "Named equalities covering a total unique key read one row and check any extra\ncolumns there: `t[key = x, col = y]` returns null on a mismatch, and\n`exists t[key = x, col = y]` returns false. Named equalities covering no\nunique key plan an ordinary authorized scan.\nA positional key resolves only when exactly one declared unique key has its\narity. Types check that choice; they never choose between keys. If none or\nseveral match, use named keys. Generated planning indexes never participate.\nAn explicit `by <authoredIndex>` keeps its existing point or prefix meaning."
+    "text": "Named equalities covering a total unique key read one row and check any extra\ncolumns there: `t[key = x, col = y]` returns null on a mismatch, and\n`exists t[key = x, col = y]` returns false. Named equalities covering no\nunique key plan an ordinary authorized scan.\nPositional keys select identity for `id`/same-table references, otherwise one\ndeclared unique key accepting the types in order. Ambiguous types need named\nkeys. Generated planning indexes never participate.\nAn explicit `by <authoredIndex>` keeps its existing point or prefix meaning."
   },
   {
     "id": "reads-09",
     "card": "reads",
     "home": "E_QUARRY_POSITIONAL_SCAN",
-    "text": "References keep their table identity: `replies[id = r]` with `r: replies`\nreads a reply, while `replies where .postId = p first 20 by .id` with\n`p: posts` reads its replies. Passing a reference to a different table\nrefuses; a generic `id` does not carry that table-identity check.\nAn absent, hidden or null point target returns null. A predicate read returns\na page, empty when no visible row matches. A reference does not prove existence.\n`snapback4 why <operation>` shows each read's source site, selected index,\ncolumn/key bindings, result form and selection reason; the same facts appear\nin `check --json` execution sites. These are binder facts, not measured work."
+    "text": "References keep their table identity: `replies[id = r]` with `r: replies`\nreads a reply, while `replies where .postId = p first 20 by .id` with\n`p: posts` reads its replies. Using a reference to a different table as this identity\nrefuses; a declared unique reference column can accept it; a generic `id` does not carry that table-identity check.\nAn absent, hidden or null point target returns null. A predicate read returns\na page, empty when no visible row matches. A reference does not prove existence.\n`snapback4 why <operation>` shows each read's source site, selected index,\ncolumn/key bindings, result form and selection reason; the same facts appear\nin `check --json` execution sites. These are binder facts, not measured work."
   },
   {
     "id": "reads-10",
@@ -207,7 +207,7 @@
     "id": "reads-34",
     "card": "reads",
     "home": "E_QUARRY_POSITIONAL_SCAN",
-    "text": "E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population.\nUse `posts where .authorId = owner last 20 by .at`; `posts[id = postId]` reads\none id, and named keys such as `profiles[principal = viewer]` read unique keys."
+    "text": "E_QUARRY_POSITIONAL_SCAN means the argument types do not identify one declared\nunique key, or a positional key would scan a population."
   },
   {
     "id": "reads-35",
@@ -735,7 +735,7 @@
     "id": "types-04-4",
     "card": "types",
     "home": "Details",
-    "text": "- **Keys and search:** `unique handle` or `unique postId, principal` enforces\n  a product key. Add `else HANDLE_TAKEN 'That handle is taken.'` for a visible\n  collision's code and message. Named keys cover ambiguous arities. Use\n  `search body, caption` for word-prefix search. Predicates and `by .at`\n  choose access indexes automatically; `guide indexes` explains inspection\n  and optional tuning. `unique principal, day(at)` gives calendar uniqueness."
+    "text": "- **Keys and search:** `unique handle` or `unique postId, principal` enforces\n  a product key. Add `else HANDLE_TAKEN 'That handle is taken.'` for a visible\n  collision's code and message. Named keys resolve ambiguous positional types. Use\n  `search body, caption` for word-prefix search. Predicates and `by .at`\n  choose access indexes automatically; `guide indexes` explains inspection\n  and optional tuning. `unique principal, day(at)` gives calendar uniqueness."
   },
   {
     "id": "types-04-5",

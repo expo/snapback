@@ -1,0 +1,45 @@
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-pk/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-pk/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.51s
+     Running tests/typed_positional_keys.rs (target/debug/deps/typed_positional_keys-459fbfe776a18644)
+
+running 9 tests
+keys=0, type=id: []; ["selected byId (id = x); result: row or null; only declared unique key of this arity"]
+test rule_pair_disambiguates_by_ordered_types ... ok
+keys=0, type=conversations: []; ["selected byId (id = x); result: row or null; only declared unique key of this arity"]
+cal31 reconstruction: test cal31_seventh_message_is_payload_typing_and_must_still_refuse ... [ok]
+
+keys=0, type=other: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+test foreign_reference_selects_its_declared_key_but_cannot_select_identity ... ok
+test cal31_four_reads_and_two_rules ... ok
+keys=0, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+keys=0, type=text <=80: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+keys=1, type=id: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=1, type=conversations: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=1, type=other: [("E_QUARRY_POSITIONAL_SCAN", "conversations has no declared unique key accepting these positional argument types in order; name the key columns, or use where for a population")]; []
+keys=1, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "conversations has no declared unique key accepting these positional argument types in order; name the key columns, or use where for a population")]; []
+keys=1, type=text <=80: []; ["selected bySlug (slug = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=id: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=conversations: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=other: [("E_QUARRY_POSITIONAL_SCAN", "conversations has no declared unique key accepting these positional argument types in order; name the key columns, or use where for a population")]; []
+keys=2, type=principal: []; ["selected byOwner (owner = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=text <=80: []; ["selected bySlug (slug = x); result: row or null; unique positional key selected by argument types"]
+test same_type_candidates_refuse_and_offer_named_repairs_in_every_context ... ok
+test rules_apply_the_same_scalar_matrix_and_nullable_admission ... ok
+test writes_and_mixed_keys_keep_identity_despite_secondary_uniques ... ok
+test identity_and_unique_key_type_matrix ... ok
+eight nested typed identity keys: 9.16359699s
+
+thread 'nested_identity_keys_bind_once_within_one_second' (3082067) panicked at crates/snapback4-lang/tests/typed_positional_keys.rs:158:5:
+nested key binding regressed: 9.16359699s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test nested_identity_keys_bind_once_within_one_second ... FAILED
+
+failures:
+
+failures:
+    nested_identity_keys_bind_once_within_one_second
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.16s
+
+error: test failed, to rerun pass `-p snapback4-lang --test typed_positional_keys`

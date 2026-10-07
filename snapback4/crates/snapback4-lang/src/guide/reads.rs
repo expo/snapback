@@ -37,8 +37,8 @@ Add an order, page size and cursor to browse a population.
 
 State the rows, then the order and page. `messages where .roomId = roomId
 last 20 by .at after c` means the newest matching messages. The compiler
-chooses the index. `messages[messageId]` always reads one id. A full declared
-unique key also reads one row, using named columns when its arity is ambiguous.
+chooses the index. Positional keys select identity for `id`/same-table references,
+otherwise the declared unique key accepting types in order; ambiguous types need named columns.
 The rules run before any projection, count or order reaches the caller.
 
 `complete` means the query answered its declared request within known coverage and execution limits.
