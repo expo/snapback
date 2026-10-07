@@ -145,3 +145,36 @@ fn cal31_seventh_message_is_payload_typing_and_must_still_refuse() {
     // Supplying a text slug repairs the payload while preserving its unique constraint.
     ok(&source.replace("m(x: id)", "m(x: text <=80)"));
 }
+
+#[test]
+fn nested_identity_keys_bind_once_within_one_second() {
+    let mut expression = "x".to_owned();
+    for _ in 0..8 { expression = format!("conversations[{expression}].id"); }
+    let source = format!("{}query q(x: conversations):\n  return {expression}\n", model(1));
+    let start = std::time::Instant::now();
+    let b = ok(&source);
+    let elapsed = start.elapsed();
+    eprintln!("eight nested typed identity keys: {elapsed:?}");
+    assert!(elapsed < std::time::Duration::from_secs(1), "nested key binding regressed: {elapsed:?}");
+    assert_eq!(snapback4_core::ir::read_sites(&b.programs[0].program).len(), 8, "one runtime read per authored key");
+}
+
+#[test]
+fn bound_key_reuse_preserves_allocation_order_and_one_helper_effect() {
+    use snapback4_core::{Context, Engine, Value, WriteState, value::object};
+    let source = "table conversations:\n  public\n  online only\ntable members:\n  conversation: conversations\n  principal: principal\n  role: text <=20\n  unique pair: conversation, principal\n  unique reverse: principal, conversation\n  public\n  online only\ntable events:\n  public\n  insert <- allow\n  online only\nfn nextPrincipal():\n  insert events {}\n  return viewer\nmutation q():\n  return members[new, nextPrincipal()EXTRA]\n";
+    for extra in ["", ", role = 'admin'"] {
+        let b = ok(&source.replace("EXTRA", extra));
+        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        engine.seed([("members".into(), object([
+            ("id", Value::Id("member".into())), ("conversation", Value::Id("first".into())),
+            ("principal", Value::Id("alice".into())), ("role", Value::String("admin".into())),
+        ]))]).unwrap();
+        let result = engine.mutate("q", None, Context::new("alice", Default::default()).with_ids(["first".into(), "second".into()])).unwrap();
+        let WriteState::Sent { result, .. } = result.state else { panic!("{result:?}") };
+        assert_eq!(result.field("id").unwrap(), &Value::Id("member".into()));
+        let events = engine.store().rows("events").unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].field("id").unwrap(), &Value::Id("second".into()));
+    }
+}

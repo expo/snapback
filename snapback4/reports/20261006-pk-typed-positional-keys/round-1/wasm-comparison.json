@@ -1,0 +1,9 @@
+{
+  "raw_bytes": 2117335,
+  "gzip_bytes": 639888,
+  "sha256": "2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944",
+  "before_sha256": "2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944",
+  "identical_to_round0_artifact": true,
+  "cap_bytes": 640018,
+  "measurement": "locked scripts/build-wasm.sh, as recorded in full-suite.log"
+}

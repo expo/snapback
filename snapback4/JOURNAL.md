@@ -88137,3 +88137,43 @@ explains its obsolete CLI expectation and overlapping-build artifact race;
 the final run repeated both affected phases successfully. Reference and diff
 audits passed. No plan/catalog encoding change; Darwin qualification remains
 for the operator's mini run. Commit only, no push.
+
+## 2026-10-07 — PK round 1: typed rule keys reach sync; key binding is reused
+
+Addressed Astra's two P2 findings from round-0 review. Sync intent planning
+now consumes the ordinary rule binder's admitted index and ordered terms,
+before synthesized access indexes exist. Content prefixes, inverse membership
+access and horizon indexes therefore agree with the rule, including opposite
+membership key declarations and unrelated composite unique constraints.
+Nullable admission and recipient-last sync inversion still refuse their
+unsupported cases. Program key selection retains bound expressions/types
+through selection and lowering, preserving snapshots, authored evaluation
+order and one runtime setup instead of speculatively binding nested keys.
+
+Tests reproduced the missing sync index and the eight-level compile regression
+(9.164 s before the fix). The nested query now checks in 58.5–62.9 ms across
+three CLI runs; explicit byId checks take 49.4 ms. New tests compare all 12
+sync combinations to explicit-index controls and exercise key allocation
+before one writing-helper effect, with ordinary and mixed keys. The reviewer's
+6,588-source differential reports zero changes among both the original 1,118
+accepted programs and all 1,550 round-0 accepted programs, including schema,
+IR and selection metadata. Ambiguous literal repairs retain both choices and
+the existing opt-in first-verified ordering.
+
+After the host interruption, inspected the saved diff and completed logs;
+no PK verification process survived. The retained affected-language run passed
+282 tests; post-recovery CLI fixes passed 27 and server/wasm/native clients
+passed 9. Rebuilt wasm is byte-identical to round 0 (SHA-256 2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944):
+2,117,335 B raw / 639,888 B gzip, unchanged cap 640,018 B. No encoding or
+runtime changes. LLP 3000.013 §2.2 and the
+[round-1 report](reports/20261006-pk-typed-positional-keys/REPORT.md#round-1--review-fixes-2026-10-07)
+record the fixes and evidence. All work stays on eb1000; commit only, no push.
+
+Post-recovery full verification completed: the full suite with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` exited 0 with zero
+failures in 1,532 s. Rust: 5,082 passed / 33 ignored, including language
+1,491 passed / 11 ignored. Fixture wrappers: 9 passed. All 324 client files
+passed (6,467 tests passed / 47 skipped), and both serial models passed all
+79 tests. Builds, docs budget, release guard, typechecks and wasm budget
+passed. Final reference and diff audits passed. The full run repeated every
+affected test after recovery; no interrupted process supplies qualification.

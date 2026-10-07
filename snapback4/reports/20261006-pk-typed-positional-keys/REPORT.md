@@ -167,3 +167,90 @@ See [full-suite-final.log](full-suite-final.log).
   The first run ended with two failed phases in 1,569 s
   ([log](full-suite.log)). The final run used stable artifacts and repeated
   every phase successfully, including the mixed-evidence oracle.
+
+## Round 1 — review fixes (2026-10-07)
+
+Both Astra P2 findings are addressed. Grok's optional literal preference is
+unchanged: a string literal that admits both identity and a text key still
+lists both named forms; `--fix` takes the first verified form in declaration
+order, including implicit `byId` first. No new intent heuristic was added.
+
+**Sync planning.** `intent_sync::need` now consumes the result of
+`schema::bind_rule` and its existing service-disjunct stripping, so planning
+and final sync binding use the same admitted index and ordered rule terms.
+The planner resolves this before adding access indexes. It derives the
+content prefix and inverse membership access from that choice, and horizon
+planning uses the resulting content prefix. It no longer counts positional
+candidates by arity independently. Rule binding still checks declared
+provenance, compatible types, uniqueness and nullable argument proofs;
+sync still enforces required group keys, exact audiences and recipient-last
+invertibility. Errors remain owned by final schema binding.
+
+The new `typed_positional_sync` regression exercises inferred and explicit
+sync audiences, competing reverse-order and incompatible composite keys,
+with and without a horizon (12 combinations). Every admitted schema equals
+its explicit `by pair` control, including the content and inverse indexes.
+It also verifies that a reversed probe retains `reverse` and still refuses
+sync, genuine ambiguity refuses, unproved nullable point arguments refuse,
+and nullable audience group keys still fail sync even with a present probe
+argument. [Before-fix sync failure](round-1/sync-before.log).
+
+**Compile latency and evaluation.** `select_index` retains bound key
+expressions/types for candidate selection and final lowering. It neither
+clones the binder to discover their types nor recursively calls itself after
+choosing an index. `program/keys.rs` factors the existing operand sequence;
+a mixed key binds its positional prefix once, applies contextual identity
+conversion only to literal syntax, then continues with the named operands.
+The existing snapshots and setup sequencing retain authored order.
+
+The eight-level regression failed before the change at **9.164 s** and now
+passes in about **59 ms**, with exactly eight runtime reads. A second test
+uses an allocating first key and a later writing helper: the first key takes
+the first supplied id and the helper inserts exactly one row with the second,
+for both ordinary and mixed keys. The CLI was measured three times after
+recovery: typed **58.5–62.9 ms**, explicit `byId` **49.4 ms** (compiler-reported
+check time). [Before](round-1/tests-before.log),
+[regressions](round-1/typed-tests.log), [CLI timings](round-1/latency-results.json).
+
+**Compatibility.** Replayed the reviewer's exact 6,588-source archive, whose
+SHA-256 is recorded in [differential-summary.json](round-1/differential-summary.json).
+Historical language crates were extracted from commits `8e30629410` and
+`7eba286ddd` under this worktree's ignored target directory and rebuilt
+against the unchanged local core/dependencies; no other host or checkout
+was modified. The same review probe compares diagnostics, notes, schema,
+program IR, result types, selection metadata and full program debug data.
+All **1,118 pre-PK accepted programs** and all **1,550 round-0 accepted
+programs** remain identical. There are zero changed accepted programs and
+no additional admissions in that corpus (the sync witnesses are separate).
+[Diff result](round-1/differential-changes.json).
+
+**Recovery and verification.** The host interruption left all edits intact.
+On resumption, `git status`/`git diff` and completed log tails were checked;
+there were no surviving PK verification processes. The retained affected
+language log completed all 282 tests (including PK, sync, intent, 113 guide,
+and NL repair tests). The differential had not run and was restarted;
+temporary reviewer binaries were unavailable, so historical probes were
+rebuilt locally. After recovery, all 27 CLI fix tests and all 9 client tests
+passed. The full suite was started anew because the refactor reaches shared
+key lowering and sync planning. It **passed: exit 0, zero failures in
+1,532 seconds**, with the required SQLite flag:
+
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash snapback4/scripts/test.sh`
+
+- Rust: **5,082 passed, 33 ignored**, including **1,491 language tests passed,
+  11 ignored**; the new PK/sync tests and all guide/intent/NL repair targets
+  passed again in this run.
+- Fixture wrappers: **9 passed**. Client pool: **324 files passed**, with
+  **6,467 tests passed and 47 skipped**. Serial models: **79 passed**.
+- Builds, docs budget, release guard and package/app typechecks passed.
+- Locked wasm rebuild: **2,117,335 B raw / 639,888 B gzip**, byte-identical
+  to round 0; cap remains **640,018 B**. No plan/catalog encoding change,
+  runtime change, new capability or macOS qualification is claimed.
+- Final reference and diff audits passed.
+
+Evidence: [full suite](round-1/full-suite.log),
+[affected language](round-1/affected-language.log),
+[CLI fixes](round-1/cli-fix.log), [clients](round-1/client.log),
+[wasm bytes and hash](round-1/wasm-comparison.json),
+[reference audit](round-1/ref-check.log). All work stayed on eb1000.
+Commit only; nothing pushed.

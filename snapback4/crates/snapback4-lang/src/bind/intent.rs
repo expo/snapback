@@ -252,6 +252,9 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let contexts = super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
     let mut requests = Requests { contexts, ..Default::default() };
+    // Resolve against declared provenance before requests add any access index.
+    let mut audiences: BTreeMap<_, _> = tables.iter().filter(|(_, table)| table.decl.sync.is_some())
+        .map(|(name, table)| (name.clone(), super::intent_sync::need(table, catalog))).collect();
     for table in catalog.tables.values_mut() {
         let original = &tables[&table.decl.name];
         for cap in &table.decl.caps {
@@ -283,7 +286,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         // An audience's content prefix must be enumerable too. The target's
         // unique key already supplies the corresponding recipient enumeration.
         if let Some(sync) = &mut table.decl.sync {
-            let need = super::intent_sync::need(original, &tables);
+            let need = audiences.remove(&table.decl.name).expect("planned sync audience");
             if let Some((target, columns)) = need.inverse {
                 // Discovery uses principal then the exact probe's group order.
                 // No pageable id suffix is needed for this bounded enumeration.
