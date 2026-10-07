@@ -219,3 +219,58 @@ fn refused_store_version_and_server_adoption_preserve_complete_store() {
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
     }
 }
+
+#[test]
+fn refused_open_preserves_uncheckpointed_database_and_wal() {
+    let host = common::Sqlite::new("refused-surviving-wal");
+    let path = host.path("store");
+    legacy_device(&path, "WAL");
+    let db = rusqlite::Connection::open(&path).unwrap();
+    db.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
+    db.execute_batch("PRAGMA wal_autocheckpoint=0; UPDATE _meta SET value='future-store' WHERE key='version';").unwrap();
+    drop(db); // Deliberately retain committed frames with no live connection.
+    let wal = std::path::PathBuf::from(format!("{}-wal", path.display()));
+    let before = (std::fs::read(&path).unwrap(), std::fs::read(&wal).unwrap());
+    assert!(before.1.len() > 32, "fixture must retain committed WAL frames");
+    let error = snapback4_core::Store::open(&path).err().expect("unsupported store");
+    assert!(error.to_string().contains("future-store"));
+    assert_eq!(std::fs::read(&path).unwrap(), before.0, "refused connection must not checkpoint");
+    assert_eq!(std::fs::read(&wal).unwrap(), before.1, "refused connection must retain WAL bytes");
+}
+
+#[test]
+fn native_open_recovery_refusals_roll_back_installation() {
+    for mode in ["WAL", "DELETE"] {
+        for refusal in ["overflow", "malformed", "native_cleanup"] {
+            let host = common::Sqlite::new("refused-open-recovery");
+            let path = host.path(refusal);
+            legacy_device(&path, mode);
+            let db = rusqlite::Connection::open(&path).unwrap();
+            if mode == "WAL" {
+                db.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true).unwrap();
+                db.execute_batch("PRAGMA wal_autocheckpoint=0").unwrap();
+            }
+            db.execute_batch("DROP TABLE _effect_steps;").unwrap();
+            if refusal == "native_cleanup" {
+                db.execute_batch("INSERT INTO _meta VALUES ('device:native','invalid');
+                    CREATE TRIGGER refuse_native_cleanup BEFORE DELETE ON _meta WHEN old.key = 'device:native'
+                    BEGIN SELECT RAISE(ABORT, 'native cleanup refused'); END;").unwrap();
+            } else {
+                db.execute_batch("INSERT INTO _meta VALUES ('device:declaration:capture','{}');").unwrap();
+                db.execute("INSERT OR REPLACE INTO _meta VALUES ('device:send_revision',?1)",
+                    [if refusal == "overflow" { "9007199254740991" } else { "invalid" }]).unwrap();
+            }
+            drop(db);
+            let before = sqlite_dump(&path);
+            let bytes = std::fs::read(&path).unwrap();
+            let wal_path = std::path::PathBuf::from(format!("{}-wal", path.display()));
+            let wal = std::fs::read(&wal_path).ok();
+            if mode == "WAL" { assert!(wal.as_ref().is_some_and(|w| w.len() > 32)); }
+            let error = snapback4_device::native::Device::open(&path, None).err().expect("recovery must refuse");
+            assert_eq!(error.code(), "E_STORE", "{refusal}: {error}");
+            assert_eq!(sqlite_dump(&path), before, "{mode}/{refusal}: no installed upgrades or metadata changes");
+            assert_eq!(std::fs::read(&path).unwrap(), bytes, "{mode}/{refusal}: unchanged database bytes");
+            assert_eq!(std::fs::read(&wal_path).ok(), wal, "{mode}/{refusal}: unchanged WAL bytes");
+        }
+    }
+}

@@ -167,6 +167,9 @@ impl Store {
                 .map_err(io)?;
         }
         let conn = Connection::open(&real)?;
+        // @ref LLP 3000.033#1.3 — even dropping a refused writable connection
+        // must preserve committed WAL frames instead of checkpointing them.
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)?;
         conn.busy_timeout(timeout)?;
         // @ref LLP 3000.013#4-following-without-caps — published watermarks must survive a power loss.
         // Delivery publishes partition watermarks as well as replayable copies.
@@ -338,7 +341,16 @@ impl Store {
         Self::check_selected_release(tx.conn(), expected_release)?;
         Self::initialize_schema(tx.conn())?;
         Self::initialize_change_evidence(tx.conn())?;
-        tx.commit()
+        tx.commit()?;
+        self.accept_open();
+        Ok(())
+    }
+
+    // Closing an accepted backend may checkpoint normally. Failure to restore
+    // this optional close-time optimization leaves the conservative setting;
+    // it must not turn a committed acceptance into a returned refusal.
+    pub(super) fn accept_open(&self) {
+        let _ = self.conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, false);
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {

@@ -33,12 +33,15 @@ impl DeviceStore for Store {
         self.install_checked(schema, metadata, reset, &BTreeMap::new())
     }
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
-        self.install_device_checked_with(schema, metadata, reset, expected, |tx| {
+        self.install_open(schema, metadata, reset, expected, |_| Ok(()))
+    }
+    fn install_open<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> {
+        self.install_device_checked_with_finish(schema, metadata, reset, expected, |tx| {
             initialize(tx.conn())?;
             let adopting = tx.meta("device:backend")?.as_ref() != metadata.get("device:backend");
             crate::sqlite_residency::install_in(tx.conn(), adopting)?;
             crate::device::reset_for_install(tx, metadata, reset)
-        })
+        }, finish)
     }
     fn witness_count(&self, table: &str) -> Result<u64, RuntimeError> { self.count(table) }
     fn residency(&mut self, schema: &Schema) -> Result<serde_json::Value, RuntimeError> {

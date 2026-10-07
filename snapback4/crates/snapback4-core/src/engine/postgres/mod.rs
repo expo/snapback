@@ -105,6 +105,18 @@ impl PostgresEngine {
                 &[&store::VERSION, &canonical_json(&schema), &canonical_json(&programs)])?;
         }
         tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?;
+        // Admission must use the backend that survived the wait for the head.
+        // A format change can leave schema/program bytes unchanged.
+        let held = tx.query("SELECT version,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
+        if held.get::<_, &str>(0) != store::VERSION {
+            return Err(RuntimeError::Store("not this Postgres evaluation store version".into()));
+        }
+        let held_schema: Schema = decode(held.get(1))?;
+        let held_programs: BTreeMap<String, Program> = decode(held.get(2))?;
+        supported(&held_schema, &held_programs)?;
+        if held_schema.hash() != schema.hash() || canonical_json(&held_programs) != canonical_json(&programs) {
+            return Err(RuntimeError::Generation("the backend changed while opening; reopen its current generation".into()));
+        }
         // Even a no-op ALTER takes an exclusive table lock. Reopening an
         // upgraded store must remain possible while another reader holds it.
         for (column, ddl) in [
@@ -113,12 +125,6 @@ impl PostgresEngine {
         ] {
             let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)", &[&column])?[0].get(0);
             if !exists { tx.batch(ddl)?; }
-        }
-        let held = tx.query("SELECT generation,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
-        let held_schema: Schema = decode(held.get(1))?;
-        let held_programs: BTreeMap<String, Program> = decode(held.get(2))?;
-        if held_schema.hash() != schema.hash() || canonical_json(&held_programs) != canonical_json(&programs) {
-            return Err(RuntimeError::Generation("the backend changed while opening; reopen its current generation".into()));
         }
         // Repeat admission under the head fence used by physical adoption.
         if let Some(row) = tx.query(

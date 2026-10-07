@@ -1,5 +1,8 @@
 # Lane RS — refusal preserves read-session storage
 
+Round-1 follow-up: [remaining refusal paths and concurrent regressions](round1/REPORT.md).
+The record below describes the initial `dbfcff9fa3` implementation.
+
 Date: 2026-10-07. Base: `641733250a8e8e35e870af6b9ff62565efd3a10b`.
 Branch: `sb4-intent/rs-read-sessions-refusal`. Work and verification stayed in
 `/home/ccheever/sb4-intent/lane-rs` on eb1000 (hostname `expose-builder-pixel`).

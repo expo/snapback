@@ -37,6 +37,12 @@ impl Store {
 
     /// Device-owned sidecar changes share the schema installation transaction.
     pub fn install_device_checked_with(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+        self.install_device_checked_with_finish(schema, metadata, reset, expected, prepare, |_| Ok(()))
+    }
+
+    /// Opening recovery and its final reads must finish before installation commits.
+    pub fn install_device_checked_with_finish<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> {
+        let mut result = None;
         self.activate(schema, None, reset, |tx, _| {
             for (key, value) in expected {
                 let held: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?;
@@ -50,8 +56,10 @@ impl Store {
                 } else { tx.set_meta(key, value)?; }
             }
             if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot;")?; }
+            result = Some(finish(tx)?);
             Ok(())
-        }).map(|_| ())
+        })?;
+        Ok(result.expect("activation ran opening recovery"))
     }
 
     pub(crate) fn activate(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, build: impl FnOnce(&Tx<'_>, bool) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
@@ -348,6 +356,7 @@ impl Store {
         catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
         self.catalog = catalog;
         self.identity = after;
+        self.accept_open();
         Ok(generation)
     }
 }

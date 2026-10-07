@@ -88873,3 +88873,41 @@ The [RS report](reports/20261007-rs-read-sessions-refusal/REPORT.md) records exa
 base-commit paths, the wider pre-refusal-write audit, all corrections and logs.
 Work stayed on eb1000 in this worktree; its private PostgreSQL cluster is stopped.
 No other host or worktree was used. Nothing was pushed or published.
+
+## 2026-10-07 — RS round 1: version race, WAL preservation and native recovery
+
+Closed the three remaining refusal gaps from Astra's round-0 review. PostgreSQL
+rechecks version, decoded schema/programs and supported-surface admission after
+acquiring the head lock, before upgrades. SQLite opening disables checkpoint on
+close before its first read and retains that setting on refusal, preserving
+committed WAL frames as well as main-file bytes. Accepted activation restores
+ordinary close behavior. Native capture recovery, send-revision checks, native
+cache validation/cleanup and final metadata reads now join installation's
+transaction; construction after commit performs no fallible storage work.
+
+Added regressions for eight attachers waiting through a version change and
+eight successful concurrent legacy attachers. Added refused-version and native
+recovery checks with surviving WAL frames, plus malformed-revision and failed
+native-cache cleanup controls. The Linux and Darwin capability tests now share
+the exact timeline-v2, recorded-attribution and maintained-column fixture
+sources; all three Linux controls compare full schema/rows and bytes in WAL and
+DELETE modes. LLP 3000.033 records the strengthened boundaries.
+
+Focused checks passed: 297 core tests (29 labelled ignores, PostgreSQL rerun
+separately), 80 device/adoption/capability tests, 31 PostgreSQL tests, and 122
+client read-only/shared-fixture tests. The full suite completed in 1,912 seconds:
+308 Rust binaries / 1,021 executions and doctests passed, as did all 79 full-count
+client model tests. The 339 client files reported 6,601 passes, one failure and
+54 labelled skips. The failure was an omitted shared `ordinary` fixture export;
+its import/export correction passed the original fence, Linux refusal and
+round4 rerun (20 passes, seven Darwin-only skips). This is a full run plus a
+corrected affected rerun, not a single-green-run receipt.
+
+Native-only source placement preserves the web implementation and embedded
+panic locations. Final wasm is byte-identical to round 0: 2,135,164 raw /
+645,264 gzip bytes, unchanged 645,564 budget. Reference, append-only and source
+limit checks pass. The user reported the prior commit's Darwin fence passed
+10/10 on the mini; this round did not use another host. The private PostgreSQL
+cluster is stopped. Nothing was pushed or published. The
+[round-1 report](reports/20261007-rs-read-sessions-refusal/round1/REPORT.md)
+retains the review dispositions, intermediate corrections and verification logs.

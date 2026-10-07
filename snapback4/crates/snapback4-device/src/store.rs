@@ -23,6 +23,16 @@ pub trait DeviceStore {
         if !expected.is_empty() { return Err(RuntimeError::Store("this device store cannot check backend adoption captures".into())); }
         self.install(schema, metadata, reset)
     }
+    /// Native durable stores override this to include recovery in installation.
+    /// The default retains the host-owned persistence boundary of custom stores.
+    #[cfg(feature = "native")]
+    fn install_open<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, finish: impl FnOnce(&Self::Tx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> {
+        self.install_checked(schema, metadata, reset, expected)?;
+        let tx = self.transaction()?;
+        let result = finish(&tx)?;
+        tx.commit()?;
+        Ok(result)
+    }
     #[cfg(not(target_arch = "wasm32"))]
     fn witness_count(&self, _table: &str) -> Result<u64, RuntimeError> {
         Err(RuntimeError::Store("this host cannot count held rows for the native witness".into()))

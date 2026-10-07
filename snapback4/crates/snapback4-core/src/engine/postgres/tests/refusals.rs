@@ -78,3 +78,65 @@ fn refused_cap_rebuild_rolls_back_every_open_upgrade() {
     assert_eq!(dump(&mut engine.store.client), before);
     engine.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
 }
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn eight_waiting_attachers_recheck_version_before_any_upgrade() {
+    use std::time::{Duration, Instant};
+    let mut engine = authority_engine();
+    let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    legacy(&mut engine.store.client);
+    engine.store.client.batch_execute("ALTER TABLE _backend DROP COLUMN generation;").unwrap();
+    engine.store.client.batch_execute("BEGIN; SELECT seq FROM _head FOR UPDATE;").unwrap();
+    let mut pids = Vec::<i32>::new();
+    let mut joins = Vec::new();
+    for _ in 0..8 {
+        let mut client = connect();
+        pids.push(client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0));
+        let name = name.clone();
+        joins.push(std::thread::spawn(move || PostgresEngine::open(client, &name).map(|_| ())));
+    }
+    let started = Instant::now();
+    loop {
+        engine.store.client.batch_execute("SELECT pg_stat_clear_snapshot()").unwrap();
+        let waiting: i64 = engine.store.client.query_one(
+            "SELECT count(*) FROM pg_stat_activity WHERE pid = ANY($1) AND wait_event_type = 'Lock' AND query LIKE 'SELECT seq FROM _head%FOR UPDATE'", &[&pids]).unwrap().get(0);
+        if waiting == 8 { break; }
+        assert!(started.elapsed() < Duration::from_secs(4), "only {waiting}/8 attachers reached the head lock");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    engine.store.client.batch_execute("UPDATE _backend SET version = 'future'").unwrap();
+    let before = dump(&mut engine.store.client);
+    engine.store.client.batch_execute("COMMIT").unwrap();
+    for join in joins {
+        let error = join.join().unwrap().expect_err("the version changed while the attacher waited");
+        assert!(error.to_string().contains("store version"), "{error}");
+    }
+    assert_eq!(dump(&mut engine.store.client), before, "all eight refusals preserve every schema object and row");
+    engine.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn eight_concurrent_legacy_attachers_succeed() {
+    use std::sync::{Arc, Barrier};
+    let mut engine = authority_engine();
+    let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    legacy(&mut engine.store.client);
+    engine.store.client.batch_execute("ALTER TABLE _backend DROP COLUMN generation;").unwrap();
+    let barrier = Arc::new(Barrier::new(8));
+    let joins: Vec<_> = (0..8).map(|_| {
+        let barrier = barrier.clone();
+        let name = name.clone();
+        std::thread::spawn(move || {
+            let client = connect();
+            barrier.wait();
+            PostgresEngine::open(client, &name).map(|_| ())
+        })
+    }).collect();
+    for join in joins { join.join().unwrap().unwrap(); }
+    for table in ["_read_sessions", "_sequences", "_cap_counts"] {
+        assert!(engine.store.client.query_one("SELECT to_regclass($1)::text", &[&table]).unwrap().get::<_, Option<String>>(0).is_some());
+    }
+    engine.store.client.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+}
