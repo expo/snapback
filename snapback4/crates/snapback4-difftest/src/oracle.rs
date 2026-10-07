@@ -1,0 +1,302 @@
+//! Full records accompany every verdict, including unsupported continuations.
+use crate::{
+    ast::*,
+    execute::{self, Outcome},
+    generate::Case,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{Value as Json, json};
+use snapback4_core::Ceilings;
+use std::collections::{BTreeMap, BTreeSet};
+
+pub const DIMENSIONS: [&str; 7] = [
+    "examined",
+    "index_entries",
+    "rule_probes",
+    "steps",
+    "heap_bytes",
+    "output_bytes",
+    "rows_written",
+];
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Rewrite {
+    Commute,
+    Identity,
+    LazyOr,
+    LazyAnd,
+    Let,
+    Declarations,
+}
+impl Rewrite {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Commute => "commute",
+            Self::Identity => "identity",
+            Self::LazyOr => "lazy-or",
+            Self::LazyAnd => "lazy-and",
+            Self::Let => "let",
+            Self::Declarations => "declarations",
+        }
+    }
+    pub fn costs(&self) -> bool {
+        !matches!(self, Self::Commute | Self::Declarations)
+    }
+    pub fn apply(&self, p: &Program) -> Option<Program> {
+        let mut q = p.clone();
+        match self {
+            Self::Declarations => q.reverse = !q.reverse,
+            Self::Let => q.bind_return = !q.bind_return,
+            Self::Commute | Self::Identity => {
+                let e = match &mut q.body {
+                    Body::Scalar(e)
+                    | Body::Write(Write::Insert | Write::Upsert | Write::Update, e) => e,
+                    _ => return None,
+                };
+                if let Expr::Binary(op, a, b) = e {
+                    if matches!(self, Self::Commute) {
+                        if !matches!(op, Bin::Add | Bin::Mul | Bin::Eq) {
+                            return None;
+                        }
+                        std::mem::swap(a, b);
+                    } else if matches!(op, Bin::Add | Bin::Mul) {
+                        *a = Box::new(Expr::Identity(a.clone()));
+                        *b = Box::new(Expr::Identity(b.clone()));
+                        q.helper = true;
+                    } else {
+                        return None;
+                    }
+                } else {
+                    return None;
+                }
+            }
+            Self::LazyOr | Self::LazyAnd => {
+                let is_or = matches!(self, Self::LazyOr);
+                if matches!(&q.body, Body::Scalar(Expr::Binary(op, left, _))
+                    if matches!((op, is_or), (Bin::Or, true) | (Bin::And, false)) && matches!(left.as_ref(), Expr::Bool(b) if *b == is_or))
+                {
+                    q.body = Body::Scalar(Expr::Bool(is_or));
+                } else if matches!(&q.body,Body::Scalar(Expr::Bool(b)) if *b==is_or) {
+                    let bad = Expr::Binary(
+                        Bin::Eq,
+                        Box::new(Expr::Assert(Box::new(Expr::Arg(
+                            "n".into(),
+                            Type::Nullable(Box::new(Type::Int)),
+                        )))),
+                        Box::new(Expr::Int(0)),
+                    );
+                    q.body = Body::Scalar(Expr::Binary(
+                        if is_or { Bin::Or } else { Bin::And },
+                        Box::new(Expr::Bool(is_or)),
+                        Box::new(bad),
+                    ));
+                } else {
+                    return None;
+                }
+            }
+        }
+        Some(q)
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Oracle {
+    Repeat,
+    Rewrite(Rewrite),
+    Meter { dimension: String, ceiling: u64 },
+}
+impl Oracle {
+    pub fn name(&self) -> String {
+        match self {
+            Self::Repeat => "repeat".into(),
+            Self::Rewrite(r) => format!("rewrite-{}", r.name()),
+            Self::Meter { .. } => "meter".into(),
+        }
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Finding {
+    pub signature: String,
+    pub oracle: Oracle,
+    pub field: String,
+    pub left: Outcome,
+    pub right: Outcome,
+    pub continuation: Vec<Outcome>,
+}
+#[derive(Clone, Debug)]
+pub enum Verdict {
+    Pass,
+    Unsupported(String),
+    Disagree(Finding),
+}
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+pub struct Counts {
+    pub attempted: u64,
+    pub passed: u64,
+    pub unsupported: BTreeMap<String, u64>,
+    pub disagreeing: u64,
+    pub signatures: BTreeMap<String, u64>,
+    pub meter_fields_omitted: u64,
+}
+impl Counts {
+    pub fn record(&mut self, v: &Verdict) {
+        self.attempted += 1;
+        match v {
+            Verdict::Pass => self.passed += 1,
+            Verdict::Unsupported(s) => *self.unsupported.entry(s.clone()).or_default() += 1,
+            Verdict::Disagree(f) => {
+                self.disagreeing += 1;
+                *self.signatures.entry(f.signature.clone()).or_default() += 1;
+            }
+        }
+    }
+}
+fn class(o: &Outcome) -> String {
+    if let Some(r) = o.refusal() {
+        return r["code"].as_str().unwrap_or("refusal").to_owned();
+    }
+    match o.data() {
+        Some(Json::Object(v)) => v
+            .keys()
+            .next()
+            .map(String::as_str)
+            .unwrap_or("object")
+            .to_lowercase(),
+        Some(Json::Array(_)) => "array".into(),
+        Some(Json::Null) => "null".into(),
+        Some(Json::Bool(_)) => "bool".into(),
+        Some(Json::Number(_)) => "number".into(),
+        _ => "value".into(),
+    }
+}
+pub fn disagreement(
+    oracle: &Oracle,
+    field: &str,
+    left: Outcome,
+    right: Outcome,
+    continuation: Vec<Outcome>,
+) -> Verdict {
+    Verdict::Disagree(Finding {
+        signature: format!(
+            "{}--{}--{}",
+            oracle.name(),
+            field.replace('_', "-"),
+            class(&right)
+        ),
+        oracle: oracle.clone(),
+        field: field.into(),
+        left,
+        right,
+        continuation,
+    })
+}
+pub fn field(a: &Outcome, b: &Outcome, omit_meter: bool) -> Option<String> {
+    if a.kind != b.kind {
+        return Some("kind".into());
+    }
+    let keys: BTreeSet<_> = a
+        .value
+        .as_object()
+        .unwrap()
+        .keys()
+        .chain(b.value.as_object().unwrap().keys())
+        .collect();
+    // Data and the complete refusal envelope always precede bookkeeping.
+    for key in ["data", "result", "refusal", "why"]
+        .into_iter()
+        .chain(keys.into_iter().map(String::as_str))
+    {
+        if omit_meter && key == "metered" {
+            continue;
+        }
+        if a.value.get(key) != b.value.get(key) {
+            return Some(key.into());
+        }
+    }
+    None
+}
+pub fn rewrite(case: &Case, r: &Rewrite, source: &str) -> Result<(Verdict, u64), String> {
+    if r.apply(&case.program).is_none() {
+        return Ok((Verdict::Unsupported("rewrite-not-applicable".into()), 0));
+    }
+    let mut left = execute::engine(case, source)?;
+    let a = execute::execute(&mut left, case, "run", &case.args);
+    rewrite_against(case, r, &mut left, &a).map(|(v, n)| (v, n + 1))
+}
+
+/// Reuse the unchanged original world's outcome across independent rewrites.
+/// The only subsequent calls on that world are queries; each right world is fresh.
+pub fn rewrite_against(
+    case: &Case,
+    r: &Rewrite,
+    left: &mut snapback4_core::Engine,
+    a: &Outcome,
+) -> Result<(Verdict, u64), String> {
+    let oracle = Oracle::Rewrite(r.clone());
+    let Some(program) = r.apply(&case.program) else {
+        return Ok((Verdict::Unsupported("rewrite-not-applicable".into()), 0));
+    };
+    let mut right = execute::engine(case, &program.source())?;
+    let b = execute::execute(&mut right, case, "run", &case.args);
+    let mapped = crate::sites::corresponding(left, &right, &b);
+    if let Some(f) = field(a, &mapped, r.costs()) {
+        return Ok((disagreement(&oracle, &f, a.clone(), b, vec![]), 1));
+    }
+    let mut executions = 1;
+    if matches!(case.program.body, Body::Write(..)) {
+        let x = execute::execute(left, case, "observe", &case.args);
+        let y = execute::execute(&mut right, case, "observe", &case.args);
+        executions += 2;
+        if let Some(f) = field(&x, &y, false) {
+            return Ok((
+                disagreement(&oracle, &format!("post-{f}"), x, y, vec![a.clone(), b]),
+                executions,
+            ));
+        }
+    }
+    Ok((Verdict::Pass, executions))
+}
+
+pub fn ceiling(dimension: &str, n: u64) -> Ceilings {
+    let mut c = serde_json::to_value(Ceilings::unbounded()).unwrap();
+    c[dimension] = json!(n);
+    serde_json::from_value(c).unwrap()
+}
+pub fn reproduce(case: &Case, source: &str, oracle: &Oracle) -> Result<Verdict, String> {
+    match oracle {
+        Oracle::Repeat => repeat(case, source).map(|v| v.0),
+        Oracle::Rewrite(r) => rewrite(case, r, source).map(|v| v.0),
+        Oracle::Meter {
+            dimension,
+            ceiling: n,
+        } => {
+            let mut e = execute::engine(case, source)?;
+            e.set_ceilings(Ceilings::unbounded());
+            let baseline = execute::execute(&mut e, case, "run", &case.args);
+            if baseline.refusal().is_some() {
+                return Ok(Verdict::Unsupported("uncut-refusal".into()));
+            }
+            Ok(crate::meter::check(case, &mut e, &baseline, dimension, *n).0)
+        }
+    }
+}
+
+pub fn repeat(case: &Case, source: &str) -> Result<(Verdict, u64), String> {
+    let mut left = execute::engine(case, source)?;
+    let mut right = execute::engine(case, source)?;
+    let a = execute::execute(&mut left, case, "run", &case.args);
+    let b = execute::execute(&mut right, case, "run", &case.args);
+    if let Some(f) = field(&a, &b, false) {
+        return Ok((disagreement(&Oracle::Repeat, &f, a, b, vec![]), 2));
+    }
+    if matches!(case.program.body, Body::Write(..)) {
+        let x = execute::execute(&mut left, case, "observe", &case.args);
+        let y = execute::execute(&mut right, case, "observe", &case.args);
+        if let Some(f) = field(&x, &y, false) {
+            return Ok((
+                disagreement(&Oracle::Repeat, &format!("post-{f}"), x, y, vec![a, b]),
+                4,
+            ));
+        }
+        return Ok((Verdict::Pass, 4));
+    }
+    Ok((Verdict::Pass, 2))
+}

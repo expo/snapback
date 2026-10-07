@@ -1,0 +1,47 @@
+✔ device: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (2654.468613ms)
+✔ device: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (191.414081ms)
+✔ device: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (175.254808ms)
+✔ device: account fences cached arms, observations and late server data (265.647946ms)
+✔ device: logout fences cached arms, observations and late server data (122.058337ms)
+✔ device: close fences cached arms, observations and late server data (201.949708ms)
+✔ device: offline drops signals, refuses snapshots/actions; observed reads recover without replay (170.808415ms)
+✔ device: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (90.897484ms)
+✔ device: failed account opening restores a new arm without reviving the old exposed handle (185.496034ms)
+✔ device: an old action response cannot retry under the replacement credential or sign out its owner (191.028674ms)
+✔ device: renewal reuse never crosses arm retirement (181.799285ms)
+✔ online: owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (189.03034ms)
+✔ online: rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (180.411135ms)
+✔ online: rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (171.578209ms)
+✔ online: account fences cached arms, observations and late server data (190.561865ms)
+✔ online: logout fences cached arms, observations and late server data (103.114732ms)
+✔ online: close fences cached arms, observations and late server data (211.248022ms)
+✔ online: offline drops signals, refuses snapshots/actions; observed reads recover without replay (169.720937ms)
+✔ online: no-device app reuses its own client (readOnly=false) and obeys shared logout (178.301214ms)
+✔ online: no-device app reuses its own client (readOnly=true) and obeys shared logout (179.01294ms)
+✔ online: an arm waiting for shared authority cannot dispatch after synchronous logout fencing (90.920288ms)
+✔ online: failed account opening restores a new arm without reviving the old exposed handle (179.602363ms)
+✔ online: an old action response cannot retry under the replacement credential or sign out its owner (177.365181ms)
+✔ online: renewal reuse never crosses arm retirement (166.009195ms)
+✖ online: an action auth retry keeps its originating arm while waiting for shared rotation (122111.967619ms)
+✔ online: retired observations do not share queued work with the new arm or app client (180.574101ms)
+✔ online: an action waiting for the shared refresh cannot use its replacement credential (159.350836ms)
+✔ online: no-device: storage-awaited signal cannot dispatch its retired bearer (157.636317ms)
+✔ online: no-device: queued signal cannot send as the old account during replacement (75.032004ms)
+✔ retirement bounds an unresponsive action drain and preserves its pending ID (1.110875ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 129426.618319
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-online-arm.test.mjs:48:38
+✖ online: an action auth retry keeps its originating arm while waiting for shared rotation (122111.967619ms)
+  Error: TEST_HANG: condition; 1 work unit(s), 121999 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

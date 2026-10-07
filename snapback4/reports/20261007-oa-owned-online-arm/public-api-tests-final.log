@@ -1,0 +1,18 @@
+✔ generated ephemeral API and React preserve disjoint mutation outcomes (3312.169821ms)
+✔ README TypeScript examples compile and call every public function (2588.873609ms)
+ℹ 42 README blocks; 56 public functions; 2586.81 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (12.196675ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (15.950672ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (9.574384ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (7.342938ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (27.087889ms)
+✔ client card composer disables only denied or fresh non-revalidating absent membership (16.54942ms)
+✔ profile screen waits for proven existence and uses each replacement (2.644715ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3742.921334

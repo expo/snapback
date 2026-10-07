@@ -27,21 +27,25 @@
     "count": 3,
     "sha256": "7b69513a6cbbd9fc7526d1205d3b02976cb52c3e9c95f6f03d7dc6329c93b4e1"
   },
+  "app-online-arm.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "app-online.ts": {
     "count": 22,
     "sha256": "8c17fcad51caeace6a22452fc93b1ff800c9dff6a357d30f204e983cc56ed4d2"
   },
   "app-revocations.ts": {
-    "count": 28,
-    "sha256": "64804de083ed14408477e041e58151d3eb8462b631f3a754e4080490b277b6ce"
+    "count": 32,
+    "sha256": "9b9978b2c54c3233b56e3d530997764874f901664a70b95e3b41e8fec4240a06"
   },
   "app-storage.ts": {
     "count": 2,
     "sha256": "32a1eed42a561749fc32c3c9a94d656318730b40b909b710d6a6228f1797ddfe"
   },
   "app.ts": {
-    "count": 74,
-    "sha256": "9f44129ad525bb81db278420e9b1b4c6fe56118c8ed3e770d9f215c5589dddaa"
+    "count": 79,
+    "sha256": "508b131e7cb87c31215b8b963968b7d44285fe87814a84e61bc01f251e7fced5"
   },
   "asset-download.ts": {
     "count": 9,
@@ -52,8 +56,8 @@
     "sha256": "d49c3158c3cd835904dda0079ae8256a3c6e52f251c8898e8e3894d8bc229510"
   },
   "auth.ts": {
-    "count": 11,
-    "sha256": "ed8f1f0ce04f21ea953a58a08fd8ba476b89a9b459a1e5eacff7af3d4ab7a5fa"
+    "count": 13,
+    "sha256": "31a872d064e6cca5b0fca97d6499c882f4b1caa462699b62a8027698871ac364"
   },
   "backend.ts": {
     "count": 0,
@@ -72,8 +76,8 @@
     "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
   },
   "client.ts": {
-    "count": 59,
-    "sha256": "491e3e0f0d40ecfdf59a3826d573e87606479e69594e69a5c84e220ba58fd3af"
+    "count": 62,
+    "sha256": "ad440d009d0719c4d3007f615e98565cf876fac8a1c764fdf7d7c4dd9544bc36"
   },
   "clock.ts": {
     "count": 7,
@@ -117,7 +121,7 @@
   },
   "ephemeral.ts": {
     "count": 4,
-    "sha256": "add5087a9c664068cb4fc3d8d3a0705f5c591ee65258387d11c00e0cc7f104d6"
+    "sha256": "f40c7e093c24eaa1b019878b879217c8dec3b238869f352e725174423b683d64"
   },
   "http-response.ts": {
     "count": 6,
@@ -243,6 +247,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "online-arm-fence.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "online-delivery.ts": {
     "count": 4,
     "sha256": "6c8304f2530c9c402efc35239278c27f952be03b80b77fbabc81400ee325f2e4"
@@ -310,6 +318,14 @@
   "read-observation.ts": {
     "count": 3,
     "sha256": "2b8542cc2c44eba20a1ba57d01ddfb2257ae6b799dc80aaf8d1b45faf46b4944"
+  },
+  "read-only.ts": {
+    "count": 2,
+    "sha256": "e4ae79b53eda509b55659ccf3f74d67c18aebb72ab5aaa4578f338a5167052ca"
+  },
+  "read-token.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "read-work.ts": {
     "count": 0,

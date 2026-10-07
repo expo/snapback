@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { Client, Read, ResultOf } from "snapback4/contract";
+import type { Read, ResultOf } from "snapback4/contract";
+import type { Online } from "snapback4/app";
 import { api } from "../snapback/generated/api";
 
 // @ref LLP 3000.028#8 — signals belong to a mounted, signed-in online arm.
-export function useTyping(online: Client | null, conversation: string) {
+export function useTyping(online: Online | null, conversation: string) {
   const [read, setRead] = useState<Read<ResultOf<typeof api.typingIn>>>({ loading: true });
   const controls = useRef({ change: (_text: string) => {}, stop: () => {} });
   useEffect(() => {

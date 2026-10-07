@@ -16,6 +16,8 @@ fn read_session(row: &postgres::Row) -> SessionRecord {
         kind: row.get(2),
         digest: row.get(3),
         expires_at: row.get(4),
+        scope: if row.get::<_, i32>(5) == 1 { crate::identity::SessionScope::Read } else { crate::identity::SessionScope::Full },
+        cap_expires_at: row.get(6), principal_generation: row.get(7),
     }
 }
 
@@ -48,7 +50,7 @@ impl AuthorityTransaction for Tx<'_> {
     fn session_by_digest(&self, digest: &str) -> Result<Option<SessionRecord>, RuntimeError> {
         Ok(self
             .query(
-                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at FROM _sessions WHERE token_digest = $1",
+                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1",
                 &[&digest],
             )?
             .first()
@@ -63,7 +65,7 @@ impl AuthorityTransaction for Tx<'_> {
     ) -> Result<Option<SessionRecord>, RuntimeError> {
         Ok(self
             .query(
-                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 ORDER BY expires_at DESC LIMIT 1",
+                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC LIMIT 1",
                 &[&principal, &family, &now],
             )?
             .first()
@@ -84,6 +86,7 @@ impl AuthorityTransaction for Tx<'_> {
     fn invalidate_session(&self, digest: &str) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence()?;
         self.execute("DELETE FROM _sessions WHERE token_digest = $1", &[&digest])?;
+        self.execute("DELETE FROM _read_sessions WHERE token_digest = $1", &[&digest])?;
         Ok(())
     }
 
@@ -93,6 +96,7 @@ impl AuthorityTransaction for Tx<'_> {
             "DELETE FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2",
             &[&principal, &family],
         )?;
+        self.execute("DELETE FROM _read_sessions WHERE principal = $1 AND family = $2", &[&principal, &family])?;
         Ok(())
     }
 }

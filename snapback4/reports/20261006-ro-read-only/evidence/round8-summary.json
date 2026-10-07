@@ -1,0 +1,65 @@
+{
+  "mergeCommit": "92cd5ddd9bddbb5df04d2eff118c050199f35054",
+  "fullSuiteExit": 0,
+  "elapsedSeconds": 2116,
+  "rust": {
+    "binaries": 308,
+    "executions": 1021,
+    "workspaceDoctests": "pass",
+    "guideTests": 113,
+    "cliCheckTests": 89,
+    "cliUnitTests": 327,
+    "cliUnitIgnored": 4
+  },
+  "clients": {
+    "tests": 6653,
+    "pass": 6599,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 54,
+    "todo": 0
+  },
+  "readOnly": {
+    "passed": 119,
+    "skipped": 0,
+    "publishedDowngradeControl": "passed"
+  },
+  "appTests": 78,
+  "deliveryMatrixTests": 339,
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "skipped": 0,
+    "onlineHistories": 5000,
+    "localHistories": 5000,
+    "onlineClientSequences": 3000
+  },
+  "wasm": {
+    "rawBytes": 2135164,
+    "gzipBytes": 645264,
+    "budgetBytes": 645564
+  },
+  "postgresFeatureCheck": "pass",
+  "trackedVerificationInputs": 1998,
+  "verificationInputsUnchanged": true,
+  "journalMainPlusPureAppend": true,
+  "inventories": {
+    "main": "8e530ff2419387cb97ff841b4a2aa8b7828c7229",
+    "merged": "92cd5ddd9bddbb5df04d2eff118c050199f35054",
+    "exit": 1,
+    "byteIdenticalLogs": true,
+    "bytes": 5774,
+    "sha256": "476130166ca87a571c2308c0955b443a3cfaaab6d579d57e3c1143514c71e351",
+    "failureGroups": [
+      "[check-inventories] FAIL scripts-test",
+      "[check-inventories] FAIL demo-catalog",
+      "[check-inventories] FAIL guide-manifest"
+    ]
+  },
+  "references": {
+    "documents": 530,
+    "references": 11104,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

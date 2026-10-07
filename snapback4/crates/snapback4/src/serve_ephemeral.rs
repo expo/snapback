@@ -130,7 +130,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         }
     };
     let principal = match principal_of(&request, shared) {
-        Ok(p) => p,
+        Ok(p) => p.0,
         Err(e) => return failed(request, e),
     };
     // A name may have been durable in a previous generation. Receipt custody

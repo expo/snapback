@@ -577,11 +577,11 @@ route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry bod
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
 
-## Left out on purpose, and the idiom
+## Left out on purpose and idioms
 
 Cards: `snapback4 guide <keyword>` — app, social, from-sql, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire, ephemeral, sequences,
 assets, client, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, routes, services, presence, receipts, manual-receipts, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 
 ## An ID belongs to one intent

@@ -1,0 +1,56 @@
+✔ owned server snapshot bypasses the device horizon and exports no credential or lifetime surface (212.402909ms)
+queued-after-retirement {
+  outcome: {
+    state: 'failed',
+    id: '01M4AZWCV28NN70NF6E7AQVR67',
+    why: {
+      code: 'E_AUTH',
+      family: 'auth',
+      message: 'the stored session changed in another app',
+      site: 'app.auth',
+      rewrite: 'await app.auth.login(email, password)'
+    }
+  },
+  dispatchCount: 1
+}
+✔ rotation drains dispatched mutate, fences waiting/new calls and keeps the app signed in (199.168836ms)
+✔ rotation drains dispatched act, fences waiting/new calls and keeps the app signed in (187.16052ms)
+retired-bearer-dispatch {
+  oldBearerDispatches: 0,
+  outcome: {
+    state: 'failed',
+    id: '01M4AZWD77TE7DMZRSK7V17G1A',
+    why: {
+      code: 'E_AUTH',
+      family: 'auth',
+      message: 'the stored session changed in another app',
+      site: 'app.auth',
+      rewrite: 'await app.auth.login(email, password)'
+    }
+  }
+}
+✔ no-device: storage-awaited signal cannot dispatch its retired bearer (177.505033ms)
+account-replacement {
+  sends: 1,
+  oldAccountWhileHidden: 0,
+  outcome: {
+    state: 'failed',
+    id: '01M4AZWDCFYTYYNB8XJ8DK3RK4',
+    why: {
+      code: 'E_AUTH',
+      family: 'auth',
+      message: 'the stored session changed in another app',
+      site: 'app.auth',
+      rewrite: 'await app.auth.login(email, password)'
+    }
+  }
+}
+✔ no-device: queued signal cannot send as the old account during replacement (85.703284ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 990.047455

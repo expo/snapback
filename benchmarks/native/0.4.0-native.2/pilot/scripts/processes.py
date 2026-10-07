@@ -95,30 +95,26 @@ class ProcessOwner:
                     if key in sent: continue
                     # Recheck identity immediately before signalling; do not trust a saved PID.
                     current = process_table().get(pid)
-                    if current is None or current['started'] != row['started']: continue
+                    if current is None or current['started'] != row['started'] or current['state'].startswith('Z'): continue
                     record(receipt, kind='signal', signal=int(sig), **row)
-                    try: os.kill(pid, sig)
-                    except ProcessLookupError: pass
-                    sent.add(key)
+                    if signal_owned(os.kill, pid, sig): sent.add(key)
                 if not live or time.monotonic() >= deadline: break
                 time.sleep(.1)
             if not live: break
         remaining = self.sample()
         if remaining:
             record(receipt, kind='cleanup-failed', remaining=list(remaining.values()))
-            raise RuntimeError('builder-process-cleanup-incomplete')
+            raise HarnessDefect('builder-process-cleanup-incomplete')
         # CoreSimulator services are launchd children, not builder descendants.
-        # The serial mini lease scopes newly booted devices; preserve all baseline
-        # devices and the dedicated pilot device even if the builder booted it.
+        # A new boot since our baseline is not ownership evidence. The operator
+        # is authorized for UDID only; preserve every other device, even on a
+        # shared host where another session boots one during a builder run.
         targets = simulator_targets(self.state['simulatorsBefore'], booted_simulators())
         for device in targets:
-            record(receipt, kind='simulator-shutdown', udid=device)
-            subprocess.run(['xcrun', 'simctl', 'shutdown', device], check=True, capture_output=True, timeout=60)
-        remaining_simulators = simulator_targets(self.state['simulatorsBefore'], booted_simulators())
-        if remaining_simulators: raise RuntimeError('builder-simulator-cleanup-incomplete')
+            record(receipt, kind='unowned-simulator-preserved', udid=device)
         if process is not None: process.wait(timeout=5)
-        record(receipt, kind='cleanup-complete', signalled=len(sent), simulators=targets)
-        return {'complete': True, 'signalled': len(sent), 'simulators': targets}
+        record(receipt, kind='cleanup-complete', signalled=len(sent), simulators=[], preservedSimulators=targets)
+        return {'complete': True, 'signalled': len(sent), 'simulators': [], 'preservedSimulators': targets}
 
     @classmethod
     def resume(cls, logs):

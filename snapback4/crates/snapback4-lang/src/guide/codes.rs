@@ -1,4 +1,11 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_READ_ONLY", "this read session cannot write; use a full session for writes; guide read-only."),
+    ("E_READ_ONLY_REFRESH", "the SDK does not refresh read sessions; sign in again or narrow a full session again; guide read-only."),
+    ("E_READ_ONLY_CREDENTIAL", "readOnly needs a server-verified read session, without a persona; sign in with scope read or narrow a full session; guide read-only."),
+    ("E_READ_ONLY_DEVICE", "a read session cannot open a device; use the online read-only client; guide read-only."),
+    ("E_READ_ONLY_UNSUPPORTED", "the server cannot verify read sessions; upgrade the server before using readOnly; guide read-only."),
+    ("E_ASSET_READ_ONLY", "this read session cannot consume a view-once asset; the full non-ranged request would have returned bytes and consumed the view; guide read-only."),
+
     ("E_QUARRY_RULE_HOP", "write rules and after insert keys allow at most three live authorized reference hops. Private/maintained fields and ephemeral targets refuse; the located rewrite binds the actual parents and requires the predicate in the mutation. Read authority uses read through; guide rules."),
     ("E_JOB_VIEWER_CONTEXT", "as belongs inside a server job sweep and cannot nest. Put as recipient.principal: inside the recipient loop; guide jobs."),
     ("E_JOB_VIEWER_PRINCIPAL", "as needs a present non-system principal. Use a principal column or argument; keep intentional system reads outside as; guide jobs."),

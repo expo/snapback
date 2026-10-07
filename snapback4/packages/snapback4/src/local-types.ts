@@ -1,4 +1,8 @@
 import type { Refusal } from "./contract.ts";
+import type { evaluateLocal } from "./local-query.ts";
+
+// @ref LLP 3000.028#3.3.1 — publication preserves the evaluator's required value deadlines.
+export type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & { incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined };
 
 export interface Queued {
   id: string;

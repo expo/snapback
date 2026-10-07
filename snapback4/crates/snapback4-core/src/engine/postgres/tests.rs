@@ -425,3 +425,29 @@ fn row_keyed_views_need_the_sqlite_background_runner() {
     let error=supported(&schema,&BTreeMap::new()).unwrap_err();
     assert_eq!(error.code(),"E_VIEW_KEY");assert!(error.to_string().contains("background recount"));
 }
+
+// @ref LLP 3000.033#3 — stored read authority must survive the adapter mapping.
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn read_authority_preserves_scope_cap_and_generation() {
+    use crate::{authority::live_session, identity::SessionScope};
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.execute("INSERT INTO _principal_generations VALUES ('bob',2)", &[]).unwrap();
+    tx.execute("INSERT INTO _read_sessions VALUES ('read','bob','member','read-family',0,100,50,2)", &[]).unwrap();
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    let session = live_session(&tx, "read", 49).unwrap().unwrap();
+    assert_eq!(session.scope, SessionScope::Read);
+    assert_eq!(session.cap_expires_at, Some(50));
+    assert_eq!(session.principal_generation, Some(2));
+    assert_eq!(tx.latest_live_family_member("bob", "read-family", 49).unwrap().unwrap().scope, SessionScope::Read);
+    assert!(live_session(&tx, "read", 50).unwrap().is_none());
+    tx.rollback().unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.execute("UPDATE _principal_generations SET generation=3 WHERE principal='bob'", &[]).unwrap();
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    assert!(live_session(&tx, "read", 49).unwrap().is_none());
+    tx.rollback().unwrap();
+}

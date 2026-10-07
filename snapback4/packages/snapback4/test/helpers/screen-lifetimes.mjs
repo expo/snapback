@@ -20,7 +20,7 @@ export async function screen(t) {
  emit('recipe.jsx',readFileSync(join(starter,'BoundedConversation.tsx'),'utf8'));
  emit('useForeground.js',readFileSync(join(pilot,'after/useForeground.ts'),'utf8'));
  for(const name of ['before','after']) emit(name+'.jsx',readFileSync(join(pilot,name,'chat.tsx'),'utf8'));
- for(const name of ['Conversation.tsx','QuotedMessage.tsx','useJumpToMessage.ts','useOnceMedia.ts','PageLifetime.ts','intents.ts','useOnlineArm.ts','useTyping.ts']) emit(name.replace(/\.tsx?$/,'.js'),readFileSync(join(starter,name),'utf8'));
+ for(const name of ['Conversation.tsx','QuotedMessage.tsx','useJumpToMessage.ts','useOnceMedia.ts','PageLifetime.ts','intents.ts','useTyping.ts']) emit(name.replace(/\.tsx?$/,'.js'),readFileSync(join(starter,name),'utf8'));
  writeFileSync(join(dir,'intent-store.js'),'export const intentStorage={};');
  writeFileSync(join(dir,'ui.jsx'),`export const PhotoPicker=()=>null;`);
  writeFileSync(join(dir,'native.jsx'),`import React,{act,createElement as h,useEffect,useLayoutEffect,useRef,useImperativeHandle,forwardRef} from 'react';

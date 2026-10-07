@@ -1,5 +1,5 @@
 """Packet custody and bounded process helpers. No import has launch side effects."""
-import fcntl, hashlib, json, os, platform, signal, socket, stat, subprocess, time
+import errno, fcntl, hashlib, json, os, platform, signal, socket, stat, subprocess, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,26 +66,51 @@ def free_ports(backend):
             s.settimeout(.2)
             if s.connect_ex(('127.0.0.1', port)) == 0: raise RuntimeError('occupied-port:' + str(port))
 
-def stop(p):
+class HarnessDefect(RuntimeError):
+    """Operator/instrument failure, never evidence of a builder refusal."""
+
+def cleanup_call(errors, name, action):
+    """A finally clause records cleanup separately; it never replaces its result."""
+    try: return action()
+    except BaseException as error:
+        errors.append({'operation': name, 'reason': str(error),
+                       'type': type(error).__name__, 'outcomeClass': 'operator-setup'})
+
+def require_cleanup(errors):
+    if errors: raise HarnessDefect('cleanup-incomplete:' + json.dumps(errors))
+
+def signal_owned(send, pid, sig):
+    """ESRCH/EPERM are races, not proof of exit. The caller must recheck life."""
+    try: send(pid, sig)
+    except OSError as error:
+        if error.errno not in (errno.ESRCH, errno.EPERM): raise
+        return False
+    return True
+
+def stop(p, grace=10, kill_grace=5, group=True):
     if p is None: return
     from processes import process_table
     # A leader can exit before a TERM-resistant child. Wait for the entire
     # group we created, and escalate even when p.wait() already succeeded.
-    for sig, seconds in [(signal.SIGTERM, 10), (signal.SIGKILL, 5)]:
+    def live():
+        p.poll()
+        return [r for r in process_table().values()
+                if (r['pgid'] == p.pid if group else r['pid'] == p.pid)
+                and not r['state'].startswith('Z')]
+    for sig, seconds in [(signal.SIGTERM, grace), (signal.SIGKILL, kill_grace)]:
         deadline = time.monotonic() + seconds
         while True:
-            p.poll()
-            members = [r for r in process_table().values()
-                       if r['pgid'] == p.pid and not r['state'].startswith('Z')]
+            members = live()
             if not members: p.wait(timeout=5); return
-            try: os.killpg(p.pid, sig)
-            except ProcessLookupError: pass
+            signal_owned(os.killpg if group else os.kill, p.pid, sig)
             if time.monotonic() >= deadline: break
             time.sleep(.1)
-    raise RuntimeError('owned-process-group-cleanup-incomplete:' + str(p.pid))
+    # Include the race on the final escalation, even with a zero grace period.
+    if not live(): p.wait(timeout=5); return
+    raise HarnessDefect('owned-process-group-cleanup-incomplete:' + str(p.pid))
 
 def run(argv, cwd, out, env=None, timeout=3600):
-    start = time.time(); p = None; code = None; error = None
+    start = time.time(); p = None; code = None; error = None; cleanup = []
     with Path(out).open('xb') as f:
         try:
             p = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
@@ -94,12 +119,14 @@ def run(argv, cwd, out, env=None, timeout=3600):
             code = p.wait(timeout=timeout)
         except BaseException as e: error = e
         finally:
-            stop(p)
+            cleanup_call(cleanup, 'command-process', lambda: stop(p))
             if p is not None and code is None: code = p.returncode
     put(str(out) + '.json', {'argv': argv, 'cwd': str(cwd), 'start': start, 'end': time.time(),
                             'wallSeconds': time.time() - start, 'exitCode': code,
-                            'pid': p.pid if p else None, 'error': str(error) if error else None})
+                            'pid': p.pid if p else None, 'error': str(error) if error else None,
+                            'cleanupErrors': cleanup})
     if error: raise error
+    require_cleanup(cleanup)
     if code: raise RuntimeError('command-failed:' + str(out))
 
 def clone(source, target, receipt):

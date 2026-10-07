@@ -1,0 +1,51 @@
+{
+  "reviewer": "GPT-6 Astra (Lane P3)",
+  "reviewDate": "2026-10-07",
+  "method": "Decoded every frame sequentially; visually inspected all 21 contact sheets per movie without temporal subsampling, plus full-resolution failure.png. Inspected all native-tree records via complete selector/identity/geometry census. Contact sheets are review aids; original video/trees and decoded-pixel hashes remain authoritative.",
+  "videos": [
+    {
+      "video": "startup-ios-screen.mp4",
+      "sha256": "a759836f6a3f3042192373fc178fd4b81fbf0f773e909a85206e5fca4ffadcb7",
+      "declaredFrames": 2028,
+      "decodedFrames": 2028,
+      "everyFrameIncluded": true,
+      "pages": [
+        "sheet-000.jpg",
+        "sheet-001.jpg",
+        "sheet-002.jpg",
+        "sheet-003.jpg",
+        "sheet-004.jpg",
+        "sheet-005.jpg",
+        "sheet-006.jpg",
+        "sheet-007.jpg",
+        "sheet-008.jpg",
+        "sheet-009.jpg",
+        "sheet-010.jpg",
+        "sheet-011.jpg",
+        "sheet-012.jpg",
+        "sheet-013.jpg",
+        "sheet-014.jpg",
+        "sheet-015.jpg",
+        "sheet-016.jpg",
+        "sheet-017.jpg",
+        "sheet-018.jpg",
+        "sheet-019.jpg",
+        "sheet-020.jpg"
+      ]
+    }
+  ],
+  "treeCount": 23,
+  "treeIndexSha256": "028f39818b4f304f0b820ff6b03d8fc61794234c33577ebe0aa177296a01cb56",
+  "allFramesInspected": true,
+  "allTreesInspected": true,
+  "observations": [
+    "Home/launch, ordinary Alice sign-in, OS password-save dismissal, direct chat, scroll to the fixture history row and back are visible.",
+    "The ordinary fixture row renders text but no image or media pressable. The view-once pill is visibly unopened. No ordinary viewer appears.",
+    "No duplicate visible message IDs in any captured tree. All chat trees expose 29 row identities and 6 or 7 visible rows; this does not by itself prove the later cold/offline recycling assertions.",
+    "No sm-convo-receipt, sm-convo-media or sm-convo-viewonce child selector exists anywhere in these trees. Ordinary and view-once parent rows are hittable in the final tree.",
+    "The sole entered native phase is prime. No cold launch, queued-message, reconnect/drain, viewer consumption, search-clear or native M8 assertion was reached."
+  ],
+  "driverAgreement": "Supports selector-not-hittable for the ordinary image, with application attribution and unmeasured native assertions. Missing receipt/view-once exposure and ordinary viewer instrumentation are additional unexercised wiring findings, not failed assertions.",
+  "videoLimitation": "Driver separately records invalid-startup-video:video-endpoint-uncovered. All encoded frames decode; complete wall-clock endpoint coverage is not claimed.",
+  "negativeControls": "No false pass or contradiction of a qualified rejection observed. Prime stops before the receipt/media/cold/reconnect assertions, so these application runs do not re-establish those controls."
+}

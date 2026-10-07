@@ -36,18 +36,22 @@ the provider call and `doctor` shows the worker's state.
 
 ## Typing on the online arm
 
-`createApp` owns session, replica and rotation. Mount this bearer-borrowing arm only for the signed-in screen; close on session change. Use only generated ephemeral operations.
-
-```ts
-// src/useOnlineArm.ts
-"##, include_str!("../../../snapback4/src/verbs/init/social/useOnlineArm.ts"), r##"```
+`createApp` owns session, replica and online access. `const online = useOnline()` from `snapback4/react` follows rotation/account changes under AppProvider; never borrow a bearer. `useTyping(online, conversation)` uses only ephemeral mutations.
 
 The hook owns observations/renewals. Call change on keystrokes; stop on send, blur or backgrounding. Unmount/identity change dispose it. Disconnect cancels renewal; reconnect needs a new keystroke.
-Four-second expiry covers failed cleanup, suspension and revoked membership. Keep membership checks in insert/update rules. Signals fail offline, never enter the durable outbox or replay. Hints never gate history/composer.
+Four-second expiry covers failed cleanup, suspension, revoked membership and credential retirement: a retired arm cannot send stopTyping or borrow the next account. Ordinary unmount can still send it. Keep membership checks in insert/update rules. Signals fail offline, never enter the durable outbox or replay. Hints never gate history/composer.
 
 ```ts
 // src/useTyping.ts
 "##, include_str!("../../../snapback4/src/verbs/init/social/useTyping.ts"), r##"```
+
+## A server snapshot (Trending-style)
+
+Use `app.online.query` or `useOnline().query` when the screen needs a server snapshot independent of replica acquisition and pending predictions. It settles ready/denied (`E_OFFLINE` when disconnected); Refresh retries after reconnect. It does not include device predictions, and ordinary read completeness/cuts still apply. In read-only apps this uses the existing verified client without writes or refresh.
+
+```tsx
+// src/TrendingSnapshot.tsx
+"##, include_str!("../../../snapback4/src/verbs/init/social/TrendingSnapshot.tsx"), r##"```
 
 ## Once-media handle ownership
 

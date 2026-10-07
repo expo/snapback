@@ -1,0 +1,97 @@
+{
+  "lanes": {
+    "snapback4": {
+      "vendor/ui/package.json": {
+        "exists": true,
+        "sha256": "f70d6697c59c4ad32c6a1ac2731ced4ae601b5b350c2b83ebbb3c9cd16be5c86",
+        "name": "@snapback-bench/social-ui",
+        "version": "0.4.0-native.2",
+        "devDependencies": {
+          "@types/react": "~19.2.0",
+          "esbuild": "0.28.1",
+          "playwright": "1.62.1",
+          "react": "19.2.3",
+          "react-dom": "19.2.3",
+          "react-native": "0.86.2",
+          "react-native-web": "0.21.2",
+          "typescript": "^5.5.0"
+        },
+        "peerDependencies": {
+          "react": ">=18",
+          "react-native": ">=0.74"
+        }
+      },
+      "node_modules/react-native/package.json": {
+        "exists": true,
+        "sha256": "416224a4e7caf2ee1f8f9bead8508d0b608feed745371ce0a8f0e2cafa16d144",
+        "name": "react-native",
+        "version": "0.86.3",
+        "devDependencies": null,
+        "peerDependencies": {
+          "@react-native/jest-preset": "0.86.3",
+          "@types/react": "^19.1.1",
+          "react": "^19.2.3"
+        }
+      },
+      "vendor/ui/node_modules/react-native/package.json": {
+        "exists": false
+      },
+      "package-lock.json": {
+        "exists": true,
+        "sha256": "ff6a20c2ed2d9e0833fb51e2da1c6092c050b424da3881eaa0759e0cbb940675"
+      }
+    },
+    "convex": {
+      "vendor/ui/package.json": {
+        "exists": true,
+        "sha256": "f70d6697c59c4ad32c6a1ac2731ced4ae601b5b350c2b83ebbb3c9cd16be5c86",
+        "name": "@snapback-bench/social-ui",
+        "version": "0.4.0-native.2",
+        "devDependencies": {
+          "@types/react": "~19.2.0",
+          "esbuild": "0.28.1",
+          "playwright": "1.62.1",
+          "react": "19.2.3",
+          "react-dom": "19.2.3",
+          "react-native": "0.86.2",
+          "react-native-web": "0.21.2",
+          "typescript": "^5.5.0"
+        },
+        "peerDependencies": {
+          "react": ">=18",
+          "react-native": ">=0.74"
+        }
+      },
+      "node_modules/react-native/package.json": {
+        "exists": true,
+        "sha256": "416224a4e7caf2ee1f8f9bead8508d0b608feed745371ce0a8f0e2cafa16d144",
+        "name": "react-native",
+        "version": "0.86.3",
+        "devDependencies": null,
+        "peerDependencies": {
+          "@react-native/jest-preset": "0.86.3",
+          "@types/react": "^19.1.1",
+          "react": "^19.2.3"
+        }
+      },
+      "vendor/ui/node_modules/react-native/package.json": {
+        "exists": true,
+        "sha256": "f80aed8d307fd4500248552133067f3794e48cbd65ed4f44c5934c905a3bf6e0",
+        "name": "react-native",
+        "version": "0.86.2",
+        "devDependencies": null,
+        "peerDependencies": {
+          "@react-native/jest-preset": "0.86.2",
+          "@types/react": "^19.1.1",
+          "react": "^19.2.3"
+        }
+      },
+      "package-lock.json": {
+        "exists": true,
+        "sha256": "c9dd9af673bdfe3126e7eeec9fe6b0f1b455a002bd35b0d7aa96143b4c1ca00a"
+      }
+    }
+  },
+  "interpretation": "Nested kit RN 0.86.2 is installed in Convex only. Shared kit manifest dev pin is identical. No Metro execution or native build after audit refusal; effective runtime resolution is unresolved, not asserted.",
+  "operatorMutations": false
+}

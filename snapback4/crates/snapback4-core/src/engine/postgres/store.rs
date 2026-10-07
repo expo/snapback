@@ -19,6 +19,12 @@ pub(super) fn payload_heap(bytes: u64, limit: usize, scope: &crate::engine::Auth
     crate::value::InternalPrice::from_storage(bytes.saturating_mul(256) + crate::rows::word_heap::vec_growth::<(Value, Vec<u8>)>(limit),scope)
 }
 
+// @ref LLP 3000.033#1.3 — additive on create and reopen; old full authority stays readable.
+pub(super) const READ_SESSIONS_DDL: &str = "
+CREATE TABLE IF NOT EXISTS _read_sessions (token_digest TEXT COLLATE \"C\" PRIMARY KEY, principal TEXT COLLATE \"C\" NOT NULL, kind TEXT NOT NULL, family TEXT COLLATE \"C\" NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL, cap_expires_at BIGINT NOT NULL, principal_generation BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, family, expires_at);
+";
+
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);

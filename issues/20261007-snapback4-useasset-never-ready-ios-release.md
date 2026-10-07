@@ -27,3 +27,11 @@ A silent wait with no request and no refusal looks like a product problem whiche
 1. Reproduce with a minimal Expo Release app on the simulator: a seeded ordinary image, rendered through `useAsset`.
 2. Instrument the hook's state transitions.
 3. Fix it, or add a diagnostic that names the blocking precondition.
+
+## P3 Round 2 evidence clarification
+
+The complete retained videos and all native trees corroborate the missing ready
+render branch in both segments. The logs contain no asset request/error trace,
+but they are not a complete HTTP trace. Their silence does not prove that no
+fetch occurred. The hook's exact state and the responsible SDK/app precondition
+remain unestablished; the next reproduction must observe them directly.

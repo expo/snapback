@@ -1,0 +1,83 @@
+{
+  "snapback4": {
+    "custodyPath": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/snapback4-builder-completed/ios/.xcode.env.local",
+    "custodyContent": "export NODE_BINARY=/opt/homebrew/Cellar/node/26.9.0/bin/node\n",
+    "custodySha256": "cc70dc8b45e87482e84e8af4dd32497aa7038788eac5cf62107d5bcc29c37a63",
+    "preparedPath": "/tmp/clique-native-pilot-snapback4-upc09f26/app/ios/.xcode.env.local",
+    "preparedContent": "export NODE_BINARY=/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\n",
+    "preparedSha256": "8a959de0c2419194a52cfe5402368cb699597257dae98bd9cb87d400819c697b",
+    "releaseLogSha256": "2d318e527ecbda4bb8c19bf09bab7ea5a01408fcd33c3ac916432c48d437f83a",
+    "releaseNodeLines": [
+      {
+        "line": 2093,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 2645,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 6923,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 10649,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 23926,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 24522,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 25630,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 26184,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 26738,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 27292,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 45381,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 46044,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 46664,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 48082,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 56298,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      },
+      {
+        "line": 83697,
+        "text": "Node found at: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+      }
+    ],
+    "nonPinnedReleaseNode": false
+  },
+  "convex": {
+    "custodyPath": "/Users/ccheever/clique-native-pilot2-20261006-round2/attempts/convex-builder-completed/ios/.xcode.env.local",
+    "custodyContent": "export NODE_BINARY=/opt/homebrew/Cellar/node/26.9.0/bin/node\n",
+    "custodySha256": "cc70dc8b45e87482e84e8af4dd32497aa7038788eac5cf62107d5bcc29c37a63"
+  }
+}

@@ -1,3 +1,4 @@
+import { refuseReadDevice, validateReadOptions, refreshDeviceSession as rotateSession } from "./read-only.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
@@ -26,7 +27,7 @@ import { readResidency } from "./residency.ts";
 import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
-import type { Queued, StoreCapture } from "./local-types.ts";
+import type { Queued, StoreCapture, LocalResult } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 import { evaluateLocal } from "./local-query.ts";
 import { FollowingIntents } from "./local-following.ts";
@@ -51,14 +52,12 @@ import type { BackendJson, ProgramJson, SchemaJson } from "./backend.ts";
 import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
-import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
-  refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
+import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
-// @ref LLP 3000.028#3.3.1 — publication preserves the evaluator's required value deadlines.
-type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & { incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined };
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
+  validateReadOptions(options); refuseReadDevice(options.session);
   const retention = assetRetention(options.assets);
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
   const doFetch = clock.wrap(options.fetch ?? defaultFetch);
@@ -70,6 +69,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
     session = options.session ?? await restoreSession(base, sessions, () => 0);
+    refuseReadDevice(session);
     if (session && (!Number.isFinite(session.expiresAt) || session.expiresAt <= 0)) {
       session = null;
       await forgetSession(base, sessions);
@@ -77,7 +77,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!session && options.guest) {
       const signedIn = await guest(base, doFetch);
       if (!signedIn.ok) throw new Error(`createLocalClient: ${signedIn.why.code}: ${signedIn.why.message}`);
-      session = signedIn.session;
+      refuseReadDevice(signedIn.session); session = signedIn.session;
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
     if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimatedServerNow() <= REFRESH_BEFORE_EXPIRY_MS) {
@@ -1488,8 +1488,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   stopHost = core.onClient?.(client, base);
   return client;
   } catch (error) {
-    stopSuspend?.();
-    stopOutbox?.();
+    stopSuspend?.(); stopOutbox?.();
     stopClock?.();
     await deliveryQueue?.stop();
     aborter.abort();

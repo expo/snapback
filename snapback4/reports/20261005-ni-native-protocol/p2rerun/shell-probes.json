@@ -1,0 +1,20 @@
+[
+  {
+    "label": "login-before",
+    "exitCode": 0,
+    "stdout": "/opt/homebrew/bin/node\nv26.9.0\n/Users/ccheever/.volta/bin/node\nv24.18.0\n/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\n",
+    "stderr": ""
+  },
+  {
+    "label": "private-shell--lc",
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\nv24.18.0\n/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\nv24.18.0\n/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\n",
+    "stderr": ""
+  },
+  {
+    "label": "private-shell--c",
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\nv24.18.0\n/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\nv24.18.0\n/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\n",
+    "stderr": ""
+  }
+]

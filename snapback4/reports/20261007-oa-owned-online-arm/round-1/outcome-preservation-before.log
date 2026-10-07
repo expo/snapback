@@ -1,0 +1,54 @@
+✖ device: a dispatched signal keeps its transport failure after rotation (756.968576ms)
+✖ online: a dispatched signal keeps its transport failure after rotation (169.454873ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1088.410337
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-online-arm.test.mjs:48:38
+✖ device: a dispatched signal keeps its transport failure after rotation (756.968576ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'E_AUTH'
+  - 'E_OFFLINE'
+       ^
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/app-online-arm.test.mjs:245:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_AUTH',
+    expected: 'E_OFFLINE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-online-arm.test.mjs:48:38
+✖ online: a dispatched signal keeps its transport failure after rotation (169.454873ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'E_AUTH'
+  - 'E_OFFLINE'
+       ^
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-oa/snapback4/packages/snapback4/test/app-online-arm.test.mjs:245:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_AUTH',
+    expected: 'E_OFFLINE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

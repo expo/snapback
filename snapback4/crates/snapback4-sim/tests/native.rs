@@ -305,3 +305,18 @@ fn only_a_job_can_be_native() {
     assert!(bound.programs[0].program.native && bound.programs[0].program.body.is_empty());
     assert_eq!(bound.schema.schedules[0].target, "x");
 }
+
+// @ref LLP 3000.033#3 — native execution must skip construction, not discard its result.
+#[test]
+fn read_only_native_query_never_constructs_a_manifest() {
+    let mut engine = engine();
+    seed_interview(&mut engine);
+    engine.install_native(module()).unwrap();
+    let before = snapback4_core::engine::delivery::manifest_constructions();
+    let context = Context::new("dev:alice", args(&[("first", Value::Int(10))])).at(NOW);
+    let (read, _, _) = engine.query_search_with_delivery_at("personalize", context.clone(), None, snapback4_core::engine::DeliveryManifest::Skip);
+    assert!(read.is_ok(), "{read:?}");
+    assert_eq!(snapback4_core::engine::delivery::manifest_constructions(), before);
+    engine.query("personalize", context).unwrap();
+    assert_eq!(snapback4_core::engine::delivery::manifest_constructions(), before + 1);
+}

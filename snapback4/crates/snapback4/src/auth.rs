@@ -122,7 +122,13 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
     } else {
         None
     };
-    let outcome = perform(&request, shared, path, email, password);
+    let scope = match payload.get("scope") {
+        None => Ok(identity::SessionScope::Full),
+        Some(Json::String(value)) if value == "full" => Ok(identity::SessionScope::Full),
+        Some(Json::String(value)) if value == "read" => Ok(identity::SessionScope::Read),
+        _ => Err(RuntimeError::Input("scope must be full or read".into())),
+    };
+    let outcome = scope.and_then(|scope| perform(&request, shared, path, email, password, scope));
     drop(kdf);
     match outcome {
         Ok(Outcome::SupervisedRefresh) => respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new(
@@ -132,10 +138,11 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
         Ok(Outcome::LogoutAll(revoked)) => {
             respond_timed(request, shared, 200, json!({ "ok": true, "revoked": revoked }))
         }
-        Ok(Outcome::Session(session)) => respond_timed(request, shared,
-            200,
-            json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } }),
-        ),
+        Ok(Outcome::Session(session)) => {
+            let mut wire = json!({ "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at, "scope": session.scope });
+            if let Some(cap) = session.cap_expires_at { wire["capExpiresAt"] = json!(cap); }
+            respond_timed(request, shared, 200, json!({ "session": wire }));
+        },
         Err(error) => {
             let status = if path == "/auth/logout" && matches!(&error, RuntimeError::Auth(_)) {
                 401
@@ -156,6 +163,15 @@ enum Outcome {
     LogoutAll(u64),
 }
 
+// RFC 7235: the authentication scheme is case-insensitive. Accept HTTP
+// whitespace consistently at every entry, including detached poll rechecks.
+pub(crate) fn parse_bearer(value: &str) -> Option<&str> {
+    let mut words = value.split_ascii_whitespace();
+    let scheme = words.next()?;
+    let token = words.next()?;
+    (scheme.eq_ignore_ascii_case("Bearer") && words.next().is_none()).then_some(token)
+}
+
 pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
     let mut headers = request
         .headers()
@@ -169,12 +185,7 @@ pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
             "send exactly one Authorization header".into(),
         ));
     }
-    value
-        .value
-        .as_str()
-        .strip_prefix("Bearer ")
-        .map(str::trim)
-        .filter(|token| !token.is_empty())
+    parse_bearer(value.value.as_str())
         .ok_or_else(|| RuntimeError::Auth("send Authorization: Bearer <token>".into()))
 }
 
@@ -184,6 +195,7 @@ fn perform(
     path: &str,
     email: &str,
     password: &str,
+    scope: identity::SessionScope,
 ) -> Result<Outcome, RuntimeError> {
     let enabled = || {
         let auth = shared.bound.lock().unwrap().schema.auth.clone();
@@ -205,11 +217,12 @@ fn perform(
             let prepared = identity::prepare_signup(email, password)?;
             enabled()?;
             let engine = shared.engine.lock().unwrap();
-            identity::finish_signup(
+            identity::finish_signup_scoped(
                 engine.store(),
                 prepared,
                 shared.now(),
                 &mut shared.entropy.lock().unwrap(),
+                scope,
             )
             .map(Outcome::Session)
         }
@@ -224,21 +237,30 @@ fn perform(
             identity::verify_password(found.as_ref(), password)?;
             enabled()?;
             let engine = shared.engine.lock().unwrap();
-            identity::finish_login(
+            identity::finish_login_scoped(
                 engine.store(),
                 found.expect("verified account"),
                 shared.now(),
+                scope,
             )
             .map(Outcome::Session)
         }
         "/auth/guest" => {
             let engine = shared.engine.lock().unwrap();
-            identity::guest(
+            identity::guest_scoped(
                 engine.store(),
                 shared.now(),
                 &mut shared.entropy.lock().unwrap(),
+                scope,
             )
             .map(Outcome::Session)
+        }
+        "/auth/narrow" => {
+            let token = bearer_token(request)?;
+            let mut engine = shared.engine.lock().unwrap();
+            identity::narrow_session(engine.store_mut(), token, || identity::ServiceSample {
+                now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
+            }).map(Outcome::Session)
         }
         "/auth/refresh" => {
             let token = bearer_token(request)?;
@@ -267,7 +289,7 @@ fn perform(
             let principal = principal_of(request, shared)
                 .map_err(|refusal| RuntimeError::Auth(refusal.message))?;
             let engine = shared.engine.lock().unwrap();
-            identity::revoke_principal(engine.store(), &principal).map(Outcome::LogoutAll)
+            identity::revoke_principal(engine.store(), &principal.0).map(Outcome::LogoutAll)
         }
         _ => {
             let token = bearer_token(request)?;
@@ -281,6 +303,22 @@ fn perform(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn bearer_padding_matches_sdk_read_token_predicate() {
+        // Keep these boundary vectors paired with read-only-round7.test.mjs.
+        for padding in [" ", "\t", "\n", "\x0c", "\r", " \t\n\x0c\r "] {
+            let header = format!("Bearer {padding}ro.reader{padding}");
+            assert_eq!(parse_bearer(&header), Some("ro.reader"));
+        }
+        for padding in ["\x0b", "\u{0085}", "\u{00a0}", "\u{2003}", "\u{feff}"] {
+            let token = format!("{padding}ro.reader{padding}");
+            let header = format!("Bearer {token}");
+            assert_eq!(parse_bearer(&header), Some(token.as_str()));
+            assert!(!parse_bearer(&header).unwrap().starts_with("ro."));
+        }
+        assert_eq!(parse_bearer("Bearer ro.reader extra"), None);
+    }
+
     #[test]
     fn rate_keys_expire_and_rotation_does_not_bypass_limits() {
         let a = Admission::default();
