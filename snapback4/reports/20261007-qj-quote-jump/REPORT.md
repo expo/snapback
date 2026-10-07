@@ -1,7 +1,10 @@
 # QJ — jump to a quoted message
 
+**Round 3:** [editable keys, complete highlight observations and OA merge](round3/REPORT.md)
+contains the latest verification and review corrections.
+
 **Round 2:** [browser timing, mutation controls and keyboard focus](round2/REPORT.md)
-contains the latest verification and timing-oracle corrections.
+records the earlier timing-oracle corrections.
 
 **Round 1:** [settling and durable browser evidence](round1/REPORT.md) supersedes
 the scrolling/oracle details below. This page retains the round-0 design and

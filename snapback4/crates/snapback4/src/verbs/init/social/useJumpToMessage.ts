@@ -12,6 +12,11 @@ const measure = (node: View) => new Promise<Rect>(resolve => node.measureInWindo
 const fits = (box: Rect, viewport: Rect) => box.height <= viewport.height
   ? box.y >= viewport.y - 1 && box.y + box.height <= viewport.y + viewport.height + 1
   : box.y <= viewport.y && box.y + box.height >= viewport.y + viewport.height;
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return (target instanceof HTMLElement && target.isContentEditable) || !!target.closest(
+    "input, textarea, select, [role~='textbox'], [role~='searchbox'], [role~='combobox'], [role~='spinbutton'], [role~='slider']");
+}
 const EMPTY: Message[] = [];
 export const JUMP_TIMEOUT_MS = 4000, SETTLE_MS = 4000, HIGHLIGHT_MS = 1800;
 
@@ -117,6 +122,7 @@ export function useJumpToMessage(conversation: string) {
     // Browsers can scroll the last focused list after its quote loses focus.
     // Capture body-targeted keys too, only while this jump owns scrolling.
     const keyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
       if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) cancel();
     };
     document.addEventListener("keydown", keyDown, true);
@@ -128,5 +134,5 @@ export function useJumpToMessage(conversation: string) {
   };
   const latest = () => { cancel(); setCompleted(undefined); setProblem(""); setThrough(null); };
   return { page, rows, through, bindList, viewport, bubbles, bodies, onJump, onViewableItemsChanged, onScrollToIndexFailed,
-    onLayout, onScroll, cancel, webScrollHandlers, viewed, completed, highlighted, problem, jumping, latest };
+    onLayout, onScroll, cancel, webScrollHandlers, viewed, completed, highlighted, problem, jumping, settling: !!request, latest };
 }

@@ -89075,3 +89075,42 @@ This is a full run plus a passing affected rerun, not a single-green-run receipt
 Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
 unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
 no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
+
+## 2026-10-07 — QJ round 3: editing preserves the jump; observe the whole settle period
+
+Addressed both round-2 READY WITH CHANGES reviews. The web document key listener
+now excludes textarea/input/select, inherited contenteditable and editable ARIA
+roles. Seven trusted composer-key cases retain highlight and scroll ownership,
+preserve the draft's normal editing behavior, and keep the original's own text
+visible after a held nested quote expands. Eight more cases cover other editable
+targets and descendants. Body/list scrolling keys, wheel and drag still cancel.
+
+Both distant and already-visible jumps now measure highlight on/off intervals
+through actual settle completion, exposed by a native ID derived from the
+existing request owner. This rejects a 100 ms distant-only flash and a restart
+after the former 2.5-second sample. Product timing constants remain unchanged;
+arrival, duration and failure bounds still use browser performance.now(), with
+generous state-based driver waits.
+
+Merged origin/main b14888f763 in merge commit 2f340e13c1, without rebasing. Both
+parents' JOURNAL histories are preserved in order. The screen-lifetime helper
+keeps QJ's transitive modules and removes OA's deleted useOnlineArm. The merged
+screen retains typing on useOnline's owned arm and quote jumping; the real-layout
+witness now uses createApp/AppProvider in both tiers and observes a typing
+dispatch before jumping.
+
+The affected batch passes 146/146, including all 32 OA owned-arm cases, social
+starter/browser, read-presentation, matchRead and screen-lifetime tests. The final
+38-case quote fixture passes four runs including the batch, 2.3-second driver
+delay, and that delay with 6× CPU throttle. All eight disposable negative controls
+fail for their intended assertions. Guide 113/113, client build/typecheck, docs
+budgets and workspace build pass. The reference audit has one unrelated broken
+LLP 3000.035 anchor inherited byte-for-byte from main; its baseline hashes and
+full output are retained. No QJ reference fails.
+
+Wasm and all generated bindings remain byte-identical to the round-0 baseline:
+2,135,164 raw / 645,264 gzip bytes against the unchanged 645,564 cap. Native API
+typing/query tests pass; native UI layout, scrolling and gestures remain
+unverified on eb1000. The full suite was not rerun this round. Work stayed in this
+worktree at 15.31 GB before log compression, below 30 GB. No push or publication.
+[Round-3 report and evidence](reports/20261007-qj-quote-jump/round3/REPORT.md).

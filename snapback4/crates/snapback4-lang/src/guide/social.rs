@@ -104,14 +104,16 @@ the offset and retry for at most four seconds; measured visibility starts a
 remeasure the target and correct its offset; for an oversized bubble, keep its
 own text visible below any nested quote. Touch, drag, wheel or scrolling keys
 end correction immediately; web keys are captured even after focus leaves the
-list. That listener exists only while a jump owns scrolling. Unknown coverage
+list; editable controls, contenteditable and editable ARIA roles keep ownership.
+That listener exists only while a jump owns scrolling. Unknown coverage
 or timeout shows a failure, never
 a guessed absence. Loading, denied and absent quotes have no jump action. Arm
 a browser observation before tapping; latch completion/geometry/highlight, then
 poll the durable completion marker and current rectangle with a generous hang
 guard. Use in-page `performance.now()` for arrival, highlight on/off transitions
-and the failure notice: generous driver waits do not relax product bounds. Test
-short-highlight and slow-deadline mutations too. Keep 30 intervening messages,
+and the failure notice: generous driver waits do not relax product bounds. Track
+highlight intervals through settle completion for visible and distant targets;
+reject later restarts, short highlights and slow-deadline mutations. Keep 30 intervening messages,
 delayed expansion and draft survival in the witness.
 
 ```tsx

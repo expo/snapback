@@ -17,10 +17,13 @@ const require = createRequire(join(root, 'package.json'));
 // The 1.8 s highlight allows initial layout invalidation/retry; the 4 s
 // failure allows a retry tick and rendering. These bounds never use Node time.
 const ARRIVAL_LIMIT_MS = 2000;
+const COMPOSER_KEYS = ['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Space', 'Home', 'End'];
+const EDITABLE_TARGETS = ['input', 'select', 'contenteditable', 'textbox', 'searchbox', 'combobox', 'spinbutton', 'slider'];
+const EDIT_ROOMS = [...COMPOSER_KEYS.map(key => 'edit-' + key), ...EDITABLE_TARGETS.map(target => 'edit-' + target)];
 const HIGHLIGHT_RANGE_MS = [1700, 2300], FAILURE_RANGE_MS = [3900, 4500];
 // Actual RN-web layout/virtualization, published hooks, generated Quarry and HTTP.
 // DOM mounting alone cannot satisfy the quote-jump regression.
-test('social quote jumps with real FlatList layout and history reads', { timeout: hangBudget(90) }, async t => {
+test('social quote jumps with real FlatList layout and history reads', { timeout: hangBudget(150) }, async t => {
   const dir = mkdtempSync(join(root, '.social-quote-jump-'));
   let vite, browser;
   t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
@@ -32,7 +35,7 @@ test('social quote jumps with real FlatList layout and history reads', { timeout
   // the unchanged assertions fail, including when the driver is descheduled.
   const mutation = process.env.QJ_TEST_MUTATION;
   if (mutation) {
-    assert.ok(['timeout-8s', 'highlight-100ms', 'astra-both', 'arrival-8s', 'list-only-keys'].includes(mutation), mutation);
+    assert.ok(['timeout-8s', 'highlight-100ms', 'astra-both', 'arrival-8s', 'list-only-keys', 'short-far-highlight', 'late-highlight', 'editable-keys-cancel'].includes(mutation), mutation);
     const hook = join(dir, 'src/useJumpToMessage.ts');
     let source = readFileSync(hook, 'utf8');
     const replace = (before, after) => { assert.ok(source.includes(before), before); source = source.replace(before, after); };
@@ -46,18 +49,21 @@ test('social quote jumps with real FlatList layout and history reads', { timeout
       replace('document.addEventListener("keydown", keyDown, true)', `document.querySelector('[data-testid="history"]')?.addEventListener("keydown", keyDown)`);
       replace('document.removeEventListener("keydown", keyDown, true)', `document.querySelector('[data-testid="history"]')?.removeEventListener("keydown", keyDown)`);
     }
+    if (mutation === 'short-far-highlight') replace('request.highlightUntil = performance.now() + HIGHLIGHT_MS;', 'request.highlightUntil = performance.now() + (conversation === "visible" ? HIGHLIGHT_MS : 100);');
+    if (mutation === 'late-highlight') replace('performance.now() < request.highlightUntil! ? request.id : undefined', '(performance.now() < request.highlightUntil! || performance.now() > request.highlightUntil! + 1000) ? request.id : undefined');
+    if (mutation === 'editable-keys-cancel') replace('if (isEditableTarget(event.target)) return;', '// Deliberate regression: editing cancels the jump.');
     writeFileSync(hook, source);
     t.diagnostic(`NEGATIVE_CONTROL: generated fixture only; ${mutation}`);
   }
   const { url } = await server(t, undefined, readFileSync(join(dir, 'snapback/schema.q'), 'utf8'));
   const signed = await guest(url); assert.equal(signed.ok, true);
   const session = signed.session, owner = session.principal, rows = [];
-  for (const [conversation, count] of [['far', 32], ['visible', 2], ['absent', 32], ['beyond-horizon', 532], ['late', 32], ['above', 32], ['gesture', 32], ['keyboard', 32], ['native-drag', 32], ['body-keyboard', 32]]) {
+  for (const [conversation, count] of [['far', 32], ['visible', 2], ['absent', 32], ['beyond-horizon', 532], ['late', 32], ['above', 32], ['gesture', 32], ['keyboard', 32], ['native-drag', 32], ['body-keyboard', 32], ...EDIT_ROOMS.map(room => [room, 32])]) {
     rows.push({ table: 'conversations', row: { id: conversation, title: conversation, creatorId: owner, lastOrdinal: count } });
     rows.push({ table: 'members', row: { id: `${conversation}-member`, conversation, principal: owner, joinedOrdinal: 0, deliveredOrdinal: count, seenOrdinal: 0 } });
     for (let ordinal = 1; ordinal <= count; ordinal++) {
       if (conversation === 'absent' && ordinal === 1) continue;
-      const delayed = ['late', 'above', 'gesture', 'keyboard', 'native-drag', 'body-keyboard'].includes(conversation);
+      const delayed = EDIT_ROOMS.includes(conversation) || ['late', 'above', 'gesture', 'keyboard', 'native-drag', 'body-keyboard'].includes(conversation);
       rows.push({ table: 'messages', row: { id: `${conversation}-${ordinal}`, conversation, sender: owner, ordinal, recipients: 0,
         text: delayed && ordinal === 1 ? 'Nested '.repeat(280) : delayed && ordinal === 2 ? `Original ${conversation}` : ordinal === 1 ? `Original ${conversation}` : ordinal === count ? `Reply ${conversation}` : `Message ${ordinal} ${'variable height text '.repeat(ordinal % 9)}`,
         photo: null, replyTo: delayed ? (ordinal === (conversation === 'above' ? 3 : 2) ? `${conversation}-1` : ordinal === count ? `${conversation}-2` : null) : ordinal === count ? `${conversation}-1` : null, at: ordinal } });
@@ -73,8 +79,7 @@ test('social quote jumps with real FlatList layout and history reads', { timeout
 import React, {useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {FlatList} from 'react-native';
-import {SnapbackProvider} from 'snapback4/react';
-import {createClient} from 'snapback4/client';
+import {AppProvider} from 'snapback4/react';
 import {createApp} from 'snapback4/app';
 import {memorySessionStore, keepSession} from 'snapback4/auth';
 import {webDevice, memoryPersistence} from 'snapback4/web';
@@ -82,23 +87,23 @@ import {ConversationScreen} from './src/Conversation';
 import {api} from './snapback/generated/api';
 const {url,session} = await (await fetch('/fixture.json')).json();
 window.calls=[];window.nestedPending={};window.releaseNested={};
-const heldNested=new Map(['late','above','gesture','keyboard','native-drag','body-keyboard'].map(room=>[room+'-1',new Promise(resolve=>window.releaseNested[room]=()=>{heldNested.delete(room+'-1');resolve();})]));
-const monitoredFetch=async(input,init)=>{const path=new URL(input instanceof Request?input.url:input).pathname;if(path.startsWith('/q/'))window.calls.push({path,args:JSON.parse(init.body).args});const id=path==='/q/messagePhoto'&&JSON.parse(init.body).args.id;if(heldNested.has(id)){window.nestedPending[id]=true;await heldNested.get(id);}return fetch(input,init);};
+const heldNested=new Map(['late','above','gesture','keyboard','native-drag','body-keyboard',...${JSON.stringify(EDIT_ROOMS)}].map(room=>[room+'-1',new Promise(resolve=>window.releaseNested[room]=()=>{heldNested.delete(room+'-1');resolve();})]));
+const monitoredFetch=async(input,init)=>{const path=new URL(input instanceof Request?input.url:input).pathname;if(path.startsWith('/q/')||path.startsWith('/m/'))window.calls.push({path,args:JSON.parse(init.body).args});const id=path==='/q/messagePhoto'&&JSON.parse(init.body).args.id;if(heldNested.has(id)){window.nestedPending[id]=true;await heldNested.get(id);}return fetch(input,init);};
 const store=memorySessionStore(); await keepSession(url,session,store);
 const replica = new URLSearchParams(location.search).has('replica');
-const app=replica?createApp({url,sessionStore:store,fetch:monitoredFetch,device:webDevice({wasm:fetch('/device.wasm'),persist:memoryPersistence()})}):null;
-if(app){const opened=await app.ready;if(!opened.ok)throw Error(JSON.stringify(opened));await app.client.sync();}
-const client=app?.client??createClient({url,session,fetch:monitoredFetch});
+const app=createApp({url,sessionStore:store,fetch:monitoredFetch,...(replica?{device:webDevice({wasm:fetch('/device.wasm'),persist:memoryPersistence()})}:{})});
+const opened=await app.ready;if(!opened.ok)throw Error(JSON.stringify(opened));
+const client=app.client;if(replica)await client.sync();
 window.scrollAttempts=0;window.scrollFailures=0;window.scrollCommands=0;
 const renderList=FlatList.prototype.render;FlatList.prototype.render=function(){window.fixtureList=this;return renderList.call(this);};
 const scroll=FlatList.prototype.scrollToIndex;
 FlatList.prototype.scrollToIndex=function(args){window.scrollCommands++;window.scrollAttempts++;if(window.failScroll){window.failScroll--;window.scrollFailures++;this.props.onScrollToIndexFailed({index:args.index,averageItemLength:70,highestMeasuredFrameIndex:0});return;}return scroll.call(this,args);};
 const offset=FlatList.prototype.scrollToOffset;
 FlatList.prototype.scrollToOffset=function(args){window.scrollCommands++;if(!window.blockScroll)return offset.call(this,args);};
-function Screen(){const [conversation,setConversation]=useState('far');window.route=setConversation;return <SnapbackProvider client={client}><ConversationScreen conversation={conversation} url={url}/></SnapbackProvider>;}
+function Screen(){const [conversation,setConversation]=useState('far');window.route=setConversation;return <AppProvider app={app}><ConversationScreen conversation={conversation} url={url}/></AppProvider>;}
 const root=createRoot(document.getElementById('root'));root.render(<Screen/>);
 window.readHistory=args=>client.query(api.history,args);
-window.finish=async()=>{window.jumpObserver?.disconnect();cancelAnimationFrame(window.jumpFrame);root.unmount();await (app?app.close():client.close());};
+window.finish=async()=>{window.jumpObserver?.disconnect();cancelAnimationFrame(window.jumpFrame);root.unmount();await app.close();};
 window.fixtureReady=true;
 `);
   const viteModule = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
@@ -118,6 +123,7 @@ window.fixtureReady=true;
   for (const tier of ['online', 'replica']) await t.test(tier, async t => {
     const page = await browser.newPage({ viewport: { width: 520, height: 800 } }), errors = [];
     t.after(() => page.close());
+    if(process.env.QJ_CPU_RATE){const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:Number(process.env.QJ_CPU_RATE)});}
     page.on('pageerror', error => { errors.push(error.message); console.error(error.message); });
     page.setDefaultTimeout(hangBudget());
     await loadBrowserPage(t, page, vite.resolvedUrls.local[0] + (tier === 'replica' ? '?replica' : ''));
@@ -127,8 +133,8 @@ window.fixtureReady=true;
     const viewport = async id => page.evaluate(id => {
       const bubble=document.querySelector('[data-testid="message-'+id+'"]'),list=document.querySelector('[data-testid="history"]');
       if(!bubble||!list)return null;
-      const b=bubble.getBoundingClientRect(),v=list.getBoundingClientRect();
-      return {top:b.top,bottom:b.bottom,viewportTop:v.top,viewportBottom:v.bottom,highlighted:bubble.getAttribute('aria-label')==='Highlighted message',color:getComputedStyle(bubble).backgroundColor};
+      const b=bubble.getBoundingClientRect(),v=list.getBoundingClientRect(),body=bubble.querySelector('[data-testid^="jump-body-"]')?.getBoundingClientRect();
+      return {ownTop:body?.top,ownBottom:body?.bottom,top:b.top,bottom:b.bottom,viewportTop:v.top,viewportBottom:v.bottom,highlighted:bubble.getAttribute('aria-label')==='Highlighted message',color:getComputedStyle(bubble).backgroundColor};
     }, id);
     const armJump = async (name, id) => {
       await quote(name).waitFor();
@@ -158,12 +164,14 @@ window.fixtureReady=true;
             wasHighlighted=highlighted;evidence.highlightTransitions.push({on:highlighted,at:now});
           }
           const transitions=evidence.highlightTransitions,first=transitions[0];
-          // Publish one durable sample beyond the allowed duration. A slow
-          // driver retrieves the same transitions; an endless highlight fails.
-          if(first&&!evidence.highlight&&now-first.at>=2500){
+          // Keep recording through the actual scroll-owner release, not a
+          // one-shot sample that could miss a later highlight restart.
+          const settled=body.id==='jump-settled-'+id;
+          if(evidence.arrived&&settled&&!evidence.settledAt)evidence.settledAt=now;
+          if(first&&!evidence.highlight&&((settled&&!highlighted)||now-first.at>=5000)){
             let duration=0;
             for(let i=0;i<transitions.length;i+=2)duration+=(transitions[i+1]?.at??now)-transitions[i].at;
-            evidence.highlight={duration,span:transitions.at(-1).at-first.at,stillOn:highlighted,transitions:transitions.slice()};
+            evidence.highlight={duration,span:transitions.at(-1).at-first.at,stillOn:highlighted,settled,observedFor:now-first.at,transitions:transitions.slice()};
           }
           if(!evidence.arrived&&bubble.id==='jump-completed-'+id&&visible&&highlighted){
             evidence.arrived={at:now,elapsed:now-evidence.started,top:target.top,bottom:target.bottom,viewportTop:v.top,viewportBottom:v.bottom,color};
@@ -196,12 +204,21 @@ window.fixtureReady=true;
       },id,{timeout:hangBudget()});
       t.diagnostic(JSON.stringify({tier,name,driverDelay,...evidence}));
     };
+    const assertHighlight = async () => {
+      await page.waitForFunction(()=>window.jumpEvidence.highlight!=null,null,{timeout:hangBudget()});
+      const observed=await page.evaluate(()=>window.jumpEvidence.highlight);
+      t.diagnostic(JSON.stringify({tier,highlight:observed}));
+      assert.ok(observed.settled&&!observed.stillOn&&observed.duration>=HIGHLIGHT_RANGE_MS[0]&&observed.duration<=HIGHLIGHT_RANGE_MS[1]&&observed.span<=HIGHLIGHT_RANGE_MS[1],
+        `highlight duration outside ${HIGHLIGHT_RANGE_MS.join('–')} ms: ${JSON.stringify(observed)}`);
+    };
     await t.test('30 intervening messages: original enters viewport and draft keeps its owner', async () => {
       await quote('far').waitFor();
       assert.equal(await page.getByTestId('message-far-1').count(), 0);
       await composer.fill('Draft survives quote jump');
+      await page.waitForFunction(()=>window.calls.some(call=>call.path==='/m/setTyping'));
       await page.evaluate(() => {window.composerNode=document.querySelector('[data-testid="composer"]');});
       await assertJump('far','far-1',Math.max(2300,Number(process.env.QJ_DRIVER_DELAY_MS??0)));
+      await assertHighlight();
       assert.equal(await composer.inputValue(),'Draft survives quote jump');
       assert.equal(await composer.evaluate(node=>node===window.composerNode),true);
       await page.getByRole('button',{name:'Latest messages',exact:true}).click();
@@ -214,11 +231,7 @@ window.fixtureReady=true;
       const before = await viewport('visible-1');assert.ok(before.top>=before.viewportTop&&before.bottom<=before.viewportBottom);
       await assertJump('visible','visible-1');
       assert.equal((await viewport('visible-1')).top,before.top);
-      await page.waitForFunction(()=>window.jumpEvidence.highlight!=null,null,{timeout:hangBudget()});
-      const observed=await page.evaluate(()=>window.jumpEvidence.highlight);
-      t.diagnostic(JSON.stringify({tier,highlight:observed}));
-      assert.ok(!observed.stillOn&&observed.duration>=HIGHLIGHT_RANGE_MS[0]&&observed.duration<=HIGHLIGHT_RANGE_MS[1]&&observed.span<=HIGHLIGHT_RANGE_MS[1],
-        `highlight duration outside ${HIGHLIGHT_RANGE_MS.join('–')} ms: ${JSON.stringify(observed)}`);
+      await assertHighlight();
     });
     await t.test('absent original says unavailable and cannot move the list', async () => {
       await page.evaluate(()=>window.route('absent'));
@@ -330,6 +343,52 @@ window.fixtureReady=true;
       if(cancelled){assert.equal(result.checked.commands,result.commandsAtRelease,'user input cancels all correction, including queued measurements');assert.equal(result.checked.highlighted,false);assert.equal(result.checked.inside,false,'fixture really moved the original out of view');}
       else {assert.ok(result.corrected,JSON.stringify(result));assert.ok(result.corrected.at-result.expandedAt<4000,JSON.stringify(result));}
       t.diagnostic(JSON.stringify({lateLayout:name,...result}));
+    });
+    if(tier==='online')for(const name of EDIT_ROOMS)await t.test(`editable keys keep layout protection: ${name}`,async()=>{
+      await page.setViewportSize({width:520,height:800});
+      await page.evaluate(name=>window.route(name),name);
+      await quote(name).waitFor();
+      await composer.fill('Draft line 1\nDraft line 2');
+      await page.getByRole('button',{name:'Older messages',exact:true}).click();
+      await page.waitForFunction(name=>window.nestedPending[name+'-1'],name);
+      // Interact while the jump owns scrolling. Driver-delay qualification is
+      // in the stable far/visible cases; these cases exercise input during it.
+      await assertJump(name,name+'-2',0);
+      await page.waitForFunction(()=>{
+        const last=window.jumpEvidence.highlightTransitions.at(-1);
+        return last?.on&&performance.now()-last.at>=32||window.jumpEvidence.highlight;
+      });
+      const kind=name.slice(5),isComposer=COMPOSER_KEYS.includes(kind);
+      let editor=composer;
+      if(!isComposer){
+        await page.evaluate(kind=>{
+          const field=document.createElement(['input','select'].includes(kind)?kind:'div');
+          field.dataset.testid='editable-probe';field.tabIndex=0;
+          field.style.cssText='position:fixed;top:0;right:0;z-index:9;background:white';
+          if(kind==='contenteditable')field.contentEditable='true';
+          else if(!['input','select'].includes(kind))field.setAttribute('role',kind);
+          // A descendant tests inherited contenteditable and editable roles.
+          if(field.tagName==='DIV'){const child=document.createElement('span');child.textContent='Edit';child.tabIndex=0;child.dataset.testid='editable-child';field.append(child);}
+          document.body.append(field);
+        },kind);
+        editor=page.getByTestId(['input','select'].includes(kind)?'editable-probe':'editable-child');
+      }
+      await editor.focus();
+      const before=await page.evaluate(()=>({scroll:document.querySelector('[data-testid="history"]').scrollTop,commands:window.scrollCommands}));
+      await page.keyboard.press(isComposer?kind:'Home');
+      const after=await page.evaluate(name=>({scroll:document.querySelector('[data-testid="history"]').scrollTop,highlighted:document.querySelector('[data-testid="message-'+name+'-2"]').getAttribute('aria-label')==='Highlighted message',owned:!!document.getElementById('jump-settling-'+name+'-2'),commands:window.scrollCommands}),name);
+      await page.evaluate(name=>{document.querySelector('[data-testid="editable-probe"]')?.remove();window.releaseNested[name]();},name);
+      assert.equal(after.owned,true,`editing must not cancel: ${JSON.stringify({name,before,after})}`);
+      assert.equal(after.highlighted,true,`editing must retain highlight: ${JSON.stringify({name,before,after})}`);
+      assert.equal(after.scroll,before.scroll);
+      if(isComposer)assert.equal(await composer.inputValue(),kind==='Space'?'Draft line 1\nDraft line 2 ':'Draft line 1\nDraft line 2');
+      await page.waitForFunction(name=>{
+        const bubble=document.querySelector('[data-testid="message-'+name+'-2"]'),body=document.querySelector('[data-testid="jump-body-'+name+'-2"]'),list=document.querySelector('[data-testid="history"]');
+        if(!bubble||bubble.getBoundingClientRect().height<600)return false;
+        const b=body.getBoundingClientRect(),v=list.getBoundingClientRect();
+        return b.top>=v.top&&b.bottom<=v.bottom;
+      },name);
+      t.diagnostic(JSON.stringify({editable:name,before,after,corrected:await viewport(name+'-2')}));
     });
     await page.evaluate(()=>window.finish());assert.deepEqual(errors,[]);
   });
