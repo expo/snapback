@@ -5,6 +5,10 @@
 eb1000 worktree. No other worktree, fleet host, or unrelated process was used.
 No push or publication.
 
+[Round 1](#round-1--review-changes-2026-10-06) below supersedes the initial
+tag examples and wasm cap. The initial implementation/verification record is
+preserved here; its measurements refer to `0c73dca408`.
+
 ## Orientation and the prior rules
 
 The `llp-orient` context pack was scoped to Quarry type parsing/binding,
@@ -191,3 +195,95 @@ Locked `build-wasm.sh` measurements on this same Linux worktree:
 The prior cap, 639,941 B, had only 53 B over the rebuilt Linux base, so its
 increase is 1,392 B: the 1,315 B code delta plus 77 B restoring the requested
 macOS allowance. This is a whole-artifact measurement; no Mac build is claimed.
+
+
+## Round 1 — review changes, 2026-10-06
+
+Resumed after the host reboot on 2026-10-07.
+
+Starting from `0c73dca4089d7cc3a73cb8283e252bd2829bddfd`. Read the supplied
+`~/sb4-intent/reviews/lb-r0.astra.md`, Astra's evidence `REVIEW.md`, and
+`lb-r0.grok.md`. Both returned **READY WITH CHANGES** and found no enforcement
+defect. The author reports the round-0 Darwin fence passed **10/10** on the
+mini, including all three `ListRange` cases. No other host was used in this lane.
+The governing context remains LLP 3000.007 §5.4 (updated here), the shared
+interpreter constraint in LLP 3000 §7, and action settlement in LLP 3000.009 §5.1.
+
+- Restored `rooms.tags`, `everything.tags`, and `createRoom.tags` to `<=8`.
+  The existing comments still teach `[T] 1..N`; `split.people` now demonstrates
+  `[principal] 1..8`, where the empty collection is invalid. Removed the
+  unnecessary `later`/`demo` tags from execution/read-authority fixtures.
+  The language-card execution checks the empty split's clear `E_INPUT`, and
+  the regression pins the tag columns' legacy `List` serialization. Both cards
+  retain their existing line and word budgets. The types specimen's hash changes
+  with its declaration/comment; preservation assertions remain active.
+- Incomplete list bounds such as `[int] 1` now explain `<=N` versus an inclusive
+  `a..b` range, with a `[T] a..b` rewrite and the types guide. Decimal tokens at
+  either endpoint, or after `<=`, report that list bounds must be integers;
+  overflow retains its separate `4294967295` diagnostic.
+- `schema::validate` now checks column list ranges recursively, including
+  optional/nested lists and empty tables. A raw `min > max` produces a
+  `tables.<table>.columns.<column>` issue and is refused by engine creation.
+  Equal endpoints, including `0..0`, stay valid. This is shared core admission
+  code, so the complete suite is rerun. No catalog, persisted-schema or list-value
+  encoding changes in round 1.
+- Extended the published `doctor` refusal and table-preservation assertions
+  to the argument-only and nested fence cases as well as the column case.
+  These two additional assertions are **not executed on Linux**; the author's
+  10/10 Mac result predates their addition.
+
+### Wasm and host measurements
+
+| Tree / measurement host | Raw | gzip |
+| --- | ---: | ---: |
+| Round 0 Linux (lane and both reviews) | 2,122,648 B | 641,203 B |
+| Round 0 macOS mini (author-supplied) | 2,122,955 B | 641,638 B |
+| Round 1 final Linux (locked full-suite build) | 2,122,648 B | 641,203 B |
+
+Set the cap to **641,638 B**, the measured macOS size. The observed host gap is
+**435 B gzip**, not 130 B; the cap rises 305 B from 641,333 B. The reason in
+`metrics/wasm-budget.json`, commit message and journal states both measurements.
+**Shared Rust wasm build inputs changed** (`schema/columns.rs`); the final Linux
+sizes are unchanged, but no final-tree Mac measurement is claimed. The author
+will remeasure on the mini. No runtime ceiling changes.
+
+### Round-1 verification
+
+Final builds and full-suite runs use
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, six Cargo build jobs and
+`CARGO_INCREMENTAL=0`. `cargo clean --profile dev` removed only
+this worktree's old development artifacts before rebuilding, recovering 22.4 GiB.
+
+- Tests first: 11 existing passes / 2 intended failures reproduced the parser
+  and raw-column admission gaps (`round-1/tests-first.log.gz`).
+- Focused guide/list run: **113 + 14 passed**. Includes canonical tag bytes,
+  the positive `split` example, malformed bounds, raw schema admission at four
+  type depths, existing server enforcement and type snapshots.
+- The 2026-10-06 host reboot interrupted the first round-1 full suite after
+  the build/wasm/docs/package stages. Its log is retained as
+  `round-1/full-suite-interrupted.log.gz`; it is not a completed suite result.
+  On 2026-10-07, `git status`/`git diff` confirmed the edits were intact and
+  process inspection found no surviving lane test processes. The entire full
+  script was restarted with the same environment; every previously unrecorded
+  Rust, client, fixture and model check is rerun.
+- The restarted full Rust inventory passed **5,083 tests / 33 declared ignores**,
+  with zero failures, across 301 binaries / 1,014 executions plus doctests.
+  This includes **1,491 language tests / 11 ignored**, **113 guide tests**,
+  **81 readauth tests**, **14 language list tests** and **2 device list tests**.
+- The refreshed reference audit passed: **528 LLP documents / 10,427 refs**,
+  zero errors or unchecked refs (`round-1/ref-check-resumed.log.gz`).
+- All **324 ordinary client files passed**: **6,460 tests / 50 declared skips**,
+  including both process/wasm list tests. The schema-capability file passed its
+  Linux checks and explicitly skipped its Darwin witnesses. Fixture-wrapper
+  tests passed **9/9**, and package/app typechecks passed.
+- Both full-count serial model files passed: **79/79 tests**. The restarted
+  `bash snapback4/scripts/test.sh` exited **0**, reporting **0 failures in
+  2,241 seconds**. Build, wasm, docs budgets, release guard, package/app checks,
+  the complete Rust inventory, fixture wrapper, all client files and both
+  serial models passed in this one completed run. The final Linux wasm build
+  again measured **2,122,648 B raw / 641,203 B gzip** under the **641,638 B** cap.
+  See `round-1/full-suite.log.gz`; no interrupted-run result substitutes for a
+  completed test result.
+- Final worktree disk use is approximately **15 GiB**, below 40 GB.
+  `git diff --check` passed. Evidence is gzip-compressed with deterministic
+  headers. No unresolved Linux failures, push or publication.

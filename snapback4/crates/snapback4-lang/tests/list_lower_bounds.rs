@@ -24,6 +24,20 @@ fn existing_maximum_accepts_empty_and_refuses_overflow() {
 }
 
 #[test]
+fn canonical_tags_keep_legacy_bytes_and_split_requires_people() {
+    let language = bound(&snapback4_lang::guide::language());
+    let tag_bytes = r#"{"List":{"of":{"Text":{"max":20}},"max":8}}"#;
+    assert_eq!(serde_json::to_string(&language.schema.tables["rooms"].columns["tags"]).unwrap(), tag_bytes);
+    let create = language.programs.iter().find(|p| p.program.name == "createRoom").unwrap();
+    assert!(matches!(&create.program.args["tags"], snapback4_core::ir::ArgType::List { max: 8, .. }));
+    let split = language.programs.iter().find(|p| p.program.name == "split").unwrap();
+    assert!(matches!(&split.program.args["people"], snapback4_core::ir::ArgType::ListRange { min: 1, max: 8, .. }));
+    let types = snapback4_lang::guide::quarry(snapback4_lang::guide::card("types").unwrap());
+    let types = bound(types.iter().find(|block| block.contains("table everything:")).unwrap());
+    assert_eq!(serde_json::to_string(&types.schema.tables["everything"].columns["tags"]).unwrap(), tag_bytes);
+}
+
+#[test]
 fn ranged_list_arguments_enforce_both_inclusive_bounds() {
     let b = bound("mutation createGroup(peers: [principal] 1..49):\n  return peers\n");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -48,6 +62,39 @@ fn malformed_list_bounds_are_clear() {
     for (range, message) in [("2..1", "minimum"), ("-1..49", "nonnegative"), ("4294967296..4294967296", "4294967295")] {
         let b = compile(&[("schema.q".into(), format!("query q(peers: [principal] {range}):\n  return peers\n"))]);
         assert!(b.diagnostics.iter().any(|d| d.message.contains(message)), "{range}: {:?}", b.diagnostics);
+    }
+}
+
+#[test]
+fn incomplete_and_fractional_bounds_have_specific_diagnostics() {
+    for range in ["1", "1.", "1...2"] {
+        let b = compile(&[("schema.q".into(), format!("query q(xs: [int] {range}):\n  return xs\n"))]);
+        assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_SYNTAX"
+            && d.message.contains("list bounds") && d.rewrite.contains("[T] a..b")), "{range}: {:?}", b.diagnostics);
+    }
+    for range in ["1.5..8", "1..8.5", "<=1.5"] {
+        let b = compile(&[("schema.q".into(), format!("query q(xs: [int] {range}):\n  return xs\n"))]);
+        assert!(b.diagnostics.iter().any(|d| d.message == "list bounds must be integers; fractional bounds are not allowed"), "{range}: {:?}", b.diagnostics);
+    }
+}
+
+#[test]
+fn raw_schema_refuses_reversed_column_bounds_at_every_depth() {
+    use snapback4_core::schema::{self, ColumnType as C};
+    let base = bound("table groups:\n  peers: [principal] <=49\n  public\n").schema;
+    for (min, max, valid) in [(2, 1, false), (1, 1, true), (0, 0, true)] {
+        let range = C::ListRange { of: Box::new(C::Principal), min, max };
+        for kind in [range.clone(), C::Optional(Box::new(range.clone())),
+            C::List { of: Box::new(range.clone()), max: 2 },
+            C::ListRange { of: Box::new(C::Optional(Box::new(range))), min: 1, max: 2 }] {
+            let mut schema = base.clone();
+            schema.tables.get_mut("groups").unwrap().columns.insert("peers".into(), kind);
+            let issues = schema::validate(&schema);
+            if valid { assert!(issues.is_empty(), "{issues:?}"); }
+            else { assert!(issues.iter().any(|issue| issue.path == "tables.groups.columns.peers"
+                && issue.message == "list minimum must not exceed its maximum"), "{issues:?}"); }
+            assert_eq!(Engine::memory(schema, []).is_ok(), valid);
+        }
     }
 }
 

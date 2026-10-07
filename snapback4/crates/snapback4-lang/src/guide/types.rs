@@ -54,7 +54,7 @@ table everything:
   raw: bytes <=1024 ?
   photo: image <=10000000 once ?      -- an upload (guide assets); `once` serves one view per principal
   clip: video <=50000000 ?
-  tags: [text <=20] 1..8              -- [T] 1..N | [T] <=N (0..N); `?` on the whole list, never the element
+  tags: [text <=20] <=8               -- [T] 1..N | [T] <=N (0..N); `?` on the whole list, never the element
   unique handle else HANDLE_TAKEN 'That handle is taken.'
   read <- .who = viewer
   insert <- .who = viewer

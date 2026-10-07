@@ -325,14 +325,12 @@ for (const [name, source] of [
   assert.throws(() => new legacy.wasm(JSON.stringify(next.backend), '[]'), unknownList);
   const device = new current(JSON.stringify(next.backend), '[]'); device.free();
   await next.server.stop();
-  if (name === 'column') {
-    const store = join(next.cwd, '.snapback4/store.sqlite'), before = dump(store);
-    // Doctor reads the persisted schema, independently of source parsing.
-    const result = run(legacy.binary, ['doctor', '--store', store], '', next.cwd);
-    assert.notEqual(result.status, 0);
-    assert.match(result.stdout + result.stderr, unknownList);
-    assert.equal(dump(store), before, 'refused persisted schema preserves every table');
-  }
+  const store = join(next.cwd, '.snapback4/store.sqlite'), before = dump(store);
+  // Doctor reads persisted schema and programs, independently of source parsing.
+  const result = run(legacy.binary, ['doctor', '--store', store], '', next.cwd);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout + result.stderr, unknownList);
+  assert.equal(dump(store), before, 'refused persisted catalog preserves every table');
 });
 
 test('Linux schema-byte fixture is the published capability-free control source', () => {

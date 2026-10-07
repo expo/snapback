@@ -88134,3 +88134,43 @@ Its 1,392 B increase also restores 77 B of allowance missing from the prior
 cap relative to the rebuilt base. No Mac measurement is claimed. All work
 stayed in the supplied eb1000 worktree; final disk use is 28 GiB. No push or
 publication.
+
+## 2026-10-07 — LB round 1: tag examples, diagnostics and schema admission
+
+Applied the two READY WITH CHANGES reviews: canonical `rooms.tags`,
+`everything.tags` and `createRoom.tags` use `<=8` again, keeping empty tags
+valid and preserving their legacy `List` types. The existing comments still
+teach list ranges; `split.people` now uses `[principal] 1..8`, with an executable
+empty-list refusal. Removed the dummy tags from guide/readauth fixtures.
+Incomplete list ranges give a list-specific rewrite, fractional bounds report
+non-integers separately from overflow, and raw-schema admission rejects a
+reversed column range through nested/optional types. LLP 3000.007 §5.4 records
+these refinements. The published `doctor` fence now also checks persisted
+argument-only and nested-list programs. The author's prior mini run passed
+10/10 Darwin cases; these two added assertions await the final Mac run.
+
+The wasm cap is **641,638 B gzip**, using the author's measured macOS mini
+artifact (**2,122,955 B raw / 641,638 B gzip**) rather than the insufficient
+130 B allowance. Final Linux rebuilds before and after the reboot measure
+**2,122,648 B raw / 641,203 B gzip**: the observed host gap is 435 B gzip.
+The cap rises 305 B from 641,333 B. Shared core Rust build inputs changed in
+round 1 (`schema/columns.rs`); Linux sizes remain unchanged, but the final tree
+still needs the author's macOS remeasurement. No runtime ceiling changes.
+
+The 2026-10-06 eb1000 reboot interrupted verification. On resumption, the
+worktree diff was intact and no lane test process survived. The interrupted
+log is retained, and the complete suite restarted with the SQLite publication
+flag, six Cargo jobs and incremental compilation disabled. All work remains
+in this eb1000 worktree; no other host, push or publication. The
+[round-1 report](reports/20261006-lb-list-lower-bounds/REPORT.md#round-1--review-changes-2026-10-06)
+retains the review dispositions and verification evidence.
+
+The restarted full suite passed with **0 failures in 2,241 seconds**. Rust:
+5,083 passes / 33 declared ignores, including 1,491 language passes, 113 guide
+tests, 81 readauth tests, 14 language list tests and both device list tests.
+All 324 ordinary client files passed (6,460 tests / 50 declared skips), including
+the process/wasm list cases; both full-count serial models passed 79 tests and
+the fixture wrapper passed nine. Build, wasm, release guard, docs budgets,
+package/app typechecks and the reference audit passed. The full script exited
+zero in one completed post-reboot run; no interrupted result is counted as a
+pass. Final worktree disk use is approximately 15 GiB, below 40 GB.
