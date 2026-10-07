@@ -1,0 +1,66 @@
+# Snapback 4: useAsset never became ready for an ordinary image in an iOS Release app
+
+**Opened:** 2026-10-07, from the native Phase-2 rerun (LLP 0201.000, native.2)
+**Status:** Resolved in Lane UA; native defect reproduced and fixed locally (not yet published)
+**Area:** `snapback4-expo` / `snapback4` asset hooks (`useAsset`) on iOS Release builds
+**Related:** LLP 0201.000; the pilot packet on the Apartment mini, `~/clique-native-pilot2-20261006-round2`, which holds `results/snapback4/attempt-02/m6` and `attempt-03/m8`, plus `preparation/revision10/DIAGNOSIS.md`
+
+## What happened
+
+An independently built Snapback 4 0.4.13 Expo app passed both source audits and the semantic handoff. Its Release build installed and launched on the dedicated iOS 27 simulator, signed in, and rendered the direct conversation with its history. The ordinary-media message rendered its text, but **never its image**. The app declares `sm-convo-media` only when `useAsset` returns a ready handle, so the driver's M6 and M8 primes ended unmeasured with `selector-not-hittable`.
+
+The evidence (P3 round-1 diagnosis):
+- both fixture images match the descriptor SHA-256 and have the correct metadata (640×480);
+- the message and asset references reached the native device store (read-only SQLite inspection);
+- the observer recorded 120 screen events and 4 ready events, but **no media load or error events**;
+- **the backend logs show no asset request,** and the app log shows no asset or download error.
+
+So the hook apparently never issued a fetch, and never surfaced a refusal either. It could be:
+- a Snapback 4 client bug on the native or Release path (scheduling, acquisition, the native asset URI or headers);
+- an unmet precondition the hook waits on silently;
+- the builder's wiring.
+
+A silent wait with no request and no refusal looks like a product problem whichever of these it is. The hook should either fetch or say why it isn't.
+
+## Next steps
+
+1. Reproduce with a minimal Expo Release app on the simulator: a seeded ordinary image, rendered through `useAsset`.
+2. Instrument the hook's state transitions.
+3. Fix it, or add a diagnostic that names the blocking precondition.
+
+## Resolution — 2026-10-07, Lane UA
+
+A minimal generated Expo app using published 0.4.13 reproduces the missing
+ordinary image in both Release and Debug on an owned iOS 27 simulator. The
+web starter works. Instrumented hook and proxy traces correct the initial
+no-request hypothesis: dispatch ran, the authenticated Range GET was correct,
+and the server answered 206. Expo exposes a response stream, but React Native's
+Blob constructor rejects the Uint8Array chunks assembled by the downloader.
+The resulting local exception was misclassified as E_OFFLINE, producing retries
+and reconnect churn. A ready-only view hides the hook error and never mounts
+an Image, so no media callback follows.
+
+The frozen pilot was read only and lacks hook-state/HTTP interception evidence;
+its exact cause is not retrospectively established. The independent native
+reproduction and a failing published-downloader control establish this repair.
+
+The downloader now selects stream assembly by Blob buffer capability and uses
+Expo's public Response.blob() on native, preserving size-aware timeout and
+one-view rules. Every useAsset loading state names its current step and a
+five-second diagnostic deadline; E_ASSET_WAIT explains still-pending work
+without replaying it. Synchronous custom-reader exceptions become E_CLIENT.
+Assets docs and diagnostic lookup explain the result. Generic native smoke
+explicitly says assets were not exercised, and media witnesses must record
+hook states and actual native load/error callbacks.
+
+The fixed generated Release, Debug and web apps all reach ready and image-load.
+An injected native 6.2-second pre-fetch hold exposes waiting.headers and
+E_ASSET_WAIT before any asset GET, then completes with one GET and image-load.
+Automated regressions exercise RN's production Blob implementation, held
+session custody, late cleanup and no replay. No persisted format or native ABI
+change. The owned simulator was shut down and deleted.
+
+See the [UA report](../../snapback4/reports/20261007-ua-useasset-native/REPORT.md)
+for traces, screenshots, exact qualification results, wasm measurements and
+reproduction inputs. This issue's original observations remain above as the
+investigation's starting evidence.

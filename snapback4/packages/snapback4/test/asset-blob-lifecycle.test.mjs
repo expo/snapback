@@ -469,3 +469,56 @@ for (const [range, keeps] of [['bytes 0-1/2', true], ['bytes 0-0/2', false], ['b
     blob.close();
   });
 }
+
+// Regression for the installed Expo Release path: FetchResponse exposes a
+// stream alongside React Native's Blob, whose constructor rejects byte arrays.
+// This executes RN's production Blob implementation, not a matching SDK mock.
+for (const once of [false, true]) test(`Expo Release Blob with a streamed response reaches a handle (${once ? 'once' : 'ordinary'})`, async t => {
+  const { nativeBlobHost } = await import('./helpers/native-blob.mjs');
+  const host = nativeBlobHost();
+  t.mock.property(globalThis, 'Blob', host.Blob);
+  assert.throws(() => new Blob([Uint8Array.of(1)]), /ArrayBuffer/);
+  let transfers = 0, bodyReads = 0, streamReads = 0;
+  const blob = host.create('native-image');
+  t.mock.method(URL, 'createObjectURL', value => { assert.equal(value, blob); return 'blob:native-image'; });
+  t.mock.method(URL, 'revokeObjectURL', () => {});
+  const phases = [];
+  const result = await fetchAsset('http://native.test', { authorization: 'Bearer test-only', 'content-type': 'application/json' }, async (uri, init) => {
+    assert.equal(uri, 'http://native.test/assets/image');
+    assert.equal(init.headers.authorization, 'Bearer test-only');
+    assert.equal(init.headers['content-type'], undefined);
+    transfers++;
+    if (once && init.headers.range) return { ok: false, status: 416, headers: new Headers(),
+      body: { getReader() { throw Error('native refusal must use response.json'); } },
+      json: async () => ({ denied: { code: 'E_ASSET_RANGE', family: 'asset', message: 'once' } }) };
+    return { ok: true, status: once ? 200 : 206, headers: new Headers({ 'content-type': 'image/png', 'content-length': '3' }),
+      body: { getReader() { streamReads++; let read = false; return { read: async () => read ? { done: true } : (read = true, { done: false, value: Uint8Array.of(1, 2, 3) }), releaseLock() {} }; } },
+      blob: async () => { bodyReads++; return blob; } };
+  }, 'image', undefined, undefined, undefined, undefined, stage => phases.push(stage));
+  assert.equal(result.url, 'blob:native-image', JSON.stringify(result));
+  assert.equal(transfers, once ? 2 : 1, 'never replays native conversion as a transport failure');
+  assert.equal(bodyReads, 1); assert.equal(streamReads, 0, 'host owns conversion of its native body');
+  assert.ok(phases.includes('body')); assert.ok(phases.includes('display'));
+  assert.deepEqual(host.released, []); result.revoke(); result.revoke();
+  assert.deepEqual(host.released, ['native-image']);
+});
+
+test('native stream-to-Blob path keeps its size allowance and disposes a late body after cancellation', async t => {
+  const { nativeBlobHost } = await import('./helpers/native-blob.mjs');
+  const host = nativeBlobHost(); t.mock.property(globalThis, 'Blob', host.Blob);
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
+  let finish, settled, signal, calls = 0;
+  const controller = new AbortController(); t.after(() => controller.abort());
+  const reading = fetchAsset('http://native.test', {}, async (_, init) => {
+    calls++; signal = init.signal;
+    return { ok: true, status: 206, headers: new Headers({ 'content-length': '1048576' }),
+      body: { getReader() { throw Error('must use native conversion'); } },
+      blob: () => new Promise(resolve => { finish = resolve; }) };
+  }, 'photo', undefined, controller.signal).then(result => (settled = result));
+  const drain = () => new Promise(resolve => setImmediate(resolve));
+  await drain(); t.mock.timers.tick(61000); await drain();
+  assert.equal(settled, undefined); assert.equal(signal.aborted, false); assert.equal(calls, 1);
+  controller.abort(); await reading;
+  finish(host.create('late-native')); await drain();
+  assert.deepEqual(host.released, ['late-native']); assert.equal(calls, 1);
+});

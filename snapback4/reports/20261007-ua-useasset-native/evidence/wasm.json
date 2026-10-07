@@ -1,0 +1,15 @@
+{
+  "macos": {
+    "raw": 2135439,
+    "gzip": 645163,
+    "sha256": "e04bf21b4f8f444891d512be57d90e6f67be63ccaa0e0fbc8a5dd6541aec2f2a"
+  },
+  "linux": {
+    "raw": 2135164,
+    "gzip": 645264,
+    "evidence": "inherited RX round-1 merged result; not rerun on this mini-only lane"
+  },
+  "capGzip": 645564,
+  "budgetRaised": false,
+  "engineInputsChanged": false
+}

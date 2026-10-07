@@ -544,7 +544,7 @@ export function AuthorAvatar({ sender }: { sender: string }) {
   if ("denied" in profile) return <span role="alert">{profile.denied.message}</span>;
   if ("loading" in profile) return <span>Loading author…</span>;
   if (avatar.status === "denied" || avatar.status === "error") return <span role="alert">{avatar.why.message}</span>;
-  if (avatar.status === "loading") return <span>Loading avatar…</span>;
+  if (avatar.status === "loading") return <span>{avatar.waiting.why?.message ?? `Loading avatar (${avatar.waiting.stage})…`}</span>;
   return avatar.status === "ready"
     ? <img src={avatar.url} alt={author?.displayName ?? "Author"} />
     : <span>{author?.displayName ?? "Unknown author"}</span>;
@@ -553,6 +553,18 @@ export function AuthorAvatar({ sender }: { sender: string }) {
 
 `null` means `empty`, not a failed download. Inspect the profile read and the
 asset's `why` when its status is `denied` or `error` separately; an initials placeholder must not hide a refusal.
+Every `loading` result has `waiting.stage`, `since` and `diagnosticAt`.
+Stages name scheduling, session-store checks, media reconciliation, refresh,
+queue, headers/body, backoff, retention and display conversion; custom clients
+report `client`. After five seconds `waiting.why` adds E_ASSET_WAIT with the
+stage's explanation. Render it instead of hiding all non-ready states. This is
+a diagnostic of the still-pending request, not a retry or consumed-view verdict;
+healthy long transfers may finish. Unmount cancels the diagnostic timer, and
+late obsolete results cannot publish. Timers require a runnable JS host.
+Expo streams do not imply its Blob accepts byte arrays: the SDK uses the host's
+`Response.blob()` when buffer construction is unsupported, with the buffered
+allowance below. Local assembly failures report E_CLIENT, not offline.
+
 Transient transport failures report `status: "error"` with `why.code` (for
 example `E_OFFLINE`, `E_HTTP_RESPONSE` or exhausted `E_RATE_LIMIT`) and a
 message. Authorization, missing/revoked assets and consumed views remain

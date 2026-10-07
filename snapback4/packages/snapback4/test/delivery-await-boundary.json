@@ -17,7 +17,7 @@
   },
   "app-client.ts": {
     "count": 21,
-    "sha256": "b2b4c471116ea9139aafdb9a2ec4c42d43875cfa39f99f41b337468813928cef"
+    "sha256": "92d26229d7c1a9c93645815d4f4a26bb6f2b2b208382250acab72a42d89db2b5"
   },
   "app-global.ts": {
     "count": 0,
@@ -47,9 +47,13 @@
     "count": 9,
     "sha256": "2df4ca952c613c53a09fe1483466f38612f5bfaf763b0cf557e6f6fc954f73c6"
   },
+  "asset-progress.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "assets.ts": {
     "count": 7,
-    "sha256": "d49c3158c3cd835904dda0079ae8256a3c6e52f251c8898e8e3894d8bc229510"
+    "sha256": "1c121c53374d76c39cd6eec88070c8209472890f679723d3a8869bb375499b8c"
   },
   "auth.ts": {
     "count": 11,
@@ -73,7 +77,7 @@
   },
   "client.ts": {
     "count": 59,
-    "sha256": "491e3e0f0d40ecfdf59a3826d573e87606479e69594e69a5c84e220ba58fd3af"
+    "sha256": "4ac5dac055eab3403db494819ea55ad83643998b7abf43cd34ace504754b08ed"
   },
   "clock.ts": {
     "count": 7,
@@ -217,7 +221,7 @@
   },
   "local.ts": {
     "count": 167,
-    "sha256": "e10320e34e6ab0d7764316e8d7379e65a94d75dc31d93ca0d17afabc41348b09"
+    "sha256": "6fa70249294f471ffdb6d4ff9c373c5f5eb12deb1da323b4ede6304995bc3843"
   },
   "mock-ephemeral.ts": {
     "count": 0,

@@ -1,0 +1,47 @@
+✔ an invalid store_id receipt cannot erase another confirmed entry (9.569875ms)
+✔ an invalid table receipt cannot erase another confirmed entry (1.514459ms)
+✔ an invalid row receipt cannot erase another confirmed entry (1.363583ms)
+✔ an invalid column receipt cannot erase another confirmed entry (1.708625ms)
+✔ an invalid missing receipt cannot erase another confirmed entry (1.39425ms)
+✔ an invalid receipt for the confirmed entry's own cell retires it (1.220333ms)
+✔ native image/png bytes survive a fresh cache opener; response ownership ends after copying (1.851375ms)
+✔ native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying (1.150667ms)
+✔ once responses with valid receipts remove stale ordinary bytes without reading or storing the once Blob (1.274667ms)
+✔ once responses with absent receipts remove stale ordinary bytes without reading or storing the once Blob (1.138375ms)
+✔ once responses with malformed receipts remove stale ordinary bytes without reading or storing the once Blob (1.103208ms)
+✔ once responses with incomplete receipts remove stale ordinary bytes without reading or storing the once Blob (1.582208ms)
+✔ once responses with no table receipts remove stale ordinary bytes without reading or storing the once Blob (0.961125ms)
+✔ once responses with no row receipts remove stale ordinary bytes without reading or storing the once Blob (0.851708ms)
+✔ once responses with no column receipts remove stale ordinary bytes without reading or storing the once Blob (0.840541ms)
+✔ once falls back to a transient data URI without a second fetch or durable bytes (1.002333ms)
+✔ data URI fallback preserves supported media bytes and handles a missing object-URL function (0.359917ms)
+✔ data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies (0.497584ms)
+✔ data URI fallback rejects trailing line terminators even when they fill the expected encoded length (0.225125ms)
+✔ a delayed transient conversion survives rotation but not sign-out or close (3.26625ms)
+✔ FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs (0.549167ms)
+✔ modern Blob reads and browser URLs retain their behavior without FileReader (2.02825ms)
+✔ failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws (0.194292ms)
+✔ upload keeps caller-owned Blobs open on both success and failure (0.221875ms)
+✔ retention drops old inferred homes and refuses downloads without a valid home receipt (1.867291ms)
+✔ retained receipt store binding is revalidated on read (0.877541ms)
+✔ retained receipt store binding is revalidated on reconcile (0.860959ms)
+✔ retained receipt store binding is revalidated on reopen (0.97075ms)
+✔ retained receipt store binding is revalidated on unbound reopen (0.996875ms)
+✔ a foreign once receipt checks the entry after serialized writes and never copies its body (1.022417ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-1/2 (0.657208ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-0/2 (0.286542ms)
+✔ a ranged body retains only the entire ordinary file: bytes 1-2/3 (0.247625ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-9/10 (0.261291ms)
+✔ a ranged body retains only the entire ordinary file: bytes */2 (0.867167ms)
+✔ a ranged body retains only the entire ordinary file: missing range (0.265708ms)
+✔ Expo Release Blob with a streamed response reaches a handle (ordinary) (120.732917ms)
+✔ Expo Release Blob with a streamed response reaches a handle (once) (7.024583ms)
+✔ native stream-to-Blob path keeps its size allowance and disposes a late body after cancellation (5.797125ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 239.415458

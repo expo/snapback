@@ -173,6 +173,13 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// UA (LLP 3000.008.002.000 §6): app-client's asset await forwards private
+// progress through readAsset; assets/client/local append that observer to the
+// existing download await. Counts and delivery sites are unchanged. These
+// asset reads cannot admit, send or settle mutations. asset-progress has no
+// awaits or storage; it names waits without cancelling/replaying them. Native
+// Blob lifecycle and React asset tests cover conversion, session custody and
+// late outcomes. No delivery scope, classification or fault recipe changes.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

@@ -88487,3 +88487,59 @@ Both failures are preserved in the report and dated open issues; no assertion,
 deadline or test count was changed, and no green whole-script result is claimed.
 Reference and source-line audits pass. Final disk use is below 20 GiB, within
 the 40 GB limit. Commit only; nothing pushed or published.
+
+
+## 2026-10-07 — UA: ordinary native assets and named waits
+
+Reproduced a missing ordinary image with a generated Expo app on the Apartment
+mini's own iOS 27 simulator, using published 0.4.13. Both Release and Debug fail;
+the web starter succeeds. Instrumentation shows the hook dispatches authenticated
+Range GETs and receives 206. Expo exposes a stream alongside RN's Blob, which
+rejects byte-array construction. The old downloader misclassified that local
+assembly failure as E_OFFLINE and retried through offline/reconnect cycles.
+The frozen native pilot has no hook or HTTP interception trace establishing its
+exact cause; its absence of media callbacks does not prove an absent GET.
+
+Use the host's public Response.blob() when Blob buffer construction is not
+supported, with the existing opaque-body allowance. Preserve once semantics,
+Blob ownership, cancellation and auth custody. Every loading useAsset now names
+its stage and diagnostic deadline; after five seconds E_ASSET_WAIT explains the
+pending stage without cancelling or replaying it. Synchronous custom asset
+throws become E_CLIENT. The app facade and both clients carry private progress
+without changing Client.asset's public signature. Assets/client cards and code
+lookup document the state. Generic native smoke explicitly reports assets as
+not exercised; application witnesses must observe hook states and media callbacks.
+
+Fixed generated Release, Debug and web apps all reach ready and image-load.
+An injected 6.2-second native fetch hold reports waiting.headers and E_ASSET_WAIT
+before the proxy sees a GET, then completes once. The Release-path regression
+runs RN's real production Blob code with only its native byte store mocked;
+published 0.4.13's downloader fails both ordinary/once controls. Blob tests pass
+39, React 66, and the earlier affected asset/native/media run passes 160 with
+no skips. Full Mac suite qualification is recorded in the linked report.
+
+Mac wasm is 2,135,439 B raw / 645,163 B gzip; the unchanged 645,564 B cap covers
+that measurement and RX's recorded merged Linux 645,264 B gzip. Linux was not
+rerun by this mini-only lane. No core/device Rust, native ABI, persisted encoding,
+schema identity or storage layout changes. Sources remain within 1,500 lines;
+local.ts stays at 1,500 by condensing one existing comment. The owned simulator
+was shut down/deleted and fixture servers stopped. No other simulator/process
+was touched. Local commit only, nothing pushed or published. See the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md) and LLP
+3000.008.002.000 §6 for evidence and the diagnostic contract.
+
+
+UA full Mac qualification completed in 2,673 s with the required SQLite flag:
+Rust 5,159 passed / 2 failed / 33 ignored; client pool 328/328 files executed,
+6,527 tests passed / 1 failed / 10 skipped; fixture wrappers 9/9; serial models
+79/79. The full command exited 1 from two stages: new E_ASSET_WAIT definition/
+recovery pins were missing, the witness card exceeded its existing line budget,
+and asset progress changed the await census. Added the pins, tightened the card
+within 399 lines, and reviewed the four changed asset awaits plus the zero-await
+progress module. They add no mutation delivery scope, site or fault recipe.
+All 338 behavioral matrix cases had passed. Final guide rerun passes 113/113;
+final census rerun passes 1/1. No assertions, deadlines, work counts or budgets
+were weakened. No all-green whole-script rerun is claimed; every observed
+failure is repaired and rechecked. Runtime inputs of the other passing checks
+are unchanged. Final CLI code lookup, reference and source/diff audits pass;
+the report retains the raw full-suite result and the repair evidence.

@@ -1,0 +1,49 @@
+{
+  "base": "8e530ff2419387cb97ff841b4a2aa8b7828c7229",
+  "host": "Apartment mini, macOS 27.0.1 arm64",
+  "node": "24.18.0",
+  "command": "PATH=/Users/ccheever/.local/node24/bin:$PATH DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "cwd": "snapback4",
+  "exitCode": 1,
+  "durationSeconds": 2673,
+  "rust": {
+    "passed": 5159,
+    "failed": 2,
+    "ignored": 33
+  },
+  "clientFiles": {
+    "completed": 328,
+    "failed": 1,
+    "tests": 6538,
+    "passed": 6527,
+    "failedTests": 1,
+    "skipped": 10
+  },
+  "fixtures": {
+    "passed": 9
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "failures": [
+    "guide: code definition/recovery pins missing",
+    "guide: witness card over existing line budget",
+    "delivery matrix: stale asset await inventory"
+  ],
+  "repairs": [
+    {
+      "check": "cargo test -p snapback4-lang --test guide",
+      "passed": 113,
+      "exitCode": 0,
+      "log": "guide-final.log.gz"
+    },
+    {
+      "check": "node --test --test-name-pattern=\"every delivery await is explicitly classified\" packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "passed": 1,
+      "exitCode": 0,
+      "log": "delivery-boundary-final.log"
+    }
+  ],
+  "qualificationNote": "All failing checks repaired and rerun. No fresh all-green whole-script result claimed; product/runtime inputs of the passing checks were unchanged by these documentation/inventory repairs."
+}

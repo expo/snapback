@@ -3,6 +3,8 @@ import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
+import { assetWaiting, assetDiagnosticDelay, readAsset, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
+export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // The React arm: one provider and hooks over the client card.
 // Read hooks return the client card vocabulary; inspection is an opt-in diagnostic.
 
@@ -377,7 +379,7 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, read);
 }
 
-export type AssetState = { readonly status: "empty" } | { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
+export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
 
 /** The bytes of an asset a row the viewer may read holds, fetched under
  * the viewer's credentials as a blob URL for `src`. Revoked when the id
@@ -390,22 +392,33 @@ export function useAsset(id: string | null | undefined): AssetState {
   // @ref LLP 3000.008.002.000#6 — a display handle belongs to this client, principal and asset id, including the render before effect cleanup.
   // A raw online client can have a bearer before discovering its viewer.
   // That discovery is not an account change and must not consume a second view.
-  const owner = useMemo(() => ({ client, signedOut, id }), [client, signedOut, id]);
+  const owner = useMemo(() => ({ client, signedOut, id, since: Date.now() }), [client, signedOut, id]);
   const [resolved, setResolved] = useState<{ owner: typeof owner; state: AssetState; lifetime: { live: boolean } }>();
   useEffect(() => {
     const { client, signedOut, id } = owner;
     if (!id || signedOut) return;
     let live = true, busy = false, recoveryRequested = false;
     let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+    let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+    let stage: AssetStage = "scheduled", since = owner.since;
     const lifetime = { live: true };
     let read: AssetRead | null = null;
     const publish = (state: AssetState) => setResolved({ owner, state, lifetime });
-    const load = () => {
+    const progress = (next: AssetStage) => {
+      stage = next;
+      if (live) publish({ status: "loading", waiting: assetWaiting(stage, since) });
+    };
+    const diagnose = () => {
+      clearTimeout(diagnosticTimer);
+      diagnosticTimer = setTimeout(() => progress(stage), Math.max(0, since + assetDiagnosticDelay - Date.now()));
+    };
+    const load = async () => {
       if (!live || busy || client.link() === "signed-out") return;
       clearTimeout(recoveryTimer); recoveryTimer = undefined;
       busy = true;
-      publish({ status: "loading" });
-      void client.asset(id).then((result) => {
+      since = Date.now(); progress("client"); diagnose();
+      try {
+        const result = await readAsset(client, id, progress);
         read = result;
         if (!live) {
           if ("url" in result) result.revoke();
@@ -413,13 +426,14 @@ export function useAsset(id: string | null | undefined): AssetState {
         }
         publish("url" in result ? { status: "ready", url: result.url, type: result.type }
           : { status: assetError(result.denied) ? "error" : "denied", why: result.denied });
-      }).catch((error) => {
+      } catch (error) {
         read = null;
         if (live) publish({ status: "error", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
-      }).finally(() => {
+      } finally {
+        clearTimeout(diagnosticTimer);
         busy = false;
         if (recoveryRequested) { recoveryRequested = false; recover(); }
-      });
+      }
     };
     const recover = () => {
       if (!live) return;
@@ -436,21 +450,23 @@ export function useAsset(id: string | null | undefined): AssetState {
     const visible = () => { if (globalThis.document?.visibilityState === "visible") recover(); };
     globalThis.addEventListener?.("focus", recover);
     globalThis.addEventListener?.("online", recover);
-    globalThis.document?.addEventListener("visibilitychange", visible);
-    queueMicrotask(() => { if (live) load(); });
+    globalThis.document?.addEventListener?.("visibilitychange", visible);
+    diagnose();
+    queueMicrotask(() => { if (live) void load(); });
     return () => {
       live = false; lifetime.live = false;
       clearTimeout(recoveryTimer);
+      clearTimeout(diagnosticTimer);
       unsubscribe();
       globalThis.removeEventListener?.("focus", recover);
       globalThis.removeEventListener?.("online", recover);
-      globalThis.document?.removeEventListener("visibilitychange", visible);
+      globalThis.document?.removeEventListener?.("visibilitychange", visible);
       if (read && "url" in read) read.revoke();
     };
   }, [owner]);
   if (!id) return { status: "empty" };
   if (signedOut) return { status: "denied", why: { code: "E_AUTH", family: "auth", message: "Sign in before loading an asset.", rewrite: "read the asset's home row with the signed-in client, then pass its asset id to useAsset", guide: "assets" } };
-  return resolved?.owner === owner && resolved.lifetime.live ? resolved.state : { status: "loading" };
+  return resolved?.owner === owner && resolved.lifetime.live ? resolved.state : { status: "loading", waiting: assetWaiting("scheduled", owner.since) };
 }
 
 /** Opt-in development overlay data; disabled means no timer or inspection work. */

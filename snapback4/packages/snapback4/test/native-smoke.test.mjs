@@ -43,6 +43,8 @@ test('prime waits for acquisition and records device counts, identity and link, 
   assert.equal(f.lines.at(-1).witness.step, 'primed');
   assert.deepEqual(f.lines[0].smoke.rows, prime.rows);
   assert.equal(f.lines[0].smoke.storeId, prime.storeId);
+  assert.equal(f.lines[0].smoke.assets.state, 'not-exercised');
+  assert.match(f.lines[0].smoke.assets.reason, /useAsset states.*load\/error/);
   assert.equal(f.reads.length, 0);
   assert.ok(f.calls.every(c => ['witness_state', 'backend'].includes(c.op)));
 });

@@ -1738,6 +1738,26 @@ older extensionless MP4 entries migrate within the same cache when read.
 Rebuild the app with `snapback4-expo` 0.2.24 or later to include this host repair.
 
 For one-view photos, own the handle above the list: `snapback4 guide client`'s viewer recipe.
+Every loading result includes `waiting: { stage, since, diagnosticAt, why? }`.
+The stage names scheduling, session-store checks, media reconciliation, refresh,
+queue, response headers/body, retry backoff, retention or display conversion.
+Custom client methods report `client` rather than guessing their internals.
+After five seconds the same pending request adds `waiting.why` with code
+`E_ASSET_WAIT` and a stage-specific message. Render that explanation; it is a
+diagnostic, not a refusal of the asset or permission to fetch again. A healthy
+long transfer may still finish. Recovery never bypasses a held session check
+or consumes a second once view merely because this diagnostic appeared.
+Timers and late outcomes belong to the hook's selection and are released on
+unmount/account/id changes. JavaScript must be runnable for a timer to fire.
+
+Expo may expose response streams alongside React Native's Blob, which rejects
+buffer parts. The SDK probes Blob construction and uses the host's
+`Response.blob()` when needed; this native body has the buffered size allowance.
+A local assembly failure is `E_CLIENT`, never evidence of an offline link.
+URI construction and authorization headers are shared across Debug/Release;
+no acquired-partition gate precedes an online asset GET. The local client first
+reconciles media authority and waits for an active credential refresh.
+
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. Transport and blob-URL failures return `status: "error"`
 with `why.code` and `why.message`; authorization, revocation and consumed views

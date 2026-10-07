@@ -1,6 +1,51 @@
 // @ref LLP 3000.008.002.000#6 — actual downloader cooldowns and one recovery per event.
 // Inserted into react-harness so these cases share its mounted React fixture.
 export const assetRecoveryHarness = `
+  async "useAsset names a held session before any request and diagnoses it without replay"() {
+    const originalNow = Date.now, originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout;
+    let now = 100000, state, calls = 0, revoked = 0;
+    const timers = new Map(), session = deferred(), outcome = deferred(), raw = controlled();
+    raw.asset = () => { calls++; return outcome.promise; };
+    const { client } = guardClient(raw, () => session.promise, () => true, () => ({ code: "E_AUTH", family: "auth", message: "ended" }));
+    function Probe() { state = useAsset("photo"); return null; }
+    Date.now = () => now;
+    globalThis.setTimeout = (cb, delay, ...args) => {
+      if (delay !== 5000) return originalTimeout(cb, delay, ...args);
+      const id = {}; timers.set(id, () => cb(...args)); return id;
+    };
+    globalThis.clearTimeout = id => { if (!timers.delete(id)) originalClear(id); };
+    try {
+      await mount(h(Probe), client);
+      equal(calls, 0, "session custody blocks dispatch");
+      equal(state.waiting.stage, "session", "the blocking precondition is named");
+      equal(state.waiting.diagnosticAt, 105000, "diagnostic has a bounded due time");
+      now = 105000;
+      await act(async () => { const callbacks = [...timers.values()]; timers.clear(); for (const cb of callbacks) cb(); });
+      equal(state.waiting.why.code, "E_ASSET_WAIT", "a hung session is never silent loading");
+      equal(state.waiting.why.site, "useAsset.session", "diagnostic names the held stage");
+      await act(async () => window.dispatchEvent(new Event("focus")));
+      equal(calls, 0, "diagnosing or refocusing cannot bypass custody");
+      await act(async () => session.resolve(true));
+      equal(calls, 1, "resumed session dispatches once");
+      equal(state.waiting.stage, "client", "custom reader is identified honestly");
+      equal(state.waiting.why.code, "E_ASSET_WAIT", "progress does not restart the diagnostic allowance");
+      await act(async () => outcome.resolve({ url: "blob:photo", type: "image/png", revoke: () => revoked++ }));
+      equal(state.status, "ready", "late completion replaces the diagnostic");
+      equal(calls, 1, "a successful once outcome never replays a pending focus event");
+      await unmount(); equal(revoked, 1, "unmount owns exactly one release");
+      equal(timers.size, 0, "diagnostic timers are cleaned up");
+    } finally { await unmount(); Date.now = originalNow; globalThis.setTimeout = originalTimeout; globalThis.clearTimeout = originalClear; }
+  },
+  async "useAsset converts a synchronous custom-reader throw into a typed error"() {
+    const client = controlled(); let state;
+    client.asset = () => { throw Error("native module unavailable"); };
+    function Probe() { state = useAsset("photo"); return null; }
+    await mount(h(Probe), client);
+    equal(state.status, "error", "a synchronous exception cannot strand loading");
+    equal(state.why.code, "E_CLIENT", "host exception is a client refusal");
+    check(state.why.message.includes("native module unavailable"), "original cause is visible");
+    await unmount();
+  },
   async "useAsset preserves real admission cooldown through focus and reconnect"() {
     const originalNow = Date.now;
     const originalTimeout = globalThis.setTimeout, originalClear = globalThis.clearTimeout, timers = new Map();
