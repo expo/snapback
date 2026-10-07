@@ -34,8 +34,8 @@ async function signedOutRestart(f) {
   assert.equal(f.saved().snapback4Successor, undefined);
 }
 
-for (const readOnly of [false]) for (const caller of ["self", "peer"]) test(`logout must complete while ${caller} refresh response is held; readOnly=${readOnly}`, {timeout: 10000}, async t => {
- const f=await fixture(t,readOnly), entered=defer(), release=defer(); let next;
+for (const caller of ["self", "peer"]) test(`full-session logout must complete while ${caller} refresh response is held`, {timeout: 10000}, async t => {
+ const f=await fixture(t,false), entered=defer(), release=defer(); let next;
  t.after(()=>release.resolve());
  const a=f.app({fetch:async(input,init)=>{
    const r=await fetch(input,init);
@@ -71,10 +71,10 @@ test('three read apps refuse refresh and share the original credential until log
 });
 
 for (const readOnly of [true, false]) for (const held of [true, false]) {
-  test(`raw signOut retires an issued successor; readOnly=${readOnly}, held=${held}`, { timeout: 10000 }, async t => {
+  test(`raw signOut after a refresh attempt; readOnly=${readOnly}, held=${held}`, { timeout: 10000 }, async t => {
     const f = await fixture(t, readOnly), entered = defer(), release = defer();
     t.after(() => release.resolve());
-    let next, gated = false;
+    let next;
     const sent = [];
     const client = createClient({ url: f.url, readOnly, session: f.initial, fetch: async (input, init) => {
       const response = await fetch(input, init), path = new URL(input).pathname;
@@ -82,11 +82,6 @@ for (const readOnly of [true, false]) for (const held of [true, false]) {
       if (path === '/auth/refresh') {
         next = (await response.clone().json()).session;
         if (!readOnly && held) { entered.resolve(); await release.promise; }
-      }
-      if (readOnly && path === '/probe' && new Headers(init?.headers).get('authorization') !== `Bearer ${f.initial.token}` && !gated) {
-        gated = true;
-        if (!held) throw Error('retryable verification outage');
-        entered.resolve(); await release.promise;
       }
       return response;
     } });

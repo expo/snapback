@@ -749,3 +749,54 @@ recurrence and passing complete-target rerun). All carry the requested
 and output were checked again before finishing: still only progress notes,
 with no findings or verdict. Both Astra findings and its allocation-test note
 are addressed. No push or publication.
+
+
+## Round 6 — SDK read sessions never rotate
+
+Implemented the lead's revision 4 simplification on top of `ce5793386d` and
+committed the implementation as `3c8b06f2e8`. The SDK never refreshes read
+sessions, automatically or explicitly. `refreshSession()` refuses locally with
+`E_READ_ONLY_REFRESH` and directs the caller to sign in or narrow again. Read
+clients retain their bearer until `expiresAt`, then surface `E_AUTH`; cap hints
+never schedule renewal. The standalone auth helper also refuses `ro.` tokens.
+The read app facade refuses without waiting for a held storage transaction.
+
+Deleted the private successor receipt, rotation lock, waiting-peer recovery,
+successor verification and retirement custody, and cap-aware scheduling. Full
+sessions retain the branch's rotation/retirement behavior and principal-wide
+logout ruling, with different-principal protection. Raw HTTP read refresh and
+its server tests remain intact. Added positive `Read` assertions through all
+four live resolvers, including `resolve_read_only`. Updated RFC §1.3/§1.4 with
+the revision 4 rationale, the read-only guide, both client cards, and appended
+the JOURNAL.
+
+**Net removal versus `ce5793386d`: 133 SDK source lines (35 added, 168 removed).**
+The implementation, tests and living docs together remove **234 net lines**
+(383 added, 617 removed), excluding append-only JOURNAL/report/evidence additions.
+Pinned Vite/oxc measurement confirms smaller bundles: online **43,681 → 43,408
+gzip bytes** (273 removed), app **98,308 → 97,513** (795 removed). Raw bundled
+bytes fall by 1,093 and 3,803 respectively. The size artifact includes baseline
+and current revisions; its retained script substitutes the six baseline source
+files at Vite load time, keeping the toolchain and all other inputs identical.
+
+Converted read-refresh races to stable-token/no-refresh assertions across
+simultaneous peers, held read dispatch/responses, held restoration probes and
+storage, retryable probe failures, close, logout and restart. The two Round 6
+liveness interleavings cannot consume a predecessor. A waiting reader can close
+and restart while other peers attempt refresh. Kept every full-session race
+control and the logout, custody-isolation, probe/asset/device and allocation
+checks. The initial focused run found stale refresh expectations; it also
+exposed the app facade's storage wait before local refusal. Those were corrected;
+the original log is retained, including the interrupted waiting test.
+
+Affected verification so far: **94/94** read tests with the published 0.4.13
+downgrade control enabled; **5/5** core session tests; **26/26** raw SDK/probe/
+expiry tests; **44/44** final peer/round-4/round-5 controls, including the two
+additional waiting-reader restart cases. Typecheck/build and references pass.
+The complete `bash scripts/test.sh` is running at full default counts; its
+preflight already passed and wasm remains **2,117,335 raw / 639,888 gzip bytes**
+against the unchanged **639,941** budget. Full-run results follow below.
+
+Evidence is retained under `snapback4/reports/20261006-ro-read-only/evidence/`
+with the `round6-` prefix. Commits carry
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push or publication.

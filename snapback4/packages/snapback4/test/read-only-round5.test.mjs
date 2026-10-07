@@ -36,14 +36,14 @@ async function signedOutRestart(f) {
 
 // The Round 5/6 liveness failures required a consumed predecessor. Hold each
 // boundary while peers ask to refresh: none can consume the read credential.
-for (const boundary of ['read before dispatch', 'read response', 'restart probe']) {
+for (const boundary of ['read before dispatch', 'read response', 'restart probe', 'close waiting reader']) {
   for (const ordering of ['refresh first', 'peer first']) test(`no read rotation: ${boundary}, ${ordering}`, { timeout: 15000 }, async t => {
     const f = await fixture(t), entered = defer(), release = defer(), requests = [];
     t.after(() => release.resolve());
     const transport = async (input, init) => { requests.push(new URL(input).pathname); return fetch(input, init); };
     const a = f.app({ fetch: transport }), b = f.app({ fetch: transport });
     await Promise.all([a.ready, b.ready]);
-    const saved = f.saved(), facade = b.client;
+    const saved = f.saved();
     const refuse = async client => assert.equal((await client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
     if (ordering === 'refresh first') await refuse(a.client);
     let peer = b, reading;
@@ -60,7 +60,7 @@ for (const boundary of ['read before dispatch', 'read response', 'restart probe'
         const held = new URL(input).pathname === '/q/who';
         if (held && boundary === 'read before dispatch') { entered.resolve(); await release.promise; }
         const response = await transport(input, init);
-        if (held && boundary === 'read response') { entered.resolve(); await release.promise; }
+        if (held && boundary !== 'read before dispatch') { entered.resolve(); await release.promise; }
         return response;
       } });
       await peer.ready; reading = peer.client.query(query, {});
@@ -71,6 +71,10 @@ for (const boundary of ['read before dispatch', 'read response', 'restart probe'
     const c = f.app({ fetch: transport }); assert.equal((await c.ready).ok, true);
     await refuse(c.client);
     assert.equal((await c.client.query(query, {})).data, f.initial.principal);
+    if (boundary === 'close waiting reader') {
+      await peer.close(); assert.ok('denied' in await reading); reading = undefined;
+      peer = f.app({ fetch: transport }); assert.equal((await peer.ready).ok, true);
+    }
     release.resolve(); assert.equal((await peer.ready).ok, true);
     assert.equal((await (reading ?? peer.client.query(query, {}))).data, f.initial.principal);
     await refuse(peer.client); await refuse(a.client);

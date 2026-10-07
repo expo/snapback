@@ -149,9 +149,8 @@ session lock:
   rotation save, with a logout tombstone. Later opens, online or
   offline, stay signed out without opening that replica. An existing client
   loses access as soon as it learns the refusal. Cleanup cannot delete a
-  different stored successor, including a private read-refresh receipt beside
-  the rejected predecessor. Reads recover that receipt before reusing the
-  predecessor. A transient failed refusal commit is retried
+  different stored credential. Read sessions never rotate in the SDK.
+  A transient failed refusal commit is retried
   once under the session lock; any remaining storage error is reported.
 - **I8 — revoked public handles.** Hiding an account permanently fences every
   exposed client facade and its observations before notifying subscribers.
@@ -309,12 +308,11 @@ across tabs. Journal observers re-read on both a broadcast and the journal's
 storage event: a broadcast can arrive before another tab sees a localStorage
 commit. Neither notification carries trusted intent or replaces durable custody.
 A refused bearer stops that runtime and conditionally tombstones its rejected
-credential; it preserves a peer's successor, including a pending read-refresh
-receipt. Explicit logout compares the owned principal, then commits a tombstone
+credential; it preserves a peer's different stored credential. Explicit logout
+compares the owned principal, then commits a tombstone
 before retiring every same-principal credential it displaces, whatever its epoch.
-Read rotations reserve ownership under a separate rotation lock; network work
-holds neither the session lock nor the persistence queue. A response arriving
-after logout is retired and never adopted. Custom stores shared across independent non-browser
+Read sessions never rotate in the SDK. Full-session refresh responses arriving
+after logout are retired and never adopted. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion

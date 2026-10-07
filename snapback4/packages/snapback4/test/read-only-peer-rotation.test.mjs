@@ -109,63 +109,38 @@ test('a read peer stays usable after both clients refuse refresh', { timeout: 15
   assert.equal((await b.client.query(query, {})).data, f.initial.principal);
   assert.equal(f.saved().token, f.initial.token);
 });
-for (const readOnly of [false]) {
-  test(`ordinary peer query during rotation verification preserves successor; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
-    const f = await fixture(t, readOnly), entered = defer(), release = defer();
-    t.after(() => release.resolve()); let next, predecessorQueries = 0;
-    const a = f.app({ fetch: async (input, init) => {
-      const response = await fetch(input, init), path = new URL(input).pathname;
-      if (path === '/auth/refresh' && response.ok) next = (await response.clone().json()).session;
-      if (readOnly && path === '/probe' && new Headers(init?.headers).get('authorization') !== `Bearer ${f.initial.token}`) {
-        entered.resolve(); await release.promise;
-      }
-      return response;
-    } }), b = f.app({ fetch: async (input, init) => {
-      if (new URL(input).pathname === '/q/who' && new Headers(init?.headers).get('authorization') === `Bearer ${f.initial.token}`) predecessorQueries++;
-      return fetch(input, init);
-    } });
-    await Promise.all([a.ready, b.ready]);
-    const epoch = f.saved().snapback4Epoch ?? '0';
-    const rotation = a.client.refreshSession();
-    assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token);
-    const answer = await b.client.query(query, {});
-    assert.equal(f.saved().token, next.token);
-    assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
-    assert.equal((await f.probe(next.token)).ok, true);
-    release.resolve(); assert.equal((await rotation).ok, true);
-    const restarted = f.app(); assert.equal((await restarted.ready).ok, true);
-    assert.equal((await restarted.client.query(query, {})).data, f.initial.principal);
-  });
-  test(`late predecessor rejection preserves pending or committed successor; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
-    const f = await fixture(t, readOnly), queryEntered = defer(), queryRelease = defer(), probeEntered = defer(), probeRelease = defer();
-    t.after(() => { queryRelease.resolve(); probeRelease.resolve(); }); let next;
-    const a = f.app({ fetch: async (input, init) => {
-      const response = await fetch(input, init), path = new URL(input).pathname;
-      if (path === '/auth/refresh' && response.ok) next = (await response.clone().json()).session;
-      if (readOnly && path === '/probe' && new Headers(init?.headers).get('authorization') !== `Bearer ${f.initial.token}`) {
-        probeEntered.resolve(); await probeRelease.promise;
-      }
-      return response;
-    } }), b = f.app({ fetch: async (input, init) => {
-      if (new URL(input).pathname === '/q/who') { queryEntered.resolve(); await queryRelease.promise; }
-      return fetch(input, init);
-    } });
-    await Promise.all([a.ready, b.ready]);
-    const epoch = f.saved().snapback4Epoch ?? '0', reading = b.client.query(query, {}); await queryEntered.promise;
-    const rotation = a.client.refreshSession();
-    assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token);
-    queryRelease.resolve();
-    const answer = await reading;
-    assert.equal(answer.denied.code, 'E_AUTH');
-    await until(() => b.auth.state === 'signed-out', 'rejected peer cleanup');
-    assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
-    assert.equal(f.saved().token, next.token);
-    assert.equal((await f.probe(next.token)).ok, true);
-    probeRelease.resolve(); assert.equal((await rotation).ok, true);
-    const restarted = f.app(); assert.equal((await restarted.ready).ok, true);
-    assert.equal((await restarted.client.query(query, {})).data, f.initial.principal);
-  });
-}
+test('full-session ordinary peer rejection preserves the completed successor', { timeout: 15000 }, async t => {
+  const f = await fixture(t, false), a = f.app(), b = f.app(); await Promise.all([a.ready, b.ready]);
+  const epoch = f.saved().snapback4Epoch ?? '0';
+  const rotation = await a.client.refreshSession(); assert.equal(rotation.ok, true);
+  await until(() => f.saved().token === rotation.session.token);
+  await b.client.query(query, {});
+  assert.equal(f.saved().token, rotation.session.token);
+  assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
+  assert.equal((await f.probe(rotation.session.token)).ok, true);
+  const restarted = f.app(); assert.equal((await restarted.ready).ok, true);
+  assert.equal((await restarted.client.query(query, {})).data, f.initial.principal);
+});
+test('full-session late predecessor rejection preserves the committed successor', { timeout: 15000 }, async t => {
+  const f = await fixture(t, false), entered = defer(), release = defer();
+  t.after(() => release.resolve());
+  const a = f.app(), b = f.app({ fetch: async (input, init) => {
+    if (new URL(input).pathname === '/q/who') { entered.resolve(); await release.promise; }
+    return fetch(input, init);
+  } });
+  await Promise.all([a.ready, b.ready]);
+  const epoch = f.saved().snapback4Epoch ?? '0', reading = b.client.query(query, {}); await entered.promise;
+  const rotation = await a.client.refreshSession(); assert.equal(rotation.ok, true);
+  await until(() => f.saved().token === rotation.session.token);
+  release.resolve();
+  assert.equal((await reading).denied.code, 'E_AUTH');
+  await until(() => b.auth.state === 'signed-out', 'rejected peer cleanup');
+  assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
+  assert.equal(f.saved().token, rotation.session.token);
+  assert.equal((await f.probe(rotation.session.token)).ok, true);
+  const restarted = f.app(); assert.equal((await restarted.ready).ok, true);
+  assert.equal((await restarted.client.query(query, {})).data, f.initial.principal);
+});
 
 for (const readOnly of [true, false]) test(`malformed stored JSON is collected; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
   const f = await fixture(t, readOnly); f.values.set(f.key, '{');
