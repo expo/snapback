@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "scripts/run-client-tests.mjs",
+    "1",
+    "files",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 298.2
+}

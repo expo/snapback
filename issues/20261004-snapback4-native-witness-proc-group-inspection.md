@@ -41,6 +41,39 @@ group-drain checks. The earlier
 [QF JavaScript inspection ticket](closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
 addresses a separate parser and is not a resolution for this native path.
 
+## FH recurrence, 2026-10-07
+
+FH round 1's resumed Linux suite on `1b40450b39a` plus the internal Following
+reader changes hit the same native inspection diagnostic in
+`stalled_resolver_sigint_is_bounded_journalled_and_drained`, at
+`preparation.rs:523:45`, during evidence retention after the resolver exited
+and its launcher/descendant drained. The target reported 317 passed, one failed
+and four ignored. The witness source is byte-unchanged from this lane's base.
+The failed read's PID and stat bytes are not retained, so the cause remains
+unclassified; this record does not infer an ownership leak or a kernel race.
+
+The exact test passes on its first isolated rerun (1.33 s). The complete CLI
+unit target also passes: 318 passed, zero failed, four ignored in 79.50 s.
+These results and the complete suite disposition are recorded in the
+[FH round-1 report](../snapback4/reports/20261006-fh-following-history/round-1/REPORT.md).
+Raw logs `full-suite-resumed.log`, `witness-sigint-rerun.log` and
+`cli-target-rerun.log` live beside that report. A passing rerun does not erase
+the suite failure or close this issue. No inspection check is weakened by FH.
+
+## FH round 2 recurrence, 2026-10-07
+
+The full native suite on `8adc7879dd` plus FH round 2 again failed
+`stalled_resolver_sigint_is_bounded_journalled_and_drained` at
+`preparation.rs:523:45`: evidence cleanup refused an invalid `/proc` process
+group after the resolver's launcher and descendant drained. The target had
+317 passes, one failure and four ignores. Witness source remains unchanged;
+the failed stat snapshot is still unavailable, so its cause remains unclassified.
+
+The exact test passes its first isolated rerun (1.00 s), and the complete CLI
+unit target passes all 318 tests with four ignores (37.23 s). The
+[FH round-2 report](../snapback4/reports/20261006-fh-following-history/round-2/REPORT.md)
+retains the full-suite failure and both rerun logs. No ownership inspection or
+group-drain check was relaxed. This recurrence does not close the issue.
 ## 2026-10-06 — RO Round 3 recurrence
 
 The complete RO Round 3 suite at implementation commit `63d6cf1400` reported

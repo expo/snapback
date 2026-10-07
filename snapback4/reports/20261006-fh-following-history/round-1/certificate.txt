@@ -1,0 +1,239 @@
+  mutation post:
+    scale: constant — at most 8193 rows examined, 8193 probes, 0 lanes; per write: Following `feed` delivery/backfill/removal shares the write meter (sized bounds below)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    timeline feed: background delivery; derived + application writes share the 1024-row mutation ceiling
+      event insert: 1 app + 1 event + 1 own inbox + 1 durable delivery record = 4 writes, independent of follower count
+      removal: 1 app + 1 tombstone + 1 event delete + 1 purge record = 4 writes; visibility changes immediately
+      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities
+      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending
+      event insert: derived stream <= 19578 B (application rows excluded)
+      follow preview: derived stream <= 75208 B (application rows excluded)
+      delivery chunk: derived stream <= 309184 B (application rows excluded)
+      removal: derived stream <= 18336 B (application rows excluded)
+      purge chunk: derived stream <= 37564 B (application rows excluded)
+    no explicit reads
+    insert posts, fans out to everyone
+  mutation repost:
+    scale: constant — at most 8193 rows examined, 8193 probes, 0 lanes; per write: Following `feed` delivery/backfill/removal shares the write meter (sized bounds below)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    timeline feed: background delivery; derived + application writes share the 1024-row mutation ceiling
+      event insert: 1 app + 1 event + 1 own inbox + 1 durable delivery record = 4 writes, independent of follower count
+      removal: 1 app + 1 tombstone + 1 event delete + 1 purge record = 4 writes; visibility changes immediately
+      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities
+      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending
+      event insert: derived stream <= 19578 B (application rows excluded)
+      follow preview: derived stream <= 75208 B (application rows excluded)
+      delivery chunk: derived stream <= 309184 B (application rows excluded)
+      removal: derived stream <= 18336 B (application rows excluded)
+      purge chunk: derived stream <= 37564 B (application rows excluded)
+    no explicit reads
+    insert reposts, fans out to everyone
+  mutation unrepost:
+    scale: constant — at most 8193 rows examined, 8193 probes, 0 lanes; per write: Following `feed` delivery/backfill/removal shares the write meter (sized bounds below)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    timeline feed: background delivery; derived + application writes share the 1024-row mutation ceiling
+      event insert: 1 app + 1 event + 1 own inbox + 1 durable delivery record = 4 writes, independent of follower count
+      removal: 1 app + 1 tombstone + 1 event delete + 1 purge record = 4 writes; visibility changes immediately
+      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities
+      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending
+      event insert: derived stream <= 19578 B (application rows excluded)
+      follow preview: derived stream <= 75208 B (application rows excluded)
+      delivery chunk: derived stream <= 309184 B (application rows excluded)
+      removal: derived stream <= 18336 B (application rows excluded)
+      purge chunk: derived stream <= 37564 B (application rows excluded)
+    write target reposts.byPair — engine-private lookup; the update rule decides
+    delete reposts, fans out to everyone
+  mutation follow:
+    scale: constant — at most 8193 rows examined, 8193 probes, 0 lanes; per write: Following `feed` delivery/backfill/removal shares the write meter (sized bounds below)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    timeline feed: background delivery; derived + application writes share the 1024-row mutation ceiling
+      follow: 1 edge + 1 owned admission + at most 50 newest live event copies + 1 backfill record = at most 53 writes
+      unfollow: 1 edge delete + 1 admission delete + up to 256 stale copies + 1 cleanup record = at most 259 writes; the next read excludes this actor
+      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities
+      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending
+      event insert: derived stream <= 19578 B (application rows excluded)
+      follow preview: derived stream <= 75208 B (application rows excluded)
+      delivery chunk: derived stream <= 309184 B (application rows excluded)
+      removal: derived stream <= 18336 B (application rows excluded)
+      purge chunk: derived stream <= 37564 B (application rows excluded)
+    no explicit reads
+    insert follows, fans out to everyone
+  mutation unfollow:
+    scale: constant — at most 8193 rows examined, 8193 probes, 0 lanes; per write: Following `feed` delivery/backfill/removal shares the write meter (sized bounds below)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    timeline feed: background delivery; derived + application writes share the 1024-row mutation ceiling
+      follow: 1 edge + 1 owned admission + at most 50 newest live event copies + 1 backfill record = at most 53 writes
+      unfollow: 1 edge delete + 1 admission delete + up to 256 stale copies + 1 cleanup record = at most 259 writes; the next read excludes this actor
+      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities
+      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending
+      event insert: derived stream <= 19578 B (application rows excluded)
+      follow preview: derived stream <= 75208 B (application rows excluded)
+      delivery chunk: derived stream <= 309184 B (application rows excluded)
+      removal: derived stream <= 18336 B (application rows excluded)
+      purge chunk: derived stream <= 37564 B (application rows excluded)
+    write target follows.byPair — engine-private lookup; the update rule decides
+    delete follows, fans out to everyone
+  mutation remove:
+    scale: constant — at most 8194 rows examined, 8193 probes, 0 lanes; per write: Following `feed` delivery/backfill/removal shares the write meter (sized bounds below)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    timeline feed: background delivery; derived + application writes share the 1024-row mutation ceiling
+      event insert: 1 app + 1 event + 1 own inbox + 1 durable delivery record = 4 writes, independent of follower count
+      removal: 1 app + 1 tombstone + 1 event delete + 1 purge record = 4 writes; visibility changes immediately
+      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities
+      reads: one private inbox lane, current private edge epoch and public tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending
+      event insert: derived stream <= 19578 B (application rows excluded)
+      follow preview: derived stream <= 75208 B (application rows excluded)
+      delivery chunk: derived stream <= 309184 B (application rows excluded)
+      removal: derived stream <= 18336 B (application rows excluded)
+      purge chunk: derived stream <= 37564 B (application rows excluded)
+    write target posts.byId — engine-private lookup; the update rule decides
+    update posts, fans out to everyone
+  query home:
+    scale: constant once background cleanup catches up; until then at most 24579 rows examined: Following `feed` entries retired by an unfollow or a removal and not yet purged, skipped before 20 match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)
+      programs.home.2: Following `feed` entries retired by an unfollow or a removal and not yet purged, skipped before 20 match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    point feedEdges.byPair — one row, one rule check
+    point feedRemovedEvents.byEvent — one row, one rule check
+    scan feedFeed.byReaderPage last 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+      probe × examined
+  query cards:
+    scale: constant once background cleanup catches up; until then at most 24599 rows examined: Following `feed` entries retired by an unfollow or a removal and not yet purged, skipped before 20 match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)
+      programs.cards.2: Following `feed` entries retired by an unfollow or a removal and not yet purged, skipped before 20 match (background cleanup purges them in chunks of at most 256; the read meter bounds the work until it does)
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    point feedEdges.byPair — one row, one rule check
+    point feedRemovedEvents.byEvent — one row, one rule check
+    scan feedFeed.byReaderPage last 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+      probe × examined
+    point posts.byId — one row, one rule check
+  query history:
+    scale: grows with posts skipped by `.authorId = viewer or (exists follows[viewer, .authorId])` before 21 match; reposts skipped by `.actorId = viewer or (exists follows[viewer, .actorId])` before 21 match
+      programs.history.2: posts skipped by `.authorId = viewer or (exists follows[viewer, .authorId])` before 21 match; rewrite: pin the filter column in the read, or add a view indexed by that predicate
+      programs.history.4: reposts skipped by `.actorId = viewer or (exists follows[viewer, .actorId])` before 21 match; rewrite: pin the filter column in the read, or add a view indexed by that predicate
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    merge posts: up to 2 lanes
+    point follows.byPair — one row, one rule check
+    scan posts.$intent:byParentIdRemovedAt:8383564bf6a45445 last 20 — rule decided by the prefix: no probes
+      selected $intent:byParentIdRemovedAt:8383564bf6a45445 (parentId = null, removed = false); result: page; synthesized; explicit by; read: activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+      probe × examined
+    point follows.byPair — one row, one rule check
+    scan reposts.$intent:byAt:31b7451344e6727f last 20 — rule decided by the prefix: no probes
+      selected $intent:byAt:31b7451344e6727f (); result: page; synthesized; explicit by; read: activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+      probe × examined
+  query indexed:
+    scale: constant — at most 4300043 rows examined, 0 probes, 100001 lanes
+    following feed acquisition: global, non-sliding source floors; new arrivals accumulate
+      posts: full sync
+      reposts: full sync
+      follows: full sync
+      feedFeed: newest 1000 by (readerId, at, eventId, epoch, id) per reader
+      feedPosts originals: full sync
+      feedPosts reposts: full sync
+      feedRemovedEvents: full sync; private edge epochs and work stay synced
+      history: newest 1000 events per followed author, unchanged; acquisition never changes delivery
+      withholding: unknown cards or inbox coverage withhold the whole query and continuation; retry original input online; loading offline, while a prediction is unobserved, or for held queries; transport failure stays loading
+      cuts: a known examined-meter prefix stays partial with its continuation; backfill and cleanup stay incomplete data
+    merge feedPosts: up to 100001 lanes
+    scan feedPosts.byActorTime last 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+    scan feedEdges.byPair first 100000 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+    scan feedPosts.byActorTime last 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population

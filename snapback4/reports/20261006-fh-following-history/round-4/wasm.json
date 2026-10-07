@@ -1,0 +1,10 @@
+{
+  "raw": 2135336,
+  "gzip": 645307,
+  "cap": 645607,
+  "macos_allowance": 300,
+  "sha256": "7cd5e44fae55810e523ae10ee19ee2f11f926466ea7eaaef26296d1d9fb51c9b",
+  "round3_gzip_delta": 0,
+  "persisted_changes": false,
+  "host": "eb1000"
+}

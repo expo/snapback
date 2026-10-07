@@ -1,0 +1,38 @@
+   Compiling fh-r1-review-probes v0.1.0 (/home/ccheever/sb4-intent/review-scratch/fh-r1-astra/probes)
+    Finished `test` profile [optimized] target(s) in 0.48s
+     Running unittests src/lib.rs (snapback4/target/debug/deps/fh_r1_review_probes-3d46c209a199b2a7)
+
+running 2 tests
+first={"phase":"preparing","next":"330c6fc8ae950c0e2a891093aff7c642a564e93c177b39de6fe961ea871393fa"} meters=Metered { examined: 31, index_entries: 5, rule_probes: 14, steps: 1056, heap_bytes: 2283004, output_bytes: 512, rows_written: 6 }
+
+thread 'shrink_output_between_preparation_and_publication' (399034) panicked at /home/ccheever/sb4-intent/review-fh-r1-astra/snapback4/crates/snapback4-core/src/engine/following_history/session.rs:315:5:
+publication reservation must cover the whole atomic checkpoint
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+same token recovers after restoring allowance: {"phase":"page","items":[{"kind":"event","id":"p7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","actor":"reader","author":"reader","post":"p7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","repost":false,"at":7},{"kind":"event","id":"p6xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","actor":"reader","author":"reader","post":"p6xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","repost":false,"at":6},{"kind":"event","id":"p5xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","actor":"reader","author":"reader","post":"p5xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","repost":false,"at":5},{"kind":"event","id":"p4xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","actor":"reader","author":"reader","post":"p4xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","repost":false,"at":4}],"next":"03ce7e7a10ae2f7ee63596257d71a710bbb616b065948ca6124a336f7d6f7115"}
+
+thread 'shrink_output_between_preparation_and_publication' (399034) panicked at src/lib.rs:44:13:
+publication panicked after request output allowance shrank
+test shrink_output_between_preparation_and_publication ... FAILED
+follow churn wave 0: {"phase":"preparing","next":"d6681073c0dc6d7b26cd1a781f486ad9dec84d5a450eff2091d1f49eb9f447e5"}
+follow churn wave 1: {"phase":"preparing","next":"4e87273dc599691d17040c1359580c0922361afb4a5cc72148b3fd160da7a7fe"}
+follow churn wave 2: {"phase":"preparing","next":"ef6d621b263cd996ffe15e9ca74da431b667d96c420bc51e64becaaae892d051"}
+follow churn wave 3: {"phase":"preparing","next":"3f43b978399927bb510298646bb7e702101043856aeac61bfb4336aa7d472b4b"}
+follow churn wave 4: {"phase":"preparing","next":"d5b35252ffaee03ab71e5070dd7268adca9dc3944a70ce30aee2891bf2eec004"}
+follow churn wave 5: {"phase":"preparing","next":"a0c6a4bb4e2a9a1ed03f92c9c55b61d5fa51c68c90257c8bb5a3945c7e7dcc91"}
+follow churn wave 6: {"phase":"preparing","next":"a5cc7e2b1462e2c0da9f15fd966902a4d2836a94c2eb8ca9999f22ea9bec16fa"}
+follow churn wave 7: {"phase":"preparing","next":"a774dba30e3bf033421fc16b4e3625703afce1155112c1edeb33a7bc82cbf50e"}
+after follow additions stopped, all 8 frozen events completed; stalled count=0
+
+thread 'post_bound_follow_additions_use_stalled' (399033) panicked at src/lib.rs:87:5:
+post-B follow obstruction never reported stalled
+test post_bound_follow_additions_use_stalled ... FAILED
+
+failures:
+
+failures:
+    post_bound_follow_additions_use_stalled
+    shrink_output_between_preparation_and_publication
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `--lib`

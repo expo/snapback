@@ -137,6 +137,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_FOLLOWING_INPUT", "rejects invalid opening arguments or a protocol envelope"),
+    ("E_FOLLOWING_DECLARATION", "means the view/query lacks an admitted history binding"),
+    ("E_FOLLOWING_PAGE_SIZE", "requires 1–100 events per declared page"),
+    ("E_FOLLOWING_QUOTA", "refuses session or frontier custody without evicting another consumer"),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", "means a unit cannot reserve its full work, output and checkpoint under the unchanged request ceilings"),
+    ("E_FOLLOWING_ROW_TOO_LARGE", "names an ordered card omission"),
+
     ("E_READ_ONLY", "Everything else returns 403 `E_READ_ONLY`"),
     ("E_READ_ONLY_CREDENTIAL", "A full credential or persona refuses `E_READ_ONLY_CREDENTIAL`"),
     ("E_READ_ONLY_UNSUPPORTED", "an older server refuses `E_READ_ONLY_UNSUPPORTED`"),

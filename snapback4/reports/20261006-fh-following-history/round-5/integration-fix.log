@@ -1,0 +1,16 @@
+(node:1252284) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ witness fragments include query arguments at and beyond the 64 KiB envelope boundary (869.915893ms)
+✔ Following and the online app online arm preserve independent fences through rotation (235.979837ms)
+✔ Following and the wasm app online arm preserve independent fences through rotation (705.943299ms)
+✔ dropped loadMore units use bounded jittered backoff, including observation wakeups (41.148183ms)
+✔ changing live windows obey the 100 identity preview bound (1.321982ms)
+✔ changing live windows obey the encoded argument preview bound (1.290755ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2004.739918

@@ -1,0 +1,25 @@
+{
+  "native_binaries": 313,
+  "native_executions": 1026,
+  "native_failures": 0,
+  "client_files": 341,
+  "client_files_passed": 340,
+  "client_files_failed": 1,
+  "client_tests": {
+    "tests": 6708,
+    "pass": 6651,
+    "fail": 1,
+    "skipped": 56
+  },
+  "model_files": 2,
+  "model_tests": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0
+  },
+  "seconds": 2590.946,
+  "exit": 1,
+  "failure": "export-background.test.mjs: repeated raced retention-lock deferrals stay pending and restore the bound after release",
+  "native_proc_flake": false
+}

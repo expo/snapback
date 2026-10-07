@@ -273,7 +273,7 @@ items, `hasMore`, `loadMore` and read completeness. For generated queries return
 a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in declared Node entries `snapback/workers/<service>.mjs`: dev and serve start, restart and stop them, with service tokens injected and logs redacted. `guide effects` shows `ledger: true` and the stable `meta.idempotencyKey`; a crash after the provider call but before the ledger commit still needs provider idempotency.
 
-Public feeds share an activity union: Following delivers it to each reader; Trending ranks a finite time window (`npx snapback4 guide feeds`).
+Public feeds share an activity union: Following delivers it to each reader; Trending ranks a finite time window (`npx snapback4 guide feeds`). Use the generated [`useFollowing` reader](./CLIENT-AND-OPERATIONS.md#following-history) for exact online history, preparation and live prepend; offline it keeps the inbox and reports that older posts are not on this device.
 
 ## Reference map: open only what the feature needs
 

@@ -1,0 +1,116 @@
+[
+  {
+    "reader": "metadata",
+    "corpus": "sparse-1100",
+    "samples": 7,
+    "first_ms_median": 0.998,
+    "preparation_requests": 0,
+    "later_ms_median": 0.988,
+    "max_storage_bytes": 97924,
+    "events": 1101,
+    "first_meter": {
+      "examined": 252,
+      "heap_bytes": 2898740,
+      "index_entries": 24,
+      "output_bytes": 2257,
+      "rows_written": 5,
+      "rule_probes": 124,
+      "steps": 8128
+    }
+  },
+  {
+    "reader": "metadata",
+    "corpus": "sparse-50000",
+    "samples": 7,
+    "first_ms_median": 1.306,
+    "preparation_requests": 0,
+    "later_ms_median": 1.17,
+    "max_storage_bytes": 97924,
+    "events": 1101,
+    "first_meter": {
+      "examined": 252,
+      "heap_bytes": 2898740,
+      "index_entries": 24,
+      "output_bytes": 2257,
+      "rows_written": 5,
+      "rule_probes": 124,
+      "steps": 8128
+    }
+  },
+  {
+    "reader": "metadata",
+    "corpus": "follows-8200",
+    "samples": 7,
+    "first_ms_median": 254.681,
+    "preparation_requests": 5,
+    "later_ms_median": 1.197,
+    "max_storage_bytes": 17087232,
+    "events": 8200,
+    "first_meter": {
+      "examined": 8112,
+      "heap_bytes": 5508124,
+      "index_entries": 3244,
+      "output_bytes": 512,
+      "rows_written": 31,
+      "rule_probes": 3244,
+      "steps": 259648
+    }
+  },
+  {
+    "reader": "shaped",
+    "corpus": "sparse-1100",
+    "samples": 7,
+    "first_ms_median": 1.498,
+    "preparation_requests": 0,
+    "later_ms_median": 1.493,
+    "max_storage_bytes": 298676,
+    "events": 1101,
+    "first_meter": {
+      "examined": 292,
+      "heap_bytes": 3324054,
+      "index_entries": 24,
+      "output_bytes": 5812,
+      "rows_written": 5,
+      "rule_probes": 124,
+      "steps": 8628
+    }
+  },
+  {
+    "reader": "shaped",
+    "corpus": "sparse-50000",
+    "samples": 7,
+    "first_ms_median": 2.495,
+    "preparation_requests": 0,
+    "later_ms_median": 2.403,
+    "max_storage_bytes": 298676,
+    "events": 1101,
+    "first_meter": {
+      "examined": 292,
+      "heap_bytes": 3324054,
+      "index_entries": 24,
+      "output_bytes": 5812,
+      "rows_written": 5,
+      "rule_probes": 124,
+      "steps": 8628
+    }
+  },
+  {
+    "reader": "shaped",
+    "corpus": "follows-8200",
+    "samples": 7,
+    "first_ms_median": 216.393,
+    "preparation_requests": 5,
+    "later_ms_median": 1.364,
+    "max_storage_bytes": 17287792,
+    "events": 8200,
+    "first_meter": {
+      "examined": 8112,
+      "heap_bytes": 5507934,
+      "index_entries": 3244,
+      "output_bytes": 512,
+      "rows_written": 31,
+      "rule_probes": 3244,
+      "steps": 259648
+    }
+  }
+]

@@ -78,6 +78,8 @@ pub(crate) struct PagePosition {
 
 pub struct Runner<'a> {
     #[cfg(feature = "sqlite")]
+    pub(super) following_witnesses: Option<Vec<super::following_history::projection::Witness>>,
+    #[cfg(feature = "sqlite")]
     pub(super) job_read_scope: u8,
     pub(super) receipt_operation: String,
     pub(super) receipt_allocation: bool,
@@ -271,6 +273,8 @@ impl<'a> Runner<'a> {
             #[cfg(feature = "sqlite")]
             job_read_scope: 0,
             receipt_operation: String::new(),
+            #[cfg(feature = "sqlite")]
+            following_witnesses: None,
             receipt_allocation: false,
             #[cfg(feature = "sqlite")]
             delivery: Default::default(),

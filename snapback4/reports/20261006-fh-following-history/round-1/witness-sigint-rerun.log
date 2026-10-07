@@ -1,0 +1,7 @@
+
+running 1 test
+test verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained ... stalled resolver Some(2): owner completed in 360.932275ms; launcher and descendant drained before recovery
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 321 filtered out; finished in 1.33s
+

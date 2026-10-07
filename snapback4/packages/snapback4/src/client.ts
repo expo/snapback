@@ -1,3 +1,4 @@
+import { bindFollowing } from "./following-transport.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
 import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification } from "./read-only.ts";
 import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
@@ -584,7 +585,7 @@ export function createClient(options: ClientOptions): Client {
       }
       // A synchronous dispatch subscriber can end or rotate this session.
       if (closed || !credentials || storeRefusal || refreshing || revision !== credentialRevision) return { ok: false };
-      const send = () => doFetch(`${base}${path}`, armRequest({ method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) }, arm));
+      const send = () => doFetch(`${base}${path}`, armRequest({ method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...((path.startsWith("/q/") || path.startsWith("/following/")) ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) }, arm));
       const { response, json } = path.startsWith("/q/")
         ? await readWithAdmissionRetry(send, () => !armRefusal(arm) && !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
         : await send().then(async response => ({ response, json: await readResponse(response) }));
@@ -1250,6 +1251,16 @@ export function createClient(options: ClientOptions): Client {
       return closing;
     },
   };
+  bindFollowing(client, async (op, args, body, signal) => {
+    const revision = credentialRevision, epoch = queryEpoch;
+    const blocked = () => closed || !credentials || !!storeRefusal || !!changesRefusal || link !== "online" || !!refreshing || pending.length > 0;
+    if (blocked()) return;
+    const result = await post(`/following/${op.name}`, { ...body, args }, undefined, undefined, false, signal);
+    if (blocked() || revision !== credentialRevision || epoch !== queryEpoch || !result.ok) return;
+    // Parsed HTTP refusals, including E_READ_ONLY for a raw read token, have
+    // ok:true and flow to the controller's refused state without polling.
+    return { ...result.json, __followingCurrent: () => !blocked() && revision === credentialRevision && epoch === queryEpoch };
+  }, () => closed || !credentials || !!storeRefusal || link !== "online" || pending.length > 0);
   trackDispatch(client, dispatch);
   readWork.bind(client, watches);
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));

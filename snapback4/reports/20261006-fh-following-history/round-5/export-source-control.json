@@ -1,0 +1,137 @@
+[
+  {
+    "file": "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "sha256": "00cadd725d44b7b1b959ebf008b397b1270613c34c14d0d4de08b814d8a05de3",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/packages/snapback4-expo/export-ios.mjs",
+    "sha256": "80d03cf2f794131605d4b8458510b952c2e11d2420e908f3e855f2303fff33ac",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/packages/snapback4/bin/snapback4.js",
+    "sha256": "82d3a581a8cac6b7a76ab39360aa0e5abd0c053c4b169013a78516a2805e2075",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness.rs",
+    "sha256": "82db9ffa40c0b16684360769c5000fefc36893c2d249ef8b58d8680bf078d1dd",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/acquire.rs",
+    "sha256": "1294a708c3fd603be6417f3dd92ae159ca2d64941b21b3800277280063cf5202",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/background.rs",
+    "sha256": "d119d7fd4259dfe4692bf974d42b6179e5d4f55a184fc61a2bac6d2e474842af",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/cleanup.rs",
+    "sha256": "16dcae2cdae277fb9e407c2c3d86de663bfd32b2af7eccadd897cbad81761fbb",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/effective-config.mjs",
+    "sha256": "68c560a360401824d2dcb472e80d53760c67e0a0c0b5dc0804c64d8b8dc8c42b",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/export-cache.mjs",
+    "sha256": "97f6feabc9e08090ec86d069d8d3f5e266f2bd75842036c52d9b125169afd47c",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/native-closure.mjs",
+    "sha256": "9de4d7a446b7d1a6282ba7767ce2289ba16fb37fe26b41d6e6d3dc4f35625a78",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/native-inputs.mjs",
+    "sha256": "bb553db2ac0c86e5ac520a7ef2cd45f9640c0d5c17115a070e5fcd37d71d6ede",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/native-mods.json",
+    "sha256": "cba8b0bbefe92e67d9bed1180e763aa709336275312d1a843bfc5d7ba91235ca",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/native-scripts.mjs",
+    "sha256": "623faa00beda23b3bc70c10a637355439b1ec9639177aa7a7d63b4924bb68a30",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/ownership.rs",
+    "sha256": "164a448ab56eb584b924c81c923558d0b43e3d5e85205f85b9caf7c275e9d364",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/payload.mjs",
+    "sha256": "2b1c344927816bf0725d56defb29008b41c36afef9ad3f9c8cb37ba11e486f1b",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/preparation-runner.mjs",
+    "sha256": "20e9a22c46d075da4e97692b6f4162a93f911f8cbf4ffe2c2003dcfe1eb2b10f",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/preparation.rs",
+    "sha256": "540ea12d889f995cfaf82e072c491c427e349cea0fd2c43fba09cec8e7b6dc3e",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/preparation_deadline.rs",
+    "sha256": "773e4eb0d255c3a12c994cc8ed0773c4638560d58dabeb79beba0cdd9aec981b",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/prepare.mjs",
+    "sha256": "c25cd4fa54feb2bfb72ca1fa8acdc53b706238737dc4cc09360dd610f3565b63",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/process_group.rs",
+    "sha256": "918e1f0d859dc26275b9af988b39eaee7d4ad5ec03925be086dd39832ed3ef77",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/protocol.rs",
+    "sha256": "3d74fb3e195c5b31d01b3f33978806ed75c2b5fcb776f5613e73aa42d17072c8",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/publication.rs",
+    "sha256": "e5b1d1d046f5ccdda7e32e0ea24d5ad4afa4c886807ffdfd04538bd4bdfb5163",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/recorded_process.rs",
+    "sha256": "2aac30a6c7064ad90ad1399a01a41aac8aef30721f58bdb60f94c5d5c62a3ec3",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/recovery.rs",
+    "sha256": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/retention.rs",
+    "sha256": "d2144d22d3ed3a6fe82683f6879a8d1c53ae0e0a720ff18c85833d352d9ab944",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/simulator.rs",
+    "sha256": "5f7a20a2455bd47cc5745118fbb5183dc0c8bcecdcbb4b2ebc017273596c732d",
+    "identical_to_main": true
+  },
+  {
+    "file": "snapback4/crates/snapback4/src/verbs/witness/smoke.rs",
+    "sha256": "de2ca5a419671feb22d8b4986afd8ef6953febe0c925e3ce841c2ad192b5db33",
+    "identical_to_main": true
+  }
+]

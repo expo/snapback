@@ -1,3 +1,6 @@
+import { Following } from "./following.ts";
+import type { FollowingQuery } from "./contract.ts";
+export type { FollowingPhase, FollowingSnapshot } from "./following.ts";
 import { readOnlyRefusal } from "./read-only.ts";
 import { pendingItems, pendingState, observeIntents, intentReadSequence, type PendingItemsOptions, type PendingStateOptions, type PendingIntent, type MutationArgs } from "./pending-items.ts";
 import { pendingItemsSource } from "./react-pending-items.ts";
@@ -152,6 +155,14 @@ export function usePage<A extends { c?: Cursor | null }, R extends readonly unkn
   const pages = useMemo(() => new Pages(client, op, args as A, options), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
+}
+
+/** Complete online Following history; the SDK owns preparation and replay. */
+export function useFollowing<A, R extends readonly unknown[]>(op: FollowingQuery<A, R>, args: A) {
+  const client = useClient(), key = readKey(op, args);
+  const following = useMemo(() => new Following(client, op, args), [client, op, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const snapshot = useSyncExternalStore(following.subscribe, following.getSnapshot, following.getSnapshot);
+  return { ...snapshot, loadMore: following.loadMore, retry: following.retry, refresh: following.refresh };
 }
 
 /** A write. `run` never throws; `last` is the most recent outcome, including

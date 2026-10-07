@@ -87972,6 +87972,216 @@ behavior was never reached. The report recommends rerunning Phase 2 after named
 contract/helper, launch/signing and diagnostic-evidence changes; it grants no
 scored admission. Large evidence is archived on eb1000 with a committed hash
 index. Charlie retains the admission ruling.
+
+
+## 2026-10-06 — FH: sparse Following history, design handoff
+
+The guide-equivalent historical Following query fails on 50,000 originals
+across 1,000 principals when the followed author is sparse: no data or next,
+5,789 charged examinations, heap cut at 16 MiB, 22.859 ms warm median. It scans
+time ranges across actors and filters follows. An existing-IR merge over the
+owned actor-time event index returns 20 rows in 23 examinations / 0.105 ms and
+walks all 1,101 relevant events against a full-scan oracle. Adding 48,900
+unrelated posts changes none of its seven meter dimensions. These are shared
+eb1000, CPU-2-confined engine samples, not an implemented-feature speedup.
+
+Two counterexamples prevent paving that control: 8,200 follows exhaust head
+discovery without continuation, and a quiet actor's time-0 event makes the
+inbox end below another actor's 101 uncopied events. A global older-than-tail
+handoff would lose those events. Following has no authored follow cap.
+
+[LLP 3000.026 §9](../llp/3000.026-following-over-a-populated-store.rfc.md#9-exact-on-demand-history-design-handoff)
+proposes resumable author discovery/refill, a private metered frontier, finite
+birth domain and revision-bound publication. The recommended initial reader
+is online and reconciles exact history from the top at the inbox end. A new
+traversal capability and that handoff require the author's decision; the task
+explicitly says to stop at this design gate. No reader, certificate format,
+persisted schema/catalog, slot, cursor or device contract changes. Existing
+copying and prediction/acquisition fences remain. The guide now explains the
+current limitation without promising complete history. The random mutation/
+block oracle and new-reader device parity remain implementation qualification,
+not claimed results of this research.
+
+Both Linux wasm build environments measure 2,117,335 B raw / 639,888 B gzip;
+all 481 checked tracked core/device/build inputs match base 547c6113bd. Reconcile
+the inherited cap by 77 B to 640,018 B, preserving exactly the user's 130 B
+macOS allowance. This is inherited measurement drift, not feature bytes added;
+no runtime ceiling is raised. No Mac, other worktree or process was changed.
+The [report](reports/20261006-fh-following-history/REPORT.md) holds raw samples,
+compiler certificates, design choices and the final verification record.
+Research cases, reference audit and wasm family/absence checks pass. Full-suite
+completion is recorded in the closeout below. No push or publication.
+
+**FH closeout, 2026-10-06:** the full `bash snapback4/scripts/test.sh` passes,
+exit 0 with zero failures in 5,002 s. All 300 Rust test binaries (1,013
+scheduled executions), doctests and timeline/Following tests pass. The client
+pool passes 322 files (6,440 tests pass, 47 explicit skips, including the four
+published Darwin witnesses on Linux); both full-count model files pass all
+79 tests. The separate three-case history research run also passes. Existing
+suite models do not qualify the proposed history reader or replace its pending
+mutation/block oracle. Worktree disk use is about 14 GiB. The author decision
+in §9 remains the handoff; no production history implementation is claimed.
+
+## 2026-10-06 — FH round 1: approved exact-first design and internal reader
+
+The delegated architectural ruling accepts exact merge from the first online
+Following history page, server-only first, without an inbox splice or a
+history-only block filter. LLP 3000.026 §9 incorporates all eleven decisions;
+round-1 DISPOSITIONS retains both supplied design reviews and their dispositions.
+Implementation is explicitly partial under the commission's coherent-milestone
+allowance: owned event metadata traversal, volatile unit/checkpoint custody and
+an independent owned-table oracle. No HTTP route, card shaping, generated binding
+or Following hook is shipped, and no guide/certificate claims public exact history.
+
+The reader freezes admission B and edge epochs, discovers all lane heads/ends,
+then selects the greatest `(at,eventId)` with refill before the next selection.
+It applies the inbox predicate and current liveness on publication/replay.
+Four independent sessions per viewer/declaration, five-minute idle expiry,
+32 MiB per session and 128 MiB per controller bound custody; cancellation/expiry
+release quota only through bounded reclaim. Opening registrations also have
+bounded custody. All seven request ceilings are unchanged, including frontier
+writes under 1,024. The transactional 64-head record map adds metered O(F/64)
+copy work per retained request; the cost model says so.
+
+Fresh read-only implementation review found and prompted regression fixes for
+terminal empty tokens, opening reuse after reclamation/across viewers, observed
+store rewinds and registered-opening binding mismatches. An additional author
+clarification remains open: continual post-B follows can obstruct roster
+discovery, beyond the ruling's named backdated-event exception. A reproduction
+checks strict actor-key progress and completion after additions stop. It currently
+reports preparing, while post-B event obstruction reports stalled. No termination
+guarantee is silently widened; host/SDK integration and that decision remain work.
+
+Twenty affected tests pass, including 16 seeded mutation corpora and paired
+private-work worlds; the explicit scale test also passes. On sampled-idle CPU 6,
+seven-sample first-page medians are 1.127 ms for 50k sparse originals plus one
+repost (1,101 followed events exhausted, no preparation) and 208.030 ms for 8,200
+follows (five preparation units, all 8,200 events exhausted). Later-page medians
+are 1.083/0.866 ms; accounted state peaks are 97,924/17,087,232 B. Every first-run
+scale page is checked against the independent oracle. Adding 48,900 unrelated
+posts changes none of the first/last/total meters or state footprint. These are
+native metadata measurements, not card/HTTP/display latency claims. The old
+planned sparse reader again stops without a next token at 5,789 examinations.
+
+No persisted schema, catalog, IR, index, table or cursor bytes change. No new
+old-engine format-refusal test is applicable. The inbox certificate matches D0
+apart from the check command's elapsed-ms field. Linux wasm is byte-identical:
+2,117,335 B raw / 639,888 B gzip; the 640,018 B cap remains exactly Linux plus
+130 B, so no cap change is needed. Darwin remains the commissioning user's
+separate fence. Everything stays in this lane on eb1000, with taskset confinement;
+worktree disk is approximately 15 GiB. Full-suite closeout follows when complete.
+See reports/20261006-fh-following-history/round-1/REPORT.md. Nothing is pushed.
+
+
+**FH resumed closeout, 2026-10-07:** the 2026-10-06 reboot killed the original
+round-1 suite before its client/model receipt; that partial log is retained.
+No old build/test process survived. A fresh review approved the internal
+bounded-prefix metadata milestone after a lifecycle fix: opening, cancellation
+and each reclaim record preflight 64 KiB before key allocation or tree mutation.
+A 96-registration regression proves failed reservations leave custody unchanged.
+All 21 focused history tests pass, and the final seven-sample scale run passes
+on taskset CPU 42. Its logical CPU sampled 1% busy; SMT sibling 90 ran suite work.
+Shared-host first/later page medians are 1.875/1.833 ms for 50k sparse originals
+and 335.158/1.401 ms for 8,200 follows. Preparation, storage and traversal meters
+match the earlier run; only opening scratch increases from 16 to 64 KiB.
+
+The restarted full suite completes all 1,013 native executions: 1,012 pass;
+one unchanged CLI witness test refuses a `/proc` process-group snapshot during
+evidence cleanup after its owned processes drained. Its cause remains
+unclassified. The exact case passes an isolated rerun; the full CLI target then
+passes 318 tests with four explicit ignores. The existing process-inspection
+issue records the recurrence. No failing inspection is ignored or weakened.
+Doctests and the final reference audit pass. Wasm remains byte-identical to D0;
+there are no persisted-byte changes. Worktree disk is approximately 17 GiB.
+The client pool passes all 322 files (6,440 tests pass, 47 explicit skips), and
+both full-count models pass all 79 tests. The full script finishes in 3,734 s,
+exit 1, with the one retained witness failure; no zero-failure suite claim is
+made. The server route, shaped cards, generated binding and SDK journeys remain deferred,
+as does the explicit author decision about continual post-B follow churn.
+
+## 2026-10-07 — FH round 2: exact server history and the generated Following hook
+
+The authenticated `/following/<operation>` protocol now exposes the approved
+server-first reader through generated `FollowingQuery` bindings and
+`useFollowing`. Online history starts at the exact per-author merge. The
+existing inbox supplies live prepend and the unchanged offline view; devices
+never traverse author heads. Preparation is distinct from an empty feed. The
+hook owns tokens, preparation polling, lost-response replay, explicit restarts,
+identity deduplication, withdrawal and per-consumer cancellation. Pending own
+posts and own-edge intent fences precede server pages, including the synchronous
+mutation-admission turn and replies crossing an unfollow. Four independent
+sessions may coexist per viewer/declaration; five-minute idle expiry restarts,
+and bounded maintenance reclaims abandoned custody without evicting another tab.
+
+The delegated round-2 ruling closes the discovery finding: continuous post-B
+follow additions in the unscanned range checkpoint actor-key progress and report
+`stalled`, exactly like backdated post-B births. They never join the frozen
+domain. Continuation finishes against the independent owned-event oracle once
+obstructing additions stop, within admission, session-lifetime and byte quotas.
+LLP 3000.026 §9 and the original review dispositions record that decision.
+
+Card projection is a bounded one-for-one compiler collector with ordinary,
+non-expiring unique point reads. Maintained aggregates, independent scans and
+control-flow collectors remain outside the generated history binding. Shaping
+prices map nodes, strings, capacities, witnesses and serialization; oversized
+cards yield ordered `E_FOLLOWING_ROW_TOO_LARGE` omissions and consume their key.
+Fitting cards shorten pages under the unchanged meters. Stored unit bytes never
+change on replay: current source/edge authority and disclosed card fields are
+rechecked, while body edits do not rewrite the pinned image. No birth token,
+unpublished head or work count leaves the server. The guide and the separate
+history certificate were updated after the real protocol and SDK journeys passed.
+The ordinary inbox program and its `scale` certificate object remain unchanged.
+
+The independent oracle covers every published prefix and the round-1 matrix;
+round 2 adds shaped prefixes, argument/viewer/operation binding, private-field
+revocation, body-edit replay, oversized continuation and object-heavy cards.
+Real server/SDK journeys cross the 1,000-copy boundary, prepare 8,200 follows,
+exercise offline/live/replay/expiry/two tabs, lose a committed reply and delay a
+reply across unfollow. Both wasm/native clients read complete server history
+with a three-post source floor, preserve the offline inbox's unavailable state,
+and withhold pending own posts. Chromium mounts the public hook under Strict
+Mode and verifies independent consumers. Eight projection tests, 112 guide
+checks, the frozen-schema comparison, 339 delivery fault cases and all eight
+published-example tests pass their final focused runs. New query/authority awaits
+have explicit reachability classification; delivery fault sites and recipes are
+unchanged.
+
+On sampled-idle eb1000 CPUs, seven native shaped-reader samples give first/later
+page medians of 1.667/1.594 ms for 50k sparse posts and 201.385/1.339 ms for
+8,200 follows. Preparation counts are zero/five; accounted custody peaks at
+298,676/17,287,792 B. Every first-run page is checked against the independent
+oracle, every request against all seven meters, and both traversals exhaust.
+Adding 48,900 unrelated posts changes none of the traversal meters or custody.
+Separate unoptimized HTTP/SDK observations, including registration, preparation
+polling and mounted reauthorization, give first displayed pages of 39.818 ms
+and 2,178.417 ms (zero/six preparation responses), with later-page medians
+42.150/42.480 ms. These are shared-host measurements, not production SLOs.
+
+No persisted schema, catalog, IR, index, source table, stored cursor, sync or
+sidecar bytes change; state is volatile. No new-table old-engine refusal test
+applies. The commissioning user owns the Darwin fence and Mac measurement.
+Locked Linux wasm is 2,117,507 B raw / 639,879 B gzip, +172 raw / −9 gzip versus
+round 1. The shared point-read wrapper records card witnesses only in SQLite
+builds; no device traversal is added. Ratchet the cap down nine bytes to
+640,009 B, exactly Linux plus 130 B for macOS. No runtime ceiling changed.
+Work stayed on eb1000 in this worktree, under taskset; disk is about 20 GiB.
+See reports/20261006-fh-following-history/round-2/REPORT.md. Nothing is pushed.
+
+**FH round-2 verification closeout:** the full script completes in 2,684 s,
+exit 1: all 1,014 native executions, 324 client files and both full-count models
+ran. Guide budgets/outline, the additive TypeScript golden, the await inventory
+and public-hook example initially failed; the corrections retain the existing
+budgets and delivery recipes, and all affected reruns pass. The original pool
+records 6,448 passes, two failures and 48 skips; both failed files pass reruns.
+The full-count models pass all 79 tests. The unchanged native witness SIGINT
+case again refuses a `/proc` process-group snapshot during evidence cleanup;
+its exact rerun passes in 1.00 s, and the full CLI target passes 318 tests with
+four ignores in 37.23 s. The existing issue records this recurrence, without
+inferring an unobserved cause or relaxing ownership inspection. Doctests,
+builds, wasm, release guard, package/app typechecks and fixture-wrapper tests
+pass. Root inventory failures are byte-identical to round 1's inherited
+Snapback 1 failures. Reference checks pass. The report retains the original
+full-suite failures and final reruns; no zero-failure full-script claim is made.
 ### 2026-10-06 — PS: process inspection on large hosts
 
 The 0.4.14 Darwin dry run's two-second ps refusal reproduced through the
@@ -88487,6 +88697,7 @@ Both failures are preserved in the report and dated open issues; no assertion,
 deadline or test count was changed, and no green whole-script result is claimed.
 Reference and source-line audits pass. Final disk use is below 20 GiB, within
 the 40 GB limit. Commit only; nothing pushed or published.
+
 
 ## 2026-10-07 — QJ: quoted messages open and scroll to their original
 
@@ -89083,6 +89294,116 @@ An earlier disk-exhausted attempt is preserved separately from the complete
 run. No other lane's files were deleted. The Round 7 report records every
 failure, correction and passing rerun. No push or publication.
 
+## 2026-10-07 — FH round 3: budget-safe continuation and merged read-only integration
+
+Merged `origin/main` at `2a5fc454aa` into `sb4-intent/fh-following-history`
+(no rebase) on top of round 2. Read both supplied milestone reviews in full.
+Astra's smaller-output successor panic reproduced with three staged events and
+1,024 B output; retained payload and final publication now preflight the current
+allowance. Refusal preserves the same pending token and staged images; restored
+allowance recovers it, and replay remains pinned. Audited the remaining request
+assertions against current-allowance reservations.
+
+The round-2 post-B follow-churn stalled ruling is closed in LLP 3000.026 §9.4.
+New precedence tests keep a finished page ahead of stalled and exclude the
+viewer-self skip. The independent owned-table oracle now checks full Event
+fields and terminal suffix exhaustion; mutation-boundary tests physically purge
+live retained heads and staged events as well as tombstoning them.
+
+LLP 3000.033's closed allow-list stays closed: all Following history actions
+refuse read sessions with `E_READ_ONLY`. Explicit read-only hooks/facades create
+no history observer or frontier, and refusals do not resume polling from later
+query notifications. Ordinary inbox reads remain allowed. Following protocol
+phases stay separate from `matchRead`; its offline inbox is an ordinary Read.
+The guides and LLP 3000.026 §9.11 explain the decision and review dispositions.
+
+FH adds no persisted schema/catalog/IR/table or inbox bytes. The merge includes
+main's LB/RX/read-session representations and their compatibility controls;
+the report distinguishes those from the FH delta. No Mac claim: the user runs
+the Darwin fence. Linux wasm is 2,135,336 B raw / 645,307 B gzip; cap raised
+43 B from merged main to **645,607 B**, preserving the requested **300 B** Mac
+allowance even though Linux fit the old cap. No resource ceiling changed.
+
+Seven pinned samples per corpus: shaped sparse 50k first/later page medians
+2.495/2.403 ms, zero preparation units, 298,676 B retained custody; 8,200 follows
+216.393/1.364 ms, five preparation units, 17,287,792 B retained custody. Adding
+48,900 unrelated posts changes no recorded work meter or custody size. Both
+scale tests pass; latency is a shared-host engine measurement, not an HTTP SLO.
+
+Verification and any full-suite failures are recorded in
+[the round-3 report](reports/20261006-fh-following-history/round-3/REPORT.md).
+Work stays on eb1000; peak worktree use is recorded there. No pushes or other
+worktree/process changes.
+
+
+FH round-3 final verification: merged `bash snapback4/scripts/test.sh` completed
+in 3,087 s. Native inventory: 310 binaries / 1,023 executions; its sole failure
+was the merged client card at 1,201 words. Removing one redundant word preserves
+both features and restores the 1,200-word budget; all 113 guide tests pass on
+rerun, and the final CLI is rebuilt. All 340 client files pass (6,609 tests,
+56 declared skips), as do both full-count models (79 tests), wasm, doctests,
+release/fixture checks and package/app typechecks. The native `/proc` witness
+flake did not recur. Reference audit: 531 LLPs, 10,501 refs, zero errors or
+unchecked refs. Root inventory output is byte-identical to the inherited
+round-2 Snapback 1 gaps. Published fixture and Darwin skips are explicit in the
+report. No zero-failure full-script claim is made; no gate or timeout was relaxed.
+Peak observed disk use: 22 GiB rounded. Nothing pushed.
+
+
+## 2026-10-07 — FH round 4: bounded refresh and retained live events
+
+Resolved both full-feature review P1s: mounted authorization accepts metered
+prefixes, and live shaping continues in separate bounded slices. SDK requests
+fit the wire envelope; point witnesses and field lists split without weakening
+authority (all fragments must pass). New cards stage until combined validation.
+Tests traverse 100 cards with 120 extra fields, 20 wide live arrivals, and a
+separate 200-field-card corpus. Native tests exercise the exact 14 MiB authority
+reservation boundary, one byte below, a smaller output allowance and honest
+meters on final output refusal.
+
+Displayed live identities survive the preview window rolling, and reauthorize
+against the current epoch's actual inbox copy plus card witnesses. Tombstone,
+unfollow and refollow-window regressions pass. Event identity and exact time/id
+order belong to the SDK, independent of the card shape. Under the user's round-4
+ruling, post-B births and new-follow history belong to the next session;
+`useFollowing(...).refresh()` starts it. The existing inbox provides recent
+previews; it is not a complete post-B subscription. A backdated birth below the
+preview window is included exactly once when the new session is exhausted.
+LLP 3000.026 §9.12, feeds and the separate certificate state that boundary.
+
+Cancellation now validates operation/declaration/arguments and engine binding
+for unused openings and sessions. Cross-operation cancel cannot evict a valid
+consumer. Refused refreshes retain completed meter charges. Dropped units back
+off exponentially, with bounded jitter and a deadline respected by notifications;
+a deterministic test proves pacing and recovery. Native HTTP coverage and the
+read-only refusal path are added. Read-only policy, offline inbox, own-post and
+own-edge fences, runtime ceilings and persisted bytes are unchanged.
+
+Final affected checks: core Following 27 (both scales enabled), shaping/history
+10, research 3, guide 113, serve 190 passed / 4 existing ignored; both client
+Following files 17 passed / manual measurement skipped, then measurement run
+separately; read-only clients 118 passed / 1 configured published-engine skip.
+Full script: **0 failures in 2,608 s**, 310 native binaries / 1,023 executions,
+340 client files (6,614 passed, 56 skips), and 79 serial model tests. The known
+`/proc` witness flake did not recur. After the full run, the isolated SDK
+128-field partition refinement and its regression passed affected build,
+typecheck, Following and await-classification checks; that last regression is
+not claimed as part of the preceding full run. The report binds both snapshots.
+
+Linux wasm remains byte-identical: 2,135,336 B raw / 645,307 B gzip, cap 645,607 B
+(Linux + 300 B). No new schema/catalog/IR/table bytes or device traversal; the
+user runs Darwin checks separately. Shaped sparse 50k first/later medians are
+1.635/1.556 ms, no preparation, 299,636 B custody. The 8,200-follow case measures
+199.656/1.333 ms, five preparations, 17,288,752 B custody. All seven ceilings are
+asserted; unrelated-post density changes neither traversal work nor storage.
+HTTP first pages are 35.95 ms / 1,329.90 ms with zero/six preparations. These
+are CPU-pinned shared-eb1000 observations, not SLOs.
+
+[Report and receipts](reports/20261006-fh-following-history/round-4/REPORT.md).
+Root inventory failure is byte-identical to round 3's inherited Snapback 1 gaps;
+reference audit passes. Observed worktree use: 22 GiB rounded. No push, remote
+host, or other worktree/process changes.
+
 ## 2026-10-07 — P3 Round 2: Xcode environment repair and native.2 rerun record
 
 Revision 11 makes CocoaPods' ignored `.xcode.env.local` operator-owned, preserving
@@ -89246,6 +89567,58 @@ Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
 unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
 no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
 
+## 2026-10-07 — FH round 5: complete refresh envelopes and live rejection
+
+Merged current `origin/main` at `b14888f763` into lane parent `33321fe568`
+without rebasing. Preserved OA's private arm dispatch fence and Following's
+abort signal, both journal/design additions and the combined await inventory.
+No push. LLP 3000.026 §9.13 records both round-4 review dispositions.
+
+Following now splits point witnesses against the entire encoded 64 KiB request,
+including query arguments, and the 128-field limit; oversized singletons cannot
+escape preflight. The regression covers exactly 65,536 bytes, one byte beyond,
+and the review's 64,400-character projected argument, including JSON escapes
+and multibyte text. Mounted denials also exclude same-cycle live-preview ids.
+Preview collection truncates its final slice at 100 identities and stops before
+its public seen list outgrows the request. The guide and LLP state that lifetime
+client retention has no fixed cap: one copy per displayed live id, rechecked
+every poll, plus loaded history and transient witnesses.
+
+New online/wasm app integration tests also found two pre-existing facade gaps:
+the online journal wrapper did not forward Following transport, and app
+admission could await authority before withdrawing history. Both are fixed;
+the original mutation promise and synchronous browser refusal fields survive.
+`useFollowing` remains on app.client, while `useOnline` selects OA's arm. Rotation
+fences that arm and restarts history. Read-only history still refuses
+E_READ_ONLY; ordinary inbox queries through the read-only arm remain allowed.
+
+Verification: core Following 27 including scale; language history/research
+10 + 3; guide 113; CLI serve filter 203 passed / 4 existing ignored; certificate
+3; both client Following files 22 passed / one manual measurement skip; OA 32;
+read-only client files 118 passed / one configured published-engine skip.
+Build/typecheck, await classification, README budget and ref-check pass. The
+client card remains 1,200 words. Corrected a stale §5.1 reference in main's new
+differential-test crate, with no behavioral change.
+
+Full merged suite: 2,591 s, exit 1. All 1,026 native executions (313 binaries)
+and 79 model tests pass. Client pool: 340/341 files pass; 6,651 passing tests,
+one failure, 56 skips. The sole failure is export-background's raced
+retention-lock drain assertion. Its 27 checked source inputs match main; the
+exact case reruns green in 8.4 s and the entire file reruns green in 298.2 s
+(58 passed, 36 platform skips), including cleanup. Preserved the original
+failure and filed `issues/20261007-snapback4-export-retention-lock-drain-timeout.md`.
+This is distinct from the known native `/proc` flake (not observed) and the
+existing export SIGKILL timeout. No ownership guard or assertion was weakened.
+
+Seven-sample shaped medians: sparse 50k first/later 1.633/1.559 ms, zero
+preparation units, 299,636 B peak controller custody; 8,200 follows
+201.302/1.336 ms, five preparation units, 17,288,752 B. All seven per-request
+meters remain asserted. These are shared-host observations under taskset.
+Linux wasm remains 2,135,336 raw / 645,307 gzip B; the unchanged 645,607 B cap
+is Linux plus 300 B. No persisted schema/catalog/IR/table or ordinary inbox
+bytes change, and no Mac qualification is claimed. Workspace about 25 GiB,
+one Cargo target; eb1000 only. Complete report, logs and receipts:
+`reports/20261006-fh-following-history/round-5/REPORT.md`.
 ## 2026-10-07 — UA round 4: merge main with owned-arm and read-only custody
 
 Merged b14888f763 into UA 9ab49c9de8 (merge, not rebase), after both UA
@@ -89424,3 +89797,44 @@ needed. Native UI scrolling remains unverified; the full suite was not rerun in
 this test-only round. Work stayed on eb1000 in this worktree at about 15.34 GB,
 below 30 GB. Nothing pushed or published.
 [Round-4 report and evidence](reports/20261007-qj-quote-jump/round4/REPORT.md).
+
+## 2026-10-07 — FH round 6: merge UA, RS and QJ for landing
+
+Merged `origin/main` at `4a0dded93f` into the reviewed FH parent `3d02cc7208`,
+without rebasing or pushing. Both round-5 reviews were READY. The six
+conflicts were additive: retained Following and UA imports in `app-client.ts`
+and `client.ts`, both await classifications, regenerated their combined
+inventory, and preserved both LLP 3000.033 revision histories and JOURNAL
+additions. UA's native asset conversion/progress and OA's arm fence remain
+intact beside Following's transport, abort and pending-write fences.
+
+RS's `store.rs` and engine opening code match main except for the independent
+Following module declarations. Lazy read-session storage, refusal WAL
+preservation, selected-release admission and transactional native recovery
+remain intact. No FH persisted-byte, table, schema/catalog or inbox-certificate
+change. QJ's quote-jump implementation and tests are retained unchanged.
+
+Focused checks passed: Following core 27 including both scale cases; language
+10, research 3, guide 113; serve 203 with four existing ignores; certificates
+3; RS SQLite refusal/capability 8, core authority/capability 25, and PostgreSQL
+refusal 4. The private PostgreSQL cluster was stopped. Focused clients passed
+428 tests with nine labelled skips across Following, OA, UA, read-only and
+schema refusal files; the skipped manual HTTP scale check was separately
+enabled and passed. Typecheck, build, docs budget, await census and references
+passed. One command typo (`bound_sessions`, corrected to `bound_session`)
+was rerun successfully; no test assertion failed.
+
+The full suite passed in 2,490 seconds, exit 0: 313 native binaries / 1,026
+executions and doctests, all 343 client files (6,736 passes, 56 labelled skips),
+nine fixture tests and all 79 serial model tests. Neither the native `/proc`
+witness issue nor round 5's export-retention timeout recurred. All 2,039
+recorded source inputs stayed unchanged through qualification.
+
+Linux wasm is unchanged at 2,135,336 raw / 645,307 gzip bytes. The unchanged
+645,607-byte cap retains 300 B for macOS. Native shaped-page medians: sparse
+50k first/later 1.655/1.577 ms, zero preparation units, 299,636 B peak custody;
+8,200 follows 201.806/1.343 ms, five preparation units, 17,288,752 B. HTTP/SDK
+first pages were 44.42 and 317.60 ms. These are shared-host observations.
+Work stayed on eb1000, pinned to sampled idle CPUs, at 28.54 GB total disk use.
+Darwin measurement/fence remains the operator's check. Push nothing.
+[Conflict dispositions and complete evidence](reports/20261006-fh-following-history/round-6/REPORT.md).

@@ -1,0 +1,60 @@
+(node:1205586) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Following sparse online history crosses the 1,000-copy window and every page is an oracle prefix (7235.691928ms)
+✔ Following a roster larger than one request prepares without publishing an unordered prefix (930.884294ms)
+✔ Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (2354.797479ms)
+✔ Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (1860.530322ms)
+✔ Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer (332.442802ms)
+✔ Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer (168.028235ms)
+✔ a delayed unit cannot publish an author withdrawn before mounted authorization (299.890765ms)
+﹣ Following shaped HTTP and SDK measurements (0.142874ms) # SKIP
+✔ Following wasm routes history past source floors online and keeps pending own posts ahead of it (451.069441ms)
+✔ Following native routes history past source floors online and keeps pending own posts ahead of it (408.243323ms)
+✔ Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read (1285.548327ms)
+✔ wide cards continue authorization and live shaping within request allowances (1390.572445ms)
+✔ live cards remain authorized and mounted after the inbox window rolls (590.914007ms)
+✔ explicit refresh includes backdated post-bound births in the next exact session (348.790168ms)
+✔ cross-operation cancellation cannot evict an opening or its pinned page (271.695138ms)
+✔ one card can reauthorize more fields than a single witness permits (720.938571ms)
+✔ witness fragments include query arguments at and beyond the 64 KiB envelope boundary (559.530661ms)
+✖ Following and the online app online arm preserve independent fences through rotation (122107.436586ms)
+✖ Following and the wasm app online arm preserve independent fences through rotation (1205.839572ms)
+✔ generated Following hook mounts independent consumers, preparing is not empty, and unmount releases only its consumer (994.077705ms)
+✔ dropped loadMore units use bounded jittered backoff, including observation wakeups (14.577292ms)
+✔ changing live windows obey the 100 identity preview bound (0.972708ms)
+✔ changing live windows obey the encoded argument preview bound (1.110093ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 20
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 142668.890419
+
+✖ failing tests:
+
+test at packages/snapback4/test/following-history.test.mjs:330:37
+✖ Following and the online app online arm preserve independent fences through rotation (122107.436586ms)
+  Error: TEST_HANG: Following through the app facade; 1 work unit(s), 122000 ms elapsed, 122000 ms guard
+      at Timeout.<anonymous> (file:///home/ccheever/sb4-intent/lane-fh/snapback4/packages/snapback4/test/helpers/wait.mjs:17:37)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)
+
+test at packages/snapback4/test/following-history.test.mjs:330:37
+✖ Following and the wasm app online arm preserve independent fences through rotation (1205.839572ms)
+  AssertionError [ERR_ASSERTION]: own-write fence remains ahead of history even with an online arm
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fh/snapback4/packages/snapback4/test/following-history.test.mjs:345:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1480,6 +1480,9 @@ pub use row_views::ViewChunk;
 
 mod receipts;
 
+/// Server-only exact Following history and resumable protocol custody.
+#[cfg(feature = "sqlite")]
+pub mod following_history;
 // @ref LLP 3000.033#1.6 — the device has no Engine; this option is server-only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeliveryManifest { Build, Skip }

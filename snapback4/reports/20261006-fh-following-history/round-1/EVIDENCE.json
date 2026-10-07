@@ -1,0 +1,56 @@
+{
+  "base": "1b40450b39a3cf5479bbe6c1f7bff3fc878eb0a6",
+  "final_source_sha256": {
+    "snapback4/crates/snapback4-core/src/engine/following_history.rs": "7b5684cdbbf37ca0317260648d9bc402d37723388011a94233eafc7b997afa58",
+    "snapback4/crates/snapback4-core/src/engine/following_history/budget.rs": "715c903166e9a7989460a46bf32380500b79ec4df1624d7a571a3a530037f579",
+    "snapback4/crates/snapback4-core/src/engine/following_history/frontier.rs": "a992f413f3f5ef4e9ff0f941fa34159186dc0412f49971916c83abb66cf95873",
+    "snapback4/crates/snapback4-core/src/engine/following_history/read.rs": "59c2340aec0e1aada52d54746babad586c3da08136ec5144cc54347b5069cced",
+    "snapback4/crates/snapback4-core/src/engine/following_history/session.rs": "e3c4ec39fd377d75ffc3e5b390b6e6c171ea27fbd673773ef248cb02f485c9b2",
+    "snapback4/crates/snapback4-core/src/engine/following_history/tests.rs": "2718813a3566e843dca2089dab39b1ebc7f825a1b8d7e97de10635472c59ec4b",
+    "snapback4/crates/snapback4-core/src/engine/following_history/tests/matrix.rs": "ba9163892ace8366cd534eabcef762d122411508248516f224425ee961d2da1a",
+    "snapback4/crates/snapback4-core/src/engine/following_history/tests/scale.rs": "dd67222a48a7d543f4bab6e8d685e2592199baf6fb104f23108b45a43410debe",
+    "snapback4/crates/snapback4-core/src/engine/mod.rs": "a3fdf17768848b5781deed5b7def9d5c53f089c2ec99af1d80abe220622a6185",
+    "snapback4/crates/snapback4-core/src/store.rs": "0f22b436bd0ef5c258b85745bccbc57586eb4470085db241d2f97e50aa042206",
+    "snapback4/crates/snapback4-core/src/store/following_history.rs": "e389de0cb27c5e73c70390012cc3548f18a347273d477dc9457a991b590bde6f",
+    "snapback4/crates/snapback4-lang/src/diag.rs": "d61c9eeb676ed45739ffa84a5e4e03177be7c19f90c43b3b1addf5b983445d1e",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "f15579af61964c69d20844dbe920dc3b200bf899bd62d3730fe18a84cd719035",
+    "snapback4/crates/snapback4-lang/src/guide/why.rs": "54b4a85ddfafbadb80f3be328114a1c1055d4834c53dfe7c98b3a3226bfc181b",
+    "snapback4/crates/snapback4-lang/src/guide/why/following-reader.md": "75e53b9e1677a90d8692f0203390d51c42df658f0cdd58e779dae607d1514e9c",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "1bc45a4563aa9218f85c32ad184cfb252635c7b25dcde7e3dc19aa2a027aae4e",
+    "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs": "a9e37a23a3d11c73a0c4f1e0528049a62d76459b61d0dfdddf1a331055ff744a"
+  },
+  "completed_proof_sha256": {
+    "affected-lifecycle.log": "64af95d29ebe4b1375c29c03bae15373caa397cfb7d8abf226b61568c05d7515",
+    "scale-resumed-lifecycle.log": "8e87cf23fe70c50d95b64ddeb21b9bf1eca7f29d562b6829bd1c3a82d4d4490c",
+    "measurements-resumed.json": "44314db1de38c4cbcf2e312fc8614ca34f0b1428dc639e50c4bdf96c796361b4",
+    "cli-target-rerun.log": "4e484d11fcb7b0aa3066f666891f9c57d5674e908acaddacb0fb00c542c61f69",
+    "witness-sigint-rerun.log": "1d16a39700fec61c2d1139e4311aec482dbd8d589309c81be7fefcdd3f269574",
+    "wasm.json": "ef487891e2acdcf94a0977ee53c0b6d5009c0eae074d304d93142bf547d3ff0d",
+    "certificate-comparison.json": "d43cbe4f041b2187e9e28629605b1d28aafb53cea79d85793d9c79140c3f94de",
+    "inventories-comparison.json": "4de4403f9998a55660e12375f582e63f395976d8eb2aab0dfab8c2aee9a4d07f",
+    "full-suite-resumed.log": "45d2aa3061a68bfec29786160c7f8c2ffd0c0ee42ffbccbf056436035d49a07b",
+    "full-suite-resumed.time": "78302886d6105b4f799ddb60603fdc2b862015c468ede8668a2baf48f64aa08d",
+    "verification-resumed.json": "a2944e8d921a004d5f1654f98506e2ad324fb5d22fe5c7d2c5a312559c39fb07",
+    "ref-check-final.log": "c92c66aa2a3127ecf0b494c09ef31664aef7f68720b1153369b51f6edce2c6a8",
+    "REPORT.md": "02abeef3dfc1f3f5311281a0d4392b38508f041b69c5e2faf07bb36d7f2c9b73",
+    "DISPOSITIONS.md": "3fc9cecce5e182414a661ce3c2ec53c73cd573e717d920f87ab9c45fc13533ca",
+    "RUN.json": "32c32be1f99a35ea968b5f9c2a43cea4357ccb455cdb4a0eb60a9ebdf41d49a4"
+  },
+  "reviews_sha256": {
+    "reviews/astra-detail.md": "4d01d218609aa339f4992f20c195b83a4f323affa304f5ca590a58b68f54008f",
+    "reviews/astra-summary.md": "653fd8d21bd3582df622e239a7b74933c4698866b73514d1e1341957155b9dba",
+    "reviews/grok.md": "7bc4fe0681dd7fe663919b3996602711c5fbdcaee86c83df279e6f64e978013e",
+    "reviews/implementation-1.md": "8612f9a5638f0a336fc1c7c70052c454fad4bddeaeb6e5d3aa8e46e4eebcc77e",
+    "reviews/implementation-2.md": "b954754d4e5491601969de23143cc6ed05740f1447db1dc7d611c260393f87e6",
+    "reviews/implementation-3.md": "a28c0c1e85d74300b9161ba6c5b0674a55ecc4422ab5c26cc4eb28c36e8cbb14",
+    "reviews/implementation-4.md": "09c4828d9fed20aa85f34e84a904d1e1297f3d6092d53468cb1f3a3d6932bb41"
+  },
+  "claim": "internal metadata reader bounded-prefix milestone; no serve/SDK/card/completeness publication",
+  "documentation_sha256": {
+    "llp/3000.026-following-over-a-populated-store.rfc.md": "746c57399e567fa8df9dc2fe9164fb2f694a5b23b93d1321b45a9e21ef2186cb",
+    "llp/3000.016-following-on-a-bounded-device.rfc.md": "f8ae19d601de8a54bfd7ba10ec6c097ae3aa19a6db40764ae0662f93d0672f81",
+    "snapback4/JOURNAL.md": "fba1f6ceb0230c1f18e63e7b731275e99f874d36b9b0c69824e1af3bc21d68f4",
+    "snapback4/NOT-DOING.md": "bfa8f5619d848d6d19b199fc0338d8ee8e160073c451938685de92b41e6f4a67",
+    "issues/20261004-snapback4-native-witness-proc-group-inspection.md": "9be6f55ace2de2a0c4fdd545c198fe1d4fbc64e4cef32a01b0cf7cf696e185ba"
+  }
+}

@@ -1,4 +1,11 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_FOLLOWING_INPUT", "invalid Following opening, arguments or protocol envelope. Use the generated useFollowing binding; guide feeds."),
+    ("E_FOLLOWING_DECLARATION", "this query has no admitted Following history projection. Use a descending Following page with bounded ordinary card point reads; guide feeds."),
+    ("E_FOLLOWING_PAGE_SIZE", "Following history accepts declared page sizes from 1 through 100. Change the declaration and start a fresh revision; guide feeds."),
+    ("E_FOLLOWING_QUOTA", "Following session or byte custody is full; another consumer is never evicted. Close unused consumers or wait for idle reclamation, then retry; guide feeds."),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", "the Following unit cannot reserve its work and checkpoint under the request ceilings. Reduce page size or card work before retrying; guide feeds."),
+    ("E_FOLLOWING_ROW_TOO_LARGE", "a Following card exceeds its shaping allowance; the named omission consumes its ordered event key. Render the omission and continue; guide feeds."),
+
     ("E_READ_ONLY", "this read session cannot write; use a full session for writes; guide read-only."),
     ("E_READ_ONLY_REFRESH", "the SDK does not refresh read sessions; sign in again or narrow a full session again; guide read-only."),
     ("E_READ_ONLY_CREDENTIAL", "readOnly needs a server-verified read session, without a persona; sign in with scope read or narrow a full session; guide read-only."),

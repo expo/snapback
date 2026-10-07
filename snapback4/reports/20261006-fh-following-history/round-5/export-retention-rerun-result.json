@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^repeated raced retention-lock deferrals stay pending and restore the bound after release$",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 8.437
+}

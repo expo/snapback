@@ -1,0 +1,18 @@
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 42.19s
+     Running tests/following_history.rs (target/debug/deps/following_history-b3dff9526b557876)
+
+running 9 tests
+test generated_following_projection ... ok
+test hidden_private_fields_do_not_create_false_replay_revocations ... ok
+test replay_pins_card_bytes_while_rechecking_only_current_authority ... ok
+test live_prepend_uses_post_bound_births_without_restarting_history ... ok
+test opening_binds_operation_and_viewer ... ok
+test oversized_card_is_a_consumed_named_omission_and_all_meters_stay_bounded ... ok
+test shaped_unit_arguments_are_bound_without_consuming_the_original_token ... ok
+test maps_of_small_fields_shorten_pages_under_heap_without_omitting_fitting_cards ... ok
+test refresh_slices_wide_authority_at_the_allowance_boundary_and_reports_refused_work ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s

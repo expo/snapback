@@ -148,6 +148,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 /// The guide card a diagnostic points at; `language` is the language card.
 pub fn guide_for(code: &str) -> &'static str {
     match code {
+        code if code.starts_with("E_FOLLOWING_") => "refusals",
         "E_READ_ONLY" | "E_READ_ONLY_REFRESH" | "E_READ_ONLY_CREDENTIAL" | "E_READ_ONLY_DEVICE" | "E_READ_ONLY_UNSUPPORTED" | "E_ASSET_READ_ONLY" => "read-only",
         "E_RECEIPTS_CLAUSE" | "E_RECEIPTS_OWNED" | "E_DELIVERY_CLAUSE" | "E_DELIVERY_BINDING" | "RUNS_FULL" => "receipts",
         "E_QUARRY_EPHEMERAL" | "E_EPHEMERAL_FULL" | "N_EPHEMERAL_SERVER" => "ephemeral",

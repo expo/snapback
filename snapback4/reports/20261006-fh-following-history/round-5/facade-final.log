@@ -1,0 +1,13 @@
+✔ every delivery await is explicitly classified (200.349424ms)
+(node:1357596) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Following and the online app online arm preserve independent fences through rotation (258.986013ms)
+✔ Following and the wasm app online arm preserve independent fences through rotation (661.831418ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1627.163919

@@ -1,0 +1,43 @@
+{
+  "scheduled_executions": 1013,
+  "passed_executions": 1012,
+  "failed_targets": [
+    "snapback4::snapback4 (80.0 s)"
+  ],
+  "doctests": "passed",
+  "elapsed_seconds": 1553,
+  "cli_rerun": {
+    "pass": 318,
+    "failed": 0,
+    "ignored": 4,
+    "elapsed_seconds": 79.5
+  },
+  "focused_history_final": {
+    "passed": 21,
+    "failed": 0,
+    "ignored_scale_run_separately": 1
+  },
+  "scale_final": "passed; 107.03 seconds",
+  "client_pool": {
+    "files": 322,
+    "failed_files": 0,
+    "passed_tests": 6440,
+    "skipped_tests": 47,
+    "failed_tests": 0,
+    "elapsed_seconds": 1804
+  },
+  "full_suite_exit_code": 1,
+  "full_suite_elapsed_seconds": 3734,
+  "full_suite_failures": [
+    "cargo test: existing native witness proc-group inspection refusal"
+  ],
+  "client_models": {
+    "files": 2,
+    "passed_tests": 79,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "elapsed_seconds": 305
+  },
+  "disposition": "All FH affected tests and explicit scale pass. Existing witness failure retained with successful exact-case and complete CLI-target reruns; existing issue updated. No claim of a zero-failure full suite.",
+  "whitespace": "source/docs pass git diff --cached --check excluding raw *.log; raw logs retain emitted whitespace"
+}

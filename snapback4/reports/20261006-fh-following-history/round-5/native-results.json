@@ -1,0 +1,97 @@
+[
+  {
+    "label": "warm",
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--no-run"
+    ],
+    "exit": 0,
+    "seconds": 792.896
+  },
+  {
+    "label": "cli-build",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exit": 0,
+    "seconds": 10.864
+  },
+  {
+    "label": "following-core",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "following_history",
+      "--",
+      "--include-ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "seconds": 191.954
+  },
+  {
+    "label": "following-lang",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "following_history",
+      "--test",
+      "following_history_research",
+      "--test",
+      "guide",
+      "--",
+      "--include-ignored"
+    ],
+    "exit": 101,
+    "seconds": 14.958
+  },
+  {
+    "label": "serve",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "serve",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 0.072
+  },
+  {
+    "label": "following-certificate",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "following_view"
+    ],
+    "exit": 0,
+    "seconds": 32.578
+  },
+  {
+    "label": "wasm",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "exit": 0,
+    "seconds": 32.427
+  }
+]

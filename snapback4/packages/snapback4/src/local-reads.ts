@@ -227,8 +227,8 @@ export class LocalReads {
   }
   // @ref LLP 3000.023#10 — disjoint sequenced evidence does not change a local
   // input. This is independent of the server cut; unknown footprints widen.
-  inputsCurrent(watch: LocalWatch): (tables: ReadonlySet<string>) => boolean {
-    const revision = this.revision, barrier = this.inputBarrier, current = this.watchCurrent(watch);
+  inputsCurrent(watch?: LocalWatch): (tables: ReadonlySet<string>) => boolean {
+    const revision = this.revision, barrier = this.inputBarrier, current = watch ? this.watchCurrent(watch) : () => true;
     return tables => current() && barrier === this.inputBarrier && [...tables].every(table => (this.inputVersions.get(table) ?? 0) <= revision);
   }
   // @ref LLP 3000.028#3.2 — a covering server cut cannot renew an older route.

@@ -1,6 +1,7 @@
 //! Detailed explanations moved out of the first-read cards.
 pub(super) fn detail(code: &str) -> Option<&'static str> {
     Some(match code {
+        "E_FOLLOWING_INPUT" | "E_FOLLOWING_DECLARATION" | "E_FOLLOWING_PAGE_SIZE" | "E_FOLLOWING_QUOTA" | "E_FOLLOWING_REQUEST_TOO_SMALL" | "E_FOLLOWING_ROW_TOO_LARGE" => include_str!("why/following-reader.md"),
         "N_RECEIPT_PREDICTION" => include_str!("why/N_RECEIPT_PREDICTION.md"),
         "EMPTY_READ" => include_str!("why/EMPTY_READ.md"),
         "N_SEQUENCE_READ" => include_str!("why/N_SEQUENCE_READ.md"),

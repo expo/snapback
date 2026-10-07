@@ -1,0 +1,34 @@
+[
+  {
+    "label": "docs-budget-final",
+    "command": [
+      "node",
+      "scripts/docs-budget.mjs"
+    ],
+    "exit": 0,
+    "seconds": 21.343
+  },
+  {
+    "label": "typecheck-final",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "typecheck"
+    ],
+    "exit": 0,
+    "seconds": 2.297
+  },
+  {
+    "label": "following-client-final",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/following-history.test.mjs",
+      "packages/snapback4/test/following-hook-react.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 36.092
+  }
+]

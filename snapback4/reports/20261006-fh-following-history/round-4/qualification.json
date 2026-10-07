@@ -1,0 +1,42 @@
+{
+  "full_suite": {
+    "exit": 0,
+    "seconds": 2608.3034982681274,
+    "started": 1791373523.0442898,
+    "finished": 1791376131.347789
+  },
+  "native": {
+    "binaries": 310,
+    "executions": 1023,
+    "failures": 0
+  },
+  "client_pool": {
+    "files": 340,
+    "passed": 6614,
+    "failed": 0,
+    "skipped": 56
+  },
+  "models": {
+    "files": 2,
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0
+  },
+  "final_affected": {
+    "following_core_including_scale": 27,
+    "following_language": 10,
+    "research_including_ignored": 3,
+    "guide": 113,
+    "serve_passed": 190,
+    "serve_ignored": 4,
+    "following_client_passed": 17,
+    "following_client_manual_skipped": 1,
+    "http_measurement_passed": 1,
+    "read_only_client_passed": 118,
+    "read_only_client_published_skip": 1
+  },
+  "known_proc_flake_occurred": false,
+  "final_refinement_after_full_run": "Following-only witness field partitioning; client build/typecheck, both Following files and await classification rerun",
+  "persisted_byte_changes": false,
+  "disk_gib_rounded": 22
+}

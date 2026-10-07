@@ -178,6 +178,19 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// FH round 2 (LLP 3000.026 §9.10): following/following-transport await only
+// session authority, the read protocol and mounted-card refresh. Their server
+// state is volatile read custody; they cannot admit, dispatch or settle an app
+// mutation. The new client/local transport awaits are the same read-only path;
+// local's pending wait reads existing own-edge custody before and after it.
+// Failures withhold history and retry the same unit token. following-history
+// covers a lost committed response, delayed reply across unfollow, bearer
+// revocation, expiry, and own-post admission on both device hosts. The new
+// historyWrite wrapper adds only a synchronous fence around the unchanged
+// mutation path. No delivery I/O site, classification or fault recipe changes.
+// FH round 4: bounded authorization/live refresh slices are the same read-only
+// protocol; no mutation custody is acquired. A dropped-unit scheduling test
+// covers jittered retries while online. No delivery recipe changes.
 // UA (LLP 3000.008.002.000 §6): app-client's asset await forwards private
 // progress through readAsset; assets/client/local append that observer to the
 // existing download await. Counts and delivery sites are unchanged. These
@@ -244,6 +257,12 @@ export function awaitBoundary() {
     return [file, { count: awaits.length, sha256: createHash('sha256').update(JSON.stringify(awaits)).digest('hex') }];
   }));
 }
+
+// FH round 3 merge: the RO and FH await families above both remain classified.
+// Read-only Following refusal and refusal-poll suppression are synchronous;
+// neither adds I/O, write custody, a delivery site or a fault recipe. The merged
+// boundary is regenerated from both families, not selected from either parent.
+
 // OA: app-online-arm adds no await or delivery persistence. It projects guarded
 // server reads/signals/actions and drains returned calls before private close.
 // app.ts keeps every authority/save await unchanged; the transport checks arm
@@ -256,3 +275,10 @@ export function awaitBoundary() {
 // shape changes). Both-tier lifecycle tests and the three Astra reproductions
 // exercise retirement before dispatch and preservation after dispatch. No
 // delivery I/O site, classification or fault recipe changes.
+
+// FH round 5 + OA merge: keep both classifications. Argument-aware slicing
+// replaces existing read-only Following awaits; online custody forwards that
+// read transport and probes pendingWrites before/after it. The app's synchronous
+// admission fence only notifies readers and observes the original promise's
+// settlement: it adds no persistence or delivery site and preserves browser
+// refusal fields. Following/app-online-arm tests cover the composed lifetime.

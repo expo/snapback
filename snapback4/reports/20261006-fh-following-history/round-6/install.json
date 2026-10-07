@@ -1,0 +1,12 @@
+{
+  "command": [
+    "bun",
+    "install",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-fh/snapback4",
+  "cpus": "7,8,9,10,12,15,16,19,22,24,25,29,37,38,41,42,43,44,47,50,55,56,57,58",
+  "started": "2026-10-07T15:32:58.742573+00:00",
+  "seconds": 0.1,
+  "exit": 0
+}

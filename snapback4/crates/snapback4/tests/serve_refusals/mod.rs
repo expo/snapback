@@ -120,6 +120,7 @@ impl Host {
         let generation = engine.generation();
         let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
         let shared = Arc::new(Shared {
+        following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
             project: std::env::current_dir().unwrap(), temporary: true,
             latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),

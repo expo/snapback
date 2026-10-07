@@ -85,6 +85,15 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 ## Moves
 
+- **2026-10-06 — exact Following history (FH delegated round-1 ruling).**
+  Admit a Following-specific server traversal and bounded volatile frontier/replay
+  state under LLP 3000.026 §9. The approved design reads exact history online
+  from the first page; the SDK will own continuation. The first milestone is internal event metadata
+  and the oracle, with no public completeness claim. Taken off: a blanket ban on
+  state for this one expiring read. General result caches, resumable queries,
+  device traversal, inbox coverage certificates and history-only blocks remain
+  excluded. Existing inbox bytes and runtime ceilings remain unchanged.
+
 - **2026-09-26 — server operation latency (LLP 3000.019 §3.7).** Calibration #22
   measured each read once and could not claim repeated p95/degradation testing.
   Unblocks percentile measurements of the application's own load without a

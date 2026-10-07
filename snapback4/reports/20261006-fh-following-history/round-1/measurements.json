@@ -1,0 +1,149 @@
+{
+  "profile": "native Rust test profile, opt-level 1, assertions enabled, debug/incremental off",
+  "host": "eb1000 / expose-builder-pixel",
+  "measurement_cpu": 6,
+  "baseline_recheck_cpu": 82,
+  "samples": 7,
+  "scope": "engine-owned metadata, including opening control call; not HTTP, card shaping or SDK display",
+  "unrelated_density_meter_equality": "all seven samples identical for first/last/total read meters, storage, preparation and events",
+  "cases": [
+    {
+      "label": "sparse-1100",
+      "first_page_median_us": 1001,
+      "first_page_samples_us": [
+        1213,
+        1037,
+        1001,
+        998,
+        994,
+        1002,
+        1000
+      ],
+      "later_page_median_of_medians_us": 986,
+      "preparation_requests": 0,
+      "read_units": 56,
+      "opening_control_calls": 1,
+      "max_accounted_controller_bytes": 97924,
+      "first_read_meter": {
+        "examined": 252,
+        "heap_bytes": 2898740,
+        "index_entries": 24,
+        "output_bytes": 2257,
+        "rows_written": 5,
+        "rule_probes": 124,
+        "steps": 8128
+      },
+      "opening_meter": {
+        "examined": 1,
+        "heap_bytes": 16384,
+        "index_entries": 0,
+        "output_bytes": 512,
+        "rows_written": 3,
+        "rule_probes": 0,
+        "steps": 64
+      },
+      "total_read_meter": {
+        "examined": 13884,
+        "heap_bytes": 161431792,
+        "index_entries": 1325,
+        "output_bytes": 120462,
+        "rows_written": 280,
+        "rule_probes": 6830,
+        "steps": 447872
+      },
+      "events": 1101
+    },
+    {
+      "label": "sparse-50000",
+      "first_page_median_us": 1127,
+      "first_page_samples_us": [
+        5967,
+        1432,
+        1141,
+        1127,
+        1119,
+        1118,
+        1121
+      ],
+      "later_page_median_of_medians_us": 1083,
+      "preparation_requests": 0,
+      "read_units": 56,
+      "opening_control_calls": 1,
+      "max_accounted_controller_bytes": 97924,
+      "first_read_meter": {
+        "examined": 252,
+        "heap_bytes": 2898740,
+        "index_entries": 24,
+        "output_bytes": 2257,
+        "rows_written": 5,
+        "rule_probes": 124,
+        "steps": 8128
+      },
+      "opening_meter": {
+        "examined": 1,
+        "heap_bytes": 16384,
+        "index_entries": 0,
+        "output_bytes": 512,
+        "rows_written": 3,
+        "rule_probes": 0,
+        "steps": 64
+      },
+      "total_read_meter": {
+        "examined": 13884,
+        "heap_bytes": 161431792,
+        "index_entries": 1325,
+        "output_bytes": 120462,
+        "rows_written": 280,
+        "rule_probes": 6830,
+        "steps": 447872
+      },
+      "events": 1101
+    },
+    {
+      "label": "follows-8200",
+      "first_page_median_us": 208030,
+      "first_page_samples_us": [
+        209760,
+        207523,
+        207832,
+        208030,
+        207835,
+        209692,
+        212222
+      ],
+      "later_page_median_of_medians_us": 866,
+      "preparation_requests": 5,
+      "read_units": 415,
+      "opening_control_calls": 1,
+      "max_accounted_controller_bytes": 17087232,
+      "first_read_meter": {
+        "examined": 8112,
+        "heap_bytes": 5508124,
+        "index_entries": 3244,
+        "output_bytes": 512,
+        "rows_written": 31,
+        "rule_probes": 3244,
+        "steps": 259648
+      },
+      "opening_meter": {
+        "examined": 1,
+        "heap_bytes": 16384,
+        "index_entries": 0,
+        "output_bytes": 512,
+        "rows_written": 3,
+        "rule_probes": 0,
+        "steps": 64
+      },
+      "total_read_meter": {
+        "examined": 167033,
+        "heap_bytes": 999565612,
+        "index_entries": 24602,
+        "output_bytes": 919788,
+        "rows_written": 2745,
+        "rule_probes": 65602,
+        "steps": 4942848
+      },
+      "events": 8200
+    }
+  ]
+}

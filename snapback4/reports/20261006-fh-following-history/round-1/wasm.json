@@ -1,0 +1,14 @@
+{
+  "base_commit": "1b40450b39a3cf5479bbe6c1f7bff3fc878eb0a6",
+  "raw_bytes": 2117335,
+  "gzip_script_bytes": 639888,
+  "sha256": "2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944",
+  "base_sha256": "2491ab0c3abf50554cc6e48de96a2f63e7bc30f78ab61638b1e5b40c85f18944",
+  "cap": 640018,
+  "macos_allowance": 130,
+  "persisted_schema_catalog_change": false,
+  "new_engine_tables": 0,
+  "byte_identical_to_base": true,
+  "required_cap": 640018,
+  "resumed_build_verified_2026_10_07": true
+}

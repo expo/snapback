@@ -1,0 +1,21 @@
+    Blocking waiting for file lock on build directory
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 1m 26s
+     Running unittests src/main.rs (snapback4/target/debug/deps/snapback4-e504511cbb2ea269)
+
+running 1 test
+stalled resolver Some(2): owner completed in 242.209779ms; launcher and descendant drained before recovery
+test verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 321 filtered out; finished in 1.00s
+

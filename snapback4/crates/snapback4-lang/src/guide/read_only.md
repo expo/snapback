@@ -37,6 +37,7 @@ bearer on a development write door is refused too, with any capitalization of
 Only these routes are allowed: `POST /q/<op>`, `GET /changes`, `POST /sync`,
 `GET /assets/<id>`, `GET` or `POST /probe`, `GET /schema`, `POST /auth/refresh`,
 and `POST /auth/logout`. Everything else returns 403 `E_READ_ONLY`, without a
+Following history (`useFollowing`, `POST /following/<op>`) requires a full session and refuses `E_READ_ONLY`; ordinary inbox queries remain available through the read allow-list. The hook creates no history observer or frontier for a read-only client.
 head or store identity. Use a full session for writes. `/schema` enables live-query discovery on ephemeral
 backends. The SDK does not sync or open a device in this mode.
 

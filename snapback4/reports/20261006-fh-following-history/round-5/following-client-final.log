@@ -1,0 +1,33 @@
+(node:1573109) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Following sparse online history crosses the 1,000-copy window and every page is an oracle prefix (17773.566448ms)
+✔ Following a roster larger than one request prepares without publishing an unordered prefix (2947.682644ms)
+✔ Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (2414.778749ms)
+✔ Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (2161.556886ms)
+✔ Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer (409.887881ms)
+✔ Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer (196.086777ms)
+✔ a delayed unit cannot publish an author withdrawn before mounted authorization (312.037707ms)
+﹣ Following shaped HTTP and SDK measurements (0.08027ms) # SKIP
+✔ Following wasm routes history past source floors online and keeps pending own posts ahead of it (485.743641ms)
+✔ Following native routes history past source floors online and keeps pending own posts ahead of it (534.667976ms)
+✔ Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read (1313.216422ms)
+✔ wide cards continue authorization and live shaping within request allowances (2447.602644ms)
+✔ live cards remain authorized and mounted after the inbox window rolls (1399.516439ms)
+✔ explicit refresh includes backdated post-bound births in the next exact session (522.438322ms)
+✔ cross-operation cancellation cannot evict an opening or its pinned page (309.576797ms)
+✔ one card can reauthorize more fields than a single witness permits (1461.200683ms)
+✔ witness fragments include query arguments at and beyond the 64 KiB envelope boundary (661.440469ms)
+✔ Following and the online app online arm preserve independent fences through rotation (230.726117ms)
+✔ Following and the wasm app online arm preserve independent fences through rotation (311.018088ms)
+✔ generated Following hook mounts independent consumers, preparing is not empty, and unmount releases only its consumer (1145.481043ms)
+✔ dropped loadMore units use bounded jittered backoff, including observation wakeups (14.653218ms)
+✔ changing live windows obey the 100 identity preview bound (1.138557ms)
+✔ changing live windows obey the encoded argument preview bound (1.14058ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 36059.848034

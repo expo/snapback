@@ -1,0 +1,12 @@
+✔ Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (2132.484714ms)
+✔ Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs (3714.687434ms)
+✔ Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer (26375.52976ms)
+✔ Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer (178.6653ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32533.845515

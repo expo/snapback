@@ -7,6 +7,7 @@ fn a_request_after_engine_poison_still_serves() {
     let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
     let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
     let shared = Arc::new(Shared {
+        following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
         project: std::env::current_dir().unwrap(), temporary: true,
         refusals: dev_refusals::Recent::default(),
         latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),

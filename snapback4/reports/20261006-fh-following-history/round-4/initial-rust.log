@@ -1,0 +1,27 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.13 (/home/ccheever/sb4-intent/lane-fh/snapback4/crates/snapback4-device)
+error[E0027]: pattern does not mention field `at`
+   --> crates/snapback4-lang/tests/following_history.rs:187:28
+    |
+187 |         matches!(&items[0],Item::Omitted{id,code} if id=="wide"&&*code=="E_FOLLOWING_ROW_TOO_LARGE")
+    |                            ^^^^^^^^^^^^^^^^^^^^^^ missing field `at`
+    |
+help: include the missing field in the pattern
+    |
+187 |         matches!(&items[0],Item::Omitted{id,code, at } if id=="wide"&&*code=="E_FOLLOWING_ROW_TOO_LARGE")
+    |                                                 ++++
+help: if you don't care about this missing field, you can explicitly ignore it
+    |
+187 |         matches!(&items[0],Item::Omitted{id,code, at: _ } if id=="wide"&&*code=="E_FOLLOWING_ROW_TOO_LARGE")
+    |                                                 +++++++
+help: or always ignore missing fields here
+    |
+187 |         matches!(&items[0],Item::Omitted{id,code, .. } if id=="wide"&&*code=="E_FOLLOWING_ROW_TOO_LARGE")
+    |                                                 ++++
+
+For more information about this error, try `rustc --explain E0027`.
+error: could not compile `snapback4-lang` (test "following_history") due to 1 previous error

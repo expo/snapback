@@ -1,6 +1,6 @@
 # Feeds: Global, Following and Trending
 
-**Start here:** Combine originals and reposts in a union view, then page it for Global; add the Following view below for per-reader delivery. This social-starter pattern uses the posts and reposts schema below; keep the branch flag in list keys.
+**Start here:** Combine originals and reposts for Global, then declare the Following view below. Its generated `useFollowing` hook owns exact online history and the existing inbox offline; keep event identity in list keys.
 
 ```quarry
 view activity:
@@ -50,7 +50,7 @@ query profile(actor: principal, c: cursor ?):
   return posts where .authorId = actor and not .removed last 20 by .at after c
 ```
 
-Planned `home` serves server pages over a moderate corpus, with no per-follower inbox or offline floor. Behind many newer unrelated posts it can hit the meter and fail closed: `complete: false`, no `next`, never a complete empty page.
+Planned `home` scans global time indexes and filters by follows; it is not a guaranteed complete-history reader. Unrelated posts consume work. Sparse history can exhaust the 16 MiB heap or 8,192-examination meter: `complete: false`, no `next`, never a complete empty page. An inbox cursor cannot continue this different reader. Starting below the inbox's oldest event can skip uncopied events from another author. Use the generated `useFollowing` reader below for complete online Following history; the profile reader is for one actor.
 
 ## Following: a view for the reader
 
@@ -196,10 +196,26 @@ refresh the ranking as time passes. The upper bound excludes future events.
 
 ## Following contract
 
-Following deliberately shows each followed actor's newest 1,000 events at follow
-time, plus new events afterward. Older posts are on the actor's profile: page with
-the single server `profile(actor, c)` query above, passing its `next` as `c`. At the feed's
-end (complete, no `next`, not updating), link followed actors: “See older posts on their profile”.
+### Exact online history
+
+Declare the Following view and a card query as above, then render the generated binding with `useFollowing(api.cards, { c: null })` from `snapback4/react` (use your query name). The hook owns preparation, retries, revision restarts, event identity, live prepend and withdrawal; call its `loadMore` when `hasMore`. Do not splice an inbox cursor into history or use `usePage` for this reader.
+
+Every online page, including the first, is a correct ordered prefix of the frozen viewer lane and followed edges/births at session start. All eligible author heads are established before publication. Unrelated authors' posts consume no scan work. Requests remain metered; there is no follow cap. Continuation terminates once post-start backdated births and new follows stop obstructing unscanned keys. Those obstructions checkpoint as `stalled`, never false exhaustion.
+
+`phase` is `preparing`, `page`, `stalled`, `restart`, `refused`, or `offline`. Preparing is not empty. Render `items`; report `omissions` (including `E_FOLLOWING_ROW_TOO_LARGE`) and a refusal's `code`. Recent deliveries may appear live before the next session; displayed events remain until withdrawal or reset. Later births (including backdated arrivals) and new-follow history are covered by the next session: call the hook's `refresh()` to start it. The live window alone does not cover arrivals missed between polls. Unfollow/removal and card authorization withdraw mounted items. Replay pins card bytes; edits do not rewrite historical pages. Expiry restarts explicitly. Four independent sessions per viewer/view are allowed; `E_FOLLOWING_QUOTA` never evicts another tab. `retry` retries a refusal after its cause is resolved.
+
+Offline the hook uses the unchanged inbox and reports `fact`: “older posts are not on this device”. Its `inbox` read retains the ordinary loading/denial state; that state is not evidence of an empty feed. Devices never build history heads from source floors. Pending own-post and own-edge fences precede server pages. `check --cost` prints a separate Following history certificate; the ordinary inbox certificate still describes the query. Supported bindings are one-for-one card projections over a descending Following page of 1–100 events, with scalar fields and ordinary non-expiring unique point reads.
+
+`useFollowing` requires a full session: read-only clients and read bearers refuse `E_READ_ONLY` without creating history custody. Ordinary inbox queries remain available (`guide read-only`). History phases are separate from `matchRead`: `stalled`, `restart`, live prepend and omissions are protocol states, not ordinary Read evidence. Render the phase directly; offline, pass `inbox` to `matchRead` to render its ordinary read state.
+
+Client retention has no fixed memory cap: it keeps one copy of each displayed
+live id since mount/session reset and rechecks every retained id each poll.
+Memory grows with displayed cards and loaded history; the 100-id preview bound
+is per cycle. Withdrawal, reset/restart or unmount releases rows.
+
+### Inbox contract
+
+The optimized inbox copies each followed actor's newest 1,000 events at follow time, plus new events afterward. This copy window is not the online history boundary: `useFollowing` reads exact server history from its first page. The separate `profile(actor, c)` query pages one actor.
 
 - Events appear newest first by event time, then event id.
 - Your own events appear immediately. Followers receive new events shortly
@@ -215,45 +231,15 @@ end (complete, no `next`, not updating), link followed actors: “See older post
 
 Key events by `id`; shape `{ *, card: posts[.post] }`, keeping reposts of removed cards.
 
-Source floors are **global and non-sliding**, fixed at acquisition, not per actor.
-New arrivals accumulate without eviction. The private inbox acquires its newest
-1,000 copies per reader, separately from the history window per followed actor.
-Events follow sources: fully synced kinds keep owned event rows; floored kinds keep
-event slots on held sources; online-only kinds keep neither. Removal records stay fully synced.
-Application follows may use any public residency; the feed uses its private owned edges.
+Source floors are **global and non-sliding**, fixed at acquisition, not per actor. New arrivals accumulate without eviction. The private inbox acquires its newest 1,000 copies per reader, separately from the history window per followed actor. Events follow sources: fully synced kinds keep owned event rows; floored kinds keep event slots on held sources; online-only kinds keep neither. Removal records stay fully synced. Application follows may use any public residency; the feed uses its private owned edges.
 
-An inbox page within its floor needs no posts. A shaped page is complete offline
-only when every card is held too. A recent repost of an old original, or a quiet
-author's old post, may need the server even on the first page. A horizon card miss, required online-only card, or inbox scan past its floor withholds the
-**whole observation** as `{ loading: true }`, with no data or continuation. Offline,
-while a predictable write remains unobserved, or for a `held` query, it stays
-withheld. Otherwise the client retries the original input cursor on the server;
-a transport failure stays loading. One-shot `query()` settles under `guide client`. Remembered answers never replace this result.
+An inbox page within its floor needs no posts. A shaped page is complete offline only when every card is held too. A recent repost of an old original, or a quiet author's old post, may need the server even on the first page. A horizon card miss, required online-only card, or inbox scan past its floor withholds the **whole observation** as `{ loading: true }`, with no data or continuation. Offline, while a predictable write remains unobserved, or for a `held` query, it stays withheld. Otherwise the client retries the original input cursor on the server; a transport failure stays loading. One-shot `query()` settles under `guide client`. Remembered answers never replace this result.
 
-An examined-meter cut above the floor remains partial data with its continuation.
-A full page ending at the floor is data; its next page is withheld. Pending
-backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains
-unavailable. The server cannot replace a prediction before it is observed.
+An examined-meter cut above the floor remains partial data with its continuation. A full page ending at the floor is data; its next page is withheld. Pending backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains unavailable. The server cannot replace a prediction before it is observed.
 
-Your follow/unfollow call or recovery marks mounted answers `revalidating` (loading
-with `keep: false`); re-reads stay incomplete until observation. Then posts appear or
-disappear; a quiet author's page is complete and empty. Remaining work stays incomplete.
-Render `loading || revalidating || !complete` as “Updating…” before testing
-`data.length === 0` for “No posts”. Continue with `next` or retry after cleanup;
-cursors are not snapshots.
+Your follow/unfollow call or recovery marks mounted answers `revalidating` (loading with `keep: false`); re-reads stay incomplete until observation. Then posts appear or disappear; a quiet author's page is complete and empty. Remaining work stays incomplete. Render `loading || revalidating || !complete` as “Updating…” before testing `data.length === 0` for “No posts”. Continue with `next` or retry after cleanup; cursors are not snapshots.
 
-Devices predict their own inbox copy with held, covered inputs. Follow/unfollow queue
-without prediction. Offline reads use last-synced edges, removals and cards until reconnect.
-Reposts need a held original, its event slot and a removal probe; otherwise they
-queue without a row. A repost horizon can still make unique-pair absence unknown.
-`check --verbose` classifies transitions by residency; follow/unfollow stay `predicts: never`.
-A synced aggregate over owned events stops prediction only when a transition
-inserts or removes an event of a kind that is not fully synced. Replies and body
-edits still predict. `check` names the aggregate; argument-dependent filters and
-source-slot lookups are decided at runtime. Slot schemas require an event-slot
-capability, so older devices refuse installation or adoption until upgraded.
-Other owned-event reads withhold on a missing row or a range with an unheld kind;
-a key naming a fully synced kind keeps known absence. See pending writes in `guide app`.
+Devices predict their own inbox copy with held, covered inputs. Follow/unfollow queue without prediction. Offline reads use last-synced edges, removals and cards until reconnect. Reposts need a held original, its event slot and a removal probe; otherwise they queue without a row. A repost horizon can still make unique-pair absence unknown. `check --verbose` classifies transitions by residency; follow/unfollow stay `predicts: never`. A synced aggregate over owned events stops prediction only when a transition inserts or removes an event of a kind that is not fully synced. Replies and body edits still predict. `check` names the aggregate; argument-dependent filters and source-slot lookups are decided at runtime. Slot schemas require an event-slot capability, so older devices refuse installation or adoption until upgraded. Other owned-event reads withhold on a missing row or a range with an unheld kind; a key naming a fully synced kind keeps known absence. See pending writes in `guide app`.
 
 ## Boundaries and refusals
 

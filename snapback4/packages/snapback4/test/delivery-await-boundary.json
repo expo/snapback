@@ -32,8 +32,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 22,
-    "sha256": "8c17fcad51caeace6a22452fc93b1ff800c9dff6a357d30f204e983cc56ed4d2"
+    "count": 23,
+    "sha256": "6377b8339db3f069bfc979466e1d5fc88d0fbb65b5bc230d774087b199fe804f"
   },
   "app-revocations.ts": {
     "count": 32,
@@ -80,8 +80,8 @@
     "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
   },
   "client.ts": {
-    "count": 62,
-    "sha256": "cf7b96199ada7099e3850138348ce2e7111719077ac10586cd418167b812669d"
+    "count": 63,
+    "sha256": "edc4ff961948bbd8e7114a45322d1f9e3bbfc9424aedc660be0137801f6d5d8b"
   },
   "clock.ts": {
     "count": 7,
@@ -126,6 +126,14 @@
   "ephemeral.ts": {
     "count": 4,
     "sha256": "f40c7e093c24eaa1b019878b879217c8dec3b238869f352e725174423b683d64"
+  },
+  "following-transport.ts": {
+    "count": 3,
+    "sha256": "622640e9ba2b6396be28d502458a0f2b88d83fd45515cc608912b26b6d361983"
+  },
+  "following.ts": {
+    "count": 6,
+    "sha256": "6beee6a7be0073dfb38b0d11a4e2f734787334b71930d17482992d1ad7c8b439"
   },
   "http-response.ts": {
     "count": 6,
@@ -224,8 +232,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local.ts": {
-    "count": 167,
-    "sha256": "6fa70249294f471ffdb6d4ff9c373c5f5eb12deb1da323b4ede6304995bc3843"
+    "count": 171,
+    "sha256": "c3246115cf483d8030acf482a7bf7a283b3bee414f278893a0802ab95e99108d"
   },
   "mock-ephemeral.ts": {
     "count": 0,

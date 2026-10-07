@@ -1,0 +1,74 @@
+{
+  "affected-clients.log": {
+    "original_bytes": 109650,
+    "original_sha256": "e97f8c0586f7ace8f3ef8234429c035bce7dab017a36fa3c97ff2b2b00d01f52",
+    "gzip_bytes": 17558,
+    "gzip_sha256": "d66bd182187f38ae957bd3ed0043c5e55ea5b6f7b4effc39c2fd8f213f7c2d3e"
+  },
+  "affected-native.log": {
+    "original_bytes": 303474,
+    "original_sha256": "2ace0abf3eb802233d7033e11e4569eb6cd1075ae4c2b932bf9a07d0e1361824",
+    "gzip_bytes": 19875,
+    "gzip_sha256": "a567f220f5997855a62f6526cd6869d4e37e028875e0d8d491b51c5379967b4b"
+  },
+  "client-types.log": {
+    "original_bytes": 413,
+    "original_sha256": "32eab17b5833053088807b894b34b435dbd0d0583f75da37ade9bf1af443a0bd",
+    "gzip_bytes": 244,
+    "gzip_sha256": "f9e2fc0af840e7a615719fb6605b562a672cc827e79ec161df6b4c345ee11555"
+  },
+  "core-authority.log": {
+    "original_bytes": 3149,
+    "original_sha256": "871235104c8b09e4968b0ea7c2bcb5ab945f6d0d7040bea1df8b91dfa082b02e",
+    "gzip_bytes": 1189,
+    "gzip_sha256": "d5295d7a319c2e992c7eb585561d34f033a30eda3d2b7eb68e3bbadbed602ff6"
+  },
+  "docs-budget.log": {
+    "original_bytes": 1366,
+    "original_sha256": "cd176baff10b6031d4cd32f0a2860185a52110ec4332100b0d4e2ffe9ac464d9",
+    "gzip_bytes": 650,
+    "gzip_sha256": "06ba6042aad8bf9fe60114d82334def84169cb0869f5e387ed8aeb406925f3a0"
+  },
+  "following-http-scale.log": {
+    "original_bytes": 903,
+    "original_sha256": "ada1b2da0b09952f1e8bbdb913e5a7a47ead0b85b651e997e9eb59004e6a6006",
+    "gzip_bytes": 514,
+    "gzip_sha256": "841c33e9902c383aff7c8a763bed823d9014e19f59b01b6620b2a543c878988b"
+  },
+  "full-suite.log": {
+    "original_bytes": 2074554,
+    "original_sha256": "f1cb15344a46730e50264fc40f3ece15f0c07b96539af75ad548f2ea997d47c3",
+    "gzip_bytes": 277134,
+    "gzip_sha256": "10eba3a47ba52af2f370ab7ab2de1741f4ec14f2130915d3df08c596543c5ecf"
+  },
+  "install.log": {
+    "original_bytes": 91,
+    "original_sha256": "5bccccf46873733cfc3ed6a6d1bbebbd62bcc31915fe879047e439ea5993f812",
+    "gzip_bytes": 105,
+    "gzip_sha256": "9575a9193d4793964e05166147392789642334105f2409ea932abafa9f5566d2"
+  },
+  "postgres-refusals.log": {
+    "original_bytes": 2925,
+    "original_sha256": "06e5e0d95fb6d212eca92c1392e6ada34fcfcd8bcc5e58f8d95f06eba39face5",
+    "gzip_bytes": 1044,
+    "gzip_sha256": "505368345f281d67975337e165779e5e543fbf8896385401c6e14dc20c2a53c1"
+  },
+  "ref-check.log": {
+    "original_bytes": 81,
+    "original_sha256": "48908a92418cdec0d3f15be8e938449c59381ae06ea8fd1e9ef3a6295f2479be",
+    "gzip_bytes": 94,
+    "gzip_sha256": "49ffe5fbfba9cc976dc12fb9a3dad4cdbbf942aafc1c88ab2bf08c50ddd03b2d"
+  },
+  "warm-native.log": {
+    "original_bytes": 44634,
+    "original_sha256": "9d622b2d31e8795f6ede674d1b35a54b5a2d9f0a81d023ca9ab4e9f6b785fea2",
+    "gzip_bytes": 9972,
+    "gzip_sha256": "a5c224dc90f93b0cabbbfd5f56c0d2a1a3af669d2bca4740f6801d88759070b1"
+  },
+  "wasm.log": {
+    "original_bytes": 8883,
+    "original_sha256": "4c18d47caf5bbd335c11920b27ab7adbc3ffa39b8db2ba8841da23767592b54f",
+    "gzip_bytes": 2246,
+    "gzip_sha256": "6a6b4e86ecbf967abd3d80d67a655df9bf7cb6e8b3900e840059094ea38c6ee1"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "base": "1b40450b39a3cf5479bbe6c1f7bff3fc878eb0a6",
+  "branch": "sb4-intent/fh-following-history",
+  "worktree": "/home/ccheever/sb4-intent/lane-fh",
+  "delivery": "local commit only; no push",
+  "implementation_lanes": 1,
+  "build_jobs": 8,
+  "build_test_cpus": "35-38,41,44,48,52,55,59,60,71",
+  "capacity_basis": "All twelve sampled idle; approximately 234 GiB available RAM; worktree 14 GiB; filesystem 59 GiB free. Monitor own disk below 50 GB.",
+  "verification": [
+    "affected history tests",
+    "independent owned-event oracle",
+    "full snapback4/scripts/test.sh",
+    "wasm Linux plus 130 B",
+    "ref-check"
+  ],
+  "review_intensity": "fresh same-family implementation review after tests",
+  "overrides": "User requires existing named lane, eb1000 only, no other worktrees, local commit only; no exact-HEAD or remote integration gate. User permits a coherent internal milestone with remaining work explicit.",
+  "external_effects": [],
+  "resumed_2026_10_07": {
+    "reason": "eb1000 reboot about 2026-10-06 08:45Z interrupted client suite; no prior build/test process survives",
+    "full_suite_cpus": "6,43-47,90-95",
+    "capacity": "eleven CPUs sampled 0% busy, CPU6 1%; 243 GB available RAM; worktree16GiB; filesystem145GiB free",
+    "retained_completed_checks": [
+      "20 affected tests",
+      "112 guide tests after census fixes",
+      "3 before-controls",
+      "first scale run",
+      "final independent-tuple scale run",
+      "ref-check",
+      "wasm build",
+      "inventory audit (same inherited failures as D0)"
+    ],
+    "unfinished": [],
+    "action": "rerun full bash scripts/test.sh from start with preserved prior partial log",
+    "completed_after_resume": [
+      "21 affected tests after lifecycle fix",
+      "explicit scale test: three corpora, seven samples each, final lifecycle meters",
+      "ref-check: 528 LLPs, 10424 refs, zero errors",
+      "wasm hash identical to recorded D0"
+    ],
+    "measurement_cpu": 42,
+    "measurement_caveat": "CPU42 sampled 1% busy; SMT sibling90 belongs to full-suite CPU set",
+    "final_review": "APPROVE for internal bounded-prefix metadata milestone; see reviews/implementation-4.md",
+    "completion": "Full suite finished, exit1, 3734s: one existing native witness refusal; exact test and complete CLI target pass on rerun. Client pool322files and models79tests all pass.",
+    "delivery": "coherent internal native metadata milestone; no public capability claim; local commit only"
+  },
+  "build_environment": {
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "commands": {
+    "full_suite": "taskset -c 6,43-47,90-95 env <build_environment> bash scripts/test.sh",
+    "affected": "taskset -c 6,43-47,90-95 env <build_environment> cargo test -p snapback4-core --lib following_history",
+    "scale": "taskset -c 42 target/debug/deps/snapback4_core-78afa38362958c09 --exact engine::following_history::tests::scale::sparse_fifty_thousand_and_eight_thousand_two_hundred_follows --ignored --nocapture --test-threads=1",
+    "cwd": "snapback4"
+  }
+}

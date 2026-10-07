@@ -1,0 +1,74 @@
+[
+  {
+    "label": "typecheck",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "typecheck"
+    ],
+    "exit": 0,
+    "seconds": 2.267
+  },
+  {
+    "label": "following-client",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/following-history.test.mjs",
+      "packages/snapback4/test/following-hook-react.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 18.908
+  },
+  {
+    "label": "online-arm",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/app-online-arm.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 8.328
+  },
+  {
+    "label": "read-only-client",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/read-only-allocation.test.mjs",
+      "packages/snapback4/test/read-only-custody-races.test.mjs",
+      "packages/snapback4/test/read-only-custody-server.test.mjs",
+      "packages/snapback4/test/read-only-custody.test.mjs",
+      "packages/snapback4/test/read-only-peer-rotation.test.mjs",
+      "packages/snapback4/test/read-only-round4.test.mjs",
+      "packages/snapback4/test/read-only-round5.test.mjs",
+      "packages/snapback4/test/read-only-round7.test.mjs",
+      "packages/snapback4/test/read-only-server.test.mjs",
+      "packages/snapback4/test/read-only.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 25.834
+  },
+  {
+    "label": "await-boundary",
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=every delivery await is explicitly classified",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 1.576
+  },
+  {
+    "label": "docs-budget",
+    "command": [
+      "node",
+      "scripts/docs-budget.mjs"
+    ],
+    "exit": 1,
+    "seconds": 328.292
+  }
+]

@@ -2,6 +2,13 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_FOLLOWING_INPUT", &["the SDK owns tokens and fresh revisions"]),
+    ("E_FOLLOWING_DECLARATION", &["See `guide feeds` for the frozen-domain guarantee and stalled exceptions"]),
+    ("E_FOLLOWING_PAGE_SIZE", &["requires 1–100 events per declared page"]),
+    ("E_FOLLOWING_QUOTA", &["Close unused consumers or wait for the five-minute idle expiry and reclamation, then call `retry`"]),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", &["Use a smaller declared page or simpler card projection, then open a new revision"]),
+    ("E_FOLLOWING_ROW_TOO_LARGE", &["Keep its event identity and display the omission; `loadMore` continues beyond that event's key"]),
+
     ("E_READ_ONLY", &["Use a full session for writes."]),
     ("E_READ_ONLY_CREDENTIAL", &["Supply a read session and upgrade older servers."]),
     ("E_READ_ONLY_UNSUPPORTED", &["Supply a read session and upgrade older servers."]),

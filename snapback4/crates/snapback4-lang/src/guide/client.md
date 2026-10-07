@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQuery`/`usePage` with `matchRead`/`readPresentation`; composers/receipts above transient rows.
+**Start here:** `useQuery`/`usePage`, `matchRead`/`readPresentation`; composers/receipts above rows. `useFollowing` (`guide feeds`).
 
 ```tsx
 import { matchRead, usePage } from "snapback4/react"; import { readPresentation } from "snapback4/contract";
@@ -60,7 +60,7 @@ Route on `present`/`absent`; follow `useAuth().state`. Reset drafts on account/b
 Revalidation retains until replacement. Deletes, policy changes and unknown/older evidence start a nonrenewable one-second bound; inserts, non-policy updates and plain revalidation retain through failures. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Scope loss withdraws dependent groups; older replicas await publication. `keep: true`: 30-second subscriber-free linger; `keep: false`: immediate withdrawal. Keys, deadlines, sign-out, credentials/store/schema/generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
-`app.online` / `useOnline()` (AppProvider): server query/observe, ephemeral mutate, act. No bearer/lifecycle methods; rotation fences/drains. Read-only shares its client. Durable writes: app.mutate. `guide social`: snapshots/typing/quotes/bounded screens.
+`app.online` / `useOnline()` (AppProvider): server query/observe, ephemeral mutate, act. No bearer/lifecycle; rotation fences/drains. Read-only shares its client. Durable writes: app.mutate. `guide social`: snapshots/typing/quotes/bounded screens.
 
 ## Row queries
 Share/paginate; authorization stays a dependency.

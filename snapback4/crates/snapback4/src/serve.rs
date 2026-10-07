@@ -29,6 +29,8 @@ mod effects;
 pub(crate) mod token;
 #[path = "serve_routes.rs"]
 mod routes;
+#[path = "serve_following.rs"]
+mod following;
 #[path = "serve_ephemeral.rs"]
 mod ephemeral;
 #[path = "serve_read_scopes.rs"]
@@ -63,6 +65,7 @@ pub(crate) mod latency;
 pub(crate) mod dev_refusals;
 
 pub struct Shared {
+    following: Mutex<snapback4_core::engine::following_history::Reader>,
     refusals: dev_refusals::Recent,
     latency: Arc<latency::Registry>,
     project: std::path::PathBuf,
@@ -313,6 +316,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
+        following: Mutex::new(snapback4_core::engine::following_history::Reader::new().map_err(|e|e.to_string())?),
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
         refusals: if dev { dev_refusals::Recent::start(&project.root, &engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default(), address, matches!(mode, Mode::Dev { trace_empty: true, .. }))? } else { Default::default() },
@@ -509,7 +513,7 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
 }
 
 fn detached_request(method: &Method, path: &str) -> bool {
-    method == &Method::Post && (path.starts_with("/q/") || path == "/sync")
+    method == &Method::Post && (path.starts_with("/q/") || path.starts_with("/following/") || path == "/sync")
         || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/auth/config")
         || method == &Method::Options
 }
@@ -913,7 +917,7 @@ fn handle(mut request: Request, shared: &Shared) {
     // upload cannot retain the authority held at its start.
     // Logout's body is only 4 KiB and its sole authentication happens inside
     // the SQLite writer transaction that closes the live session family.
-    if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
+    if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
@@ -949,6 +953,7 @@ fn handle(mut request: Request, shared: &Shared) {
             "/seed" => SEED_REQUEST_CEILING,
             "/sync" => SYNC_REQUEST_CEILING,
             path if path.starts_with("/auth/") => crate::auth::BODY_CEILING,
+            path if path.starts_with("/following/") => 64 * 1024,
             _ => JSON_REQUEST_CEILING,
         };
         let length = request.body_length();
@@ -1062,6 +1067,7 @@ fn handle(mut request: Request, shared: &Shared) {
             for header in cors(&request).into_iter().chain(latency::header()) { response.add_header(header); }
             let _ = request.respond(response);
         }
+        (Method::Post, path) if path.starts_with("/following/") => following::serve(request,shared,&path[11..],&body),
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
             let op = path[3..].to_owned();
             if path.starts_with("/m/") && lock(&shared.bound).schema.operations.get(&op).is_some_and(|f| f.ephemeral) {

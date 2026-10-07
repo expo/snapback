@@ -28,7 +28,14 @@ impl Runner<'_> {
     /// `null`. Hidden and absent are the same word on purpose.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
         if self.decoration_cache.is_some() { return self.decoration_get(read); }
-        self.get_uncached(read)
+        let value = self.get_uncached(read)?;
+        #[cfg(feature = "sqlite")]
+        if self.following_witnesses.is_some() && let Value::Row(fields) = &value {
+            let bytes = 256 + read.table.len() as u64 + fields.keys().map(|f| f.len() as u64 + 32).sum::<u64>() + value.field("id")?.as_str()?.len() as u64;
+            self.meter.heap(bytes)?;
+            self.following_witnesses.as_mut().unwrap().push(super::following_history::projection::Witness { table:read.table.clone(),id:value.field("id")?.as_str()?.into(),fields:fields.keys().cloned().collect() });
+        }
+        Ok(value)
     }
 
     pub(super) fn get_uncached(&mut self, read: &Read) -> Result<Value, RuntimeError> {

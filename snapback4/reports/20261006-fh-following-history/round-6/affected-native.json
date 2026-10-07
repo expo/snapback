@@ -1,0 +1,13 @@
+{
+  "command": [
+    "bash",
+    "-e",
+    "-c",
+    "cargo test -p snapback4-core --lib following_history -- --include-ignored --nocapture --test-threads=1\ncargo test -p snapback4-lang --test following_history --test following_history_research --test guide -- --include-ignored\ncargo test -p snapback4 --bin snapback4 serve -- --nocapture\ncargo test -p snapback4 --test following_view\ncargo test -p snapback4-device --test schema_capabilities -- --nocapture\ncargo test -p snapback4-core --test read_sessions --test identity --test bound_sessions --test schema_capabilities -- --nocapture"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-fh/snapback4",
+  "cpus": "7,8,9,10,12,15,16,19,22,24,25,29,37,38,41,42,43,44,47,50,55,56,57,58",
+  "started": "2026-10-07T15:37:27.594962+00:00",
+  "seconds": 615.269,
+  "exit": 101
+}
