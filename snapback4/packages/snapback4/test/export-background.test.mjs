@@ -7,8 +7,9 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
+import { maintenanceEvidence, watchMaintenance, observedMaintenance } from './helpers/maintenance-evidence.mjs';
 
-const binary = new URL('../../../target/debug/snapback4', import.meta.url).pathname;
+const binary = process.env.SNAPBACK4_EXPORT_TEST_BINARY || new URL('../../../target/debug/snapback4', import.meta.url).pathname;
 const wrapper = new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname;
 const shim = new URL('../bin/snapback4.js', import.meta.url).pathname;
 const pause = () => new Promise(r => setTimeout(r, 50));
@@ -52,7 +53,9 @@ if(args.join(' ')==='simctl list runtimes --json') {
   const latest = () => read(path.join(root, 'artifacts/native-smoke/latest.json'));
   const status = (...args) => spawnSync(binary, ['witness', 'status', ...args], { cwd: root, env, encoding: 'utf8', timeout: 30000 });
   const events = () => { try { return fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } };
-  return { root, put, env, invoke, latest, status, events, maintainers };
+  const f = { root, put, env, invoke, latest, status, events, maintainers };
+  f.stopMaintenanceWatch = watchMaintenance(f);
+  return f;
 }
 async function cleanup(f) {
   f.put('continue', '');
@@ -71,6 +74,8 @@ async function cleanup(f) {
       try { process.kill(p, 0); return false; } catch { return true; }
     }, 'fixture guardian exited');
   }
+  if (process.env.SNAPBACK4_MAINTENANCE_EVIDENCE) maintenanceEvidence(f, 'cleanup');
+  f.stopMaintenanceWatch();
   fs.rmSync(f.root, { recursive: true, force: true });
 }
 
@@ -568,9 +573,9 @@ for(const [mode, fault] of [['off','SIGTERM'],['non-macOS','SIGKILL'],['off','de
 // observer which was launched by the preceding custodian rather than a wrapper.
 async function maintenanceIdle(f, allowParked = false) {
   const root=path.join(f.root,'artifacts/native-smoke');
-  await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
+  await observedMaintenance(f, allowParked, () => until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
     ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
-    'coalesced maintenance queue drained',90000);
+    'coalesced maintenance queue drained',90000));
 }
 for(const mode of ['off','non-macOS']) test(`held retention lock coalesces 28 skipped exports into one pending observer (${mode})`,{timeout:120000},async()=>{
   const f=fixture(); let holder, exited;

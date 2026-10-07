@@ -89928,3 +89928,34 @@ PostgreSQL is untouched. The ticket's final resolution and the
 [round-1 report](reports/20261007-sg-refused-open-guarantee/round1/REPORT.md)
 record the contract correction, review dispositions and logs. No other lane,
 worktree or host was used; nothing pushed.
+
+
+## 2026-10-07 — EM: retain export maintenance drain evidence
+
+Investigated the intermittent export-maintenance drain failures on eb1000 in
+lane-em. The interrupted session's 200 short repetitions and eight whole-file
+runs all passed. Additional focused cohorts passed, including 28 completed
+invocations against the original uninstrumented CLI. A new four-core load with
+12 CPU workers, two fsync disk workers and alternating two-second busy/idle
+phases passed 32 repetitions of each of the four affected cases. The final
+instrumented complete file passed 58 tests with 36 Linux platform skips, bringing
+complete-file repetitions to nine. The existing two retention unit tests pass.
+
+Added debug-only transition/wait/work/cleanup timestamps and a small separate
+test helper that retains queue, lease, journal, process tree and descriptor
+snapshots before timeout cleanup. The shared test file's predicate, 90-second
+guard and process-identity logic remain unchanged for lane FL. Two controls fail
+that exact drain check: a held retention lease and a pending request after killing
+the fixture's idle observer. Their snapshots distinguish a live blocked observer
+from a queue with no scheduled observer; both owned fixtures subsequently drain.
+
+The queue audit found the ordinary exit/request recheck and acknowledged peer
+handoff intact. Explicit launch/error/expiry/peer-loss paths use the documented
+next-export backstop. No evidence identifies one as the historical cause, so
+neither a speculative product fix nor a larger timeout is justified. The two
+commissioned tickets and related FH ticket remain open. Early experiments that
+rebuilt an executing Linux binary produced spawn ENOENT and are excluded; later
+runs use immutable binary copies. The [EM report](reports/20261007-em-export-maintenance-drain/REPORT.md)
+retains all outcomes, source/binary identities, archived snapshots, measured
+sub-five-second drain waits and the macOS soak command. No other host/worktree
+was used, no wasm changed, and nothing was pushed.
