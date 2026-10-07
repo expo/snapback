@@ -88837,3 +88837,39 @@ the affected assertions were not reached. The
 recommends another candidate/pilot after named changes, with large evidence on
 eb1000 and committed indexes. Only the Apartment mini's dedicated simulator was
 used. The work is committed locally and not pushed.
+
+## 2026-10-07 — RS: refused opens and adoptions preserve storage
+
+Fixed the 0.4.15 publication blocker where opening an older device installed
+`_read_sessions` before a later capability adoption refused. SQLite now creates
+that table and its family index only in the read-session mint transaction;
+authority and cleanup treat absence as empty without creating storage. The
+mint-binding scope column joins authorized bound minting. Other existing-store
+upgrades, metadata and native side tables join accepted backend installation;
+existing journal modes are preserved. PostgreSQL attachment now owns one
+transaction through all physical upgrades, backend rechecks, cap rebuild and
+contribution adoption. Read snapshots no longer count as PostgreSQL writer
+fences. LLP 3000.033 records the refusal rule.
+
+Added Linux regressions comparing every table/row and SQLite file bytes in both
+WAL and DELETE modes, plus PostgreSQL schema/row snapshots after early and late
+refusals. Focused identity, read-only, store and adoption checks pass, including
+29 PostgreSQL adapter tests on this worktree's private cluster. Final wasm is
+byte-identical to baseline: 2,135,164 raw / 645,264 gzip bytes, with the existing
+645,564-byte budget unchanged.
+
+The complete suite ran in 1,508 seconds: 308 Rust test binaries / 1,021 executions
+and doctests passed, as did build/typecheck/fixture steps and all 79 full-count
+client-model tests. The 338 client files had 6,598 passes, one failure and 54
+labelled skips. The failure was an existing logout recorder observing response
+completion instead of dispatch; a revocation probe could finish first. Moved
+recording before the fetch await, retaining the revocation and no-refresh
+assertions. All ten read-only files then passed all 119 tests with no skips,
+including the verified published Linux 0.4.13 downgrade/re-upgrade witness.
+This is a complete run with a corrected affected rerun, not a single-green-run
+receipt. The Darwin 0.2.33 fence remains for the user's mini run.
+
+The [RS report](reports/20261007-rs-read-sessions-refusal/REPORT.md) records exact
+base-commit paths, the wider pre-refusal-write audit, all corrections and logs.
+Work stayed on eb1000 in this worktree; its private PostgreSQL cluster is stopped.
+No other host or worktree was used. Nothing was pushed or published.

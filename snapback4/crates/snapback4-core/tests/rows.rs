@@ -164,14 +164,17 @@ fn acquisition_selects_readable_rows_independent_of_hidden_or_deleted_history() 
 }
 
 #[test]
-fn opening_a_store_drops_the_retired_row_log_index() {
+fn successful_activation_drops_the_retired_row_log_index() {
     use snapback4_core::store::Store;
     let dir = std::env::temp_dir().join(format!("snapback4-retired-log-index-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
     let path = dir.join("store.sqlite");
     let store = Store::open(&path).unwrap();
     store.conn().execute_batch("CREATE INDEX _log_row_seq_kind ON _log(t, id, seq, kind);").unwrap(); drop(store);
-    for _ in 0..2 {
-        let store = Store::open(&path).unwrap();
+    for attempt in 0..2 {
+        let mut store = Store::open(&path).unwrap();
+        let before: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
+        assert_eq!(before, attempt == 0, "low-level open must not run activation upgrades");
+        store.install(&snapback4_core::schema::Schema::default()).unwrap();
         let exists: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
         assert!(!exists);
         let tx = store.conn();

@@ -17,7 +17,7 @@ pub(super) const DAY_MS: i64 = 86_400_000;
 /// Ordinary guest and password sessions expire after one week. Service and
 /// application-owned sessions keep the explicit duration their issuer chose.
 pub const SESSION_DAYS: i64 = 7;
-mod read_sessions;
+pub(crate) mod read_sessions;
 pub use read_sessions::{narrow_session, SessionScope, Capability};
 
 pub const BOUND_SESSION_INTENT: &str = "identity-session/v1";
@@ -111,7 +111,6 @@ pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
             expires_at INTEGER NOT NULL, family TEXT NOT NULL, principal_generation INTEGER NOT NULL,
             PRIMARY KEY(invocation, intent)
         ) WITHOUT ROWID;")?;
-    read_sessions::initialize(conn)?;
     Ok(())
 }
 
@@ -174,7 +173,9 @@ fn insert_session(conn: &Connection, session: &Session, now: i64) -> Result<(), 
     conn.execute("DELETE FROM _sessions WHERE expires_at <= ?1", [now])?;
     // @ref LLP 3000.033#1.3 — sign-in collects expired families; read rotation
     // remains limited to its own family, including at the immutable cap.
-    conn.execute("DELETE FROM _read_sessions WHERE expires_at <= ?1 OR cap_expires_at <= ?1", [now])?;
+    if read_sessions::present(conn)? {
+        conn.execute("DELETE FROM _read_sessions WHERE expires_at <= ?1 OR cap_expires_at <= ?1", [now])?;
+    }
     conn.execute(
         "INSERT OR IGNORE INTO _principals(id, kind, name, created_at) VALUES (?1, ?2, NULL, ?3)",
         params![session.principal, session.kind, now]
@@ -235,7 +236,9 @@ fn resolve_digest(store: &Store, token_digest: &str, now: i64) -> Result<Option<
 
 pub fn close_session(store: &Store, token: &str) -> Result<(), RuntimeError> {
     store.conn().execute("DELETE FROM _sessions WHERE token_digest = ?1", params![digest(token)])?;
-    store.conn().execute("DELETE FROM _read_sessions WHERE token_digest = ?1", params![digest(token)])?;
+    if read_sessions::present(store.conn())? {
+        store.conn().execute("DELETE FROM _read_sessions WHERE token_digest = ?1", params![digest(token)])?;
+    }
     Ok(())
 }
 
@@ -678,6 +681,7 @@ pub fn bound_custom_session(
     }
     crate::engine::actions::held_claim_authority(&tx, &binding.invocation_id, worker, action_lease, now)?;
     let target_generation = principal_generation(&tx, principal)?;
+    read_sessions::initialize_binding_scope(tx.conn())?;
     let previous = mint_binding_record(tx.conn(), &binding.invocation_id, &binding.intent)?;
     let session = match previous {
         None => {
@@ -727,8 +731,10 @@ pub fn bound_custom_session(
 pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeError> {
     let tx = store.conn().unchecked_transaction()?;
     tx.execute("INSERT INTO _principal_generations(principal, generation) VALUES (?1, 1) ON CONFLICT(principal) DO UPDATE SET generation = generation + 1", [principal])?;
-    let removed = tx.execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64
-        + tx.execute("DELETE FROM _read_sessions WHERE principal = ?1", params![principal])? as u64;
+    let mut removed = tx.execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64;
+    if read_sessions::present(&tx)? {
+        removed += tx.execute("DELETE FROM _read_sessions WHERE principal = ?1", params![principal])? as u64;
+    }
     tx.commit()?;
     Ok(removed)
 }

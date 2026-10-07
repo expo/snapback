@@ -77,8 +77,11 @@ for (const readOnly of [true, false]) for (const held of [true, false]) {
     let next;
     const sent = [];
     const client = createClient({ url: f.url, readOnly, session: f.initial, fetch: async (input, init) => {
-      const response = await fetch(input, init), path = new URL(input).pathname;
+      const path = new URL(input).pathname;
       sent.push(path);
+      // signOut intentionally does not await the response. A probe may see
+      // revocation before that response returns, so record dispatch first.
+      const response = await fetch(input, init);
       if (path === '/auth/refresh') {
         next = (await response.clone().json()).session;
         if (!readOnly && held) { entered.resolve(); await release.promise; }

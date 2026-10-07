@@ -84,7 +84,7 @@ impl Store {
         Self { generation:1, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
-    pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+    fn begin(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
         self.calls.set(self.calls.get() + 1);
         self.page_reads.set(0);
         let isolation = match mode {
@@ -93,12 +93,24 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        let tx = Tx { inner: RefCell::new(inner), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
-            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), tail: RefCell::new(super::tail::Tail::default()) };
+        Ok(Tx { inner: RefCell::new(inner), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()) })
+    }
+
+    // Opening validates its backend and installs every physical upgrade before
+    // this transaction can commit. It cannot assume generation columns exist.
+    pub(super) fn opening_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.begin(Some(WriteMode::Serialized))
+    }
+
+    pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+        let generation_expected = self.generation;
+        let tx = self.begin(mode)?;
         if mode == Some(WriteMode::Serialized) {
             // @ref LLP 3000#7-decisions-during-execution — a watermark covers commit order, not sequence allocation
             let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0) as u64;
             tx.head.set(Some(head));
+            tx.serialized_head.set(true);
         }
         // A reader pins generation and watermark in the same snapshot and
         // reuses this head for next_seq. A serialized writer checks generation
@@ -107,7 +119,7 @@ impl Store {
             let row=tx.query("SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton",&[])?.remove(0);
             tx.head.set(Some(row.get::<_,i64>(1) as u64));row.get::<_,i64>(0) as u64
         } else { tx.query("SELECT generation FROM _backend WHERE singleton",&[])?[0].get::<_,i64>(0) as u64 };
-        if generation != self.generation {
+        if generation != generation_expected {
             return Err(RuntimeError::Generation("another engine activated this store; reopen before reading or writing".into()));
         }
         Ok(tx)
@@ -125,6 +137,8 @@ pub(super) struct Tx<'a> {
     pub(super) rows_cache: RefCell<super::prefetch::Cache>,
     pub(super) prefetch_enabled: bool,
     pub(super) head: Cell<Option<u64>>,
+    // A read snapshot also captures a head, without owning the writer fence.
+    pub(super) serialized_head: Cell<bool>,
     pub(super) tail: RefCell<super::tail::Tail>,
 }
 
@@ -169,7 +183,7 @@ impl Tx<'_> {
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
 
-    pub fn batch(&self, sql: &'static str) -> Result<(), RuntimeError> {
+    pub fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
         if sql.to_ascii_uppercase().contains("ROLLBACK") {
             return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));
         }

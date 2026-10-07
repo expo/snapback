@@ -11,16 +11,20 @@ use snapback4_core::store::{Store, Tx};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-/// Open (or create) the device's store at `path`, with its side tables.
+/// Open (or create) the device store; side tables join accepted installation.
 pub fn open(path: &Path) -> Result<Store, RuntimeError> {
-    let store = Store::open_shared(path)?;
-    store.conn().execute_batch(
+    Store::open_shared(path)
+}
+
+// @ref LLP 3000.033#1.3 — native side tables join successful installation.
+fn initialize(conn: &rusqlite::Connection) -> Result<(), RuntimeError> {
+    conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);
          CREATE TABLE IF NOT EXISTS _device_base (t TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(t, id)) WITHOUT ROWID;
          CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL);
          CREATE INDEX IF NOT EXISTS _device_snapshot_by_table ON _device_snapshot(t, k);",
     )?;
-    Ok(store)
+    Ok(())
 }
 
 impl DeviceStore for Store {
@@ -30,6 +34,7 @@ impl DeviceStore for Store {
     }
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         self.install_device_checked_with(schema, metadata, reset, expected, |tx| {
+            initialize(tx.conn())?;
             let adopting = tx.meta("device:backend")?.as_ref() != metadata.get("device:backend");
             crate::sqlite_residency::install_in(tx.conn(), adopting)?;
             crate::device::reset_for_install(tx, metadata, reset)

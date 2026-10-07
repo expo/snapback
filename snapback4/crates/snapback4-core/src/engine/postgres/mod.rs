@@ -55,7 +55,7 @@ impl PostgresEngine {
     /// Create a NEW, isolated sb4_eval_* namespace; never replace an existing
     /// schema. TLS/credentials are owned by the caller's configured Client.
     pub fn create(
-        mut client: Client,
+        client: Client,
         name: &str,
         mut schema: Schema,
         programs: impl IntoIterator<Item = Program>,
@@ -66,15 +66,7 @@ impl PostgresEngine {
         schema.prepare_contribution_indexes();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         supported(&schema, &programs)?;
-        let mut tx = client.transaction()?;
-        tx.batch_execute(&format!("CREATE SCHEMA {name}; SET search_path = {name}, pg_catalog;"))?;
-        tx.batch_execute(store::DDL)?;
-        tx.execute(
-            "INSERT INTO _backend VALUES (true,$1,$2,$3)",
-            &[&store::VERSION, &canonical_json(&schema), &canonical_json(&programs)],
-        )?;
-        tx.commit()?;
-        Self::attach(client, schema, programs)
+        Self::attach(client, schema, programs, Some(&name))
     }
 
     /// Reopen the persisted compiled generation; subsequent transactions refuse
@@ -97,26 +89,53 @@ impl PostgresEngine {
         )?.first() {
             return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
         }
-        client.batch_execute("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
-        Self::attach(client, schema, programs)
+        Self::attach(client, schema, programs, None)
     }
 
-    fn attach(mut client: Client, mut schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
-        client.batch_execute(store::READ_SESSIONS_DDL)?;
-        client.batch_execute("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS generation BIGINT NOT NULL DEFAULT 1")?;
-        client.batch_execute("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS through_shortened TEXT NOT NULL DEFAULT '{}'")?;
-        let held=client.query_one("SELECT generation,schema,programs FROM _backend WHERE singleton",&[])?.to_owned();
-        let generation=held.get::<_,i64>(0) as u64;
-        let held_schema:Schema=decode(held.get(1))?;
-        let held_programs:BTreeMap<String,Program>=decode(held.get(2))?;
-        if held_schema.hash()!=schema.hash() || canonical_json(&held_programs)!=canonical_json(&programs) {
+    // @ref LLP 3000.033#1.3 — read-session storage and all other upgrades
+    // commit together, only after every open/adoption check has succeeded.
+    fn attach(client: Client, mut schema: Schema, programs: BTreeMap<String, Program>, create: Option<&str>) -> Result<Self, RuntimeError> {
+        let mut store = Store::new(client);
+        let tx = store.opening_transaction()?;
+        tx.batch("SET LOCAL statement_timeout = '5s'; SET LOCAL lock_timeout = '5s';")?;
+        if let Some(name) = create {
+            tx.batch(&format!("CREATE SCHEMA {name}; SET search_path = {name}, pg_catalog;"))?;
+            tx.batch(store::DDL)?;
+            tx.execute("INSERT INTO _backend VALUES (true,$1,$2,$3)",
+                &[&store::VERSION, &canonical_json(&schema), &canonical_json(&programs)])?;
+        }
+        tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?;
+        // Even a no-op ALTER takes an exclusive table lock. Reopening an
+        // upgraded store must remain possible while another reader holds it.
+        for (column, ddl) in [
+            ("generation", "ALTER TABLE _backend ADD COLUMN generation BIGINT NOT NULL DEFAULT 1"),
+            ("through_shortened", "ALTER TABLE _backend ADD COLUMN through_shortened TEXT NOT NULL DEFAULT '{}'"),
+        ] {
+            let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)", &[&column])?[0].get(0);
+            if !exists { tx.batch(ddl)?; }
+        }
+        let held = tx.query("SELECT generation,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
+        let held_schema: Schema = decode(held.get(1))?;
+        let held_programs: BTreeMap<String, Program> = decode(held.get(2))?;
+        if held_schema.hash() != schema.hash() || canonical_json(&held_programs) != canonical_json(&programs) {
             return Err(RuntimeError::Generation("the backend changed while opening; reopen its current generation".into()));
         }
-        client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
-        client.batch_execute("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
-        caps::install(&mut client, &schema)?;
-        let mut store=Store::new(client); store.generation=generation;
-        store.generation=contribution_upgrade::install(&mut store, &mut schema)?;
+        // Repeat admission under the head fence used by physical adoption.
+        if let Some(row) = tx.query(
+            "SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1",
+            &[&(crate::rows::MAX_INDEX_KEY_BYTES as i32)],
+        )?.first() {
+            return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
+        }
+        tx.batch("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
+        tx.batch(store::READ_SESSIONS_DDL)?;
+        tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
+        caps::install(&tx, &schema)?;
+        let generation = contribution_upgrade::install(&tx, &mut schema)?;
+        // Retain the adapter's ordinary connection limits on successful open.
+        tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
+        tx.commit()?;
+        store.generation = generation;
         schema.prepare_delivery_lookup();
         Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }

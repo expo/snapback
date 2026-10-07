@@ -87,6 +87,9 @@ impl Store {
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+        // @ref LLP 3000.033#1.3 — physical upgrades roll back with adoption.
+        Self::initialize_schema(&sql)?;
+        if programs.is_some() { Self::initialize_change_evidence(&sql)?; }
         index_key_guards(&sql)?;
         // @ref LLP 3000.019#3.6 — reuse an admitted key bound, never assume a legacy store was checked.
         // Physical INSERT/UPDATE triggers invalidate the proof on oversized keys,
