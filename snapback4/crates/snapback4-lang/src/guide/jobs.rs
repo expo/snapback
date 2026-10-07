@@ -246,12 +246,15 @@ Pass SNAPBACK_URL to the suite's client `url`; the variable cannot redirect a
 hard-coded URL. Issue new sessions for each fresh store and discard its saved tokens.
 `--fresh` (also `--memory`) never changes the main dev store. To resume a
 persistent offset test, restart that store with the same cumulative `--clock-offset`.
-`doctor` shows the running offset and a store-ahead note when retained row
-stamps lead its clock by more than five seconds; dev prints the same note once
-at startup. With no host, doctor compares the persisted store with wall time.
-The check uses minted row IDs and time fields matching recorded commit times;
-ordinary future expiry/deadline values alone do not trigger it. It is advice,
-not a data repair: restarting resets the clock, not already written timestamps.
+`doctor` shows the running offset and a store-ahead note when a stamp in the
+latest 64 commits leads its clock by more than five seconds; dev prints the same
+note once at startup. With no host, doctor compares against wall time. Only the
+store's commit stamps count: appointment, expiry and other row values never trigger it.
+This bounded check can miss older future commits, even when their rows remain;
+commit evidence can outlive deleted rows. It reads at most 4 KiB of table metadata
+per commit and lists up to eight table names (128 bytes each); omitted names are
+marked. The reported largest lead covers only this window. This is advice, not a
+data repair: restarting resets the clock, not already written timestamps.
 `check --store` checks schema adoption, not a running process's clock.
 
 An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
@@ -302,9 +305,11 @@ With `--fresh`, the count dies with the in-memory store; `doctor` and local
 
 ## Refusals
 
-N_CLOCK_STORE_AHEAD means retained row stamps are more than five seconds ahead
+N_CLOCK_STORE_AHEAD means recent commit stamps are more than five seconds ahead
 of the current clock. Use a fresh store per offset test (`dev --fresh --port 4401`),
-or restart with the same cumulative `--clock-offset` to continue. See Operations.
+or restart with the same cumulative `--clock-offset` to continue. Only the latest
+64 commits are checked: older future commits can be missed, even with rows remaining;
+history can still warn after deletion. Table names may be omitted. See Operations.
 
 E_JOB_VIEWER_CONTEXT means as belongs inside a job sweep and cannot nest. Put as recipient.principal: inside the recipient loop.
 

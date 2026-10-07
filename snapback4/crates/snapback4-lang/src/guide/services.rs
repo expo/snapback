@@ -82,12 +82,15 @@ user session; loopback `dev` may instead use `x-snapback-persona: alice`
 for a declared persona. `serve` never accepts that persona header. Renew
 or sign in again for an expired session, and check that the token belongs
 to the backend the URL actually reaches.
-Dev distinguishes sessions unknown to this store (often saved before replacing it or issued by another
-instance), expired on its clock, and signed out, revoked or replaced by refresh. Sign in again;
-discard saved tokens from an earlier store. SDK local/online clients and the app online arm preserve
-that message after terminal refusal. Ordinary signed-out clients still ask you to sign in.
-Dev remembers at most 4,096 retired-token digests: older/prior-version evidence may be unknown;
-expiry takes precedence once the recorded deadline passes. Serve uses identical text for all three:
+Detailed dev explanations require a loopback peer, a loopback Host and, when present,
+a loopback browser Origin, just like dev-only endpoints. An unknown token may come from
+an earlier/replaced store or another instance, or have expired or been signed out,
+including before this server started. Sign in again and discard saved tokens from an
+earlier store. Expiry is identified when the session record remains; absent records
+cannot distinguish expiry from sign-out or store replacement. No token history is kept.
+SDK local/online clients and the app online arm preserve that message after terminal
+refusal. Ordinary signed-out clients still ask you to sign in. Serve and untrusted dev
+requests, including declared public POST routes, use identical text for every cause:
 "this session is not live; sign in again", without disclosing whether a token was issued here.
 E_AUTH and family `auth` stay unchanged; no new field is needed. Do not branch on diagnostic prose.
 

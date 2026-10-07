@@ -806,7 +806,7 @@ pub fn doctor(options: &Options) -> i32 {
         lines.push(format!("store     temporary dev store {}; generation {}", host["storeId"].as_str().unwrap_or("unknown"), host["generation"]));
         let clock = host["address"].as_str().and_then(|a| a.parse().ok()).and_then(|address| adoption::request(address, "GET", "/dev/clock/status"));
         match clock {
-            Some(clock) => lines.push(clock["storeAhead"].as_str().unwrap_or("clock     no stored row stamps ahead of the current clock (>5000ms)").to_owned()),
+            Some(clock) => lines.push(clock["storeAhead"].as_str().unwrap_or("clock     no commit stamps ahead of the current clock in the latest 64 commits (>5000ms)").to_owned()),
             None => lines.push("clock     store-ahead inspection unavailable".into()),
         }
         latency_snapshot = latency::read(host, false);
@@ -857,7 +857,7 @@ pub fn doctor(options: &Options) -> i32 {
                 Ok(mut engine) => {
                     match crate::dev_clock_store::ahead(&engine, now) {
                         Ok(Some(note)) => lines.push(note),
-                        Ok(None) => lines.push("clock     no stored row stamps ahead of the current clock (>5000ms)".into()),
+                        Ok(None) => lines.push("clock     no commit stamps ahead of the current clock in the latest 64 commits (>5000ms)".into()),
                         Err(error) => lines.push(format!("clock     store-ahead inspection unavailable: {error}")),
                     }
                     match engine.recorded_nulls() {

@@ -1,125 +1,175 @@
-# DK — dev clock and stale-session explanations
+# DK round 1 — dev clock and stale-session explanations
 
-Date: 2026-10-07. Base: `46803201b499` (`origin/main` after the required fetch/merge).
-Branch: `sb4-intent/dk-dev-clock-and-stale-sessions`.
-Work stayed in the supplied lane on the local machine; no SSH, other worktree
-edits, publication or push. The initial dependency command ran from the repo
-root; rerunning Bun and the supplied checker from `snapback4/` printed `deps-ok`.
+Date: 2026-10-07. Revision base: `a57f089564` (r0); original main base:
+`46803201b499`. Branch: `sb4-intent/dk-dev-clock-and-stale-sessions`.
+This report supersedes the r0 implementation report preserved in that commit.
+Work stayed in the supplied lane on eb1000. No other worktree/process was
+modified, nothing was published, and nothing was pushed.
 
-## Result
+## Review dispositions
 
-- Dev startup emits one `N_CLOCK_STORE_AHEAD` note when retained row stamps lead
-  its clock by more than 5,000 ms. It names the largest lead, affected tables,
-  a fresh store per offset test, and restarting with the same `--clock-offset`.
-- `doctor` adds two clock lines: current offset from wall time and the same
-  store-ahead fact (or an explicit quiet result). Persisted hosts are discovered;
-  `--url` inspects disposable hosts. With no host, comparison is explicitly
-  against wall time. The temporary-store inspection uses a detached reader.
-- `clock advance` retains its single JSON output line and adds cumulative
-  `offsetMs` and a `message` saying the offset lasts until restart. Existing data
-  adds the isolated-test hint. A failed maintenance drain still reports its
-  applied advance and offset; the CLI warns that time remains advanced.
-- `guide jobs` gives the executable recipe: `dev --fresh --port 4401`, configure
-  the suite's client URL as `http://127.0.0.1:4401`, `clock advance … --port 4401`,
-  `doctor --url http://127.0.0.1:4401`, then stop that disposable server. The
-  existing `--fresh` flag supplies a private temporary store, so no new flag
-  was necessary. New stores require newly issued sessions.
-- The SDK retains the server's terminal `E_AUTH` refusal across online/local
-  cleanup, later calls, app custody fences and both app online variants. An
-  internal WeakMap passes the explanation without exposing credentials or a
-  new Client member. Ordinary signed-out clients still say “sign in”.
+Astra's r0 review was NOT READY. All three findings and the requested storage
+simplification are addressed:
 
-`check --store` deliberately remains a schema-adoption check. It has no running
-clock selector; checking wall time there would warn during intentional offset
-sessions. Startup and doctor have the context to make the comparison meaningful.
+- **P1, public dev routes:** detailed bearer explanations require dev mode **and**
+  the same loopback peer, literal loopback Host and optional loopback Origin check
+  as dev-only endpoints. Public POST route admission stays unchanged. All bearer
+  refusal sites use that predicate, including route authentication, detached
+  reads, held-poll rechecks and refresh. Serve and untrusted dev requests get
+  exactly `this session is not live; sign in again` for each token state. No
+  cause field is added. This deliberately avoids disclosing whether a token
+  belongs to this public server or how it ended.
+- **No persistent token history:** diagnostics add or remove no SQLite objects
+  or records, at open or during session lifecycle operations. No process cache
+  is used either. A read-only lookup can identify expiry while the existing
+  session record remains. An absent record cannot distinguish expiry, sign-out,
+  refresh or another store; the trusted-dev message states that uncertainty:
+  `this session is unknown to this store: it may come from an earlier or replaced
+  store or another instance, or have expired or been signed out (including before
+  this server started); sign in again and discard saved tokens from an earlier store`.
+  This is the calibration repair without inventing durable token provenance.
+- **P2, startup cost:** inspection traverses the latest 64 `_commits` records in
+  reverse primary-key order. It reads no application rows, performs no global
+  timestamp maximum/sort and retains no historical stamp set. Table metadata
+  uses `octet_length(touched)` before materialization: SQLite gets the byte count
+  from record metadata, so oversized values are omitted without loading them.
+  At most 4,096 bytes per commit are decoded and at most eight names of at most
+  128 bytes each are printed. Omissions are explicit; all 64 timestamps still
+  participate in the largest-lead calculation.
+- **P2, appointment false positive:** only `_commits.at` can trigger the note.
+  Application IDs, appointment times, expiries and other row values are never
+  examined. A normal appointment matching a historical future commit cannot add
+  its table to the note or supply clock evidence.
 
-## Session reasons and public-server privacy
+The note now describes **recent commit stamps**, not an inventory of retained
+future rows. It can miss future commits outside the newest 64, even with their
+rows still present. Conversely, historical commit evidence can outlive deleted
+rows. The false-positive control explicitly checks this: the already-present
+historical warning remains about the original table after a matching appointment
+is inserted into another table; after 64 normal commits it disappears while the
+future appointment values remain. These limits are stated in the guide's note
+text, Operations recipe, client documentation and governing LLP.
 
-Dev distinguishes unknown-to-this-store tokens, expired tokens, and tokens
-signed out, revoked or replaced by refresh. Unknown-token text names a replaced
-store/another instance as a possibility and says to sign in again and discard
-saved tokens from an earlier store. Expiry mentions the server/dev clock.
+## Retained behavior
 
-Session deletion normally destroys the distinction between unknown and retired.
-After accepted dev opening, SQLite deletion triggers retain the latest 4,096
-retired-token **digests and expiry deadlines**, including lazily created read
-sessions. There are no plaintext tokens or principal identifiers in this history.
-It survives dev restart, never grants authority and is not synced to a device.
-Expiry takes precedence after the recorded deadline; evicted/pre-instrumentation
-evidence can only be described as unknown. Failed diagnostic reads fall back to
-the generic refusal without changing the authority decision.
+Dev startup prints one `N_CLOCK_STORE_AHEAD` note at a lead above 5,000 ms, with
+the largest observed lead, table names and both remedies. Normal stores and
+matching-offset restarts remain quiet. Doctor shows the offset from wall time
+and the same bounded fact; with no host it explicitly uses wall time. Its quiet
+result now also says “in the latest 64 commits”, avoiding an exhaustive claim.
 
-Serve removes that diagnostic history/triggers after accepted opening and always
-uses **“this session is not live; sign in again”** for these three causes. No cause,
-store identity or token information is added to the response. Distinguishing issued
-from unknown tokens would create an unnecessary token-membership oracle on a public
-server. The existing `E_AUTH` code, `auth` family and `message` field suffice;
-there is no new wire/type field. SDK declarations were regenerated and typechecked;
-built/generated artifacts remain uncommitted per repository policy.
+`clock advance` CLI/endpoint still return cumulative `offsetMs` and the restart
+lifetime, with `dev --fresh --port 4401` advice when application data exists. The
+guide recipe uses that disposable store/port and an explicitly configured client
+URL, then stops the host and starts fresh for each test. New stores need new
+sessions. No new flags or store format changes are required. `check --store`
+remains a schema-adoption check: without a running-clock selector, wall-time
+comparison there would warn during intentional offset tests.
 
-## Detection limits
+SDK online/local clients, app fences and the app online arm still preserve the
+first current-credential terminal refusal. Ordinary signed-out clients still ask
+to sign in. `E_AUTH`, family `auth` and generated public types stay unchanged;
+package build regenerated declarations and typecheck passed. No wasm or device
+engine source changed in this round; no wasm budget change was needed.
 
-The store scan uses retained minted row-ID times and declared time fields matching
-recorded future commit times. Future appointment/expiry values alone do not trigger
-it. It reads one SQLite snapshot, streams row images, and retains a set proportional
-to future commit history. Imported arbitrary IDs/times without matching commits
-can escape it; deliberately future-minted IDs meet its stated condition. The note
-is evidence and repair advice, never a claim to repair or validate all timestamps.
+## Startup benchmark
 
-No device interpreter, wasm engine, catalog format, runtime ceiling or wasm budget
-was changed. A local wasm build was needed because the fresh checkout lacked the
-SDK's generated artifact. The standard build measured **2,135,336 raw / 645,448 gzip
-bytes**, below the inherited **645,607 B** cap by **159 B**. `wasm-budget.test.mjs`
-passes. That inherited margin is below 500 B: no macOS margin is claimed or budget
-raised by this server/SDK-only lane. The new identity module is gated behind the
-core's SQLite feature and is absent from the web build.
+The checked-in [benchmark](round1/benchmark.py) recreates Astra's workload in its
+own temporary directory: 100,000 rows with 8 KiB payloads seeded through the
+product API, then one future commit/row (100,001 total; 882,970,624-byte store).
+Published 0.4.14 was downloaded from npm and verified against Astra's recorded
+SHA-512 integrity. Its binary SHA-256 matches Astra's
+`ea8b00e2316f8457cc5bdf46a17c8f1a2202f2315ee9c235c8cf84a9bfc620f1`.
+The new production binary SHA-256 is
+`6e792f9405bc70aace5dd3e5eeb32afbe3379823d13d255dc06de7ea4f24ba14`.
+Both ran on the same fixture, five interleaved times per case, after this lane's
+builds/tests finished. The production build used
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build --profile production`.
+Like Astra's comparison, this compares the published musl package with the local
+production build; the small difference is not a general speedup claim.
 
-## Verification
+| Store | Published 0.4.14 startup, ms | DK round 1 startup, ms |
+|---|---|---|
+| 100,000 normal-clock rows | 7.255, 6.038, 6.585, 6.254, 6.001 | 5.151, 5.575, 5.673, 5.627, 5.142 |
+| 100,001 rows, including future commit | 5.723, 6.565, 6.524, 5.404, 6.556 | 4.918, 5.647, 5.289, 5.681, 5.128 |
 
-Passed:
+Future-store startup medians were **6.524 ms published / 5.289 ms round 1**.
+This meets the requested few-millisecond budget; Astra's r0 result was
+674–699 ms against 5.6–6.9 ms. Round-1 `/dev/clock/status` took **1.16–2.58 ms**
+including the HTTP request and reader acquisition. Doctor succeeded in every
+run; its total time still includes its existing non-clock work (about 0.53 s).
+Every normal-clock run had no note, every future run had the expected note,
+and the complete SQLite schema remained identical to the published-created
+fixture. The 12 KiB difference from Astra's fixture is not used as performance
+proof; data/row counts and the construction recipe are recorded explicitly.
 
-- Required fetch/merge, workspace frozen Bun install, SDK dependency check (`deps-ok`).
-- SDK build/declaration generation and full package typecheck.
-- New SDK reason suite: **30 tests**; validated dev/serve wire fixtures across online, local,
-  app-online and app-device arms; subsequent query/signal/action calls; ordinary
-  signed-out controls; an actual bearer issued by another store; saved local startup.
-- App online/local/arm regressions plus reason suite: **80 tests**.
-- Session-security, publication/authority, read-only custody/rotation and wasm
-  budget regressions: **67 tests**.
-- Core identity unit tests: **6**; identity/read-session/bound-session integration
-  tests: **17**. Dev history is bounded, digest-only and removed for serve.
-- Server affected unit tests: **191 passed, 4 ignored**. New HTTP assertions cover
-  full/read tokens, unknown/expired/revoked/refreshed causes, dev/serve wording,
-  query/schema/change-poll/refresh doors and no-bearer controls.
-- Clock, replay and dev-refusal integration files: **64 tests**. Covers actual
-  startup output, normal persistent rows (including future appointments/expiry),
-  future writes with both minted and fixed IDs, matching-offset restarts, doctor
-  with/without a host, cumulative CLI/endpoint output and fresh-store isolation.
-- Clock tolerance/maximum/table-list unit regression: **1 test**.
-- Guide checks: **113 tests**; definition/recovery pins include the new note.
-- Root `./ref-check`: **531 LLP documents, 10,538 refs, zero errors/unchecked**.
-  (An initial invocation from `snapback4/` was invalid; rerun from the repo root.)
+[Raw measurements, binary digests and startup output](round1/production-scale.json)
+are retained. Reproduce from `snapback4/`:
 
-- Online/session/terminal/schema/transport regression files: **51 tests**.
-- App session model: **52 tests**, including **5,000 online and 5,000 local**
-  seeded three-runtime sequences at normal counts (about 246 seconds total).
-- `git diff --check` passed.
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build --profile production
+python3 reports/20261007-dk-dev-clock-and-stale-sessions/round1/benchmark.py target/production/snapback4 /tmp/dk-production-scale.json
+```
 
-The broad CLI unit suite is **not claimed green**. Its final source-stable run
-with four test threads passed 329, ignored four and failed one untouched witness
-test: `witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity`
-at `verbs/witness/publication.rs:542`, reporting `E_WITNESS_ARTIFACT: retention lock
-busy`. That exact test passed in isolation immediately afterward. Earlier broad
-runs encountered similar witness lease/retention races. One attempted serial run
-was invalidated by recompiling its executable while subprocess tests were still
-spawning `current_exe()`; its 16 missing-executable failures are not product evidence.
-No witness/release/process-ownership implementation was changed and no baseline
-comparison or full-suite-green claim is made. Affected-scope results above passed.
+## Validation
+
+- SDK build, declaration generation, typecheck and supplied dependency checker:
+  passed; the latter printed `deps-ok`.
+- HTTP auth diagnostics: two tests covering full/read sessions, unknown,
+  retained-expired, signed-out and refreshed tokens, dev/serve wording on
+  query/schema/change-poll/refresh, ordinary signed-out behavior, and public
+  routes with trusted/foreign/malformed/duplicate Origin and Host controls.
+- Core identity unit tests: **6 passed**, including unchanged SQLite schema and
+  zero writes during diagnostic lookup. Identity/read-session/bound-session
+  integration: **17 passed**.
+- Server affected unit tests: **192 passed, 4 ignored** (existing child-process
+  fixture entry points). The public-route controls are included.
+- Clock/replay/dev-refusal integration: **65 passed**. Clock includes actual
+  startup, normal/future stores, matching offsets, doctor, cumulative advance,
+  isolated-store advice, and the historical-commit/appointment control.
+- Clock bound/tolerance/metadata omission tests: **2 passed**; clock integration
+  rerun after the final bounded-metadata query: **22 passed**.
+- SDK reason/session-security/read-only/app-session regression selection:
+  **228 passed, 1 skipped**. The skipped existing downgrade test requires a
+  separate verified 0.4.13 binary; the benchmark uses the requested 0.4.14.
+  Reason preservation covers local, online, app-online and app-device, both
+  dev/serve messages and subsequent query/mutation/action calls.
+- App session model: **52 passed**, including **5,000 online and 5,000 local**
+  seeded three-runtime sequences at normal counts (244.85 seconds total).
+- Guide checks: **113 passed**. Definition/recovery pins match the bounded note.
+- Root `./ref-check --verbose`: **531 LLP docs, 10,539 refs, zero errors/unchecked**.
+- `git diff --check`: passed.
+
+Rust verification commands, from `snapback4/`:
+
+```sh
+cargo test -p snapback4 --bin snapback4 dev_clock_store
+cargo test -p snapback4 --bin snapback4 session_diagnostics_tests
+cargo test -p snapback4 --bin snapback4 serve::
+cargo test -p snapback4 --test clock --test replay --test dev_refusals
+cargo test -p snapback4-core --lib identity
+cargo test -p snapback4-core --test identity --test read_sessions --test bound_session
+cargo test -p snapback4-lang --test guide
+```
+
+SDK selection, from `snapback4/`, after build/typecheck:
+
+```sh
+node --test --test-concurrency=4 packages/snapback4/test/session-reasons.test.mjs packages/snapback4/test/session-security.test.mjs packages/snapback4/test/read-only*.test.mjs packages/snapback4/test/app-local-session.test.mjs packages/snapback4/test/online-session.test.mjs packages/snapback4/test/app-online-arm.test.mjs packages/snapback4/test/app-online.test.mjs packages/snapback4/test/app-store-replacement.test.mjs
+node --test packages/snapback4/test/app-session-model.test.mjs
+```
+
+The first clock integration run had one obsolete text assertion (`ms in`) after
+the note changed to `ms (latest 64 commits; tables: ...)`; the assertion was
+updated and the entire file passed. No product regressions were observed in
+this round's affected tests. This is affected-scope verification, not a claim
+that the complete repository battery was run.
 
 ## Governing documents
 
-Updated LLP 3000.007 §20.2 (refused-session custody/privacy) and §20.12 (clock
-visibility/isolated tests), including its Revised line; the jobs, personas,
-services and codes cards; published client/operations documentation; and JOURNAL.
-LLP 3000.033 §1.3's refusal/opening and read-session authority guarantees remain
-unchanged: diagnostics are installed only after backend opening succeeds.
+Updated LLP 3000.007 §20.2 (trusted-dev refusal privacy and absent-record
+ambiguity) and §20.12 (bounded commit-clock evidence), including Revised;
+jobs/personas/services/codes guide cards; client/operations documentation;
+and the append-only JOURNAL. LLP 3000.033 §1.3's lazy read-session schema and
+read-only/opening guarantees remain unchanged. The historical r0 journal entry
+is superseded by this round's appended correction, not rewritten.

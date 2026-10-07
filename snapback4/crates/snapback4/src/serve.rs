@@ -296,7 +296,6 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         Mode::Release { expected, .. } => host_owner.as_ref().unwrap().open_store(Duration::from_secs(5)).and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
     }.map_err(|e| e.to_string())?;
     adoption::report(&engine);
-    snapback4_core::identity::diagnostics::configure(engine.store(), dev).map_err(|e| e.to_string())?;
     if dev {
         if let Some(note) = crate::dev_clock_store::ahead(&engine, clock.now()).map_err(|e| e.to_string())? {
             snapback4_core::diagnostic!("{note}");
@@ -663,6 +662,11 @@ fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
         return Err(Refusal::new("E_AUTH", "auth", "development HTTP requires a loopback Host and a loopback browser Origin; use localhost or a literal loopback address").guide("personas"));
     }
     Ok(())
+}
+
+// @ref LLP 3000.007#20.2 — public routes bypass dev admission, never the privacy boundary.
+pub(crate) fn trusted_dev_request(request: &Request, shared: &Shared) -> bool {
+    shared.personas && dev_request(request, shared).is_ok()
 }
 
 pub(crate) fn cors(request: &Request) -> Vec<Header> {

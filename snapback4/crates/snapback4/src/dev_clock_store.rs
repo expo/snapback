@@ -1,41 +1,47 @@
-//! Read-only evidence about retained rows written under a future clock.
-use snapback4_core::{Engine, RuntimeError, schema::ColumnType};
-use std::collections::{BTreeMap, BTreeSet};
+//! Bounded, read-only evidence from the store's own commit clock.
+use snapback4_core::{Engine, RuntimeError};
+use std::collections::BTreeSet;
 
 const TOLERANCE_MS: i64 = 5_000;
+const RECENT_COMMITS: usize = 64;
+const TABLE_BYTES: usize = 4096;
+const TABLE_NAMES: usize = 8;
 
-// @ref LLP 3000.007#20.12 — warn about retained write stamps, not ordinary future expiry/deadline values.
+// @ref LLP 3000.007#20.12 — inspect a fixed recent commit window, never application row values.
 pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> {
-    let snapshot = engine.store().conn().unchecked_transaction()?;
-    let conn = &snapshot;
-    let threshold = now.saturating_add(TOLERANCE_MS);
-    let mut commits = conn.prepare("SELECT DISTINCT at FROM _commits WHERE at > ?1")?;
-    let stamps = commits.query_map([threshold], |r| r.get::<_, i64>(0))?.collect::<Result<BTreeSet<_>, _>>()?;
-    let mut tables = BTreeMap::new();
-    let mut rows = conn.prepare("SELECT r.id, r.data FROM r JOIN _catalog c ON c.num = r.t WHERE c.name = ?1")?;
-    for (name, table) in engine.schema().visible_tables() {
-        let times: Vec<_> = table.columns.iter().filter(|(_, kind)| kind.required() == &ColumnType::Time).map(|(name, _)| name).collect();
-        let mut query = rows.query([name])?;
-        while let Some(row) = query.next()? {
-            let id: String = row.get(0)?;
-            let mut at = snapback4_core::ids::minted_at(&id).unwrap_or(0);
-            if !stamps.is_empty() && !times.is_empty() {
-                let data: String = row.get(1)?;
-                let value: snapback4_core::Value = serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-                if let snapback4_core::Value::Row(fields) = value {
-                    for field in &times {
-                        if let Some(snapback4_core::Value::Int(time)) = fields.get(*field) {
-                            if stamps.contains(time) { at = at.max(*time); }
-                        }
-                    }
-                }
-            }
-            if at > threshold { tables.entry(name.as_str()).and_modify(|lead: &mut i64| *lead = (*lead).max(at - now)).or_insert(at - now); }
+    // Reverse primary-key traversal: no full scan, sort, row payloads or retained
+    // historical stamp set. octet_length(column) uses SQLite record metadata;
+    // unlike a text length/cast/substr, it need not load oversized payloads.
+    let mut query = engine.store().conn().prepare(
+        "SELECT at, CASE WHEN at > ?1 AND octet_length(touched) <= ?2 THEN CAST(touched AS BLOB) END,
+         octet_length(touched) FROM _commits ORDER BY seq DESC LIMIT ?3")?;
+    let mut rows = query.query(rusqlite::params![now.saturating_add(TOLERANCE_MS), TABLE_BYTES as i64, RECENT_COMMITS as i64])?;
+    let mut lead = 0;
+    let mut tables = BTreeSet::new();
+    let mut omitted = false;
+    while let Some(row) = rows.next()? {
+        let at: i64 = row.get(0)?;
+        if at <= now.saturating_add(TOLERANCE_MS) { continue; }
+        lead = lead.max(at.saturating_sub(now));
+        let length: i64 = row.get(2)?;
+        if length > TABLE_BYTES as i64 { omitted = true; continue; }
+        let bytes: Vec<u8> = row.get(1)?;
+        match serde_json::from_slice::<Vec<String>>(&bytes) {
+            Ok(names) => for name in names {
+                if tables.contains(&name) { continue; }
+                if tables.len() < TABLE_NAMES && name.len() <= 128 { tables.insert(name); }
+                else { omitted = true; }
+            },
+            Err(_) => omitted = true,
         }
     }
-    Ok(tables.values().max().map(|lead| format!(
-        "N_CLOCK_STORE_AHEAD: stored row stamps lead the current clock by up to {lead}ms in {}; use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue",
-        tables.keys().copied().collect::<Vec<_>>().join(", "))))
+    if lead == 0 { return Ok(None); }
+    let mut names = tables.into_iter().collect::<Vec<_>>();
+    if omitted { names.push("additional tables omitted".into()); }
+    if names.is_empty() { names.push("no table names recorded".into()); }
+    Ok(Some(format!(
+        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue",
+        names.join(", "))))
 }
 
 pub fn has_data(engine: &Engine) -> bool {
@@ -49,21 +55,41 @@ pub fn offset_line(offset: i64, running: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn tolerance_and_largest_lead_cover_retained_rows_only() {
+    fn engine() -> Engine {
         let bound = snapback4_lang::compile(&[("schema.q".into(), "table alpha:\n  at: time\n  public\ntable beta:\n  at: time\n  public\n".into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema,
-            bound.programs.into_iter().map(|p| p.program), 100_000).unwrap();
-        let rows = [("alpha", 105_000), ("beta", 107_000)].map(|(table, at)| (table.into(), snapback4_core::value::object([
-            ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(at, &mut 0).unwrap())),
-            ("at", snapback4_core::Value::Int(at)),
-        ])));
-        engine.seed_at(rows, 100_000).unwrap();
+        Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema,
+            bound.programs.into_iter().map(|p| p.program), 100_000).unwrap()
+    }
+    fn seed(engine: &mut Engine, table: &str, commit_at: i64, row_at: i64) {
+        engine.seed_at([(table.into(), snapback4_core::value::object([
+            ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut 0).unwrap())),
+            ("at", snapback4_core::Value::Int(row_at)),
+        ]))], commit_at).unwrap();
+    }
+    #[test]
+    fn commit_tolerance_and_largest_lead_ignore_future_application_values() {
+        let mut engine = engine();
+        seed(&mut engine, "alpha", 100_000, 1_000_000);
+        assert!(ahead(&engine, 100_000).unwrap().is_none());
+        seed(&mut engine, "alpha", 105_000, 2_000_000);
+        seed(&mut engine, "beta", 107_000, 3_000_000);
         let note = ahead(&engine, 100_000).unwrap().unwrap();
-        assert!(note.contains("up to 7000ms in beta;"), "{note}");
+        assert!(note.contains("up to 7000ms (latest 64 commits; tables: beta)"), "{note}");
         let note = ahead(&engine, 99_999).unwrap().unwrap();
-        assert!(note.contains("up to 7001ms in alpha, beta;"), "{note}");
+        assert!(note.contains("up to 7001ms (latest 64 commits; tables: alpha, beta)"), "{note}");
         assert!(ahead(&engine, 102_000).unwrap().is_none());
+    }
+    #[test]
+    fn recent_window_does_not_claim_older_commits_or_read_row_payloads() {
+        let mut engine = engine();
+        seed(&mut engine, "alpha", 200_000, 200_000);
+        for n in 0..RECENT_COMMITS { seed(&mut engine, "beta", 100_000, 300_000 + n as i64); }
+        // Deliberately unreadable images: metadata inspection must not deserialize them.
+        engine.store().conn().execute("UPDATE r SET data = 'not json'", []).unwrap();
+        assert!(ahead(&engine, 100_000).unwrap().is_none());
+        engine.store().conn().execute("UPDATE _commits SET at = 200000, touched = ?1 WHERE seq = (SELECT MAX(seq) FROM _commits)", ["x".repeat(TABLE_BYTES + 1)]).unwrap();
+        let note = ahead(&engine, 100_000).unwrap().unwrap();
+        assert!(note.contains("100000ms") && note.contains("additional tables omitted"), "{note}");
     }
 }

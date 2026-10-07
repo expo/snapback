@@ -58,7 +58,7 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
                 snapback4_core::identity::resolve_supervised(engine.store(), &token, sample)
             };
             result.map_err(|error| error.refusal())?.ok_or_else(||
-                snapback4_core::identity::diagnostics::refused(engine.store(), &token, now, shared.personas))
+                snapback4_core::identity::diagnostics::refused(engine.store(), &token, now, trusted_dev_request(request, shared)))
         };
         return if let Some(engine) = owner { resolve(engine, None, false) }
         else if read { match shared.reader() {

@@ -21,7 +21,7 @@ query list():
   return notes first 10 by .id
 `;
 const messages = {
-  unknown: 'this session is unknown to this store (it may belong to a replaced store or another instance); sign in again and discard saved tokens from an earlier store',
+  unknown: 'this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store',
   expired: 'this session expired on the server clock (a dev clock advance can expire sessions); sign in again',
   revoked: 'this session was signed out, revoked, or replaced by refresh; sign in again and discard the saved token',
 };

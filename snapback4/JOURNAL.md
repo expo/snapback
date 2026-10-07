@@ -89961,3 +89961,35 @@ measured 2,135,336 raw / 645,448 gzip bytes against the inherited 645,607 cap (1
 margin); no macOS margin or raised budget is claimed. Work stayed in this lane;
 nothing pushed. Details, privacy rationale, detection limits and harness outcomes:
 [DK report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+
+## 2026-10-07 — DK round 1: trusted dev explanations and bounded clock evidence
+
+Astra's r0 NOT READY review identified public-route disclosure and an unbounded
+startup scan that could mistake an ordinary appointment for a future write.
+Detailed E_AUTH wording now requires the dev-only endpoint peer/Host/Origin
+trust check, even on public POST routes. Serve and untrusted dev callers get the
+same generic text for unknown, expired and signed-out/refreshed tokens. Removed
+r0's persistent diagnostic objects and lifecycle hooks entirely; the preceding
+DK entry's storage design is superseded. No process cache is kept. Existing
+records can explain expiry; absent records explain the possible earlier-store,
+expiry or sign-out causes and tell the developer to sign in and discard saved
+old-store tokens. The SDK's reason preservation remains intact.
+
+Clock startup/doctor inspect only the latest 64 commit stamps, never application
+row values. Table metadata is bounded before loading (4 KiB per commit), the
+printed table list is bounded, and omitted names are explicit. This deliberately
+can miss older future commits and can still report historical stamps after rows
+are deleted; the guide and LLP now state those limits. The matching-appointment
+control, public-route controls, session/read-only regressions, affected Rust
+suites and guide checks passed. Doctor offsets, cumulative advance/restart
+wording and the isolated `dev --fresh --port 4401` recipe remain. Governing LLP
+3000.007 §20.2/§20.12 and Revised were updated. Production benchmark evidence,
+final model counts and full commands are in
+[the round-1 report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-1 final evidence: the 100,001-row production benchmark measured
+4.918–5.681 ms startup against published 0.4.14's 5.404–6.565 ms (five
+interleaved runs each); SQLite schema remained unchanged. All 52 app-session
+model tests passed at 5,000 sequences per tier. The final ref-check passed
+531 LLP documents and 10,539 references with zero errors/unchecked.

@@ -58,8 +58,8 @@ bare-token online client has none until refresh returns one. Only the local clie
 `localStorageSessionStore()` is an explicit compatibility choice whose token can be read by same-origin script;
 native apps should pass their secure store.
 
-Dev E_AUTH explains unknown-store, expired and signed-out/revoked tokens; the SDK keeps that message.
-Sign in again and discard tokens saved before replacing a store. Serve keeps token standing generic.
+Trusted dev E_AUTH explains expiry or possible causes for unknown tokens; the SDK keeps the message.
+Sign in again and discard earlier-store tokens. Serve and untrusted dev requests keep causes generic.
 See `guide services` for diagnostic limits and `guide jobs` for isolated time-travel tests.
 
 ## Operations

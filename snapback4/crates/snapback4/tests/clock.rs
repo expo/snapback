@@ -673,7 +673,7 @@ fn future_store_explains_itself_at_restart_and_doctor_but_not_under_the_same_off
     let (host, log) = start(&["dev", "--no-watch", "--hold-schedules"]);
     assert_eq!(log.matches("N_CLOCK_STORE_AHEAD").count(), 1, "{log}");
     assert!(log.contains("counters, stories"), "{log}");
-    assert!(log.contains("up to ") && log.contains("ms in") && log.contains("same --clock-offset"), "{log}");
+    assert!(log.contains("up to ") && log.contains("ms (latest 64 commits; tables:") && log.contains("same --clock-offset"), "{log}");
     let doctor = output_json(f.command(&["doctor", "--json"]));
     assert!(doctor.to_string().contains("N_CLOCK_STORE_AHEAD"), "{doctor}");
     drop(host);
@@ -688,4 +688,35 @@ fn future_store_explains_itself_at_restart_and_doctor_but_not_under_the_same_off
     drop(host);
     let (_host, log) = start(&["dev", "--no-watch", "--hold-schedules"]);
     assert!(log.contains("N_CLOCK_STORE_AHEAD"), "fresh testing must preserve the main store: {log}");
+}
+
+#[test]
+fn matching_appointment_values_never_become_commit_clock_evidence() {
+    let f = Fixture::new("appointment-control");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable history:\n  at: time\n  public\n  insert <- allow\n  delete <- allow\n  online only\ntable appointments:\n  at: time\n  public\n  insert <- allow\n  online only\nmutation add():\n  return insert history {at: 0}\nmutation drop(id: history):\n  delete history[id]\nmutation appointment(at: time):\n  return insert appointments {at}\n").unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+    let added = host.post("/m/add", json!({"id":"future","args":{}}));
+    assert_eq!(added["state"], "sent", "{added}");
+    let stamp: i64 = rusqlite::Connection::open_with_flags(f.0.join(".snapback4/store.sqlite"), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap()
+        .query_row("SELECT at FROM _commits WHERE program = 'add'", [], |r| r.get(0)).unwrap();
+    assert_eq!(host.post("/m/drop", json!({"id":"drop","args":{"id":added["result"]["id"]}}))["state"], "sent");
+    drop(host);
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    // Historical commit evidence persists independently of retained rows. The
+    // matching ordinary appointment must never join the affected-table list.
+    let before = host.request("GET", "/dev/clock/status", json!(null));
+    assert!(before["storeAhead"].as_str().unwrap().contains("tables: history)"), "{before}");
+    assert_eq!(host.post("/m/appointment", json!({"id":"appointment","args":{"at":stamp}}))["state"], "sent");
+    let after = host.request("GET", "/dev/clock/status", json!(null));
+    assert!(after["storeAhead"].as_str().unwrap().contains("tables: history)"), "{after}");
+    assert!(!after["storeAhead"].as_str().unwrap().contains("appointments"));
+    // The explicit bounded-window limit: after 64 normal commits, no evidence
+    // remains in the window, although future appointment values still exist.
+    for n in 1..64 {
+        assert_eq!(host.post("/m/appointment", json!({"id":format!("appointment-{n}"),"args":{"at":stamp}}))["state"], "sent");
+    }
+    assert!(host.request("GET", "/dev/clock/status", json!(null))["storeAhead"].is_null());
+    drop(host);
+    let _host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    assert!(!output_json(f.command(&["doctor", "--json"])).to_string().contains("N_CLOCK_STORE_AHEAD"));
 }

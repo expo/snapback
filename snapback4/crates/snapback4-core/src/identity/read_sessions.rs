@@ -18,7 +18,6 @@ fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
         family TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
         cap_expires_at INTEGER NOT NULL, principal_generation INTEGER NOT NULL
     ); CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, family, expires_at);")?;
-    diagnostics::read_table(conn)?;
     Ok(())
 }
 
