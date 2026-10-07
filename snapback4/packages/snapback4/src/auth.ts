@@ -53,7 +53,7 @@ export function login(url: string, email: string, password: string, options: Sig
  * returns the replacement, so callers must adopt or revoke the returned session. */
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   // @ref LLP 3000.033#1.3 — SDK read credentials live until expiry, without rotation.
-  if (token.startsWith("ro.")) return { ok: false, why: { code: "E_READ_ONLY_REFRESH", family: "auth", guide: "read-only",
+  if (token.trim().startsWith("ro.")) return { ok: false, why: { code: "E_READ_ONLY_REFRESH", family: "auth", guide: "read-only",
     message: "read sessions cannot refresh; sign in again or narrow a full session again" } };
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });

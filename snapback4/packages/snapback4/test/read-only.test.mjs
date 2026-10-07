@@ -69,7 +69,11 @@ test('explicit refresh leaves the verified bearer and asset source unchanged', a
   assert.equal(client.session().token, session.token);
   assert.deepEqual(client.assetSource('photo'), before);
   assert.deepEqual(requests, ['/probe']);
-  assert.equal((await refreshSession(url, session.token, async () => { throw Error('must not send'); })).why.code, 'E_READ_ONLY_REFRESH');
+  for (const token of [session.token, ` \t${session.token}\t `]) {
+    let sent = false;
+    const result = await refreshSession(url, token, async () => { sent = true; throw Error('must not send'); });
+    assert.equal(result.why.code, 'E_READ_ONLY_REFRESH'); assert.equal(sent, false);
+  }
 });
 test('successful custody is SecureStore-legal and cannot consume the interactive journal', async t => {
   const session = read(), interactive = JSON.stringify(full()), journal = '{"pending":[{"id":"kept","op":"send","args":{}}]}';
