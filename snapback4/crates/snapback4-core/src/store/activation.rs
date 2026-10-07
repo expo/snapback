@@ -416,14 +416,14 @@ fn validate_groups(tx: &Tx<'_>, table: &str, index: &str, prefix_len: usize, max
 
 fn contains_asset_type(kind: &crate::schema::ColumnType) -> bool {
     use crate::schema::ColumnType::*;
-    match kind { Optional(inner) | List { of: inner, .. } => contains_asset_type(inner), Image { .. } | Video { .. } => true, _ => false }
+    match kind { Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => contains_asset_type(inner), Image { .. } | Video { .. } => true, _ => false }
 }
 pub(super) fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
     use crate::schema::ColumnType::*;
     use crate::assets::AssetKind;
     match (kind, value) {
         (Optional(inner), Some(value)) => validate_assets(tx, inner, Some(value)),
-        (List { of, .. }, Some(Value::Array(values))) => { for value in values { validate_assets(tx, of, Some(value))?; } Ok(()) },
+        (List { of, .. } | ListRange { of, .. }, Some(Value::Array(values))) => { for value in values { validate_assets(tx, of, Some(value))?; } Ok(()) },
         (Image { max, .. } | Video { max }, Some(value)) => {
             if let Some(id) = crate::assets::asset_id(Some(value)) {
                 if let Some(asset) = tx.asset(id)? {

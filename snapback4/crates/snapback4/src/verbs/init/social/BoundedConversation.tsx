@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button, Text, TextInput, View } from "react-native";
-import { isReady } from "snapback4/contract";
+import { matchRead, isReady } from "snapback4/contract";
 import { useClient, useMutation, usePage, useQuery, useViewer } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 import { PageLifetime } from "./PageLifetime";
@@ -48,7 +48,7 @@ function ClientOwner({ conversation, active }: { conversation: string; active: b
 function LiveConversation({ conversation, canSend, submit }: { conversation: string; canSend: boolean; submit(): Promise<void> }) {
   const client = useClient();
   const member = useQuery(api.receiptMember, { conversation }, { keep: false });
-  const blocked = "denied" in member || (isReady(member) && member.existence === "absent" && member.fresh && !member.revalidating);
+  const blocked = matchRead(member, { denied: () => true, absent: read => read.fresh && !read.revalidating, partial: () => false, otherwise: () => false });
   const lifetime = useMemo(() => new PageLifetime(client, api.history, { conversation, c: null }), [client, conversation]);
   const scope = useSyncExternalStore(lifetime.subscribe, lifetime.getSnapshot, lifetime.getSnapshot);
   return <View>

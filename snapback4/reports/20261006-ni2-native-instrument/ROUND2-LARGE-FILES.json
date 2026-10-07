@@ -1,0 +1,1737 @@
+{
+  "schemaVersion": "ni2-round2-large-files.v1",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2",
+  "thresholdBytes": 1000000,
+  "files": [
+    {
+      "path": "artifact-controls-m6/async-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/async-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/bright-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/bright-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/buffered-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/buffered-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/clipped-bright-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/clipped-bright-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/contrast-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/contrast-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/driver-binary/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/driver-binary/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/driver-source/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/driver-source/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/elsewhere-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/elsewhere-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/empty-search/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/empty-search/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/extended-video-endpoint/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "d909e2be94b9978a11cc38bf237308b1e241262f29755bc0ab8a8853ed14dae6"
+    },
+    {
+      "path": "artifact-controls-m6/extended-video-endpoint/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/framed-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/framed-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/hash-mismatched-video/m6-ios-screen.mp4",
+      "bytes": 8412997,
+      "sha256": "0ab691fa1eb88d17bdddea95677b4d96e58c17968e76616123a3aefa0ec63097"
+    },
+    {
+      "path": "artifact-controls-m6/hash-mismatched-video/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/instrument-commit/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/instrument-commit/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/instrument-inventory/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/instrument-inventory/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/invented-video-sample/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "2812bad4c786eacd5e34fd7f95cc9f7fdaead4f266c6652e83c2df829df8b6ad"
+    },
+    {
+      "path": "artifact-controls-m6/invented-video-sample/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/late-native-snapshot/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/late-native-snapshot/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/late-read/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/late-read/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/matted-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/matted-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/missing-post-scroll-screen/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/missing-post-scroll-screen/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/missing-video/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/old-viewonce-refusal/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/old-viewonce-refusal/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/one-wrong-receipt/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/one-wrong-receipt/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/online-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/online-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/pre-reopen-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/pre-reopen-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/replayed-events/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/replayed-events/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/retargeted-viewonce/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/retargeted-viewonce/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-025-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-025-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-050-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-050-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-0733-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-0733-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-090-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-090-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-098-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-098-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-125-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/scaled-125-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/search-claim-only/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/search-claim-only/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/search-retry/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/search-retry/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/sent-native-a05/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/sent-native-a05/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/sent-screen-receipts/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/sent-screen-receipts/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/short-duplicate-samples/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/short-duplicate-samples/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/short-duplicate-window/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/short-duplicate-window/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/signin-search/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/signin-search/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/stale-nonce/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/stale-nonce/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/stale-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/stale-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/truncated-video-rebound/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/undecodable-video/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-conversation/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-conversation/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-prime-pixels/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-prime-pixels/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-receipts/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-receipts/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-search-body/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "artifact-controls-m6/wrong-search-body/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "artifact-controls-m8-complete/late-read/m8-ios-screen.mp4",
+      "bytes": 14837781,
+      "sha256": "2d6a0bb1e37a998c4f77dea38fbec7694faf419d6c4b49dce614330820d432c4"
+    },
+    {
+      "path": "artifact-controls-m8-complete/late-read/startup-ios-screen.mp4",
+      "bytes": 3768516,
+      "sha256": "fd36b1fe660cf2c149d76c8eddf4ce20e05dbead1ea63bf6dda8cbe7fdd1e7c3"
+    },
+    {
+      "path": "artifact-controls-m8-complete/missing-restart-screen/m8-ios-screen.mp4",
+      "bytes": 14837781,
+      "sha256": "2d6a0bb1e37a998c4f77dea38fbec7694faf419d6c4b49dce614330820d432c4"
+    },
+    {
+      "path": "artifact-controls-m8-complete/missing-restart-screen/startup-ios-screen.mp4",
+      "bytes": 3768516,
+      "sha256": "fd36b1fe660cf2c149d76c8eddf4ce20e05dbead1ea63bf6dda8cbe7fdd1e7c3"
+    },
+    {
+      "path": "artifact-controls-m8-complete/one-wrong-receipt/m8-ios-screen.mp4",
+      "bytes": 14837781,
+      "sha256": "2d6a0bb1e37a998c4f77dea38fbec7694faf419d6c4b49dce614330820d432c4"
+    },
+    {
+      "path": "artifact-controls-m8-complete/one-wrong-receipt/startup-ios-screen.mp4",
+      "bytes": 3768516,
+      "sha256": "fd36b1fe660cf2c149d76c8eddf4ce20e05dbead1ea63bf6dda8cbe7fdd1e7c3"
+    },
+    {
+      "path": "artifact-controls-m8-complete/stale-restart-capture/m8-ios-screen.mp4",
+      "bytes": 14837781,
+      "sha256": "2d6a0bb1e37a998c4f77dea38fbec7694faf419d6c4b49dce614330820d432c4"
+    },
+    {
+      "path": "artifact-controls-m8-complete/stale-restart-capture/startup-ios-screen.mp4",
+      "bytes": 3768516,
+      "sha256": "fd36b1fe660cf2c149d76c8eddf4ce20e05dbead1ea63bf6dda8cbe7fdd1e7c3"
+    },
+    {
+      "path": "artifact-controls-m8-complete/wrong-receipts/m8-ios-screen.mp4",
+      "bytes": 14837781,
+      "sha256": "2d6a0bb1e37a998c4f77dea38fbec7694faf419d6c4b49dce614330820d432c4"
+    },
+    {
+      "path": "artifact-controls-m8-complete/wrong-receipts/startup-ios-screen.mp4",
+      "bytes": 3768516,
+      "sha256": "fd36b1fe660cf2c149d76c8eddf4ce20e05dbead1ea63bf6dda8cbe7fdd1e7c3"
+    },
+    {
+      "path": "artifact-drain-m6/async-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/async-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/bright-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/bright-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/buffered-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/buffered-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/clipped-bright-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/clipped-bright-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/contrast-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/contrast-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/driver-binary/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/driver-binary/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/driver-source/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/driver-source/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/elsewhere-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/elsewhere-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/empty-search/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/empty-search/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/extended-video-endpoint/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "d3529a565201c7b71385c3c92b0526374964d1f7a998ad92dd671eb273d5f97b"
+    },
+    {
+      "path": "artifact-drain-m6/extended-video-endpoint/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/framed-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/framed-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/hash-mismatched-video/m6-ios-screen.mp4",
+      "bytes": 8231993,
+      "sha256": "0251d5319d54071cb876f662e73e2d53654f5aec39d6805a931f41ac6c017aa1"
+    },
+    {
+      "path": "artifact-drain-m6/hash-mismatched-video/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/instrument-commit/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/instrument-commit/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/instrument-inventory/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/instrument-inventory/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/invented-video-sample/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "93d27ff62c05159b9ceee6c3fa607824b6da42acc23ea5015d8f827234551de5"
+    },
+    {
+      "path": "artifact-drain-m6/invented-video-sample/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/late-native-snapshot/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/late-native-snapshot/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/late-read/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/late-read/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/matted-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/matted-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/missing-post-scroll-screen/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/missing-post-scroll-screen/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/missing-video/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/old-viewonce-refusal/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/old-viewonce-refusal/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/one-wrong-receipt/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/one-wrong-receipt/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/online-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/online-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/pre-reopen-viewonce-load/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/pre-reopen-viewonce-load/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/replayed-events/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/replayed-events/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/retargeted-viewonce/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/retargeted-viewonce/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-025-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-025-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-050-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-050-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-0733-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-0733-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-090-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-090-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-098-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-098-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-125-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/scaled-125-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/search-claim-only/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/search-claim-only/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/search-retry/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/search-retry/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/sent-native-a05/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/sent-native-a05/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/sent-screen-receipts/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/sent-screen-receipts/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/short-duplicate-samples/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/short-duplicate-samples/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/short-duplicate-window/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/short-duplicate-window/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/signin-search/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/signin-search/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/stale-nonce/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/stale-nonce/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/stale-viewonce-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/stale-viewonce-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/truncated-video-rebound/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/undecodable-video/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-conversation/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-conversation/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-prime-pixels/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-prime-pixels/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-receipts/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-receipts/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-search-body/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "artifact-drain-m6/wrong-search-body/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "artifact-drain-m8/late-read/m8-ios-screen.mp4",
+      "bytes": 15047864,
+      "sha256": "91737f7e4a883ae541533c95e3aef94ded50cbbd09ab15c63a3a9a768ae5471a"
+    },
+    {
+      "path": "artifact-drain-m8/late-read/startup-ios-screen.mp4",
+      "bytes": 3788963,
+      "sha256": "38a373407c0e97213a0d04e2abc298c2c777c8d4102bf7f131ccd47ce86425a1"
+    },
+    {
+      "path": "artifact-drain-m8/missing-restart-screen/m8-ios-screen.mp4",
+      "bytes": 15047864,
+      "sha256": "91737f7e4a883ae541533c95e3aef94ded50cbbd09ab15c63a3a9a768ae5471a"
+    },
+    {
+      "path": "artifact-drain-m8/missing-restart-screen/startup-ios-screen.mp4",
+      "bytes": 3788963,
+      "sha256": "38a373407c0e97213a0d04e2abc298c2c777c8d4102bf7f131ccd47ce86425a1"
+    },
+    {
+      "path": "artifact-drain-m8/one-wrong-receipt/m8-ios-screen.mp4",
+      "bytes": 15047864,
+      "sha256": "91737f7e4a883ae541533c95e3aef94ded50cbbd09ab15c63a3a9a768ae5471a"
+    },
+    {
+      "path": "artifact-drain-m8/one-wrong-receipt/startup-ios-screen.mp4",
+      "bytes": 3788963,
+      "sha256": "38a373407c0e97213a0d04e2abc298c2c777c8d4102bf7f131ccd47ce86425a1"
+    },
+    {
+      "path": "artifact-drain-m8/stale-restart-capture/m8-ios-screen.mp4",
+      "bytes": 15047864,
+      "sha256": "91737f7e4a883ae541533c95e3aef94ded50cbbd09ab15c63a3a9a768ae5471a"
+    },
+    {
+      "path": "artifact-drain-m8/stale-restart-capture/startup-ios-screen.mp4",
+      "bytes": 3788963,
+      "sha256": "38a373407c0e97213a0d04e2abc298c2c777c8d4102bf7f131ccd47ce86425a1"
+    },
+    {
+      "path": "artifact-drain-m8/wrong-receipts/m8-ios-screen.mp4",
+      "bytes": 15047864,
+      "sha256": "91737f7e4a883ae541533c95e3aef94ded50cbbd09ab15c63a3a9a768ae5471a"
+    },
+    {
+      "path": "artifact-drain-m8/wrong-receipts/startup-ios-screen.mp4",
+      "bytes": 3788963,
+      "sha256": "38a373407c0e97213a0d04e2abc298c2c777c8d4102bf7f131ccd47ce86425a1"
+    },
+    {
+      "path": "census-diagnostic/reference-runs/pre-reopen-viewonce-m6-20261006-052607/evidence/m6-ios-screen.mp4",
+      "bytes": 2185183,
+      "sha256": "7d22bd311c67883d08fb3d3c8e053280f2328474fabbf9804970291c19f50d4f"
+    },
+    {
+      "path": "census-diagnostic/reference-runs/pre-reopen-viewonce-m6-20261006-052607/evidence/startup-ios-screen.mp4",
+      "bytes": 4056495,
+      "sha256": "e9223723ea9ea6bc78647df100ebee448d3fdeea016443f7362cfc4058acfa06"
+    },
+    {
+      "path": "final-packet-preparation/runtime-baseline/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "final-packet-preparation/runtime-baseline/runtime-launch-through-restore.mp4",
+      "bytes": 12564012,
+      "sha256": "16cd552288573b89ec2f94e87078520fd3f0175ee8159206e9efa5b223f37ef4"
+    },
+    {
+      "path": "final-packet-source/native2-round2-packet-inputs.tar.gz",
+      "bytes": 4058252,
+      "sha256": "a2cd22c938392ee84e33c41d8c30b32537c3f81ca04a78eeb34996addbd18c7f"
+    },
+    {
+      "path": "final-packet-source/stage/components/web-0.3.8-m8/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "final-packet-source2/native2-round2-packet-inputs.tar.gz",
+      "bytes": 4059846,
+      "sha256": "f101abd8f5e847b2c540ca5ff4a0db8b9e7357a8365f5745035d07837528c3c2"
+    },
+    {
+      "path": "final-packet-source2/stage/components/web-0.3.8-m8/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "final-packet-source3/native2-round2-packet-inputs.tar.gz",
+      "bytes": 4061185,
+      "sha256": "9ec3fcc35c7cc6a89e2331f9db84adb3d53f8febe003ca33d3e63dc37f1f7e1d"
+    },
+    {
+      "path": "final-packet-source3/stage/components/web-0.3.8-m8/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "final-packet-source4/native2-round2-packet-inputs.tar.gz",
+      "bytes": 4060820,
+      "sha256": "7de4e4010bb2f1e288c1225f51c1c3ff9d3e12c2f05eef695031ff268a678075"
+    },
+    {
+      "path": "final-packet-source4/stage/components/web-0.3.8-m8/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "first-packet-attempt.tgz",
+      "bytes": 76571892,
+      "sha256": "c1325f142a825d5bd1b9007d498ba2c0bac584d2882cce3b16c82e3f891c91dc"
+    },
+    {
+      "path": "fresh-phase2-packet-round2.tgz",
+      "bytes": 76949542,
+      "sha256": "f8aa10d28b0061cb30e12365722caa3a2cedc2aa8a360942a66af9978aac0abd"
+    },
+    {
+      "path": "independent-regressions/convex-m6/evidence/startup-ios-screen.mp4",
+      "bytes": 1776428,
+      "sha256": "da481158577ec3ef1d3fa3f714730734561693ecbbb46060ed2960f3e6cbafe7"
+    },
+    {
+      "path": "independent-regressions/convex-m6/store/data.sqlite3",
+      "bytes": 4022272,
+      "sha256": "350eea313cf81069526ef288c8f57a81014b705034bee1bbcbaff651f6893f20"
+    },
+    {
+      "path": "independent-regressions/convex-m8/evidence/startup-ios-screen.mp4",
+      "bytes": 1338181,
+      "sha256": "4a7832a635275258e47b577b37c776ae85b5180a2a4250d612dc8b36e60ddf45"
+    },
+    {
+      "path": "independent-regressions/convex-m8/store/data.sqlite3",
+      "bytes": 4022272,
+      "sha256": "406a1ee524eb65b8f0d9eaf414a3a04b16b5860f25ce5833fc999439bdf75937"
+    },
+    {
+      "path": "independent-regressions/snapback4-m6/evidence/startup-ios-screen.mp4",
+      "bytes": 4938867,
+      "sha256": "bf04c23d7e968a3d3466d89c36562b90cfd0584191fe7325367f308bec54ae3a"
+    },
+    {
+      "path": "independent-regressions/snapback4-m6/store/.snapback4/store.sqlite",
+      "bytes": 1355776,
+      "sha256": "bd5da8ac44fdac21da5af1b916ad0f6680506a83d588fed87dffb72d14be706b"
+    },
+    {
+      "path": "independent-regressions/snapback4-m6/store/.snapback4/store.sqlite-wal",
+      "bytes": 4379592,
+      "sha256": "f2f92b5544d01b9c29b097189d0edb906015883f07509f82f259cea8d0e0dc34"
+    },
+    {
+      "path": "independent-regressions/snapback4-m8/evidence/startup-ios-screen.mp4",
+      "bytes": 4802716,
+      "sha256": "6e47e4456e3a982560ae1ca29969777042f5475632803a97089f5a448dfa206b"
+    },
+    {
+      "path": "independent-regressions/snapback4-m8/store/.snapback4/store.sqlite",
+      "bytes": 1224704,
+      "sha256": "2373a1728a1cf07099051083c2c39b483f31268e1665ab54f98582a931d55bbe"
+    },
+    {
+      "path": "independent-regressions/snapback4-m8/store/.snapback4/store.sqlite-wal",
+      "bytes": 4445512,
+      "sha256": "1bf52fb108b170511332e3d9f8633ec4b087cdb35b496c4a0dd0402baae9fea1"
+    },
+    {
+      "path": "packet-copy/clique-native-pilot2-20261006-round2/inputs/builder/web/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "packet-copy/clique-native-pilot2-20261006-round2/inputs/components/web-0.3.8-m8/fixtures/social-messenger/scale.log",
+      "bytes": 13014016,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+    },
+    {
+      "path": "packet-copy/clique-native-pilot2-20261006-round2/inputs/convex/convex-local-backend",
+      "bytes": 171218656,
+      "sha256": "c6290f5a86bc2f6b31a931833c25106ccc06c0c8c9f0894c35f2d7cecf1fd676"
+    },
+    {
+      "path": "packet-copy/clique-native-pilot2-20261006-round2/preparation/runtime-baseline/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "packet-copy/clique-native-pilot2-20261006-round2/preparation/runtime-baseline/runtime-launch-through-restore.mp4",
+      "bytes": 12564012,
+      "sha256": "16cd552288573b89ec2f94e87078520fd3f0175ee8159206e9efa5b223f37ef4"
+    },
+    {
+      "path": "qualification/reference-runs/none-m6-20261006-044409/evidence/m6-ios-screen.mp4",
+      "bytes": 8087953,
+      "sha256": "d4c9d2e604f91ec17f065b7bacd34e8d0a5cbf2e06248c3ee77049aaf2fc3903"
+    },
+    {
+      "path": "qualification/reference-runs/none-m6-20261006-044409/evidence/startup-ios-screen.mp4",
+      "bytes": 4187130,
+      "sha256": "bae99f68ae1913f4e278b9227e0c825308b38c545fb63b3da45df3303b810d89"
+    },
+    {
+      "path": "qualification/reference-runs/none-m6-20261006-044409/test.xcresult/Data/data.0~g-zJASY5_v2OIMyDgCIjEtvHSvCzQMEzl6whIPodhvkOUAP6zXN0slXncHiHG9MJqSz6KX3p5Mye8J5jl1tAZQ==",
+      "bytes": 1303277,
+      "sha256": "6c32ae7b12547d6836d27531e3188853ffc0ebbb06d682e3f54411c934dba319"
+    },
+    {
+      "path": "qualification-custody/reference-runs/none-m6-20261006-052039/evidence/m6-ios-screen.mp4",
+      "bytes": 8802159,
+      "sha256": "34fdcfe29136aa7c313648695892356816d4b25236e4b573864ab255d284c45c"
+    },
+    {
+      "path": "qualification-custody/reference-runs/none-m6-20261006-052039/evidence/startup-ios-screen.mp4",
+      "bytes": 3928532,
+      "sha256": "c3039575fd510f8a6c5d8d0ee1948776c9feff071da1933c186f838a065c2525"
+    },
+    {
+      "path": "qualification-custody/reference-runs/none-m6-20261006-052039/test.xcresult/Data/data.0~vU4lXEcw6jQUzElJYwnppsi6au3rfsH-o0Fp79tb47qEm2rXF2m4wDfSlFEceHWYOx8D-i9_kW8rCWtifGy-eQ==",
+      "bytes": 1306433,
+      "sha256": "f04397f7e1eb1246f94da4cf46c6187e2cc7c4da61fb8d376dcb19418e26cd6c"
+    },
+    {
+      "path": "qualification-custody/reference-runs/none-m8-20261006-052254/evidence/m8-ios-screen.mp4",
+      "bytes": 14943143,
+      "sha256": "5b88128f4e1fc35c46ec945fb4f8b9e2ec6b9fa58945a65ff72b755e3477d022"
+    },
+    {
+      "path": "qualification-custody/reference-runs/none-m8-20261006-052254/evidence/startup-ios-screen.mp4",
+      "bytes": 3840194,
+      "sha256": "0803ae8de65e82fbac8523a3f1657e5692506367f68d88c2c82b4af4e35a4c65"
+    },
+    {
+      "path": "qualification-custody/reference-runs/none-m8-20261006-052254/test.xcresult/Data/data.0~hFLIsfEje-jV9TD-QM7xiDl6JS2LmIbHBqd5WghcEQ9m2r5wG0K74V9RBuFHNX4oE-CKXlRE6cV645wYwN99RQ==",
+      "bytes": 1225145,
+      "sha256": "5ca0fbc4504f4346e7141d755b4a7106dcc45106b77217948799d18496b2d14b"
+    },
+    {
+      "path": "qualification-custody/reference-runs/pre-reopen-viewonce-m6-20261006-051930/evidence/m6-ios-screen.mp4",
+      "bytes": 2312138,
+      "sha256": "0d6846ee94ca8d582db300cb545bc209e871803f18915642eddab1e8698359ad"
+    },
+    {
+      "path": "qualification-custody/reference-runs/pre-reopen-viewonce-m6-20261006-051930/evidence/startup-ios-screen.mp4",
+      "bytes": 4123332,
+      "sha256": "962a099dacbbc5de74313738b334a51a460315aadcf4a507621c1e415bc2a41d"
+    },
+    {
+      "path": "qualification-drain/reference-runs/async-viewonce-m6-20261006-054349/evidence/m6-ios-screen.mp4",
+      "bytes": 2017520,
+      "sha256": "6e60698be3e66daa20ed485d830f7e4c416ee5ce36e9c217228f753a42f6b477"
+    },
+    {
+      "path": "qualification-drain/reference-runs/async-viewonce-m6-20261006-054349/evidence/startup-ios-screen.mp4",
+      "bytes": 3815976,
+      "sha256": "bd2c69e6b9e0443225363a729a35e8365893746792dcf4b29c10d887ef8fc6cd"
+    },
+    {
+      "path": "qualification-drain/reference-runs/bob-wrong-conversation-m6-20261006-060329/evidence/m6-ios-screen.mp4",
+      "bytes": 8216357,
+      "sha256": "38563977a6dd0c1d0c36f38c51269e5d6f659094136fa745f40b7a6fb5fbbdca"
+    },
+    {
+      "path": "qualification-drain/reference-runs/bob-wrong-conversation-m6-20261006-060329/evidence/startup-ios-screen.mp4",
+      "bytes": 3794840,
+      "sha256": "b8d01d5eefc7a10958139c29db24bbf0a5d18b53f58e6d7fc8f8b87c8832765c"
+    },
+    {
+      "path": "qualification-drain/reference-runs/bob-wrong-conversation-m6-20261006-060329/test.xcresult/Data/data.0~0qb7CJHzJb3Js1kEr1bRMRFq_zLXiCV1N3tq1qu97aVCWY_tgByCUS8CzAq4STB04YimOl1qGLWkStkrruGWuA==",
+      "bytes": 1305478,
+      "sha256": "03bf256f95443fba956e3d10a7dad0088068dc781bc376433304e6a0fa486ddc"
+    },
+    {
+      "path": "qualification-drain/reference-runs/bright-viewonce-m6-20261006-053635/evidence/m6-ios-screen.mp4",
+      "bytes": 2492357,
+      "sha256": "2bc18180d3552af8624fb206279e7e3b831d2d7142e251f2eb515e8293cbe7c5"
+    },
+    {
+      "path": "qualification-drain/reference-runs/bright-viewonce-m6-20261006-053635/evidence/startup-ios-screen.mp4",
+      "bytes": 3795638,
+      "sha256": "300695edba24405ae4e70e4888d0106138f3eedd326282d8554104c0adfc86c9"
+    },
+    {
+      "path": "qualification-drain/reference-runs/collapsed-receipt-m6-20261006-060130/evidence/m6-ios-screen.mp4",
+      "bytes": 6753565,
+      "sha256": "d6d2272f2e89fd1c011a94b7c8dba3ed4a3d3ebe6b5c09b7f23651229428bc56"
+    },
+    {
+      "path": "qualification-drain/reference-runs/collapsed-receipt-m6-20261006-060130/evidence/startup-ios-screen.mp4",
+      "bytes": 3791516,
+      "sha256": "52afb4395309cfa57774342a1cd39ad2d4599e260829b889bf47bd750f88ed7d"
+    },
+    {
+      "path": "qualification-drain/reference-runs/delayed-bob-m6-20261006-060552/evidence/m6-ios-screen.mp4",
+      "bytes": 8259512,
+      "sha256": "8e889b69e4b6b84e62119f2ef5aef22a39966705a8539850c88577112ba3dba4"
+    },
+    {
+      "path": "qualification-drain/reference-runs/delayed-bob-m6-20261006-060552/evidence/startup-ios-screen.mp4",
+      "bytes": 3975741,
+      "sha256": "0f2331a74d28efd4a29ed386e8465f21c3f00d57691e4cbc29f1660b9dca5036"
+    },
+    {
+      "path": "qualification-drain/reference-runs/delayed-bob-m6-20261006-060552/test.xcresult/Data/data.0~gGASFTMIWh1wlK5rHByQdPkU_pGZuFXGK2i5mt3_KVETjPbijVaGtVAdXnE-ohRIFZn9Fj3s-3DcIalgoTwJLA==",
+      "bytes": 1304289,
+      "sha256": "750624baacbc010ba5bf6382dbd179beaab1bb9b69eb879b6a2a886f447e0b0e"
+    },
+    {
+      "path": "qualification-drain/reference-runs/delayed-refusal-m6-20261006-053754/evidence/m6-ios-screen.mp4",
+      "bytes": 8575679,
+      "sha256": "6122337bcccaa36fe20ee83c762d77e11e29348a3fe6859c834549a566173c09"
+    },
+    {
+      "path": "qualification-drain/reference-runs/delayed-refusal-m6-20261006-053754/evidence/startup-ios-screen.mp4",
+      "bytes": 3923606,
+      "sha256": "fe452a342a30bc1969a7d19ab86a54fd6919af5783b9e4a5b3158251625a8b8f"
+    },
+    {
+      "path": "qualification-drain/reference-runs/delayed-refusal-m6-20261006-053754/test.xcresult/Data/data.0~xhLyAaEXlXudiiLRr1gLplgVDxeZWwiZVAGDc48N9FAYh8l1SsZITm4q5qPw01xy-pgS73d274zj6nDcxnQX7w==",
+      "bytes": 1344671,
+      "sha256": "b166c694e9e53848aba485d9e47aaca0bb799ac686f41df72674be0b6fa4ac66"
+    },
+    {
+      "path": "qualification-drain/reference-runs/duplicate-sends-m6-20261006-055213/evidence/m6-ios-screen.mp4",
+      "bytes": 8607841,
+      "sha256": "181745cc00aef1ed9b868cf3114d31fbfd632b44a569bf91c2c8f88664da6ff3"
+    },
+    {
+      "path": "qualification-drain/reference-runs/duplicate-sends-m6-20261006-055213/evidence/startup-ios-screen.mp4",
+      "bytes": 3867853,
+      "sha256": "dc938d99a256d905f5ce21408d71014f6d8e43b7012118aaffef2a8de6d26431"
+    },
+    {
+      "path": "qualification-drain/reference-runs/duplicate-sends-m6-20261006-055213/test.xcresult/Data/data.0~_QrrMtQ5YvDV_W51UDZCL3Ap75o0eNKelr_0p6D34L5m2Ps6GVHKBvwhmJTfJgNNMbWBvp5QcffxaP-HG0pxOQ==",
+      "bytes": 1308525,
+      "sha256": "8d73ce41934aca228a01d7ae65ba2c8772e24f1803e227ea1d46707a4d6c7421"
+    },
+    {
+      "path": "qualification-drain/reference-runs/elsewhere-viewonce-m6-20261006-053517/evidence/m6-ios-screen.mp4",
+      "bytes": 2628970,
+      "sha256": "ffef2f33b7035b9d97d8958b846170c5ad0712073ecfa652387ceba186666de0"
+    },
+    {
+      "path": "qualification-drain/reference-runs/elsewhere-viewonce-m6-20261006-053517/evidence/startup-ios-screen.mp4",
+      "bytes": 3982387,
+      "sha256": "4e2a8cb0a72de06d53c7b94d77a048f5555be3a102aac38f025289fbe4725e0b"
+    },
+    {
+      "path": "qualification-drain/reference-runs/journal-failure-m6-20261006-061959/evidence/m6-ios-screen.mp4",
+      "bytes": 2249666,
+      "sha256": "10529abb57e5f537949447f9514b86bc9b341a1d4cd8de0e286d2c8fccebdd1c"
+    },
+    {
+      "path": "qualification-drain/reference-runs/journal-failure-m6-20261006-061959/evidence/startup-ios-screen.mp4",
+      "bytes": 4035689,
+      "sha256": "3d9ddcd2b5d8c4c0788b72012892edf27fbf71634173c1f6511ca05e0fa004e4"
+    },
+    {
+      "path": "qualification-drain/reference-runs/journal-overflow-m6-20261006-062209/evidence/m6-ios-screen.mp4",
+      "bytes": 3772920,
+      "sha256": "b981fe2a0cd943b3df227b311a4b537ce45065c566e26ca97ab690e33836bebe"
+    },
+    {
+      "path": "qualification-drain/reference-runs/journal-overflow-m6-20261006-062209/evidence/startup-ios-screen.mp4",
+      "bytes": 3894218,
+      "sha256": "90f71fe1cced971e0cd46e9f1da39810a43eaa9809a101d22dc84225e3f203b4"
+    },
+    {
+      "path": "qualification-drain/reference-runs/late-bob-m6-20261006-060807/evidence/m6-ios-screen.mp4",
+      "bytes": 8415993,
+      "sha256": "8a7d9780e6bcd2df3c1dde04c9861bf5abe2d59f4a5bc962245f1b36972fee79"
+    },
+    {
+      "path": "qualification-drain/reference-runs/late-bob-m6-20261006-060807/evidence/startup-ios-screen.mp4",
+      "bytes": 3708922,
+      "sha256": "8d2e359108f53a201975d27e3911d56d4cfd937b2207c1940b77c0d1174f55a1"
+    },
+    {
+      "path": "qualification-drain/reference-runs/late-bob-m6-20261006-060807/test.xcresult/Data/data.0~wLPwrnUa0asRUOcG9zDnZea_Hp-ez3MgweQCIBzHtQV-aRgejL3DPz4p0x9cGkowVjTJBlwavLCbB1gI4z0TOg==",
+      "bytes": 1298826,
+      "sha256": "fc1abadfb1bf3b00c2a492eba271b482167b224a5194a6bf2f513f4ea18ab461"
+    },
+    {
+      "path": "qualification-drain/reference-runs/navigation-claim-m6-20261006-055949/evidence/m6-ios-screen.mp4",
+      "bytes": 3113485,
+      "sha256": "c873ab601392dc18c4e6f108ae9806fb23c3c0e3d683b61c44bef1222a248c30"
+    },
+    {
+      "path": "qualification-drain/reference-runs/navigation-claim-m6-20261006-055949/evidence/startup-ios-screen.mp4",
+      "bytes": 3795210,
+      "sha256": "75436aecd4c6119f9fb0da812e5081260d75a7828a7201e0d8a898608f461c5e"
+    },
+    {
+      "path": "qualification-drain/reference-runs/newest-first-m6-20261006-054508/evidence/m6-ios-screen.mp4",
+      "bytes": 11400043,
+      "sha256": "06aa70d6ecdd321ced499658d89f2ec81b76fe0eb97358fd8a5f9309f643521c"
+    },
+    {
+      "path": "qualification-drain/reference-runs/newest-first-m6-20261006-054508/evidence/startup-ios-screen.mp4",
+      "bytes": 4723401,
+      "sha256": "ce0399b5a2581716ffaf4e3cd03b7331156f818a7306d05644c8d12515e0f01b"
+    },
+    {
+      "path": "qualification-drain/reference-runs/newest-first-m6-20261006-054508/test.xcresult/Data/data.0~SbrpAoSD4qwGs4Vo6QxW7mqZKHja7CefrAFwbQb2PPZO64Hp-pjaFTzd2IgiEPir0acMKDIHD4rIE4D98MbmgQ==",
+      "bytes": 1356002,
+      "sha256": "0550717348dcb1ce6e9740394d3d953289813ed00a7056828b7c63803dbe55d8"
+    },
+    {
+      "path": "qualification-drain/reference-runs/newest-first-m8-20261006-062613/evidence/m8-ios-screen.mp4",
+      "bytes": 10229210,
+      "sha256": "8adbf402696bfc843cd28a270815cff944337223f1ed96e3bb6608d75e50a32f"
+    },
+    {
+      "path": "qualification-drain/reference-runs/newest-first-m8-20261006-062613/evidence/startup-ios-screen.mp4",
+      "bytes": 4580939,
+      "sha256": "fbaeb9fcedecf34ed6e595c46da06945de6517a0b66cc277ee04ee7a089380b5"
+    },
+    {
+      "path": "qualification-drain/reference-runs/newest-first-m8-20261006-062613/test.xcresult/Data/data.0~UHs5kkVRDoeVkkIPw5XFcldtLZAnGuyh2Ia8QYExM_uFKmJft0f2785MkMpbUrAWjfvtsmYlAMuKF7hQlAK9tw==",
+      "bytes": 1188496,
+      "sha256": "3ad3a889173610cc95815de211bf5dde964a4ffbe6e1c9a580225668f3d8dcfb"
+    },
+    {
+      "path": "qualification-drain/reference-runs/none-m6-20261006-053055/evidence/m6-ios-screen.mp4",
+      "bytes": 8231987,
+      "sha256": "5c122a893ac35457e30fc0fb5fbb35af18ac15b355f650752f05b5f35afff3bc"
+    },
+    {
+      "path": "qualification-drain/reference-runs/none-m6-20261006-053055/evidence/startup-ios-screen.mp4",
+      "bytes": 3819630,
+      "sha256": "33e715958df705750c1503435dab2f25df451bc029d0db71bb7038384204c60a"
+    },
+    {
+      "path": "qualification-drain/reference-runs/none-m6-20261006-053055/test.xcresult/Data/data.0~C09yFOrw-XVk62IwaJyl7wAbBp6tiYMrWhXnjEMQTTFx6rDO5WX_RYpQd4rYK397H1otY38bvEJPkaGaaMd2Xw==",
+      "bytes": 1303837,
+      "sha256": "909c940571ebf54f90dfdf998e4135aa6ef74e26a3c8a3a62e7739b218146467"
+    },
+    {
+      "path": "qualification-drain/reference-runs/none-m8-20261006-053309/evidence/m8-ios-screen.mp4",
+      "bytes": 15047864,
+      "sha256": "91737f7e4a883ae541533c95e3aef94ded50cbbd09ab15c63a3a9a768ae5471a"
+    },
+    {
+      "path": "qualification-drain/reference-runs/none-m8-20261006-053309/evidence/startup-ios-screen.mp4",
+      "bytes": 3788963,
+      "sha256": "38a373407c0e97213a0d04e2abc298c2c777c8d4102bf7f131ccd47ce86425a1"
+    },
+    {
+      "path": "qualification-drain/reference-runs/none-m8-20261006-053309/test.xcresult/Data/data.0~PttXJmfq2oP7IaNCfdhUB77WQ6r-glPagCYnkj4DhZg8HCzBx1hBMXJoDNqP7dmf7KMv3zQSDjjxJlddupSXNg==",
+      "bytes": 1226702,
+      "sha256": "32440a5c84bff273908e40c2e17606050d4fa89a1e933e6b9fcf943db5887d87"
+    },
+    {
+      "path": "qualification-drain/reference-runs/placeholder-m6-20261006-054845/evidence/m6-ios-screen.mp4",
+      "bytes": 2193193,
+      "sha256": "26a7fd35065f4aa39023ba362448bd2ba9efab702a930a0cfe40a477a788fa87"
+    },
+    {
+      "path": "qualification-drain/reference-runs/placeholder-m6-20261006-054845/evidence/startup-ios-screen.mp4",
+      "bytes": 3820645,
+      "sha256": "c36d70fbfb3aeab28bf8839db2ebdd370403c6ca34648ce34375817da1c9283e"
+    },
+    {
+      "path": "qualification-drain/reference-runs/pre-reopen-viewonce-m6-20261006-052946/evidence/m6-ios-screen.mp4",
+      "bytes": 2023204,
+      "sha256": "7d0f7361d01aec5687c1e3b06a5b521a5c0f15e28b29f14c894d18b25286c638"
+    },
+    {
+      "path": "qualification-drain/reference-runs/pre-reopen-viewonce-m6-20261006-052946/evidence/startup-ios-screen.mp4",
+      "bytes": 4032537,
+      "sha256": "713fbeef3181af8a6068414b5371c3ee5611bdf7826dc498492a36f2ce90b053"
+    },
+    {
+      "path": "qualification-drain/reference-runs/recycling-m6-20261006-062341/evidence/m6-ios-screen.mp4",
+      "bytes": 3479739,
+      "sha256": "514d986a9e76ca41621e718f7cf4f633f9592ea8015751e0a02b03febbc8d1f3"
+    },
+    {
+      "path": "qualification-drain/reference-runs/recycling-m6-20261006-062341/evidence/startup-ios-screen.mp4",
+      "bytes": 3765299,
+      "sha256": "395ec2f38eca02a883c8cb095fdacbe1fbdd5b3a298e74b68fe60968bc0eaf2a"
+    },
+    {
+      "path": "qualification-drain/reference-runs/reversed-sends-m6-20261006-055521/evidence/m6-ios-screen.mp4",
+      "bytes": 8453454,
+      "sha256": "75dc00a573f73155a0262f80a1b1536f04bb2c0d1a616f36c373b15be2b464f3"
+    },
+    {
+      "path": "qualification-drain/reference-runs/reversed-sends-m6-20261006-055521/evidence/startup-ios-screen.mp4",
+      "bytes": 3797910,
+      "sha256": "0456000d1239bc9d9acc67bef6e4a41767111f6dd1a91baf61f0e1095fc43ec5"
+    },
+    {
+      "path": "qualification-drain/reference-runs/reversed-sends-m6-20261006-055521/test.xcresult/Data/data.0~72w1Jor5C65AOxRRGu42KNVjrG9PsJo9yJ5cpOY_0vYMqk0QfR1wOwb8AmyB0PbWIb8g8jsinwTxVGZl0IlXjg==",
+      "bytes": 1299655,
+      "sha256": "30b09fc8da7e20a891a87787f51f05e9a00c1412e41e8d11cee692f1a59506a9"
+    },
+    {
+      "path": "qualification-drain/reference-runs/scroll-no-screen-m6-20261006-054012/evidence/m6-ios-screen.mp4",
+      "bytes": 2853117,
+      "sha256": "7092b097e9a2e28646e0e92aa0878cb44cb80d289b279483f6ada29fa9631897"
+    },
+    {
+      "path": "qualification-drain/reference-runs/scroll-no-screen-m6-20261006-054012/evidence/startup-ios-screen.mp4",
+      "bytes": 4470637,
+      "sha256": "6e8cf51c58c35e713c59124ae48ed5d190064c529bfec8ad41bfd3fedea1e1cc"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stale-restart-capture-m8-20261006-054137/evidence/m8-ios-screen.mp4",
+      "bytes": 14404861,
+      "sha256": "94315bfb51cf85c443ddac92b0f9cd0cbe32b0ccb9b9da4876b3517118db45f1"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stale-restart-capture-m8-20261006-054137/evidence/startup-ios-screen.mp4",
+      "bytes": 3998616,
+      "sha256": "e4395b5573508f98023931e64065481c03058dc8483ef852b5c23b7d446b90b5"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stale-restart-capture-m8-20261006-054137/test.xcresult/Data/data.0~xEfAm_bPzUgRd3pjkJ0XamwwkCqNddcyc5EB5AIL6-C_gBdjKA9qwTBk9YaGaAvvMCGouUi79dyWt7Mwrh6kVw==",
+      "bytes": 1222506,
+      "sha256": "89d4654f96544d3c7a3f70d03c40d1bacb066868dc9cfc218d04ccdc818fde6f"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stale-viewonce-m6-20261006-054731/evidence/m6-ios-screen.mp4",
+      "bytes": 2432013,
+      "sha256": "e867445dc6a04d0708332c9c379ccc98b1dacd8a00f17dfe144f065c0e53ed82"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stale-viewonce-m6-20261006-054731/evidence/startup-ios-screen.mp4",
+      "bytes": 3807690,
+      "sha256": "c0d96c47493038bb29c6dec782c2894b28ac443c61aadc6e2138ec04ddaee437"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stalled-writer-m6-20261006-062447/evidence/m6-ios-screen.mp4",
+      "bytes": 3589346,
+      "sha256": "2bd36ce45e68bec357d164b9ef93284965b907b912145b01098c6d8562e57aee"
+    },
+    {
+      "path": "qualification-drain/reference-runs/stalled-writer-m6-20261006-062447/evidence/startup-ios-screen.mp4",
+      "bytes": 3904380,
+      "sha256": "a9d84d7d8851176f8642236028b5e0ba635220ad8377c34b8fe81641e5e4b682"
+    },
+    {
+      "path": "qualification-drain/reference-runs/undecodable-video-m6-20261006-061653/test.xcresult/Data/data.0~kvqo2qGZDTOjLfXJtqxdJkBNegAADXNUgiZ4ZjFA7i5D6SFCOASvS3dT940oj4OMOYJPsKO5b8s_I1JFmmdFpQ==",
+      "bytes": 1302791,
+      "sha256": "bae8bdf7e2d3464869de5b949c211501bf711abac7f0d9ed633d44f91f086e8d"
+    },
+    {
+      "path": "qualification-drain/reference-runs/volatile-outbox-m8-20261006-054959/evidence/m8-ios-screen.mp4",
+      "bytes": 17883876,
+      "sha256": "26b2ecfbb4d293b49fc99a87d087abeb81be06c0c25d7da40960314768b6eaca"
+    },
+    {
+      "path": "qualification-drain/reference-runs/volatile-outbox-m8-20261006-054959/evidence/startup-ios-screen.mp4",
+      "bytes": 3904782,
+      "sha256": "0f61febc37706f888a22df4d54ed65b4ac40b92ccbe7ba6ca81748dc2ba01b2c"
+    },
+    {
+      "path": "qualification-drain/reference-runs/volatile-outbox-m8-20261006-054959/test.xcresult/Data/data.0~STCaSqV1XGq_JF81UZjoAsD4GIHZdctIlpVkXAqWtrHJ5QnVEN5fPLKmWjqzBMudd9mss7EVgb6_8iBnyguO5A==",
+      "bytes": 1269955,
+      "sha256": "e3356eb3436bf22c7a39abf621d0d5b46801f00ce944e026c2cc9b52d4d7a931"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-conversation-m6-20261006-055828/evidence/m6-ios-screen.mp4",
+      "bytes": 2151445,
+      "sha256": "3d9de165fde420b08fcaa6bedd9b37f55f2466db9925d35eab7ffa562c6ed0b3"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-conversation-m6-20261006-055828/evidence/startup-ios-screen.mp4",
+      "bytes": 3802995,
+      "sha256": "c78c68503b6525df5761495aa3b71b965328e8047a8a2b4e7053ea60ae3636d0"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-fixture-m6-20261006-061855/evidence/startup-ios-screen.mp4",
+      "bytes": 11739514,
+      "sha256": "29d3f3999dd9f931f8b17ec40c081c20dd2b7bf0856f390fbe652ceecc0fb686"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-receipts-m6-20261006-061028/evidence/m6-ios-screen.mp4",
+      "bytes": 8180685,
+      "sha256": "97b38fe53ee9ab95fc9f7ba27ee04c03415f393695e5744aa42f5b202f201218"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-receipts-m6-20261006-061028/evidence/startup-ios-screen.mp4",
+      "bytes": 3799133,
+      "sha256": "621b3e57088d8ccf7ed95f4ea5f546753813365aec6d58c12f7953b70583ae20"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-receipts-m6-20261006-061028/test.xcresult/Data/data.0~NqIOMgzwhXpUo1ySQO7LDHrLp6i8-I6VLZ-XoDqmAf4SrNFxaqnsR3eZSKDjuSXQWR-tFZycM7q2VlQlJ3MB1A==",
+      "bytes": 1366638,
+      "sha256": "4a6fe22cb5ba9fd3ba0e2a5bc6656ae8ebcc30b40680da99337ffc93d7c2ea58"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-receipts-m8-20261006-061341/evidence/m8-ios-screen.mp4",
+      "bytes": 16135397,
+      "sha256": "7cad3fd94912fe1d9919dcdbec7277c306e69be3ff846ace7b710de6154f9006"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-receipts-m8-20261006-061341/evidence/startup-ios-screen.mp4",
+      "bytes": 3861524,
+      "sha256": "112ad87a6a5ead46840560e2e5fb0a4ccfc300d7a960424904b4660619368cf5"
+    },
+    {
+      "path": "qualification-drain/reference-runs/wrong-receipts-m8-20261006-061341/test.xcresult/Data/data.0~hQnYeIdq6jxOgoOHjsffYGxjoXfpvdXjJskTzROtzRcVjzMpXIOpfyAC8z4NVpDLtSpqSGWjZdI13pSqXIQ83Q==",
+      "bytes": 1293093,
+      "sha256": "51d4ac6df325e0f6e59ef225ae88cf043d516e50dd8f2a11714f2d44c1521278"
+    },
+    {
+      "path": "qualification-final/reference-runs/none-m6-20261006-050604/evidence/m6-ios-screen.mp4",
+      "bytes": 8412991,
+      "sha256": "4f8abf07f23aef8945dc8d5ff33c93022ad718d9bff32777bfca04dbc133aafe"
+    },
+    {
+      "path": "qualification-final/reference-runs/none-m6-20261006-050604/evidence/startup-ios-screen.mp4",
+      "bytes": 3786562,
+      "sha256": "5a603ba6c4bedb29900544a12ade0444f9eb985e947103edcaaef57db97f9710"
+    },
+    {
+      "path": "qualification-final/reference-runs/none-m6-20261006-050604/test.xcresult/Data/data.0~zyRl9HBjC-bFYcAEiBQAhoTu8v2Ictk4j77mJQpscalCVCIkAQjjN5z274toQ4c315_Rj00mIqen6X08iZwlIA==",
+      "bytes": 1310405,
+      "sha256": "eca14d438173651ea81d48f473dfcbf99a174eabd6ea8f4862200d12dd3313a3"
+    },
+    {
+      "path": "qualification-final/reference-runs/none-m8-20261006-050817/evidence/m8-ios-screen.mp4",
+      "bytes": 14837781,
+      "sha256": "2d6a0bb1e37a998c4f77dea38fbec7694faf419d6c4b49dce614330820d432c4"
+    },
+    {
+      "path": "qualification-final/reference-runs/none-m8-20261006-050817/evidence/startup-ios-screen.mp4",
+      "bytes": 3768516,
+      "sha256": "fd36b1fe660cf2c149d76c8eddf4ce20e05dbead1ea63bf6dda8cbe7fdd1e7c3"
+    },
+    {
+      "path": "qualification-final/reference-runs/none-m8-20261006-050817/test.xcresult/Data/data.0~EZ9l4CTkuzWUcuMyDnM822fBdgYwoWFmXOzZwBUdHj4lyFw87VgLqPZ0mghHpmzw1H74yDUI-pJu7jAd6ONvXg==",
+      "bytes": 1227688,
+      "sha256": "5ae02b7e0533b6a4bafc73b5613c0ed8874005423400c70a248386386617dfe1"
+    },
+    {
+      "path": "qualification-final/reference-runs/pre-reopen-viewonce-m6-20261006-051025/evidence/m6-ios-screen.mp4",
+      "bytes": 1868792,
+      "sha256": "118a9e599ec4390e7f8b3f97df54fccb69a4e029275b4aa107ec98458c3760b2"
+    },
+    {
+      "path": "qualification-final/reference-runs/pre-reopen-viewonce-m6-20261006-051025/evidence/startup-ios-screen.mp4",
+      "bytes": 3683443,
+      "sha256": "1960597f9388a2c15189f9254a2e7573b68860c6999596b8a55fb995ed9ce093"
+    },
+    {
+      "path": "qualification-first/reference-runs/none-m6-20261006-044409/evidence/m6-ios-screen.mp4",
+      "bytes": 8087953,
+      "sha256": "d4c9d2e604f91ec17f065b7bacd34e8d0a5cbf2e06248c3ee77049aaf2fc3903"
+    },
+    {
+      "path": "qualification-first/reference-runs/none-m6-20261006-044409/evidence/startup-ios-screen.mp4",
+      "bytes": 4187130,
+      "sha256": "bae99f68ae1913f4e278b9227e0c825308b38c545fb63b3da45df3303b810d89"
+    },
+    {
+      "path": "qualification-first/reference-runs/none-m6-20261006-044409/test.xcresult/Data/data.0~g-zJASY5_v2OIMyDgCIjEtvHSvCzQMEzl6whIPodhvkOUAP6zXN0slXncHiHG9MJqSz6KX3p5Mye8J5jl1tAZQ==",
+      "bytes": 1303277,
+      "sha256": "6c32ae7b12547d6836d27531e3188853ffc0ebbb06d682e3f54411c934dba319"
+    },
+    {
+      "path": "qualification-passive/reference-runs/journal-failure-m6-20261006-062854/evidence/m6-ios-screen.mp4",
+      "bytes": 5902555,
+      "sha256": "7d4e0785bf4334047678aa7a4770886ca7580a90879141bb88a3ca33b702a90a"
+    },
+    {
+      "path": "qualification-passive/reference-runs/journal-failure-m6-20261006-062854/evidence/startup-ios-screen.mp4",
+      "bytes": 3952314,
+      "sha256": "2a0e6330244654b4580ddc46608b34dff25a59efd1462777700807e09d748d81"
+    },
+    {
+      "path": "qualification-passive/reference-runs/journal-overflow-m6-20261006-063011/evidence/m6-ios-screen.mp4",
+      "bytes": 8535004,
+      "sha256": "4741bf20dd7ab6cc21ecfda9d156f4c54cd3a36ff44a1222d23493e9c2edca4a"
+    },
+    {
+      "path": "qualification-passive/reference-runs/journal-overflow-m6-20261006-063011/evidence/startup-ios-screen.mp4",
+      "bytes": 4181170,
+      "sha256": "d80266d07024b6767982b149463000209c18d4067264c8af47242f561338ff22"
+    },
+    {
+      "path": "reference-and-runner-products.tgz",
+      "bytes": 42036928,
+      "sha256": "25097fe1d65b2f7585f04a3879f88f05afadd74680a14894bd05f926511dcdc4"
+    },
+    {
+      "path": "remote-archive-inventory.json",
+      "bytes": 1016882,
+      "sha256": "1f80c5a132fb24eec0567fdc0b2fc99fd95824710a7272553afe5194c378639f"
+    },
+    {
+      "path": "retained-first-m8-evidence/m8-ios-screen.mp4",
+      "bytes": 15301433,
+      "sha256": "c9112dc61e09c0a48359ba61008469eed8e36018a12ba4fa68466761707f07ce"
+    },
+    {
+      "path": "retained-first-m8-evidence/startup-ios-screen.mp4",
+      "bytes": 3639338,
+      "sha256": "06e40423e6b57cb19a85d2b49d27346c89002470a1e1d7a45dfa8f368435964e"
+    },
+    {
+      "path": "runtime-app.tgz",
+      "bytes": 7016869,
+      "sha256": "fa5a70500109f55ab12e59292a043a0e885474c0e794068be84312beab165951"
+    },
+    {
+      "path": "runtime-proof/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "runtime-proof/runtime-launch-through-restore.mp4",
+      "bytes": 11088336,
+      "sha256": "3edc0a5bcda27ceb2a80b91cbf65e0c9f69d5772692d892fd708f2f40aa47b13"
+    },
+    {
+      "path": "runtime-proof-custody/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "runtime-proof-custody/runtime-launch-through-restore.mp4",
+      "bytes": 12010618,
+      "sha256": "be797bcccc6028eb7e2f66dbe82c5dea19b7211665d6a2eb85c7d65f0c3614b2"
+    },
+    {
+      "path": "runtime-proof-drain/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "runtime-proof-drain/runtime-launch-through-restore.mp4",
+      "bytes": 12564012,
+      "sha256": "16cd552288573b89ec2f94e87078520fd3f0175ee8159206e9efa5b223f37ef4"
+    },
+    {
+      "path": "runtime-proof-intermediate/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "runtime-proof-intermediate/runtime-launch-through-restore.mp4",
+      "bytes": 10925774,
+      "sha256": "2634b79547a32612101c41f8d47545ab95da199d476d403278057312addb5ad4"
+    },
+    {
+      "path": "runtime-proof-qualified/built-app/main.jsbundle",
+      "bytes": 1447466,
+      "sha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+    },
+    {
+      "path": "runtime-proof-qualified/runtime-launch-through-restore.mp4",
+      "bytes": 10894714,
+      "sha256": "af21e64f967f64243c61492a7d139b867a1b68a7b01d029d0e9b39d57d1f8439"
+    },
+    {
+      "path": "second-packet-attempt.tgz",
+      "bytes": 7742999,
+      "sha256": "2e86396c4eaec4303179daf17b60df27d0beb5dfd3378ecc20c34553070c4cd4"
+    },
+    {
+      "path": "third-packet-attempt.tgz",
+      "bytes": 7861697,
+      "sha256": "48dc57fb463a664a54ab9e1e6710b9dde1c180753df93a7ea12cbf5e693ca4f9"
+    }
+  ]
+}

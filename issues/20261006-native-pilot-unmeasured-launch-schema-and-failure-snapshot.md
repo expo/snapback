@@ -2,7 +2,7 @@
 
 **Opened:** 2026-10-06, P2A Round 5
 **Severity:** Medium
-**Status:** Open; instrument finding, no qualified source changed
+**Status:** Open; native.2 instrument records complete, Phase-2 rerun pending
 **Area:** `benchmarks/native/0.4.0-native.1/driver/run.py`, `driver/evidence.py`, `schemas/run.schema.json`
 **Related:** LLP 0201.000 §7; [pilot revision 6](../benchmarks/native/0.4.0-native.1/pilot/REVISION-6.md)
 
@@ -41,3 +41,23 @@ XCTest/host logs, schema-error census, simulator process logs, crash census,
 install/removal receipts and sourced/unsourced environment probes. The
 qualified driver, validator, schema and runner remain unchanged. Both
 diagnostics stay **audit-refused, never admissible, no pass claimed**.
+
+## NI2 repair status — 2026-10-06
+
+The native.2 candidate gives truthful prelaunch and unavailable records a
+schema representation while continuing to require launch and prime evidence
+for measured passes. It records attempted OS launches independently of helper
+process nonces, captures failure state only when the app is actually running,
+retains launch-through-failed-prime video, and gives XCTest the pinned developer
+tools.
+
+The real Round-7 diagnostic records are retained as regression inputs. The
+native.2 base reference/control qualification matched all 28 live outcomes and
+all 52 artifact controls; final identities and evidence live in the
+[NI2 qualification report](../snapback4/reports/20261006-ni2-native-instrument/README.md).
+All four unchanged independent-app regressions now validate as intended: two
+Convex UIScene setup-null records and two foreground Snapback 4 SecureStore
+entitlement setup-null records. The unavailable-simulator control also passes and
+remains unmeasured. These records cannot support an application pass. The fresh
+packet is sealed and dry-run ready; the Phase-2 rerun remains pending;
+`scoredUse` remains false.

@@ -1,0 +1,43 @@
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-pk/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.62s
+     Running tests/typed_positional_keys.rs (target/debug/deps/typed_positional_keys-459fbfe776a18644)
+
+running 10 tests
+keys=0, type=id: []; ["selected byId (id = x); result: row or null; only declared unique key of this arity"]
+cal31 reconstruction: []
+keys=0, type=conversations: []; ["selected byId (id = x); result: row or null; only declared unique key of this arity"]
+test rule_pair_disambiguates_by_ordered_types ... ok
+test cal31_four_reads_and_two_rules ... ok
+keys=0, type=other: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+test cal31_seventh_message_is_payload_typing_and_must_still_refuse ... ok
+keys=0, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+keys=0, type=text <=80: [("E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix")]; []
+keys=1, type=id: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=1, type=conversations: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+test foreign_reference_selects_its_declared_key_but_cannot_select_identity ... ok
+keys=1, type=other: [("E_QUARRY_POSITIONAL_SCAN", "conversations has no declared unique key accepting these positional argument types in order; name the key columns, or use where for a population")]; []
+keys=1, type=principal: [("E_QUARRY_POSITIONAL_SCAN", "conversations has no declared unique key accepting these positional argument types in order; name the key columns, or use where for a population")]; []
+keys=1, type=text <=80: []; ["selected bySlug (slug = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=id: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=conversations: []; ["selected byId (id = x); result: row or null; unique positional key selected by argument types"]
+keys=2, type=other: [("E_QUARRY_POSITIONAL_SCAN", "conversations has no declared unique key accepting these positional argument types in order; name the key columns, or use where for a population")]; []
+keys=2, type=principal: []; ["selected byOwner (owner = x); result: row or null; unique positional key selected by argument types"]
+test rules_apply_the_same_scalar_matrix_and_nullable_admission ... ok
+keys=2, type=text <=80: []; ["selected bySlug (slug = x); result: row or null; unique positional key selected by argument types"]
+test writes_and_mixed_keys_keep_identity_despite_secondary_uniques ... ok
+test same_type_candidates_refuse_and_offer_named_repairs_in_every_context ... ok
+test identity_and_unique_key_type_matrix ... ok
+test bound_key_reuse_preserves_allocation_order_and_one_helper_effect ... ok
+eight nested typed identity keys: 58.965937ms
+test nested_identity_keys_bind_once_within_one_second ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/typed_positional_sync.rs (target/debug/deps/typed_positional_sync-fb81a77a65ee2352)
+
+running 3 tests
+test reversed_rule_keeps_its_index_and_existing_sync_refusal ... ok
+test sync_does_not_bypass_ambiguity_or_nullable_key_proofs ... ok
+test typed_rule_supplies_content_inverse_and_horizon_indexes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

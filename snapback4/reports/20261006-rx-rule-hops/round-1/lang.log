@@ -1,0 +1,206 @@
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-rx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 16.73s
+     Running tests/guide.rs (target/debug/deps/guide-bc8a1d361752bd03)
+
+running 113 tests
+test client::connection_presence_keeps_its_card ... ok
+test client::loading_or_absent_opens_client ... ok
+test client::missing_row_question_opens_client ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test client::unknown_membership_offline_opens_interactions ... ok
+test client::headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card ... ok
+test client::witness_card_explains_scene_adoption_and_product_toolchain ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test definitions::assets_once_contract_retains_metadata_and_renders_opened ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test following_cards_pin_examinations ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test natural_words_find_their_cards ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test prediction_card_compiles_clean ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test language_following_uses_the_declaration ... ok
+test the_keywords_are_one_list ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test the_template_compiles_clean ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test the_readme_quarry_compiles_clean ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+test every_emitted_code_is_explained ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test every_card_compiles_clean ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [events=2]; 2 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test the_language_card_compiles_and_runs ... ok
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test rules::admitted_hidden_updates ... ok
+test rules::insert_rule_refusals ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test rules::update_rule_refusals ... ok
+test rules::update_conditions ... ok
+test rules::insert_collision_visibility ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+test result: ok. 113 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.56s
+
+     Running tests/lowering.rs (target/debug/deps/lowering-bb2d26fd15177aa6)
+
+running 11 tests
+test regression::helper_setup_ownership_survives_early_return_guards ... ok
+test golden_and_r1p_catalogs_keep_the_complete_source_census_pinned ... ok
+test regression::early_helper_return_preserves_baseline_guards_and_charges ... ok
+test baseline_golden_and_ownership_switch_shard_0 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_1 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_2 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_3 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_4 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_5 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_6 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_7 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_5 ... ok
+test baseline_golden_and_ownership_switch_shard_6 ... ok
+test baseline_golden_and_ownership_switch_shard_0 ... ok
+test baseline_golden_and_ownership_switch_shard_2 ... ok
+test baseline_golden_and_ownership_switch_shard_3 ... ok
+test baseline_golden_and_ownership_switch_shard_7 ... ok
+test baseline_golden_and_ownership_switch_shard_1 ... ok
+test baseline_golden_and_ownership_switch_shard_4 ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 180.77s
+
+     Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-2bd027b61e51b2b2)
+
+running 17 tests
+test an_optional_column_keeps_its_field_guard_rewrite ... ok
+test reference_rule_refusals_name_the_known_construct_and_rewrite ... ok
+test write_rule_follows_one_authorized_reference ... ok
+test point_facts_do_not_cross_job_viewer_authority_edges ... ok
+test point_guards_narrow_into_helpers ... ok
+test rule_hops_are_fenced_and_invalid_raw_positions_refuse ... ok
+test point_facts_do_not_survive_changed_keys_writes_branches_or_loop_iterations ... ok
+test calibration_membership_alone_gets_exact_parent_rewrite ... ok
+test calibration_reverted_with_explicit_parent_guard_compiles ... ok
+test calibration_original_compiles ... ok
+test insert_result_is_total_and_predictable ... ok
+test total_update_and_reference_rules_execute ... ok
+test reference_rule_prepays_even_a_short_circuited_hop ... ok
+test hidden_reference_and_absence_have_identical_refusal_and_logical_meter ... ok
+test reference_rule_absent_hidden_expired_and_negated_fail_closed_with_fixed_meter ... ok
+test unbound_raw_insert_does_not_reserve_an_unused_result_copy ... ok
+test calibration_send_replays_successfully_and_emits_preview ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/rx_legacy_identity.rs (target/debug/deps/rx_legacy_identity-d1582df2efe833d7)
+
+running 2 tests
+test zero_hop_schema_keeps_the_published_hash_and_backend_bytes ... ok
+test repeated_one_hop_terms_keep_the_published_site_list_hash_and_backend_bytes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/rx_rule_enforcement.rs (target/debug/deps/rx_rule_enforcement-f4a373215960401e)
+
+running 7 tests
+test table_membership_enforces_mutation_without_explicit_require ... ok
+test null_field_of_an_authorized_row_is_an_ordinary_value ... ok
+test named_update_chains_check_both_images_and_delete_checks_the_old_row ... ok
+test every_occurrence_prepays_its_depth_even_when_short_circuited ... ok
+test final_hops_resolve_at_transaction_end_and_rollback_without_disclosure ... ok
+test hidden_absent_expired_and_soft_deleted_messages_cannot_authorize ... ok
+test every_chain_failure_is_unknown_even_under_negation_and_has_identical_logical_meter ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-619db5cc52a963c4)
+
+running 10 tests
+test accept_final_insert_hop ... ok
+test refuse_private_targets_and_over_depth ... ok
+test named_id_lookups_and_focal_paths_lower_identically ... ok
+test maintained_target_repair_uses_its_real_group_key ... ok
+test refusals_explain_private_maintained_ephemeral_and_read_positions ... ok
+test accept_depth_two_and_three_and_explicit_lookups ... ok
+test current_depth_one_comparisons_and_probe_keys ... ok
+test raw_schema_chains_validate_every_link_and_fence_every_new_position ... ok
+test certificates_list_every_hop_occurrence_and_final_dependency ... ok
+test private_and_deep_refusal_repairs_compile_as_mutation_checks ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

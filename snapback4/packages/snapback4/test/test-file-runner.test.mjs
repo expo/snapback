@@ -421,27 +421,48 @@ test('console chatter cannot keep a stalled file alive; diagnostics include prog
   assert.equal((await processTable({ group })).some(row => row.group === group && row.alive), false);
 });
 
-test('stale exited members do not reset empty snapshots; observed live leaks remain failures', async t => {
+// Linux identity reads /proc; Darwin takes another full ps snapshot through
+// inspect. Exercise the Darwin path on Linux too, without replaying stale
+// enumeration rows into the independent identity check itself.
+for (const platform of new Set([process.platform, 'darwin']))
+test(`stale exited members do not reset empty snapshots; observed live leaks remain failures (${platform})`, async t => {
+  const descriptor = Object.getOwnPropertyDescriptor(process, 'platform');
+  Object.defineProperty(process, 'platform', { value: platform });
+  t.after(() => Object.defineProperty(process, 'platform', descriptor));
   const dir = mkdtempSync(join(tmpdir(), 'sb4-stable-empty-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'leak.test.mjs');
   writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';test('helper',()=>{execFileSync('/bin/sh',['-c','sleep 600 </dev/null >/dev/null 2>&1 &'])});`);
-  let inspections = 0, emptyInspections = 0, group, before, output = '';
+  let inspections = 0, emptyInspections = 0, staleInspections = 0, reads = 0, firstEmptyRead, group, before, output = '';
   const result = await runFile(path, {onOutput: text => {output+=text}, onStart: child => {group=child.pid}, inspect: async options => {
-    const current = await processTable(options);
+    // Select the identity path above, but parse real ps with its host's rules.
+    const current = await processTable({ ...options, platform: descriptor.value });
+    reads++;
+    if (options.pid !== undefined) return current;
     inspections++;
     if (inspections === 1) before = current;
     // runFile discovers, stop diagnoses, then cleanup verifies. A stale row
     // whose process has exited cannot revive a leak or reset the empty count.
     if (inspections >= 3) {
       emptyInspections = current.some(row => row.group === group && row.alive) ? 0 : emptyInspections + 1;
-      if (emptyInspections) return before;
+      if (emptyInspections) {
+        firstEmptyRead ??= reads;
+        staleInspections++;
+        return before;
+      }
     }
     return current;
   }});
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, 'TEST_FILE_LEAK', output);
+  assert.equal(result.inspectionFailure, undefined, 'observed live leak, not a cleanup deadline refusal: ' + output);
+  assert.ok(before.some(row => row.group === group && row.pid !== group && row.alive), 'fixture observed a live non-keeper leak');
   assert.equal(emptyInspections, 2, 'stale exited rows cannot reset either empty inspection');
+  assert.equal(staleInspections, 2, 'exactly two empty completed enumerations, with no intervening reset');
+  const staleMembers = before.filter(row => row.group === group && row.alive).length;
+  assert.ok(reads - firstEmptyRead + 1 <= 2 * (1 + staleMembers), 'two enumerations plus at most one identity read per stale member in each');
+  assert.equal((await processTable({ group, platform: descriptor.value })).some(row => row.group === group && row.alive), false);
+  t.diagnostic(JSON.stringify({platform, inspections, emptyInspections, staleInspections, readsAfterFirstEmpty: reads - firstEmptyRead + 1, staleMembers}));
 });
 
 

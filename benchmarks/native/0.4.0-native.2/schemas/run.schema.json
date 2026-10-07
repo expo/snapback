@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/clique-native/1/run",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": "0.4.0-native.2"
+    },
+    "protocol": {
+      "const": "clique-native/1"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "segment": {
+      "enum": [
+        "m6",
+        "m8"
+      ]
+    },
+    "qualificationOnly": {
+      "const": true
+    },
+    "instrument": {
+      "type": "object",
+      "required": [
+        "commit",
+        "inventorySha256",
+        "instrumentPin",
+        "scoredUse"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "inventorySha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "instrumentPin": {
+          "const": "social-messenger@0.4.0-native.2"
+        },
+        "scoredUse": {
+          "const": false
+        }
+      }
+    },
+    "driverSourceSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "driverBinarySha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "build": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "bundleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nativeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hermesSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "bundleId",
+        "nativeSha256",
+        "hermesSha256"
+      ],
+      "additionalProperties": false
+    },
+    "installedBefore": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "bundleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nativeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hermesSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "bundleId",
+        "nativeSha256",
+        "hermesSha256"
+      ],
+      "additionalProperties": false
+    },
+    "installedAfter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "bundleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nativeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "hermesSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "bundleId",
+        "nativeSha256",
+        "hermesSha256"
+      ],
+      "additionalProperties": false
+    },
+    "simulator": {
+      "type": "object",
+      "properties": {
+        "udid": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "udid",
+        "runtime"
+      ],
+      "additionalProperties": false
+    },
+    "host": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "xcode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "developerDir": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "xcodebuild": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "simctl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "testRunnerDeveloperDir": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "testRunnerPath": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name",
+        "xcode",
+        "developerDir",
+        "xcodebuild",
+        "simctl",
+        "testRunnerDeveloperDir",
+        "testRunnerPath"
+      ],
+      "additionalProperties": false
+    },
+    "backend": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "origin": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "argv",
+        "origin",
+        "cwd"
+      ],
+      "additionalProperties": false
+    },
+    "storeBefore": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "storeAfter": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "launchAttempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "phase": {
+            "enum": [
+              "prime",
+              "cold",
+              "restart"
+            ]
+          },
+          "attemptedAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "completedAt": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "state": {
+            "enum": [
+              "unknown",
+              "not-running",
+              "suspended",
+              "background",
+              "foreground"
+            ]
+          },
+          "stateRaw": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "attempt",
+          "phase",
+          "attemptedAt",
+          "completedAt",
+          "state",
+          "stateRaw",
+          "running",
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "observationProcesses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "processNonce": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "at": {
+            "type": "number",
+            "minimum": 0
+          },
+          "launchAttempt": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "processNonce",
+          "at",
+          "launchAttempt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "prime": {
+      "type": "object"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "offlineProbes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "assertionEvidence": {
+      "type": "object"
+    },
+    "video": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "codec": {
+          "const": "h264"
+        },
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "decodedEndpoints": {
+          "const": true
+        },
+        "decodedFrames": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "codec",
+        "durationSeconds",
+        "decodedEndpoints"
+      ],
+      "additionalProperties": false
+    },
+    "startupVideo": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "properties": {
+            "codec": { "const": "h264" },
+            "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "decodedEndpoints": { "const": true },
+            "decodedFrames": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["codec", "durationSeconds", "decodedEndpoints"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "requestedCodec": { "const": "h264" },
+            "captureRetained": { "const": true },
+            "validationError": { "type": "string", "minLength": 1 },
+            "codec": { "const": "h264" },
+            "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "decodedFrames": { "type": "integer", "minimum": 1 },
+            "decodedEndpoints": { "const": false }
+          },
+          "required": ["requestedCodec", "captureRetained", "validationError", "decodedEndpoints"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "reinstalledDuringMeasurement": {
+      "const": false
+    },
+    "failure": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "cost": {
+      "type": "object"
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "protocol",
+    "runId",
+    "segment",
+    "qualificationOnly",
+    "instrument",
+    "driverSourceSha256",
+    "driverBinarySha256",
+    "build",
+    "installedBefore",
+    "installedAfter",
+    "simulator",
+    "host",
+    "backend",
+    "storeBefore",
+    "storeAfter",
+    "launchAttempts",
+    "observationProcesses",
+    "prime",
+    "steps",
+    "offlineProbes",
+    "assertionEvidence",
+    "video",
+    "startupVideo",
+    "reinstalledDuringMeasurement",
+    "failure",
+    "cost",
+    "files"
+  ],
+  "additionalProperties": false
+}

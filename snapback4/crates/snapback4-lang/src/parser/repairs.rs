@@ -242,7 +242,7 @@ fn scalar_type(ty: &Ty) -> Option<ScalarType> {
         Ty::Text(max) => TypeKind::Text { min: None, max, format: None },
         Ty::Ref(table) => TypeKind::Ref { table }, Ty::Enum(variants) => TypeKind::Enum { variants },
         Ty::Decimal(scale) => TypeKind::Decimal { scale }, Ty::Money(currency, scale) => TypeKind::Money { currency, scale },
-        Ty::List(item, max) => TypeKind::List { item: Box::new(scalar_type(&item)?), max },
+        Ty::List(item, max) => TypeKind::List { item: Box::new(scalar_type(&item)?), min: 0, max },
         _ => return None,
     };
     Some(ScalarType { kind, optional: ty.is_optional() })

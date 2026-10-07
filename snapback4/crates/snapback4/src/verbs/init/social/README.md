@@ -155,8 +155,8 @@ current server hits with this device's retained hits after leave; offline it
 searches acquired holdings. The online tier has only current server access.
 Immutable `conversation` and `at` give `(at, id)` continuation; `usePage` accumulates
 by message ID. Refresh to see matches before the cursor. The screen shows “Partial
-results” only when `existence(page.read) === "partial"`; nonempty answers are present
-even with incomplete coverage. A complete page may still have more matches.
+results” when `readPresentation(page.read).incomplete`, including nonempty present
+answers with incomplete coverage, cuts or continuation. A complete page may still have more matches.
 Search order is time and the acquired history window is ordinal, so missing
 retained coverage can keep results incomplete. See `snapback4 guide search`
 for cuts and continuation limits.
@@ -233,8 +233,21 @@ The full Conversation retains the journal, receipts and richer UI. See
 
 `src/QuotedMessage.tsx` is ready to mount with a referenced message ID when adding
 reply UI; this starter has no quote composer. Its `messagePhoto` point read returns
-the whole message, even outside the loaded history page. `readPresentation`
+the whole message, even outside the loaded history page. `matchRead`
 keeps a stable loading placeholder, renders present text, uses “unavailable” only
 for proven absence, hides denied reads, and keeps partial empty reads uncertain.
 It never caches a previous quote through withdrawal. `snapback4 guide social`
 includes the same component; hold the point read in tests, then settle it.
+
+## Rendering read states
+
+Use `matchRead` from `snapback4/react` or `snapback4/contract` on a query's read
+or `page.read`. Supply `loading`, `denied`, `absent`, `partial` and `present`.
+The last two receive `(data, read)`, with non-null data for `present`;
+`denied` receives `(why, read)`, and `absent`/`loading` receive `read`.
+Metadata stays available on ready reads. An explicit `otherwise(read)` can
+replace loading/absent/present handlers; denial and partial emptiness always
+need their own handlers. Status lines deliberately render nothing for absent
+and present. Search also uses `readPresentation` for incomplete, stale and
+revalidating notices; present does not imply complete. Keep the composer mounted
+outside the match. The send matcher preserves the membership rule above.

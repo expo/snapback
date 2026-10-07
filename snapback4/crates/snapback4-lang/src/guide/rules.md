@@ -16,11 +16,11 @@ table reactions:
 
 ## Reference
 
-Each write-rule term allows one live hop: `.message.conversation`, or `messages[.message].conversation`.
-The target's read rule applies; absent, expired or hidden targets fail closed even under `not` or `= null`.
-Sibling hops are legal; each prepays one probe within bounded authorization work. Devices need current coverage.
-Insert uses the new image, named update either image, and delete its pre-delete image; read-through captures stay unchanged. Null guards narrow the same term and image; guarding `old.ref.key` does not guard `next.ref.key`.
-E_QUARRY_RULE_HOP gives an explicit lookup/read-through rewrite for deeper chains, private/maintained fields or after-insert hops.
+Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent.
+Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`.
+Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered.
+Insert uses the new image, named updates old/next, delete its pre-delete image; final obligations resolve at transaction end. Read-through capture/lifetimes stay unchanged. Null guards narrow only the same term and image.
+Beyond three hops, private/maintained fields and ephemeral targets refuse E_QUARRY_RULE_HOP with concrete mutation `require` checks.
 
 ```quarry
 table orgs:
@@ -369,6 +369,6 @@ Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`,
 `why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.
 
 Membership paths spelling the whole parent rule lower to `read through`; other
-read reference expressions remain unsupported. Write-rule terms admit depth-one hops as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate
+read reference expressions remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate
 read line proved identical to the parent's rule has a whole-line repair;
 additional conditions remain a modeling choice and are not removed by `--fix`.

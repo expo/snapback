@@ -1,0 +1,23 @@
+{
+  "cases": 6588,
+  "baselines": {
+    "base": "8e3062941096d465ec067b00d5eb37c7f1d9f8fd",
+    "round0": "7eba286ddd"
+  },
+  "case_archive_sha256": "fd8500c922b17b3283771e2880ca653df6df238e053d19346fe8b1e71f8d1ac7",
+  "seconds": {
+    "base": 4.089,
+    "round0": 4.363,
+    "round1": 6.842
+  },
+  "base": {
+    "accepted": 1118,
+    "previously_accepted_changed": 0,
+    "newly_accepted": 432
+  },
+  "round0": {
+    "accepted": 1550,
+    "previously_accepted_changed": 0,
+    "newly_accepted": 0
+  }
+}

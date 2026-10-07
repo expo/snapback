@@ -831,6 +831,41 @@ type Refusal = { code: string; family: string; message: string; detail?: string;
 type Link = "online" | "offline" | "signed-out";
 ```
 
+`matchRead` is the paved rendering form, exported from both `snapback4/contract`
+and `snapback4/react`. One handler set covers points and pages. Pass `page.read`,
+not `page.items`: an empty item list during loading proves nothing.
+
+```tsx
+import { matchRead, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function Membership({ conversationId }: { conversationId: string }) {
+  const member = useQuery(api.myMembership, { conversationId });
+  return <p>{matchRead(member, {
+    loading: () => "Checking membership…",
+    denied: why => why.message,
+    absent: read => read.fresh && !read.revalidating ? "Not a member" : "Checking saved membership…",
+    partial: () => "Membership not yet known",
+    present: (data, read) => read.revalidating ? "Updating membership…" : "Member",
+  })}</p>;
+}
+```
+
+Every handler is required. An explicit `otherwise(read)` may replace omitted
+`loading`, `absent` and `present` handlers; `denied` and `partial` must still be
+provided. Explicit handlers take precedence. The fallback receives the union of
+those three arms, even if some have explicit handlers. Use it only when the
+omitted states intentionally share a decision, as in the composer below.
+`present(data, read)` excludes top-level null; `partial(data, read)` preserves the
+query's result type, including null. `denied(why, read)` receives the original
+`Refusal`; `absent(read)` and `loading(read)` receive their narrowed read.
+Every ready handler keeps `fresh`, `revalidating`, `complete`, `cut`, `next` and
+`since`. Return types are inferred as the union of handler results. This is pure
+dispatch over the current read, with no subscription, saved answer or authority.
+A nonempty page can be `present` and incomplete; use `readPresentation(read)`
+for independent incomplete/stale/revalidating notices. `existence` and the guards
+remain useful for single checks. Settled reads use the same handlers (loading
+cannot run), keeping reusable rendering functions identical to observed reads.
+
 `client.query(op, args)` returns `Promise<SettledRead<R>>`. See `snapback4 guide client` for its settling rounds, total deadline, offline behavior and refusals. Ready may still be partial; `existence(await client.query(...))` never returns `"loading"`. Use `observe`/`useQuery` for later updates.
 
 To measure a real account's server read in development, use the online
@@ -1533,8 +1568,8 @@ The partial-results notice follows `readPresentation(page.read).incomplete`.
 and continuations, including nonempty `present` pages. `stale` is `!fresh` on a
 ready answer; `revalidating` is independent. `why` is the current refusal and
 `since` the unchanged ready timestamp. Loading/denied carry no ready metadata.
-Use the original read to narrow data or decide an action; there is no permission
-flag. Empty results are proven only by `existence === "absent"`, even offline.
+Use `matchRead` on the original read to render narrowed data or decide an action;
+there is no permission flag. Empty results are proven only by `existence === "absent"`, even offline.
 
 This complete React/Expo screen uses the generated `thread`, `myMembership`
 and `send` handles from the chat shape above. Put it under `AppProvider`.
@@ -1548,7 +1583,7 @@ import { useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
 import { useAuth, useMutation, usePage, useQuery } from "snapback4/react";
 import { mintId } from "snapback4/client";
-import { existence, isReady, readPresentation, type ReadPresentation } from "snapback4/contract";
+import { matchRead, readPresentation, type ReadPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
 export function ConversationScreen({ backend, conversationId }: { backend: string; conversationId: string }) {
@@ -1561,7 +1596,7 @@ function ConversationShell({ conversationId }: { conversationId: string }) {
   const [submitted, setSubmitted] = useState<{ id: string; body: string } | null>(null);
   const send = useMutation(api.send);
   const member = useQuery(api.myMembership, { conversationId });
-  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
+  const blocked = matchRead(member, { denied: () => true, absent: read => read.fresh && !read.revalidating, partial: () => false, otherwise: () => false });
   async function submit() {
     if (blocked || send.inFlight || !draft.trim()) return;
     const submission = { id: mintId(), body: draft };

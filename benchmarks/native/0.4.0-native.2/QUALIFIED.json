@@ -1,0 +1,118 @@
+{
+  "instrument": {
+    "commit": "8db637eb5929c7b58f76b34664256cd2bd3c9b3d",
+    "inventorySha256": "7502936bea8367523b0f2ede4b6a0a49045cf75595c3129a6f2f9e40237a7659",
+    "instrumentPin": "social-messenger@0.4.0-native.2",
+    "scoredUse": false
+  },
+  "driverSourceSha256": "8132ef861b664edbe91a825faa41f8f694b6cb4c013b5c78c443eb1cd942db9c",
+  "driverBinarySha256": "5060696693c826551f82db78d7afa64fb92e6412756e9015719d9b5993364044",
+  "qualification": {
+    "status": "reference-controls-requalified",
+    "scope": "Round 2 review repairs; all affected reference/control, runtime-baseline and retained independent-app startup regressions requalified. Fresh Phase-2 builders are not launched; no scored admission.",
+    "previous": "social-messenger@0.4.0-native.1",
+    "date": "2026-10-06",
+    "report": "snapback4/reports/20261006-ni2-native-instrument/README.md",
+    "historicalQualificationRecordCommit": "05b4d3761014d58ffff6b07609afa692e9bd97e4",
+    "round2": {
+      "sourceCommit": "8db637eb5929c7b58f76b34664256cd2bd3c9b3d",
+      "liveCells": 30,
+      "carriedLiveCases": 25,
+      "passiveControls": 4,
+      "additionalInvertedM8": true,
+      "knownGoodSegments": [
+        "m6",
+        "m8"
+      ],
+      "artifactControls": 52,
+      "allExpectedVerdictsMatched": true,
+      "pythonTestsPassed": 114,
+      "helperPureTestsPassed": 7,
+      "helperMountedTestsPassed": 5,
+      "helperMountedAssertions": 36,
+      "swiftJournalTestsPassed": true,
+      "mountedMutationChecksPassed": 2,
+      "independentAppSetupRegressionsPassed": 4,
+      "unavailableSimulatorRegressionPassed": true,
+      "retainedIndependentAppsUnchanged": true,
+      "runtimeLifecycleChecksPassed": 8,
+      "retainedFirstM8EndpointVerdict": "covered",
+      "retainedFirstM8Rerun": false,
+      "retainedFirstM8PromotedToRound2Pass": false,
+      "pythonTestsSourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+      "passiveControlSourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+      "independentRegressionsSourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce"
+    },
+    "deliberateNative1VerdictChanges": [
+      "scroll-no-screen: true -> false (screen-row-detached)"
+    ],
+    "diagnosticReasonChanges": [
+      "undecodable-video: null remains null; raw decoding now reports invalid-video before exported validation"
+    ],
+    "carryForwardBasis": {
+      "measuredSourceCommit": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+      "finalSourceCommit": "8db637eb5929c7b58f76b34664256cd2bd3c9b3d",
+      "changedInventoryFiles": [
+        "pilot/README.md",
+        "pilot/after-builder.sh",
+        "pilot/launch-builder.sh",
+        "pilot/pilot-chain.sh",
+        "pilot/scripts/selftest.py",
+        "reference/passive-controls.py",
+        "tests/test_round6.py"
+      ],
+      "basis": "Production driver, helper, native module, reference app, validator, runtime proof inputs and pilot admission implementation are byte-identical to 9ac. The two passive journal fault-control expectations and tests were repaired and rerun at f149. Subsequent pilot-only changes fix assembled fixture/validator paths and bind all three launch wrappers and the documented selftest to the already pinned Python runtime. Original 28 successful live cells and 52 artifact checks retain 9ac identity; two repaired passive controls, independent-app regressions and 114 Python tests retain f149 identity. Final macOS packet selftests requalify the subsequent pilot changes.",
+      "runtimeInputInventorySha256": "e31960ac803971140900c2b96f05ae342652ed8e8deec91deb0673707776193d",
+      "originalUnmatchedControlAttempts": [
+        {
+          "index": 25,
+          "control": "journal-failure",
+          "segment": "m6",
+          "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/round2/qualification-drain/reference-runs/journal-failure-m6-20261006-061959",
+          "wallSeconds": 59.055423974990845,
+          "launcherExit": 1,
+          "pass": false,
+          "reason": "unexpected-flush-rejection:native-writer-flush-ack-unpersisted",
+          "expectedPass": true,
+          "expectedReason": null,
+          "matches": false
+        },
+        {
+          "index": 26,
+          "control": "journal-overflow",
+          "segment": "m6",
+          "run": "/Users/ccheever/sb5-evidence-archive/20261006-ni2/round2/qualification-drain/reference-runs/journal-overflow-m6-20261006-062209",
+          "wallSeconds": 68.24403595924377,
+          "launcherExit": 1,
+          "pass": false,
+          "reason": "unexpected-flush-rejection:native-writer-flush-process-mismatch",
+          "expectedPass": true,
+          "expectedReason": null,
+          "matches": false
+        }
+      ],
+      "passiveControlSourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce"
+    },
+    "reviews": {
+      "codex gpt-5.6-sol xhigh": {
+        "verdict": "READY",
+        "sourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+        "reportSha256": "2d24b3c5d193823ee53a154752ef15285a03fc372512eecf913bf2a0eba2ba01"
+      },
+      "grok-4.6 xhigh": {
+        "verdict": "READY",
+        "sourceCommit": "f1495908ba0c2c41255ba3a907e211ea80ae49ce",
+        "reportSha256": "531b62de932f0153f026ab93eb9b470f674cf617e9e87fae339314e319e94c20"
+      }
+    },
+    "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2",
+    "reviewScope": "The embedded review digests bind final production/passive-code source f149. Subsequent pilot-only fixture resolution and pinned-Python entry fixes have final reviews and macOS readiness receipts recorded separately in ROUND2-REVIEWS.json and ROUND2-PACKET-READINESS.json."
+  },
+  "runtimeBaseline": {
+    "schemaVersion": "clique-native-runtime-anchor.v1",
+    "proofSha256": "d67f694c38d104831ad94ea55af1d81843e048b83d30d1ee21e15342079ff54d",
+    "inputInventorySha256": "e31960ac803971140900c2b96f05ae342652ed8e8deec91deb0673707776193d",
+    "nativeSha256": "f708420b34646e53a8c7cd939601fca80113032fa1d1e7343717e38aa13aacc6",
+    "hermesSha256": "b9870677a0708da74af88970a3781af819815bc0f8a852011c98ab71237d6fdc"
+  }
+}

@@ -181,6 +181,16 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
 }
 
 fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
+    let list = |ty: &ColumnType| match ty {
+        ColumnType::List { max, .. } => Some((0, *max)),
+        ColumnType::ListRange { min, max, .. } => Some((*min, *max)),
+        _ => None,
+    };
+    if let (Some((amin, amax)), Some((bmin, bmax))) = (list(old), list(new)) {
+        let (ColumnType::List { of: a, .. } | ColumnType::ListRange { of: a, .. },
+            ColumnType::List { of: b, .. } | ColumnType::ListRange { of: b, .. }) = (old, new) else { unreachable!() };
+        return if a == b && bmin <= amin && bmax >= amax { Change::Additive } else { Change::Narrowing };
+    }
     match (old, new) {
         (ColumnType::Optional(a), ColumnType::Optional(b)) => column_change(a, b),
         // Optional becoming required narrows; required becoming optional widens.
@@ -191,9 +201,6 @@ fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
         }
         (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
             if a.iter().all(|v| b.contains(v)) { Change::Additive } else { Change::Narrowing }
-        }
-        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
-            if a == b && bm >= am { Change::Additive } else { Change::Narrowing }
         }
         _ => Change::Destructive,
     }

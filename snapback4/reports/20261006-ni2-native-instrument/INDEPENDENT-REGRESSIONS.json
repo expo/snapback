@@ -1,0 +1,200 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "backend": "convex",
+      "segment": "m6",
+      "startedAt": 1791274800.387424,
+      "completedAt": 1791274838.600265,
+      "driverExit": 0,
+      "validationExit": 0,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "app-exited-during-startup",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 37.194,
+          "nativeCommands": 5,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "pass": null,
+        "reason": "app-exited-during-startup",
+        "requiredForGreen": false
+      },
+      "checks": {
+        "driverExitZeroForNull": true,
+        "validationAccepted": true,
+        "setupUnmeasured": true,
+        "expectedReason": true,
+        "attemptedLaunch": true,
+        "startupVideoRetained": true,
+        "appIdentityUnchanged": true,
+        "actualStoppedState": true,
+        "primaryReasonRetained": true,
+        "noStoppedAppSnapshot": true
+      },
+      "pass": true
+    },
+    {
+      "backend": "convex",
+      "segment": "m8",
+      "startedAt": 1791274839.071583,
+      "completedAt": 1791274876.7640362,
+      "driverExit": 0,
+      "validationExit": 0,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": null,
+        "receipt": "m8-ios-run.json",
+        "reason": "app-exited-during-startup",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 36.814,
+          "nativeCommands": 5,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "pass": null,
+        "reason": "app-exited-during-startup",
+        "requiredForGreen": false
+      },
+      "checks": {
+        "driverExitZeroForNull": true,
+        "validationAccepted": true,
+        "setupUnmeasured": true,
+        "expectedReason": true,
+        "attemptedLaunch": true,
+        "startupVideoRetained": true,
+        "appIdentityUnchanged": true,
+        "actualStoppedState": true,
+        "primaryReasonRetained": true,
+        "noStoppedAppSnapshot": true
+      },
+      "pass": true
+    },
+    {
+      "backend": "snapback4",
+      "segment": "m6",
+      "startedAt": 1791274877.228531,
+      "completedAt": 1791274938.965087,
+      "driverExit": 0,
+      "validationExit": 0,
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "sign-in",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 59.477,
+          "nativeCommands": 7,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "pass": null,
+        "reason": "sign-in",
+        "requiredForGreen": false
+      },
+      "checks": {
+        "driverExitZeroForNull": true,
+        "validationAccepted": true,
+        "setupUnmeasured": true,
+        "expectedReason": true,
+        "attemptedLaunch": true,
+        "startupVideoRetained": true,
+        "appIdentityUnchanged": true,
+        "actualForegroundState": true
+      },
+      "pass": true
+    },
+    {
+      "backend": "snapback4",
+      "segment": "m8",
+      "startedAt": 1791274939.8862798,
+      "completedAt": 1791275003.525054,
+      "driverExit": 0,
+      "validationExit": 0,
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": null,
+        "receipt": "m8-ios-run.json",
+        "reason": "sign-in",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 60.647,
+          "nativeCommands": 7,
+          "enteredSteps": 0,
+          "operatorInvocations": 1
+        }
+      },
+      "validation": {
+        "valid": true,
+        "pass": null,
+        "reason": "sign-in",
+        "requiredForGreen": false
+      },
+      "checks": {
+        "driverExitZeroForNull": true,
+        "validationAccepted": true,
+        "setupUnmeasured": true,
+        "expectedReason": true,
+        "attemptedLaunch": true,
+        "startupVideoRetained": true,
+        "appIdentityUnchanged": true,
+        "actualForegroundState": true
+      },
+      "pass": true
+    }
+  ],
+  "unavailable": {
+    "pass": true,
+    "checks": {
+      "driverExitZeroForNull": true,
+      "validationAccepted": true,
+      "unavailableNull": true,
+      "prelaunchShape": true
+    },
+    "status": {
+      "id": "ios-simulator-m6",
+      "pass": null,
+      "receipt": "m6-ios-run.json",
+      "reason": "unavailable-simulator",
+      "requiredForGreen": false,
+      "cost": {
+        "wallSeconds": 0.144,
+        "nativeCommands": 0,
+        "enteredSteps": 0,
+        "operatorInvocations": 1
+      }
+    },
+    "validation": {
+      "valid": true,
+      "pass": null,
+      "reason": "unavailable-simulator",
+      "requiredForGreen": false
+    }
+  },
+  "retainedAppsUnchanged": true,
+  "appsAfter": {
+    "convex": {
+      "sha256": "6d23bb729905106b89171a91a6b604a2366a753d6e0208e1aae4b85f9d2fb6f3",
+      "entries": 130
+    },
+    "snapback4": {
+      "sha256": "3f31b9b1ac709497d40d85c4ff64e0c0f2dc69c68ad788991215eda8bf6df6d8",
+      "entries": 127
+    }
+  }
+}

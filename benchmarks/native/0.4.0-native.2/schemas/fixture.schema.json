@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/clique-native/1/fixture",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "const": "clique-native/1"
+    },
+    "runId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "bundleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "origin": {
+      "type": "string",
+      "minLength": 1
+    },
+    "alice": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bob": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "chatValue": {
+      "type": "string",
+      "minLength": 1
+    },
+    "history": {
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "messageId",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ordinary": {
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assetId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "messageId",
+        "assetId",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "viewOnce": {
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assetId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "messageId",
+        "assetId",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "search": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "minLength": 1
+        },
+        "messageId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "token",
+        "messageId"
+      ],
+      "additionalProperties": false
+    },
+    "queuedBodies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "protocol",
+    "runId",
+    "bundleId",
+    "origin",
+    "alice",
+    "bob",
+    "conversationId",
+    "chatValue",
+    "history",
+    "ordinary",
+    "viewOnce",
+    "search",
+    "queuedBodies"
+  ],
+  "additionalProperties": false
+}

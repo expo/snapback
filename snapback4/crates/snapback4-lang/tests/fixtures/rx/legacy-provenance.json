@@ -1,0 +1,35 @@
+{
+  "version": "0.4.13",
+  "sourceFile": "snapback/schema.q",
+  "command": "snapback4 run setup {} --as alice",
+  "packages": [
+    {
+      "name": "snapback4",
+      "version": "0.4.13",
+      "integrity": "sha512-YAteVY2q1No3fbgMQcfQPsaNyxFV0PXr8qKQ7sT2TDNLiQJyiUSHEF29zBCVzHgNP6L6es+A6IbP92u8DikDVQ==",
+      "tarball": "https://registry.npmjs.org/snapback4/-/snapback4-0.4.13.tgz"
+    },
+    {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.13",
+      "integrity": "sha512-CmSkNA2mU7PbWjoAR2hYlH+lPJyTc9nvhGqEvSJa5gxHmKQvNMnYApsBbLAgpYueFiL189Kv/IE6EiR+3LFD0Q==",
+      "tarball": "https://registry.npmjs.org/snapback4-linux-x64/-/snapback4-linux-x64-0.4.13.tgz"
+    }
+  ],
+  "records": [
+    {
+      "shape": "one-hop",
+      "sourceSha256": "e95ebde1d1f24f1c73980ec5a7cbd661cbd0a2c28b6da5d0c7329e3bb94aca93",
+      "backendSha256": "cd34ab07864f4d80620a4093c4bf6c5234ac31c78908a1f66082d3bfdb5fe85e",
+      "schemaSha256": "72447063284f66bdbb74899ae2f677c9a0f23e535d6c69c73890b4b98ce1ab44",
+      "bytes": 7672
+    },
+    {
+      "shape": "zero-hop",
+      "sourceSha256": "ee608e5fb554e9af1a9b8923aa25c69d90e1572904ba932d9250bedcd973fdfe",
+      "backendSha256": "2d5ce461a3d6cb4ecf10f3c59710426acaa2b19d1a3ae78ebb6c52ed6ecb0b61",
+      "schemaSha256": "696a0bff0d86df317b3ac2a823942947878d8d7a75b67c678b4f72ec42fdfbfd",
+      "bytes": 5438
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+    Finished `test` profile [optimized] target(s) in 0.04s
+     Running tests/typed_positional_sync.rs (target/debug/deps/typed_positional_sync-fb81a77a65ee2352)
+
+running 3 tests
+
+thread 'typed_rule_supplies_content_inverse_and_horizon_indexes' (3090489) panicked at crates/snapback4-lang/tests/typed_positional_sync.rs:10:5:
+table conversations:
+  public
+  online only
+table members:
+  conversation: conversations
+  principal: principal
+  number: int
+  active: bool
+  unique pair: conversation, principal
+  unique reverse: principal, conversation
+  read <- .principal = viewer
+  sync to .principal
+table messages:
+  conversation: conversations
+  at: time
+  immutable conversation
+  read <- exists members[.conversation, viewer]
+  sync
+
+[Diagnostic { site: Site { file: "schema.q", line: 18, col: 3 }, code: "E_SYNC", message: "sync to members[.conversation] needs an index on messages leading with conversation so a device can take a group's rows: `by byConversation: conversation, id`", rewrite: "make the sync audience exactly match the table's read rule", guide: "sync", mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test reversed_rule_keeps_its_index_and_existing_sync_refusal ... ok
+test typed_rule_supplies_content_inverse_and_horizon_indexes ... FAILED
+test sync_does_not_bypass_ambiguity_or_nullable_key_proofs ... ok
+
+failures:
+
+failures:
+    typed_rule_supplies_content_inverse_and_horizon_indexes
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test typed_positional_sync`

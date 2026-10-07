@@ -1,0 +1,7 @@
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling rusqlite v0.40.2
+   Compiling serde_json v1.0.151
+   Compiling snapback4-core v0.4.13 (/home/ccheever/sb4-intent/lane-pk/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.13 (/home/ccheever/sb4-intent/lane-pk/snapback4/crates/snapback4-lang)
+    Finished `dev` profile [unoptimized] target(s) in 16.93s

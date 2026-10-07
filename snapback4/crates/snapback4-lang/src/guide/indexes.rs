@@ -26,9 +26,9 @@ one. Rules, sync, caps and expiry also obtain their access indexes. A table
 needs no `by` declaration for these reads.
 
 `unique ownerId, projectId` is a product constraint: one row per pair.
-`tasks[id]` always means the row's id. A multi-value positional key needs
-exactly one declared unique key of that arity, in its declared order.
-Name columns when several keys have that arity: `tasks[ownerId = viewer,
+`tasks[x]` selects identity when `x` is typed `id` or `tasks`; otherwise
+exactly one declared unique key must accept the argument types in order.
+Name columns when several keys accept those types: `tasks[ownerId = viewer,
 projectId = projectId]`. Synthesized indexes never choose positional meaning.
 In either key spelling (also `exists`), arguments for nullable columns of the
 selected unique key must be provably non-null: use required types or `if x != null` guards
@@ -126,10 +126,10 @@ Keep nullable unique constraints unchanged; use the column-ordered read
 above to obtain a separate page index without weakening uniqueness.
 
 E_QUARRY_POSITIONAL_SCAN refuses a positional key that cannot identify one
-declared unique key by arity. E_QUARRY_AMBIGUOUS refuses several matching
+declared unique key by argument types. E_QUARRY_AMBIGUOUS refuses several matching
 indexes. Name columns to state the key; if indexes share those columns in
 different orders, choose an explicit index. Offered index repairs compile in
-context. Types validate a selected key; they do not choose positional meaning.
+context; `check --fix` can apply a verified positional choice.
 
 E_SCHEMA_CONSTRAINT means the named declaration violates a schema constraint.
 Keep a product cap such as `cap 50 by conversationId` when it is a real rule;

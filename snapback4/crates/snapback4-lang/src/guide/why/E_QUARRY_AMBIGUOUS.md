@@ -1,15 +1,14 @@
 # Indexes — E_QUARRY_AMBIGUOUS
 
-E_QUARRY_AMBIGUOUS means an older positional read matches several keys.
+E_QUARRY_AMBIGUOUS means a read matches several indexes.
 Name the key columns for a point, or write `tasks where .ownerId = viewer
-first 20 by .at after c` for a page. Types validate a selected key; they do
-not choose between keys.
+first 20 by .at after c` for a page. Same-column indexes need explicit `by`.
 
 Named equalities covering a total unique key read one row and check any extra
 columns there: `t[key = x, col = y]` returns null on a mismatch, and
 `exists t[key = x, col = y]` returns false. Named equalities covering no
 unique key plan an ordinary authorized scan.
-A positional key resolves only when exactly one declared unique key has its
-arity. Types check that choice; they never choose between keys. If none or
-several match, use named keys. Generated planning indexes never participate.
+Positional keys select identity for `id`/same-table references, otherwise one
+declared unique key accepting the types in order. Ambiguous types need named
+keys. Generated planning indexes never participate.
 An explicit `by <authoredIndex>` keeps its existing point or prefix meaning.

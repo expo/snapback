@@ -1,0 +1,17 @@
+✔ typed positional keys: server and offline wasm keep both unique columns (612.138513ms)
+✔ typed positional keys: server and offline native keep both unique columns (218.201411ms)
+✔ check --fix applies a verified named key: return conversations[x] (20.919605ms)
+✔ check --fix applies a verified named key: return conversations[x] first 20 (25.603946ms)
+✔ check --fix applies a verified named key: return conversations[x] where .slug != 'hidden' (22.428947ms)
+✔ check --fix applies a verified named key: return (conversations[x]) (23.302647ms)
+✔ check --fix applies a verified named key: update conversations[x] { alias: x } (22.673244ms)
+✔ check --fix applies a verified named key: delete conversations[x] (15.969926ms)
+✔ check --fix applies a verified named key: read <- exists conversations[.slug] (15.149968ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1111.364137

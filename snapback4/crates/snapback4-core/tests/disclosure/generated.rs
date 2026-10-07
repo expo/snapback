@@ -58,6 +58,9 @@ pub fn values(kind: &ColumnType) -> Vec<Json> {
             }
             result
         }
+        ColumnType::ListRange { of, min, max } => values(of).into_iter().flat_map(|value|
+            [*min, min.saturating_add(1).min(*max)].map(|len| Json::Array(vec![value.clone(); len as usize]))
+        ).collect(),
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }

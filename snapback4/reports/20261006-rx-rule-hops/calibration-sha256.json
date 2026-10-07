@@ -1,0 +1,14 @@
+[
+  {
+    "path": "/home/ccheever/sb4-intent/cal31-items/m3-check.log",
+    "sha256": "dbb4e0e8ff870eb848a0c241087e1c7c4c3fd2f419619a6cb20e53c710de059b"
+  },
+  {
+    "path": "/home/ccheever/sb4-intent/cal31-items/m3-schema.q",
+    "sha256": "7336e65f4d476d50934ae0bdb5d0fb361aed3e777d46ed3258eb5999e02350b4"
+  },
+  {
+    "path": "../benchmarks/runs/2026-10-05-snapback4-clique-astra-0.4.13/astra/source/snapback/schema.q",
+    "sha256": "34ebadd16b6ff5fa9a7095c3b02fa46bd98ca923179b2af603687c4eb217c64a"
+  }
+]

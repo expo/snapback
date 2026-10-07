@@ -15,6 +15,7 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
+export { matchRead, type ReadMatchHandlers, type ReadMatchFallbackHandlers } from "./contract.ts";
 import { Pages } from "./react-pages.ts";
 import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";

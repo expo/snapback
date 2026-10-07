@@ -419,8 +419,15 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             if matches!(*kind, "insert" | "insert-if-absent" | "upsert") && !table.recorded.is_empty() {
                 lines.push(format!("      recorded attribution: {} extra point reads per inserted row (one per path: {})", table.recorded.len(), table.recorded.keys().cloned().collect::<Vec<_>>().join(", ")));
             }
+            if matches!(*kind, "insert" | "insert-if-absent" | "upsert") {
+                for constraint in &table.constraints {
+                    if let snapback4_core::schema::Constraint::FinalExistsOnInsert { key, .. } = constraint {
+                        for term in key { reference_costs(term, "after insert", &mut lines); }
+                    }
+                }
+            }
             match *kind {
-                "insert" => probe_costs(&table.rules.insert, &mut lines),
+                "insert" | "insert-if-absent" => probe_costs(&table.rules.insert, &mut lines),
                 "update" => probe_costs(&table.rules.update, &mut lines),
                 "delete" => probe_costs(&table.rules.delete, &mut lines),
                 "upsert" => { probe_costs(&table.rules.insert, &mut lines); probe_costs(&table.rules.update, &mut lines); }
@@ -435,12 +442,26 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
 fn probe_costs(rule: &snapback4_core::schema::RuleExpr, lines: &mut Vec<String>) {
     use snapback4_core::schema::RuleExpr;
     match rule {
+        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) | RuleExpr::Compare(_,a,b) => { reference_costs(a, "write rule", lines); reference_costs(b, "write rule", lines); }
+        RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => {
+            for term in key.iter().chain(equalities.iter().map(|(_, term)| term)) { reference_costs(term, "write rule", lines); }
+        }
+        _ => {}
+    }
+    match rule {
         RuleExpr::Exists { table, index, equalities, .. } | RuleExpr::Created { table, index, equalities, .. } if !equalities.is_empty() => {
             lines.push(format!("      rule probe {table}.{index} — one point read, then {} extra equality check(s) when this branch runs", equalities.len()));
         }
         RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().for_each(|rule| probe_costs(rule, lines)),
         RuleExpr::Not(rule) => probe_costs(rule, lines),
         _ => {}
+    }
+}
+
+// @ref LLP 3000.007#5.4 — each syntactic hop prepays its point probe, including short-circuited paths.
+fn reference_costs(term: &snapback4_core::schema::RuleTerm, position: &str, lines: &mut Vec<String>) {
+    for (hop, (table, field)) in term.references().enumerate() {
+        lines.push(format!("      {position} hop {}: {table}.byId -> {field}; 1 prepaid rule probe; live readable row, current device coverage", hop + 1));
     }
 }
 
@@ -1105,7 +1126,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
     match kind {
         ir::ArgType::Ref { table } => format!("a {table} id"),
         ir::ArgType::Id => "an id".into(),
-        ir::ArgType::List { .. } => "a list".into(),
+        ir::ArgType::List { .. } | ir::ArgType::ListRange { .. } => "a list".into(),
         ir::ArgType::Json { .. } => "json".into(),
         ir::ArgType::Bytes { .. } | ir::ArgType::Image { .. } | ir::ArgType::Video { .. } => "bytes".into(),
         other => format!("{other:?}").to_lowercase(),

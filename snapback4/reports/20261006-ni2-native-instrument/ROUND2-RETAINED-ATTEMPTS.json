@@ -1,0 +1,331 @@
+{
+  "schemaVersion": "ni2-round2-retained-attempts.v1",
+  "archiveRoot": "/home/ccheever/sb5-evidence-archive/20261006-ni2/round2",
+  "priorAttempts": [
+    {
+      "archivePath": "qualification-first/reference-runs/none-m6-20261006-044409/evidence/m6-ios-run.json",
+      "manifestSha256": "522712b07761a6d661125ab821209853e93c9163afffd8715dec51d7b4f17a34",
+      "instrument": {
+        "commit": "a52fce53de459946073041e9ca7ab642694b3ba3",
+        "inventorySha256": "a8fb5c83ab7a36cbcf5064847630cd83c2b99cfd6704a676d56631a839faeaeb",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "cleanup:native-writer-flush-timeout",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 139.794,
+          "nativeCommands": 51,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: cleanup retried a flush against stale XCTest state after termination; corrected before final qualification.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-final/reference-runs/none-m6-20261006-050604/evidence/m6-ios-run.json",
+      "manifestSha256": "21a65d50f77473de189fc99b98dbcdf588a47435117b8ac7dda246e284f78ae0",
+      "instrument": {
+        "commit": "2333008c4820b9ff82e8262d29263a11b6d8b91f",
+        "inventorySha256": "055c591b3667e3d65f470b2fbd487fb5e43715e6d33c88beb160c119c8ed8ac4",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 124.301,
+          "nativeCommands": 51,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: complete terminal drain after an earlier absence observation was rejected; census path was stale.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-final/reference-runs/none-m8-20261006-050817/evidence/m8-ios-run.json",
+      "manifestSha256": "2baf7d4cd002ad3680f4200d44cec9b857e6f8b5f07a43e223900acb82987888",
+      "instrument": {
+        "commit": "2333008c4820b9ff82e8262d29263a11b6d8b91f",
+        "inventorySha256": "055c591b3667e3d65f470b2fbd487fb5e43715e6d33c88beb160c119c8ed8ac4",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": true,
+        "receipt": "m8-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 122.971,
+          "nativeCommands": 59,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: complete terminal drain after an earlier absence observation was rejected; census path was stale.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-final/reference-runs/pre-reopen-viewonce-m6-20261006-051025/evidence/m6-ios-run.json",
+      "manifestSha256": "29f9e33e94303042dfcd1323d3bc120698acdf83e6c0b0afa57855daec0208ad",
+      "instrument": {
+        "commit": "2333008c4820b9ff82e8262d29263a11b6d8b91f",
+        "inventorySha256": "055c591b3667e3d65f470b2fbd487fb5e43715e6d33c88beb160c119c8ed8ac4",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": null,
+        "receipt": "m6-ios-run.json",
+        "reason": "artifact-validation:native-writer-flush-terminations",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 64.885,
+          "nativeCommands": 27,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: complete terminal drain after an earlier absence observation was rejected; census path was stale.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-custody/reference-runs/none-m6-20261006-052039/evidence/m6-ios-run.json",
+      "manifestSha256": "7e03210ec086a4d9e4293076f7ac90ace9925877ef46a0e9b2e552924464daf4",
+      "instrument": {
+        "commit": "453f2e3903edaa4aa4226dbcfb8042aa90c9f4f9",
+        "inventorySha256": "9bb7228656683b93a844cece12b714934b83f40135346955f9c476dd2c1e53f5",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": true,
+        "receipt": "m6-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 126.144,
+          "nativeCommands": 51,
+          "enteredSteps": 8,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: complete acknowledgments retained, but a stopped-process waiver and a stale path on later launch were subsequently removed/fixed.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-custody/reference-runs/none-m8-20261006-052254/evidence/m8-ios-run.json",
+      "manifestSha256": "a81c511f02234d76282b989074c3c047299042e4bdc665f57dfac5d50dc7527d",
+      "instrument": {
+        "commit": "453f2e3903edaa4aa4226dbcfb8042aa90c9f4f9",
+        "inventorySha256": "9bb7228656683b93a844cece12b714934b83f40135346955f9c476dd2c1e53f5",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m8",
+        "pass": true,
+        "receipt": "m8-ios-run.json",
+        "reason": null,
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 125.867,
+          "nativeCommands": 59,
+          "enteredSteps": 5,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: complete acknowledgments retained, but a stopped-process waiver and a stale path on later launch were subsequently removed/fixed.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-custody/reference-runs/pre-reopen-viewonce-m6-20261006-051930/evidence/m6-ios-run.json",
+      "manifestSha256": "fc0258800c9571a5b02d13df9088f6cd18362d68a60c74ed65e4ddd56afefefc",
+      "instrument": {
+        "commit": "453f2e3903edaa4aa4226dbcfb8042aa90c9f4f9",
+        "inventorySha256": "9bb7228656683b93a844cece12b714934b83f40135346955f9c476dd2c1e53f5",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 65.514,
+          "nativeCommands": 27,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Superseded: complete acknowledgments retained, but a stopped-process waiver and a stale path on later launch were subsequently removed/fixed.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "census-diagnostic/reference-runs/pre-reopen-viewonce-m6-20261006-052607/evidence/m6-ios-run.json",
+      "manifestSha256": "df8974fbbe94ea5ac89237baa7e05c635065826e22f18d37e6a7cc2be2ba9e1b",
+      "instrument": {
+        "commit": "453f2e3903edaa4aa4226dbcfb8042aa90c9f4f9",
+        "inventorySha256": "9bb7228656683b93a844cece12b714934b83f40135346955f9c476dd2c1e53f5",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "m6-ios-run.json",
+        "reason": "viewonce-reloaded-in-cold-process",
+        "requiredForGreen": false,
+        "cost": {
+          "wallSeconds": 65.217,
+          "nativeCommands": 27,
+          "enteredSteps": 2,
+          "operatorInvocations": 1
+        }
+      },
+      "disposition": "Diagnostic run plus independent ps/container sampling proved the later XCTest app-container relocation; no source identity relabeled.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-drain/reference-runs/journal-failure-m6-20261006-061959/evidence/passive-control.json",
+      "manifestSha256": "39274af9ee4d42030f57d29b3a69e9113177579f62ad6c7de4838eb63849b309",
+      "instrument": {
+        "commit": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+        "inventorySha256": "299308af5e14d10ea1f345dabe8cf530fecc2a8f61a134219bc97d88b71a061c",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "version": "clique-native-passive-controls/1",
+        "control": "journal-failure",
+        "runId": "0fd734f7-04b4-455f-97c0-153cb9279468",
+        "startedAt": 1791292799.465729,
+        "completedAt": 1791292857.993081,
+        "pass": false,
+        "failure": {
+          "reason": "unexpected-flush-rejection:native-writer-flush-ack-unpersisted",
+          "outcomeClass": "instrument"
+        },
+        "result": null,
+        "launchAttempts": [
+          {
+            "attempt": 1,
+            "phase": "prime",
+            "attemptedAt": 1791292804.964809,
+            "completedAt": 1791292808.340394,
+            "state": "foreground",
+            "stateRaw": 4,
+            "running": true,
+            "error": null
+          }
+        ],
+        "startupVideo": {
+          "codec": "h264",
+          "decodedFrames": 497,
+          "durationSeconds": 30.526666666666667
+        },
+        "video": {
+          "codec": "h264",
+          "decodedFrames": 317,
+          "durationSeconds": 18.926666666666666
+        },
+        "appleTools": {
+          "developerDir": "/Applications/Xcode.app/Contents/Developer",
+          "xcodebuild": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "simctl": "/Applications/Xcode.app/Contents/Developer/usr/bin/simctl"
+        },
+        "simulatorUdid": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+        "nativeCommands": 25
+      },
+      "disposition": "Retained failed passive-control harness expectation; exact new driver drain refusal was correct. Control repaired and rerun on f149; this original failure is not relabeled.",
+      "promotedToFinalSource": false
+    },
+    {
+      "archivePath": "qualification-drain/reference-runs/journal-overflow-m6-20261006-062209/evidence/passive-control.json",
+      "manifestSha256": "3a8c70eab11dded854c2a2119c167cc5676bb00c0c229739690c8779a19228c4",
+      "instrument": {
+        "commit": "9ac890d3006f88f6fbe61b7e8214eece54bd68a2",
+        "inventorySha256": "299308af5e14d10ea1f345dabe8cf530fecc2a8f61a134219bc97d88b71a061c",
+        "instrumentPin": "social-messenger@0.4.0-native.2",
+        "scoredUse": false
+      },
+      "status": {
+        "version": "clique-native-passive-controls/1",
+        "control": "journal-overflow",
+        "runId": "8538e784-e132-43a3-b600-ca3d24c57da6",
+        "startedAt": 1791292929.881875,
+        "completedAt": 1791292997.5817971,
+        "pass": false,
+        "failure": {
+          "reason": "unexpected-flush-rejection:native-writer-flush-process-mismatch",
+          "outcomeClass": "instrument"
+        },
+        "result": null,
+        "launchAttempts": [
+          {
+            "attempt": 1,
+            "phase": "prime",
+            "attemptedAt": 1791292935.4168,
+            "completedAt": 1791292938.96098,
+            "state": "foreground",
+            "stateRaw": 4,
+            "running": true,
+            "error": null
+          },
+          {
+            "attempt": 2,
+            "phase": "restart",
+            "attemptedAt": 1791292967.5046039,
+            "completedAt": 1791292970.2930298,
+            "state": "foreground",
+            "stateRaw": 4,
+            "running": true,
+            "error": null
+          }
+        ],
+        "startupVideo": {
+          "codec": "h264",
+          "decodedFrames": 496,
+          "durationSeconds": 30.751666666666665
+        },
+        "video": {
+          "codec": "h264",
+          "decodedFrames": 447,
+          "durationSeconds": 27.10333333333333
+        },
+        "appleTools": {
+          "developerDir": "/Applications/Xcode.app/Contents/Developer",
+          "xcodebuild": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "simctl": "/Applications/Xcode.app/Contents/Developer/usr/bin/simctl"
+        },
+        "simulatorUdid": "3D325BD4-FD16-4A94-AA74-9F5CF1F8E48B",
+        "nativeCommands": 30
+      },
+      "disposition": "Retained failed passive-control harness expectation; exact new driver drain refusal was correct. Control repaired and rerun on f149; this original failure is not relabeled.",
+      "promotedToFinalSource": false
+    }
+  ],
+  "finalQualificationDirectory": "qualification-drain",
+  "retainedHistoricalM8": "ROUND2-RETAINED-M8.json",
+  "notes": [
+    "All intermediate source and measurement identities remain intact.",
+    "The failed first M8 artifact-check invocation used an incomplete transfer; its complete and final-source checks both passed.",
+    "The final packet will use only the final source, final qualification record and proof-drain runtime anchor."
+  ]
+}

@@ -59,9 +59,34 @@ impl SourceMap {
         (syntax == expr).then(|| (text.clone(), *grouped))
     }
 
-    pub(crate) fn read(&self, site: &crate::Site) -> Option<(&crate::ast::ReadExpr, &str, bool, &crate::Site)> {
-        let (Expr::Read(read), text, grouped, start) = self.expressions.get(&site.to_string())? else { return None; };
-        Some((read, text, *grouped, start))
+    pub(crate) fn read(&self, site: &crate::Site) -> Option<(crate::ast::ReadExpr, String, bool, crate::Site)> {
+        let (expr, text, grouped, start) = self.expressions.get(&site.to_string())?;
+        if let Expr::Read(read) = expr { return Some((read.clone(), text.clone(), *grouped, start.clone())); }
+        // Keyed write diagnostics share the read repair verifier. Replace only
+        // the target; keep the write kind, condition and payload in its caller.
+        let Expr::Write { table, keys, site, .. } = expr else { return None; };
+        let tokens = crate::lexer::lex("", text).0;
+        let table_token = tokens.get(1)?;
+        let mut depth = 0;
+        let close = tokens.iter().skip(2).find(|token| {
+            if token.kind != Kind::Symbol { return false; }
+            match token.value.as_str() { "[" => depth += 1, "]" => { depth -= 1; if depth == 0 { return true; } }, _ => {} }
+            false
+        })?;
+        let offset = |site: &crate::Site| {
+            let lines = text.split_inclusive('\n').collect::<Vec<_>>();
+            let line = site.line.checked_sub(1)? as usize;
+            Some(lines.get(..line)?.iter().map(|s| s.len()).sum::<usize>() + lines.get(line)?.char_indices()
+                .map(|(i, _)| i).nth(site.col.checked_sub(1)? as usize)?)
+        };
+        let from = offset(&table_token.site)?;
+        let end = offset(&close.site)? + 1;
+        let mut target_site = start.clone();
+        target_site.line += table_token.site.line - 1;
+        target_site.col = if table_token.site.line == 1 { start.col + table_token.site.col - 1 } else { table_token.site.col };
+        Some((crate::ast::ReadExpr { table: table.clone(), keys: keys.clone(), site: site.clone(), index: None,
+            cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), range: None, matching: None, filter: None, seeks: Vec::new() },
+            text[from..end].into(), false, target_site))
     }
 
     pub(crate) fn expression(&self, expr: &Expr) -> String {

@@ -79,7 +79,7 @@ table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
-  tags: [text <=20] <=8               -- [type] <=N: a bounded list
+  tags: [text <=20] <=8               -- [T] 1..N inclusive; [T] <=N means 0..N
   parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
   createdAt: time default now          -- omitted on insert; evaluated on the writing host
   read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
@@ -409,7 +409,7 @@ mutation post(bodies: [text <=500] <=10):
     insert posts { authorId: viewer, body, score: 0, at: now }
   return count(bodies)
 
-mutation split(total: int, people: [principal] <=8):
+mutation split(total: int, people: [principal] 1..8):
   insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
 job nightly(periodStart: time, periodEnd: time):                    -- system sweeps; one chunk per commit
   end = periodEnd                                                   -- replayed per chunk
