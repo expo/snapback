@@ -1,9 +1,10 @@
+import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { inventory, hash } from '../../../crates/snapback4/src/verbs/witness/payload.mjs';
 import { acquireExportLease, retainEvidence } from '../../snapback4-expo/export-ios.mjs';
@@ -72,6 +73,7 @@ int main(void) { boundary(getenv("SB4_FAULT_TARGET"), ${point === 'after' ? 1 : 
       await assert.rejects(killPausedPublisher(barrier, { ...record, pid }, [probe]), /positive publisher PID/);
     }
     await assert.rejects(killPausedPublisher(barrier, { ...record, start: record.start + '-stale' }, [probe]), /stale publisher birth/);
+    await assert.rejects(killPausedPublisher(barrier, { ...record, start: undefined }, [probe]), /recorded birth required/);
     await assert.rejects(killPausedPublisher(barrier, record, [probe, 'wrong-command']), /fixture publisher command/);
     assert.equal(fs.existsSync(barrier + '.kill'), false, 'refused identities cannot request any signal');
     // An inode, zero or malformed text never satisfies the observation wait.
@@ -89,7 +91,7 @@ int main(void) { boundary(getenv("SB4_FAULT_TARGET"), ${point === 'after' ? 1 : 
     assert.equal(fs.existsSync(barrier + '.kill'), false, 'exited publisher cannot authorize another fault');
   } finally {
     fs.writeFileSync(resume, ''); releasePublisherBarrier(barrier);
-    if (child?.exitCode === null && child?.signalCode === null) child.kill('SIGKILL');
+    if (child?.exitCode === null && child?.signalCode === null) signalChild(child, 'SIGKILL');
     if (exited) await exited;
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -146,11 +148,11 @@ test('SIGKILL releases the actual Node wrapper lease and cleanup recovers its ru
     await once(child.stdout, 'data');
     assert.equal(retainEvidence(path.join(root, 'runs'), dir, binary), true);
     assert.equal(fs.existsSync(source), true);
-    child.kill('SIGKILL'); await exited;
+    signalChild(child, 'SIGKILL'); await exited;
     assert.equal(retainEvidence(path.join(root, 'runs'), dir, binary), true);
     assert.equal(fs.existsSync(path.join(dir, 'finished.json')), true);
     assert.equal(fs.existsSync(source), false);
-  } finally { child.kill('SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
+  } finally { if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited; fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test('publisher inherits custody if its Node wrapper is killed while publication is blocked', async () => {
@@ -174,7 +176,7 @@ test('publisher inherits custody if its Node wrapper is killed while publication
     await once(child.stdout, 'data');
     publisher = await waitForPublisher(path.join(root, 'publisher.pid'), [binary, 'witness', 'export-publish', source, path.join(root, 'dist')]);
     // Parent dies while the real publisher is waiting for the destination lock.
-    child.kill('SIGKILL'); await exited;
+    signalChild(child, 'SIGKILL'); await exited;
     assert.equal(retainEvidence(path.join(root, 'runs'), dir, binary), true);
     assert.equal(fs.existsSync(path.join(dir, 'finished.json')), false);
     assert.equal(fs.existsSync(source), true);
@@ -190,7 +192,7 @@ test('publisher inherits custody if its Node wrapper is killed while publication
     assert.equal(fs.readFileSync(path.join(root, 'dist/bundle'), 'utf8'), 'proved bytes');
   } finally {
     if (!unlocked) fs.closeSync(lock);
-    child.kill('SIGKILL'); await exited;
+    if(child.exitCode===null&&child.signalCode===null)signalChild(child, 'SIGKILL'); await exited;
     if (publisher) await waitForPublisherExit(publisher);
     fs.rmSync(root, { recursive: true, force: true });
   }

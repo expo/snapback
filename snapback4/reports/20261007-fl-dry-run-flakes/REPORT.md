@@ -1,5 +1,9 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-4 dispatch correction:** [round 4](round-4/REPORT.md) fixes stale
+checkpoint/role signals and shares birth/command validation across fault and
+cleanup dispatch. The 22-second expired-checkpoint control refuses to signal.
+
 **Round-3 PID-barrier correction:** [round 3](round-3/REPORT.md) closes Astra's
 P2, corrects the round-2 audit, and verifies the complete publisher record and
 fault-request protocol. Rounds 0–2's read and custody assertions remain intact.

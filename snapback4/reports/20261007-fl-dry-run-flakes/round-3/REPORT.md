@@ -1,5 +1,12 @@
 # FL round 3 — complete publisher identities, no cached-PID fault signals
 
+**Round-4 audit correction:** complete JSON and blocked fixture readiness do
+not prove a recorded process is still alive at dispatch. Astra reproduced an
+expired 20-second checkpoint at a 22-second delay. The unchanged numeric
+role/checkpoint sites listed below lacked birth revalidation. [Round 4](../round-4/REPORT.md)
+corrects those sites and the shared child/helper dispatch paths; this report's
+round-3 audit is historical, not a continuing-lifetime safety claim.
+
 2026-10-07. Base `47b00027ac`; work and verification stayed on eb1000
 (`expose-builder-pixel`), in this worktree. No push, remote execution, other
 worktree changes or signals to another lane's processes.

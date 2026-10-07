@@ -32,7 +32,7 @@ static void boundary(const char *target, int after) {
         raise(SIGKILL); _exit(137);
     }
     if ((!after && !strcmp(fault, "before")) || (after && !strcmp(fault, "after"))) {
-        kill(getpid(), SIGTERM); _exit(143);
+        raise(SIGTERM); _exit(143);
     }
     if (after && !strcmp(fault, "tamper")) {
         char file[4096]; snprintf(file, sizeof(file), "%s/bundle", target);

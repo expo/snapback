@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-4/reproduce/retry-masking.py", line 32, in <module>
+    fields=json.loads((ev/'review-fields.json').read_text())
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-4/evidence/review-fields.json'

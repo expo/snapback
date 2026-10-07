@@ -89112,3 +89112,36 @@ positives/negatives still behave as required. No Darwin execution or publication
 qualification is claimed; the user's mini soak remains pending. Nothing pushed.
 
 [Round-3 report, corrected audit and controls](reports/20261007-fl-dry-run-flakes/round-3/REPORT.md).
+
+## 2026-10-07 — FL round 4: recheck birth at every test fault dispatch
+
+Astra's round-3 P2 demonstrated that a complete checkpoint record can outlive
+its twenty-second pause: a delayed test still attempted SIGKILL after the
+publisher exited. Background role, checkpoint, observer and handoff faults now
+retain the native birth and use one shared command/birth check at dispatch.
+The same gate serves the round-3 publisher barrier and tracked-child cleanup
+in the export tests, shared server helpers and process-inspection commands.
+Tracked children capture birth and parent at spawn; null JS exit fields alone
+are not authority. Darwin inspection preserves native microseconds through a
+test-only proc_pidinfo/KERN_PROCARGS2 helper; its Mac execution awaits the soak.
+Self-directed fixture and keeper signals remain self-directed, and the load
+helper now closes owned pipes instead of signalling cached negative group IDs.
+The JS copy of the simctl fixture refuses its unused parent/group interrupt
+modes. Product source, strict read comparison and earlier invariant assertions
+remain unchanged. The round-3 audit is explicitly corrected in the report.
+
+The permanent 22-second checkpoint control refuses with zero signal attempts.
+Removing dispatch validation from a private copy makes this control and the
+shared signal regression fail safely with intercepted calls. Twenty loaded
+rounds of the signal and two barrier regressions pass (60 test passes); all
+busy loops are reaped. Five export files pass 83 tests with 33 platform skips;
+background is 63/32. The adjacent shared-runner/helper-consumer run passes 164
+with one platform skip. All 42 read-corruption controls reject, retry controls
+behave correctly, and restored dev_refusals passes 22/22. Atomic-publication,
+disabled-custody and timeout controls fail as intended and reap their groups;
+the simulator recovery replay retains its two positives and four refusals.
+Development failures and the identity-checked stop of one old broken fixture
+are retained separately from successful final verification. All work stayed
+on eb1000 in this worktree. Nothing pushed; no Mac or publication claim.
+
+[Round-4 report, signalling audit and controls](reports/20261007-fl-dry-run-flakes/round-4/REPORT.md).

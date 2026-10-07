@@ -1,12 +1,13 @@
 // @ref LLP 3000#publication-suite-under-contention — only a live member can
 // safely signal its group. The runner owns this stdin pipe, never a PGID lease.
+import { signalSelf } from './test-signals.mjs';
 import { spawn } from 'node:child_process';
 process.on('SIGTERM', () => {});
 let releasing = false;
 const release = () => {
   if (releasing) return;
   releasing = true;
-  const die = () => process.kill(0, 'SIGKILL');
+  const die = () => signalSelf('SIGKILL', { group: true });
   // The acknowledgement diagnoses unexpected keeper death; it authorizes no
   // signal in the runner. If the runner died, kill even without a working IPC.
   if (process.connected) process.send({ releasing: true }, die);

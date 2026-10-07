@@ -1,0 +1,2 @@
+ERROR snapback4/crates/snapback4-difftest/src/lib.rs:3: broken ref: no anchor #5.1-stage-1-a-generator-and-rust-against-rust-comparison in llp/3000.035-quarry-semantics-in-lean.plan.md
+ref-check: FAIL — 531 LLP docs, 10512 refs in 36287 files, 1 errors, 0 unchecked

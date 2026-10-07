@@ -1,0 +1,23 @@
+[
+  "/complete",
+  "/cut",
+  "/data",
+  "/generation",
+  "/meter",
+  "/next",
+  "/nextExpiry",
+  "/scopes",
+  "/store_id",
+  "/tables",
+  "/viewer",
+  "/meter/cut",
+  "/meter/examined",
+  "/meter/heapBytes",
+  "/meter/indexEntries",
+  "/meter/outputBytes",
+  "/meter/probes",
+  "/meter/rowsWritten",
+  "/meter/steps",
+  "/extraField",
+  "/existence"
+]

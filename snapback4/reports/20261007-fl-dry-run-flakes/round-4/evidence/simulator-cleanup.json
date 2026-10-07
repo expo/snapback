@@ -1,0 +1,102 @@
+{
+  "platform": "linux",
+  "assertionsFrom": "export-background.test.mjs",
+  "results": [
+    {
+      "mode": "delayed-delete",
+      "recoveryExit": 0,
+      "observation": "passed",
+      "calls": [
+        [
+          "list",
+          "devices",
+          "--json"
+        ],
+        [
+          "delete",
+          "F1099FA6-7374-4493-9387-B0D766258BFD"
+        ]
+      ]
+    },
+    {
+      "mode": "already-deleted",
+      "recoveryExit": 0,
+      "observation": "passed",
+      "calls": [
+        [
+          "list",
+          "devices",
+          "--json"
+        ]
+      ]
+    },
+    {
+      "mode": "retained-record",
+      "recoveryExit": 0,
+      "observation": "rejected as expected",
+      "calls": [
+        [
+          "list",
+          "devices",
+          "--json"
+        ]
+      ],
+      "refusal": "crash cleanup deleted its device and removed its ownership record"
+    },
+    {
+      "mode": "wrong-deletion-marker",
+      "recoveryExit": 0,
+      "observation": "rejected as expected",
+      "calls": [
+        [
+          "list",
+          "devices",
+          "--json"
+        ],
+        [
+          "delete",
+          "3512C256-D1F8-4C17-B383-D9F7C1683E44"
+        ]
+      ],
+      "refusal": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'D98BC8A4-DF70-46C0-A2F6-E5985A57BFD3'\n- '3512C256-D1F8-4C17-B383-D9F7C1683E44'\n"
+    },
+    {
+      "mode": "late-unrelated-call",
+      "recoveryExit": 0,
+      "observation": "rejected as expected",
+      "calls": [
+        [
+          "list",
+          "devices",
+          "--json"
+        ],
+        [
+          "delete",
+          "D2BF03B7-EC77-449B-B1B0-EB8803D5073A"
+        ],
+        [
+          "delete",
+          "CBBFCA00-2FAA-448B-AE30-C1BE50E45510"
+        ]
+      ],
+      "refusal": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'CBBFCA00-2FAA-448B-AE30-C1BE50E45510'\n- 'D2BF03B7-EC77-449B-B1B0-EB8803D5073A'\n"
+    },
+    {
+      "mode": "changed-export",
+      "recoveryExit": 0,
+      "observation": "rejected as expected",
+      "calls": [
+        [
+          "list",
+          "devices",
+          "--json"
+        ],
+        [
+          "delete",
+          "8A4F3CE9-3F8D-4811-A00D-7455C3E17541"
+        ]
+      ],
+      "refusal": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'corrupted bytes'\n- 'export one'\n"
+    }
+  ]
+}
