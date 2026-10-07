@@ -1,0 +1,53 @@
+[
+  {
+    "name": "device-replay",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "prediction_write_set",
+      "--test",
+      "repair_b",
+      "--test",
+      "delivery",
+      "--test",
+      "write_authority",
+      "--test",
+      "codec"
+    ],
+    "exit": 0,
+    "seconds": 63.82
+  },
+  {
+    "name": "compiler-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "query_settlement",
+      "--test",
+      "guide"
+    ],
+    "exit": 0,
+    "seconds": 22.05
+  },
+  {
+    "name": "serve",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "--",
+      "serve::"
+    ],
+    "exit": 0,
+    "seconds": 39.83
+  }
+]

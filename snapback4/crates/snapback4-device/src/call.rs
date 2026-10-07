@@ -310,6 +310,7 @@ mod route_tests;
 fn change_answer<S: DeviceStore>(device: &mut Device<S>, op: &str, mut result: Json) -> Json {
     if matches!(op, "apply" | "admit" | "settle") && result.get("ok").is_some() {
         if let Some(preserved) = device.preserved.take() { result["preserved"] = json!(preserved); }
+        if op == "settle" && device.settlement_unchanged { result["settlement_unchanged"] = Json::Bool(true); }
     }
     result
 }

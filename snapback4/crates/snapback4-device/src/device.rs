@@ -241,6 +241,7 @@ const NATIVE_GENERATION: &str = "device:native:generation";
 
 pub struct Device<S: DeviceStore> {
     pub(crate) preserved: Option<Vec<String>>,
+    pub(crate) settlement_unchanged: bool,
     store: S,
     delivery_now: i64,
     pub(crate) read_scopes: RefCell<serde_json::Value>,
@@ -527,7 +528,7 @@ impl<S: DeviceStore> Device<S> {
             clear_native(&mut store)?;
         }
         let store_identity = store.meta(STORE_ID)?;
-        Ok(Self { preserved: None, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
+        Ok(Self { preserved: None, settlement_unchanged: false, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
             store,
             schema: backend.schema,
             programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
@@ -1156,7 +1157,7 @@ impl<S: DeviceStore> Device<S> {
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
         let restored_delivery = delivery::predicted(&tx, &self.schema)?;
-        predictions::restore(&tx, &self.schema)?;
+        let restored = predictions::restore(&tx, &self.schema)?;
         let seq = if store.is_some() && store != tx.meta(STORE_ID)?.as_deref() { None } else { seq };
         match seq {
             Some(seq) => {
@@ -1166,9 +1167,12 @@ impl<S: DeviceStore> Device<S> {
             }
             None => predictions::remove(&tx, id)?,
         }
-        predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
+        let replayed = predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
         delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
-        self.preserved = Some(tx.change_footprint().preserved(&self.schema));
+        // @ref LLP 3000.023#11 — the settled operation cannot bound survivors' replay effects.
+        let changes = tx.change_footprint();
+        self.settlement_unchanged = restored.is_empty() && replayed.is_empty() && !changes.unknown && changes.tables.is_empty();
+        self.preserved = Some(changes.preserved(&self.schema));
         tx.commit()
     }
 

@@ -1077,10 +1077,12 @@ export function createClient(options: ClientOptions): Client {
         // request and retain the unknown barrier. Bind facts to the reply generation.
         if (settlementAdvertised && (!queryBackend || queryBackend.generation !== candidate.generation)) {
           try {
-            const discoveryFloor = minimumReadSeq;
+            const discoveryFloor = minimumReadSeq, discoveryRevision = credentialRevision;
             const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal });
             const json = await duringRead(response.json(), signal); checkRead(signal);
-            if (response.ok && json.schema?.tables && Array.isArray(json.programs)) {
+            // @ref LLP 3000.023#11 — optional facts never suppress a current-session refusal.
+            const obsolete = await obsoleteRefusal(json.denied, discoveryRevision); checkRead(signal);
+            if (!obsolete && credentials && !closed && discoveryRevision === credentialRevision && response.ok && json.schema?.tables && Array.isArray(json.programs)) {
               observeStore(json, discoveryFloor);
               if (!storeRefusal && json.store_id === storeIdentity && Number.isSafeInteger(json.generation)
                 && (!queryBackend || json.generation > queryBackend.generation)) {

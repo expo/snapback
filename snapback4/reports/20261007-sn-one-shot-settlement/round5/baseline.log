@@ -1,0 +1,112 @@
+{"facade":false,"refusal":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"},"read":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":0,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2},"existence":"absent"},"link":"online"}
+✖ current-credential E_AUTH from settlement discovery wins publication; facade=false (172.658784ms)
+{"facade":true,"refusal":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"},"read":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":0,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2},"existence":"absent"},"link":"online"}
+✖ current-credential E_AUTH from settlement discovery wins publication; facade=true (143.838901ms)
+{"facade":false,"trigger":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}},"read":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}}}
+✔ DK cause wakes an already parked dependent-write wait; facade=false (336.45313ms)
+{"facade":true,"trigger":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}},"read":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}}}
+✔ DK cause wakes an already parked dependent-write wait; facade=true (498.561808ms)
+{"tier":"wasm","firstId":"01M4C9SX3VCTSZ3SG0X8901BZG","dependent":{"state":"pending","id":"01M4C9SX44JFEKFRNN239EDNA0"},"result":{"data":{"at":1,"body":"predicted-profile","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"atPublication":{"ok":{"complete":true,"cut":null,"data":{"at":1,"body":"Bob","id":"item","pending":true,"room":"room"},"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"members":[{"0":"room"}],"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":false,"watermark":1}},"postOutcome":{"generation":1,"head":2,"id":"01M4C9SX3VCTSZ3SG0X8901BZG","preserved":[],"state":"failed","store_id":"22b72be74bef8a6dd235025f23fc432c","why":{"code":"BLOCKED","family":"rule","guide":"programs","message":"the program refused with BLOCKED","rule":"BLOCKED","site":"schema.q:51:3"}},"checks":2}
+✖ wasm: failing unrelated write replays a dependent prediction before final facade publication (612.393167ms)
+{"tier":"process","firstId":"01M4C9SX7Z4Y44EW4J0J1BM8KY","dependent":{"state":"pending","id":"01M4C9SX80E2C0AYTXC21MQ00D"},"result":{"data":{"at":1,"body":"predicted-profile","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"atPublication":{"ok":{"complete":true,"cut":null,"data":{"at":1,"body":"Bob","id":"item","pending":true,"room":"room"},"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"members":[{"0":"room"}],"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":false,"watermark":1}},"postOutcome":{"generation":1,"head":2,"id":"01M4C9SX7Z4Y44EW4J0J1BM8KY","preserved":[],"state":"failed","store_id":"083ce406456036b199b23dff7908d10c","why":{"code":"BLOCKED","family":"rule","guide":"programs","message":"the program refused with BLOCKED","rule":"BLOCKED","site":"schema.q:51:3"}},"checks":2}
+✖ process: failing unrelated write replays a dependent prediction before final facade publication (117.035892ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1258.55877
+
+✖ failing tests:
+
+test at ../../../../tmp/sn-round5-reproductions/discovery-auth.test.mjs:17:35
+✖ current-credential E_AUTH from settlement discovery wins publication; facade=false (172.658784ms)
+  AssertionError [ERR_ASSERTION]: a terminal schema refusal under this credential must retire the earlier query
+  + actual - expected
+
+  + undefined
+  - {
+  -   code: 'E_AUTH',
+  -   family: 'auth',
+  -   guide: 'personas',
+  -   message: 'this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store'
+  - }
+
+      at TestContext.<anonymous> (file:///tmp/sn-round5-reproductions/discovery-auth.test.mjs:35:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { code: 'E_AUTH', family: 'auth', guide: 'personas', message: 'this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/sn-round5-reproductions/discovery-auth.test.mjs:17:35
+✖ current-credential E_AUTH from settlement discovery wins publication; facade=true (143.838901ms)
+  AssertionError [ERR_ASSERTION]: a terminal schema refusal under this credential must retire the earlier query
+  + actual - expected
+
+  + undefined
+  - {
+  -   code: 'E_AUTH',
+  -   family: 'auth',
+  -   guide: 'personas',
+  -   message: 'this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store'
+  - }
+
+      at TestContext.<anonymous> (file:///tmp/sn-round5-reproductions/discovery-auth.test.mjs:35:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { code: 'E_AUTH', family: 'auth', guide: 'personas', message: 'this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/sn-round5-reproductions/prediction-replay.test.mjs:21:39
+✖ wasm: failing unrelated write replays a dependent prediction before final facade publication (612.393167ms)
+  AssertionError [ERR_ASSERTION]: must retire the candidate when rollback/replay changes its rows
+  + actual - expected
+
+  + 'predicted-profile'
+  - 'Bob'
+
+      at TestContext.<anonymous> (file:///tmp/sn-round5-reproductions/prediction-replay.test.mjs:59:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'predicted-profile',
+    expected: 'Bob',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/sn-round5-reproductions/prediction-replay.test.mjs:21:39
+✖ process: failing unrelated write replays a dependent prediction before final facade publication (117.035892ms)
+  AssertionError [ERR_ASSERTION]: must retire the candidate when rollback/replay changes its rows
+  + actual - expected
+
+  + 'predicted-profile'
+  - 'Bob'
+
+      at TestContext.<anonymous> (file:///tmp/sn-round5-reproductions/prediction-replay.test.mjs:59:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'predicted-profile',
+    expected: 'Bob',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

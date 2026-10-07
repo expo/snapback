@@ -1,0 +1,14 @@
+[
+  {
+    "name": "app-session-model",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "1",
+      "models",
+      "packages/snapback4/test/app-session-model.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 247.05
+  }
+]

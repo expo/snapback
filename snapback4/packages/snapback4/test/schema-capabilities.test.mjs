@@ -30,6 +30,12 @@ const fenceSkip=fenceSetting==='off'?'SNAPBACK4_FENCE_PUBLISHED=off':!fenceHost&
 // additive query key. RV additionally permits top-level commit certification on
 // apply/admit/settle only; their ok payloads and every query key stay exact.
 function sameAnswer(actual,published,message,operation='query') {
+  // LLP 3000.023 §11: commit-bound proof of unchanged rows after complete replay.
+  if(operation==='settle'&&Object.hasOwn(actual,'settlement_unchanged')&&!Object.hasOwn(published,'settlement_unchanged')) {
+    assert.ok(Object.hasOwn(actual,'ok')&&Object.hasOwn(published,'ok')&&!Object.hasOwn(actual,'denied')&&!Object.hasOwn(published,'denied'));
+    assert.equal(actual.settlement_unchanged,true);
+    const {settlement_unchanged:_unchanged,...rest}=actual;actual=rest;
+  }
   // LLP 3000.023 §12: private authority-preservation evidence, never query data.
   if(['apply','admit','settle'].includes(operation)&&Object.hasOwn(actual,'preserved')&&!Object.hasOwn(published,'preserved')) {
     assert.ok(Object.hasOwn(actual,'ok')&&Object.hasOwn(published,'ok')&&!Object.hasOwn(actual,'denied')&&!Object.hasOwn(published,'denied'),'commit evidence requires successful replies');
@@ -389,6 +395,10 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
 
 test('RV publication allowance is confined to commit evidence', () => {
   for(const op of ['apply','admit','settle']) sameAnswer({ok:null,preserved:['messages']},{ok:null},op,op);
+  sameAnswer({ok:null,settlement_unchanged:true},{ok:null},'unchanged settlement','settle');
+  for(const marker of [false,null,{},[],1,'true']) assert.throws(()=>sameAnswer({ok:null,settlement_unchanged:marker},{ok:null},'invalid certificate','settle'));
+  for(const op of ['query','apply','admit','state','adopt']) assert.throws(()=>sameAnswer({ok:null,settlement_unchanged:true},{ok:null},'wrong operation',op));
+  for(const reply of [{denied:{code:'E_INPUT'}},{ok:null,denied:{code:'E_INPUT'}}]) assert.throws(()=>sameAnswer({...reply,settlement_unchanged:true},reply,'failed settlement','settle'));
   for(const op of ['apply','admit','settle']) {
     for(const reply of [{},{denied:{code:'E_RULE'}},{ok:null,denied:{code:'E_RULE'}}]) {
       assert.throws(()=>sameAnswer({...reply,preserved:[]},reply,'unsuccessful',op));

@@ -1,0 +1,495 @@
+-- client file start: packages/snapback4/test/schema-capabilities.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/session-security.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/repair-b.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/repair-b-round9.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1255310) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: published 0.2.33 capability fence: timeline-v2
+ok 1 - published 0.2.33 capability fence: timeline-v2 # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.630836
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 capability fence: recorded-attribution
+ok 2 - published 0.2.33 capability fence: recorded-attribution # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.089584
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 capability fence: maintained-column
+ok 3 - published 0.2.33 capability fence: maintained-column # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.06621
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 list minimum fence: argument
+ok 4 - published 0.2.33 list minimum fence: argument # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.055733
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 list minimum fence: column
+ok 5 - published 0.2.33 list minimum fence: column # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.06688
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 list minimum fence: nested
+ok 6 - published 0.2.33 list minimum fence: nested # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.071737
+  type: 'test'
+  ...
+# Subtest: Linux schema-byte fixture is the published capability-free control source
+ok 7 - Linux schema-byte fixture is the published capability-free control source
+  ---
+  duration_ms: 0.162133
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 control: capability-free bytes and stores stay compatible
+ok 8 - published 0.2.33 control: capability-free bytes and stores stay compatible # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.070556
+  type: 'test'
+  ...
+# Subtest: RV publication allowance is confined to commit evidence
+ok 9 - RV publication allowance is confined to commit evidence
+  ---
+  duration_ms: 7.832801
+  type: 'test'
+  ...
+# Subtest: published answer comparison admits only neutral additive metadata
+ok 10 - published answer comparison admits only neutral additive metadata
+  ---
+  duration_ms: 1.792447
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 7
+# todo 0
+# duration_ms 70.126501
+-- process inspection: {"snapshots":3,"unrelatedRows":3355}
+-- client file ok: packages/snapback4/test/schema-capabilities.test.mjs (323 ms)
+-- client file start: packages/snapback4/test/row-view-prediction.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: the default session store stays in memory and browser persistence is explicit
+ok 1 - the default session store stays in memory and browser persistence is explicit
+  ---
+  duration_ms: 1.548591
+  type: 'test'
+  ...
+# Subtest: the local client rotates near expiry and keeps every protected request on the current bearer
+ok 2 - the local client rotates near expiry and keeps every protected request on the current bearer
+  ---
+  duration_ms: 35.871662
+  type: 'test'
+  ...
+# Subtest: a stale-token mutation refusal remains durable and retries after rotation
+ok 3 - a stale-token mutation refusal remains durable and retries after rotation
+  ---
+  duration_ms: 279.374297
+  type: 'test'
+  ...
+# Subtest: an online-only watch retries a stale-token refusal after rotation
+ok 4 - an online-only watch retries a stale-token refusal after rotation
+  ---
+  duration_ms: 24.358994
+  type: 'test'
+  ...
+# Subtest: a current-token sign-out cannot reclassify a stale write refusal
+ok 5 - a current-token sign-out cannot reclassify a stale write refusal
+  ---
+  duration_ms: 22.073899
+  type: 'test'
+  ...
+# Subtest: an authenticated change-feed refusal signs the online client out
+ok 6 - an authenticated change-feed refusal signs the online client out
+  ---
+  duration_ms: 12.58828
+  type: 'test'
+  ...
+# Subtest: worker, effect inspection, and service-session calls always carry the service bearer
+ok 7 - worker, effect inspection, and service-session calls always carry the service bearer
+  ---
+  duration_ms: 1.321832
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 473.246334
+-- process inspection: {"snapshots":3,"unrelatedRows":3359}
+-- client file ok: packages/snapback4/test/session-security.test.mjs (722 ms)
+TAP version 13
+# Subtest: wasm reconstructed view preserves predicted identities, pending and member deadline
+ok 1 - wasm reconstructed view preserves predicted identities, pending and member deadline
+  ---
+  duration_ms: 157.04956
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 224.577616
+-- process inspection: {"snapshots":3,"unrelatedRows":3356}
+-- client file ok: packages/snapback4/test/row-view-prediction.test.mjs (479 ms)
+TAP version 13
+# Subtest: Repair B carries both bounds and resumes a private transfer cursor
+ok 1 - Repair B carries both bounds and resumes a private transfer cursor
+  ---
+  duration_ms: 1196.033504
+  type: 'test'
+  ...
+# Subtest: catch-up requests adopt the device transfer cursor
+ok 2 - catch-up requests adopt the device transfer cursor
+  ---
+  duration_ms: 4.660286
+  type: 'test'
+  ...
+# Subtest: interrupted snapshot catch-up resumes its durable mode
+ok 3 - interrupted snapshot catch-up resumes its durable mode
+  ---
+  duration_ms: 1004.990747
+  type: 'test'
+  ...
+# Subtest: generation adoption compares published identity during private acquisition
+ok 4 - generation adoption compares published identity during private acquisition
+  ---
+  duration_ms: 4.568107
+  type: 'test'
+  ...
+# Subtest: row reset between A2 acquisition and B fetches B's backend and retires A's receipt
+ok 5 - row reset between A2 acquisition and B fetches B's backend and retires A's receipt
+  ---
+  duration_ms: 1240.575594
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3567.608204
+-- process inspection: {"snapshots":3,"unrelatedRows":3335}
+-- client file ok: packages/snapback4/test/repair-b.test.mjs (3823 ms)
+TAP version 13
+# Subtest: round 9-12 client head observations and startup installation
+    # Subtest: native: first-install-overlap head 15, snapshot false
+    ok 1 - native: first-install-overlap head 15, snapshot false
+      ---
+      duration_ms: 88.984369
+      type: 'test'
+      ...
+    # after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+    # Subtest: native: first-install-overlap head 19, snapshot true
+    ok 2 - native: first-install-overlap head 19, snapshot true
+      ---
+      duration_ms: 71.113891
+      type: 'test'
+      ...
+    # after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+    # Subtest: native: first-install-healthy head 20, snapshot false
+    ok 3 - native: first-install-healthy head 20, snapshot false
+      ---
+      duration_ms: 62.139258
+      type: 'test'
+      ...
+    # after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+    # Subtest: native: fresh head 25, snapshot false
+    ok 4 - native: fresh head 25, snapshot false
+      ---
+      duration_ms: 35.054908
+      type: 'test'
+      ...
+    # Subtest: native: startup-generation head 15, snapshot false
+    ok 5 - native: startup-generation head 15, snapshot false
+      ---
+      duration_ms: 68.301165
+      type: 'test'
+      ...
+    # Subtest: native: startup-generation head 19, snapshot false
+    ok 6 - native: startup-generation head 19, snapshot false
+      ---
+      duration_ms: 69.088815
+      type: 'test'
+      ...
+    # Subtest: native: startup-generation head 19, snapshot true
+    ok 7 - native: startup-generation head 19, snapshot true
+      ---
+      duration_ms: 75.168008
+      type: 'test'
+      ...
+    # Subtest: native: startup-generation-native head 15, snapshot false
+    ok 8 - native: startup-generation-native head 15, snapshot false
+      ---
+      duration_ms: 69.396516
+      type: 'test'
+      ...
+    # Subtest: native: startup-generation-native head 19, snapshot true
+    ok 9 - native: startup-generation-native head 19, snapshot true
+      ---
+      duration_ms: 69.597097
+      type: 'test'
+      ...
+    # Subtest: native: healthy-generation head 20, snapshot false
+    ok 10 - native: healthy-generation head 20, snapshot false
+      ---
+      duration_ms: 57.30438
+      type: 'test'
+      ...
+    # Subtest: native: replacement-generation head 15, snapshot false
+    ok 11 - native: replacement-generation head 15, snapshot false
+      ---
+      duration_ms: 56.217812
+      type: 'test'
+      ...
+    # Subtest: native: offline-generation head 0, snapshot false
+    ok 12 - native: offline-generation head 0, snapshot false
+      ---
+      duration_ms: 42.159228
+      type: 'test'
+      ...
+    # Subtest: native: startup head 7, snapshot false
+    ok 13 - native: startup head 7, snapshot false
+      ---
+      duration_ms: 66.547746
+      type: 'test'
+      ...
+    # Subtest: native: startup head 15, snapshot false
+    ok 14 - native: startup head 15, snapshot false
+      ---
+      duration_ms: 61.38692
+      type: 'test'
+      ...
+    # Subtest: native: startup head 15, snapshot true
+    ok 15 - native: startup head 15, snapshot true
+      ---
+      duration_ms: 73.229452
+      type: 'test'
+      ...
+    # Subtest: native: probe head 15, snapshot false
+    ok 16 - native: probe head 15, snapshot false
+      ---
+      duration_ms: 2083.858759
+      type: 'test'
+      ...
+    # Subtest: native: changes head 7, snapshot false
+    ok 17 - native: changes head 7, snapshot false
+      ---
+      duration_ms: 78.587253
+      type: 'test'
+      ...
+    # Subtest: native: generation head 15, snapshot false
+    ok 18 - native: generation head 15, snapshot false
+      ---
+      duration_ms: 68.668084
+      type: 'test'
+      ...
+    # Subtest: native: generation head 15, snapshot true
+    ok 19 - native: generation head 15, snapshot true
+      ---
+      duration_ms: 70.11959
+      type: 'test'
+      ...
+    # Subtest: native: snapshot-restart head 20, snapshot true
+    ok 20 - native: snapshot-restart head 20, snapshot true
+      ---
+      duration_ms: 47.272742
+      type: 'test'
+      ...
+    # Subtest: native: stale-send head 7, snapshot false
+    ok 21 - native: stale-send head 7, snapshot false
+      ---
+      duration_ms: 44.467377
+      type: 'test'
+      ...
+    # Subtest: native: stale-published head 7, snapshot false
+    ok 22 - native: stale-published head 7, snapshot false
+      ---
+      duration_ms: 46.981426
+      type: 'test'
+      ...
+    # Subtest: native: healthy head 20, snapshot false
+    ok 23 - native: healthy head 20, snapshot false
+      ---
+      duration_ms: 56.456179
+      type: 'test'
+      ...
+    # Subtest: native: private-overlap head 7, snapshot false
+    ok 24 - native: private-overlap head 7, snapshot false
+      ---
+      duration_ms: 81.444135
+      type: 'test'
+      ...
+    # Subtest: native: private-overlap head 15, snapshot false
+    ok 25 - native: private-overlap head 15, snapshot false
+      ---
+      duration_ms: 82.179028
+      type: 'test'
+      ...
+    # Subtest: native: private-generation head 15, snapshot false
+    ok 26 - native: private-generation head 15, snapshot false
+      ---
+      duration_ms: 80.665048
+      type: 'test'
+      ...
+    # Subtest: native: private-generation-declaration head 15, snapshot false
+    ok 27 - native: private-generation-declaration head 15, snapshot false
+      ---
+      duration_ms: 80.61232
+      type: 'test'
+      ...
+    # Subtest: native: late-evidence head 20, snapshot false
+    ok 28 - native: late-evidence head 20, snapshot false
+      ---
+      duration_ms: 54.155981
+      type: 'test'
+      ...
+    # Subtest: native: image-only head 20, snapshot false
+    ok 29 - native: image-only head 20, snapshot false
+      ---
+      duration_ms: 55.170091
+      type: 'test'
+      ...
+    # Subtest: native: late-first-evidence head 7, snapshot false
+    ok 30 - native: late-first-evidence head 7, snapshot false
+      ---
+      duration_ms: 55.34336
+      type: 'test'
+      ...
+    # Subtest: native: schema-overlap head 20, snapshot false
+    ok 31 - native: schema-overlap head 20, snapshot false
+      ---
+      duration_ms: 72.635302
+      type: 'test'
+      ...
+    # Subtest: native: schema-preflight-gap head 20, snapshot false
+    ok 32 - native: schema-preflight-gap head 20, snapshot false
+      ---
+      duration_ms: 58.334335
+      type: 'test'
+      ...
+    # Subtest: wasm: first-install-overlap head 15, snapshot false
+    ok 33 - wasm: first-install-overlap head 15, snapshot false
+      ---
+      duration_ms: 439.329662
+      type: 'test'
+      ...
+    # after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+    # Subtest: wasm: first-install-overlap head 19, snapshot true
+    ok 34 - wasm: first-install-overlap head 19, snapshot true
+      ---
+      duration_ms: 10.098148
+      type: 'test'
+      ...
+    # after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+    # Subtest: wasm: first-install-healthy head 20, snapshot false
+    ok 35 - wasm: first-install-healthy head 20, snapshot false
+      ---
+      duration_ms: 11.663183
+      type: 'test'
+      ...
+    # after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+    # Subtest: wasm: fresh head 25, snapshot false
+    ok 36 - wasm: fresh head 25, snapshot false
+      ---
+      duration_ms: 3.571094
+      type: 'test'
+      ...
+    # Subtest: wasm: startup-generation head 15, snapshot false
+    ok 37 - wasm: startup-generation head 15, snapshot false
+      ---
+      duration_ms: 7.009288
+      type: 'test'
+      ...
+    # Subtest: wasm: startup-generation head 19, snapshot false
+    ok 38 - wasm: startup-generation head 19, snapshot false
+      ---
+      duration_ms: 7.714064
+      type: 'test'
+      ...
+    # Subtest: wasm: startup-generation head 19, snapshot true
+    ok 39 - wasm: startup-generation head 19, snapshot true
+      ---
+      duration_ms: 6.682447
+      type: 'test'
+      ...
+    # Subtest: wasm: startup-generation-native head 15, snapshot false
+    ok 40 - wasm: startup-generation-native head 15, snapshot false
+      ---
+      duration_ms: 6.335507
+      type: 'test'
+      ...
+    # Subtest: wasm: startup-generation-native head 19, snapshot true
+    ok 41 - wasm: startup-generation-native head 19, snapshot true
+      ---
+      duration_ms: 7.049878
+      type: 'test'
+      ...
+    # Subtest: wasm: healthy-generation head 20, snapshot false
+    ok 42 - wasm: healthy-generation head 20, snapshot false
+      ---
+      duration_ms: 8.318018
+      type: 'test'
+      ...
+    # Subtest: wasm: replacement-generation head 15, snapshot false
+    ok 43 - wasm: replacement-generation head 15, snapshot false
+      ---
+      duration_ms: 7.257529
+      type: 'test'
+      ...
+    # Subtest: wasm: offline-generation head 0, snapshot false
+    ok 44 - wasm: offline-generation head 0, snapshot false
+      ---
+      duration_ms: 4.067268
+      type: 'test'
+      ...
+    1..44
+ok 1 - round 9-12 client head observations and startup installation
+  ---
+  duration_ms: 4784.056451
+  type: 'test'
+  ...
+# Subtest: startup never treats another open failure as an empty store
+ok 2 - startup never treats another open failure as an empty store
+  ---
+  duration_ms: 1.034571
+  type: 'test'
+  ...
+# Subtest: native open preserves a refusal arriving after process exit
+ok 3 - native open preserves a refusal arriving after process exit
+  ---
+  duration_ms: 0.534802
+  type: 'test'
+  ...
+1..3
+# tests 47
+# suites 0
+# pass 47
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4920.929526
+-- process inspection: {"snapshots":3,"unrelatedRows":3316}
+-- client file ok: packages/snapback4/test/repair-b-round9.test.mjs (5173 ms)
+-- client files: 5/5; failed 0; tests {"tests":70,"pass":63,"fail":0,"cancelled":0,"skipped":7,"todo":0}

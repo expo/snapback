@@ -6,6 +6,23 @@ const source = program.replace('  name: text\n  read <- allow', '  name: text\n 
 mutation rename(name: text): server
   update profiles['bob'] { name }
 `;
+for (const tier of ['wasm', 'process']) for (const marker of [undefined, false, 'true', {}]) test(`${tier}: uncertified settlement (${JSON.stringify(marker)}) remains unknown`, async t => {
+  const f = await setup(t, tier, { program: source, device: core => ({ ...core, async call(request, commit) {
+    const mask = result => {
+      if (request.op !== 'settle') return result;
+      const { settlement_unchanged: _proof, ...rest } = result;
+      return marker === undefined ? rest : { ...rest, settlement_unchanged: marker };
+    };
+    return mask(await core.call(request, result => commit?.(mask(result))));
+  } }) });
+  let rounds = 0;
+  f.controls.boundary = async () => {
+    if (++rounds === 1) assert.equal((await f.client.mutate(m('rename'), { name: 'independent' })).state, 'sent');
+  };
+  assert.equal((await f.client.query(q('item'), {})).data?.body, 'image-1');
+  assert.ok(rounds > 1, 'the static operation footprint alone cannot certify restore/replay');
+});
+
 for (const tier of ['online', 'wasm', 'process', 'app-online', 'app-wasm', 'app-process']) test(`${tier}: unrelated commits do not exhaust a server aggregate`, async t => {
   const f = await setup(t, tier, { program: source });
   let rounds = 0;

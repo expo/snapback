@@ -307,7 +307,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const touched = (result.ok as { touched?: string[] } | undefined)?.touched;
       const cut = request.op === "apply" ? publishedApplyCut(request.page as Record<string, unknown>, (result.ok as { published?: boolean })?.published) : undefined;
       const external = request.op === "apply" ? applyChanges(request.page as Record<string, unknown>, cut) : undefined;
-      const queryTables = ["admit", "settle"].includes(String(request.op)) ? writeTables ?? null : cut === undefined ? null : answers.predictions?.length === 0 && external ? localApplyChanges(request.page as Record<string, unknown>, external, touched) ?? null : touched ?? null;
+      const writeEffects = request.op !== "settle" || (result as { settlement_unchanged?: unknown }).settlement_unchanged === true ? writeTables : undefined;
+      const queryTables = ["admit", "settle"].includes(String(request.op)) ? writeEffects ?? null : cut === undefined ? null : answers.predictions?.length === 0 && external ? localApplyChanges(request.page as Record<string, unknown>, external, touched) ?? null : touched ?? null;
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), touched, (result as { preserved?: unknown }).preserved, cut, queryTables, external)) committedTables?.resumed.add(watch);
       if (!result.denied && request.op === "apply") {
         delivery.push(answers.withdrawScopes(watches.values(), request.page as Parameters<LocalReads["withdrawScopes"]>[1], (result.ok as { published?: boolean })?.published !== false, link === "offline" ? offline() : undefined));

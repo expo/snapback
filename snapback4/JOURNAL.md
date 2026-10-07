@@ -90501,3 +90501,48 @@ passed 26. The JS fixture/witness run passed four and explicitly skipped seven
 Darwin-only cases. Ref-check passed 531 documents and 10,562 references with
 zero errors or unchecked references. The exact old stored-schema assertion
 remains unchanged for the author's mini rerun.
+
+## 2026-10-08 — SN round 5: whole-settlement replay fence and discovery E_AUTH
+
+Reproduced Astra's two round-3 P1s on the round-4 tip before edits: both device
+hosts published the pre-rollback message after another prediction's replay had
+changed it, and raw online plus its facade discarded a real current-session
+E_AUTH from settlement discovery. The existing two parked-custody auth controls
+already passed. The external reviewer scripts remain unchanged except for their
+checkout import prefix; portable regressions retain both publication races.
+
+Local settlement no longer trusts the settled operation's static footprint by
+itself. The device emits transient settlement_unchanged=true only when its
+transaction restored/replayed no prediction rows and the existing bounded
+recorder proves no net row changes through delivery publication. Any prediction
+activity, changed row, recorder overflow/rollback or absent/malformed evidence
+widens the commit to unknown. Equal final rows alone do not certify unchanged
+provisional-read metadata. This preserves field narrowing for ordinary unrelated
+non-predicting settlements without guessing the contents of a racing outbox.
+The existing compiler summaries, event wait, complete-prediction exception and
+prompt offline refusal remain unchanged. The new tests cover both hosts at the
+facade's final continuation, old/malformed markers, and certificate non-reuse on
+a failed device call. The published-reply comparison allows only this precise
+successful-settlement metadata addition; its payload and backend/storage pins
+stay exact.
+
+Online discovery now routes refusals through the existing credential-revision
+handler before considering optional metadata. Current E_AUTH ends credentials
+and retains DK's exact reason; obsolete failures during or after rotation do not
+end the replacement. Successful facts from an old credential revision cannot
+install either. Raw online/facade regressions cover all these orderings. LLP
+3000.023 §11 and Revised state both fixes; the client card and E_QUERY_RETRY
+meaning remain unchanged.
+
+Reinstalled frozen dependencies (deps-ok) and rebuilt native, locked wasm and
+SDK; TypeScript checks passed. Linux wasm is 2,135,891 B raw / 645,680 B gzip,
++277 raw / +182 gzip versus round 3. Raise the cap by 182 B to 646,180 B to retain
+500 B of headroom over Linux (the author reports macOS up to +435 B). No macOS
+measurement, storage/schema/IR migration or interpreter resource ceiling change.
+local.ts remains below 1,500 lines at 1,499; client.ts has 1,341 lines.
+
+Commands, test outcomes, inherited skips, and the three original round-0
+assertions superseded by round 1 are recorded in the
+[round-5 report](reports/20261007-sn-one-shot-settlement/round5/REPORT.md).
+Work stayed in lane-sn on eb1000; nothing pushed or published. Grok's round-3
+review remains with the author for the next round; no verdict is inferred here.
