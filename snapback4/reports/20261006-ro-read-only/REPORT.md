@@ -800,3 +800,64 @@ against the unchanged **639,941** budget. Full-run results follow below.
 Evidence is retained under `snapback4/reports/20261006-ro-read-only/evidence/`
 with the `round6-` prefix. Commits carry
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. No push or publication.
+
+
+### Final Round 6 verification
+
+The complete `bash scripts/test.sh` finished at full default counts in
+**2,093 seconds (34 minutes 53 seconds)**. It executed every phase; no histories,
+cases or file counts were reduced. The original run exited 1 with two failing
+phases, preserved in `evidence/round6-full-suite.log.gz`:
+
+- Rust: **300 test binaries / 1,013 executions, plus workspace doctests**.
+  Five diagnostic assertions failed across the guide, CLI check and CLI unit
+  targets: the new code needed its default-card mapping and definition/action
+  pins, and the client card exceeded its word budget. Those were fixed. The
+  complete affected reruns passed **113 guide + 89 CLI check + 326 CLI unit**
+  tests, with four existing CLI ignores. Every other Rust target passed.
+- Clients: **332/332 files**, **6,553 passed / 1 failed / 47 labelled skips**.
+  All **96 read-only tests** passed. The sole failure was the stale await-boundary
+  census: read rotation removal deleted **25 awaits** and changed four entries.
+  The classification audit found every delivery site and fault recipe unchanged.
+  After updating those four entries, the complete matrix passed **339/339**.
+- Models: **79/79 passed**, no skips: **5,000 online session histories, 5,000
+  local session histories and 3,000 online-client sequences**, at full counts.
+- Preflight build, wasm budget, docs budget, release guard, package typecheck/
+  build, chat compilation, chat/Expo typechecks and all nine fixture wrappers
+  passed. The SDK was rebuilt after the final padded-token refusal change and
+  before the full client phase; its 26-test raw/probe/expiry file also passed.
+
+This is **not a single-green-run qualification receipt**. All failures observed
+in the complete run are corrected and their complete affected targets pass;
+original and rerun evidence is retained. No inherited failure remained to ticket.
+
+Final size versus `ce5793386d`: **133 net SDK source lines removed** (35 added,
+168 removed). Across implementation, tests and living docs, **223 net lines
+removed** (405 added, 628 removed), excluding append-only JOURNAL/report/evidence
+additions. The final whitespace-aware auth-helper guard adds seven raw bundled
+bytes relative to the first checkpoint. Final pinned-toolchain bundles are:
+
+| Bundle | Before gzip | Final gzip | Removed | Raw bytes removed |
+|---|---:|---:|---:|---:|
+| Online | 43,681 | 43,411 | 270 | 1,086 |
+| App | 98,308 | 97,520 | 788 | 3,796 |
+
+Wasm stays **2,117,335 raw / 639,888 gzip bytes**, under the unchanged
+**639,941-byte budget**. Final references pass (529 LLP docs, 10,458 references,
+zero errors or unchecked references). Source limits, deleted-symbol audit,
+unchanged server identity/auth paths, `git diff --check`, and JOURNAL pure-append
+verification pass. Server read-refresh, cap, generation and no-sweep tests remain.
+PostgreSQL/platform qualification limits from earlier rounds are unchanged.
+
+The run used Node 24.13.1, the existing Bun/Rust toolchains,
+`CARGO_INCREMENTAL=0`, the shared `CARGO_TARGET_DIR`, dev/test debug info disabled
+and eight Cargo jobs. It supplied this checkout's witness helper and the
+published 0.4.13 binary. The runner used its ordinary 24 Rust processes and
+24 client-file slots on 96 available CPUs, then its serial model slot.
+
+Checkpoints: `3c8b06f2e8` (implementation), `2f59bb7ea5` (waiting-reader restart
+coverage and initial evidence), `9ab2d5036d` (padded read-token refusal),
+`3d25b607cb` (complete diagnostic registration and passing reruns),
+`ecb7fdfaa5` (await classification and passing delivery matrix). All carry the
+requested `Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer.
+**No push or publication.**

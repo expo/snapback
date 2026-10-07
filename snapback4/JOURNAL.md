@@ -88352,3 +88352,16 @@ removed rotation code. Reviewed the four changed source entries: 25 awaits
 removed, no delivery I/O added, and every classified delivery site and fault
 recipe unchanged. Updated only those census entries and documented the
 classification; the complete delivery matrix passes all 339 tests.
+
+Round 6 complete verification ran at full counts in 2,093 seconds: 300 Rust
+binaries / 1,013 executions and doctests; all 332 client files (6,553 passes,
+one corrected census failure, 47 labelled skips); all 79 model tests with
+5,000 online and 5,000 local session histories plus 3,000 online-client
+sequences. The complete run retains its diagnostic and census reds; all
+corrected targets pass their complete reruns. This is not a single-green-run
+qualification receipt. All 96 read-only tests passed in the full pool.
+
+Final SDK source is 133 net lines smaller. The online bundle loses 270 gzip
+bytes and the app bundle 788; wasm remains 639,888 gzip bytes against 639,941.
+References, source limits and append-only checks pass. The Round 6 report
+retains full logs, corrected reruns and final size evidence. No push or publication.
