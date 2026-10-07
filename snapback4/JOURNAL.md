@@ -88346,3 +88346,9 @@ diagnostic registration and shortened the client card to its unchanged
 now pass: 113, 89 and 326 tests respectively, with four existing CLI ignores.
 The original full-run failures remain in the evidence. The auth helper also
 refuses padded read tokens, matching the server's bearer whitespace handling.
+
+The full client pool also flagged the expected await-boundary drift from the
+removed rotation code. Reviewed the four changed source entries: 25 awaits
+removed, no delivery I/O added, and every classified delivery site and fault
+recipe unchanged. Updated only those census entries and documented the
+classification; the complete delivery matrix passes all 339 tests.

@@ -33,15 +33,15 @@
   },
   "app-revocations.ts": {
     "count": 32,
-    "sha256": "13a50f0eca23c6d56f9ae8a4cb8db6ac5c022cfcb23c1b03325801580f2995d3"
+    "sha256": "9b9978b2c54c3233b56e3d530997764874f901664a70b95e3b41e8fec4240a06"
   },
   "app-storage.ts": {
     "count": 2,
     "sha256": "32a1eed42a561749fc32c3c9a94d656318730b40b909b710d6a6228f1797ddfe"
   },
   "app.ts": {
-    "count": 97,
-    "sha256": "8c41c0a1edfa6b38a4596a5359cb2ecff0b3d34742d5aa7d4930ab0ac850685f"
+    "count": 79,
+    "sha256": "508b131e7cb87c31215b8b963968b7d44285fe87814a84e61bc01f251e7fced5"
   },
   "asset-download.ts": {
     "count": 9,
@@ -72,8 +72,8 @@
     "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
   },
   "client.ts": {
-    "count": 66,
-    "sha256": "779505f5cfdf07a36c6b053af89497d60b249654d62ece17ec2d04026160e415"
+    "count": 62,
+    "sha256": "f5f65fdea4740cfdecd2c5db74b57840a6d6cbf3435fb6cfec47f6845b58cf13"
   },
   "clock.ts": {
     "count": 7,
@@ -312,8 +312,8 @@
     "sha256": "2b8542cc2c44eba20a1ba57d01ddfb2257ae6b799dc80aaf8d1b45faf46b4944"
   },
   "read-only.ts": {
-    "count": 5,
-    "sha256": "b7287061960d49c2deedbb765b153e475aaedd25b3fe02effab29b9f7c6c482c"
+    "count": 2,
+    "sha256": "e4ae79b53eda509b55659ccf3f74d67c18aebb72ab5aaa4578f338a5167052ca"
   },
   "read-work.ts": {
     "count": 0,

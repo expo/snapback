@@ -105,6 +105,11 @@ export function instrument(destination) {
 // remaining budget across predecessor identity/admission intervals, and late completion
 // without custody. Browser transaction pins are tested after synchronous capture.
 // Ordinary admission and delivery retain the required sites below.
+// RO revision 4 removes read-session successor/rotation waits from app.ts,
+// client.ts and read-only.ts. The remaining read scope probe is unchanged;
+// app-revocations.ts only drops successor comparisons inside existing awaits.
+// Read mode constructs no delivery owners. Full-session awaits and every
+// classified delivery site/recipe are unchanged; no new delivery I/O is added.
 // IT: syncRound's final queued() refreshes the pending predicate after every
 // apply, including an unchanged page. It uses existing readQueued custody I/O;
 // it cannot admit, dispatch or settle a new write. The ordinary delivery recipe
