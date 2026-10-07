@@ -205,6 +205,10 @@ export function instrument(destination) {
 // These are auth-only waits; read clients have
 // no delivery/outbox owner. Held-response self/peer logout and full-session
 // controls cover the split; delivery sites and fault recipes are unchanged.
+// RO Round 5: rejected read peers wait for the rotation owner and recheck
+// custody through the existing refresh gate. These waits have no write owner;
+// the new held-response tests cover both dispatch orders and independent logout.
+// Epoch-only watermark collection adds no I/O or delivery fault site.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

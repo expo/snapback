@@ -187,7 +187,6 @@ export function createApp(options: AppOptions): App {
       const all = [...new Set([...revocations.global(text), ...(globalToken ? [globalToken] : [])])];
       const fences = mergeFences(revocations.fences(text), global && globalToken ? [{ principal: global.session.principal, epoch, tokens: [globalToken] }] : []);
       await storage.set(custodyKey, JSON.stringify({ snapback4Logout: epoch, snapback4Backend: url,
-        ...(Object.keys(signOuts(text)).length ? { snapback4SignOuts: signOuts(text) } : {}),
         snapback4Retired: [...new Set([...retired, ...revocations.pending(), ...(token ? [token] : []), ...(kept?.snapback4Successor ? [kept.snapback4Successor.token] : [])])].filter(token => !all.includes(token)),
         ...(all.length ? { snapback4LogoutAll: all } : {}), ...(fences.length ? { snapback4GlobalFences: fences } : {}) }));
     };
@@ -366,8 +365,10 @@ export function createApp(options: AppOptions): App {
         // I2/I5: no separate epoch write and no fallible opening after this set.
         // A close/save of the predecessor cannot erase a private successor.
         if (!replacing && kept?.snapback4Successor && next.token === kept.token) return;
+        // Advancing the epoch already fences every opener that captured these
+        // watermarks. Same-epoch rotations must keep their principal fences.
         if (kept?.token !== next.token || replacing) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url,
-          ...(Object.keys(signOuts(saved)).length ? { snapback4SignOuts: signOuts(saved) } : {}) }));
+          ...(nextEpoch === epoch && Object.keys(signOuts(saved)).length ? { snapback4SignOuts: signOuts(saved) } : {}) }));
         lastOwned = { principal: next.principal, epoch: nextEpoch };
         epoch = nextEpoch; scope.epoch = nextEpoch; scope.session = next; scope.consumed = undefined;
         scope.issued.clear(); scope.issued.add(next.token);
@@ -441,7 +442,8 @@ export function createApp(options: AppOptions): App {
       }
       if (scope.sealing && path === new URL(url + "/auth/refresh").pathname) throw new Error("global logout is selecting its retry credential");
       if (!await authorized()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
-      if (readOnly && !preparing && path !== new URL(url + "/probe").pathname && !path.startsWith(new URL(url + "/auth/").pathname)) {
+      const peerRead = readOnly && !preparing && path !== new URL(url + "/probe").pathname && !path.startsWith(new URL(url + "/auth/").pathname);
+      const recoverSuccessor = async () => {
         const recover = await persist(() => storeLock(custodyKey, async () => {
           if (!scope.valid || await readEpoch() !== epoch) return false;
           const bytes = await storage.get(custodyKey);
@@ -456,6 +458,11 @@ export function createApp(options: AppOptions): App {
           const result = await raw.refreshSession();
           return Response.json({ denied: result.ok ? new SessionEpochChanged().why : result.why }, { status: 401 });
         }
+        return undefined;
+      };
+      if (peerRead) {
+        const recovered = await recoverSuccessor();
+        if (recovered) return recovered;
       }
       // The epoch check awaits storage. A concurrent response can retire this
       // store while it waits; never dispatch a fresh request through that gap.
@@ -508,6 +515,18 @@ export function createApp(options: AppOptions): App {
               if (!scope.valid) retire(issued.token);
             }
           } catch { /* The lower-level client reports malformed replies. */ }
+        }
+        if (peerRead && response.status === 401) {
+          const why = (await response.clone().json().catch(() => ({})) as { denied?: Refusal }).denied;
+          if (why?.code === "E_AUTH" && !why.retryable) {
+            // @ref LLP 3000.033#1.4 — a consumed predecessor may be rejected
+            // before its rotation owner receives the successor. Wait outside
+            // custody/persistence, then recover outside the rotation lock too.
+            // Explicit logout can fence and cancel this wait independently.
+            await waitForCaller(storeLock(custodyKey + ".rotation", async () => {}), scope.aborter.signal);
+            const recovered = await recoverSuccessor();
+            if (recovered) return recovered;
+          }
         }
         return response;
       }

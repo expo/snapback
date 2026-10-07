@@ -88275,3 +88275,28 @@ against 639,941. Final references, source limits and pure-append checks pass.
 Grok's completed review contributed only the public logout wording finding,
 resolved under the lead's overriding ruling. The lane report retains the full
 run and passing corrected target/file evidence. No push or publication.
+
+
+### 2026-10-07 — RO Round 5: peer rejection recovery and bounded fences
+
+A read peer whose predecessor is rejected waits for the separate rotation
+owner, then rechecks custody and verifies/adopts the successor through the
+existing refresh path. The wait owns neither persistence nor the session lock;
+explicit logout still fences immediately and cancels the caller's wait. Tests
+cover reads dispatched before and after rotation, a third app, restart, and
+logout by both the waiting peer and a third app while refresh remains held.
+The prior late-rejection test now requires read-peer recovery; its full-session
+control retains the existing refusal behavior.
+
+Epoch advances discard sign-out watermarks because their pending openers are
+already fenced. Same-epoch rotations retain them. Both modes complete 24 account
+switches with at most one retained watermark per switch, retain that watermark
+through rotation, then discard it at logout and keep it absent after login.
+A load-time constructor/factory counter proves read-only apps allocate no write
+history, mutation-ID owner, pending-write presentation, delivery queue,
+ephemeral write lane or online write custody, with positive full-session controls.
+
+Grok's round-5 exit marker is present, but its output contains progress notes
+only, with no findings or verdict; no completed review is claimed. Astra's two
+findings and surviving-mutation note have permanent tests. Verification details
+and the complete full-count run are recorded in the Round 5 lane report. No push.

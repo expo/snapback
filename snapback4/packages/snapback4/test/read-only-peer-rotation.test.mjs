@@ -158,10 +158,17 @@ for (const readOnly of [true, false]) {
     const rotation = a.client.refreshSession();
     if (readOnly) await probeEntered.promise;
     else { assert.equal((await rotation).ok, true); await until(() => f.saved().token === next.token); }
-    queryRelease.resolve(); assert.equal((await reading).denied.code, 'E_AUTH');
-    await until(() => b.auth.state === 'signed-out', 'rejected peer cleanup');
+    queryRelease.resolve();
+    const answer = await reading;
+    if (readOnly) {
+      assert.equal(answer.data, f.initial.principal);
+      assert.equal(b.auth.state, 'signed-in');
+    } else {
+      assert.equal(answer.denied.code, 'E_AUTH');
+      await until(() => b.auth.state === 'signed-out', 'rejected peer cleanup');
+    }
     assert.equal(f.saved().snapback4Epoch ?? '0', epoch);
-    assert.equal(readOnly ? f.saved().snapback4Successor?.token : f.saved().token, next.token);
+    assert.equal(f.saved().token, next.token);
     assert.equal((await f.probe(next.token)).ok, true);
     probeRelease.resolve(); assert.equal((await rotation).ok, true);
     const restarted = f.app(); assert.equal((await restarted.ready).ok, true);

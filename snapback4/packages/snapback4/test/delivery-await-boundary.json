@@ -40,8 +40,8 @@
     "sha256": "32a1eed42a561749fc32c3c9a94d656318730b40b909b710d6a6228f1797ddfe"
   },
   "app.ts": {
-    "count": 93,
-    "sha256": "93fd9b1e5ddf150c616bb3f64c710db10c1b2f4350cffc245e14c93582fed86d"
+    "count": 97,
+    "sha256": "8c41c0a1edfa6b38a4596a5359cb2ecff0b3d34742d5aa7d4930ab0ac850685f"
   },
   "asset-download.ts": {
     "count": 9,
