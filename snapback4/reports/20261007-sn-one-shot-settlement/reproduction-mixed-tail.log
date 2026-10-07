@@ -1,0 +1,30 @@
+✖ wasm: dependent observation does not wait for later unrelated custody (30576.258994ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30714.044012
+
+✖ failing tests:
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:151:65
+✖ wasm: dependent observation does not wait for later unrelated custody (30576.258994ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'observed-first'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:167:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'observed-first',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

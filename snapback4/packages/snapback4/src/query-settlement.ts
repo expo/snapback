@@ -5,7 +5,9 @@ import { checkRead, duringRead, withReadSignal, READ_WORK_LIFETIME } from "./rea
 export const QUERY_LIFETIME = READ_WORK_LIFETIME;
 export const QUERY_ROUNDS = 4;
 const expired = Symbol("one-shot deadline");
-type Publication<R> = () => Read<R> | undefined;
+export type QueryWait = { wait: (signal: AbortSignal) => Promise<void> };
+export function queryWaiting(value: unknown): value is QueryWait { return !!value && typeof value === "object" && "wait" in value; }
+type Publication<R> = () => Read<R> | QueryWait | undefined;
 type Attempt = <A, R>(op: Query<A, R>, args: A, signal: AbortSignal) => Promise<Publication<R>>;
 type Unavailable = () => Refusal | null | undefined;
 const attempts = new WeakMap<Client["query"], { run: Attempt; unavailable: Unavailable }>();
@@ -39,7 +41,7 @@ export function heldQueryRefusal(): Refusal {
 
 function retry(): Refusal {
   return { code: "E_QUERY_RETRY", family: "client", retryable: true, site: "client.query", guide: "client",
-    message: "the read did not settle within four rounds or 30 seconds; retry the query" };
+    message: "the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query" };
 }
 
 // Facades use the raw client's same evaluator and final publication fence. They
@@ -64,7 +66,13 @@ export function settledQuery(run: Attempt, unavailable: Unavailable, lifetime?: 
       if (denied) return () => ({ denied });
       throw error;
     }
-    return () => { checkRead(signal); const denied = unavailable(); return denied ? { denied } : publish(); };
+    return () => {
+      checkRead(signal); const denied = unavailable();
+      if (denied) return { denied };
+      const result = publish();
+      return queryWaiting(result) ? { wait: (signal: AbortSignal) => withReadSignal(signal, lifetime ?? signal,
+        current => duringRead(result.wait(current), current)) } : result;
+    };
   };
   const query = <A, R>(op: Query<A, R>, args: A): Promise<SettledRead<R>> => {
     const controller = new AbortController(), signal = controller.signal;
@@ -74,7 +82,7 @@ export function settledQuery(run: Attempt, unavailable: Unavailable, lifetime?: 
     const timer = setTimeout(() => controller.abort(expired), QUERY_LIFETIME);
     const settle = async (): Promise<SettledRead<R>> => {
       try {
-        for (let round = 0; round < QUERY_ROUNDS; round++) {
+        for (let round = 0; round < QUERY_ROUNDS;) {
           const denied = unavailable();
           if (denied) return { denied };
           checkRead(signal);
@@ -82,9 +90,11 @@ export function settledQuery(run: Attempt, unavailable: Unavailable, lifetime?: 
           checkRead(signal);
           // No await separates final publication from resolving this promise.
           const read = publish();
+          if (queryWaiting(read)) { await duringRead(read.wait(signal), signal); continue; }
           if (read && !("loading" in read)) return read;
-          if (round + 1 < QUERY_ROUNDS) await duringRead(new Promise<void>(resolve => {
-            const pause = setTimeout(() => { signal.removeEventListener("abort", cancel); resolve(); }, 25 * 2 ** round);
+          round++;
+          if (round < QUERY_ROUNDS) await duringRead(new Promise<void>(resolve => {
+            const pause = setTimeout(() => { signal.removeEventListener("abort", cancel); resolve(); }, 25 * 2 ** (round - 1));
             const cancel = () => clearTimeout(pause);
             signal.addEventListener("abort", cancel, { once: true });
           }), signal);

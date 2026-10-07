@@ -1,6 +1,7 @@
 import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.016#2.2 — every publication uses possible reads, not just the reads a speculative branch took.
 import test from "node:test";
+import { waitFor } from "./helpers/wait.mjs";
 import assert from "node:assert/strict";
 import { evaluateLocal } from "../dist/local-query.js";
 import { LocalReads, RememberedAnswers } from "../dist/local-reads.js";
@@ -254,9 +255,10 @@ for (const mode of ["reset", "install failure"]) {
     t.after(() => client.close());
     await client.sync();
     if (mode === "reset") {
-      assert.deepEqual((await client.query(op, input)).data, ["own"]);
       const watch = client.observe(op, input);
       const stop = watch.subscribe(() => snapshots.push(watch.getSnapshot())); t.after(stop);
+      await waitFor(() => watch.getSnapshot().data);
+      assert.deepEqual(watch.getSnapshot().data, ["own"]);
       reset = true;
       // This refusal stops acquisition after observe_store reruns the watch.
       const call = core.call.bind(core);

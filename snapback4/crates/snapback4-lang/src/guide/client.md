@@ -11,8 +11,8 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 }
 ```
 
-- `E_OFFLINE`: server unavailable; show unavailable, reconnect.
-- `E_QUERY_RETRY`: settlement exhausted; retry. Use reactive screen hooks.
+- `E_OFFLINE`: unavailable; reconnect.
+- `E_QUERY_RETRY`: settlement exhausted; retry.
 
 ## Reference
 ```tsx
@@ -44,7 +44,7 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 `usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md).
 
 ## Read boundaries
-`query(op, args)` settles ready/denied: four rounds/30 seconds including runnable queues/approval; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or immediate `E_OFFLINE`. Refusals win; ready may be partial/stale.
+`query(op, args)` settles ready/denied within 30 seconds including queues/approval. Relevant writes require observation/failure; unrelated writes pass. Authorization/derived dependencies count; unknown blocks. Custody awaits events; other races allow four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Predictions: observations/hooks. Offline: permitted data or immediate `E_OFFLINE`. Refusals win; ready permits partial/stale.
 `matchRead` requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)` gets Refusal; `absent(read)`/`loading(read)` get their arm. `otherwise(read)` covers omitted loading/absent/present only. Denied/partial remain explicit; metadata stays. `existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
 
 | Meaning | UI decision |
@@ -77,7 +77,7 @@ Every milestone: `npm run export:ios`; proof in the background: `witness status 
 `readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`. Sign in or narrow again.
 
 ## Receipts
-`guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions. Separate retained history/live decorations.
+`guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions; separate retained history/live decorations.
 
 ## One-view photos
 Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open once; recycling/refetch preserves handles. Unmount/account change revokes late responses too. Close on `absent`/denied/tombstone/changed-asset/deadline; deadlines run through loading.

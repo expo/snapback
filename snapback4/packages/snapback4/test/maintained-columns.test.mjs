@@ -23,6 +23,13 @@ const triple = row => { publicJson(row); return [row.likeCount,row.selected,row.
 const publicJson = value => assert.doesNotMatch(JSON.stringify(value),/\$column:/i);
 const privateTarget="$column:"+createHash("sha256").update(JSON.stringify(["posts","likeCount"])).digest("hex");
 async function until(check) { return awaitState(check); }
+// These assertions inspect speculative/partially acquired views. One-shots now
+// wait for dependent observation; the observation arm still exposes predictions.
+async function snapshot(client, args) {
+  const view = client.observe(api, args), stop = view.subscribe(() => {});
+  try { return await until(() => view.getSnapshot().data); }
+  finally { stop(); view.close(); }
+}
 
 for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) test(`maintained columns: ${family} watches use server values across interrupted sync and reopen (${queuedTail ? "queued tail" : "one write"})`, {timeout:hangBudget(51)}, async t => {
   const directory=mkdtempSync(join(tmpdir(),"sb4-columns-"));
@@ -114,10 +121,10 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   await client.sync();
   offline=true;
   await client.mutate({kind:"mutation",name:"like"},{id:"l",postId:"p",active:true,amount:3});
-  assert.equal((await client.query(api,{id:"p"})).data.likeCount,0,"a predicted like never increments its parent");
+  assert.equal((await snapshot(client,{id:"p"})).likeCount,0,"a predicted like never increments its parent");
   const predictParent=async()=>{
     await client.mutate({kind:"mutation",name:"post"},{id:"pending-parent",at:3});
-    const pendingParent=(await client.query(api,{id:"pending-parent"})).data;
+    const pendingParent=await snapshot(client,{id:"pending-parent"});
     assert.deepEqual(triple(pendingParent),[0,0,0]);
     assert.equal(pendingParent.pending,true);
   };
@@ -132,7 +139,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.equal(deliveredParents.length,1);
   const deliveredParent=deliveredParents[0].data;
   assert.deepEqual(triple(deliveredParent),[1,1,3],"interrupt only after receiving a nonzero authoritative parent image");
-  const interrupted=(await client.query(api,{id:"p"})).data;
+  const interrupted=await snapshot(client,{id:"p"});
   // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — receiving an image ahead of another queued commit does not publish it.
   if(queuedTail){
     assert.ok(interruptedPage.images_at>interruptedPage.watermark);
@@ -149,7 +156,7 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.deepEqual(triple(watch.getSnapshot().data),triple(interrupted));
   watch.close();await client.close();
   offline=true;interrupt=false;client=await open();
-  assert.deepEqual(triple((await client.query(api,{id:"p"})).data),triple(interrupted),"the published base survives reopening while an interrupted page remains private");
+  assert.deepEqual(triple(await snapshot(client,{id:"p"})),triple(interrupted),"the published base survives reopening while an interrupted page remains private");
   if(!queuedTail)await predictParent();
   offline=false;
   watch=client.observe(api,{id:"p"});watch.subscribe(record);

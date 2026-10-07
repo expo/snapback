@@ -1,0 +1,250 @@
+✖ online: server aggregate settles while unrelated like remains unobserved (274.306834ms)
+✖ online: unrelated commits at every publication do not spend the round budget (347.628878ms)
+✖ wasm: server aggregate settles while unrelated like remains unobserved (631.77468ms)
+✖ wasm: unrelated commits at every publication do not spend the round budget (429.963501ms)
+✖ process: server aggregate settles while unrelated like remains unobserved (325.15369ms)
+✖ process: unrelated commits at every publication do not spend the round budget (516.375155ms)
+✖ app-online: server aggregate settles while unrelated like remains unobserved (246.218702ms)
+✖ app-online: unrelated commits at every publication do not spend the round budget (435.013411ms)
+✖ app-wasm: server aggregate settles while unrelated like remains unobserved (281.811493ms)
+✖ app-wasm: unrelated commits at every publication do not spend the round budget (487.699663ms)
+✖ app-process: server aggregate settles while unrelated like remains unobserved (437.986026ms)
+✖ app-process: unrelated commits at every publication do not spend the round budget (487.205443ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 0
+ℹ fail 12
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5076.356476
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:18:3
+✖ online: server aggregate settles while unrelated like remains unobserved (274.306834ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:32:3
+✖ online: unrelated commits at every publication do not spend the round budget (347.628878ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:40:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:18:3
+✖ wasm: server aggregate settles while unrelated like remains unobserved (631.77468ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:32:3
+✖ wasm: unrelated commits at every publication do not spend the round budget (429.963501ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:40:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:18:3
+✖ process: server aggregate settles while unrelated like remains unobserved (325.15369ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:32:3
+✖ process: unrelated commits at every publication do not spend the round budget (516.375155ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:40:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:18:3
+✖ app-online: server aggregate settles while unrelated like remains unobserved (246.218702ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:32:3
+✖ app-online: unrelated commits at every publication do not spend the round budget (435.013411ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:40:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:18:3
+✖ app-wasm: server aggregate settles while unrelated like remains unobserved (281.811493ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:32:3
+✖ app-wasm: unrelated commits at every publication do not spend the round budget (487.699663ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:40:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:18:3
+✖ app-process: server aggregate settles while unrelated like remains unobserved (437.986026ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:29:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:32:3
+✖ app-process: unrelated commits at every publication do not spend the round budget (487.205443ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:40:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

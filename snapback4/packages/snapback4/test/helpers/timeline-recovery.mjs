@@ -16,6 +16,11 @@ import {memoryPersistence, webDevice} from '../../dist/web.js';
 import {processDevice} from '../../dist/native.js';
 
 async function until(check, message) { return awaitState(check, message); }
+async function predictedRead(client, query) {
+  const view = client.observe(query, {}), stop = view.subscribe(() => {});
+  try { return await until(() => 'data' in view.getSnapshot() && view.getSnapshot(), 'predicted timeline was not observable'); }
+  finally { stop(); view.close(); }
+}
 function parkedChanges(signal) {
   let cleanup;
   return new Response(new ReadableStream({
@@ -85,7 +90,7 @@ export async function recoverTimeline() {
       assert.deepEqual(f.queued[0].args,{postId:'pending-'+host});
       const own=createHash('sha256').update(JSON.stringify([{String:'snapback4.timeline.v1'},{String:'feed'},{String:'Feed'},{Id:f.queued[0].viewer},{Id:'pending-'+host},'Null'])).digest('hex');
       assert.deepEqual(f.queued[0].predicted.toSorted(),['posts/pending-'+host,'feedPosts/pending-'+host,'feedFeed/'+own].toSorted());
-      assert.equal((await f.client.query(query,{})).data.length,1);
+      assert.equal((await predictedRead(f.client,query)).data.length,1);
       f.pages.length=0;
     }
     const before=devices[0].before;
@@ -162,7 +167,7 @@ export async function recoverTimeline() {
       assert.equal(f.client.acquired,true);
       const queued=(await f.core.call({op:'queued'})).ok;
       assert.deepEqual(queued.map(q=>[q.id,q.args,q.new_ids,q.predicted]),f.queued.map(q=>[q.id,q.args,q.new_ids,q.predicted]),'pending identity, arguments and predicted rows survived snapshot restart');
-      const local=await f.client.query(query,{});
+      const local=await predictedRead(f.client,query);
       assert.equal(local.complete,true);
       assert.deepEqual(local.data.map(r=>r.postId).sort(),['original','pending-'+f.host].sort());
       for(const row of local.data) {

@@ -1,3 +1,4 @@
+import { QueryChanges } from "./query-dependencies.ts";
 import { watchCanRevoke } from "./change-evidence.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import type { Queued } from "./local-types.ts";
@@ -197,6 +198,7 @@ export function queuedPredictions(entries: readonly Queued[]): readonly string[]
 /** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
+  readonly oneShotChanges = new QueryChanges();
   private serverBarrier = 0;
   private serverCut = 0;
   private inputBarrier = 0;
@@ -210,7 +212,8 @@ export class LocalReads {
     return () => (watch.changeVersion ?? 0) - version === (this.watchChanges.get(watch) ?? 0) - changes;
   }
   // @ref LLP 3000.023#10 — detached answers and pending results share one fence.
-  evidence(cut?: number, tables?: readonly string[]): void {
+  evidence(cut?: number, tables?: readonly string[], oneShotTables: readonly string[] | null | undefined = validCut(cut) ? tables : undefined): void {
+    this.oneShotChanges.change(oneShotTables ?? undefined);
     this.revision++;
     if (validCut(cut)) this.serverCut = Math.max(this.serverCut, cut);
     else this.serverBarrier++;
@@ -221,8 +224,8 @@ export class LocalReads {
   // @ref LLP 3000.023#10 — only a whole server reply can cover repeated cut evidence.
   // Capture before evaluation; an unsequenced change can never be discharged
   // by a later server sequence. Local/composed answers still use revision.
-  serverCurrent(watch: LocalWatch): (cut: number) => boolean {
-    const barrier = this.serverBarrier, current = this.watchCurrent(watch);
+  serverCurrent(watch?: LocalWatch): (cut: number) => boolean {
+    const barrier = this.serverBarrier, current = watch ? this.watchCurrent(watch) : () => true;
     return cut => current() && barrier === this.serverBarrier && this.admissions === 0 && validCut(cut) && cut >= this.serverCut;
   }
   // @ref LLP 3000.023#10 — disjoint sequenced evidence does not change a local
@@ -261,8 +264,8 @@ export class LocalReads {
     }
   }
   // @ref LLP 3000.031#1.1 — one-shot and observed reads share the admission fence.
-  admitting(watches: () => Iterable<LocalWatch>): () => void {
-    this.evidence(); // Fence before the asynchronous prediction admission.
+  admitting(watches: () => Iterable<LocalWatch>, tables?: readonly string[]): () => void {
+    this.evidence(undefined, undefined, tables); // Fence before the asynchronous prediction admission.
     const notify = () => { for (const watch of watches()) if (watch.updateExistence()) notifyLocalWatch(watch); };
     this.admissions++; notify();
     return () => { this.admissions--; notify(); };
@@ -292,7 +295,7 @@ export class LocalReads {
     const inputs = entries.filter(e => e.observed_seq == null && e.predictable === true)
       .map(e => JSON.stringify([e.id, e.predicted])).sort();
     const signature = JSON.stringify(inputs);
-    if (inputs.length && signature !== this.predictionInputs) this.evidence();
+    if (inputs.length && signature !== this.predictionInputs) this.evidence(undefined, undefined, queuedPredictions(entries) ?? undefined);
     this.predictionInputs = signature;
   }
   readonly serverAnswers = new RememberedAnswers();
@@ -422,14 +425,14 @@ export class LocalReads {
   }
 
   // @ref LLP 3000.023#12 — commits revalidate; only possible revocation bounds the replacement attempt.
-  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number): void {
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number, oneShotTables: readonly string[] | null | undefined = touched): void {
     // A partition footprint cannot certify server-only authorization, including recovery/no-op publication.
     this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation, preserved,
-      operation === "apply" && this.predictions?.length === 0 ? publishedCut : undefined, touched);
+      operation === "apply" && this.predictions?.length === 0 ? publishedCut : undefined, touched, oneShotTables);
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown, publishedCut?: number, inputTables?: readonly string[]): void {
-    this.evidence(reset ? undefined : publishedCut, inputTables);
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset", preserved?: unknown, publishedCut?: number, inputTables?: readonly string[], oneShotTables: readonly string[] | null | undefined = inputTables): void {
+    this.evidence(reset ? undefined : publishedCut, inputTables, reset ? undefined : oneShotTables);
     if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); this.serverCut = 0; this.inputVersions.clear(); this.publishedWatermark = 0; }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);

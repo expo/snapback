@@ -89928,3 +89928,40 @@ PostgreSQL is untouched. The ticket's final resolution and the
 [round-1 report](reports/20261007-sg-refused-open-guarantee/round1/REPORT.md)
 record the contract correction, review dispositions and logs. No other lane,
 worktree or host was used; nothing pushed.
+
+## 2026-10-07 — SN: one-shots settle across unrelated writes
+
+Implemented LLP 3000.023 §11's dependency-scoped custody barrier across local,
+online, app facades and mock. Compiler summaries include authorization,
+receipt-owned fields, derived counts/views, search and inherited inputs/effects.
+Unknown facts remain blocking. Dependent writes wait for observation or failure
+on events within one 30-second timer; unrelated writes and known disjoint
+commits no longer consume the four publication rounds. Complete pending
+predictions remain available through observations, but cannot satisfy a
+dependent one-shot. The client guide and retry explanation reflect this.
+
+Reproduced the original barrier before changing it: 12 aggregate/commit and six
+receipt-history failures across the six arms. Mixed-queue regressions also
+caught observation sync waiting behind an unrelated send, including when the
+query began after the dependent acknowledgement. Observation sync now overlaps
+that held send while syncs remain serialized and mutation FIFO, device capture
+fences, explicit-sync freshness, rotation and close remain intact. The final
+extraction brings `local.ts` from 1,537 to 1,498 lines.
+
+The calibration evidence supports the receipt diagnosis but needs a distinction:
+its Trending query sorts by maintained `likeCount`, so likes must precede its
+answer; independent reactions need not. External builder evidence was cited in
+place, never copied into the repository. The [SN report](reports/20261007-sn-one-shot-settlement/REPORT.md)
+contains the contract, retained reproductions, negative controls, validation
+commands and results. The clean lifecycle selection passed 317 tests (one
+measurement skip); discovery/online compatibility passed 121; affected clients
+passed 535 (one unavailable legacy binary); compiler/guide checks passed 156;
+server checks passed 190 (four documented ignores). Typecheck/build and the
+reference audit pass. Final custody/terminal/deadline/explicit-sync rechecks
+passed 166 tests.
+
+No core/device/wasm source or budget changed. Fresh Linux bootstrap measured
+2,135,336 raw / 645,448 gzip bytes under the inherited 645,607 budget (159 bytes
+headroom); this is not a claim of the requested 500-byte margin for a future
+wasm change or of macOS qualification. Both wasm-budget tests pass. Work stayed
+in lane-sn on the assigned host. Nothing pushed or published.

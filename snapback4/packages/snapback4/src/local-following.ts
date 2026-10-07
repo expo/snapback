@@ -1,3 +1,5 @@
+import { bindFollowing, type FollowingWire } from "./following-transport.ts";
+import type { Client, FollowingQuery } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
 import type { Queued } from "./local-types.ts";
 
@@ -74,4 +76,55 @@ export class FollowingIntents {
   // An idempotent edge write can publish its receipt with no row footprint.
   // Re-evaluate waiting reads at that publication even when nothing was copied.
   applied(): Set<string> { const waiting = this.waiting; this.waiting = new Set(); return waiting; }
+}
+
+// A history page is server-only, but mutation admission starts synchronously.
+// Keep this fence separate from the device inbox's existing prediction path.
+export class FollowingHistory {
+  private readonly calls = new Set<{ inputs: Set<string> | null }>();
+  constructor(private readonly backend: () => BackendJson | null, private readonly notify: () => void) {}
+  private inputs(op: { name: string; following: { declaration: string } }): Set<string> | null {
+    const backend = this.backend(), program = backend?.programs.find(p => p.name === op.name);
+    if (!backend || !program) return null;
+    const inputs = operationTables(program, backend.schema);
+    const timeline = backend.schema.timelines?.find(t => t.name === op.following.declaration);
+    if (timeline) for (const source of [timeline.posts[0], timeline.reposts[0], timeline.edges?.[0]]) if (source) inputs.add(source);
+    return inputs;
+  }
+  private pending(inputs: ReadonlySet<string>): boolean {
+    return [...this.calls].some(({ inputs: tables }) => !tables || [...tables].some(t => inputs.has(t)));
+  }
+  track<T>(operation: string, run: () => Promise<T>): Promise<T> {
+    const backend = this.backend(), program = backend?.programs.find(p => p.name === operation);
+    const inputs = backend && program ? operationTables(program, backend.schema) : null;
+    const ticket = { inputs }; this.calls.add(ticket); this.notify();
+    const release = () => { this.calls.delete(ticket); this.notify(); };
+    try { const work = run(); void work.then(release, release); return work; }
+    catch (error) { release(); throw error; }
+  }
+  bind(client: Client, env: {
+    current(): () => boolean;
+    inputsCurrent(): (tables: ReadonlySet<string>) => boolean;
+    unavailable(): boolean;
+    refreshing(): boolean;
+    pending(tables: Set<string>): boolean;
+    intents: FollowingIntents;
+    send(op: FollowingQuery<unknown, unknown>, args: unknown, body: FollowingWire, signal?: AbortSignal): Promise<{ ok: true; json: FollowingWire; obsoleteAuth: boolean } | { ok: false }>;
+  }): void {
+    bindFollowing(client, async (op, args, body, signal) => {
+      const current = env.current(), inputsCurrent = env.inputsCurrent();
+      const program = this.backend()?.programs.find(p => p.name === op.name);
+      if (!program || program.native) return;
+      const tables = this.inputs(op)!;
+      const blocked = async () => env.unavailable() || env.refreshing()
+        || this.pending(tables) || env.pending(tables) || await env.intents.pending(tables);
+      if (await blocked()) return;
+      const result = await env.send(op, args, body, signal);
+      if (await blocked() || !current() || !inputsCurrent(tables) || !result.ok || result.obsoleteAuth) return;
+      return { ...result.json, __followingCurrent: () => current() && inputsCurrent(tables) && !env.unavailable() && !this.pending(tables) && !env.pending(tables) };
+    }, op => {
+      const tables = this.inputs(op);
+      return !tables || this.pending(tables) || env.unavailable() || env.pending(tables) || env.intents.blocked(tables);
+    });
+  }
 }

@@ -65,8 +65,8 @@ query keyed(tag: int):
   return messages['item']
 `;
 
-export async function setup(t, tier, { fetch: intercept, device: wrap, changes } = {}) {
-  const f = await fixture(t, program);
+export async function setup(t, tier, { fetch: intercept, device: wrap, changes, program: customProgram } = {}) {
+  const f = await fixture(t, customProgram ?? program);
   const controls = {}; globalThis[key] = controls;
   let online = true;
   const transport = async (input, init) => {

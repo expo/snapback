@@ -6,6 +6,7 @@ pub mod rust;
 pub use rust::rust;
 mod server;
 mod receipts;
+mod settlement;
 pub use server::server_typescript;
 
 use crate::bind::{Bound, BoundProgram};
@@ -234,6 +235,7 @@ pub fn backend_programs(bound: &Bound) -> Vec<serde_json::Value> {
         let mut value = serde_json::to_value(&device_program).expect("program JSON");
         let facts = serde_json::to_value(&bound.schema.operations[&program.program.name]).expect("execution JSON");
         value.as_object_mut().expect("program object").extend(facts.as_object().expect("execution object").clone());
+        value["settlement"] = serde_json::to_value(settlement::dependencies(&bound.schema, &program.program)).expect("settlement JSON");
         value
     }).collect()
 }
