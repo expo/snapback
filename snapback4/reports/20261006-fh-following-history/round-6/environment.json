@@ -1,0 +1,10 @@
+{
+  "host": "expose-builder-pixel",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "disk_bytes": 28534386688,
+  "target_disk_bytes": 24539127808,
+  "private_postgres_stopped": true,
+  "merge_parent": "4a0dded93fd7dc2191ae2f7d11eba1a6951814a8"
+}

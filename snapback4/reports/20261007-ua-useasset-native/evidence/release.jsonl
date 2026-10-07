@@ -1,0 +1,57 @@
+{"at":1791361551593,"kind":"app","run":"release","event":"app-ready","state":"signed-out","native":true,"platform":"ios"}
+{"at":1791361551593,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/auth/login","headers":["content-type"],"bearer":false,"range":null}
+{"at":1791361551822,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/schema","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361551823,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/auth/login","status":200,"stream":true}
+{"at":1791361551825,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/schema","status":200,"stream":true}
+{"at":1791361551878,"kind":"app","run":"release","event":"native-call","op":"meta","key":"server-clock-floor"}
+{"at":1791361551879,"kind":"app","run":"release","event":"native-call","op":"set_meta","key":"server-clock"}
+{"at":1791361551879,"kind":"app","run":"release","event":"native-call","op":"meta","key":"server-clock"}
+{"at":1791361551879,"kind":"app","run":"release","event":"native-call","op":"meta","key":"media:manifest"}
+{"at":1791361551880,"kind":"app","run":"release","event":"native-call","op":"meta","key":"syncedAt:wall:1"}
+{"at":1791361551881,"kind":"app","run":"release","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791361551885,"kind":"app","run":"release","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791361551886,"kind":"app","run":"release","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791361551886,"kind":"app","run":"release","event":"native-call","op":"meta","key":"write-history"}
+{"at":1791361551886,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/sync","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361551886,"kind":"app","run":"release","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791361551894,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/q/history","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361551900,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/sync","status":200,"stream":true}
+{"at":1791361551904,"kind":"app","run":"release","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791361551906,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/sync","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361551906,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/q/history","status":200,"stream":true}
+{"at":1791361551906,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/q/history","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361551913,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/sync","status":200,"stream":true}
+{"at":1791361551913,"kind":"app","run":"release","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791361551913,"kind":"app","run":"release","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791361551922,"kind":"app","run":"release","event":"login","ok":true}
+{"at":1791361551923,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/q/history","status":200,"stream":true}
+{"at":1791361551923,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361551925,"kind":"app","run":"release","event":"native-call","op":"set_meta","key":"syncedAt:wall:1"}
+{"at":1791361551926,"kind":"app","run":"release","event":"hook-effect","id":"01M4AQ580HE65ZWGSHDHPV0CFX","signedOut":false,"document":"undefined","documentEvents":"undefined","globalEvents":"undefined"}
+{"at":1791361551926,"kind":"app","run":"release","event":"hook-schedule"}
+{"at":1791361551926,"kind":"app","run":"release","event":"asset-state","asset":{"status":"loading"},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791361551927,"kind":"app","run":"release","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"link":"online"}
+{"at":1791361551927,"kind":"app","run":"release","event":"hook-microtask"}
+{"at":1791361551931,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361551932,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361551933,"kind":"app","run":"release","event":"asset-state","asset":{"status":"loading"},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791361551934,"kind":"app","run":"release","event":"hook-load","live":true,"busy":false,"link":"online"}
+{"at":1791361551935,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791361551938,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791361552235,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361552236,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361552237,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791361552238,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791361552840,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361552841,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361552844,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791361552847,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791361553940,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","status":200,"stream":true}
+{"at":1791361553941,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791361554074,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361554075,"kind":"app","run":"release","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361554075,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791361554077,"kind":"app","run":"release","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791361554080,"kind":"app","run":"release","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791361551916,"revalidating":true},"link":"offline"}
+{"at":1791361554083,"kind":"app","run":"release","event":"asset-state","asset":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported; check the connection and server logs before retrying","retryable":true}},"link":"offline","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791361554083,"kind":"app","run":"release","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791361551911},"link":"offline"}

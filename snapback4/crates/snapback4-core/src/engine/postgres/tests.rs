@@ -4,6 +4,7 @@ use crate::{authority::{AuthorityTransaction, test_cases}, rows::{Rows, Prefetch
 mod caps;
 mod delivery;
 mod expiring_counts;
+mod refusals;
 
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {

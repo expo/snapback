@@ -1,0 +1,8 @@
+{"at":1791361297094,"kind":"app","run":"web","event":"login","ok":true}
+{"at":1791361352096,"kind":"app","run":"web","event":"asset-state","asset":{"status":"loading"}}
+{"at":1791361352101,"kind":"app","run":"web","event":"asset-state","asset":{"status":"loading"}}
+{"at":1791361352103,"kind":"app","run":"web","event":"login","ok":true}
+{"at":1791361352107,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","sec-ch-ua-platform","authorization","user-agent","sec-ch-ua","sec-ch-ua-mobile","accept","origin","sec-fetch-site","sec-fetch-mode","sec-fetch-dest","referer","accept-encoding","accept-language","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791361352108,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791361352117,"kind":"app","run":"web","event":"asset-state","asset":{"status":"ready","url":"blob:http://127.0.0.1:45189/ef103fb9-3ce9-4424-a8f9-aabb03b84611","type":"image/png"}}
+{"at":1791361352119,"kind":"app","run":"web","event":"image-load"}

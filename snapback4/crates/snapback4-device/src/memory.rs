@@ -335,7 +335,7 @@ impl DeviceStore for MemoryStore {
         Ok(self.state.borrow().rows.range((table.to_owned(), String::new())..).take_while(|((t, _), _)| t == table).count() as u64)
     }
     type Tx<'a> = MemoryTx<'a>;
-
+    #[cfg(feature = "native")] fn install_open<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, finish: impl FnOnce(&Self::Tx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> { self.install_open_native(schema, metadata, reset, expected, finish) }
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         for (key, value) in expected {
             if &self.meta(key)? != value { return Err(RuntimeError::Generation("the backend adoption capture is obsolete; retry sync".into())); }
@@ -862,4 +862,21 @@ impl<'a> Drop for MemoryTx<'a> {
             self.unwind(0);
         }
     }
+}
+
+// Keep native-only opening work after the web implementation so its panic
+// locations, and therefore the qualified wasm bytes, remain unchanged.
+#[cfg(feature = "native")]
+impl MemoryStore {
+    fn install_open_native<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, finish: impl FnOnce(&MemoryTx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> {
+        let mut next = Self { state: RefCell::new(self.state.borrow().clone()), schema: self.schema.clone(),
+            changes: RefCell::new(self.changes.borrow().clone()), drained: Cell::new(self.drained.get()) };
+        next.install_checked(schema, metadata, reset, expected)?;
+        let tx = next.transaction()?;
+        let result = finish(&tx)?;
+        tx.commit()?;
+        *self = next;
+        Ok(result)
+    }
+
 }

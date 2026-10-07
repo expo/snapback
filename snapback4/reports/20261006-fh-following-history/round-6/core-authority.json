@@ -1,0 +1,23 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-core",
+    "--test",
+    "read_sessions",
+    "--test",
+    "identity",
+    "--test",
+    "bound_session",
+    "--test",
+    "schema_capabilities",
+    "--",
+    "--nocapture"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-fh/snapback4",
+  "cpus": "7,8,9,10,12,15,16,19,22,24,25,29,37,38,41,42,43,44,47,50,55,56,57,58",
+  "started": "2026-10-07T15:48:38.353699+00:00",
+  "seconds": 2.95,
+  "exit": 0
+}

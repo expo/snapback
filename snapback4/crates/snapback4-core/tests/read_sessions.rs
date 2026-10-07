@@ -6,6 +6,7 @@ const DAY: i64 = 86_400_000;
 fn sample(now: i64) -> ServiceSample { ServiceSample { now, supervisor_revision: 0 } }
 fn digest(token: &str) -> String { format!("{:x}", Sha256::digest(token.as_bytes())) }
 fn read_rows(store: &Store) -> Vec<String> {
+    if !store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get::<_, bool>(0)).unwrap() { return vec![]; }
     store.conn().prepare("SELECT token_digest FROM _read_sessions ORDER BY token_digest").unwrap()
         .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect()
 }
@@ -127,8 +128,8 @@ fn queued_narrow_samples_authority_after_writer_lock() {
         }
         locker.execute_batch("COMMIT").unwrap();
         assert!(worker.join().unwrap().is_err());
-        let siblings: i64 = locker.query_row("SELECT count(*) FROM _read_sessions", [], |r| r.get(0)).unwrap();
-        assert_eq!(siblings, 0, "expired/revoked parent committed no sibling");
+        let installed: bool = locker.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get(0)).unwrap();
+        assert!(!installed, "expired/revoked parent must not even install read-session storage");
         drop(locker);
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -151,4 +152,38 @@ fn signin_collects_foreign_read_expiry_but_read_refresh_does_not() {
         assert!(!rows.contains(&"expires".to_string())); assert!(!rows.contains(&"cap".to_string()));
         assert!(rows.contains(&"live".to_string())); assert!(rows.contains(&digest(&rotated.token)));
     }
+}
+
+#[test]
+fn absent_read_storage_is_empty_without_writes_and_full_logout_still_works() {
+    let mut store = Store::memory().unwrap();
+    let full = identity::open_session(&store, "bob", "member", 0).unwrap();
+    let changes = store.conn().total_changes();
+    let store_id = store.meta("store_id").unwrap();
+    assert!(identity::resolve(&store, "ro.absent", 1).unwrap().is_none());
+    assert!(identity::resolve_read_only(&store, "ro.absent", 1, store_id.as_deref()).unwrap().is_none());
+    assert!(identity::resolve_supervised(&store, "ro.absent", sample(1)).unwrap().is_none());
+    assert!(identity::resolve_read_only_supervised(&store, "ro.absent", sample(1), store_id.as_deref()).unwrap().is_none());
+    assert!(identity::rotate_session(&store, "ro.absent", 1).unwrap().is_none());
+    identity::close_session(&store, "ro.absent").unwrap();
+    assert!(identity::logout_session(&mut store, "ro.absent", || 1).is_err());
+    assert_eq!(store.conn().total_changes(), changes);
+    assert_eq!(identity::resolve(&store, &full.token, 1).unwrap().unwrap().2, SessionScope::Full);
+    identity::logout_session(&mut store, &full.token, || 1).unwrap();
+    assert_eq!(identity::revoke_principal(&store, "bob").unwrap(), 0);
+    let installed: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get(0)).unwrap();
+    assert!(!installed, "reads and full-session logout must never create read storage");
+    let read = identity::guest_scoped(&store, 2, &mut 0, SessionScope::Read).unwrap();
+    assert_eq!(identity::resolve(&store, &read.token, 3).unwrap().unwrap().2, SessionScope::Read);
+    identity::logout_session(&mut store, &read.token, || 3).unwrap();
+    assert!(identity::resolve(&store, &read.token, 3).unwrap().is_none());
+}
+
+#[test]
+fn malformed_read_storage_is_an_error_not_empty_authority() {
+    let store = Store::memory().unwrap();
+    store.conn().execute_batch("CREATE TABLE _read_sessions (wrong_column TEXT)").unwrap();
+    let store_id = store.meta("store_id").unwrap();
+    assert!(identity::resolve_read_only(&store, "ro.absent", 1, store_id.as_deref()).is_err());
+    assert!(identity::rotate_session(&store, "ro.absent", 1).is_err());
 }

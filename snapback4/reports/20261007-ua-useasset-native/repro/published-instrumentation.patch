@@ -1,0 +1,29 @@
+--- snapback4@0.4.13/dist/react.js
++++ instrumented/dist/react.js
+@@ -362,7 +362,7 @@
+     const owner = useMemo(() => ({ client, signedOut, id }), [client, signedOut, id]);
+     const [resolved, setResolved] = useState();
+     useEffect(() => {
+-        const { client, signedOut, id } = owner;
++        const { client, signedOut, id } = owner; globalThis.uaTrace?.("hook-effect", {id,signedOut, document:typeof globalThis.document, documentEvents:typeof globalThis.document?.addEventListener, globalEvents:typeof globalThis.addEventListener});
+         if (!id || signedOut)
+             return;
+         let live = true, busy = false, recoveryRequested = false;
+@@ -370,7 +370,7 @@
+         const lifetime = { live: true };
+         let read = null;
+         const publish = (state) => setResolved({ owner, state, lifetime });
+-        const load = () => {
++        const load = () => { globalThis.uaTrace?.("hook-load", {live,busy,link:client.link()});
+             if (!live || busy || client.link() === "signed-out")
+                 return;
+             clearTimeout(recoveryTimer);
+@@ -423,7 +423,7 @@
+         globalThis.addEventListener?.("focus", recover);
+         globalThis.addEventListener?.("online", recover);
+         globalThis.document?.addEventListener("visibilitychange", visible);
+-        queueMicrotask(() => { if (live)
++        globalThis.uaTrace?.("hook-schedule"); queueMicrotask(() => { globalThis.uaTrace?.("hook-microtask"); if (live)
+             load(); });
+         return () => {
+             live = false;

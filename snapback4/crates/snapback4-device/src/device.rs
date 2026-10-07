@@ -18,7 +18,7 @@ use snapback4_core::{Context, QueryOutcome, wire};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
-mod predictions;
+mod predictions; #[cfg(feature = "native")] mod opening_native;
 #[cfg(not(target_arch = "wasm32"))]
 mod witness;
 mod delivery;
@@ -451,7 +451,7 @@ impl<S: DeviceStore> Device<S> {
         Self::open_store_mode(store, Some(backend), true)
     }
 
-    fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeError> {
+    #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeError> {
         let kept = store.meta(BACKEND)?;
         // Every opening must understand the saved schema before replacing it,
         // including an explicit backend. Installation checks this same capture.
@@ -495,7 +495,7 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(boundary::STAGED.to_owned(), "{}".into());
             if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
         }
-        // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — consume the kept-backend/absence observation inside installation's transaction.
+        #[cfg(feature = "native")] { return opening_native::open(store, backend, metadata, expected, reset && !keep_images, backend_identity, kept.is_none()); }
         store.install_checked(&backend.schema, &metadata, reset && !keep_images, &expected)?;
         // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — a recovered request cannot
         // reuse a declaration from before a teardown send whose host-persisted

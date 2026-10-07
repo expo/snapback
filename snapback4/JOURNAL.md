@@ -88699,6 +88699,279 @@ Reference and source-line audits pass. Final disk use is below 20 GiB, within
 the 40 GB limit. Commit only; nothing pushed or published.
 
 
+## 2026-10-07 — QJ: quoted messages open and scroll to their original
+
+The social starter now has a small Reply affordance, saved `replyTo` references,
+and `QuotedMessage.onJump`. A reusable `useJumpToMessage` opens an indexed history
+window ending at the original's ordinal, including beyond the replica's sync
+horizon. One variable-height FlatList retries unmeasured indices on native/web;
+actual viewport visibility starts a 1.8-second highlight. Attempts stop after
+four seconds with a visible failure. Unknown, denied and absent point reads keep
+their honest `matchRead` presentation. The composer, draft and once viewer retain
+their existing owners; receipts remain independent current reads. Guide social,
+the installed README and LLP 3000.028 §8 document the recipe.
+
+The browser regression uses the installed template, real react-native-web layout,
+generated operations and both online/wasm clients. It measures the original's
+rectangle after 30 intervening messages, plus already visible and absent targets,
+draft/input identity, a target beyond the 500-row horizon, actual reply sending,
+unmeasured-index recovery and a blocked-scroll timeout/retry. The native-process
+and wasm query tests also check offline uncertainty and anchored receipt pages.
+Linux-only execution makes no iOS/Android UI witness claim.
+
+The receipt engine's exact-source model and frozen wasm corpus now use a pinned
+copy of their original social schema; the current starter retains its separate
+compiler/ownership witness and new application tests. No existing oracle or
+corpus was regenerated. The [QJ report](reports/20261007-qj-quote-jump/REPORT.md)
+records qualification, the transient shared-disk exhaustion during the first
+full-suite run, and byte-identical wasm. Work and tests stay in this worktree on
+eb1000; commit only, with nothing pushed or published.
+
+QJ final qualification: the complete `scripts/test.sh` run passed with zero
+failures in 2,748 seconds, using the required SQLite flag. Rust: 5,120 passes
+and 33 declared ignores; clients: all 329 files, 6,499 passes and 54 declared
+skips; models: 79/79; fixture wrappers: 9/9. The affected run passed 69/69,
+including receipt-page recovery while retained history stays mounted. Guide and
+reference audits pass. The final distant-quote witnesses reached and highlighted
+the original in 126.9 ms online and 130.3 ms on the wasm replica, against the
+four-second bound. All four wasm artifacts are byte-identical to the baseline;
+the device remains 2,135,164 B raw / 645,264 B canonical gzip. Checkout disk use
+is 15.24 GB, below 30 GB. Earlier failed/interrupted runs remain in the report.
+
+## 2026-10-07 — QJ round 1: quote layout settling and durable browser evidence
+
+Astra's round-0 review reproduced an original pushed below the viewport by a
+late nested quote and a successful jump missed by a driver paused for 2.3 seconds.
+Grok returned READY; this round addresses Astra's two findings. The hook now
+keeps scroll ownership for four seconds after arrival, measures the original's
+own content when its quoted bubble is taller than the viewport, and corrects
+row/content layout changes with portable View measurement and FlatList offsets.
+Touch/drag, pointer/wheel and scrolling keys revoke ownership synchronously,
+including queued measurements. The 1.8-second highlight does not extend the
+settle deadline. Read-state guards, composer/draft ownership and history/receipt
+queries remain unchanged.
+
+The browser oracle is armed before the click and latches browser-timestamped
+completion, geometry and highlight. A persistent completion ID lets the driver
+poll current geometry after the highlight expires. Added nested-quote and
+separate-row expansion regressions, plus wheel/key/drag-callback cancellation.
+The first distant jump always pauses the driver for 2.3 seconds; a dedicated
+run pauses it after every asserted jump. All four runs of the final fixture pass
+22/22. The complete affected run passes 98/98, the guide 113/113, docs budget and
+client typecheck pass, and the reference audit reports no errors or unchecked
+references. The broader run also exposed a test-ID prefix collision, fixed by
+using a distinct prefix for inner content without changing existing bubble
+assertions. Development failures remain in the report logs.
+
+The README, guide social and LLP 3000.028 §8 describe the revised recipe. Native
+API typing and the drag-callback binding are checked; no iOS/Android UI scrolling
+or gesture execution is claimed on eb1000. Wasm and all generated bindings are
+byte-identical to the baseline. Final disk use is 15.24 GB, under 30 GB. This round ran
+the requested affected checks; the prior entry retains the round-0 full-suite
+result. The [round-1 report](reports/20261007-qj-quote-jump/round1/REPORT.md) records
+measurements, commands and limits. Commit only; nothing pushed or published.
+
+## 2026-10-07 — QJ round 2: browser timing bounds reject broken fixtures
+
+Astra's round-1 review found that widening driver waits had lost the four-second
+failure assertion and that repeated unhighlighted frames extended a supposed
+highlight duration. The test now records browser `performance.now()` for tap,
+viewport/completed arrival, immutable highlight transitions and the failure
+notice. Arrival must take at most two seconds, actual highlight on-time must
+be 1.7–2.3 seconds, and the four-second failure must appear within 3.9–4.5 seconds.
+A durable sample accounts for the initial layout's brief color invalidation;
+unhighlighted frames never add time. Driver waits remain generous and state-based.
+The product's four-second search/settle and 1.8-second highlight are unchanged.
+
+Five disposable generated-fixture controls all fail their intended assertions,
+each with the 2.3-second driver pause: eight-second failure timeout, 100 ms
+highlight, both together (Astra's exact mutations), eight-second actual arrival,
+and list-only key observation. A scoped web document key listener fixes the
+conditional BODY-focus PageUp edge; it is removed when the jump owner ends.
+The regular body-keyboard regression and Astra's adapted trusted-input probe
+pass. Real PageUp after explicit blur moves the list 2,188 → 1,670 px, with no
+additional correction and no highlight. No common focus-loss journey is inferred.
+
+Qualification: affected tests 99/99, three final quote-fixture runs 23/23 each
+(including driver delay), guide 113/113, trusted keyboard probe 6/6, client
+typecheck and docs budget pass. Guide, README and LLP 3000.028 §8 are updated.
+All wasm artifacts are byte-identical; native UI scrolling remains unverified.
+The [round-2 report](reports/20261007-qj-quote-jump/round2/REPORT.md) retains the
+positive and deliberately negative evidence. This round runs affected checks;
+the round-0 full-suite result remains separate. eb1000 only, below 30 GB, commit
+only; nothing pushed or published.
+
+
+## 2026-10-07 — UA: ordinary native assets and named waits
+
+Reproduced a missing ordinary image with a generated Expo app on the Apartment
+mini's own iOS 27 simulator, using published 0.4.13. Both Release and Debug fail;
+the web starter succeeds. Instrumentation shows the hook dispatches authenticated
+Range GETs and receives 206. Expo exposes a stream alongside RN's Blob, which
+rejects byte-array construction. The old downloader misclassified that local
+assembly failure as E_OFFLINE and retried through offline/reconnect cycles.
+The frozen native pilot has no hook or HTTP interception trace establishing its
+exact cause; its absence of media callbacks does not prove an absent GET.
+
+Use the host's public Response.blob() when Blob buffer construction is not
+supported, with the existing opaque-body allowance. Preserve once semantics,
+Blob ownership, cancellation and auth custody. Every loading useAsset now names
+its stage and diagnostic deadline; after five seconds E_ASSET_WAIT explains the
+pending stage without cancelling or replaying it. Synchronous custom asset
+throws become E_CLIENT. The app facade and both clients carry private progress
+without changing Client.asset's public signature. Assets/client cards and code
+lookup document the state. Generic native smoke explicitly reports assets as
+not exercised; application witnesses must observe hook states and media callbacks.
+
+Fixed generated Release, Debug and web apps all reach ready and image-load.
+An injected 6.2-second native fetch hold reports waiting.headers and E_ASSET_WAIT
+before the proxy sees a GET, then completes once. The Release-path regression
+runs RN's real production Blob code with only its native byte store mocked;
+published 0.4.13's downloader fails both ordinary/once controls. Blob tests pass
+39, React 66, and the earlier affected asset/native/media run passes 160 with
+no skips. Full Mac suite qualification is recorded in the linked report.
+
+Mac wasm is 2,135,439 B raw / 645,163 B gzip; the unchanged 645,564 B cap covers
+that measurement and RX's recorded merged Linux 645,264 B gzip. Linux was not
+rerun by this mini-only lane. No core/device Rust, native ABI, persisted encoding,
+schema identity or storage layout changes. Sources remain within 1,500 lines;
+local.ts stays at 1,500 by condensing one existing comment. The owned simulator
+was shut down/deleted and fixture servers stopped. No other simulator/process
+was touched. Local commit only, nothing pushed or published. See the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md) and LLP
+3000.008.002.000 §6 for evidence and the diagnostic contract.
+
+
+UA full Mac qualification completed in 2,673 s with the required SQLite flag:
+Rust 5,159 passed / 2 failed / 33 ignored; client pool 328/328 files executed,
+6,527 tests passed / 1 failed / 10 skipped; fixture wrappers 9/9; serial models
+79/79. The full command exited 1 from two stages: new E_ASSET_WAIT definition/
+recovery pins were missing, the witness card exceeded its existing line budget,
+and asset progress changed the await census. Added the pins, tightened the card
+within 399 lines, and reviewed the four changed asset awaits plus the zero-await
+progress module. They add no mutation delivery scope, site or fault recipe.
+All 338 behavioral matrix cases had passed. Final guide rerun passes 113/113;
+final census rerun passes 1/1. No assertions, deadlines, work counts or budgets
+were weakened. No all-green whole-script rerun is claimed; every observed
+failure is repaired and rechecked. Runtime inputs of the other passing checks
+are unchanged. Final CLI code lookup, reference and source/diff audits pass;
+the report retains the raw full-suite result and the repair evidence.
+
+## 2026-10-07 — UA round 1: conversion boundaries and progress-aware waits
+
+Continued from 079d3dd175 on eb1000 only, in the UA worktree. Both round-0
+reviews confirmed the stock native fix but found the remaining blob() exception
+boundary; Astra also reproduced healthy transfers emitting E_ASSET_WAIT.
+
+Observe completion of Expo's public arrayBuffer() call while its public blob()
+runs, on that response only, restoring the method on settlement. Body-read
+resets stay transport; later constructor/native conversion failures are E_CLIENT
+with no transport retries or offline transition. The exact RN buffer-constructor
+refusal also handles a non-extensible response. Unknown unobserved failures
+remain transport. Native conversion stays host-owned and bytes are read once.
+Installed Expo FetchResponse/createBlob and RN production Blob tests cover both
+success/failure boundaries, duplicate modules, sealed responses, and ordinary/
+once behavior. Real process-device clients stay online after either conversion
+failure with one asset request.
+
+Stage changes and received bytes restart the hook diagnostic and clear a stale
+one; the body exposes received/known-total bytes. Opaque headers/body waits
+use the established buffered allowance. A real six-second HTTP test (500 ms
+chunks) paints all six streaming/opaque ordinary/once images without diagnosing
+a stall; held session/client stages diagnose independently after five seconds.
+AssetState.waiting is optional for older loading literals. The custom native
+media-store uri requirement is documented beside the browser Blob fallback.
+Updated LLP 3000.008.002.000 §6, guide/code lookup, and the operator's Release
+fixture/recheck modes together. No policy, native ABI or persisted-byte change.
+
+Final coverage: Blob lifecycle 49, buffered HTTP 1, React 66, type tests 11,
+asset retry 38, avatars/lists/pressure 62, native smoke/media dependencies 25,
+delivery-fault/census 339, guide 113; no skips. Client typecheck/build, docs
+budget and reference audit pass. Initial affected run had two new message
+expectation failures (the established formatter exposes ECONNRESET); corrected
+them and reran all Blob/HTTP/React/type cases, 127/127. The initial log remains
+in the report. No whole-suite run is claimed. Delivery census adds one await
+for existing blob I/O, with no delivery fault scope or recipe changes.
+
+Linux wasm prerequisite: 2,135,164 B raw / 645,264 B gzip, unchanged 645,564 B
+cap. No engine/device input changed. No other lane/host/process touched, no
+simulator run, nothing pushed or published. iOS evidence remains round 0;
+the operator will perform the updated Release recheck. See the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md#round-1--review-corrections-on-eb1000-2026-10-07).
+
+## 2026-10-07 — UA round 2: sealed conversion and observable wait deadlines
+
+Continued on eb1000 from 6eb514cd91, with both round-1 review findings. Replace
+the response-property observer with a separate receiver for Expo's public
+blob()/arrayBuffer() boundary. Other methods and accessors keep the original
+receiver; no response or prototype is patched. Sealed/frozen responses now
+classify native conversion refusal as E_CLIENT with one request and no offline
+transition. Body resets retain E_OFFLINE, safe range retries and once non-replay.
+Buffer-capable browser hosts keep their native receiver. Skip Expo's unused lazy
+body getter when native conversion owns the body; the frozen matrix exposed its
+attempt to assign bodyStreamController before a body read.
+
+Separate the diagnostic clock from transport expiry. Streams diagnose at
+4,999 ms, strictly before the unchanged 5,000 ms abort even when an initial or
+restarted body receives nothing. Opaque headers/body waits report progress
+unknown at fifteen seconds with no stage change. Fifteen seconds exceeds the
+proved healthy six-second transfer while bounding the unexplained wait; this
+notice explicitly does not prove a network stall. The full opaque transfer
+allowance stays intact, up to 35m 8s. Other named stages keep five seconds.
+Stage/byte progress still clears old diagnostics and renews the deadline.
+
+Installed Expo/RN matrix and lifecycle: 64 pass. Remaining requested affected
+Node cases: 183 pass (retry 38, buffered HTTP 1, avatars/lists/pressure 66,
+React 67 and read-types 11). Fake-clock hook coverage checks empty-first and
+empty-restarted bodies, opaque expiry and pre-header waits, diagnostic order,
+request/byte counts and timer cleanup. Healthy six-second images still paint
+without diagnostics. Delivery-fault/census 339 and guide 113 pass. Client
+typecheck/build, docs budget and reference audit pass. Initial focused run
+124/132 exposed the frozen getter bug above; final Blob rerun 64/64 closes it.
+The original failing log is retained. No whole-suite or new native qualification
+is claimed. The same blob await now has a separate receiver (still ten asset
+download awaits); no mutation scope/site or fault recipe changed.
+
+LLP 3000.008.002.000 §6, guide/client documentation, issue and the report now
+carry the final contract. The operator fixture adds sealed/frozen conversion
+injections and 16.2-second opaque header/body holds, with the fifteen-second
+unknown-progress expectation. No other lane/host/process touched, no simulator
+run, no push. No engine/device Rust input, persisted byte format, native ABI or
+wasm budget change. iOS Release recheck remains the operator's next step; see
+the [UA report](reports/20261007-ua-useasset-native/REPORT.md#round-2--sealed-responses-and-bounded-wait-explanations-2026-10-07).
+
+## 2026-10-07 — UA round 3: keep the wait explanation through backoff
+
+Continued on eb1000 from df8ec3e6fa. Both round-2 reviews found that callback
+order does not ensure React commits: a busy thread can deliver the 4,999 ms
+notice and 5,000 ms abort before React renders, leaving only unexplained
+backoff. On entering backoff, useAsset now snapshots the overdue stage from
+its clock/progress even if the notice callback has not run. waiting.why carries
+E_ASSET_WAIT; waiting.interrupted retains its stage, progress, timestamps and
+refusal while waiting.stage remains backoff. Backoff can add its own notice
+without losing that snapshot. The next attempt clears both; terminal outcomes
+replace loading. Transport limits, native conversion, once safety and Blob
+ownership are unchanged. Opaque waits keep their fifteen-second notice and
+full buffered allowance.
+
+Added three no-act busy-frame regressions: empty first stream, empty restarted
+stream and partial stream. Both callbacks run in one timer advance with only
+microtask checkpoints, then the real React commit/DOM is checked. Each also
+runs abort-first. The round-2 control fails all three (four reported failures
+including the parent); the fix passes them, including carried byte counts,
+retry clearing and timer cleanup. Kept the act-separated tests and opaque
+expiry case. Updated the type test, LLP 3000.008.002.000 §6, guide/code lookup,
+client documentation, closed issue, report and operator fixture labels.
+
+Final requested checks: 250 affected client cases (Blob 64, retry 38, buffered
+1, avatars/lists/pressure 66, React 70, read-types 11), 339 delivery-fault/census
+cases and 113 guide tests, all passing with no skips. Client typecheck/build,
+docs budget, reference audit and fixture TSX syntax pass. No census or budget
+change. No whole-suite or new iOS qualification claimed. Work stayed within
+this lane and host; no other worktree/process touched, no simulator, no push.
+The operator's iOS Release recheck is pending; the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md#round-3--wait-explanations-survive-react-batching-2026-10-07)
+retains the red control, final evidence and current reproduction instructions.
 ## 2026-10-06 — RO: server-enforced read-only clients (LLP 3000.033)
 
 Implemented Accepted revision 3: independent capped read families and generation
@@ -89346,3 +89619,222 @@ is Linux plus 300 B. No persisted schema/catalog/IR/table or ordinary inbox
 bytes change, and no Mac qualification is claimed. Workspace about 25 GiB,
 one Cargo target; eb1000 only. Complete report, logs and receipts:
 `reports/20261006-fh-following-history/round-5/REPORT.md`.
+## 2026-10-07 — UA round 4: merge main with owned-arm and read-only custody
+
+Merged b14888f763 into UA 9ab49c9de8 (merge, not rebase), after both UA
+round-3 reviews returned READY. Resolve client.ts by keeping UA's assetReader
+and progress-preserving retries with main's readGate.verify first, plus main's
+verified-only assetSource. Everything outside the asset method/import equals
+main: OA's arm propagation and final dispatch fence, read-only guards and
+write-machinery omission are preserved. Both journal histories remain intact.
+Fold main's P3 Round 2 evidence clarification verbatim into the closed UA issue;
+keep the open path deleted. Keep both delivery-instrument rationales and
+recompute only the combined client's 62-await seal; no fault recipe changes.
+A root audit also exposed main's existing difftest long-fragment @ref failure;
+replace that comment's fragment with LLP 3000.035 §5.1, with no executable change.
+
+Requested scope: 24 files, 884 passes, zero failures and one labelled optional
+published-binary skip. Includes assets/Blob/buffered/avatars/lists/pressure,
+React, delivery-fault/census, read-types, 32 owned-arm tests, every read-only
+client file including round 4, client lifecycle/seams, starter and README.
+Full canonical suite completed in 2,131 seconds: Rust 311 binaries / 1,024
+executions plus doctests, client pool 339 files (6,670 pass, one failure,
+55 labelled skips), then 79/79 full-count seeded models. Guide 113, package/
+starter typechecks, builds, release guard, docs budget and fixture wrappers pass.
+
+Two full-run failures are retained, not called a single-green-run receipt.
+The unchanged witness shrinking-group cleanup case returned invalid /proc
+process group; the complete canonical single-thread preparation rerun passes
+23/23. The identity-organizations outside-Git scratch control rejected this
+run's worktree-local TMPDIR; its unchanged whole-file rerun with a private
+/tmp directory passes three active checks, one expected managed-provider skip.
+No test count, timeout, assertion or budget was lowered. Reference audit passes.
+
+Wasm remains 2,135,164 B raw / 645,264 B gzip against the unchanged 645,564 B
+cap, SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83,
+before/after the integrated full suite. No other lane/host was used; nothing
+pushed or published. Operator iOS Release recheck remains pending. The
+[round-4 report](reports/20261007-ua-useasset-native/round4/REPORT.md) records all
+conflicts, exact source comparisons, original failures and passing reruns.
+## 2026-10-07 — RS: refused opens and adoptions preserve storage
+
+Fixed the 0.4.15 publication blocker where opening an older device installed
+`_read_sessions` before a later capability adoption refused. SQLite now creates
+that table and its family index only in the read-session mint transaction;
+authority and cleanup treat absence as empty without creating storage. The
+mint-binding scope column joins authorized bound minting. Other existing-store
+upgrades, metadata and native side tables join accepted backend installation;
+existing journal modes are preserved. PostgreSQL attachment now owns one
+transaction through all physical upgrades, backend rechecks, cap rebuild and
+contribution adoption. Read snapshots no longer count as PostgreSQL writer
+fences. LLP 3000.033 records the refusal rule.
+
+Added Linux regressions comparing every table/row and SQLite file bytes in both
+WAL and DELETE modes, plus PostgreSQL schema/row snapshots after early and late
+refusals. Focused identity, read-only, store and adoption checks pass, including
+29 PostgreSQL adapter tests on this worktree's private cluster. Final wasm is
+byte-identical to baseline: 2,135,164 raw / 645,264 gzip bytes, with the existing
+645,564-byte budget unchanged.
+
+The complete suite ran in 1,508 seconds: 308 Rust test binaries / 1,021 executions
+and doctests passed, as did build/typecheck/fixture steps and all 79 full-count
+client-model tests. The 338 client files had 6,598 passes, one failure and 54
+labelled skips. The failure was an existing logout recorder observing response
+completion instead of dispatch; a revocation probe could finish first. Moved
+recording before the fetch await, retaining the revocation and no-refresh
+assertions. All ten read-only files then passed all 119 tests with no skips,
+including the verified published Linux 0.4.13 downgrade/re-upgrade witness.
+This is a complete run with a corrected affected rerun, not a single-green-run
+receipt. The Darwin 0.2.33 fence remains for the user's mini run.
+
+The [RS report](reports/20261007-rs-read-sessions-refusal/REPORT.md) records exact
+base-commit paths, the wider pre-refusal-write audit, all corrections and logs.
+Work stayed on eb1000 in this worktree; its private PostgreSQL cluster is stopped.
+No other host or worktree was used. Nothing was pushed or published.
+
+## 2026-10-07 — RS round 1: version race, WAL preservation and native recovery
+
+Closed the three remaining refusal gaps from Astra's round-0 review. PostgreSQL
+rechecks version, decoded schema/programs and supported-surface admission after
+acquiring the head lock, before upgrades. SQLite opening disables checkpoint on
+close before its first read and retains that setting on refusal, preserving
+committed WAL frames as well as main-file bytes. Accepted activation restores
+ordinary close behavior. Native capture recovery, send-revision checks, native
+cache validation/cleanup and final metadata reads now join installation's
+transaction; construction after commit performs no fallible storage work.
+
+Added regressions for eight attachers waiting through a version change and
+eight successful concurrent legacy attachers. Added refused-version and native
+recovery checks with surviving WAL frames, plus malformed-revision and failed
+native-cache cleanup controls. The Linux and Darwin capability tests now share
+the exact timeline-v2, recorded-attribution and maintained-column fixture
+sources; all three Linux controls compare full schema/rows and bytes in WAL and
+DELETE modes. LLP 3000.033 records the strengthened boundaries.
+
+Focused checks passed: 297 core tests (29 labelled ignores, PostgreSQL rerun
+separately), 80 device/adoption/capability tests, 31 PostgreSQL tests, and 122
+client read-only/shared-fixture tests. The full suite completed in 1,912 seconds:
+308 Rust binaries / 1,021 executions and doctests passed, as did all 79 full-count
+client model tests. The 339 client files reported 6,601 passes, one failure and
+54 labelled skips. The failure was an omitted shared `ordinary` fixture export;
+its import/export correction passed the original fence, Linux refusal and
+round4 rerun (20 passes, seven Darwin-only skips). This is a full run plus a
+corrected affected rerun, not a single-green-run receipt.
+
+Native-only source placement preserves the web implementation and embedded
+panic locations. Final wasm is byte-identical to round 0: 2,135,164 raw /
+645,264 gzip bytes, unchanged 645,564 budget. Reference, append-only and source
+limit checks pass. The user reported the prior commit's Darwin fence passed
+10/10 on the mini; this round did not use another host. The private PostgreSQL
+cluster is stopped. Nothing was pushed or published. The
+[round-1 report](reports/20261007-rs-read-sessions-refusal/round1/REPORT.md)
+retains the review dispositions, intermediate corrections and verification logs.
+## 2026-10-07 — QJ round 3: editing preserves the jump; observe the whole settle period
+
+Addressed both round-2 READY WITH CHANGES reviews. The web document key listener
+now excludes textarea/input/select, inherited contenteditable and editable ARIA
+roles. Seven trusted composer-key cases retain highlight and scroll ownership,
+preserve the draft's normal editing behavior, and keep the original's own text
+visible after a held nested quote expands. Eight more cases cover other editable
+targets and descendants. Body/list scrolling keys, wheel and drag still cancel.
+
+Both distant and already-visible jumps now measure highlight on/off intervals
+through actual settle completion, exposed by a native ID derived from the
+existing request owner. This rejects a 100 ms distant-only flash and a restart
+after the former 2.5-second sample. Product timing constants remain unchanged;
+arrival, duration and failure bounds still use browser performance.now(), with
+generous state-based driver waits.
+
+Merged origin/main b14888f763 in merge commit 2f340e13c1, without rebasing. Both
+parents' JOURNAL histories are preserved in order. The screen-lifetime helper
+keeps QJ's transitive modules and removes OA's deleted useOnlineArm. The merged
+screen retains typing on useOnline's owned arm and quote jumping; the real-layout
+witness now uses createApp/AppProvider in both tiers and observes a typing
+dispatch before jumping.
+
+The affected batch passes 146/146, including all 32 OA owned-arm cases, social
+starter/browser, read-presentation, matchRead and screen-lifetime tests. The final
+38-case quote fixture passes four runs including the batch, 2.3-second driver
+delay, and that delay with 6× CPU throttle. All eight disposable negative controls
+fail for their intended assertions. Guide 113/113, client build/typecheck, docs
+budgets and workspace build pass. The reference audit has one unrelated broken
+LLP 3000.035 anchor inherited byte-for-byte from main; its baseline hashes and
+full output are retained. No QJ reference fails.
+
+Wasm and all generated bindings remain byte-identical to the round-0 baseline:
+2,135,164 raw / 645,264 gzip bytes against the unchanged 645,564 cap. Native API
+typing/query tests pass; native UI layout, scrolling and gestures remain
+unverified on eb1000. The full suite was not rerun this round. Work stayed in this
+worktree at 15.31 GB before log compression, below 30 GB. No push or publication.
+[Round-3 report and evidence](reports/20261007-qj-quote-jump/round3/REPORT.md).
+
+## 2026-10-07 — QJ round 4: calibrate the highlight span and reject brief restarts
+
+Addressed Grok's round-3 timing-oracle changes after Astra returned READY. This
+round changes tests and their documentation only. The starter's TS/TSX/Quarry
+files match the round-3 parent byte-for-byte, including HIGHLIGHT_MS = 1800.
+
+The lower bound now uses first-on/final-off span (1.7–2.3 seconds), with separate
+2.3-second caps on span and summed on-time. The initial roughly 93 ms layout gap
+is still excluded from illuminated time. Observed unthrottled distant spans were
+1802.4–1804.6 ms, restoring about 100 ms of lower-bound slack instead of about
+9 ms for the closest case. A generated-fixture-only observation records the
+actual highlight expiry; any on transition after the first expiry-time off now
+fails, while initial pre-expiry layout gaps remain allowed.
+
+The new blink-restart mutation illuminates again during expiry+40 to expiry+240
+ms. All four measured cases (distant/visible, online/replica) remain below the
+sum/span caps but fail the new restart assertion. All nine mutation controls
+exit 1 for their intended assertions under the 2.3-second driver delay, including
+the short-far and long-restart cases.
+
+Starter/browser/quote tests pass 79/79. Four complete 38-case quote runs pass,
+counting that batch, including driver delay and delay plus 6× CPU throttle. Guide
+113/113, workspace build, client typecheck and docs-budget checks pass. The
+reference audit retains the unrelated LLP 3000.035 broken anchor inherited from
+main. Wasm and generated bindings match all four original hashes; no rebuild was
+needed. Native UI scrolling remains unverified; the full suite was not rerun in
+this test-only round. Work stayed on eb1000 in this worktree at about 15.34 GB,
+below 30 GB. Nothing pushed or published.
+[Round-4 report and evidence](reports/20261007-qj-quote-jump/round4/REPORT.md).
+
+## 2026-10-07 — FH round 6: merge UA, RS and QJ for landing
+
+Merged `origin/main` at `4a0dded93f` into the reviewed FH parent `3d02cc7208`,
+without rebasing or pushing. Both round-5 reviews were READY. The six
+conflicts were additive: retained Following and UA imports in `app-client.ts`
+and `client.ts`, both await classifications, regenerated their combined
+inventory, and preserved both LLP 3000.033 revision histories and JOURNAL
+additions. UA's native asset conversion/progress and OA's arm fence remain
+intact beside Following's transport, abort and pending-write fences.
+
+RS's `store.rs` and engine opening code match main except for the independent
+Following module declarations. Lazy read-session storage, refusal WAL
+preservation, selected-release admission and transactional native recovery
+remain intact. No FH persisted-byte, table, schema/catalog or inbox-certificate
+change. QJ's quote-jump implementation and tests are retained unchanged.
+
+Focused checks passed: Following core 27 including both scale cases; language
+10, research 3, guide 113; serve 203 with four existing ignores; certificates
+3; RS SQLite refusal/capability 8, core authority/capability 25, and PostgreSQL
+refusal 4. The private PostgreSQL cluster was stopped. Focused clients passed
+428 tests with nine labelled skips across Following, OA, UA, read-only and
+schema refusal files; the skipped manual HTTP scale check was separately
+enabled and passed. Typecheck, build, docs budget, await census and references
+passed. One command typo (`bound_sessions`, corrected to `bound_session`)
+was rerun successfully; no test assertion failed.
+
+The full suite passed in 2,490 seconds, exit 0: 313 native binaries / 1,026
+executions and doctests, all 343 client files (6,736 passes, 56 labelled skips),
+nine fixture tests and all 79 serial model tests. Neither the native `/proc`
+witness issue nor round 5's export-retention timeout recurred. All 2,039
+recorded source inputs stayed unchanged through qualification.
+
+Linux wasm is unchanged at 2,135,336 raw / 645,307 gzip bytes. The unchanged
+645,607-byte cap retains 300 B for macOS. Native shaped-page medians: sparse
+50k first/later 1.655/1.577 ms, zero preparation units, 299,636 B peak custody;
+8,200 follows 201.806/1.343 ms, five preparation units, 17,288,752 B. HTTP/SDK
+first pages were 44.42 and 317.60 ms. These are shared-host observations.
+Work stayed on eb1000, pinned to sampled idle CPUs, at 28.54 GB total disk use.
+Darwin measurement/fence remains the operator's check. Push nothing.
+[Conflict dispositions and complete evidence](reports/20261006-fh-following-history/round-6/REPORT.md).

@@ -9,6 +9,7 @@ export const AppState = {
 window.background = value => { AppState.currentState = value ? "background" : "active"; for (const listener of AppState.listeners) listener(AppState.currentState); };
 export const View = ({children, testID}) => <div data-testid={testID}>{children}</div>;
 export const ScrollView = View;
+export const Platform = { OS: "web" };
 export function FlatList({ data, renderItem, keyExtractor, onViewableItemsChanged, testID }) {
   React.useEffect(() => { window.listMounts = (window.listMounts || 0) + 1; return () => { window.listUnmounts = (window.listUnmounts || 0) + 1; }; }, []);
   React.useEffect(() => { onViewableItemsChanged({ viewableItems: data.map(item => ({ item, isViewable: true })) }); }, [data, onViewableItemsChanged]);
@@ -16,6 +17,7 @@ export function FlatList({ data, renderItem, keyExtractor, onViewableItemsChange
 }
 export const Text = ({children}) => <span>{children}</span>;
 export const Button = ({title, onPress, disabled}) => <button disabled={disabled} onClick={onPress}>{title}</button>;
+export const Pressable = ({children, onPress, disabled, accessibilityLabel}) => <button disabled={disabled} aria-label={accessibilityLabel} onClick={onPress}>{children}</button>;
 export const TextInput = ({value, onChangeText, onBlur, testID, accessibilityLabel}) =>
   <input data-testid={testID} aria-label={accessibilityLabel} value={value} onChange={event => onChangeText(event.target.value)} onBlur={onBlur} />;
 export const Image = ({source, accessibilityLabel}) => <img src={source.uri} alt={accessibilityLabel || "image"} />;

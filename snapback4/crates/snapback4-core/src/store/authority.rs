@@ -4,6 +4,7 @@ use crate::{
     authority::{AdmissionRecord, AuthorityTransaction, SessionRecord, WorkRecord},
 };
 use rusqlite::{OptionalExtension, params};
+use crate::identity::read_sessions;
 
 const WORK_COLUMNS: &str = "principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation";
 
@@ -37,8 +38,14 @@ impl AuthorityTransaction for Tx<'_> {
     }
 
     fn session_by_digest(&self, digest: &str) -> Result<Option<SessionRecord>, RuntimeError> {
+        // Missing read-session storage carries no authority and never creates it.
+        let sql = if read_sessions::present(self.conn())? {
+            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE token_digest = ?1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = ?1"
+        } else {
+            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE token_digest = ?1"
+        };
         Ok(self.tx.query_row(
-            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE token_digest = ?1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = ?1",
+            sql,
             [digest],
             |row| Ok(SessionRecord {
                 principal: row.get(0)?, family: row.get(1)?, kind: row.get(2)?,
@@ -55,8 +62,14 @@ impl AuthorityTransaction for Tx<'_> {
         family: &str,
         now: i64,
     ) -> Result<Option<SessionRecord>, RuntimeError> {
+        // Missing read-session storage carries no authority and never creates it.
+        let sql = if read_sessions::present(self.conn())? {
+            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = ?1 AND family = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1"
+        } else {
+            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1"
+        };
         Ok(self.tx.query_row(
-            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = ?1 AND family = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1",
+            sql,
             params![principal, family, now],
             |row| Ok(SessionRecord {
                 principal: row.get(0)?, family: row.get(1)?, kind: row.get(2)?,
@@ -95,7 +108,9 @@ impl AuthorityTransaction for Tx<'_> {
     fn invalidate_session(&self, digest: &str) -> Result<(), RuntimeError> {
         self.conn()
             .execute("DELETE FROM _sessions WHERE token_digest = ?1", [digest])?;
-        self.conn().execute("DELETE FROM _read_sessions WHERE token_digest = ?1", [digest])?;
+        if read_sessions::present(self.conn())? {
+            self.conn().execute("DELETE FROM _read_sessions WHERE token_digest = ?1", [digest])?;
+        }
         Ok(())
     }
 
@@ -104,7 +119,9 @@ impl AuthorityTransaction for Tx<'_> {
             "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
             params![principal, family],
         )?;
-        self.conn().execute("DELETE FROM _read_sessions WHERE principal = ?1 AND family = ?2", params![principal, family])?;
+        if read_sessions::present(self.conn())? {
+            self.conn().execute("DELETE FROM _read_sessions WHERE principal = ?1 AND family = ?2", params![principal, family])?;
+        }
         Ok(())
     }
 }

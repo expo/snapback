@@ -113,8 +113,8 @@ answer; retained rows grant no authority. Account change clears UI
 state through `AppProvider`. Delivery is reported by the SDK's
 `reports delivery` binding; only foreground visible settled messages report
 `seen`. The receipts clause assigns ordinals, recipient counts and join floors
-at server commit. Sends queue offline without predicted history rows. Receipts appear on each bubble, using the same cursor as its history
-page. `usePendingWrites` shows outstanding sends and posts. Every send saves
+at server commit. Sends queue offline without predicted history rows. Receipts appear on each bubble, joined by ID from an independent page
+chain with the same history bound and index. `usePendingWrites` shows outstanding sends and posts. Every send saves
 its ID and complete arguments (including the attachment ID) in an account-
 and backend-scoped intent journal before dispatch. Each saved ID observes its
 own settlement; Edit restores a failed message, and Dismiss removes only the
@@ -143,7 +143,7 @@ Refused sends stay editable after reopening: one private route lookup resolves t
 History uses `messages where .conversation = conversation last 20 by
 byConversationOrdinal after c`, as `guide sync` teaches. Its safe leading
 equality establishes the same scope and coverage as a bracket prefix.
-Receipt pages share that index and history cursor.
+Receipt pages share that index and bound, with their own SDK cursor chain.
 
 Likes declare `sync public last 2000 by .at with own keys .principal`.
 Ordinary `exists likes[post, viewer]` answers “did I like this?” from the
@@ -231,15 +231,56 @@ generation changes. Account/backend/client/argument changes clear the draft too.
 The full Conversation retains the journal, receipts and richer UI. See
 `guide social` for the full bounded source and `guide client` for the contract.
 
-## Quoted messages
+## Jump to a quoted message
 
-`src/QuotedMessage.tsx` is ready to mount with a referenced message ID when adding
-reply UI; this starter has no quote composer. Its `messagePhoto` point read returns
+Choose Reply on a bubble, type and Send. Only the original's ID is saved as
+`replyTo`; previews come from `src/QuotedMessage.tsx`. Its `messagePhoto` point read returns
 the whole message, even outside the loaded history page. `matchRead`
 keeps a stable loading placeholder, renders present text, uses “unavailable” only
 for proven absence, hides denied reads, and keeps partial empty reads uncertain.
 It never caches a previous quote through withdrawal. `snapback4 guide social`
 includes the same component; hold the point read in tests, then settle it.
+
+Tap the excerpt to call `useJumpToMessage` through `QuotedMessage`'s `onJump`.
+If the original is already visible it is highlighted in place. Otherwise the hook
+scrolls to its index, opening `history({ conversation, through: ordinal })` if
+needed: an indexed 20-row window ending at that ordinal, with identically bounded
+receipt pages. Distance does not require an unbounded page-back loop. Online reads
+can reach beyond the replica's 500-row horizon; offline reads use acquired history
+and keep incomplete coverage uncertain. Latest messages restores the newest window.
+
+The single variable-height `FlatList` uses `scrollToIndex` and
+`onScrollToIndexFailed`: approach an unmeasured offset, then retry as cells mount,
+for at most **four seconds**. Measured visibility starts a **1.8-second** highlight
+and a bounded **four-second settle period**. Row and content layout changes
+remeasure the target using `measureInWindow` and correct its `scrollToOffset`.
+Short bubbles fit fully; when a nested quote makes a bubble taller than the
+viewport, its own text stays visible. Touch, drag, wheel and scrolling keys
+relinquish scroll ownership immediately, including queued measurements. Web keys
+are captured at the document while the jump owns scrolling, including when the
+quote loses focus and the browser still scrolls its list. Editing in a textarea,
+input, select, contenteditable or an editable ARIA role keeps jump ownership.
+Cleanup removes the listener when the jump ends or the history owner unmounts.
+Failure shows a retry message. Absent/denied quotes have no jump action; loading,
+partial and revalidating quotes never authorize a jump. Expiry in an extended
+schema must flow through these live reads, never a saved excerpt or ordinal alone.
+No read/window change replaces the composer, draft, reply selection or once viewer.
+Browser tests seed an original, 30 messages and a reply. An observer armed before
+tapping records `performance.now()` for arrival, highlight transitions and the
+failure notice. This fixture requires arrival/completion within two seconds,
+1.7–2.3 seconds from first highlight on to final off, at most 2.3 seconds of
+summed on-time, and the four-second failure notice within 3.9–4.5 seconds.
+Initial layout gaps are not illuminated time, so the lower bound uses the span.
+Both visible and distant cases track every interval until the settle owner ends.
+The disposable fixture records the actual expiry timestamp: any off-to-on
+transition after the first expiry-time off fails, even a brief restart inside
+the duration caps. Pre-expiry layout gaps remain allowed. These measurements stay
+independent of generous driver waits, checked with deliberately broken fixtures;
+the `jump-completed-<id>` native ID persists after the highlight, so delayed test
+drivers can poll completion and current geometry without racing the highlight.
+Other cases cover visible/unavailable originals, draft preservation, delayed
+quote expansion and user cancellation. Native scrolling uses portable React
+Native APIs and typechecks; the browser witness is not an iOS/Android UI run.
 
 ## Rendering read states
 

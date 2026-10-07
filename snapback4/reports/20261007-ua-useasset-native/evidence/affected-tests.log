@@ -1,0 +1,205 @@
+▶ completed ordinary and once bytes survive rotation; new local downloads await its bearer
+  ✔ online (70.691458ms)
+  ✔ process (1119.466709ms)
+  ✔ wasm (1370.075917ms)
+✔ completed ordinary and once bytes survive rotation; new local downloads await its bearer (3478.027292ms)
+▶ local queue saturation keeps link and retained media live
+  ✔ process (2039.73225ms)
+  ✔ wasm (2106.412792ms)
+✔ local queue saturation keeps link and retained media live (4500.379334ms)
+▶ queued local avatars survive credential rotation without invalidating retained handles
+  ✔ process (122.197208ms)
+  ✔ wasm (308.495917ms)
+✔ queued local avatars survive credential rotation without invalidating retained handles (793.943792ms)
+▶ message authors and feed avatars share ordinary home-row authority
+  ✔ online (9858.772333ms)
+  ℹ {"tier":"online","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/226317ca-bd25-4dfa-a3ba-ffe504635050","type":"image/png"},"calls":2}
+  ℹ {"tier":"online","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/c0b0bf1b-31f6-487d-a38c-fcbda23574be","type":"image/png"},"calls":2}
+  ℹ {"tier":"online","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/3a46a4ca-7abc-4d46-aa7b-b2eb64217c87","type":"image/png"},"calls":2}
+  ℹ {"tier":"online","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"online","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+  ✔ process (10958.156667ms)
+  ℹ {"tier":"process","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/c6e32b09-e458-4947-bd63-09e8ecd6c50a","type":"image/png"},"calls":2}
+  ℹ {"tier":"process","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/5aaf0e3a-1510-4785-8d80-021cddeeffa1","type":"image/png"},"calls":2}
+  ℹ {"tier":"process","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/0c96dc36-d161-48a5-b424-2cee49e5a262","type":"image/png"},"calls":2}
+  ℹ {"tier":"process","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"process","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+  ✔ wasm (10027.214041ms)
+  ℹ {"tier":"wasm","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/9554232f-0e37-48e2-90d9-f98070fbe2c2","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/9b7e643b-050c-4768-b6ed-165fe4ea5b47","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:61515/ad8d0aed-d000-4b2a-ae18-cb2d1c7f550b","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"wasm","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+✔ message authors and feed avatars share ordinary home-row authority (31641.155959ms)
+✔ an invalid store_id receipt cannot erase another confirmed entry (16.0555ms)
+✔ an invalid table receipt cannot erase another confirmed entry (3.404334ms)
+✔ an invalid row receipt cannot erase another confirmed entry (2.823875ms)
+✔ an invalid column receipt cannot erase another confirmed entry (3.165917ms)
+✔ an invalid missing receipt cannot erase another confirmed entry (1.92575ms)
+✔ an invalid receipt for the confirmed entry's own cell retires it (1.463292ms)
+✔ native image/png bytes survive a fresh cache opener; response ownership ends after copying (2.831167ms)
+✔ native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying (1.479375ms)
+✔ once responses with valid receipts remove stale ordinary bytes without reading or storing the once Blob (1.594208ms)
+✔ once responses with absent receipts remove stale ordinary bytes without reading or storing the once Blob (1.413708ms)
+✔ once responses with malformed receipts remove stale ordinary bytes without reading or storing the once Blob (2.193333ms)
+✔ once responses with incomplete receipts remove stale ordinary bytes without reading or storing the once Blob (2.040083ms)
+✔ once responses with no table receipts remove stale ordinary bytes without reading or storing the once Blob (1.194834ms)
+✔ once responses with no row receipts remove stale ordinary bytes without reading or storing the once Blob (1.277958ms)
+✔ once responses with no column receipts remove stale ordinary bytes without reading or storing the once Blob (1.296958ms)
+✔ once falls back to a transient data URI without a second fetch or durable bytes (1.425541ms)
+✔ data URI fallback preserves supported media bytes and handles a missing object-URL function (0.435875ms)
+✔ data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies (0.571708ms)
+✔ data URI fallback rejects trailing line terminators even when they fill the expected encoded length (0.2485ms)
+✔ a delayed transient conversion survives rotation but not sign-out or close (3.529042ms)
+✔ FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs (0.657167ms)
+✔ modern Blob reads and browser URLs retain their behavior without FileReader (2.152333ms)
+✔ failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws (0.186875ms)
+✔ upload keeps caller-owned Blobs open on both success and failure (0.217208ms)
+✔ retention drops old inferred homes and refuses downloads without a valid home receipt (2.481458ms)
+✔ retained receipt store binding is revalidated on read (1.076083ms)
+✔ retained receipt store binding is revalidated on reconcile (1.140375ms)
+✔ retained receipt store binding is revalidated on reopen (1.46675ms)
+✔ retained receipt store binding is revalidated on unbound reopen (1.149334ms)
+✔ a foreign once receipt checks the entry after serialized writes and never copies its body (1.081834ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-1/2 (0.656208ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-0/2 (0.285667ms)
+✔ a ranged body retains only the entire ordinary file: bytes 1-2/3 (0.3385ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-9/10 (0.302208ms)
+✔ a ranged body retains only the entire ordinary file: bytes */2 (1.005542ms)
+✔ a ranged body retains only the entire ordinary file: missing range (0.2675ms)
+✔ Expo Release Blob with a streamed response reaches a handle (ordinary) (135.763334ms)
+✔ Expo Release Blob with a streamed response reaches a handle (once) (9.394041ms)
+✔ real buffered HTTP downloads over five seconds reach ready and paint, ordinary and once (8626.683625ms)
+ℹ {"completed":[{"id":"completion-ordinary","ms":6022},{"id":"blob-ordinary","ms":6021},{"id":"completion-once","ms":6016},{"id":"blob-once","ms":6015}],"requests":[{"id":"completion-ordinary","range":"bytes=0-"},{"id":"completion-once","range":"bytes=0-"},{"id":"blob-ordinary","range":"bytes=0-"},{"id":"blob-once","range":"bytes=0-"},{"id":"completion-once"},{"id":"blob-once"}],"states":{"completion-ordinary":{"status":"ready"},"completion-once":{"status":"ready"},"blob-ordinary":{"status":"ready"},"blob-once":{"status":"ready"}}}
+✔ a follower GETs every placed element; reorder, drop and deletion keep one home (713.551584ms)
+✔ native: synced list elements survive offline reopen and drop revokes only that element (8256.879584ms)
+✔ wasm: synced list elements survive offline reopen and drop revokes only that element (8390.83875ms)
+✔ reopening a legacy Alice list cannot publish Bob's upload or take his placement (298.669ms)
+✔ native: legacy bare id cannot retain bytes after real home revoke (3374.019084ms)
+✔ native: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke) (2389.034708ms)
+✔ native: legacy bare id cannot retain bytes after real home clear (3357.351334ms)
+✔ native: legacy bare id cannot retain bytes after real home delete (3371.052333ms)
+✔ native: legacy copied facts cannot retain bytes after real home revoke (3407.747125ms)
+✔ native: legacy copied facts cannot retain bytes after real home clear (3357.059625ms)
+✔ native: legacy copied facts cannot retain bytes after real home delete (3346.155875ms)
+✔ wasm: legacy bare id cannot retain bytes after real home revoke (3316.2315ms)
+✔ wasm: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke) (2377.000375ms)
+✔ wasm: legacy bare id cannot retain bytes after real home clear (2364.252125ms)
+✔ wasm: legacy bare id cannot retain bytes after real home delete (2352.125166ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home revoke (2370.764417ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home clear (2365.52325ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home delete (2343.312375ms)
+✔ native: a download delayed across store replacement cannot retain legacy bytes, even after reopen (3352.603375ms)
+✔ native: a download delayed across store replacement preserves the newer download, even after reopen (4364.241125ms)
+✔ native: a once download delayed across store replacement preserves the newer download, even after reopen (3364.590083ms)
+✔ wasm: a download delayed across store replacement cannot retain legacy bytes, even after reopen (3309.876042ms)
+✔ wasm: a download delayed across store replacement preserves the newer download, even after reopen (4212.097833ms)
+✔ wasm: a once download delayed across store replacement preserves the newer download, even after reopen (3315.694291ms)
+✔ native: list cache retires on expiry and stays retired after offline reopen (2236.969959ms)
+✔ native: list cache retires on generation and stays retired after offline reopen (2329.712583ms)
+✔ wasm: list cache retires on expiry and stays retired after offline reopen (3218.223ms)
+✔ wasm: list cache retires on generation and stays retired after offline reopen (2307.1285ms)
+✔ native: persisted old list media index reacquires unchanged rows once (3184.384042ms)
+✔ native: persisted old scalar media index reacquires unchanged rows once (3276.078792ms)
+✔ wasm: persisted old list media index reacquires unchanged rows once (3225.838042ms)
+✔ wasm: persisted old scalar media index reacquires unchanged rows once (3221.011792ms)
+✔ native: nested placed elements cross inner lists and survive an empty first list offline (2258.484792ms)
+✔ wasm: nested placed elements cross inner lists and survive an empty first list offline (2210.349709ms)
+✔ native: a legacy copy in refs cannot replace the same row's released photo home (2410.194375ms)
+✔ wasm: a legacy copy in refs cannot replace the same row's released photo home (2359.061417ms)
+✔ native: a paged upgrade restore halts follow and flush (1629.695542ms)
+✔ wasm: a paged upgrade restore halts follow and flush (1605.519125ms)
+✔ native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B publishes (1255.403625ms)
+✔ native: initial acquisition rejects an overtaken terminal snapshot continuation after B publishes (1209.02425ms)
+✔ native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B stages (1233.932333ms)
+✔ native: initial acquisition rejects an overtaken terminal snapshot continuation after B stages (1272.4325ms)
+▶ forty asset calls recover after actual connection admission pressure
+  ✔ online (1376.782875ms)
+  ℹ {"tier":"online","ready":40,"attempts":63,"resets":0,"limited":23,"denied":[]}
+  ✔ process (1450.500833ms)
+  ℹ {"tier":"process","ready":40,"attempts":60,"resets":0,"limited":20,"denied":[]}
+  ✔ wasm (1572.083167ms)
+  ℹ {"tier":"wasm","ready":40,"attempts":56,"resets":0,"limited":16,"denied":[]}
+✔ forty asset calls recover after actual connection admission pressure (5331.076834ms)
+✔ bare HTTP 408 retries ordinary bytes without a refusal envelope (283.08925ms)
+✔ bare HTTP 429 retries ordinary bytes without a refusal envelope (277.896708ms)
+✔ bare HTTP 500 retries ordinary bytes without a refusal envelope (265.830209ms)
+✔ bare HTTP 502 retries ordinary bytes without a refusal envelope (268.870625ms)
+✔ bare HTTP 503 retries ordinary bytes without a refusal envelope (301.018292ms)
+✔ bare HTTP 504 retries ordinary bytes without a refusal envelope (274.398958ms)
+✔ rotation during admission backoff returns the existing refusal instead of resetting custody (1.512209ms)
+✔ ordinary reset recovers with a non-consuming full-file Range (312.696ms)
+✔ ordinary body reset recovers with a non-consuming full-file Range (303.963458ms)
+✔ ordinary 503 recovers with a non-consuming full-file Range (535.588084ms)
+✔ ordinary timeout recovers with a non-consuming full-file Range (0.879833ms)
+✔ exhaustion is bounded, retains its cause, and preserves long retry guidance (1912.822625ms)
+✔ a real HTTP video progressing for over five seconds completes in one transfer (6024.627375ms)
+✔ ordinary and one-view streams exceed thirty seconds; an actual stall still recovers (3.710208ms)
+✔ body decoding consumes Retry-After time without an early request (0.889459ms)
+✔ empty chunks cannot postpone a stall or its bounded recovery (0.929333ms)
+✔ a stalled 503 error body preserves Retry-After 60 (0.3905ms)
+✔ a stalled 503 error body preserves Retry-After Thu, 01 Jan 1970 00:02:40 GMT (3.497292ms)
+✔ E_ASSET_UNKNOWN is final even when mislabelled retryable (0.152625ms)
+✔ E_ASSET_VIEWED is final even when mislabelled retryable (0.080416ms)
+✔ E_AUTH is final even when mislabelled retryable (0.083333ms)
+✔ E_RULE is final even when mislabelled retryable (0.07775ms)
+✔ revocation during ordinary retry stops at its first refusal (286.360625ms)
+✔ one-view reset never replays an ambiguous download (0.940042ms)
+✔ one-view body reset never replays an ambiguous download (0.679416ms)
+✔ one-view timeout never replays an ambiguous download (1.320292ms)
+✔ one-view malformed refusal never replays an ambiguous download (0.554083ms)
+✔ a timed-out late Blob is closed and never retained or published (1.07575ms)
+✔ buffered bodies use a size-aware finite allowance: 1048576 (1.088292ms)
+✔ buffered bodies use a size-aware finite allowance: null (1.256917ms)
+✔ buffered bodies use a size-aware finite allowance: invalid (0.712959ms)
+✔ buffered bodies use a size-aware finite allowance:  (0.416333ms)
+✔ a completion-only fetch gets the unknown-size allowance and disposes its late response (0.469959ms)
+✔ queue and backoff share thirty seconds even across opaque attempts (0.538917ms)
+✔ queue expiry during Retry-After preserves the admission refusal and deadline (0.423875ms)
+✔ post-download retention failure is retryable only for ordinary bytes: once=false (0.182459ms)
+✔ post-download retention failure is retryable only for ordinary bytes: once=true (0.153ms)
+✔ the queue admits six bodies and cancels waiting and active calls on close (1.23075ms)
+PASS new MP4 URI decodes H.264 64x48; image bytes/name and escaped paths preserved
+PASS legacy MP4 migration through URI/read and fresh helper reopen
+PASS both-variant interrupted writes resolve to latest bytes; format changes leave no shadow
+PASS cleanup removes canonical and interrupted variants without resurrection
+PASS supported MP4 recognition leaves images, unknown brands and truncated headers unchanged
+PASS invalid IDs/hex refuse without replacing bytes; store scopes remain separate
+PASS closed helper refuses every operation and preserves ordinary cache for reopen
+✔ Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle (2407.434208ms)
+✔ the native module follows the server, predicts, queues, and starts cold offline (6727.999625ms)
+✔ createLocalClient receives E_STORE_BUSY from a process device with an exclusively held ownership sidecar (396.01475ms)
+✔ a process device names a live server's published address in E_STORE_BUSY (36.114042ms)
+✔ createLocalClient preserves a process device's bad backend code: malformed JSON (22.3355ms)
+✔ createLocalClient preserves a process device's bad backend code: missing file (127.37675ms)
+✔ createLocalClient preserves a process device's bad backend code: unsupported capability (34.649458ms)
+✔ device usage and invalid store failures each emit a denial before exiting 2 (11.32175ms)
+✔ ordinary and application witness launches never install the smoke runner (0.645792ms)
+✔ prime waits for acquisition and records device counts, identity and link, without rows (2.466792ms)
+✔ offline calls precisely all optional-argument queries on the own client and records counts only (0.492625ms)
+✔ explained refusals are results; loading and crashes are failures with receipts (0.494042ms)
+✔ lost persisted rows, changed backend identity and stale restart watermarks fail (0.765ms)
+✔ uncaught errors before attachment and after completion persist before forwarding the original handler (0.19825ms)
+✔ restart rejects a tail past prime until the exact driver barrier is consumed (0.21725ms)
+✔ receipts sample the state after the render pause and recheck offline counts and identity (0.367417ms)
+✔ losing client acquisition during the render pause emits a failure despite acquired device state (0.301625ms)
+✔ a restart watermark regressing during the render pause emits a failure receipt (0.348459ms)
+✔ a replacement client supersedes an in-flight sample without a failure receipt (0.229042ms)
+✔ compiler server facts permit only expected offline unavailability and require online answers (1.189625ms)
+✔ missing or invalid facts never classify loading as an online-only result (0.310667ms)
+✔ all residency and held facts must match the kept generation before any query (1.318875ms)
+✔ conditional native queries refuse generic smoke instead of excusing a missing module (0.1965ms)
+ℹ tests 160
+ℹ suites 0
+ℹ pass 160
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120216.983417

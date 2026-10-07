@@ -1,4 +1,5 @@
 import { guardFollowing, notifyFollowing } from "./following-transport.ts";
+import { assetReader, readAsset } from "./asset-progress.ts";
 import { guardPendingIntents, forwardIntentObserver } from "./pending-items.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
@@ -286,14 +287,15 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       if (denied) return { ok: false, why: denied };
       return raw.upload(bytes);
     },
-    async asset(id) {
+    asset: assetReader(async (id, progress) => {
+      progress("session");
       const denied = await refusal();
       if (denied) return { denied };
-      const asset = await raw.asset(id);
+      const asset = await readAsset(raw, id, progress);
       if (valid()) return asset;
       if ("url" in asset) asset.revoke();
       return { denied: why() };
-    },
+    }),
     onWrite(listener) {
       if (!valid()) return () => {};
       const stop = raw.onWrite(write => { if (valid()) listener(write); });

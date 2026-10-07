@@ -1,5 +1,6 @@
 // @ref LLP 3000.008.002.000#6 — ranged downloads cannot consume a one-view grant.
 import type { Refusal } from "./contract.ts";
+import type { AssetProgress } from "./asset-progress.ts";
 import { invalidResponse, jitter, overloaded, refusal, retryAfter, transportRefusal } from "./http-response.ts";
 
 const retryTimes = new WeakMap<Refusal, number>();
@@ -7,9 +8,27 @@ export const assetRetryAt = (why: Refusal): number => retryTimes.get(why) ?? 0;
 export const assetError = (why: Refusal): boolean => ["E_OFFLINE", "E_HTTP_RESPONSE", "E_RATE_LIMIT", "E_CLIENT"].includes(why.code);
 const stopped = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "the client or session changed during download", retryable: false });
 class AssetTimeout extends Error {}
+class AssetBodyError extends Error {}
 const timeout = () => new AssetTimeout("asset download made no observable progress for 5000 ms");
 const failure = (error: unknown): Refusal => error instanceof AssetTimeout
-  ? { code: "E_CLIENT", family: "client", message: error.message, retryable: true } : transportRefusal(error);
+  ? { code: "E_CLIENT", family: "client", message: error.message, retryable: true }
+  : error instanceof AssetBodyError ? { code: "E_CLIENT", family: "client", message: error.message } : transportRefusal(error);
+
+const blobSupport = new WeakMap<typeof Blob, boolean>();
+function bufferBlobSupported(): boolean {
+  let supported = blobSupport.get(Blob);
+  if (supported === undefined) {
+    // Expo exposes a stream even with React Native's Blob, whose constructor
+    // refuses buffer parts. Its response.blob() owns the supported native copy.
+    try { const probe = new Blob([new Uint8Array(0)]); closeBlob(probe); supported = true; }
+    catch { supported = false; }
+    blobSupport.set(Blob, supported);
+  }
+  return supported;
+}
+// Do not touch Expo's lazy stream getter when native conversion owns the body;
+// constructing that unused stream would mutate even a frozen response.
+const streamingBody = (response: Response): boolean => bufferBlobSupported() && typeof response.body?.getReader === "function";
 
 // The server accepts at most 64 MiB. Opaque hosts expose no headers until
 // fetch completes, so allow that size until a trustworthy length is available.
@@ -70,19 +89,43 @@ function pause(ms: number, signal: AbortSignal) {
   });
 }
 
-/** Only nonempty chunks prove progress. Streamless Blobs have a separate
+async function hostBlob(response: Response): Promise<Blob> {
+  // Expo's public blob() reads through this.arrayBuffer(), then converts the
+  // completed bytes. A separate receiver observes that boundary even when the
+  // response is frozen. All other methods/accessors keep their native receiver;
+  // no response or prototype is patched. Buffer-capable hosts keep their own
+  // receiver for built-in blob() methods with private native state.
+  let complete = false;
+  const receiver = bufferBlobSupported() ? response : new Proxy(Object.create(Object.getPrototypeOf(response)) as Response, {
+    get(_target, key) {
+      if (key === "arrayBuffer") return () => response.arrayBuffer().then(bytes => { complete = true; return bytes; });
+      const value: unknown = Reflect.get(response, key, response);
+      return typeof value === "function" ? value.bind(response) : value;
+    },
+  });
+  try {
+    return await response.blob.call(receiver);
+  } catch (error) {
+    if (complete || (error instanceof Error && error.message === "Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported")) {
+      throw new AssetBodyError(`the downloaded asset could not be converted by this host: ${String(error)}`);
+    }
+    throw error;
+  }
+}
+/** Only nonempty chunks prove progress. Host-converted Blobs have a separate
  * size-based allowance because they cannot report stalls. */
-async function readBlob(response: Response, signal: AbortSignal, progress: () => void): Promise<Blob> {
-  if (!response.body) return bounded(response.blob(), signal, closeBlob);
-  const reader = response.body.getReader(), chunks: Uint8Array<ArrayBuffer>[] = [];
+async function readBlob(response: Response, signal: AbortSignal, progress: (bytes: number) => void): Promise<Blob> {
+  if (!streamingBody(response)) return bounded(hostBlob(response), signal, closeBlob);
+  const reader = response.body!.getReader(), chunks: Uint8Array<ArrayBuffer>[] = [];
   let complete = false;
   try {
     for (;;) {
       const { done, value } = await bounded(reader.read(), signal, () => {});
       if (done) { complete = true; break; }
-      if (value.byteLength) { chunks.push(value as Uint8Array<ArrayBuffer>); progress(); }
+      if (value.byteLength) { chunks.push(value as Uint8Array<ArrayBuffer>); progress(value.byteLength); }
     }
-    return new Blob(chunks, { type: response.headers.get("content-type") ?? "" });
+    try { return new Blob(chunks, { type: response.headers.get("content-type") ?? "" }); }
+    catch (error) { throw new AssetBodyError(`the downloaded asset could not be assembled by this host: ${String(error)}`); }
   } finally {
     if (!complete) void reader.cancel().catch(() => {});
     reader.releaseLock();
@@ -90,7 +133,7 @@ async function readBlob(response: Response, signal: AbortSignal, progress: () =>
 }
 
 export async function downloadAsset(source: { uri: string; headers: Record<string, string> }, doFetch: typeof fetch,
-  signal?: AbortSignal, current: () => boolean = () => true, queue?: Queue,
+  signal?: AbortSignal, current: () => boolean = () => true, queue?: Queue, progress: AssetProgress = () => {},
 ): Promise<{ blob: Blob; response: Response; retryable: boolean } | { denied: Refusal }> {
   const lifetime = new AbortController();
   const end = () => lifetime.abort(signal?.reason);
@@ -115,6 +158,7 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
       if (!current() || signal?.aborted) return { denied: previous ?? stopped() };
       if (lifetime.signal.aborted && previous) return { denied: previous };
       beginWait();
+      progress("queue");
       const release = queue ? await queue(lifetime.signal) : () => {};
       endWait();
       let why: Refusal | undefined, retryAt = 0, transient = false;
@@ -135,11 +179,18 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
         if (!current() || signal?.aborted) return { denied: previous ?? stopped() };
         if (lifetime.signal.aborted && previous) return { denied: previous };
         if (request.signal.aborted || !release) throw request.signal.reason ?? timeout();
+        progress("headers", { progress: "unknown" });
         response = await bounded(doFetch(source.uri, { headers: { ...source.headers, ...(ranged ? { range: "bytes=0-" } : {}) }, signal: request.signal }), request.signal, closeResponse);
         if (response.ok) {
-          activity(response.body ? 5000 : bufferedLimit(response.headers));
+          const streaming = streamingBody(response), allowance = streaming ? 5000 : bufferedLimit(response.headers);
+          const length = response.headers.get("content-length");
+          const total = length !== null && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) ? Number(length) : undefined;
+          let received = 0;
+          const report = () => progress("body", { progress: streaming ? "bytes" : "unknown", ...(streaming ? { received } : {}), ...(total === undefined ? {} : { total }) });
+          report();
+          activity(allowance);
           bodyStarted = true;
-          const blob = await readBlob(response, request.signal, () => { activity(); remaining = 30_000; });
+          const blob = await readBlob(response, request.signal, bytes => { received += bytes; report(); activity(); remaining = 30_000; });
           return { blob, response, retryable: ranged };
         }
         // Headers survive a missing/stalled refusal body. An HTTP status alone
@@ -149,7 +200,7 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
         why = invalidResponse(response.status, "download");
         transient = [408, 429, 500, 502, 503, 504].includes(response.status);
         bodyStarted = true;
-        const json = response.body
+        const json = streamingBody(response)
           ? JSON.parse(await (await readBlob(response, request.signal, () => {})).text()) as { denied?: unknown } | null
           : await bounded(response.json(), request.signal, () => {}) as { denied?: unknown } | null;
         const explicit = refusal(json?.denied);
@@ -161,6 +212,7 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
         }
         transient = overloaded(why) || (!explicit && [408, 429, 500, 502, 503, 504].includes(response.status));
       } catch (error) {
+        if (error instanceof AssetBodyError) return { denied: { ...failure(error), retryable: ranged } };
         if (!why) { why = failure(error); transient = true; }
       } finally {
         clearTimeout(timer!); lifetime.signal.removeEventListener("abort", abort);
@@ -176,6 +228,7 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
       previous = why;
       if (!safe || attempt >= 3 || waited + delay > 10_000 || lifetime.signal.aborted || !current()) return { denied: why };
       beginWait();
+      progress("backoff");
       await pause(delay, lifetime.signal); waited += delay;
       endWait();
     }

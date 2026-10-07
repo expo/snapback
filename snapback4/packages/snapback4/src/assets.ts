@@ -5,6 +5,7 @@
 // (LLP 1006 carried into Snapback 4).
 
 import { downloadAsset, assetQueue } from "./asset-download.ts";
+import type { AssetProgress } from "./asset-progress.ts";
 import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
 
 export type Bytes = Blob | ArrayBuffer | Uint8Array;
@@ -99,18 +100,20 @@ export function assetSource(base: string, headers: Record<string, string>, id: s
   return { uri: `${base}/assets/${encodeURIComponent(id)}`, headers: auth };
 }
 
-export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal, current?: () => boolean, queue?: ReturnType<typeof assetQueue>): Promise<AssetRead> {
+export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal, current?: () => boolean, queue?: ReturnType<typeof assetQueue>, progress: AssetProgress = () => {}): Promise<AssetRead> {
   let release: (() => void) | undefined;
   let retryable = false;
   try {
-    const downloaded = await downloadAsset(assetSource(base, headers, id), doFetch, signal, current, queue);
+    const downloaded = await downloadAsset(assetSource(base, headers, id), doFetch, signal, current, queue, progress);
     if ("denied" in downloaded) return downloaded;
     retryable = downloaded.retryable;
     const { blob, response } = downloaded;
     release = ownBlob(blob);
+    progress("retention");
     const retained = await viewed?.(blob, response);
     if (retained) return retained;
     const type = response.headers.get("content-type") ?? blob.type, bytes = blob.size;
+    progress("display");
     let url: string;
     try { url = URL.createObjectURL(blob); } catch {
       // @ref LLP 3000.011.005.000#8 — a host without working object URLs uses a transient copy, never a file

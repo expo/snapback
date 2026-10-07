@@ -4,14 +4,24 @@ use super::*;
 pub use crate::authority::SessionScope;
 pub type Capability = (String, String, SessionScope);
 
+// @ref LLP 3000.033#1.3 — opening a legacy store must not install auth schema
+// before a later adoption can refuse. Only minting creates this table.
+pub(crate) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
+    Ok(conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_read_sessions')")?.query_row([], |r| r.get(0))?)
+}
+
 // @ref LLP 3000.033#1.3 — old executables cannot resolve read tokens; the captured
 // generation also prevents resurrection after logoutAll during a downgrade.
-pub(super) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
+fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
     conn.execute_batch("CREATE TABLE IF NOT EXISTS _read_sessions (
         token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL,
         family TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
         cap_expires_at INTEGER NOT NULL, principal_generation INTEGER NOT NULL
     ); CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, family, expires_at);")?;
+    Ok(())
+}
+
+pub(super) fn initialize_binding_scope(conn: &Connection) -> Result<(), RuntimeError> {
     let has_scope: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_session_mint_bindings') WHERE name = 'scope')", [], |r| r.get(0))?;
     if !has_scope { conn.execute_batch("ALTER TABLE _session_mint_bindings ADD COLUMN scope TEXT NOT NULL DEFAULT 'full';")?; }
     Ok(())
@@ -29,6 +39,7 @@ pub(super) fn scoped_session(principal: &str, kind: &str, now: i64, scope: Sessi
 }
 
 pub(super) fn insert(conn: &Connection, session: &Session, now: i64, family: Option<(&str, i64)>) -> Result<(), RuntimeError> {
+    initialize(conn)?;
     let digest = digest(&session.token);
     let generation: i64 = match family { Some((_, generation)) => generation, None => conn.query_row("SELECT generation FROM _principal_generations WHERE principal = ?1", [&session.principal], |r| r.get(0)).optional()?.unwrap_or(0) };
     conn.execute("INSERT INTO _read_sessions(token_digest, principal, kind, family, created_at, expires_at, cap_expires_at, principal_generation) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -61,6 +72,7 @@ pub fn narrow_session(store: &mut Store, token: &str, sample: impl FnOnce() -> S
 // this family. A live at-cap credential may explicitly rotate without extending.
 pub(super) fn rotate(store: &Store, token: &str, now: i64) -> Result<Option<Session>, RuntimeError> {
     let tx = rusqlite::Transaction::new_unchecked(store.conn(), rusqlite::TransactionBehavior::Immediate)?;
+    if !present(&tx)? { return Ok(None); }
     let found: Option<(String, String, String, i64, i64)> = tx.query_row(
         "SELECT principal, kind, family, cap_expires_at, principal_generation FROM _read_sessions r
          WHERE token_digest = ?1 AND expires_at > ?2 AND cap_expires_at > ?2

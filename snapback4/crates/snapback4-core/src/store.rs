@@ -144,14 +144,12 @@ impl Store {
     /// A caller with its own pre-admission deadline can own the lock wait.
     // @ref LLP 3000.011.004.000#2 — only open/adoption retries use a caller-owned deadline.
     pub fn open_with_busy_timeout(path: &Path, timeout: std::time::Duration) -> Result<Self, RuntimeError> {
-        let store = Self::open_base(path, timeout)?;
-        store.initialize_change_evidence()?;
-        Ok(store)
+        Self::open_base(path, timeout, true)
     }
 
     // Shared server/device initialization; server evidence is added only by
     // the server entry points, never when opening an older native device.
-    fn open_base(path: &Path, timeout: std::time::Duration) -> Result<Self, RuntimeError> {
+    fn open_base(path: &Path, timeout: std::time::Duration, server: bool) -> Result<Self, RuntimeError> {
         let io = |e: std::io::Error| RuntimeError::Store(format!("private store: {e}"));
         // Release links intentionally point at the one shared database.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -169,17 +167,25 @@ impl Store {
                 .map_err(io)?;
         }
         let conn = Connection::open(&real)?;
+        // @ref LLP 3000.033#1.3 — even dropping a refused writable connection
+        // must preserve committed WAL frames instead of checkpointing them.
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)?;
         conn.busy_timeout(timeout)?;
         // @ref LLP 3000.013#4-following-without-caps — published watermarks must survive a power loss.
         // Delivery publishes partition watermarks as well as replayable copies.
         // Losing an acknowledged background commit could rewind a device's
         // watermark, so requests and maintenance share the durable policy.
-        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = OFF;")?;
+        // A refused open must preserve even a legacy rollback-journal file's
+        // header. New stores choose WAL; existing stores retain their mode.
+        if conn.query_row("PRAGMA page_count", [], |r| r.get::<_, i64>(0))? == 0 {
+            conn.execute_batch("PRAGMA journal_mode = WAL;")?;
+        }
+        conn.execute_batch("PRAGMA synchronous = FULL; PRAGMA foreign_keys = OFF;")?;
         // A release serves the shared store through a link; the assets sit
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().map(|dir| dir.join("assets")).unwrap_or_else(|| PathBuf::from("assets"));
-        let store = Self::prepare(conn, assets_dir, false)?;
+        let store = Self::prepare(conn, assets_dir, false, server)?;
         for suffix in ["-wal", "-shm", "-journal"] {
             crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
                 .map_err(io)?;
@@ -191,15 +197,13 @@ impl Store {
         let assets_dir = std::env::temp_dir().join(format!(
             "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut 0)?
         ));
-        let store = Self::prepare(Connection::open_in_memory()?, assets_dir, true)?;
-        store.initialize_change_evidence()?;
-        Ok(store)
+        Self::prepare(Connection::open_in_memory()?, assets_dir, true, true)
     }
 
     // @ref LLP 3000.023#12 — create server metadata at open, before reads can
     // cache plans. DDL during a commit would invalidate those prepared reads.
-    fn initialize_change_evidence(&self) -> Result<(), RuntimeError> {
-        self.conn.execute_batch("CREATE TABLE IF NOT EXISTS _change_evidence (seq INTEGER PRIMARY KEY, footprint TEXT NOT NULL)")?;
+    fn initialize_change_evidence(conn: &Connection) -> Result<(), RuntimeError> {
+        conn.execute_batch("CREATE TABLE IF NOT EXISTS _change_evidence (seq INTEGER PRIMARY KEY, footprint TEXT NOT NULL)")?;
         Ok(())
     }
 
@@ -214,7 +218,7 @@ impl Store {
         self.ephemeral_assets
     }
 
-    fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool) -> Result<Self, RuntimeError> {
+    fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool, server: bool) -> Result<Self, RuntimeError> {
         #[cfg(unix)]
         let file_identity = file_identity(&conn)?;
         // Our fixed indexed SQL should reuse its plan when keys or limits
@@ -231,6 +235,27 @@ impl Store {
                 crate::private_fs::existing_file(&entry.map_err(io)?.path()).map_err(io)?;
             }
         }
+        // Catalog numbers and ownership must come from the same snapshot.
+        // An activation between separate reads must never attach new IR to
+        // the previous catalog, even when every number is monotone.
+        let opened = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        // @ref LLP 3000.033#1.3 — inspect existing stores without upgrading
+        // them. All upgrades join successful activation, never a refused open.
+        let fresh: bool = opened.query_row("SELECT NOT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table')", [], |r| r.get(0))?;
+        if fresh {
+            Self::initialize_schema(&opened)?;
+            if server { Self::initialize_change_evidence(&opened)?; }
+        }
+        let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
+        if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
+        let identity = activation::identity(&opened)?;
+        opened.commit()?;
+        let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
+    }
+
+    pub(super) fn initialize_schema(conn: &Connection) -> Result<(), RuntimeError> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
@@ -287,20 +312,45 @@ impl Store {
             }
         }
         conn.execute_batch("CREATE INDEX IF NOT EXISTS _outbox_due ON _outbox(state, effect, seq);")?;
-        // Catalog numbers and ownership must come from the same snapshot.
-        // An activation between separate reads must never attach new IR to
-        // the previous catalog, even when every number is monotone.
-        let opened = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        opened.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('version', ?1)", [STORE_VERSION])?;
+        conn.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('version', ?1)", [STORE_VERSION])?;
         // @ref LLP 3000.007#18.2 — a database incarnation survives reopen, independently of schema generation.
-        opened.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('store_id', lower(hex(randomblob(16))))", [])?;
-        let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
-        if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
-        let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
-        let identity = activation::identity(&opened)?;
-        opened.commit()?;
-        let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
+        conn.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('store_id', lower(hex(randomblob(16))))", [])?;
+        Ok(())
+    }
+
+    pub(crate) fn check_selected_release(conn: &Connection, expected: Option<u64>) -> Result<(), RuntimeError> {
+        if let Some(expected) = expected {
+            let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |r| r.get(0)).optional()?;
+            if release.as_deref().and_then(|s| s.parse::<u64>().ok()) != Some(expected) {
+                return Err(RuntimeError::Generation("the current release changed while starting; retry serve".into()));
+            }
+        }
+        Ok(())
+    }
+
+    /// Complete a validated server open without an application-schema change.
+    pub(crate) fn finish_open(&mut self, expected_release: Option<u64>) -> Result<(), RuntimeError> {
+        // Inspection (doctor/sql) attaches through a read-only connection and
+        // must never attempt physical upgrades, even after backend validation.
+        if self.conn.is_readonly("main")? {
+            let tx = self.read_transaction()?;
+            Self::check_selected_release(tx.conn(), expected_release)?;
+            return tx.rollback();
+        }
+        let tx = self.transaction()?;
+        Self::check_selected_release(tx.conn(), expected_release)?;
+        Self::initialize_schema(tx.conn())?;
+        Self::initialize_change_evidence(tx.conn())?;
+        tx.commit()?;
+        self.accept_open();
+        Ok(())
+    }
+
+    // Closing an accepted backend may checkpoint normally. Failure to restore
+    // this optional close-time optimization leaves the conservative setting;
+    // it must not turn a committed acceptance into a returned refusal.
+    pub(super) fn accept_open(&self) {
+        let _ = self.conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, false);
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {

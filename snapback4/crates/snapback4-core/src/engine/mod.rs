@@ -385,7 +385,7 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut store, &schema, &programs, None, now, true)?;
+        let generation = Self::activate(&mut store, &schema, &programs, None, now, true, None)?;
         let dev_effects = store.meta("release")?.is_none();
         store.exclude_ephemeral(&schema);
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
@@ -420,7 +420,7 @@ impl Engine {
         schema.prepare_delivery_lookup();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms(), allow_feed_adoption)?;
+        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms(), allow_feed_adoption, None)?;
         store.exclude_ephemeral(&schema);
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
@@ -431,8 +431,13 @@ impl Engine {
         Self::open_at(store, crate::now_ms())
     }
 
-    pub fn open_at(mut store: Store, now: i64) -> Result<Self, RuntimeError> {
+    pub fn open_at(store: Store, now: i64) -> Result<Self, RuntimeError> {
+        Self::open_selected_at(store, now, None)
+    }
+
+    fn open_selected_at(mut store: Store, now: i64, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let tx = store.transaction()?;
+        Store::check_selected_release(tx.conn(), expected_release)?;
         let (generation, schema, programs): (i64, String, String) = tx.conn().query_row(
             "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
             [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
@@ -455,8 +460,8 @@ impl Engine {
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let generation = if stored_schema_hash == schema_hash
             && store.meta("live_sum_candidates")?.as_deref() == Some("1")
-            && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { generation }
-            else { Self::activate(&mut store, &schema, &programs, None, now, true)? };
+            && (!crate::rows::caps::required(&schema) || store.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { store.finish_open(expected_release)?; generation }
+            else { Self::activate(&mut store, &schema, &programs, None, now, true, expected_release)? };
         store.exclude_ephemeral(&schema);
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(store.meta("store_id")?.unwrap_or_default(), generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
@@ -468,13 +473,7 @@ impl Engine {
     }
 
     pub fn attach_release_at(store: Store, expected: u64, now: i64) -> Result<Self, RuntimeError> {
-        let mut engine = Self::open_at(store, now)?;
-        let tx = engine.store.transaction()?;
-        let release: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0))?;
-        if release.parse::<u64>().ok() != Some(expected) {
-            return Err(RuntimeError::Generation("the current release changed while starting; retry serve".into()));
-        }
-        tx.rollback()?;
+        let mut engine = Self::open_selected_at(store, now, Some(expected))?;
         engine.dev_effects = false;
         Ok(engine)
     }
@@ -572,7 +571,7 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut self.store, &schema, &programs, None, now, true)?;
+        let generation = Self::activate(&mut self.store, &schema, &programs, None, now, true, None)?;
         self.timeline_schedule = timeline::Schedule::default();
         self.schema = schema;
         self.programs = programs;
@@ -581,7 +580,7 @@ impl Engine {
         Ok(generation)
     }
 
-    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64, allow_feed_adoption: bool) -> Result<u64, RuntimeError> {
+    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64, allow_feed_adoption: bool, expected_release: Option<u64>) -> Result<u64, RuntimeError> {
         schema.validate_column_owners()?;
         for program in programs.values() {
             crate::schema::ephemeral::admit_program(schema, program)?;
@@ -606,6 +605,7 @@ impl Engine {
             }
         }
         store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |tx, changed, report| {
+            Store::check_selected_release(tx.conn(), expected_release)?;
             if let Some((release, expected)) = release {
                 use rusqlite::OptionalExtension;
                 let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;

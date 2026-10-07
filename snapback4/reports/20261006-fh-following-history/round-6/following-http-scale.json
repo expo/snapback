@@ -1,0 +1,15 @@
+{
+  "command": [
+    "env",
+    "SNAPBACK4_FH_MEASURE=1",
+    "node",
+    "--test",
+    "--test-name-pattern=Following shaped HTTP and SDK measurements",
+    "packages/snapback4/test/following-history.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-fh/snapback4",
+  "cpus": "7,8,9,10,12,15,16,19,22,24,25,29,37,38,41,42,43,44,47,50,55,56,57,58",
+  "started": "2026-10-07T15:39:21.694948+00:00",
+  "seconds": 19.513,
+  "exit": 0
+}

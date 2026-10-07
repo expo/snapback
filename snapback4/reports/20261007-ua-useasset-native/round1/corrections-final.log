@@ -1,0 +1,227 @@
+✔ an invalid store_id receipt cannot erase another confirmed entry (19.520779ms)
+✔ an invalid table receipt cannot erase another confirmed entry (2.569713ms)
+✔ an invalid row receipt cannot erase another confirmed entry (3.653929ms)
+✔ an invalid column receipt cannot erase another confirmed entry (2.371085ms)
+✔ an invalid missing receipt cannot erase another confirmed entry (2.487579ms)
+✔ an invalid receipt for the confirmed entry's own cell retires it (2.359498ms)
+✔ native image/png bytes survive a fresh cache opener; response ownership ends after copying (3.816713ms)
+✔ native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying (2.731846ms)
+✔ once responses with valid receipts remove stale ordinary bytes without reading or storing the once Blob (2.682091ms)
+✔ once responses with absent receipts remove stale ordinary bytes without reading or storing the once Blob (2.197795ms)
+✔ once responses with malformed receipts remove stale ordinary bytes without reading or storing the once Blob (3.75474ms)
+✔ once responses with incomplete receipts remove stale ordinary bytes without reading or storing the once Blob (1.99396ms)
+✔ once responses with no table receipts remove stale ordinary bytes without reading or storing the once Blob (2.087009ms)
+✔ once responses with no row receipts remove stale ordinary bytes without reading or storing the once Blob (1.789393ms)
+✔ once responses with no column receipts remove stale ordinary bytes without reading or storing the once Blob (1.882793ms)
+✔ once falls back to a transient data URI without a second fetch or durable bytes (2.204275ms)
+✔ data URI fallback preserves supported media bytes and handles a missing object-URL function (0.876685ms)
+✔ data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies (1.373058ms)
+✔ data URI fallback rejects trailing line terminators even when they fill the expected encoded length (0.682603ms)
+✔ a delayed transient conversion survives rotation but not sign-out or close (6.686195ms)
+✔ FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs (2.562783ms)
+✔ modern Blob reads and browser URLs retain their behavior without FileReader (2.71368ms)
+✔ failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws (0.400861ms)
+✔ upload keeps caller-owned Blobs open on both success and failure (0.430345ms)
+✔ retention drops old inferred homes and refuses downloads without a valid home receipt (4.280758ms)
+✔ retained receipt store binding is revalidated on read (1.955452ms)
+✔ retained receipt store binding is revalidated on reconcile (1.862242ms)
+✔ retained receipt store binding is revalidated on reopen (1.926428ms)
+✔ retained receipt store binding is revalidated on unbound reopen (2.12141ms)
+✔ a foreign once receipt checks the entry after serialized writes and never copies its body (1.957074ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-1/2 (1.191236ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-0/2 (2.057425ms)
+✔ a ranged body retains only the entire ordinary file: bytes 1-2/3 (0.629073ms)
+✔ a ranged body retains only the entire ordinary file: bytes 0-9/10 (0.543205ms)
+✔ a ranged body retains only the entire ordinary file: bytes */2 (0.624446ms)
+✔ a ranged body retains only the entire ordinary file: missing range (0.612839ms)
+✔ Expo Release Blob with a streamed response reaches a handle (ordinary) (187.616245ms)
+✔ Expo Release Blob with a streamed response reaches a handle (once) (18.785967ms)
+✔ native stream-to-Blob path keeps its size allowance and disposes a late body after cancellation (17.881922ms)
+✔ Expo Release real blob path: native, ordinary (227.003031ms)
+✔ Expo Release real blob path: duplicate, ordinary (43.937558ms)
+✔ Expo Release real blob path: duplicate sealed, ordinary (40.532233ms)
+✔ Expo Release real blob path: conversion failure, ordinary (35.453468ms)
+✔ Expo Release real blob path: reset, ordinary (1884.230696ms)
+✔ Expo Release real blob path: native, once (27.507263ms)
+✔ Expo Release real blob path: duplicate, once (45.271619ms)
+✔ Expo Release real blob path: duplicate sealed, once (38.652244ms)
+✔ Expo Release real blob path: conversion failure, once (19.294289ms)
+✔ Expo Release real blob path: reset, once (20.571424ms)
+✔ healthy HTTP chunks every 500 ms for six seconds paint without wait diagnostics, ordinary and once (7003.525935ms)
+ℹ {"completed":[{"id":"completion-ordinary","ms":6001},{"id":"blob-ordinary","ms":6000},{"id":"stream-ordinary","ms":6003},{"id":"completion-once","ms":6001},{"id":"blob-once","ms":6003},{"id":"stream-once","ms":6002}],"requests":[{"id":"completion-ordinary","range":"bytes=0-"},{"id":"completion-once","range":"bytes=0-"},{"id":"blob-ordinary","range":"bytes=0-"},{"id":"blob-once","range":"bytes=0-"},{"id":"stream-ordinary","range":"bytes=0-"},{"id":"stream-once","range":"bytes=0-"},{"id":"completion-once"},{"id":"blob-once"},{"id":"stream-once"}],"states":{"completion-ordinary":{"status":"ready"},"completion-once":{"status":"ready"},"blob-ordinary":{"status":"ready"},"blob-once":{"status":"ready"},"stream-ordinary":{"status":"ready"},"stream-once":{"status":"ready"}}}
+✔ journal storage listener belongs to the last shared owner (1.698697ms)
+▶ React hooks and reference-app lifetimes
+  ✔ the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself (18.428201ms)
+  ✔ the receipts card leaves delivery to the SDK and reports only visible settled rows (10.723198ms)
+  ✔ the receipts card requires current membership and resets on withdrawal and hidden remount (7.875348ms)
+  ✔ useSeen shares two Strict Mode screens and obeys the explicit viewport on both hosts (4.791124ms)
+  ✔ useNow hides a server-answered row at its deadline and after a clock advance (9.707455ms)
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (44.027474ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (21.720067ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (291.227817ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (4.201319ms)
+  ✔ useMutation passes admission options and saved identity; custody clears inFlight (4.170764ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (6.177252ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (3.713288ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (7.713135ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (4.848059ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (6.359556ms)
+  ✔ useAsset never commits a previous id, client or principal's handle (7.509199ms)
+  ✔ unmounting one avatar hook preserves another hook for the same id (8.904591ms)
+  ✔ useAsset effect lifetime survives Activity and initial StrictMode replay (6.519445ms)
+  ✔ useAsset recovers transport errors on focus and reconnect, never denials or consumed views (9.826574ms)
+  ✔ useAsset names a held session before any request and diagnoses it without replay (4.677323ms)
+  ✔ useAsset converts a synchronous custom-reader throw into a typed error (2.748702ms)
+  ✔ useAsset preserves real admission cooldown through focus and reconnect (18.102583ms)
+  ✔ useAsset remembers one recovery event while busy without looping (3.26128ms)
+  ✔ useAsset with a bearer before viewer discovery fetches only once (3.746207ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (4.384474ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (3.434159ms)
+  ✔ keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset (75.824839ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (60.740091ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (11.964079ms)
+  ✔ usePage keeps the ready prefix while replacing an in-flight suffix (4.846627ms)
+  ✔ usePage keeps loaded pages while another loads and withdraws them on a first-page reset (15.557646ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (9.234015ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (6.914768ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (15.345238ms)
+  ✔ useQuery lingering remount has data in its first committed render (13.262435ms)
+  ✔ useQuery lingering remount has data in its first committed render through the app facade (7.840586ms)
+  ✔ usePage lingering remount has data in its first committed render (6.094538ms)
+  ✔ usePage lingering remount has data in its first committed render through the app facade (6.153707ms)
+  ✔ useQuery createApp remount first commits the lingering answer during a held re-read (23.473696ms)
+  ✔ usePage createApp remount first commits the lingering answer during a held re-read (23.820186ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (33.845407ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (30.282484ms)
+  ✔ web submit owns a fresh field and storage failure keeps the draft (5.149261ms)
+  ✔ Expo submit owns a fresh field and storage failure keeps the draft (7.145143ms)
+  ✔ Expo composer uses membership presence without losing its draft (6.94273ms)
+  ✔ Expo observes every saved ID across reload, late refusal, unknown receipt and account switch (24.365903ms)
+  ✔ Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete (15.891377ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (4.299817ms)
+  ✔ receipt notifications read one pending list for ten thousand message hooks (418.899595ms)
+  ✔ pending-write lists filter, update, fence old reads, and release StrictMode subscriptions (5.494097ms)
+  ✔ web receipt labels separate admission, restoration and unknown; late refusal offers text (4.76216ms)
+  ✔ Expo receipt labels separate admission, restoration and unknown; late refusal offers text (5.555811ms)
+  ✔ saved write restoration ends on reject or live outcome and restarts for another id (2.279538ms)
+  ✔ web room loading keeps the same input and legacy intents disclose missing text (11.086713ms)
+  ✔ pending items release unowned resource payloads without reloading unrelated pending writes (13.483567ms)
+  ✔ pending items online retirement: confirmed row retires success permanently (10.728406ms)
+  ✔ pending items online retirement: prediction never retires success (10.488667ms)
+  ✔ pending state uses covering read sequence when another writer supersedes success (11.120053ms)
+  ✔ pending state value equality without covering read evidence cannot retire success (10.902436ms)
+  ✔ round2: pending state rejects a saved covering read after a real bearer reset (16.464677ms)
+  ✔ shared online journal updates A's hook on B's admission and settlement after remount (25.940194ms)
+12:16:51 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+12:16:51 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+12:16:51 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+12:16:51 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ shared online journal invalidates pending hooks across browser tabs (333.911587ms)
+12:16:51 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ closing the last journal owner during admission still invalidates another tab (279.339483ms)
+12:16:52 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+12:16:52 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+12:16:52 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+12:16:52 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ clearing localStorage in another tab invalidates the journal hook (205.952579ms)
+✔ React hooks and reference-app lifetimes (3486.150604ms)
+✔ AssetState accepts pre-wait loading literals and optional progress from both imports (1819.590717ms)
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (387.619675ms)
+✔ ready literals require the discriminant (401.957382ms)
+✔ matchRead rejects every omitted state and never falls back for denied or partial (2750.414003ms)
+✔ matchRead narrows each handler, preserves metadata and infers mixed return types from both imports (393.800632ms)
+✔ presentation accepts generic covariant reads and cannot authorize or narrow their data (333.359979ms)
+✔ awaited query excludes loading, including existence, while observe retains it (334.865436ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (374.436468ms)
+✔ Read is covariant and every narrowed arm retains its result type (357.634245ms)
+✔ pending items declarations preserve the row/intent union and typed operation arguments (351.358967ms)
+✔ receipt family preserves mapped operation types and useSeen requires explicit visibility (1528.009979ms)
+ℹ tests 127
+ℹ suites 0
+ℹ pass 127
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12323.694935

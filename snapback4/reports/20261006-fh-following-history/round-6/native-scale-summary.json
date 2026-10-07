@@ -1,0 +1,32 @@
+[
+  {
+    "label": "sparse-1100",
+    "samples": 7,
+    "first_page_median_ms": 2.528,
+    "later_page_median_ms": 2.586,
+    "preparations": [
+      0
+    ],
+    "max_storage_bytes": 299636
+  },
+  {
+    "label": "sparse-50000",
+    "samples": 7,
+    "first_page_median_ms": 1.655,
+    "later_page_median_ms": 1.577,
+    "preparations": [
+      0
+    ],
+    "max_storage_bytes": 299636
+  },
+  {
+    "label": "follows-8200",
+    "samples": 7,
+    "first_page_median_ms": 201.806,
+    "later_page_median_ms": 1.343,
+    "preparations": [
+      5
+    ],
+    "max_storage_bytes": 17288752
+  }
+]

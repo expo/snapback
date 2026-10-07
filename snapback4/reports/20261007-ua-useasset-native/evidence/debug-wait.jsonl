@@ -1,0 +1,47 @@
+{"at":1791363078572,"kind":"app","run":"debug-wait","event":"app-ready","state":"signed-out","native":true,"platform":"ios"}
+{"at":1791363078575,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/auth/login","headers":["content-type"],"bearer":false,"range":null}
+{"at":1791363078731,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/auth/login","status":200,"stream":true}
+{"at":1791363078752,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/schema","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791363078755,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/schema","status":200,"stream":true}
+{"at":1791363078762,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"server-clock"}
+{"at":1791363078762,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"server-clock-floor"}
+{"at":1791363078766,"kind":"app","run":"debug-wait","event":"native-call","op":"set_meta","key":"server-clock"}
+{"at":1791363078766,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"media:manifest"}
+{"at":1791363078767,"kind":"app","run":"debug-wait","event":"native-call","op":"asset_home"}
+{"at":1791363078767,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"syncedAt:wall:1"}
+{"at":1791363078769,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"write-history"}
+{"at":1791363078769,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791363078780,"kind":"app","run":"debug-wait","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791363078781,"kind":"app","run":"debug-wait","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791363078788,"kind":"app","run":"debug-wait","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791363078802,"kind":"app","run":"debug-wait","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791362721863},"link":"online"}
+{"at":1791363078802,"kind":"app","run":"debug-wait","event":"native-call","op":"asset_home"}
+{"at":1791363078802,"kind":"app","run":"debug-wait","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"scheduled","since":1791363078797,"diagnosticAt":1791363083797}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791363078804,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/sync","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791363078806,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791363078807,"kind":"app","run":"debug-wait","event":"hold-asset-fetch","ms":6200}
+{"at":1791363078811,"kind":"app","run":"debug-wait","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"headers","since":1791363078799,"diagnosticAt":1791363083799}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791363078811,"kind":"app","run":"debug-wait","event":"native-call","op":"set_meta","key":"syncedAt:wall:1"}
+{"at":1791363078812,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/sync","status":200,"stream":true}
+{"at":1791363078812,"kind":"app","run":"debug-wait","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791363078812,"kind":"app","run":"debug-wait","event":"native-call","op":"set_meta","key":"server-clock"}
+{"at":1791363078816,"kind":"app","run":"debug-wait","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791362721863,"revalidating":true},"link":"online"}
+{"at":1791363078817,"kind":"app","run":"debug-wait","event":"login","ok":true}
+{"at":1791363078818,"kind":"app","run":"debug-wait","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"link":"online"}
+{"at":1791363078821,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791363080832,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","status":200,"stream":true}
+{"at":1791363080847,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791363082853,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","status":200,"stream":true}
+{"at":1791363082856,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791363083816,"kind":"app","run":"debug-wait","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"headers","since":1791363078799,"diagnosticAt":1791363083799,"why":{"code":"E_ASSET_WAIT","family":"client","site":"useAsset.headers","message":"Asset still waiting: waiting for fetch to return headers (the host may buffer the body). No ready handle or refusal has arrived after 5000 ms.","rewrite":"inspect the named stage, session/link and host network or storage diagnostics; keep this selection mounted to receive its outcome","guide":"assets","retryable":false}}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791363084871,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","status":200,"stream":true}
+{"at":1791363084875,"kind":"app","run":"debug-wait","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791363085008,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791363085011,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791363085015,"kind":"app","run":"debug-wait","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791363085021,"kind":"app","run":"debug-wait","event":"native-call","op":"asset_home"}
+{"at":1791363085024,"kind":"app","run":"debug-wait","event":"native-call","op":"set_meta","key":"media:manifest"}
+{"at":1791363085026,"kind":"app","run":"debug-wait","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"retention","since":1791363078799,"diagnosticAt":1791363083799,"why":{"code":"E_ASSET_WAIT","family":"client","site":"useAsset.retention","message":"Asset still waiting: checking the asset home and retaining ordinary bytes on the device. No ready handle or refusal has arrived after 5000 ms.","rewrite":"inspect the named stage, session/link and host network or storage diagnostics; keep this selection mounted to receive its outcome","guide":"assets","retryable":false}}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791363085027,"kind":"app","run":"debug-wait","event":"native-call","op":"asset_home"}
+{"at":1791363085031,"kind":"app","run":"debug-wait","event":"asset-state","asset":{"status":"ready","url":"file:///Users/ccheever/Library/Developer/CoreSimulator/Devices/74ED8A85-6617-4D4D-884A-F33E3431A2B2/data/Containers/Data/Application/88837E87-40CB-4241-9EBF-E891A4E489DA/Documents/snapback4-http%253A%252F%252F127.0.0.1%253A59583%253Auser%253A01M4AQ5804W2KFYSA6PTRBV4BN.sqlite.media/01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png"},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791363085034,"kind":"app","run":"debug-wait","event":"image-load"}

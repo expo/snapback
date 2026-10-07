@@ -1,4 +1,5 @@
 import { bindFollowing } from "./following-transport.ts";
+import { assetReader, readAsset } from "./asset-progress.ts";
 import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification } from "./read-only.ts";
 import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
@@ -1134,14 +1135,14 @@ export function createClient(options: ClientOptions): Client {
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
-    async asset(id) {
+    asset: assetReader(async (id, progress) => {
       if (readGate) { const why = await readGate.verify(); if (why) return { denied: why }; }
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
-      if (refreshing) await refreshing;
+      if (refreshing) { progress("refresh"); await refreshing; }
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       const revision = credentialRevision, assetPrincipal = viewer;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads);
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads, progress);
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
@@ -1152,19 +1153,19 @@ export function createClient(options: ClientOptions): Client {
         if ("denied" in read) {
           // Admission backoff belongs to the transfer, not its bearer. Keep
           // the outcome (including Retry-After) for permitted hook recovery.
-          if (read.denied.code === "E_AUTH") return client.asset(id);
+          if (read.denied.code === "E_AUTH") return readAsset(client, id, progress);
           return read;
         }
         read.revoke();
         return { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
       }
-      if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
+      if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return readAsset(client, id, progress);
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
       return read;
-    },
+    }),
     assetSource: (id) => storeRefusal || closed || (readGate && !readGate.verified) ? { uri: "", headers: {} } : assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {

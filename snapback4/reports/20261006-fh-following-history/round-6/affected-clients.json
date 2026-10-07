@@ -1,0 +1,27 @@
+{
+  "command": [
+    "node",
+    "scripts/run-client-tests.mjs",
+    "4",
+    "files",
+    "packages/snapback4/test/following-history.test.mjs",
+    "packages/snapback4/test/following-hook-react.test.mjs",
+    "packages/snapback4/test/app-online-arm.test.mjs",
+    "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+    "packages/snapback4/test/asset-retry.test.mjs",
+    "packages/snapback4/test/asset-buffered.test.mjs",
+    "packages/snapback4/test/asset-avatars.test.mjs",
+    "packages/snapback4/test/asset-lists.test.mjs",
+    "packages/snapback4/test/asset-pressure.test.mjs",
+    "packages/snapback4/test/react.test.mjs",
+    "packages/snapback4/test/read-types.test.mjs",
+    "packages/snapback4/test/schema-capability-refusals.test.mjs",
+    "packages/snapback4/test/schema-capabilities.test.mjs",
+    "packages/snapback4/test/read-only*.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-fh/snapback4",
+  "cpus": "7,8,9,10,12,15,16,19,22,24,25,29,37,38,41,42,43,44,47,50,55,56,57,58",
+  "started": "2026-10-07T15:34:26.215118+00:00",
+  "seconds": 134.501,
+  "exit": 0
+}

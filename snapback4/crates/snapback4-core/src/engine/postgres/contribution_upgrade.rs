@@ -1,10 +1,8 @@
 //! Internal contribution format adoption under the evaluation adapter's writer lock.
-use super::{store::Store, WriteMode};
+use super::store::Tx;
 use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, rows::{adoption, word_heap as heap}, schema::{IndexComponent, Schema, Table}, value::{Value, canonical_json}};
 
-pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, RuntimeError> {
-    let tx = store.transaction(Some(WriteMode::Serialized))?;
-    tx.batch("ALTER TABLE _backend ADD COLUMN IF NOT EXISTS generation BIGINT NOT NULL DEFAULT 1")?;
+pub(super) fn install(tx: &Tx<'_>, schema: &mut Schema) -> Result<u64, RuntimeError> {
     let backend = tx.query("SELECT schema,generation FROM _backend WHERE singleton", &[])?;
     let previous: Schema = super::store::decode(backend[0].get(0))?;
     let mut generation = backend[0].get::<_, i64>(1);
@@ -53,7 +51,6 @@ pub(super) fn install(store: &mut Store, schema: &mut Schema) -> Result<u64, Run
         generation=generation.checked_add(1).ok_or_else(||RuntimeError::Generation("generation overflow".into()))?;
         tx.execute("UPDATE _backend SET schema = $1, generation = $2 WHERE singleton", &[&canonical_json(schema), &generation])?;
     }
-    tx.commit()?;
     u64::try_from(generation).map_err(|_|RuntimeError::Generation("negative generation".into()))
 }
 

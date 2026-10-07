@@ -112,6 +112,7 @@ export function createSmoke(container: WitnessContainer, environment: Environmen
     const receipt = (pass: boolean, error?: unknown) => w.receipt({ smoke: {
       segment: w.segment, pass, startedAt, endedAt: now(), durationMs: now() - startedAt,
       origin, viewer: client.viewer(), link: client.link(), ...state, queryFacts: config.queryFacts, queryGeneration: config.queryGeneration, queries, errors: [...errors],
+      assets: { state: "not-exercised", reason: "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events" },
       ...(w.segment === "restart" ? { barrierSeq: config.barrierSeq } : {}),
       ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
     } });

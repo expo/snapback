@@ -20,6 +20,30 @@ import { avatarFixture } from "./helpers/avatar-fixture.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
 
+for (const duplicate of [false, true]) for (const shape of ['mutable', 'sealed', 'frozen']) test(`Expo conversion refusal keeps the local client online (${duplicate ? 'duplicate Blob' : 'native store'}, ${shape})`, async t => {
+  const { nativeBlobHost, expoBlobResponse } = await import('./helpers/native-blob.mjs');
+  const f = await avatarFixture(t), host = nativeBlobHost(), links = [];
+  const expo = expoBlobResponse(host, { duplicate, convert: async () => { throw Error('native conversion unavailable'); } });
+  let requests = 0;
+  const client = await createLocalClient({ url: f.url, session: f.users.bob.session,
+    device: processDevice({ binary, dir: join(f.dir, 'native-conversion') }),
+    fetch: async (url, init) => {
+      if (new URL(url).pathname.startsWith('/assets/')) {
+        requests++; const reply = expo.response();
+        return shape === 'frozen' ? Object.freeze(reply) : shape === 'sealed' ? Object.seal(reply) : reply;
+      }
+      return fetch(url, init);
+    },
+  });
+  t.after(() => client.close()); await client.sync();
+  client.onLink(link => links.push(link));
+  t.mock.property(globalThis, 'Blob', host.Blob);
+  const result = await client.asset(f.users.alice.avatar.id);
+  assert.equal(result.denied.code, 'E_CLIENT');
+  assert.equal(requests, 1); assert.equal(expo.counts.reads, 1);
+  assert.equal(client.link(), 'online'); assert.ok(!links.includes('offline'), JSON.stringify(links));
+});
+
 test('completed ordinary and once bytes survive rotation; new local downloads await its bearer', { timeout: hangBudget(28) }, async t => {
   const f = await avatarFixture(t);
   for (const tier of ['online', 'process', 'wasm']) await t.test(tier, async t => {
