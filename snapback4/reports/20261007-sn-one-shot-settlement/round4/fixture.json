@@ -1,0 +1,13 @@
+{
+  "priorBytes": 2950,
+  "bytes": 3100,
+  "delta": 150,
+  "sha256": "c32d97550b9e16c302baca23a461a11411cd99d436ea8bdd2b8a4eee51748e7a",
+  "storedSchemaBytes": 1359,
+  "storedSchemaSha256": "3332755018a4eee39994e3e431051a39dc54fcfd0d7af5e37e9c671418f19745",
+  "nativeAndWasmStoredBackendBytes": 2389,
+  "nativeAndWasmStoredBackendSha256": "eb27bfdce483dab7266d3d91032bba98ea8023c06bd159aa8fd067f3e0267c48",
+  "onlySettlementChanged": true,
+  "storedSchemaUnchanged": true,
+  "summariesPersisted": false
+}

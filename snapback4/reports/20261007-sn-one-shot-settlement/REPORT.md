@@ -1,7 +1,8 @@
 # Lane SN: one-shot settlement
 
-**Latest: [Round 3](round3/REPORT.md).** Merge main’s FL and DK changes while
-preserving settlement and retained refusal semantics. [Round 2](round2/REPORT.md)
+**Latest: [Round 4](round4/REPORT.md).** Refresh the exact capability-free backend
+pin for the additive settlement envelope; verify unchanged schema/IR/storage on
+Linux. [Round 3](round3/REPORT.md) merged FL and DK while preserving both lanes. [Round 2](round2/REPORT.md)
 added generation/store fences, field-level evidence and dispatch-bound recovery. [Round 1](round1/REPORT.md) restored complete predicted one-shots
 and ordered identity adoption. The historical findings below describe round 0.
 

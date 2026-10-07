@@ -90461,3 +90461,43 @@ regressions passed. No failing assertion is counted as a pass. Commands, logs,
 reference validation and conflict details are in the
 [round-3 report](reports/20261007-sn-one-shot-settlement/round3/REPORT.md).
 Work stayed on eb1000 in the assigned lane-sn worktree; nothing pushed or published.
+
+
+## 2026-10-08 — SN round 4: deliberate capability-free backend pin refresh
+
+Regenerated the exact capability-free `/schema` fixture from the real compiler
+and current server on eb1000, dropping only its trailing random store_id. The
+pin grows from 2,950 to 3,100 bytes: exactly three additive settlement summaries.
+Deleting only those summary members reproduces the old pin byte-for-byte.
+The length assertion stays exact; its adjacent comment records why the pin
+changed and the author's Apartment mini evidence that published 0.2.33 native
+and WASM install/adopt/query/reopen passed before the old pin failed.
+
+The stored-schema comparison against the real 0.2.33 encoding is unchanged,
+including its two allowed diagnostic substitutions. The real Linux server's
+stored generation schema still equals the unchanged 1,359-byte golden file.
+Current native SQLite and WASM persistence both contain the same 2,389-byte
+typed backend with no settlement summary, including adoption and WASM reopen.
+A new compiler regression compares the full backend pin and original typed
+schema/Program encoding; it first reproduced the stale pin failure. LLP
+3000.023 §11 and Revised now state the additive envelope's byte change and
+one-time backend fetch/adoption on server upgrade, with no stored schema,
+interpreter IR, capability or storage migration change.
+
+The full language suite also exposed four test-only StreamReply constructors
+missed when SN round 2 added optional commit evidence. Added the neutral null
+changes field to Clique, derived-maintenance, column-commit and timeline-delivery
+helpers; its existing omission rule preserves their wire bytes and assertions.
+No runtime/device/wasm implementation or budget changed. Linux verification,
+regeneration commands and exact digests are in the
+[round-4 report](reports/20261007-sn-one-shot-settlement/round4/REPORT.md).
+The author will rerun the complete Darwin fence; no new macOS run is claimed.
+Work stayed in lane-sn on eb1000; nothing pushed or published.
+
+Round-4 final validation: the full language package passed 1,541 tests with
+13 existing ignores, including six settlement tests and 113 guide checks.
+Core schema-capability tests passed eight; affected native transport fixtures
+passed 26. The JS fixture/witness run passed four and explicitly skipped seven
+Darwin-only cases. Ref-check passed 531 documents and 10,562 references with
+zero errors or unchecked references. The exact old stored-schema assertion
+remains unchanged for the author's mini rerun.

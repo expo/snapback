@@ -363,8 +363,11 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');
   // Pin the complete canonical 0.4 backend after the behavioral checks. This
   // fixture includes the new first-10 site spelling and selection explanation.
+  // SN adds settlement summaries to the program envelope (+150 bytes). Published
+  // 0.2.33 devices accept them: install/adopt/query/reopen passed above (also
+  // confirmed by the Apartment mini at 2baacccde1). Stored schema/IR stay unchanged.
   const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
-  assert.equal(pinned.length,2950);
+  assert.equal(pinned.length,3100);
   // /schema also reports the serving store's random identity (LLP 3000.007 §20.4),
   // which is not program content: pin the backend bytes without that last key.
   const schemaText=newApp.backendBytes.toString('utf8'),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);

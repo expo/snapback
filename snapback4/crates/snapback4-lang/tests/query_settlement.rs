@@ -13,6 +13,28 @@ fn facts(bound: &snapback4_lang::Bound, name: &str) -> Value {
         .clone()
 }
 #[test]
+fn capability_free_wire_pin_adds_settlement_without_changing_schema_or_device_ir() {
+    let bound = compile(include_str!("../../snapback4-core/tests/fixtures/capability-free.q"));
+    let wire = serde_json::json!({
+        "generation": 1, "native": null,
+        "programs": snapback4_lang::emit::backend_programs(&bound),
+        "schema": bound.schema.public_projection(),
+    });
+    assert_eq!(serde_json::to_string(&wire).unwrap(), include_str!(
+        "../../../packages/snapback4/test/fixtures/capability-free-0.4.backend.json"));
+    assert_eq!(serde_json::to_string(&bound.schema).unwrap(), include_str!(
+        "../../snapback4-core/tests/fixtures/capability-free.schema.json"));
+    assert!(wire["programs"].as_array().unwrap().iter().all(|p| p["settlement"].is_object()));
+    let decoded: snapback4_device::device::Backend = serde_json::from_value(wire).unwrap();
+    let original = snapback4_device::device::Backend {
+        generation: 1, schema: bound.schema.public_projection(),
+        programs: bound.programs.into_iter().map(|p| p.program).collect(),
+    };
+    // This is the typed encoding persisted as device:backend; wire facts are discarded.
+    assert_eq!(serde_json::to_string(&decoded).unwrap(), serde_json::to_string(&original).unwrap());
+    assert!(!serde_json::to_string(&decoded).unwrap().contains("\"settlement\""));
+}
+#[test]
 fn receipt_watermarks_do_not_write_membership_keys_but_returned_progress_depends_on_them() {
     let bound = compile(include_str!("fixtures/rp-predecessor/schema.q"));
     let history = facts(&bound, "history");
