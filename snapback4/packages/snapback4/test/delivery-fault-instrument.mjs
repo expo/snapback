@@ -178,6 +178,8 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// RO Round 7: read-token.ts is a synchronous prefix predicate with zero awaits.
+// It adds no I/O or custody; delivery sites and fault recipes remain unchanged.
 // RO (LLP 3000.033 §1.4): app owns both namespaces through one custody
 // state machine; read policy awaits scope verification and serialized .read I/O.
 // read-only's gate and cancelled-rotation cleanup probe before admitting any

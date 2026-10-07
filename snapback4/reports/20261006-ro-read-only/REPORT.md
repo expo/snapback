@@ -861,3 +861,112 @@ coverage and initial evidence), `9ab2d5036d` (padded read-token refusal),
 `ecb7fdfaa5` (await classification and passing delivery matrix). All carry the
 requested `Co-Authored-By: GPT-6 Astra <noreply@openai.com>` trailer.
 **No push or publication.**
+
+
+## Round 7 — one normalized read-token predicate (2026-10-07)
+
+Addressed the medium finding in `reviews/ro-c6.astra.md`. All SDK read-token
+checks now call `isReadToken` in `auth.ts`: direct/restored/startup device
+admission, returned device credentials, online startup, expiry scheduling,
+explicit client refresh and the standalone auth helper. Its ASCII whitespace
+set matches Rust `split_ascii_whitespace` in the server bearer parser: HT, LF,
+FF, CR and space. It excludes vertical tab and Unicode whitespace, which
+JavaScript `trim()` handled differently. The server parser is unchanged.
+
+Intake decision: preserve supplied credential strings in sessions, custody and
+requests. Normalize only prefix recognition; do not rewrite stored credentials
+or turn prefix detection into authority. LLP 3000.033 §1.3 and the read-only
+card record the behavior.
+
+Both Astra reproductions are permanent in `read-only-round7.test.mjs`:
+three device entry points with padded/unpadded real server credentials, and
+fake-clock expiry with `readOnly` true/false, padded/unpadded tokens and scope
+read/full/missing. Extra controls cover near-expiry startup, explicit refresh,
+whitespace parity and padded full-session automatic/explicit refresh. A Rust
+auth unit test pins the same whitespace boundary.
+
+The initial pre-fix run reproduced **7 failures / 14 controls passing**.
+After the fix, all **23 new tests**, all **119 read-only tests** (including the
+published 0.4.13 downgrade control), **40 full-session/refresh controls**, and
+**4 auth unit tests** pass. References pass: 529 LLP docs, 10,460 refs, zero
+errors or unchecked references.
+
+Mutation evidence: removing only `isReadToken(session.token)` from the expiry
+condition in generated `client.js` yields **6 failed / 6 passed**. Every
+`readOnly:false` expiry case fails, including unpadded tokens and absent/forged
+scope; the `readOnly:true` controls pass. Generated output was restored in a
+`finally` block; source was never mutated. This closes the specific mutation
+coverage gap reported by Astra.
+
+The complete `bash scripts/test.sh` is running with default counts, the existing
+shared target and eight Cargo build jobs, dev/test debug info disabled, the
+checkout's witness helper and the published 0.4.13 binary. No push or publication.
+Final full-suite and wasm results follow below.
+
+
+The full client pool found one packaging failure: placing `isReadToken` in
+`auth.ts` accidentally exported it from the public auth entry point, so the
+README public-function census correctly required an example. Moved the unchanged
+predicate to the internal `read-token.ts` module; auth, client and device admission
+import it directly. There is no new public API and no import cycle. The final
+build/typecheck and affected test rerun follow this correction. The original
+full-run failure is retained in the evidence.
+
+
+### Final Round 7 verification
+
+The complete `bash scripts/test.sh` finished at full default counts in
+**2,016 seconds (33m36s)**. Every phase ran; no histories, cases, files or
+concurrency defaults were reduced. It exited 1 with one failed phase and two
+failed client files. This is **not a single-green-run qualification receipt**.
+All affected checks and complete reruns of the failed files now pass.
+
+- Rust: **300 test binaries / 1,013 executions plus workspace doctests**, all
+  passed. CLI unit tests: 327 passed / four existing ignores. The new parser
+  whitespace-boundary unit test ran both directly and in the full inventory.
+- Clients: **333/333 files**, **6,575 passed / 2 failed / 47 labelled skips**.
+  Every read-only test, including the 23 new Round 7 cases, passed in the pool.
+  `readme-examples.test.mjs` caught the unintended public `auth.isReadToken`
+  export; the final helper lives in internal `src/read-token.ts`. The final
+  package build/typecheck and combined **167-test** read-only, README and
+  full-session/refresh rerun all pass, with no skips.
+  `residency.test.mjs` timed out waiting for a recreated offline watch to recover
+  a remembered server answer (`TEST_HANG`, 122,000 ms). Its complete **10-test**
+  rerun passes without a residency code change. The original failure remains
+  in the full log; no host-cause claim is made from a successful rerun alone.
+- Models: **79/79 passed**, no skips: **5,000 online session histories, 5,000
+  local session histories and 3,000 online-client sequences**, at default counts.
+  These ran after the final internal-helper build.
+- The final delivery-matrix rerun initially detected the new module's missing
+  census entry. Compared the entire inventory: the sole change is
+  `read-token.ts`, **zero awaits**, with no existing entry/hash, delivery site
+  or fault recipe changed. Added that entry and its classification note; the
+  complete matrix now passes **339/339**.
+- Preflight build, wasm budget, docs budget, release guard, package build/
+  typecheck, chat compilation, chat/Expo typechecks and all nine fixture tests
+  passed. Final references pass: 529 LLP docs, 10,460 references, zero errors
+  or unchecked references. `git diff --check`, source limits and append-only
+  JOURNAL/report checks pass.
+
+The final internal-helper build also kills the expiry mutation: **6 failures /
+6 controls passing** after removing the token-only expiry condition. Restored
+output, then reran all **23 Round 7 tests**, all passing. The source was never
+mutated. Both original and final mutation logs are retained.
+
+Wasm is unchanged at **2,117,335 raw / 639,888 gzip bytes**, below the unchanged
+**639,941-byte budget** (53 bytes headroom). The server parser and production
+server behavior are unchanged; the Rust delta is only the boundary test.
+
+An earlier full-suite attempt ran out of filesystem space during compilation.
+Its truncated log is retained as `round7-full-suite-disk-exhausted.log.gz`.
+Available space recovered on the shared host before the complete run above;
+this lane deleted no other lane's files. The complete run used Node 24.13.1,
+Bun 1.3.14, `CARGO_INCREMENTAL=0`, the existing shared `CARGO_TARGET_DIR`,
+dev/test debug info disabled, eight Cargo build jobs, this checkout's witness
+helper and the published 0.4.13 downgrade-control binary. Runtime test pools
+used their default 24 Rust processes / 24 client-file slots on 96 available CPUs.
+
+Evidence is retained under `snapback4/reports/20261006-ro-read-only/evidence/`
+with the `round7-` prefix. PostgreSQL/platform scope is unchanged from prior
+rounds. The commit carries `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+**No push or publication.**

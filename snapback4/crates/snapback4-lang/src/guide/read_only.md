@@ -84,7 +84,7 @@ refuses `E_READ_ONLY_UNSUPPORTED`. Caller-edited Session.scope is never trusted.
 Supply a read session and upgrade older servers. Legacy sessions without scope remain valid persisted data.
 
 `E_READ_ONLY_DEVICE`: a read session cannot open any device. A `ro.` token is
-refused even offline, regardless of its scope field. Use an online read-only
+refused even offline, including bearer whitespace padding, regardless of its scope field. Use an online read-only
 client without a device.
 
 The SDK never refreshes or rotates a read session, automatically or explicitly.

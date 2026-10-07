@@ -88365,3 +88365,54 @@ Final SDK source is 133 net lines smaller. The online bundle loses 270 gzip
 bytes and the app bundle 788; wasm remains 639,888 gzip bytes against 639,941.
 References, source limits and append-only checks pass. The Round 6 report
 retains full logs, corrected reruns and final size evidence. No push or publication.
+
+
+## 2026-10-07 — RO Round 7: one normalized read-token predicate
+
+Centralized SDK read-token recognition in `auth.ts::isReadToken`. It ignores
+leading HT, LF, FF, CR and space, matching the server bearer parser's Rust
+`split_ascii_whitespace`; vertical tab and Unicode whitespace are not separators.
+Device admission (direct, restore, app startup and returned sessions), online
+startup, expiry scheduling, explicit refresh and the auth helper all use it.
+Credentials remain unchanged at intake, in storage and on requests. The predicate
+only recognizes the prefix; stored server scope remains authoritative.
+
+Made Astra's two padding reproductions permanent in `read-only-round7.test.mjs`,
+with missing/forged scope, near-expiry startup, explicit refresh, ASCII boundary
+vectors and a padded full-session refresh control. The server unit test pins the
+same whitespace boundary. All 23 new tests and all 119 read-only tests pass;
+40 session/refresh controls and four auth unit tests pass. The pre-fix tests
+reproduced seven failures. Removing only the token-based expiry condition makes
+all six `readOnly: false` expiry cases fail, with the six `readOnly: true` controls
+still green. The mutation was applied only to generated output and restored.
+The complete suite is running at full counts; final results follow below.
+
+
+The full client pool found one packaging failure: placing `isReadToken` in
+`auth.ts` accidentally exported it from the public auth entry point, so the
+README public-function census correctly required an example. Moved the unchanged
+predicate to the internal `read-token.ts` module; auth, client and device admission
+import it directly. There is no new public API and no import cycle. The final
+build/typecheck and affected test rerun follow this correction. The original
+full-run failure is retained in the evidence.
+
+
+Round 7 complete verification ran at full default counts in 2,016 seconds:
+300 Rust binaries / 1,013 executions plus doctests, all passed; 333 client files
+with 6,575 passes, two failures and 47 labelled skips; all 79 model tests with
+5,000 histories per session tier and 3,000 online-client sequences passed.
+The unintended public-helper export was corrected with the internal
+`read-token.ts`; the complete affected rerun passes 167 tests. The other full-run
+failure was a recreated offline watch's 122-second guard in `residency.test.mjs`;
+all ten tests pass its complete rerun without a residency change. This is not
+a single-green-run qualification receipt; the original failures are retained.
+
+The internal module also needed a zero-await census entry. A complete comparison
+found no other entry/hash, delivery site or recipe change. Added that entry and
+its classification note; all 339 delivery-matrix tests pass. The final build
+kills the token-only expiry mutation in six cases while six readOnly controls pass; after
+restoration all 23 Round 7 tests pass. References and append-only checks pass.
+Wasm stays 2,117,335 raw / 639,888 gzip bytes against the unchanged 639,941 budget.
+An earlier disk-exhausted attempt is preserved separately from the complete
+run. No other lane's files were deleted. The Round 7 report records every
+failure, correction and passing rerun. No push or publication.

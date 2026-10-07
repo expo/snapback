@@ -304,6 +304,22 @@ fn perform(
 mod tests {
     use super::*;
     #[test]
+    fn bearer_padding_matches_sdk_read_token_predicate() {
+        // Keep these boundary vectors paired with read-only-round7.test.mjs.
+        for padding in [" ", "\t", "\n", "\x0c", "\r", " \t\n\x0c\r "] {
+            let header = format!("Bearer {padding}ro.reader{padding}");
+            assert_eq!(parse_bearer(&header), Some("ro.reader"));
+        }
+        for padding in ["\x0b", "\u{0085}", "\u{00a0}", "\u{2003}", "\u{feff}"] {
+            let token = format!("{padding}ro.reader{padding}");
+            let header = format!("Bearer {token}");
+            assert_eq!(parse_bearer(&header), Some(token.as_str()));
+            assert!(!parse_bearer(&header).unwrap().starts_with("ro."));
+        }
+        assert_eq!(parse_bearer("Bearer ro.reader extra"), None);
+    }
+
+    #[test]
     fn rate_keys_expire_and_rotation_does_not_bypass_limits() {
         let a = Admission::default();
         let now = Instant::now();

@@ -36,6 +36,7 @@ import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
+import { isReadToken } from "./read-token.ts";
 import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -450,7 +451,7 @@ export function createClient(options: ClientOptions): Client {
     refreshTimer = undefined;
     if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
     // @ref LLP 3000.033#1.3 — read sessions expire without any SDK rotation.
-    if (readGate || session.token.startsWith("ro.")) {
+    if (readGate || isReadToken(session.token)) {
       const remaining = session.expiresAt - clock.issuedDeviceNow();
       if (remaining <= 0) { endCredentials(); return; }
       refreshTimer = setTimeout(() => scheduleRefresh(), Math.min(remaining, 2_147_000_000));
@@ -470,10 +471,10 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000#7 — both client tiers keep short-lived sessions and rotate the bearer before expiry.
   function refreshCurrent(): Promise<SignIn> {
-    if (readGate || headers.authorization?.startsWith("Bearer ro.")) return Promise.resolve({ ok: false, why: readOnlyRefusal("E_READ_ONLY_REFRESH") });
+    const token = headers.authorization?.slice("Bearer ".length);
+    if (readGate || isReadToken(token)) return Promise.resolve({ ok: false, why: readOnlyRefusal("E_READ_ONLY_REFRESH") });
     if (closed || storeRefusal) return Promise.resolve({ ok: false, why: storeRefusal ?? ended() });
     if (refreshing) return refreshing;
-    const token = headers.authorization?.slice("Bearer ".length);
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
@@ -1248,7 +1249,7 @@ export function createClient(options: ClientOptions): Client {
   const start = async () => {
     if (closed) return;
     if (readGate) { scheduleRefresh(); await readGate.verify(); return; }
-    if (session && !session.token.startsWith("ro.") && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
+    if (session && !isReadToken(session.token) && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
     else scheduleRefresh();
   };
   if (readGate) registerReadVerification(client, () => readGate.verify());

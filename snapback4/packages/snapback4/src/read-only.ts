@@ -1,4 +1,5 @@
 import { refreshSession } from "./auth.ts";
+import { isReadToken } from "./read-token.ts";
 import type { Client, Refusal, Session } from "./contract.ts";
 import { readResponse, transportRefusal } from "./http-response.ts";
 
@@ -10,7 +11,7 @@ export const readOnlyRefusal = (code = "E_READ_ONLY"): Refusal => ({ code, famil
     E_READ_ONLY_UNSUPPORTED: "this server cannot verify read sessions; upgrade it before using readOnly" } as Record<string, string>)[code] ?? code });
 export function refuseReadDevice(session?: Session | null, token?: string): void {
   // @ref LLP 3000.033#1.4 — token-based admission works offline and ignores forged scope fields.
-  if ((session?.token ?? token)?.startsWith("ro.")) throw Object.assign(new Error("E_READ_ONLY_DEVICE: a read session cannot open a device"), { why: readOnlyRefusal("E_READ_ONLY_DEVICE") });
+  if (isReadToken(session?.token ?? token)) throw Object.assign(new Error("E_READ_ONLY_DEVICE: a read session cannot open a device"), { why: readOnlyRefusal("E_READ_ONLY_DEVICE") });
 }
 // Apply the same admission check to every device rotation, including a late
 // successor. Refuse before adoption or persistence even if scope was forged.

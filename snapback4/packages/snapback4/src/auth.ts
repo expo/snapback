@@ -1,6 +1,7 @@
 import { browserAdmission, synchronousSessionStore } from "./admission.ts";
 import { indexedDbSessionStore } from "./session-authority.ts";
 import { defaultFetch } from "#fetch";
+import { isReadToken } from "./read-token.ts";
 // Sign-in (H0): a guest session, or a password account. Each returns a
 // bearer token the client sends as `authorization`; the token is the
 // device's to keep (in memory, or wherever the app keeps secrets). A
@@ -53,7 +54,7 @@ export function login(url: string, email: string, password: string, options: Sig
  * returns the replacement, so callers must adopt or revoke the returned session. */
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   // @ref LLP 3000.033#1.3 — SDK read credentials live until expiry, without rotation.
-  if (token.trim().startsWith("ro.")) return { ok: false, why: { code: "E_READ_ONLY_REFRESH", family: "auth", guide: "read-only",
+  if (isReadToken(token)) return { ok: false, why: { code: "E_READ_ONLY_REFRESH", family: "auth", guide: "read-only",
     message: "read sessions cannot refresh; sign in again or narrow a full session again" } };
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
