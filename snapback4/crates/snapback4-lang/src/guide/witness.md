@@ -63,10 +63,10 @@ video, receipts JSONL and logs with hashes. Counts and identity are reread after
 termination, even after a success receipt. The runner follows the published client when session restoration replaces a constructor candidate.
 A failed or unrun segment is never reported as passed; exit is nonzero. Preserve failed artifacts and choose a
 fresh directory when retrying. Receipts contain counts, not query row contents; video and screenshots show the actual app and may contain its visible data.
-An empty partition proves opening and lifecycle only; seed/sign in with the
-history you want to qualify before running. Pending write replay, required-argument queries, writes,
-media and application-specific correctness need the deeper runner below. Optional-argument native queries require an application witness: generic smoke
-refuses their conditional module availability rather than calling them server-only.
+Empty partitions prove opening/lifecycle only; seed/sign in with history. Pending write replay, required-argument queries, writes, media and app correctness need the deeper runner below.
+Optional-argument native queries require an application witness: generic smoke refuses their conditional module availability rather than calling them server-only.
+Receipts mark `assets.state: "not-exercised"`. To qualify media, record `useAsset`'s ready/denied/error or `loading.waiting` state (`guide assets`)
+and the native image/video load or error callback. Acquired rows and successful generic smoke do not prove an image fetched or rendered.
 Ordinary launches do not load the smoke runner or install its error handler.
 
 ## Own Release preparation (bounded adapter)

@@ -209,6 +209,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_ASSET_TYPE", "A client uploads the bytes first (`client.upload(file)` → `{ id, type, bytes, width, height, duration }`; the server sniffs JPEG, PNG, WebP and MP4 and refuses the rest with E_ASSET_TYPE, and anything over the largest column's bound with E_ASSET_TOO_LARGE)."),
     ("E_ASSET_UNKNOWN", "a row that is deleted, whose column is cleared, that expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN."),
     ("E_ASSET_VIEWED", "`once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and the uploader is counted after placement; before placement the uploader may preview."),
+    ("E_ASSET_WAIT", "`waiting.why` adds E_ASSET_WAIT with the stage's explanation"),
     ("E_AUTH", "E_AUTH means the request has no live principal or uses the wrong authority for its endpoint."),
     ("E_WORKER_REFRESH", "E_WORKER_REFRESH means this token belongs to a supervised worker family."),
     ("E_BOUND", "A query past a ceiling returns what it found with `complete: false`; a mutation aborts with E_BOUND naming the meter, the ceiling and the site (never the count: it would measure rows the viewer may not read)."),

@@ -1,0 +1,51 @@
+{"at":1791362524132,"kind":"app","run":"debug","event":"app-ready","state":"signed-out","native":true,"platform":"ios"}
+{"at":1791362524134,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/auth/login","headers":["content-type"],"bearer":false,"range":null}
+{"at":1791362524307,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/auth/login","status":200,"stream":true}
+{"at":1791362524331,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/schema","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362524333,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/schema","status":200,"stream":true}
+{"at":1791362524350,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"server-clock"}
+{"at":1791362524350,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"server-clock-floor"}
+{"at":1791362524356,"kind":"app","run":"debug","event":"native-call","op":"set_meta","key":"server-clock"}
+{"at":1791362524356,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"syncedAt:wall:1"}
+{"at":1791362524356,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"media:manifest"}
+{"at":1791362524359,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"write-history"}
+{"at":1791362524360,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791362524370,"kind":"app","run":"debug","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791362524371,"kind":"app","run":"debug","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791362524381,"kind":"app","run":"debug","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791362524395,"kind":"app","run":"debug","event":"hook-schedule"}
+{"at":1791362524395,"kind":"app","run":"debug","event":"hook-effect","id":"01M4AQ580HE65ZWGSHDHPV0CFX","signedOut":false,"document":"undefined","documentEvents":"undefined","globalEvents":"undefined"}
+{"at":1791362524398,"kind":"app","run":"debug","event":"asset-state","asset":{"status":"loading"},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362524399,"kind":"app","run":"debug","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791361551911},"link":"online"}
+{"at":1791362524402,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362524403,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791362524403,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362524404,"kind":"app","run":"debug","event":"hook-load","live":true,"busy":false,"link":"online"}
+{"at":1791362524404,"kind":"app","run":"debug","event":"hook-microtask"}
+{"at":1791362524404,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/sync","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362524407,"kind":"app","run":"debug","event":"asset-state","asset":{"status":"loading"},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362524407,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791362524409,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/sync","status":200,"stream":true}
+{"at":1791362524411,"kind":"app","run":"debug","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791362524413,"kind":"app","run":"debug","event":"native-call","op":"set_meta","key":"syncedAt:wall:1"}
+{"at":1791362524418,"kind":"app","run":"debug","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791361551911,"revalidating":true},"link":"online"}
+{"at":1791362524419,"kind":"app","run":"debug","event":"login","ok":true}
+{"at":1791362524421,"kind":"app","run":"debug","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"link":"online"}
+{"at":1791362524423,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362524698,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362524698,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362524699,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791362524701,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791362525247,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362525248,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362525248,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791362525256,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791362526438,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","status":200,"stream":true}
+{"at":1791362526445,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362526464,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362526464,"kind":"app","run":"debug","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362526464,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791362526466,"kind":"app","run":"debug","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791362526470,"kind":"app","run":"debug","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791362524412,"revalidating":true},"link":"offline"}
+{"at":1791362526473,"kind":"app","run":"debug","event":"asset-state","asset":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported; check the connection and server logs before retrying","retryable":true}},"link":"offline","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362526473,"kind":"app","run":"debug","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791362524411},"link":"offline"}

@@ -1,5 +1,6 @@
 import { refuseReadDevice, validateReadOptions, refreshDeviceSession as rotateSession } from "./read-only.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
+import { assetReader, readAsset } from "./asset-progress.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
 import { currentDecorations, copyDecorations } from "./read-decoration.ts";
@@ -1303,18 +1304,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
-    async asset(id) {
+    asset: assetReader(async (id, progress) => {
       const denied = unavailable(); if (denied) return { denied };
-      await media!.reconcile(); if (refreshing) await refreshing; // @ref LLP 3000.008.002.000#6 — reconcile expiry, then wait for the active bearer.
+      progress("media"); await media!.reconcile(); if (refreshing) { progress("refresh"); await refreshing; } // @ref LLP 3000.008.002.000#6 — reconcile expiry, then wait for the active bearer.
       if (unavailable()) return { denied: unavailable()! };
-      if (link !== "online") return media!.read(id);
+      if (link !== "online") { progress("media"); return media!.read(id); }
       const request = requestCredentials();
       const read = await fetchAsset(base, request.headers, doFetch, id, (blob, response) =>
         unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response), aborter.signal,
-        () => !unavailable() && request.revision === credentialRevision, downloads);
+        () => !unavailable() && request.revision === credentialRevision, downloads, progress);
       // @ref LLP 3000.008.002.000#6 — a rotated pre-dispatch refusal has no asset authority to invalidate.
       if ("denied" in read && !unavailable() && request.revision !== credentialRevision) {
-        return read.denied.code === "E_AUTH" ? client.asset(id) : read;
+        return read.denied.code === "E_AUTH" ? readAsset(client, id, progress) : read;
       }
       if ("denied" in read) {
         await refusedSession(read.denied, request.revision);
@@ -1330,7 +1331,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         return { denied: unavailable()! };
       }
       return read;
-    },
+    }),
     assetSource: (id) => assetSource(base, requestCredentials().headers, id),
     link: () => link,
     onLink(listener) {
@@ -1372,8 +1373,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     async signOut() {
       const token = session?.token;
-      // Capture before endSession's synchronous callbacks. The real promise
-      // remains tracked until adoption ends, including its resolved microtask.
+      // Capture before endSession callbacks; track until adoption ends, including its resolved microtask.
       const rotation = rotatingSession, retire = retireRotation;
       const ending = endSession();
       if (token) void logout(base, token, doFetch);

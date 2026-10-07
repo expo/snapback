@@ -1,0 +1,38 @@
+-- client file start: packages/snapback4/test/identity-organizations.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: managed-policy CLI operation inventory excludes actions and jobs
+ok 1 - managed-policy CLI operation inventory excludes actions and jobs
+  ---
+  duration_ms: 0.592148
+  type: 'test'
+  ...
+# Subtest: managed-policy CLI envelopes are kind-specific and fail closed
+ok 2 - managed-policy CLI envelopes are kind-specific and fail closed
+  ---
+  duration_ms: 0.92652
+  type: 'test'
+  ...
+# Subtest: managed-policy scratch parent rejects Git directory and linked-worktree ancestors
+ok 3 - managed-policy scratch parent rejects Git directory and linked-worktree ancestors
+  ---
+  duration_ms: 8.674707
+  type: 'test'
+  ...
+# Subtest: managed organization and invitation policy runs in the shared interpreter
+ok 4 - managed organization and invitation policy runs in the shared interpreter # SKIP set SNAPBACK4_B1D_MANAGED_BIN, SNAPBACK4_B1D_MANAGED_BIN_SHA256, SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT to the pinned parent binary and a private scratch parent
+  ---
+  duration_ms: 0.08053
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 71.342963
+-- process inspection: {"snapshots":3,"unrelatedRows":4002}
+-- client file ok: packages/snapback4/test/identity-organizations.test.mjs (383 ms)
+-- client files: 1/1; failed 0; tests {"tests":4,"pass":3,"fail":0,"cancelled":0,"skipped":1,"todo":0}

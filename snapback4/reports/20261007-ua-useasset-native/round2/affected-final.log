@@ -1,0 +1,304 @@
+✔ Expo conversion refusal keeps the local client online (native store, mutable) (2503.804878ms)
+✔ Expo conversion refusal keeps the local client online (native store, sealed) (2023.148511ms)
+✔ Expo conversion refusal keeps the local client online (native store, frozen) (2070.937525ms)
+✔ Expo conversion refusal keeps the local client online (duplicate Blob, mutable) (2057.052079ms)
+✔ Expo conversion refusal keeps the local client online (duplicate Blob, sealed) (2073.972667ms)
+✔ Expo conversion refusal keeps the local client online (duplicate Blob, frozen) (2012.583996ms)
+▶ completed ordinary and once bytes survive rotation; new local downloads await its bearer
+  ✔ online (701.078236ms)
+  ✔ process (1653.614206ms)
+  ✔ wasm (2020.458924ms)
+✔ completed ordinary and once bytes survive rotation; new local downloads await its bearer (6155.18855ms)
+▶ local queue saturation keeps link and retained media live
+  ✔ process (2556.469981ms)
+  ✔ wasm (2424.922272ms)
+✔ local queue saturation keeps link and retained media live (6765.609095ms)
+▶ queued local avatars survive credential rotation without invalidating retained handles
+  ✔ process (796.470165ms)
+  ✔ wasm (678.945888ms)
+✔ queued local avatars survive credential rotation without invalidating retained handles (3525.442177ms)
+▶ message authors and feed avatars share ordinary home-row authority
+  ✔ online (10846.311461ms)
+  ℹ {"tier":"online","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/05c169c1-27b8-49e8-97db-770427387f7b","type":"image/png"},"calls":2}
+  ℹ {"tier":"online","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/7ccb6feb-c880-4622-b4ef-80985d964e57","type":"image/png"},"calls":2}
+  ℹ {"tier":"online","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/dee78eb6-28ec-45f0-953b-fc1c7aa0f430","type":"image/png"},"calls":2}
+  ℹ {"tier":"online","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"online","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+  ✔ process (11059.229392ms)
+  ℹ {"tier":"process","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/f620cf89-00a2-45f5-885d-4cc40935844d","type":"image/png"},"calls":2}
+  ℹ {"tier":"process","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/b1899e9a-d011-4220-9bce-d8e28702458f","type":"image/png"},"calls":2}
+  ℹ {"tier":"process","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/77ad2ce8-73e5-45ef-a0d8-4589ba679356","type":"image/png"},"calls":2}
+  ℹ {"tier":"process","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"process","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+  ✔ wasm (11070.351298ms)
+  ℹ {"tier":"wasm","mode":"reset","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/b2e20641-a38c-4933-ac98-0ae4d0549bfd","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"overload","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/f73ba738-1c69-45c8-97b7-9ad11fdf8a2e","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"timeout","state":{"status":"ready","url":"blob:http://127.0.0.1:37453/b7a1c951-7cab-4320-81db-0fe917526d84","type":"image/png"},"calls":2}
+  ℹ {"tier":"wasm","mode":"burst","ready":40,"denied":[],"calls":40,"peak":6,"rejected":0}
+  ℹ {"tier":"wasm","mode":"exhaust","state":{"status":"error","why":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: injected ECONNRESET; check the connection and server logs before retrying","retryable":true}},"calls":4}
+  ℹ [{"scope":"dm","ready":20},{"scope":"group","ready":20},{"scope":"feed","ready":20},{"scope":"inbox","ready":2}]
+  ℹ replacement, independent handles, released-id refusal, one-view consumption, membership revocation and sign-out passed
+✔ message authors and feed avatars share ordinary home-row authority (35488.962707ms)
+✔ healthy HTTP chunks every 500 ms for six seconds paint without wait diagnostics, ordinary and once (7043.300191ms)
+ℹ {"completed":[{"id":"completion-ordinary","ms":6000},{"id":"blob-ordinary","ms":6001},{"id":"stream-ordinary","ms":6001},{"id":"completion-once","ms":6002},{"id":"blob-once","ms":6001},{"id":"stream-once","ms":6003}],"requests":[{"id":"completion-ordinary","range":"bytes=0-"},{"id":"completion-once","range":"bytes=0-"},{"id":"blob-ordinary","range":"bytes=0-"},{"id":"blob-once","range":"bytes=0-"},{"id":"stream-ordinary","range":"bytes=0-"},{"id":"stream-once","range":"bytes=0-"},{"id":"completion-once"},{"id":"blob-once"},{"id":"stream-once"}],"states":{"completion-ordinary":{"status":"ready"},"completion-once":{"status":"ready"},"blob-ordinary":{"status":"ready"},"blob-once":{"status":"ready"},"stream-ordinary":{"status":"ready"},"stream-once":{"status":"ready"}}}
+(node:2458684) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a follower GETs every placed element; reorder, drop and deletion keep one home (229.279024ms)
+✔ native: synced list elements survive offline reopen and drop revokes only that element (9239.791091ms)
+✔ wasm: synced list elements survive offline reopen and drop revokes only that element (8615.611355ms)
+✔ reopening a legacy Alice list cannot publish Bob's upload or take his placement (356.846379ms)
+✔ native: legacy bare id cannot retain bytes after real home revoke (2429.578971ms)
+✔ native: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke) (3323.897617ms)
+✔ native: legacy bare id cannot retain bytes after real home clear (3365.684945ms)
+✔ native: legacy bare id cannot retain bytes after real home delete (3372.061367ms)
+✔ native: legacy copied facts cannot retain bytes after real home revoke (3383.258585ms)
+✔ native: legacy copied facts cannot retain bytes after real home clear (3373.613107ms)
+✔ native: legacy copied facts cannot retain bytes after real home delete (3369.920112ms)
+✔ wasm: legacy bare id cannot retain bytes after real home revoke (2249.066704ms)
+✔ wasm: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke) (2256.251787ms)
+✔ wasm: legacy bare id cannot retain bytes after real home clear (3261.74156ms)
+✔ wasm: legacy bare id cannot retain bytes after real home delete (3235.470438ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home revoke (3232.974128ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home clear (3242.667891ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home delete (3248.431093ms)
+✔ native: a download delayed across store replacement cannot retain legacy bytes, even after reopen (3307.716434ms)
+✔ native: a download delayed across store replacement preserves the newer download, even after reopen (4312.190039ms)
+✔ native: a once download delayed across store replacement preserves the newer download, even after reopen (4295.46573ms)
+✔ wasm: a download delayed across store replacement cannot retain legacy bytes, even after reopen (3251.766222ms)
+✔ wasm: a download delayed across store replacement preserves the newer download, even after reopen (4230.796175ms)
+✔ wasm: a once download delayed across store replacement preserves the newer download, even after reopen (4234.453281ms)
+✔ native: list cache retires on expiry and stays retired after offline reopen (2264.985297ms)
+✔ native: list cache retires on generation and stays retired after offline reopen (3287.825769ms)
+✔ wasm: list cache retires on expiry and stays retired after offline reopen (2187.354607ms)
+✔ wasm: list cache retires on generation and stays retired after offline reopen (2242.335935ms)
+✔ native: persisted old list media index reacquires unchanged rows once (3317.559079ms)
+✔ native: persisted old scalar media index reacquires unchanged rows once (3253.26299ms)
+✔ wasm: persisted old list media index reacquires unchanged rows once (3144.297124ms)
+✔ wasm: persisted old scalar media index reacquires unchanged rows once (3108.923965ms)
+✔ native: nested placed elements cross inner lists and survive an empty first list offline (2280.699003ms)
+✔ wasm: nested placed elements cross inner lists and survive an empty first list offline (2192.922021ms)
+✔ native: a legacy copy in refs cannot replace the same row's released photo home (2412.058355ms)
+✔ wasm: a legacy copy in refs cannot replace the same row's released photo home (2243.365115ms)
+✔ native: a paged upgrade restore halts follow and flush (1635.910455ms)
+✔ wasm: a paged upgrade restore halts follow and flush (1581.867626ms)
+✔ native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B publishes (1272.050437ms)
+✔ native: initial acquisition rejects an overtaken terminal snapshot continuation after B publishes (1275.208751ms)
+✔ native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B stages (1273.565368ms)
+✔ native: initial acquisition rejects an overtaken terminal snapshot continuation after B stages (1268.068278ms)
+▶ forty asset calls recover after actual connection admission pressure
+  ✔ online (1427.350558ms)
+  ℹ {"tier":"online","ready":40,"attempts":62,"resets":0,"limited":22,"denied":[]}
+  ✔ process (1603.582287ms)
+  ℹ {"tier":"process","ready":40,"attempts":57,"resets":0,"limited":17,"denied":[]}
+  ✔ wasm (1953.357424ms)
+  ℹ {"tier":"wasm","ready":40,"attempts":56,"resets":0,"limited":16,"denied":[]}
+✔ forty asset calls recover after actual connection admission pressure (6907.41542ms)
+✔ bare HTTP 408 retries ordinary bytes without a refusal envelope (275.343894ms)
+✔ bare HTTP 429 retries ordinary bytes without a refusal envelope (257.713132ms)
+✔ bare HTTP 500 retries ordinary bytes without a refusal envelope (305.086952ms)
+✔ bare HTTP 502 retries ordinary bytes without a refusal envelope (284.622753ms)
+✔ bare HTTP 503 retries ordinary bytes without a refusal envelope (273.910945ms)
+✔ bare HTTP 504 retries ordinary bytes without a refusal envelope (296.099238ms)
+✔ rotation during admission backoff returns the existing refusal instead of resetting custody (2.849091ms)
+✔ ordinary reset recovers with a non-consuming full-file Range (259.315033ms)
+✔ ordinary body reset recovers with a non-consuming full-file Range (304.334846ms)
+✔ ordinary 503 recovers with a non-consuming full-file Range (599.435207ms)
+✔ ordinary timeout recovers with a non-consuming full-file Range (1.523284ms)
+✔ exhaustion is bounded, retains its cause, and preserves long retry guidance (2042.902769ms)
+✔ a real HTTP video progressing for over five seconds completes in one transfer (6036.758144ms)
+✔ ordinary and one-view streams exceed thirty seconds; an actual stall still recovers (7.665322ms)
+✔ body decoding consumes Retry-After time without an early request (2.232968ms)
+✔ empty chunks cannot postpone a stall or its bounded recovery (2.446378ms)
+✔ a stalled 503 error body preserves Retry-After 60 (1.177615ms)
+✔ a stalled 503 error body preserves Retry-After Thu, 01 Jan 1970 00:02:40 GMT (0.844957ms)
+✔ E_ASSET_UNKNOWN is final even when mislabelled retryable (0.455392ms)
+✔ E_ASSET_VIEWED is final even when mislabelled retryable (0.303395ms)
+✔ E_AUTH is final even when mislabelled retryable (0.310635ms)
+✔ E_RULE is final even when mislabelled retryable (0.279018ms)
+✔ revocation during ordinary retry stops at its first refusal (259.891038ms)
+✔ one-view reset never replays an ambiguous download (0.793299ms)
+✔ one-view body reset never replays an ambiguous download (0.543254ms)
+✔ one-view timeout never replays an ambiguous download (1.001652ms)
+✔ one-view malformed refusal never replays an ambiguous download (0.534561ms)
+✔ a timed-out late Blob is closed and never retained or published (1.199348ms)
+✔ buffered bodies use a size-aware finite allowance: 1048576 (1.145176ms)
+✔ buffered bodies use a size-aware finite allowance: null (1.321261ms)
+✔ buffered bodies use a size-aware finite allowance: invalid (0.741532ms)
+✔ buffered bodies use a size-aware finite allowance:  (0.765728ms)
+✔ a completion-only fetch gets the unknown-size allowance and disposes its late response (0.970385ms)
+✔ queue and backoff share thirty seconds even across opaque attempts (1.064816ms)
+✔ queue expiry during Retry-After preserves the admission refusal and deadline (0.616605ms)
+✔ post-download retention failure is retryable only for ordinary bytes: once=false (0.308673ms)
+✔ post-download retention failure is retryable only for ordinary bytes: once=true (0.279799ms)
+✔ the queue admits six bodies and cancels waiting and active calls on close (2.373798ms)
+✔ journal storage listener belongs to the last shared owner (1.822452ms)
+▶ React hooks and reference-app lifetimes
+  ✔ the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself (20.18436ms)
+  ✔ the receipts card leaves delivery to the SDK and reports only visible settled rows (10.676876ms)
+  ✔ the receipts card requires current membership and resets on withdrawal and hidden remount (7.093424ms)
+  ✔ useSeen shares two Strict Mode screens and obeys the explicit viewport on both hosts (3.923181ms)
+  ✔ useNow hides a server-answered row at its deadline and after a clock advance (8.930939ms)
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (46.207753ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (20.801565ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (291.773643ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (3.502821ms)
+  ✔ useMutation passes admission options and saved identity; custody clears inFlight (3.475481ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (6.158032ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (3.2152ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (7.645742ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (5.234316ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (6.875588ms)
+  ✔ useAsset never commits a previous id, client or principal's handle (9.532871ms)
+  ✔ unmounting one avatar hook preserves another hook for the same id (9.542886ms)
+  ✔ useAsset effect lifetime survives Activity and initial StrictMode replay (7.597229ms)
+  ✔ useAsset recovers transport errors on focus and reconnect, never denials or consumed views (9.612901ms)
+  ✔ useAsset diagnoses empty and restarted streams before abort, and opaque waits before expiry (13.957605ms)
+  ✔ useAsset names a held session before any request and diagnoses it without replay (3.904403ms)
+  ✔ useAsset converts a synchronous custom-reader throw into a typed error (2.618746ms)
+  ✔ useAsset preserves real admission cooldown through focus and reconnect (13.366178ms)
+  ✔ useAsset remembers one recovery event while busy without looping (2.641189ms)
+  ✔ useAsset with a bearer before viewer discovery fetches only once (2.893778ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (4.498784ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (3.537093ms)
+  ✔ keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset (74.956872ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (71.375563ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (11.044077ms)
+  ✔ usePage keeps the ready prefix while replacing an in-flight suffix (3.486727ms)
+  ✔ usePage keeps loaded pages while another loads and withdraws them on a first-page reset (6.139254ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (18.845512ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (9.795224ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (12.977245ms)
+  ✔ useQuery lingering remount has data in its first committed render (12.263926ms)
+  ✔ useQuery lingering remount has data in its first committed render through the app facade (3.889291ms)
+  ✔ usePage lingering remount has data in its first committed render (3.951353ms)
+  ✔ usePage lingering remount has data in its first committed render through the app facade (3.478905ms)
+  ✔ useQuery createApp remount first commits the lingering answer during a held re-read (19.46491ms)
+  ✔ usePage createApp remount first commits the lingering answer during a held re-read (18.593324ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (23.93366ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (29.30991ms)
+  ✔ web submit owns a fresh field and storage failure keeps the draft (4.432545ms)
+  ✔ Expo submit owns a fresh field and storage failure keeps the draft (6.916839ms)
+  ✔ Expo composer uses membership presence without losing its draft (6.751582ms)
+  ✔ Expo observes every saved ID across reload, late refusal, unknown receipt and account switch (20.73818ms)
+  ✔ Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete (15.279546ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (3.245335ms)
+  ✔ receipt notifications read one pending list for ten thousand message hooks (410.07763ms)
+  ✔ pending-write lists filter, update, fence old reads, and release StrictMode subscriptions (3.436151ms)
+  ✔ web receipt labels separate admission, restoration and unknown; late refusal offers text (4.944913ms)
+  ✔ Expo receipt labels separate admission, restoration and unknown; late refusal offers text (5.654997ms)
+  ✔ saved write restoration ends on reject or live outcome and restarts for another id (2.103904ms)
+  ✔ web room loading keeps the same input and legacy intents disclose missing text (4.558644ms)
+  ✔ pending items release unowned resource payloads without reloading unrelated pending writes (12.878416ms)
+  ✔ pending items online retirement: confirmed row retires success permanently (10.597006ms)
+  ✔ pending items online retirement: prediction never retires success (10.290797ms)
+  ✔ pending state uses covering read sequence when another writer supersedes success (9.833542ms)
+  ✔ pending state value equality without covering read evidence cannot retire success (10.02546ms)
+  ✔ round2: pending state rejects a saved covering read after a real bearer reset (15.712586ms)
+  ✔ shared online journal updates A's hook on B's admission and settlement after remount (25.062433ms)
+1:16:22 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:16:22 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:16:22 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ shared online journal invalidates pending hooks across browser tabs (332.968992ms)
+1:16:22 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ closing the last journal owner during admission still invalidates another tab (275.966156ms)
+1:16:23 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:16:23 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:16:23 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:16:23 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ clearing localStorage in another tab invalidates the journal hook (281.430138ms)
+✔ React hooks and reference-app lifetimes (3555.291173ms)
+✔ AssetState accepts pre-wait loading literals and optional progress from both imports (1811.818949ms)
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (390.949384ms)
+✔ ready literals require the discriminant (415.275022ms)
+✔ matchRead rejects every omitted state and never falls back for denied or partial (2761.709093ms)
+✔ matchRead narrows each handler, preserves metadata and infers mixed return types from both imports (385.495889ms)
+✔ presentation accepts generic covariant reads and cannot authorize or narrow their data (327.905162ms)
+✔ awaited query excludes loading, including existence, while observe retains it (345.955511ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (346.867719ms)
+✔ Read is covariant and every narrowed arm retains its result type (358.076212ms)
+✔ pending items declarations preserve the row/intent union and typed operation arguments (377.969766ms)
+✔ receipt family preserves mapped operation types and useSeen requires explicit visibility (1632.736599ms)
+ℹ tests 183
+ℹ suites 0
+ℹ pass 183
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125789.835614

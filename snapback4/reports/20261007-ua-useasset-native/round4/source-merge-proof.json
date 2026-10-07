@@ -1,0 +1,15 @@
+{
+  "clientNonAssetCodeEqualsMain": true,
+  "assetBodyEqualsUAPlusReadGate": true,
+  "readGatePrecedesUAAssetBody": true,
+  "asset-download.tsEqualsUA": true,
+  "asset-progress.tsEqualsUA": true,
+  "assets.tsEqualsUA": true,
+  "online-arm-fence.tsEqualsMain": true,
+  "app-online-arm.tsEqualsMain": true,
+  "ephemeral.tsEqualsMain": true,
+  "app.tsEqualsMain": true,
+  "read-only.tsEqualsMain": true,
+  "read-token.tsEqualsMain": true,
+  "observe-watch.tsEqualsMain": true
+}

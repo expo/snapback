@@ -1,0 +1,38 @@
+{"at":1791362721377,"kind":"app","run":"debug-fixed","event":"app-ready","state":"signed-out","native":true,"platform":"ios"}
+{"at":1791362721382,"kind":"app","run":"debug-fixed","event":"fetch","uri":"http://127.0.0.1:59583/auth/login","headers":["content-type"],"bearer":false,"range":null}
+{"at":1791362721610,"kind":"app","run":"debug-fixed","event":"fetch-response","uri":"http://127.0.0.1:59583/auth/login","status":200,"stream":true}
+{"at":1791362721645,"kind":"app","run":"debug-fixed","event":"fetch","uri":"http://127.0.0.1:59583/schema","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362721649,"kind":"app","run":"debug-fixed","event":"fetch-response","uri":"http://127.0.0.1:59583/schema","status":200,"stream":true}
+{"at":1791362721737,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"server-clock-floor"}
+{"at":1791362721737,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"server-clock"}
+{"at":1791362721738,"kind":"app","run":"debug-fixed","event":"native-call","op":"set_meta","key":"server-clock"}
+{"at":1791362721741,"kind":"app","run":"debug-fixed","event":"native-call","op":"asset_home"}
+{"at":1791362721741,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"media:manifest"}
+{"at":1791362721776,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"syncedAt:wall:1"}
+{"at":1791362721778,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"write-history"}
+{"at":1791362721794,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791362721803,"kind":"app","run":"debug-fixed","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791362721804,"kind":"app","run":"debug-fixed","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791362721822,"kind":"app","run":"debug-fixed","event":"history","result":{"loading":true},"link":"online"}
+{"at":1791362721846,"kind":"app","run":"debug-fixed","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"scheduled","since":1791362721827,"diagnosticAt":1791362726827}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362721848,"kind":"app","run":"debug-fixed","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791362650333},"link":"online"}
+{"at":1791362721849,"kind":"app","run":"debug-fixed","event":"native-call","op":"asset_home"}
+{"at":1791362721849,"kind":"app","run":"debug-fixed","event":"fetch","uri":"http://127.0.0.1:59583/sync","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362721849,"kind":"app","run":"debug-fixed","event":"fetch","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["authorization","range"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362721850,"kind":"http","method":"GET","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","headers":["host","connection","range","accept","user-agent","authorization","accept-language","accept-encoding"],"bearer":true,"range":"bytes=0-"}
+{"at":1791362721854,"kind":"app","run":"debug-fixed","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"headers","since":1791362721831,"diagnosticAt":1791362726831}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362721856,"kind":"app","run":"debug-fixed","event":"fetch-response","uri":"http://127.0.0.1:59583/sync","status":200,"stream":true}
+{"at":1791362721856,"kind":"response","path":"/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206}
+{"at":1791362721863,"kind":"app","run":"debug-fixed","event":"native-call","op":"meta","key":"delivery-active"}
+{"at":1791362721865,"kind":"app","run":"debug-fixed","event":"fetch-response","uri":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX","status":206,"stream":true}
+{"at":1791362721871,"kind":"app","run":"debug-fixed","event":"native-call","op":"set_meta","key":"syncedAt:wall:1"}
+{"at":1791362721871,"kind":"app","run":"debug-fixed","event":"native-call","op":"asset_home"}
+{"at":1791362721883,"kind":"app","run":"debug-fixed","event":"asset-state","asset":{"status":"loading","waiting":{"stage":"retention","since":1791362721831,"diagnosticAt":1791362726831}},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362721884,"kind":"app","run":"debug-fixed","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1791362650333,"revalidating":true},"link":"online"}
+{"at":1791362721884,"kind":"app","run":"debug-fixed","event":"login","ok":true}
+{"at":1791362721887,"kind":"app","run":"debug-fixed","event":"history","result":{"data":[{"at":1791361196063,"body":"Native ordinary","id":"01M4AQ580ZHNJJAGGGF4EMD8F2","owner":"user:01M4AQ5804W2KFYSA6PTRBV4BN","photo":{"bytes":729,"duration":null,"height":256,"id":"01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png","width":256}}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"link":"online"}
+{"at":1791362721891,"kind":"app","run":"debug-fixed","event":"native-call","op":"set_meta","key":"media:manifest"}
+{"at":1791362721892,"kind":"app","run":"debug-fixed","event":"fetch","uri":"http://127.0.0.1:59583/changes?since=1&wait=2&store_id=9489077631494ed272e869cf05f9bc9d","headers":["content-type","authorization"],"bearer":true,"range":null}
+{"at":1791362721893,"kind":"app","run":"debug-fixed","event":"native-call","op":"asset_home"}
+{"at":1791362721909,"kind":"app","run":"debug-fixed","event":"asset-state","asset":{"status":"ready","url":"file:///Users/ccheever/Library/Developer/CoreSimulator/Devices/74ED8A85-6617-4D4D-884A-F33E3431A2B2/data/Containers/Data/Application/88837E87-40CB-4241-9EBF-E891A4E489DA/Documents/snapback4-http%253A%252F%252F127.0.0.1%253A59583%253Auser%253A01M4AQ5804W2KFYSA6PTRBV4BN.sqlite.media/01M4AQ580HE65ZWGSHDHPV0CFX","type":"image/png"},"link":"online","viewer":"user:01M4AQ5804W2KFYSA6PTRBV4BN","source":"http://127.0.0.1:59583/assets/01M4AQ580HE65ZWGSHDHPV0CFX"}
+{"at":1791362721912,"kind":"app","run":"debug-fixed","event":"image-load"}

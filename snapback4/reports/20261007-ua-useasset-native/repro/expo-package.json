@@ -1,0 +1,34 @@
+{
+  "dependencies": {
+    "expo": "57.0.22",
+    "expo-dev-client": "~57.0.19",
+    "expo-secure-store": "~57.0.4",
+    "expo-sqlite": "57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-web": "~0.21.0",
+    "snapback4": "0.4.13",
+    "snapback4-expo": "0.4.13"
+  },
+  "devDependencies": {
+    "@expo/fingerprint": "0.20.13",
+    "@types/react": "~19.2.4",
+    "babel-preset-expo": "57.0.11",
+    "typescript": "~6.0.3"
+  },
+  "main": "index.js",
+  "name": "snapback4-expo-starter",
+  "private": true,
+  "scripts": {
+    "build:web": "expo export -p web && snapback4 web-shell dist",
+    "export:ios": "snapback4-export-ios",
+    "ios": "expo run:ios",
+    "ios:dev": "expo run:ios",
+    "native:smoke": "snapback4 witness ios --build . --smoke",
+    "start": "expo start",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "version": "0.0.1"
+}

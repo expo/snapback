@@ -88489,6 +88489,176 @@ Reference and source-line audits pass. Final disk use is below 20 GiB, within
 the 40 GB limit. Commit only; nothing pushed or published.
 
 
+## 2026-10-07 — UA: ordinary native assets and named waits
+
+Reproduced a missing ordinary image with a generated Expo app on the Apartment
+mini's own iOS 27 simulator, using published 0.4.13. Both Release and Debug fail;
+the web starter succeeds. Instrumentation shows the hook dispatches authenticated
+Range GETs and receives 206. Expo exposes a stream alongside RN's Blob, which
+rejects byte-array construction. The old downloader misclassified that local
+assembly failure as E_OFFLINE and retried through offline/reconnect cycles.
+The frozen native pilot has no hook or HTTP interception trace establishing its
+exact cause; its absence of media callbacks does not prove an absent GET.
+
+Use the host's public Response.blob() when Blob buffer construction is not
+supported, with the existing opaque-body allowance. Preserve once semantics,
+Blob ownership, cancellation and auth custody. Every loading useAsset now names
+its stage and diagnostic deadline; after five seconds E_ASSET_WAIT explains the
+pending stage without cancelling or replaying it. Synchronous custom asset
+throws become E_CLIENT. The app facade and both clients carry private progress
+without changing Client.asset's public signature. Assets/client cards and code
+lookup document the state. Generic native smoke explicitly reports assets as
+not exercised; application witnesses must observe hook states and media callbacks.
+
+Fixed generated Release, Debug and web apps all reach ready and image-load.
+An injected 6.2-second native fetch hold reports waiting.headers and E_ASSET_WAIT
+before the proxy sees a GET, then completes once. The Release-path regression
+runs RN's real production Blob code with only its native byte store mocked;
+published 0.4.13's downloader fails both ordinary/once controls. Blob tests pass
+39, React 66, and the earlier affected asset/native/media run passes 160 with
+no skips. Full Mac suite qualification is recorded in the linked report.
+
+Mac wasm is 2,135,439 B raw / 645,163 B gzip; the unchanged 645,564 B cap covers
+that measurement and RX's recorded merged Linux 645,264 B gzip. Linux was not
+rerun by this mini-only lane. No core/device Rust, native ABI, persisted encoding,
+schema identity or storage layout changes. Sources remain within 1,500 lines;
+local.ts stays at 1,500 by condensing one existing comment. The owned simulator
+was shut down/deleted and fixture servers stopped. No other simulator/process
+was touched. Local commit only, nothing pushed or published. See the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md) and LLP
+3000.008.002.000 §6 for evidence and the diagnostic contract.
+
+
+UA full Mac qualification completed in 2,673 s with the required SQLite flag:
+Rust 5,159 passed / 2 failed / 33 ignored; client pool 328/328 files executed,
+6,527 tests passed / 1 failed / 10 skipped; fixture wrappers 9/9; serial models
+79/79. The full command exited 1 from two stages: new E_ASSET_WAIT definition/
+recovery pins were missing, the witness card exceeded its existing line budget,
+and asset progress changed the await census. Added the pins, tightened the card
+within 399 lines, and reviewed the four changed asset awaits plus the zero-await
+progress module. They add no mutation delivery scope, site or fault recipe.
+All 338 behavioral matrix cases had passed. Final guide rerun passes 113/113;
+final census rerun passes 1/1. No assertions, deadlines, work counts or budgets
+were weakened. No all-green whole-script rerun is claimed; every observed
+failure is repaired and rechecked. Runtime inputs of the other passing checks
+are unchanged. Final CLI code lookup, reference and source/diff audits pass;
+the report retains the raw full-suite result and the repair evidence.
+
+## 2026-10-07 — UA round 1: conversion boundaries and progress-aware waits
+
+Continued from 079d3dd175 on eb1000 only, in the UA worktree. Both round-0
+reviews confirmed the stock native fix but found the remaining blob() exception
+boundary; Astra also reproduced healthy transfers emitting E_ASSET_WAIT.
+
+Observe completion of Expo's public arrayBuffer() call while its public blob()
+runs, on that response only, restoring the method on settlement. Body-read
+resets stay transport; later constructor/native conversion failures are E_CLIENT
+with no transport retries or offline transition. The exact RN buffer-constructor
+refusal also handles a non-extensible response. Unknown unobserved failures
+remain transport. Native conversion stays host-owned and bytes are read once.
+Installed Expo FetchResponse/createBlob and RN production Blob tests cover both
+success/failure boundaries, duplicate modules, sealed responses, and ordinary/
+once behavior. Real process-device clients stay online after either conversion
+failure with one asset request.
+
+Stage changes and received bytes restart the hook diagnostic and clear a stale
+one; the body exposes received/known-total bytes. Opaque headers/body waits
+use the established buffered allowance. A real six-second HTTP test (500 ms
+chunks) paints all six streaming/opaque ordinary/once images without diagnosing
+a stall; held session/client stages diagnose independently after five seconds.
+AssetState.waiting is optional for older loading literals. The custom native
+media-store uri requirement is documented beside the browser Blob fallback.
+Updated LLP 3000.008.002.000 §6, guide/code lookup, and the operator's Release
+fixture/recheck modes together. No policy, native ABI or persisted-byte change.
+
+Final coverage: Blob lifecycle 49, buffered HTTP 1, React 66, type tests 11,
+asset retry 38, avatars/lists/pressure 62, native smoke/media dependencies 25,
+delivery-fault/census 339, guide 113; no skips. Client typecheck/build, docs
+budget and reference audit pass. Initial affected run had two new message
+expectation failures (the established formatter exposes ECONNRESET); corrected
+them and reran all Blob/HTTP/React/type cases, 127/127. The initial log remains
+in the report. No whole-suite run is claimed. Delivery census adds one await
+for existing blob I/O, with no delivery fault scope or recipe changes.
+
+Linux wasm prerequisite: 2,135,164 B raw / 645,264 B gzip, unchanged 645,564 B
+cap. No engine/device input changed. No other lane/host/process touched, no
+simulator run, nothing pushed or published. iOS evidence remains round 0;
+the operator will perform the updated Release recheck. See the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md#round-1--review-corrections-on-eb1000-2026-10-07).
+
+## 2026-10-07 — UA round 2: sealed conversion and observable wait deadlines
+
+Continued on eb1000 from 6eb514cd91, with both round-1 review findings. Replace
+the response-property observer with a separate receiver for Expo's public
+blob()/arrayBuffer() boundary. Other methods and accessors keep the original
+receiver; no response or prototype is patched. Sealed/frozen responses now
+classify native conversion refusal as E_CLIENT with one request and no offline
+transition. Body resets retain E_OFFLINE, safe range retries and once non-replay.
+Buffer-capable browser hosts keep their native receiver. Skip Expo's unused lazy
+body getter when native conversion owns the body; the frozen matrix exposed its
+attempt to assign bodyStreamController before a body read.
+
+Separate the diagnostic clock from transport expiry. Streams diagnose at
+4,999 ms, strictly before the unchanged 5,000 ms abort even when an initial or
+restarted body receives nothing. Opaque headers/body waits report progress
+unknown at fifteen seconds with no stage change. Fifteen seconds exceeds the
+proved healthy six-second transfer while bounding the unexplained wait; this
+notice explicitly does not prove a network stall. The full opaque transfer
+allowance stays intact, up to 35m 8s. Other named stages keep five seconds.
+Stage/byte progress still clears old diagnostics and renews the deadline.
+
+Installed Expo/RN matrix and lifecycle: 64 pass. Remaining requested affected
+Node cases: 183 pass (retry 38, buffered HTTP 1, avatars/lists/pressure 66,
+React 67 and read-types 11). Fake-clock hook coverage checks empty-first and
+empty-restarted bodies, opaque expiry and pre-header waits, diagnostic order,
+request/byte counts and timer cleanup. Healthy six-second images still paint
+without diagnostics. Delivery-fault/census 339 and guide 113 pass. Client
+typecheck/build, docs budget and reference audit pass. Initial focused run
+124/132 exposed the frozen getter bug above; final Blob rerun 64/64 closes it.
+The original failing log is retained. No whole-suite or new native qualification
+is claimed. The same blob await now has a separate receiver (still ten asset
+download awaits); no mutation scope/site or fault recipe changed.
+
+LLP 3000.008.002.000 §6, guide/client documentation, issue and the report now
+carry the final contract. The operator fixture adds sealed/frozen conversion
+injections and 16.2-second opaque header/body holds, with the fifteen-second
+unknown-progress expectation. No other lane/host/process touched, no simulator
+run, no push. No engine/device Rust input, persisted byte format, native ABI or
+wasm budget change. iOS Release recheck remains the operator's next step; see
+the [UA report](reports/20261007-ua-useasset-native/REPORT.md#round-2--sealed-responses-and-bounded-wait-explanations-2026-10-07).
+
+## 2026-10-07 — UA round 3: keep the wait explanation through backoff
+
+Continued on eb1000 from df8ec3e6fa. Both round-2 reviews found that callback
+order does not ensure React commits: a busy thread can deliver the 4,999 ms
+notice and 5,000 ms abort before React renders, leaving only unexplained
+backoff. On entering backoff, useAsset now snapshots the overdue stage from
+its clock/progress even if the notice callback has not run. waiting.why carries
+E_ASSET_WAIT; waiting.interrupted retains its stage, progress, timestamps and
+refusal while waiting.stage remains backoff. Backoff can add its own notice
+without losing that snapshot. The next attempt clears both; terminal outcomes
+replace loading. Transport limits, native conversion, once safety and Blob
+ownership are unchanged. Opaque waits keep their fifteen-second notice and
+full buffered allowance.
+
+Added three no-act busy-frame regressions: empty first stream, empty restarted
+stream and partial stream. Both callbacks run in one timer advance with only
+microtask checkpoints, then the real React commit/DOM is checked. Each also
+runs abort-first. The round-2 control fails all three (four reported failures
+including the parent); the fix passes them, including carried byte counts,
+retry clearing and timer cleanup. Kept the act-separated tests and opaque
+expiry case. Updated the type test, LLP 3000.008.002.000 §6, guide/code lookup,
+client documentation, closed issue, report and operator fixture labels.
+
+Final requested checks: 250 affected client cases (Blob 64, retry 38, buffered
+1, avatars/lists/pressure 66, React 70, read-types 11), 339 delivery-fault/census
+cases and 113 guide tests, all passing with no skips. Client typecheck/build,
+docs budget, reference audit and fixture TSX syntax pass. No census or budget
+change. No whole-suite or new iOS qualification claimed. Work stayed within
+this lane and host; no other worktree/process touched, no simulator, no push.
+The operator's iOS Release recheck is pending; the
+[UA report](reports/20261007-ua-useasset-native/REPORT.md#round-3--wait-explanations-survive-react-batching-2026-10-07)
+retains the red control, final evidence and current reproduction instructions.
 ## 2026-10-06 — RO: server-enforced read-only clients (LLP 3000.033)
 
 Implemented Accepted revision 3: independent capped read families and generation
@@ -88973,3 +89143,41 @@ This is a full run plus a passing affected rerun, not a single-green-run receipt
 Wasm remains 2,135,164 raw / 645,264 gzip bytes, with the same SHA-256 and
 unchanged 645,564 budget. Work stayed on eb1000 in this worktree below 30 GB;
 no push or publication. [Round-1 report and evidence](reports/20261007-oa-owned-online-arm/round-1/REPORT.md).
+
+## 2026-10-07 — UA round 4: merge main with owned-arm and read-only custody
+
+Merged b14888f763 into UA 9ab49c9de8 (merge, not rebase), after both UA
+round-3 reviews returned READY. Resolve client.ts by keeping UA's assetReader
+and progress-preserving retries with main's readGate.verify first, plus main's
+verified-only assetSource. Everything outside the asset method/import equals
+main: OA's arm propagation and final dispatch fence, read-only guards and
+write-machinery omission are preserved. Both journal histories remain intact.
+Fold main's P3 Round 2 evidence clarification verbatim into the closed UA issue;
+keep the open path deleted. Keep both delivery-instrument rationales and
+recompute only the combined client's 62-await seal; no fault recipe changes.
+A root audit also exposed main's existing difftest long-fragment @ref failure;
+replace that comment's fragment with LLP 3000.035 §5.1, with no executable change.
+
+Requested scope: 24 files, 884 passes, zero failures and one labelled optional
+published-binary skip. Includes assets/Blob/buffered/avatars/lists/pressure,
+React, delivery-fault/census, read-types, 32 owned-arm tests, every read-only
+client file including round 4, client lifecycle/seams, starter and README.
+Full canonical suite completed in 2,131 seconds: Rust 311 binaries / 1,024
+executions plus doctests, client pool 339 files (6,670 pass, one failure,
+55 labelled skips), then 79/79 full-count seeded models. Guide 113, package/
+starter typechecks, builds, release guard, docs budget and fixture wrappers pass.
+
+Two full-run failures are retained, not called a single-green-run receipt.
+The unchanged witness shrinking-group cleanup case returned invalid /proc
+process group; the complete canonical single-thread preparation rerun passes
+23/23. The identity-organizations outside-Git scratch control rejected this
+run's worktree-local TMPDIR; its unchanged whole-file rerun with a private
+/tmp directory passes three active checks, one expected managed-provider skip.
+No test count, timeout, assertion or budget was lowered. Reference audit passes.
+
+Wasm remains 2,135,164 B raw / 645,264 B gzip against the unchanged 645,564 B
+cap, SHA-256 a4c6b4a8a7e76d81df9f424899f474863ce23cf232c0e4162861cc1333a3ec83,
+before/after the integrated full suite. No other lane/host was used; nothing
+pushed or published. Operator iOS Release recheck remains pending. The
+[round-4 report](reports/20261007-ua-useasset-native/round4/REPORT.md) records all
+conflicts, exact source comparisons, original failures and passing reruns.

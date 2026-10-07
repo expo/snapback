@@ -1,0 +1,38 @@
+[
+  {
+    "file": "release-build-2.log",
+    "bytes": 2304778,
+    "sha256": "7cb6001ab978a5177db4c1518c831c9ca6993369c83cc99eaeee4589d7ad8249",
+    "succeeded": true
+  },
+  {
+    "file": "debug-build-3.log",
+    "bytes": 912628,
+    "sha256": "59af29def1368046ad7759450c567f7abe3273277987b9e4555bf213ad910c07",
+    "succeeded": true
+  },
+  {
+    "file": "release-fixed-build.log",
+    "bytes": 1006693,
+    "sha256": "1867682fc63d29f13ba4c7b9647d0a0bb8c8690aee3b2561dac032585c824586",
+    "succeeded": true
+  },
+  {
+    "file": "expo-install.log",
+    "bytes": 622,
+    "sha256": "c214509aaef8743f6c51a17e085c5b1f16205a2f8df345c82b89eb9e197498f8",
+    "succeeded": false
+  },
+  {
+    "file": "pod-install.log",
+    "bytes": 16583,
+    "sha256": "19d940ce5423650ad2c56e4fa88dcb7ea459a65b71e74ca37bcf9fb7725b43a8",
+    "succeeded": false
+  },
+  {
+    "file": "prebuild.log",
+    "bytes": 204,
+    "sha256": "0a16cfcc425270741603d8ad89f3697550575b829c057ff089f2a33e03e4fe41",
+    "succeeded": false
+  }
+]

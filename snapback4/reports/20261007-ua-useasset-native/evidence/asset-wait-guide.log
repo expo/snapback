@@ -1,0 +1,19 @@
+E_ASSET_WAIT: family client — useAsset is still pending after five seconds. waiting.stage and waiting.why.site name scheduling, session, device media, refresh, transfer queue, headers, body, backoff, retention or display; custom clients report client. Inspect that stage and the host network/storage diagnostics. This diagnostic does not cancel or replay a possible once view. Keep the selection mounted for its outcome. See guide assets.
+
+## Author avatars inside message rows
+
+`null` means `empty`, not a failed download. Inspect the profile read and the
+asset's `why` when its status is `denied` or `error` separately; an initials placeholder must not hide a refusal.
+Every `loading` result has `waiting.stage`, `since` and `diagnosticAt`.
+Stages name scheduling, session-store checks, media reconciliation, refresh,
+queue, headers/body, backoff, retention and display conversion; custom clients
+report `client`. After five seconds `waiting.why` adds E_ASSET_WAIT with the
+stage's explanation. Render it instead of hiding all non-ready states. This is
+a diagnostic of the still-pending request, not a retry or consumed-view verdict;
+healthy long transfers may finish. Unmount cancels the diagnostic timer, and
+late obsolete results cannot publish. Timers require a runnable JS host.
+Expo streams do not imply its Blob accepts byte arrays: the SDK uses the host's
+`Response.blob()` when buffer construction is unsupported, with the buffered
+allowance below. Local assembly failures report E_CLIENT, not offline.
+
+Full card: snapback4 guide assets

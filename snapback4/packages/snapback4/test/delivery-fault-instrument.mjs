@@ -178,6 +178,18 @@ export function instrument(destination) {
 // real held-apply cases cover both device hosts. No delivery site/recipe changes.
 // RH round 1: the additional search query await is optional read I/O, with a dedicated
 // pending-leave recipe (161), and cannot acquire mutation delivery custody.
+// UA (LLP 3000.008.002.000 §6): app-client's asset await forwards private
+// progress through readAsset; assets/client/local append that observer to the
+// existing download await. Counts and delivery sites are unchanged. These
+// asset reads cannot admit, send or settle mutations. asset-progress has no
+// awaits or storage; it names waits without cancelling/replaying them. Native
+// Blob lifecycle and React asset tests cover conversion, session custody and
+// late outcomes. No delivery scope, classification or fault recipe changes.
+// UA round 1 adds hostBlob's await of the existing public response.blob() I/O
+// to distinguish completed-body conversion from transport failure. The readBlob
+// callback now forwards byte progress; no mutation or persistence I/O is added.
+// UA round 2 keeps that same blob await, using a separate call receiver for
+// sealed responses. No new await, mutation delivery scope or fault recipe.
 // RO Round 7: read-token.ts is a synchronous prefix predicate with zero awaits.
 // It adds no I/O or custody; delivery sites and fault recipes remain unchanged.
 // RO (LLP 3000.033 §1.4): app owns both namespaces through one custody
@@ -216,6 +228,10 @@ export function instrument(destination) {
 // custody through the existing refresh gate. These waits have no write owner;
 // the new held-response tests cover both dispatch orders and independent logout.
 // Epoch-only watermark collection adds no I/O or delivery fault site.
+// UA round 4 merge: retain RO's scope-verification waits and OA's originating
+// arm across shared dispatch/retries. The asset reader also retains UA progress.
+// client.ts still has 62 awaits; only the combined text seal changes. No new
+// I/O, delivery fault site, classification or recipe is introduced by resolution.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {
