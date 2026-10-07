@@ -137,6 +137,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_FOLLOWING_INPUT", "rejects an invalid internal opening or token envelope"),
+    ("E_FOLLOWING_DECLARATION", "means its declared view is absent"),
+    ("E_FOLLOWING_PAGE_SIZE", "requires 1–100 events per internal page"),
+    ("E_FOLLOWING_QUOTA", "refuses a session or frontier allocation without evicting another consumer"),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", "means a unit cannot reserve its work, output and checkpoint under the supplied request ceilings"),
+    ("E_FOLLOWING_ROW_TOO_LARGE", "names an ordered omission in the metadata reader"),
+
     ("E_JOB_VIEWER_CONTEXT", "as belongs inside a job sweep and cannot nest"),
     ("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal"),
     ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),

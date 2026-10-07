@@ -88021,3 +88021,80 @@ published Darwin witnesses on Linux); both full-count model files pass all
 suite models do not qualify the proposed history reader or replace its pending
 mutation/block oracle. Worktree disk use is about 14 GiB. The author decision
 in §9 remains the handoff; no production history implementation is claimed.
+
+## 2026-10-06 — FH round 1: approved exact-first design and internal reader
+
+The delegated architectural ruling accepts exact merge from the first online
+Following history page, server-only first, without an inbox splice or a
+history-only block filter. LLP 3000.026 §9 incorporates all eleven decisions;
+round-1 DISPOSITIONS retains both supplied design reviews and their dispositions.
+Implementation is explicitly partial under the commission's coherent-milestone
+allowance: owned event metadata traversal, volatile unit/checkpoint custody and
+an independent owned-table oracle. No HTTP route, card shaping, generated binding
+or Following hook is shipped, and no guide/certificate claims public exact history.
+
+The reader freezes admission B and edge epochs, discovers all lane heads/ends,
+then selects the greatest `(at,eventId)` with refill before the next selection.
+It applies the inbox predicate and current liveness on publication/replay.
+Four independent sessions per viewer/declaration, five-minute idle expiry,
+32 MiB per session and 128 MiB per controller bound custody; cancellation/expiry
+release quota only through bounded reclaim. Opening registrations also have
+bounded custody. All seven request ceilings are unchanged, including frontier
+writes under 1,024. The transactional 64-head record map adds metered O(F/64)
+copy work per retained request; the cost model says so.
+
+Fresh read-only implementation review found and prompted regression fixes for
+terminal empty tokens, opening reuse after reclamation/across viewers, observed
+store rewinds and registered-opening binding mismatches. An additional author
+clarification remains open: continual post-B follows can obstruct roster
+discovery, beyond the ruling's named backdated-event exception. A reproduction
+checks strict actor-key progress and completion after additions stop. It currently
+reports preparing, while post-B event obstruction reports stalled. No termination
+guarantee is silently widened; host/SDK integration and that decision remain work.
+
+Twenty affected tests pass, including 16 seeded mutation corpora and paired
+private-work worlds; the explicit scale test also passes. On sampled-idle CPU 6,
+seven-sample first-page medians are 1.127 ms for 50k sparse originals plus one
+repost (1,101 followed events exhausted, no preparation) and 208.030 ms for 8,200
+follows (five preparation units, all 8,200 events exhausted). Later-page medians
+are 1.083/0.866 ms; accounted state peaks are 97,924/17,087,232 B. Every first-run
+scale page is checked against the independent oracle. Adding 48,900 unrelated
+posts changes none of the first/last/total meters or state footprint. These are
+native metadata measurements, not card/HTTP/display latency claims. The old
+planned sparse reader again stops without a next token at 5,789 examinations.
+
+No persisted schema, catalog, IR, index, table or cursor bytes change. No new
+old-engine format-refusal test is applicable. The inbox certificate matches D0
+apart from the check command's elapsed-ms field. Linux wasm is byte-identical:
+2,117,335 B raw / 639,888 B gzip; the 640,018 B cap remains exactly Linux plus
+130 B, so no cap change is needed. Darwin remains the commissioning user's
+separate fence. Everything stays in this lane on eb1000, with taskset confinement;
+worktree disk is approximately 15 GiB. Full-suite closeout follows when complete.
+See reports/20261006-fh-following-history/round-1/REPORT.md. Nothing is pushed.
+
+
+**FH resumed closeout, 2026-10-07:** the 2026-10-06 reboot killed the original
+round-1 suite before its client/model receipt; that partial log is retained.
+No old build/test process survived. A fresh review approved the internal
+bounded-prefix metadata milestone after a lifecycle fix: opening, cancellation
+and each reclaim record preflight 64 KiB before key allocation or tree mutation.
+A 96-registration regression proves failed reservations leave custody unchanged.
+All 21 focused history tests pass, and the final seven-sample scale run passes
+on taskset CPU 42. Its logical CPU sampled 1% busy; SMT sibling 90 ran suite work.
+Shared-host first/later page medians are 1.875/1.833 ms for 50k sparse originals
+and 335.158/1.401 ms for 8,200 follows. Preparation, storage and traversal meters
+match the earlier run; only opening scratch increases from 16 to 64 KiB.
+
+The restarted full suite completes all 1,013 native executions: 1,012 pass;
+one unchanged CLI witness test refuses a `/proc` process-group snapshot during
+evidence cleanup after its owned processes drained. Its cause remains
+unclassified. The exact case passes an isolated rerun; the full CLI target then
+passes 318 tests with four explicit ignores. The existing process-inspection
+issue records the recurrence. No failing inspection is ignored or weakened.
+Doctests and the final reference audit pass. Wasm remains byte-identical to D0;
+there are no persisted-byte changes. Worktree disk is approximately 17 GiB.
+The client pool passes all 322 files (6,440 tests pass, 47 explicit skips), and
+both full-count models pass all 79 tests. The full script finishes in 3,734 s,
+exit 1, with the one retained witness failure; no zero-failure suite claim is
+made. The server route, shaped cards, generated binding and SDK journeys remain deferred,
+as does the explicit author decision about continual post-B follow churn.

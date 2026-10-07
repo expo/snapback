@@ -1125,3 +1125,6 @@ pub(crate) fn replay_bound(conn: &Connection, principal: &str, id: &str, name: &
         || recorded_digest.is_some_and(|old| old != payload_digest(args)) { return Err(id_reused()); }
     Ok(Some(outcome))
 }
+
+// Server-only volatile history reads; no persisted catalog or device change.
+mod following_history;

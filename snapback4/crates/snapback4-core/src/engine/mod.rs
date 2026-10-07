@@ -1473,3 +1473,7 @@ impl Engine {
 pub use row_views::ViewChunk;
 
 mod receipts;
+
+/// Internal server-reader milestone; no wire or generated authoring capability yet.
+#[cfg(feature = "sqlite")]
+pub mod following_history;

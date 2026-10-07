@@ -2,6 +2,13 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_FOLLOWING_INPUT", &["correct the opening or token envelope before retrying"]),
+    ("E_FOLLOWING_DECLARATION", &["Use a live declared Following view"]),
+    ("E_FOLLOWING_PAGE_SIZE", &["request between 1 and 100 events, using a fresh opening if changing an issued binding"]),
+    ("E_FOLLOWING_QUOTA", &["run bounded reclaim on expired or cancelled state, then retry admission"]),
+    ("E_FOLLOWING_REQUEST_TOO_SMALL", &["retry the same unit only when its full allowance can be reserved"]),
+    ("E_FOLLOWING_ROW_TOO_LARGE", &["keep the omission's event identity and continue with its issued successor"]),
+
     ("E_JOB_VIEWER_CONTEXT", &["Put as recipient.principal: inside the recipient loop."]),
     ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),
     ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),

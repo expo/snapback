@@ -314,3 +314,21 @@ research tests, the feeds card, LLPs 3000.016/3000.026, the measured wasm budget
 reconciliation and the append-only journal. Handoff: author decision on §9
 before implementation, then `llp-review` of the proposed capability. No
 delegation or independent review was run in this lane.
+
+
+## Round 1 — approved design and internal reader milestone
+
+The 2026-10-06 delegated decisions supersede the D0 design choice above:
+exact merge from the first online history page, server-only first, no inbox
+splice or history-only block filter. LLP 3000.026 §9 records the approved design.
+
+[The round-1 report](round-1/REPORT.md) records the implementation, oracle,
+review dispositions, measurements and remaining work. This is an internal
+metadata-reader milestone under the commission's partial-delivery allowance;
+there is no public history route, SDK hook or new completeness certificate.
+The review exposed an additional liveness question about continuous post-B
+follow additions during roster discovery; its disposition remains explicit.
+
+No persisted schema/catalog/IR bytes changed. Linux wasm is byte-identical to
+D0 (639,888 B gzip; cap 640,018 B including 130 B macOS allowance). Nothing was
+pushed and no other host or worktree was used for round-1 work.
