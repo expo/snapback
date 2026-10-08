@@ -43,6 +43,11 @@ a job or mutation refuses the whole transaction if a total cannot finish.
 Jobs run as the system principal; `as recipient.principal:` applies the recipient's
 read rules, audiences, field disclosure and expiry to every read in its block. Each recipient's
 live counts and effect key below commit in one transaction.
+The system principal is never stored: writing a job's `viewer` (outside `as`)
+or the literal `'system'` into a principal column compiles but parks the job
+with `E_INPUT: … cannot carry the reserved system principal`. For an audit
+actor, make the column optional and write `null` for system events, or name a
+service principal such as `'service:reminders'`.
 `once` removes the need for a marker table; worker/provider delivery retries
 still need an idempotency key.
 

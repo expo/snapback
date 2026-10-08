@@ -91412,3 +91412,18 @@ and `bun add --dev typescript@5.9.3 @types/node@24`; `--json` reports the same
 code. TypeScript 6.0.3 was checked and works. SERVER.md, `guide server` and
 `why E_SERVER_TOOLCHAIN` carry the pinned recipe. Test:
 `farm2_typescript_7_is_refused_by_version_not_crashed_on` (a stub 7.0.2 package).
+
+## 2026-10-08 — Farm round 2: reserved system principal writes (ticketed, binder)
+
+Round-2 cluster 12 (5 GPT builds across arms). Reproduced on main: a job
+writing `actor: 'system'`, or `actor: viewer` (a job's viewer is the system),
+into a principal column passes `check` and parks with `E_INPUT: E_INPUT:
+activity.actor cannot carry the reserved system principal` (the doubled prefix
+is a second papercut). The refusal belongs in the binder, which already
+refuses the `'system'` literal in action rules and `as`, and knows job and
+`as` scope; a check-verb pass over the IR would have no sites. Not attempted
+from this lane (one owner on the core):
+`issues/20261008-snapback4-reserved-system-principal-compiles-then-parks.md`
+carries the repro and the proposed refusal. `guide jobs` now states the
+limit and the two repairs the builds used (optional column written `null`, or
+a `service:` principal).
