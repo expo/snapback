@@ -198,6 +198,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUERY_RETRY" => "client",
         "E_OFFLINE" => "residency",
         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" => "refusals",
+        "E_STREAMS" => "wire",
         "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("ASSET_")) => "assets",
         code if code.starts_with("E_NATIVE") => "native",

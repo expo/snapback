@@ -297,6 +297,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_UNSUPPORTED", "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form."),
     ("E_QUERY_RETRY", "exhaustion refuses retryable `E_QUERY_RETRY`"),
     ("E_QUERY_HELD", "If the server cannot answer the query, declare `query … held:` to answer from the device; the server refuses it with E_QUERY_HELD."),
+    ("E_STREAMS", "A held wait is bounded. A full host answers 503 `E_STREAMS` (Retry-After: 2); one principal past its share of held polls (one per tab or device, default 16) gets 429 `E_STREAMS` (Retry-After: 5)."),
     ("E_RATE_LIMIT", "Under `serve`, guest, login and signup share 30 attempts per socket peer per minute, while login and signup also share 10 per normalized email per minute (E_RATE_LIMIT)."),
     ("E_RECIPE_RETIRED", "E_RECIPE_RETIRED means the installer wrote nothing; use the new view for a new app."),
     ("E_RECORDED_FIELD", "Recorded fields belong to the engine. Any payload naming one refuses with E_RECORDED_FIELD"),

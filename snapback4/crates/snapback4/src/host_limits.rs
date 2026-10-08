@@ -7,6 +7,14 @@ const MAX_DESCRIPTORS: u64 = 65_536;
 // that observed demand. This warning threshold is not a capacity guarantee.
 const RECOMMENDED_DESCRIPTORS: u64 = 2_048;
 static STARTUP: OnceLock<Adjustment> = OnceLock::new();
+static CAPACITY: OnceLock<Capacity> = OnceLock::new();
+
+/// Once per serving process, after `initialize` and `Capacity::fit`.
+pub(crate) fn install(capacity: Capacity) {
+    if CAPACITY.set(capacity).is_ok() {
+        snapback4_core::diagnostic!("snapback4 host: {}", capacity.describe());
+    }
+}
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,6 +124,8 @@ pub(crate) fn diagnostics() -> serde_json::Value {
         line
     }).unwrap_or_else(|| describe(false)),
         "startup": STARTUP.get(), "recommendedSoft": RECOMMENDED_DESCRIPTORS,
+        "longWaits": CAPACITY.get().map(|c| serde_json::json!({ "description": c.describe(), "viewer": c.long_waits,
+            "perPrincipal": c.per_principal, "claim": c.claim_waits, "connections": c.connections(), "descriptors": c.descriptors() })),
         "descriptorExhaustions": tiny_http::descriptor_exhaustions() })
 }
 
@@ -139,9 +149,13 @@ fn describe(inherited: bool) -> String {
 }
 
 fn describe_limits(soft: Option<u64>, hard: Option<u64>, ceiling: u64, inherited: bool) -> String {
-    let connections = tiny_http::ConnectionLimits::default().max_connections;
     let source = if inherited { "inherited by doctor" } else { "this process" };
-    let prefix = format!("HTTP connections={connections}; uploads=2; file descriptors ({source})");
+    // Before the server sizes its pools (startup) and in doctor, connections
+    // are not yet known; the capacity line that follows states them.
+    let prefix = match CAPACITY.get() {
+        Some(capacity) => format!("HTTP connections={}; uploads=2; file descriptors ({source})", capacity.connections()),
+        None => format!("uploads=2; file descriptors ({source})"),
+    };
     let (Some(soft), Some(hard)) = (soft, hard) else { return format!("{prefix}: unavailable"); };
     let word = |value: u64| {
         #[cfg(unix)]
@@ -270,4 +284,146 @@ pub(crate) fn listener_error(error: std::io::Error) -> String {
         message.push_str("; descriptor exhaustion: run `snapback4 doctor`, reduce open connections/files or raise the shell/container/service NOFILE limit, then restart dev");
     }
     message
+}
+
+// @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — option A: configurable long-wait pools, a per-principal share, a separate claim pool.
+/// Long-wait capacity. A held wait is a connection thread plus a pool worker,
+/// so the connection cap and descriptor need are derived from these numbers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Capacity {
+    /// Viewers' held `GET /changes?wait` and `POST /a/<action>` waits.
+    pub(crate) long_waits: usize,
+    /// Held change polls one principal may hold at once (tabs and devices).
+    pub(crate) per_principal: usize,
+    /// Service workers' `POST /effects/claim` and `/actions/claim` polls.
+    pub(crate) claim_waits: usize,
+    /// Set from a flag or environment, rather than defaulted.
+    explicit: bool,
+    /// The default was lowered to fit this process's descriptor limit.
+    pub(crate) fitted: Option<usize>,
+}
+
+pub(crate) const DEFAULT_LONG_WAITS: usize = 1024;
+pub(crate) const DEFAULT_PER_PRINCIPAL: usize = 16;
+pub(crate) const DEFAULT_CLAIM_WAITS: usize = 32;
+/// The bound before this change, kept for everything that is not a long wait.
+pub(crate) const OTHER_CONNECTIONS: usize = 128;
+/// Each held wait costs two OS threads; Darwin allows 16,384 per process.
+pub(crate) const MAX_LONG_WAITS: usize = 4096;
+pub(crate) const MAX_CLAIM_WAITS: usize = 1024;
+const DESCRIPTORS_BASE: u64 = 512;
+/// Measured: a held poll's connection costs four descriptors (the accepted
+/// socket, the lease's clone, the reader/writer split and the abort handle);
+/// a parked poll holds no SQLite reader (scripts/measure-long-waits.py).
+const DESCRIPTORS_PER_CONNECTION: u64 = 4;
+
+impl Default for Capacity {
+    fn default() -> Self {
+        Self { long_waits: DEFAULT_LONG_WAITS, per_principal: DEFAULT_PER_PRINCIPAL, claim_waits: DEFAULT_CLAIM_WAITS, explicit: false, fitted: None }
+    }
+}
+
+impl Capacity {
+    #[cfg(test)]
+    pub(crate) fn sized(long_waits: usize, per_principal: usize, claim_waits: usize) -> Self {
+        Self { long_waits, per_principal, claim_waits, explicit: true, fitted: None }
+    }
+
+    /// Flags win over the environment (`SNAPBACK4_LONG_WAITS`,
+    /// `SNAPBACK4_LONG_WAITS_PER_PRINCIPAL`, `SNAPBACK4_CLAIM_WAITS`).
+    pub(crate) fn from_options(flags: &std::collections::BTreeMap<String, String>, env: impl Fn(&str) -> Option<String>) -> Result<Self, String> {
+        let mut capacity = Self::default();
+        let mut read = |flag: &str, variable: &str, min: usize, max: usize, slot: &mut usize| -> Result<(), String> {
+            let (source, text) = match (flags.get(flag), env(variable)) {
+                (Some(text), _) => (format!("--{flag}"), text.clone()),
+                (None, Some(text)) => (variable.to_owned(), text),
+                (None, None) => return Ok(()),
+            };
+            let value = text.trim().parse::<usize>().ok().filter(|n| (min..=max).contains(n))
+                .ok_or_else(|| format!("E_INPUT: {source} takes an integer from {min} to {max}, not {text:?}; see SERVER.md \"Long-wait capacity\""))?;
+            *slot = value;
+            capacity.explicit = true;
+            Ok(())
+        };
+        let (mut waits, mut share, mut claims) = (capacity.long_waits, capacity.per_principal, capacity.claim_waits);
+        read("long-waits", "SNAPBACK4_LONG_WAITS", 1, MAX_LONG_WAITS, &mut waits)?;
+        let defaulted_share = share;
+        read("long-waits-per-principal", "SNAPBACK4_LONG_WAITS_PER_PRINCIPAL", 1, MAX_LONG_WAITS, &mut share)?;
+        read("claim-waits", "SNAPBACK4_CLAIM_WAITS", 1, MAX_CLAIM_WAITS, &mut claims)?;
+        // A defaulted share follows a smaller pool; an explicit one must fit it.
+        let explicit_share = flags.contains_key("long-waits-per-principal") || env("SNAPBACK4_LONG_WAITS_PER_PRINCIPAL").is_some();
+        if !explicit_share { share = defaulted_share.min(waits); }
+        if share > waits {
+            return Err(format!("E_INPUT: --long-waits-per-principal ({share}) cannot exceed --long-waits ({waits})"));
+        }
+        Ok(Self { long_waits: waits, per_principal: share, claim_waits: claims, ..capacity })
+    }
+
+    /// Every long wait holds a connection; the rest keep today's 128.
+    pub(crate) fn connections(&self) -> usize { self.long_waits + self.claim_waits + OTHER_CONNECTIONS }
+
+    pub(crate) fn descriptors(&self) -> u64 {
+        DESCRIPTORS_BASE + DESCRIPTORS_PER_CONNECTION * self.connections() as u64
+    }
+
+    /// After `initialize`: refuse explicit sizes the descriptor limit cannot
+    /// carry; shrink the default pool to fit (never below 32) and say so.
+    pub(crate) fn fit(mut self) -> Result<Self, String> {
+        #[cfg(unix)]
+        let soft = current().ok().map(|limit| limit.rlim_cur as u64);
+        #[cfg(not(unix))]
+        let soft: Option<u64> = None;
+        let Some(soft) = soft else { return Ok(self) };
+        if self.descriptors() <= soft { return Ok(self); }
+        if self.explicit {
+            return Err(format!("E_HTTP_LIMIT: long waits {} + claim waits {} need about {} file descriptors ({} connections × {DESCRIPTORS_PER_CONNECTION} + {DESCRIPTORS_BASE}); this process's soft limit is {soft}. Raise the NOFILE limit or lower --long-waits", self.long_waits, self.claim_waits, self.descriptors(), self.connections()));
+        }
+        let room = soft.saturating_sub(DESCRIPTORS_BASE + DESCRIPTORS_PER_CONNECTION * (self.claim_waits + OTHER_CONNECTIONS) as u64)
+            / DESCRIPTORS_PER_CONNECTION;
+        let waits = (room as usize).clamp(32, DEFAULT_LONG_WAITS);
+        self.fitted = Some(self.long_waits);
+        self.long_waits = waits;
+        self.per_principal = self.per_principal.min(waits);
+        Ok(self)
+    }
+
+    /// The startup line; also served in `/dev/status` and `doctor --json`.
+    pub(crate) fn describe(&self) -> String {
+        let mut line = format!("long waits: {} viewer (≤{} change polls per principal), {} worker claim; HTTP connections={}; descriptors needed ≈{}",
+            self.long_waits, self.per_principal, self.claim_waits, self.connections(), self.descriptors());
+        if let Some(default) = self.fitted {
+            line.push_str(&format!("; E_HTTP_LIMIT: the default {default} viewer long waits did not fit this process's descriptor limit; raise NOFILE or set --long-waits"));
+        }
+        line
+    }
+}
+
+#[cfg(test)]
+mod capacity_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+    fn flags(pairs: &[(&str, &str)]) -> BTreeMap<String, String> { pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect() }
+    #[test]
+    fn defaults_flags_and_environment_size_the_pools() {
+        let none = |_: &str| None;
+        let capacity = Capacity::from_options(&flags(&[]), none).unwrap();
+        assert_eq!((capacity.long_waits, capacity.per_principal, capacity.claim_waits, capacity.connections()), (1024, 16, 32, 1184));
+        let env = |name: &str| (name == "SNAPBACK4_LONG_WAITS").then(|| "2000".to_owned());
+        assert_eq!(Capacity::from_options(&flags(&[]), env).unwrap().long_waits, 2000);
+        assert_eq!(Capacity::from_options(&flags(&[("long-waits", "64")]), env).unwrap().long_waits, 64, "a flag wins over its variable");
+        let small = Capacity::from_options(&flags(&[("long-waits", "4"), ("claim-waits", "1")]), none).unwrap();
+        assert_eq!((small.per_principal, small.connections()), (4, 133), "a defaulted share follows a smaller pool");
+        for bad in [("long-waits", "0"), ("long-waits", "4097"), ("claim-waits", "1025"), ("long-waits", "many")] {
+            let error = Capacity::from_options(&flags(&[bad]), none).unwrap_err();
+            assert!(error.starts_with("E_INPUT: --") && error.contains("Long-wait capacity"), "{error}");
+        }
+        let error = Capacity::from_options(&flags(&[("long-waits", "8"), ("long-waits-per-principal", "9")]), none).unwrap_err();
+        assert!(error.contains("cannot exceed"), "{error}");
+    }
+    #[test]
+    fn the_descriptor_bound_follows_connections() {
+        let capacity = Capacity::default();
+        assert_eq!(capacity.descriptors(), 512 + 4 * 1184);
+        assert!(capacity.describe().contains("1024 viewer (≤16 change polls per principal), 32 worker claim; HTTP connections=1184"), "{}", capacity.describe());
+    }
 }

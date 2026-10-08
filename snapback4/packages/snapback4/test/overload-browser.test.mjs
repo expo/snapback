@@ -10,6 +10,10 @@ import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { server } from './helpers/app-server.mjs';
 
 test('Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times', { timeout: hangBudget(16) }, async t => {
+  // Smallest long-wait pools: the connection cap is then 128 + 1 + 1 (LLP 3000.036 §6).
+  const saved = [process.env.SNAPBACK4_LONG_WAITS, process.env.SNAPBACK4_CLAIM_WAITS];
+  process.env.SNAPBACK4_LONG_WAITS = '1'; process.env.SNAPBACK4_CLAIM_WAITS = '1';
+  t.after(() => { for (const [name, value] of [['SNAPBACK4_LONG_WAITS', saved[0]], ['SNAPBACK4_CLAIM_WAITS', saved[1]]]) { if (value === undefined) delete process.env[name]; else process.env[name] = value; } });
   const { url } = await server(t, undefined, `use personas alice
 table photos:
   photo: image <=10000
@@ -50,7 +54,7 @@ table photos:
   assert.equal(warm.ok, true, JSON.stringify(warm)); // includes a real browser preflight
   const held = [];
   t.after(() => { for (const socket of held) socket.destroy(); });
-  await Promise.all(Array.from({ length: 128 }, async () => {
+  await Promise.all(Array.from({ length: 130 }, async () => {
     const socket = connect(Number(new URL(url).port), '127.0.0.1'); held.push(socket); socket.on('error', () => {}); await once(socket, 'connect');
   }));
   await new Promise(resolve => setTimeout(resolve, 100));

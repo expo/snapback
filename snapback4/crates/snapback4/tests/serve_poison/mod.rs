@@ -27,6 +27,7 @@ fn a_request_after_engine_poison_still_serves() {
         clock: clock.clone(), maintenance: FairMutex::gate(maintenance::State::default()),
         entropy: Mutex::new(1),
         presence: Arc::new(Live::new(clock)),
+        long_waits: long_waits::LongWaits::new(&crate::host_limits::Capacity::default()), change_answers: Mutex::default(),
         asset_transfers: AssetTransfers::default(),
         native: Mutex::new(None),
         auth: crate::auth::Admission::default(),

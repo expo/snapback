@@ -39,9 +39,10 @@ pub fn take(verb: &str) -> Result<Option<TcpListener>, String> {
     } else { Ok(None) }
 }
 
-pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>) -> Result<tiny_http::Server, String> {
+pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>, max_connections: usize) -> Result<tiny_http::Server, String> {
     crate::thread_priority::request_parent()?;
-    let limits = tiny_http::ConnectionLimits { thread_start: Some(crate::thread_priority::dispatcher), ..Default::default() };
+    // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — a held wait is a connection too; the cap grows with the long-wait pools.
+    let limits = tiny_http::ConnectionLimits { thread_start: Some(crate::thread_priority::dispatcher), max_connections, ..Default::default() };
     let result = if let Some(listener) = inherited {
         let fd = listener.as_raw_fd();
         let expected = format!("{bind}:{port}").parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?;

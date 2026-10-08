@@ -24,6 +24,8 @@ mod timeline_tests;
 mod store_tests;
 #[path = "../tests/serve_assets/mod.rs"]
 mod asset_list_tests;
+#[path = "../tests/serve_long_waits/mod.rs"]
+mod long_wait_tests;
 #[test]
 fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
     for dev in [true, false] {
@@ -521,40 +523,16 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
 }
 
 #[test]
-fn full_poll_admission_preserves_short_request_progress() {
-    let host = Host::new(true);
-    let mut polls = Vec::new();
-    for _ in 0..WAIT_WORKERS {
-        let mut stream = TcpStream::connect(host.address).unwrap();
-        stream.write_all(b"GET /changes?since=0&wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nConnection: close\r\n\r\n").unwrap();
-        polls.push(stream);
-    }
-    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == WAIT_WORKERS);
-    let started = Instant::now();
-    let response = host.request("GET", "/schema", "x-snapback-persona: alice\r\n", "");
-    assert_eq!(status(&response), 200);
-    assert!(started.elapsed() < Duration::from_secs(1));
-    let mut extra = TcpStream::connect(host.address).unwrap();
-    extra
-        .set_read_timeout(Some(Duration::from_secs(1)))
-        .unwrap();
-    extra.write_all(b"GET /changes?wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\n\r\n").unwrap();
-    let mut refusal = String::new(); extra.read_to_string(&mut refusal).unwrap();
-    assert_eq!(status(&refusal), 503);
-    assert_eq!(body(&refusal)["denied"]["retryable"], true);
-    assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
-    let reply = body(&host.request("POST", "/seed", "x-snapback-persona: alice\r\n",
-        r#"[{"table":"items","row":{"id":"wake","n":1,"photo":null}}]"#));
-    assert_eq!(reply["seeded"], 1, "{reply}");
-    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
-}
-
-#[test]
-fn change_polls_and_effect_claims_share_the_bounded_wait_lane() {
+fn change_polls_and_effect_claims_take_separate_long_wait_classes() {
     assert!(is_waiter(&Method::Get, "/changes"));
-    assert!(is_waiter(&Method::Post, "/effects/claim"));
-    assert!(!is_waiter(&Method::Get, "/effects/claim"));
+    assert!(is_waiter(&Method::Post, "/a/act"));
+    assert!(is_claim(&Method::Post, "/effects/claim"));
+    assert!(is_claim(&Method::Post, "/actions/claim"));
+    assert!(!is_waiter(&Method::Post, "/effects/claim"));
+    assert!(!is_claim(&Method::Get, "/effects/claim"));
     assert!(!is_waiter(&Method::Post, "/q/short"));
+    assert_eq!(wait_seconds("/changes?since=3&wait=90"), 25);
+    assert_eq!(wait_seconds("/changes?since=3"), 0);
 }
 
 #[test]

@@ -112,3 +112,11 @@ accept errors retain the listener-error path. The Unix `libc` dependency names
 the platform errno constants. Snapback's Linux subprocess regression maintains
 a real backlog at zero through three spare descriptors, measures accept-thread
 CPU, checks diagnostics/refusal separation and resumes serving after release.
+
+Local change, 2026-10-08 (lane S3, long-wait capacity): `Request::refuse_overload_with`
+writes the same single nonblocking 503 as `refuse_overload`, with a host-chosen
+small JSON body and `Retry-After` seconds, then aborts without draining. The host
+uses it to refuse a full long-wait pool with `E_STREAMS` (naming the pool and its
+size) instead of the generic `E_RATE_LIMIT`. Connection admission, framing,
+deadlines and the original fixed refusal are unchanged; `refuse_connection` now
+delegates to the shared `refuse_connection_with`.

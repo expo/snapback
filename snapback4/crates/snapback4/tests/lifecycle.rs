@@ -52,8 +52,10 @@ fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
         host.until(|h| fs::read_to_string(&h.stdout).unwrap().contains('\n'));
         let url = fs::read_to_string(&host.stdout).unwrap().lines().next().unwrap().to_owned();
         let text = host.log();
-        assert_eq!(text.matches("snapback4 host:").count(), 1, "{text}");
-        assert!(text.contains("HTTP connections=128; uploads=2"), "{text}");
+        // One descriptor line, then one capacity line once the pools are sized.
+        assert_eq!(text.matches("snapback4 host:").count(), 2, "{text}");
+        assert!(text.contains("uploads=2; file descriptors (this process)"), "{text}");
+        assert!(text.contains("snapback4 host: long waits: ") && text.contains("worker claim; HTTP connections="), "{text}");
         assert!(text.contains(&format!("startup soft={initial_soft} target=")), "{text}");
         if hard_low {
             assert!(text.contains(&format!("soft={initial_soft} hard={initial_soft}")) && text.contains("E_HTTP_LIMIT"), "{text}");

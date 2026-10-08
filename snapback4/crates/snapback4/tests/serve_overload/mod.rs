@@ -76,7 +76,8 @@ fn every_worker_pool_counts_and_returns_the_same_public_refusal() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\nroute report: post \"/report\" wait 2s\nquery who():\n  return viewer\n");
     for (class, method, path) in [
         (RequestClass::Short, "GET", "/schema"), (RequestClass::Mutation, "POST", "/assets"),
-        (RequestClass::Sync, "POST", "/sync"), (RequestClass::Wait, "POST", "/effects/claim"),
+        (RequestClass::Sync, "POST", "/sync"), (RequestClass::Wait, "GET", "/changes?wait=25"),
+        (RequestClass::Claim, "POST", "/effects/claim"),
         (RequestClass::Route, "POST", "/report"), (RequestClass::Registry, "POST", "/actions/claim-set"),
         (RequestClass::Verifier, "POST", "/routes/verify/claim"),
     ] {
@@ -85,7 +86,9 @@ fn every_worker_pool_counts_and_returns_the_same_public_refusal() {
         let reply = host.request(method, path, "", "");
         assert_eq!(status(&reply), 503, "{path}: {reply}");
         let why = &body(&reply)["denied"];
-        assert_eq!(why["code"], "E_RATE_LIMIT"); assert_ne!(why["family"], "auth"); assert_eq!(why["retryable"], true);
+        // Long-wait pools name themselves (LLP 3000.036 §6); the others keep the fixed body.
+        let code = if matches!(class, RequestClass::Wait | RequestClass::Claim) { "E_STREAMS" } else { "E_RATE_LIMIT" };
+        assert_eq!(why["code"], code, "{path}"); assert_ne!(why["family"], "auth"); assert_eq!(why["retryable"], true);
         wait_until(|| host.admission.refused[class as usize].load(Ordering::Relaxed) == 1);
         assert_eq!(host.admission.undelivered[class as usize].load(Ordering::Relaxed), 0);
         assert_eq!(host.admission.counter(class).load(Ordering::Acquire), permits.len());

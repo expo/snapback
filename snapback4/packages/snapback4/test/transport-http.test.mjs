@@ -37,11 +37,11 @@ query items():
   return items[] first 1000 by byId
 `;
 
-async function host(t) {
+async function host(t, flags = []) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-transport-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source);
-  const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(binary, ["dev", "--port", "0", "--no-watch", ...flags], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(child);
   const exited = once(child, "exit");
   let log = "", url;
@@ -292,6 +292,37 @@ test("healthy heartbeat polls, buffered native fetch and browser connectivity hi
     target.dispatchEvent(new Event("online"));
     assert.equal(online, 1, "closing unregisters hints");
   } finally { await client.close(); globalThis.addEventListener = savedAdd; globalThis.removeEventListener = savedRemove; }
+});
+
+// @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — the client's documented treatment of E_STREAMS.
+test("E_STREAMS degrades the change feed to paced unheld polls, never offline", { timeout: hangBudget(16) }, async t => {
+  const f = await host(t, ["--long-waits-per-principal", "1"]);
+  const seq = (await (await fetch(f.url, { headers })).json()).seq;
+  const holder = new AbortController();
+  t.after(() => holder.abort());
+  const held = fetch(`${f.url}/changes?since=${seq}&wait=25`, { headers, signal: holder.signal }).catch(() => {});
+  await sleep(300);
+  const lifetime = new AbortController();
+  t.after(() => lifetime.abort());
+  const waits = [], at = [];
+  let offline = 0;
+  const feed = changeFeed(async (input, init) => { waits.push(new URL(input).searchParams.get("wait")); at.push(performance.now()); return fetch(input, init); },
+    f.url, lifetime.signal, () => offline++, () => {});
+  const refused = await feed(seq, 25, headers);
+  assert.equal(refused.response.status, 429);
+  assert.equal(refused.response.headers.get("retry-after"), "5");
+  assert.equal(refused.json.denied.code, "E_STREAMS");
+  assert.equal(refused.json.denied.retryable, true, "the poll loops pause on a retryable refusal instead of going offline");
+  // The poll loop already waited Retry-After for the refusal: ask at once, unheld.
+  assert.equal((await feed(seq, 25, headers)).json.seq, seq);
+  assert.equal(waits[1], "0");
+  // Later unheld polls are paced by the refusal's Retry-After.
+  assert.equal((await feed(seq, 25, headers)).json.seq, seq);
+  assert.equal(waits[2], "0");
+  assert.ok(at[2] - at[1] >= 4900, `paced by Retry-After: ${at[2] - at[1]} ms`);
+  assert.equal(offline, 0);
+  holder.abort();
+  await held;
 });
 
 test("a streaming poll rechecks a revoked bearer before its final JSON", { timeout: hangBudget(8) }, async t => {

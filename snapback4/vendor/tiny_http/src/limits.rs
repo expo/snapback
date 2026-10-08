@@ -38,11 +38,17 @@ impl AcceptBackoff {
 // @ref LLP 3000#http-overload-diagnostics — refuse before allocating a parser or thread.
 // A single nonblocking, fixed-size reply cannot park the accept loop behind a
 // peer that does not read. Failure to deliver it remains a transport failure.
-pub(crate) fn refuse_connection(mut socket: Connection) -> bool {
-    use std::io::Write;
+pub(crate) fn refuse_connection(socket: Connection) -> bool {
     const BODY: &str = r#"{"denied":{"code":"E_RATE_LIMIT","family":"limit","message":"HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying","retryable":true,"guide":"assets"}}"#;
+    refuse_connection_with(socket, 1, BODY)
+}
+
+/// The same nonblocking 503 with a host-chosen JSON body and Retry-After, so a
+/// host can name which bounded pool refused (for example a long-wait pool).
+pub(crate) fn refuse_connection_with(mut socket: Connection, retry_after: u32, body: &str) -> bool {
+    use std::io::Write;
     let delivered = if socket.set_nonblocking(true).is_ok() {
-        let reply = format!("HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\nRetry-After: 1\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Retry-After\r\n\r\n{BODY}", BODY.len());
+        let reply = format!("HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\nRetry-After: {retry_after}\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Retry-After\r\n\r\n{body}", body.len());
         socket.write_all(reply.as_bytes()).is_ok()
     } else { false };
     let _ = socket.shutdown(Shutdown::Both);
@@ -182,6 +188,10 @@ impl ConnectionState {
 
     pub(crate) fn refuse(&self) -> bool {
         self.socket.try_clone().is_ok_and(refuse_connection)
+    }
+
+    pub(crate) fn refuse_with(&self, retry_after: u32, body: &str) -> bool {
+        self.socket.try_clone().is_ok_and(|socket| refuse_connection_with(socket, retry_after, body))
     }
 
     pub(crate) fn shutdown(&self) { let _ = self.socket.shutdown(Shutdown::Both); }

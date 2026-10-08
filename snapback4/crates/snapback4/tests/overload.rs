@@ -17,7 +17,7 @@ fn check(full: bool) {
         let mut reader = unsafe { File::from_raw_fd(fds[0]) };
         let mut writer = unsafe { File::from_raw_fd(fds[1]) };
         let child = Command::new(std::env::var("SNAPBACK4_OVERLOAD_BIN").unwrap_or_else(|_| env!("CARGO_BIN_EXE_snapback4").into()))
-            .args(["dev", "--fresh", "--replay", "--no-watch", "--port", "0"]).current_dir(&dir)
+            .args(["dev", "--fresh", "--replay", "--no-watch", "--port", "0", "--long-waits", "1", "--claim-waits", "1"]).current_dir(&dir)
             .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(writer.try_clone().unwrap()).spawn().unwrap();
         let mut host = Host { child, dir };
         let stdout = host.child.stdout.take().unwrap();
@@ -35,7 +35,8 @@ fn check(full: bool) {
             // this is the original full-pipe failure, not a nonblocking fake.
             unsafe { libc::fcntl(writer.as_raw_fd(), libc::F_SETFL, 0); }
         } else { drop(reader); }
-        let held: Vec<_> = (0..128).map(|_| TcpStream::connect(address).unwrap()).collect();
+        // The connection cap is 128 plus the long-wait pools (here 1 + 1).
+        let held: Vec<_> = (0..130).map(|_| TcpStream::connect(address).unwrap()).collect();
         thread::sleep(Duration::from_millis(100));
         for i in 0..9 {
             if i == 8 { thread::sleep(Duration::from_millis(1250)); } // summary writer has attempted the faulty pipe

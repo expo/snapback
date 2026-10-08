@@ -2705,7 +2705,11 @@ tables. A different identity or a head below `since` answers immediately; a regr
 `seq`. A matching identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1
 response starts immediately and sends JSON whitespace every 2 seconds before the final JSON object. Proxies
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
-`denied`, including `E_AUTH` if the session ended while waiting. Every reply of a query that may read `connected[p]`, refusals included,
+`denied`, including `E_AUTH` if the session ended while waiting. A held poll (N > 0) the host has no room
+for is refused at once with retryable `E_STREAMS`: 503 with `Retry-After: 2` when the viewers' long-wait pool
+is full, 429 with `Retry-After: 5` when the principal already holds its share (default 16). Wait Retry-After,
+poll with N = 0 at that pace meanwhile, then hold again; the published client does exactly this and stays
+online. Every reply of a query that may read `connected[p]`, refusals included,
 carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
 5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it. `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
@@ -2832,6 +2836,11 @@ windows; requests completing after shutdown starts are not covered.
   backend access, and rate-limit by the real client address. The binary does
   not trust forwarded address or scheme headers. It symlinks the release's
   store to the directory's, so the filesystem must support symlinks.
+  `--long-waits N`, `--long-waits-per-principal N` and `--claim-waits N`
+  size the held-wait pools (defaults 1,024, 16 and 32); a full bound refuses
+  retryable `E_STREAMS`. Bounds, refusals and the measured cost are in
+  SERVER.md, "Long-wait capacity". Set the proxy's idle timeout above the
+  2-second poll heartbeat and its connection limit above the derived cap.
 
 ### Stopped backup and isolated restore
 

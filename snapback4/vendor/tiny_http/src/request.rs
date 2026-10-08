@@ -387,6 +387,15 @@ impl Request {
         crate::AdmissionRefusals { http_written: usize::from(written), http_failed: usize::from(!tls && !written), tls_closed: usize::from(tls) }
     }
 
+    /// `refuse_overload` with the host's own JSON body and Retry-After seconds.
+    /// The write is the same single nonblocking attempt; the body should be small.
+    pub fn refuse_overload_with(self, retry_after: u32, body: &str) -> crate::AdmissionRefusals {
+        let tls = self.secure;
+        let written = !tls && self.limits.as_ref().is_some_and(|limits| limits.refuse_with(retry_after, body));
+        self.abort();
+        crate::AdmissionRefusals { http_written: usize::from(written), http_failed: usize::from(!tls && !written), tls_closed: usize::from(tls) }
+    }
+
     pub(crate) fn with_limits(mut self, limits: Option<std::sync::Arc<crate::limits::ConnectionState>>) -> Self {
         self.limits = limits;
         self

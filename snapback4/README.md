@@ -48,9 +48,16 @@ for a protected private hop to a TLS terminator.
 
 The catalog (`/`, `/schema`, `/api.ts`) and `/changes` require a live bearer
 session, or a local development persona. Public `GET /auth/config` returns
-only the `guests` and `password` sign-in capabilities. The HTTP host caps
-connections at 128, reserves 32 request workers and 32 separate long-wait
-workers for change polls and effect claims, and closes excess requests. Headers have a 32 KiB / 5 second limit,
+only the `guests` and `password` sign-in capabilities. The HTTP host reserves
+32 request workers per short class, 1,024 long waits for viewers' held change
+polls and action calls (at most 16 held change polls per principal), and a
+separate 32 for service workers' claim polls; it caps connections at 128 plus
+those long waits (1,184) and closes excess requests. A full long-wait bound
+answers retryable `E_STREAMS`. `dev` and `serve` take `--long-waits`,
+`--long-waits-per-principal` and `--claim-waits` (or `SNAPBACK4_LONG_WAITS`,
+`SNAPBACK4_LONG_WAITS_PER_PRINCIPAL`, `SNAPBACK4_CLAIM_WAITS`); see
+"Long-wait capacity" in `packages/snapback4/SERVER.md` for bounds and the
+measured cost. Headers have a 32 KiB / 5 second limit,
 bodies a 30 second deadline, idle reads a 5 second limit, and responses a
 5 second write deadline. These deadlines cover each complete phase, so
 dribbling bytes does not extend them.

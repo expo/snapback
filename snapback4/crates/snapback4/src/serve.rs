@@ -36,7 +36,9 @@ mod ephemeral;
 #[path = "serve_read_scopes.rs"]
 mod read_scopes;
 #[path = "serve_changes.rs"]
-mod changes;
+pub(crate) mod changes;
+#[path = "serve_long_waits.rs"]
+pub(crate) mod long_waits;
 #[path = "serve_sync.rs"]
 mod sync;
 #[path = "serve_maintenance.rs"]
@@ -95,6 +97,10 @@ pub struct Shared {
     pub entropy: Mutex<u64>,
     /// Who holds a long poll open right now: what `connected[p]` reads.
     pub presence: Arc<Live>,
+    /// Held change polls per principal, bounded by `--long-waits-per-principal`.
+    pub(crate) long_waits: long_waits::LongWaits,
+    /// Change-poll answers shared by every poll at the same cursor.
+    pub(crate) change_answers: Mutex<changes::Answers>,
     /// Serializes asset responses for one `(asset, principal)` so two
     /// overlapping requests cannot both consume a one-view grant.
     pub asset_transfers: AssetTransfers,
@@ -253,8 +259,10 @@ pub enum Mode {
     Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
-pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited: Option<std::net::TcpListener>) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited: Option<std::net::TcpListener>, capacity: crate::host_limits::Capacity) -> Result<(), String> {
     crate::host_limits::initialize();
+    let capacity = capacity.fit()?;
+    crate::host_limits::install(capacity);
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
@@ -279,7 +287,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         Some(crate::store_owner::host(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
-    let server = crate::witness_socket::server(bind, port, inherited)?;
+    let server = crate::witness_socket::server(bind, port, inherited, capacity.connections())?;
     let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
     if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
     if let Mode::Release { owner, .. } = &mut mode {
@@ -333,7 +341,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
-        adoption, clock, maintenance: FairMutex::gate(maintenance::State::default()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: FairMutex::gate(maintenance::State::default()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, long_waits: long_waits::LongWaits::new(&capacity), change_answers: Mutex::default(), asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] request_work: Mutex::new(None),
@@ -392,7 +400,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     let worker = crate::dev_worker::Supervisor::start(project, shared.clone(), worker_url, dev, worker)?;
     // @ref LLP 3000#contended-read-serving — dev and serve drain startup banners before accepting work, bounded for stalled output.
     let _ = snapback4_core::diagnostics::drain(Duration::from_secs(3));
-    serve_requests(server, shared, worker, background, crate::lifecycle::stopping)
+    serve_requests(server, shared, worker, background, crate::lifecycle::stopping, capacity)
 }
 
 // The production accept loop is also exercised with a real supervised child
@@ -400,24 +408,25 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
 fn serve_requests(
     server: Arc<Server>, shared: Arc<Shared>, worker: crate::dev_worker::Supervisor,
     background: Vec<(&str, std::thread::JoinHandle<()>)>, stopping: impl Fn() -> bool,
+    capacity: crate::host_limits::Capacity,
 ) -> Result<(), String> {
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     crate::thread_priority::dispatcher();
-    let admission = Arc::new(RequestAdmission::default());
+    let admission = Arc::new(RequestAdmission::new(&capacity));
     let mut reported = tiny_http::AdmissionRefusals::default();
-    let mut reported_workers = ([0; 7], [0; 7]);
+    let mut reported_workers = ([0; CLASSES], [0; CLASSES]);
     let mut report_at = Instant::now();
     loop {
         if report_at.elapsed() >= Duration::from_secs(1) {
             let refusals = server.admission_refusals();
             if refusals != reported && snapback4_core::diagnostics::emit(format_args!(
                 "E_RATE_LIMIT at http: all {} HTTP connections occupied at admission; cumulative refused={} http_written={} http_failed={} tls_closed={}; since_summary={}; wait for pending writes to settle or reduce concurrent clients; wire delivery is best-effort",
-                tiny_http::ConnectionLimits::default().max_connections, refusals.total(), refusals.http_written, refusals.http_failed, refusals.tls_closed, refusals.total().saturating_sub(reported.total())), false) {
+                capacity.connections(), refusals.total(), refusals.http_written, refusals.http_failed, refusals.tls_closed, refusals.total().saturating_sub(reported.total())), false) {
                 reported = refusals;
             }
             let workers = (admission.refused.each_ref().map(|n| n.load(Ordering::Relaxed)), admission.undelivered.each_ref().map(|n| n.load(Ordering::Relaxed)));
             if workers != reported_workers && snapback4_core::diagnostics::emit(format_args!(
-                "E_RATE_LIMIT at workers: cumulative refused={:?} undelivered={:?}; pools=[short,mutation,sync,wait,route,registry,verifier]; reduce concurrent clients; wire delivery is best-effort", workers.0, workers.1), false) {
+                "E_RATE_LIMIT at workers: cumulative refused={:?} undelivered={:?}; pools=[short,mutation,sync,wait,route,registry,verifier,claim]; full wait/claim pools answer E_STREAMS; reduce concurrent clients; wire delivery is best-effort", workers.0, workers.1), false) {
                 reported_workers = workers;
             }
             report_at = Instant::now();
@@ -440,16 +449,16 @@ const MUTATION_WORKERS: usize = 32;
 // @ref LLP 3000.026#4-atomic-launch-adoption — sync may wait for atomic launch;
 // reserve its capacity separately even if launch begins after dispatch.
 const SYNC_WORKERS: usize = 32;
-const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
 const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
+const CLASSES: usize = 8;
 
-#[derive(Default)]
-struct RequestAdmission { workers: [request_workers::Workers; 7], short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, refused: [AtomicUsize; 7], undelivered: [AtomicUsize; 7] }
+struct RequestAdmission { limits: [usize; CLASSES], pool_refusals: long_waits::PoolRefusals, workers: [request_workers::Workers; CLASSES], short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize, claims: AtomicUsize, refused: [AtomicUsize; CLASSES], undelivered: [AtomicUsize; CLASSES] }
 
-#[derive(Clone, Copy)]
-enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier }
+// @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — viewers' waits and workers' claims are separate classes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier, Claim }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 // @ref LLP 3000#http-overload-diagnostics — spawn failure drops the closure on the dispatcher; refuse before Request can drain an unfinished body.
 struct PendingRequest { request: Option<Request>, admission: Arc<RequestAdmission>, class: RequestClass }
@@ -465,20 +474,33 @@ impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
+    fn new(capacity: &crate::host_limits::Capacity) -> Self {
+        Self {
+            limits: [REQUEST_WORKERS, MUTATION_WORKERS, SYNC_WORKERS, capacity.long_waits, ROUTE_WORKERS, REGISTRY_WORKERS, VERIFIER_WORKERS, capacity.claim_waits],
+            pool_refusals: long_waits::PoolRefusals::new(capacity),
+            workers: Default::default(), short: AtomicUsize::new(0), mutations: AtomicUsize::new(0), syncs: AtomicUsize::new(0), waiters: AtomicUsize::new(0),
+            routes: AtomicUsize::new(0), registries: AtomicUsize::new(0), verifiers: AtomicUsize::new(0), claims: AtomicUsize::new(0),
+            refused: Default::default(), undelivered: Default::default(),
+        }
+    }
     fn refuse(&self, request: Request, class: RequestClass) {
-        let result = request.refuse_overload();
+        // A full long-wait pool names itself (E_STREAMS); every other class
+        // keeps the fixed E_RATE_LIMIT body. Both are one nonblocking write.
+        let result = match class {
+            RequestClass::Wait => request.refuse_overload_with(long_waits::POOL_RETRY_SECONDS, &self.pool_refusals.viewer),
+            RequestClass::Claim => request.refuse_overload_with(long_waits::POOL_RETRY_SECONDS, &self.pool_refusals.claim),
+            _ => request.refuse_overload(),
+        };
         let increment = |counter: &AtomicUsize| { let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_add(1))); };
         increment(&self.refused[class as usize]);
         if result.http_written == 0 { increment(&self.undelivered[class as usize]); }
     }
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
-        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
+        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers, RequestClass::Claim => &self.claims }
     }
-    fn limit(class: RequestClass) -> usize {
-        match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Sync => SYNC_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS }
-    }
+    fn limit(&self, class: RequestClass) -> usize { self.limits[class as usize] }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = Self::limit(class);
+        let limit = self.limit(class);
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
@@ -493,7 +515,11 @@ fn request_class(request: &Request, shared: &Shared) -> RequestClass {
     if request.method() == &Method::Post && routes::declared(shared, request.url()).is_some() { RequestClass::Route }
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
-        else if is_waiter(request.method(), path) { RequestClass::Wait }
+        else if is_claim(request.method(), path) { RequestClass::Claim }
+        // A change poll without a wait answers at once, so it stays available
+        // when the long-wait pool is full. It takes the engine to enter
+        // presence and open its reader, so it is writer-dependent (Mutation).
+        else if is_waiter(request.method(), path) && !(path == "/changes" && wait_seconds(request.url()) == 0) { RequestClass::Wait }
         else if request.method() == &Method::Post && path == "/sync" { RequestClass::Sync }
         // @ref LLP 3000.019#3.6 — only writer-independent handlers share the read reservation.
         // Default to the writer budget, so adding a writer door cannot silently
@@ -518,7 +544,7 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         return;
     };
     let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
-    if let Err(error) = admission.workers[class as usize].submit(RequestAdmission::limit(class), builder, Box::new(move || { let _permit = permit;
+    if let Err(error) = admission.workers[class as usize].submit(admission.limit(class), builder, Box::new(move || { let _permit = permit;
         let request = pending.take();
         let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
         if let Some(trace) = trace { trace.run(run); } else { run(); } })) {
@@ -533,8 +559,18 @@ fn detached_request(method: &Method, path: &str) -> bool {
 }
 
 fn is_waiter(method: &Method, path: &str) -> bool {
-    (method == &Method::Get && path == "/changes")
-        || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path.starts_with("/a/")))
+    (method == &Method::Get && path == "/changes") || (method == &Method::Post && path.starts_with("/a/"))
+}
+
+/// Service workers' claim polls: their own pool, so held viewer waits cannot
+/// starve effect and action delivery, nor the reverse.
+fn is_claim(method: &Method, path: &str) -> bool {
+    method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim")
+}
+
+/// `/changes`' own reading of `wait` (absent or unparsable is 0; capped at 25).
+pub(crate) fn wait_seconds(url: &str) -> u64 {
+    query_params(url).get("wait").and_then(|s| s.parse().ok()).unwrap_or(0).min(25)
 }
 
 /// A worker's seat: a bearer session of a service principal.
@@ -745,6 +781,15 @@ fn respond_with_cors(request: Request, status: u16, body: impl latency::Reply, a
 }
 
 fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>) {
+    respond_full(request, status, body, allow_origin, sync_overflow, shared, Vec::new())
+}
+
+/// `respond_timed` with extra headers (for example Retry-After).
+pub(crate) fn respond_with_headers(request: Request, shared: &Shared, status: u16, body: impl latency::Reply, headers: Vec<Header>) {
+    respond_full(request, status, body, true, None, Some(shared), headers)
+}
+
+fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_origin: bool, sync_overflow: Option<Json>, shared: Option<&Shared>, extra: Vec<Header>) {
     let refused = status >= 400 || body.refused();
     trace::mark("encode_start");
     let mut bytes = JsonBuffer(Vec::new());
@@ -772,6 +817,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     }
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
+    for header in extra { response.add_header(header); }
     if allow_origin {
         for header in cors(&request) { response.add_header(header); }
     }

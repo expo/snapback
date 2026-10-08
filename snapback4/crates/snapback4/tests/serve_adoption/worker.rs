@@ -157,7 +157,7 @@ setInterval(() => { if (fs.existsSync('exit')) { Atomics.wait(new Int32Array(new
     let stopping = stop.clone();
     let shared = host.shared.clone();
     // Exercise the production accept/supervisor loop, not Host's dispatch loop.
-    let serving = Serving { stop, thread: Some(thread::spawn(move || serve_requests(server, shared, supervisor, Vec::new(), || stopping.load(Ordering::Acquire)))) };
+    let serving = Serving { stop, thread: Some(thread::spawn(move || serve_requests(server, shared, supervisor, Vec::new(), || stopping.load(Ordering::Acquire), crate::host_limits::Capacity::default()))) };
     let worker_status = || -> Json {
         let engine = lock(&host.shared.engine);
         serde_json::from_str(&engine.store().meta("worker:status").unwrap().unwrap_or("{}".into())).unwrap()

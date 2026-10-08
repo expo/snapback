@@ -33,12 +33,16 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   new <dir> --template social       Expo Router social starter (feed, chats, search, profile)
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   types                            compile and write snapback/generated/api.ts
-  dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty]
+  dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
   deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
-  serve <dir> [--port N] [--bind IP] [--worker <path>]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
+  serve <dir> [--port N] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
+  long-wait flags (dev and serve; SERVER.md \"Long-wait capacity\"):
+    --long-waits N                   viewers' held /changes?wait and /a/ calls (default 1024, max 4096; SNAPBACK4_LONG_WAITS)
+    --long-waits-per-principal N     held change polls one principal may hold (default 16; SNAPBACK4_LONG_WAITS_PER_PRINCIPAL)
+    --claim-waits N                  service workers' claim polls, a separate pool (default 32, max 1024; SNAPBACK4_CLAIM_WAITS)
   run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
@@ -153,7 +157,8 @@ fn main() -> ExitCode {
             }
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
             let bind = development_bind(&options)?;
-            serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited)
+            let capacity = host_limits::Capacity::from_options(&options.flags, |name| std::env::var(name).ok())?;
+            serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
         }),
         other => {
             eprintln!("unknown verb {other}\n{HELP}");

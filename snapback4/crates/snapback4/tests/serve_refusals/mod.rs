@@ -103,6 +103,10 @@ fn detached_query_uses_its_checkout_map_when_the_advertised_source_changes() {
 
 impl Host {
     pub(super) fn with_evidence(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>) -> Self {
+        Self::with_capacity(dev, store, source, bind, evidence, crate::host_limits::Capacity::default())
+    }
+
+    pub(super) fn with_capacity(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity) -> Self {
         crate::host_limits::prepare_tests();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -139,6 +143,7 @@ impl Host {
             clock, maintenance: FairMutex::gate(maintenance::State::default()),
             entropy: Mutex::new(1),
             presence,
+            long_waits: long_waits::LongWaits::new(&capacity), change_answers: Mutex::default(),
             asset_transfers: AssetTransfers::default(),
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),
@@ -153,11 +158,11 @@ impl Host {
         });
         shared.install_ephemeral_wake();
         let server = Arc::new(
-            Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits::default())
+            Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits { max_connections: capacity.connections(), ..Default::default() })
                 .unwrap(),
         );
         let address = server.server_addr().to_ip().unwrap();
-        let admission = Arc::new(RequestAdmission::default());
+        let admission = Arc::new(RequestAdmission::new(&capacity));
         let (s, e, a) = (server.clone(), shared.clone(), admission.clone());
         let worker = thread::spawn(move || {
             for request in s.incoming_requests() {

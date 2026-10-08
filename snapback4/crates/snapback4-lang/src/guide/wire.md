@@ -37,6 +37,11 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
   generation, store_id}` when a commit lands or after `wait` seconds: re-query
   what reads those tables, then poll again from the new `seq`. `/sync` is the
   device replication protocol; use the client rather than reimplementing it.
+- A held wait is bounded. A full host answers 503 `E_STREAMS` (Retry-After: 2);
+  one principal past its share of held polls (one per tab or device, default
+  16) gets 429 `E_STREAMS` (Retry-After: 5). Both are retryable and admitted
+  nothing: wait for Retry-After, poll `/changes?since=<seq>` without `wait`
+  meanwhile, then hold again. The JS client does this for you.
 - A host that runs the device itself (the native module or the wasm device
   without `snapback4/client`) must route each device `query` reply: some say
   "ask the server" (`unknown` without `retained`) and carry a placeholder

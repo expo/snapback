@@ -980,3 +980,68 @@ of durable `seq`. Durable invalidation continues unchanged.
 Use one serving process: memory rows and epochs are not shared across hosts.
 `data` and `sql` cannot inspect these process-local rows. Seed and load refuse
 them; PostgreSQL does not support ephemeral schemas.
+
+## Long-wait capacity
+
+A held wait (`GET /changes?wait=N`, `POST /a/<action>`, a worker's
+`POST /effects/claim` or `/actions/claim`) costs one connection thread and
+one pool worker for its duration. Three bounds size them:
+
+| knob (`dev` and `serve`) | environment | default | range | bounds |
+|---|---|---|---|---|
+| `--long-waits N` | `SNAPBACK4_LONG_WAITS` | 1,024 | 1–4,096 | viewers' held change polls and action calls |
+| `--long-waits-per-principal N` | `SNAPBACK4_LONG_WAITS_PER_PRINCIPAL` | 16 | 1–`--long-waits` | held change polls one principal may hold (tabs, devices) |
+| `--claim-waits N` | `SNAPBACK4_CLAIM_WAITS` | 32 | 1–1,024 | service workers' claim polls, a separate pool |
+
+A flag wins over its variable. The HTTP connection cap is derived: 128 for
+everything else plus `--long-waits` plus `--claim-waits` (1,184 by default).
+Startup prints both on one line, for example
+`snapback4 host: long waits: 1024 viewer (≤16 change polls per principal),
+32 worker claim; HTTP connections=1184; descriptors needed ≈5248`. Against
+a running `dev`, `doctor` repeats the connection cap and `GET /dev/status`
+carries the sizes under `fileDescriptors.longWaits`.
+
+The upper bound is descriptors and threads. Each connection holds four
+descriptors (512 more for the process), so startup refuses explicit sizes
+the raised soft NOFILE limit cannot carry (`E_HTTP_LIMIT`, naming the
+arithmetic). A default that does not fit is lowered to fit (never below 32)
+and the startup line says so. Each held wait is two OS threads: 4,096 viewer
+waits are about 8,200 threads, inside Darwin's 16,384 per process; under
+systemd, raise `TasksMax` (default about 4,900) before going past 2,048.
+
+A full bound is refused at once, never queued, with `E_STREAMS` (family
+`limit`, retryable, `guide wire`):
+
+- HTTP 503 with `Retry-After: 2` when every viewer long wait or every claim
+  poll is held. The body names the pool and its size.
+- HTTP 429 with `Retry-After: 5` when this principal already holds its share
+  of held change polls. A poll without `wait` (`GET /changes?since=<seq>`)
+  is never counted against the share or the pool.
+
+Nothing was admitted by a refused request. The published client treats
+`E_STREAMS` on `/changes` as a pause, not an outage: its link stays online,
+it waits Retry-After, then polls without `wait` at the Retry-After pace for
+30 seconds before holding again, so live queries keep learning of commits. A
+worker should retry its claim after Retry-After. Viewers cannot exhaust the
+claim pool, and workers cannot exhaust the viewers'.
+
+One commit wakes every held poll. Polls woken by the same publication at
+the same cursor share one answer, read once on a pooled reader; a new or
+unheld poll always reads the store itself, and a parked poll holds no SQLite
+connection. Measured on the M5 MacBook (36 cores, release build, `snapback4
+dev --fresh`, the repository's long-wait measurement script, held
+`/changes?wait=25&heartbeat=1` from one principal, 2026-10-08):
+
+| held polls | RSS | threads | descriptors | `/q` p50 / p99 while held | one commit answers all (persona / bearer) | all re-poll at once (persona / bearer) |
+|---|---|---|---|---|---|---|
+| 256 | 36 MiB | 521 | 1,042 | 0.20 / 0.58 ms | 6 / 58 ms | 74 / 21 ms |
+| 1,024 | 98 MiB | 2,057 | 4,136 | 0.21 / 0.76 ms | 21 / 237 ms | 38 / 82 ms |
+| 2,048 | 196 MiB | 4,105 | 8,373 | 0.33 / 1.20 ms | 58 / 497 ms | 94 / 224 ms |
+| 4,096 | 339 MiB | 8,201 | 16,412 | 0.61 / 1.76 ms | 334 / 1,525 ms | 416 / 811 ms |
+
+Each held poll costs about 85 KiB of RSS, two threads and four descriptors.
+A bearer poll rechecks its session before answering; that recheck is most of
+the bearer column. Opening thousands of new connections at once overflows
+Darwin's listen backlog (`kern.ipc.somaxconn`, 128): the 4,096 run saw about
+300 connection resets, which clients retry. Tens of thousands of idle
+streams need evented parking, a later step.

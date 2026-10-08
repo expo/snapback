@@ -220,23 +220,25 @@ fn route_wait_capacity_leaves_verification_and_short_core_requests_available() {
 fn saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution() {
     let host = host("2500ms"); let worker = worker(&host);
     let mut polls = Vec::new();
-    for _ in 0..WAIT_WORKERS {
+    // Legacy claim polls fill the worker claim pool (LLP 3000.036 §6), not the viewers'.
+    const CLAIMS: usize = crate::host_limits::DEFAULT_CLAIM_WAITS;
+    for _ in 0..CLAIMS {
         let mut stream = TcpStream::connect(host.address).unwrap();
         let body = r#"{"action":"idle-unregistered","wait":25}"#;
         stream.write_all(format!("POST /actions/claim HTTP/1.1\r\nHost: localhost\r\n{worker}Connection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len()).as_bytes()).unwrap();
         polls.push(stream);
     }
-    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == WAIT_WORKERS);
+    wait_until(|| host.admission.claims.load(Ordering::Acquire) == CLAIMS);
     let delivery = delivery(&host, b"progress-under-saturation", "");
     let ticket = claimed(&host, &worker);
     assert_eq!(body(&verify(&host, &worker, &ticket, "allow"))["ok"], true);
     finish(&host, &worker, b"completed");
     assert_eq!(status(&response_text(&delivery.join().unwrap())), 201);
-    assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
+    assert_eq!(host.admission.claims.load(Ordering::Acquire), CLAIMS);
     assert_eq!(body(&host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}"))["data"], "dev:alice");
     identity::revoke_principal(lock(&host.shared.engine).store(), "service:worker").unwrap();
     host.shared.committed.notify_all();
-    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
+    wait_until(|| host.admission.claims.load(Ordering::Acquire) == 0);
 }
 
 #[test]

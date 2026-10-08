@@ -91915,3 +91915,79 @@ Reference and whitespace checks pass. Native, wasm and 128 SDK hashes remain
 unchanged. Work stayed on eb1000; nothing pushed or published.
 
 [Round-2 report, per-test timings, controls and evidence](reports/20261008-bt-bounded-following-time/round2/REPORT.md).
+
+## 2026-10-08 — S3: long-wait capacity on the HTTP host (LLP 3000.036 §6 A)
+
+Charlie asked for "another round of changes" and then for far more than 32
+held waits. The RFC's "now" set landed: `dev` and `serve` take
+`--long-waits` (default **1,024**, was 32; at most 4,096),
+`--long-waits-per-principal` (default 16) and `--claim-waits` (default 32),
+each also as `SNAPBACK4_*`. Service workers' claim polls left the viewers'
+pool for their own class. A full pool answers 503 `E_STREAMS` with
+`Retry-After: 2` through a new vendored `refuse_overload_with` (same single
+nonblocking write); a principal past its share gets 429 `E_STREAMS` with
+`Retry-After: 5`, refused at once after authentication, never queued. The
+connection cap is now derived (128 + both pools, 1,184 by default); startup
+states the sizes and the descriptor need, refuses explicit sizes the NOFILE
+limit cannot carry and lowers a default that does not fit. The JS client's
+change feed treats `E_STREAMS` as a pause: it stays online, waits
+Retry-After, then polls without `wait` at that pace for 30 s.
+
+Measuring before choosing the number found what the RFC's estimates missed.
+With only the pools raised, 1,024 held polls cost 232 KiB each (six
+descriptors: each kept a detached SQLite reader) and one commit took 1.36 s
+to answer them all; at 4,096 only 268 had answered after 20 s. Two herds:
+every woken poll reopened a reader under the engine lock, and the engine's
+FIFO lock (`serve_lock.rs`) woke *every* queued thread on each release, so a
+thousand polls re-entering at once did quadratic wakeups (2,048 re-polls took
+6.3 s; `sample` put 13,000 of 13,400 mutex-wait samples in `FairMutex::admit`
+from `changes::serve`). Fixed in the same landing: each queued ticket parks on
+its own condvar and a release wakes only the next; a parked poll holds no
+reader; held polls woken by the same publication at the same cursor share
+one answer read on a pooled reader (at most a second old, never below the
+cursor; entry and unheld polls always read the store, which keeps the
+finding-5 regression honest). Custom 512 KiB worker stacks were tried and dropped: RSS is touched
+pages, and the action path can recurse.
+
+`scripts/measure-long-waits.py` on the M5 (release, `dev --fresh`, one
+principal, `wait=25&heartbeat=1`, after the review fold): per held poll about
+85 KiB RSS, two threads, four descriptors. 256 / 1,024 / 2,048 / 4,096 held:
+36 / 98 / 196 / 339 MiB, 521 / 2,057 / 4,105 / 8,201 threads; `/q` p50
+0.20 / 0.21 / 0.33 / 0.61 ms while held; one commit answers all in
+6 / 21 / 58 / 334 ms (persona) and 58 / 237 / 497 / 1,525 ms (bearer, which
+rechecks each session); all re-poll at once in 74 / 38 / 94 / 416 ms
+(persona) and 21 / 82 / 224 / 811 ms (bearer). 1,024 is the default because it keeps commit fan-out near a
+quarter second with bearer sessions and threads (about 2,300) under systemd's
+default `TasksMax`; 4,096 is the measured ceiling, near Darwin's 16,384
+threads per process. Opening thousands of fresh connections at once overflows
+Darwin's 128-entry listen backlog (about 300 resets at 4,096), which clients
+retry. Tens of thousands of idle streams remain the evented-parking step.
+
+Tests: a full viewer pool refuses `E_STREAMS` while short requests and unheld
+polls progress; one principal's share is refused at once and released with
+its polls; workers' claims and viewers' waits cannot starve each other in
+either direction; eight held polls woken by one commit take fewer than eight reads;
+capacity flags, environment and bounds; the client feed degrades and is paced
+by Retry-After against a real `dev --long-waits-per-principal 1`. Existing
+admission, overload, lifecycle and route-capacity tests moved to the split
+classes. `E_STREAMS` is in `guide::CODES` with the wire card's defining
+paragraph; SERVER.md "Long-wait capacity", README, CLIENT-AND-OPERATIONS.md
+and LLP 3000 / 3000.036 record the knobs and the measurement.
+
+Blind review (GPT-6 Astra, xhigh, read-only, concurrency brief): **NOT READY**,
+three findings, all folded. (1) MATERIAL: a cached answer could be older than
+a commit the client already knew (committed, not yet published, as `/seed`
+does between commit and publish), so a new poll could report a lower head and
+trip the client's store-restore check. Entry and unheld polls now always read
+the store; only polls woken by a publication share an answer, which is read
+after that publication and so after the poll's entry. Regression: a new poll
+after an unpublished commit reports it. (2) MATERIAL: a pooled reader can
+predate an adoption that has committed but not yet replaced the pool, and its
+`E_GENERATION` would have stopped the client feed. A failed pooled read (and a
+failed pooled bearer recheck) is now read again behind the engine, which waits
+for the adoption, as the old reopen-under-engine did. Regression holds a wake
+read across a committed adoption; it fails with the fallback removed. (3)
+MINOR: the shared-read test now waits for every poll to reach its wait. The
+reviewer found no FairMutex handoff, lock-order or permit/share accounting
+defect.
+

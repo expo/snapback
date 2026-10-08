@@ -161,7 +161,8 @@ table photos:
   read <- allow
 `);
   const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url));
-  const child = spawn(binary, ["dev", "--fresh", "--replay", "--no-watch", "--port", "0"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  // Smallest long-wait pools: the connection cap is then 128 + 1 + 1 (LLP 3000.036 §6).
+  const child = spawn(binary, ["dev", "--fresh", "--replay", "--no-watch", "--port", "0", "--long-waits", "1", "--claim-waits", "1"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "";
   child.stderr.on("data", bytes => { log += bytes; });
@@ -184,7 +185,7 @@ table photos:
   const port = Number(new URL(url).port);
   // Slow headers fill connection leases; 100-continue witnesses prove that
   // unfinished mutations occupy all 32 workers before the upload is attempted.
-  await Promise.all(Array.from({ length: capacity === "connection" ? 128 : 32 }, async () => {
+  await Promise.all(Array.from({ length: capacity === "connection" ? 130 : 32 }, async () => {
     const socket = connect(port, "127.0.0.1");
     socket.on("error", () => {});
     sockets.push(socket);
@@ -207,7 +208,7 @@ table photos:
   assert.equal(result.ok, false, log);
   assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
   assert.match(result.why.message, /HTTP connections/);
-  const diagnostic = capacity === "connection" ? /E_RATE_LIMIT at http: all 128 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
+  const diagnostic = capacity === "connection" ? /E_RATE_LIMIT at http: all 130 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
   await waitFor(() => log.split("\n").slice(0, -1).some(line => diagnostic.test(line)), "complete overload diagnostic");
   assert.match(log, diagnostic);
   assert.equal(child.exitCode, null, "host remains alive");

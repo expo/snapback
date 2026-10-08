@@ -1,5 +1,5 @@
 //! FIFO admission to the single writer: a chunk cannot overtake a waiting request.
-use std::{ops::{Deref, DerefMut}, sync::{Condvar, LockResult, Mutex, MutexGuard, PoisonError}};
+use std::{collections::BTreeMap, ops::{Deref, DerefMut}, sync::{Arc, Condvar, LockResult, Mutex, MutexGuard, PoisonError}};
 use std::time::{Duration, Instant};
 
 const REQUEST_QUIET: Duration = Duration::from_millis(1);
@@ -9,8 +9,12 @@ pub trait Clock { fn now(&self) -> Instant; }
 pub struct SystemClock;
 impl Clock for SystemClock { fn now(&self) -> Instant { Instant::now() } }
 
+// @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — thousands of held polls queue here; a release wakes only the next ticket.
+/// Each queued ticket parks on its own condvar. One shared condvar with
+/// notify_all woke every queued thread per release: quadratic wakeups when a
+/// thousand change polls arrive at once.
 #[derive(Default)]
-struct Queue { next: u64, serving: u64, last_request: Option<Instant> }
+struct Queue { next: u64, serving: u64, last_request: Option<Instant>, parked: BTreeMap<u64, Arc<Condvar>> }
 
 // @ref LLP 3000.013#4-following-without-caps — background delivery yields the engine between commits.
 /// Both requests and maintenance take tickets. Later requests cannot starve
@@ -79,8 +83,13 @@ impl<T, C: Clock> FairMutex<T, C> {
         let contended = background && (queue.next != queue.serving || queue.last_request.is_some_and(|at| self.clock.now().saturating_duration_since(at) < REQUEST_QUIET));
         let ticket = queue.next;
         queue.next = queue.next.wrapping_add(1);
-        while queue.serving != ticket {
-            queue = self.available.wait(queue).unwrap_or_else(PoisonError::into_inner);
+        if queue.serving != ticket {
+            let turn = Arc::new(Condvar::new());
+            queue.parked.insert(ticket, turn.clone());
+            while queue.serving != ticket {
+                queue = turn.wait(queue).unwrap_or_else(PoisonError::into_inner);
+            }
+            queue.parked.remove(&ticket);
         }
         drop(queue);
         let value = self.value.lock();
@@ -135,6 +144,8 @@ impl<T, C: Clock> Drop for FairGuard<'_, T, C> {
         let mut queue = self.owner.queue.lock().unwrap_or_else(PoisonError::into_inner);
         if !self.background { queue.last_request = Some(self.owner.clock.now()); }
         queue.serving = queue.serving.wrapping_add(1);
+        if let Some(turn) = queue.parked.get(&queue.serving) { turn.notify_one(); }
+        // Deferred background admissions watch the queue's shape and quiet time.
         self.owner.available.notify_all();
     }
 }
@@ -273,7 +284,7 @@ mod tests {
     fn background_takes_its_ticket_at_five_ms_despite_new_request_activity() {
         let start = Instant::now();
         let lock = FairMutex::with_clock((), ManualClock(std::cell::Cell::new(start)));
-        let mut queue = Queue { next: 1, serving: 0, last_request: None };
+        let mut queue = Queue { next: 1, serving: 0, last_request: None, ..Queue::default() };
         assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_millis(5)));
         lock.clock.0.set(start + Duration::from_micros(4999));
         queue.last_request = Some(lock.clock.now());
@@ -287,7 +298,7 @@ mod tests {
     fn a_waiting_request_behind_a_holder_admits_background_immediately() {
         let start = Instant::now();
         let lock = FairMutex::with_clock((), ManualClock(std::cell::Cell::new(start)));
-        let queue = Queue { next: 2, serving: 0, last_request: Some(start) };
+        let queue = Queue { next: 2, serving: 0, last_request: Some(start), ..Queue::default() };
         assert_eq!(lock.background_wait(&queue, start), None, "do not wait for a quiet interval or the deadline");
     }
 
@@ -295,7 +306,7 @@ mod tests {
     fn quiet_interval_ends_at_one_ms_on_the_injected_clock() {
         let start = Instant::now();
         let lock = FairMutex::with_clock((), ManualClock(std::cell::Cell::new(start)));
-        let queue = Queue { next: 1, serving: 1, last_request: Some(start) };
+        let queue = Queue { next: 1, serving: 1, last_request: Some(start), ..Queue::default() };
         assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_millis(1)));
         lock.clock.0.set(start + Duration::from_micros(999));
         assert_eq!(lock.background_wait(&queue, start), Some(Duration::from_micros(1)));

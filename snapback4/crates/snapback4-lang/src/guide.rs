@@ -464,8 +464,9 @@ view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue.
-The host admits 128 HTTP connections. Excess connections receive HTTP 503
-E_RATE_LIMIT before request admission; full request worker pools also refuse.
+The host admits 128 HTTP connections plus one per long wait (1,184 by
+default). Excess connections receive HTTP 503 E_RATE_LIMIT before request
+admission; full request worker pools also refuse.
 The SDK retries explicit retryable admission refusals at most four times within
 10 seconds of backoff, with jitter after the Retry-After minimum. A lost
 upload or once-view reply is never automatically retried; its outcome is unknown.

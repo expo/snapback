@@ -10,7 +10,7 @@ const HEARTBEAT: Duration = Duration::from_secs(2);
 pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let params = query_params(url);
     let since: u64 = params.get("since").and_then(|s| s.parse().ok()).unwrap_or(0);
-    let wait: u64 = params.get("wait").and_then(|s| s.parse().ok()).unwrap_or(0).min(25);
+    let wait: u64 = super::wait_seconds(url);
     let began = Instant::now();
     let deadline = began + Duration::from_secs(wait);
     let paced = began + Duration::from_millis(100);
@@ -19,6 +19,13 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
     };
     let connected = &capability.0;
+    // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — one principal's tabs cannot take the whole viewer pool; refused at once, never queued.
+    let _share = if wait > 0 {
+        match shared.long_waits.enter(connected) {
+            Ok(share) => Some(share),
+            Err(limit) => return super::long_waits::refuse_share(request, shared, limit),
+        }
+    } else { None };
     let present = capability.2 == snapback4_core::identity::SessionScope::Full;
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
     let mut response = PollResponse { request: Some(request), started: false, shared };
@@ -27,27 +34,17 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let incarnation = params.get("ephi").cloned().unwrap_or(initial.1.incarnation);
     let interest: Option<std::collections::BTreeSet<String>> = params.get("ephTables").map(|s| s.split(',').filter(|s|!s.is_empty()).map(str::to_owned).collect());
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
-    let mut reader = {
+    {
         let mut engine = lock(&shared.engine);
         if present && let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return;
         }
         if present { shared.presence.enter(&connected); }
-        shared.open_reader(&engine).ok()
-    };
-    let refresh = |reader: &mut Option<snapback4_core::Engine>| {
-        match reader {
-            Some(reader) => {
-                let _timing = super::latency::EngineSpan::new();
-                #[cfg(test)]
-                super::test_work(&shared.changes_refresh);
-                check(reader, since)
-            },
-            None => check(&mut lock(&shared.engine), since),
-        }
-    };
+    }
     let result = (|| -> Result<_, snapback4_core::RuntimeError> {
-        let mut current=refresh(&mut reader)?;
+        // Entry always reads the store: the client may already know a head
+        // committed after the last publication (LLP 3000 finding 5).
+        let mut current=read_answer(shared, since)?;
         let mut observed=initial.0;
         let mut sequence_wake=false;
         let mut beat=Instant::now();
@@ -57,8 +54,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             let wake=lock(&shared.wake);
             if wake.seq != observed {
                 observed=wake.seq; sequence_wake=true; drop(wake);
-                reader=shared.open_reader(&lock(&shared.engine)).ok();
-                current=refresh(&mut reader)?;
+                current=answer(shared, since)?;
                 continue;
             }
             let tables=wake.eph.changed(epoch,Some(&incarnation),interest.as_ref());
@@ -87,17 +83,25 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     })();
     // @ref LLP 3000.033#1.2 — a reader never enters OR leaves presence.
     if present { shared.presence.leave(&connected); }
-    // Recheck bearer liveness on the detached connection. Ephemeral-only
+    // Recheck bearer liveness on a pooled detached reader. Ephemeral-only
     // wakes must not reacquire the serving engine merely to finish a poll.
     let auth_store_id = lock(&shared.wake).store_id.clone();
-    let authenticated = if let Some(reader)=reader.as_ref() {
-        let _timing = super::latency::EngineSpan::new();
-        if let Some(token)=response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|crate::auth::parse_bearer(h.value.as_str())) {
-            match snapback4_core::identity::resolve_read_only_supervised(reader.store(),token.trim(),snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) },auth_store_id.as_deref()) {
-                Ok(Some(current)) if current == capability => Ok(()),Ok(_)=>Err(snapback4_core::identity::diagnostics::refused(reader.store(), token.trim(), shared.now(), trusted_dev_request(response.request.as_ref().unwrap(), shared))),Err(e)=>Err(e.refusal()),
+    let bearer = response.request.as_ref().unwrap().headers().iter().find(|h|h.field.equiv("Authorization")).and_then(|h|crate::auth::parse_bearer(h.value.as_str())).map(|token| token.trim().to_owned());
+    let authenticated = match bearer.map(|token| (shared.reader(), token)) {
+        None => Ok(()),
+        Some((Ok((reader_epoch, reader)), token)) => {
+            let resolved = match snapback4_core::identity::resolve_read_only_supervised(reader.store(),&token,snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) },auth_store_id.as_deref()) {
+                Ok(Some(current)) if current == capability => Ok(Ok(())),Ok(_)=>Ok(Err(snapback4_core::identity::diagnostics::refused(reader.store(), &token, shared.now(), trusted_dev_request(response.request.as_ref().unwrap(), shared)))),Err(e)=>Err(e),
+            };
+            match resolved {
+                Ok(outcome) => { lock(&shared.readers).put(&reader_epoch, reader.into_inner()); outcome }
+                // As for answers: a reader older than a finishing adoption is
+                // not a verdict on the session. Ask again behind the engine.
+                Err(_) => principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) }),
             }
-        } else {Ok(())}
-    } else {principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) })};
+        }
+        Some((Err(_), _)) => principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) }),
+    };
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
         Ok(((seq,store_id,tables,preserved,changes),generation,ephemeral))=>{
@@ -106,6 +110,57 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             response.finish(200,reply);
         }
         Err(error)=>{let why=error.refusal();response.finish(if why.retryable {503}else{500},json!({"denied":refusal_json(&why)}));}
+    }
+}
+
+type Checked = (u64, Option<String>, Vec<String>, Vec<String>, Json);
+// @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — one commit wakes every held poll; they share one answer per cursor.
+/// Wake answers by (cursor, published head, generation, store identity). Only
+/// a held poll woken by a publication asks here, and an answer is computed
+/// after reading that publication, so its snapshot is newer than the poll's
+/// entry and than anything its client knew when it asked. The answer names
+/// no viewer, so polls from the same cursor share one read: a commit costs one
+/// read per distinct cursor, not one per held poll. Entry and unheld polls
+/// read the store themselves (the published counter is a wake signal, never
+/// the source of truth). A shared answer is at most a second old and never
+/// below the cursor; failures are not kept.
+#[derive(Default)]
+pub(crate) struct Answers { entries: std::collections::VecDeque<((u64, u64, u64, Option<String>), Instant, Checked)> }
+const ANSWERS_KEPT: usize = 64;
+const ANSWER_AGE: Duration = Duration::from_secs(1);
+
+fn answer(shared: &Shared, since: u64) -> Result<Checked, snapback4_core::RuntimeError> {
+    let key = { let wake = lock(&shared.wake); (since, wake.seq, wake.generation, wake.store_id.clone()) };
+    let mut answers = lock(&shared.change_answers);
+    if let Some((_, _, hit)) = answers.entries.iter().find(|(k, at, hit)| *k == key && at.elapsed() < ANSWER_AGE && hit.0 >= since) {
+        return Ok(hit.clone());
+    }
+    let checked = read_answer(shared, since)?;
+    // Older publications are never asked for again.
+    answers.entries.retain(|(k, at, _)| k.1 >= key.1 && *k != key && at.elapsed() < ANSWER_AGE);
+    if answers.entries.len() >= ANSWERS_KEPT { answers.entries.pop_front(); }
+    answers.entries.push_back((key, Instant::now(), checked.clone()));
+    Ok(checked)
+}
+
+fn read_answer(shared: &Shared, since: u64) -> Result<Checked, snapback4_core::RuntimeError> {
+    let _timing = super::latency::EngineSpan::new();
+    #[cfg(test)]
+    super::test_work(&shared.changes_refresh);
+    if let Ok((epoch, mut reader)) = shared.reader() {
+        // A pooled reader can predate an adoption that has committed but not
+        // yet replaced the pool. Only a success is kept; anything else is read
+        // again behind the engine, which waits for that adoption to finish.
+        if let Ok(checked) = check(&mut reader, since) {
+            lock(&shared.readers).put(&epoch, reader.into_inner());
+            return Ok(checked);
+        }
+    }
+    let mut engine = lock(&shared.engine);
+    match shared.open_reader(&engine) {
+        Ok(mut reader) => { drop(engine); check(&mut reader, since) }
+        // A memory store has no detached reader: read under the engine.
+        Err(_) => check(&mut engine, since),
     }
 }
 
