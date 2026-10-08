@@ -99,7 +99,7 @@ mutation remove(id: entries):
 
 | SQL / Convex idiom | Quarry in the example |
 | --- | --- |
-| `REFERENCES projects(id)` | `project: projects`; `add` explicitly checks the target. |
+| `REFERENCES projects(id)` | `project: projects`, not a foreign key: any id string is accepted and nothing cascades; `add` checks the target with `require exists`. |
 | `SELECT ... WHERE ... ORDER BY at DESC LIMIT 20` | `latest`: predicate, `last 20 by .at`, then shape if needed. `first` ascends; `id` breaks ties. |
 | Keyset pagination | `c: cursor ?` and `after c`; pass the answer's `next` back as `c`. |
 | `OFFSET 100` | No offset pagination; keep and follow the opaque cursor. |

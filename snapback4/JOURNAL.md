@@ -91712,3 +91712,23 @@ The settlement contract, SDK, compiler, device and wasm budget are unchanged.
 Work stayed on eb1000; no push or publication.
 
 [Round-8 report, timings, mutation controls and logs](reports/20261007-sn-one-shot-settlement/round8/REPORT.md).
+
+## 2026-10-08 — App-farm lane S2, item 2: references are not shape-checked
+
+`why E_INPUT` and the `E_INPUT` code line said a table reference "validates the
+id's shape". It does not. Reproduced on the debug build of `d3eee62f47` with
+the ticket's `placeOrder` schema: `"EXISTS"`, `""` and the string `"null"` are
+stored as references; `"system"` refuses E_INPUT ("cannot carry the reserved
+system principal"); a 200-character string refuses at the 144-byte canonical
+identity bound; JSON `null` and numbers refuse at the argument boundary.
+`require exists restaurants[restaurant] else NO_RESTAURANT`,
+`r = restaurants[restaurant] ! else NO_RESTAURANT` and
+`require restaurants[restaurant] != null else NO_RESTAURANT` each refuse the
+dangling id.
+
+The text now says that, and `guide types` puts the existence idiom beside the
+reference type; the `from-sql` REFERENCES row says "not a foreign key". The
+six budgeted cards were at their word ceiling (12,810 of 12,810), so the types
+card dropped two duplicated sentences to make room (the Clique counter line,
+which `guide writes` states, and a repeated "a null time never expires").
+No semantics changed. LLP 3000.036 §10 records the landing.

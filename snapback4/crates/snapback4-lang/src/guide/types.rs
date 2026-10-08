@@ -16,7 +16,8 @@ mutation createProfile(name: text 1..80):
 ```
 
 Columns are required unless their type ends in `?`; omitted optional values are null.
-A table name means a typed reference id, and `text` means `text <=10000`.
+A table name means a reference: any id string; the target is never read.
+Require one with `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
 `default` fills omissions; explicit values win.
 Enums widen within text bounds.
 `require exists t[k]`, `require t[k] != null`, and present `if t[k] != null`
@@ -129,7 +130,6 @@ table members:
   online only
 ```
 
-Clique's messages and members share a single counter per conversation row.
 A client-supplied integer could pin history forever; engine ownership refuses
 that with E_SEQUENCE_SUPPLIED. References retain their ordinary typed-id
 semantics: require a visible parent explicitly when the operation needs it.
@@ -165,7 +165,7 @@ For complete index, rule and expiry recipes, open `guide indexes`,
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
 - **Expire:** `expire at .expiresAt` makes a row absent at its deadline.
-  A null time never expires; `guide expire` covers physical cleanup and caps.
+  `guide expire` covers physical cleanup and caps.
   Held device observations republish at the deadline, including offline.
   Server-answered reads use `client.now()` and `useNow(deadline)` to hide rows
   while their next answer is pending (`guide reads`).

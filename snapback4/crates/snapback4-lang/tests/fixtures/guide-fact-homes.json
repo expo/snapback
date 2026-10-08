@@ -297,7 +297,7 @@
     "id": "writes-12",
     "card": "writes",
     "home": "E_INPUT",
-    "text": "E_INPUT means an argument or row value does not fit its declared type.\nCorrect the named field or its declaration. A typed reference checks the id's\nshape; use `require exists t[id] else CODE` to require a visible target."
+    "text": "E_INPUT means an argument or row value does not fit its declared type.\nCorrect the named field or its declaration. A typed reference never reads its\ntarget; use `require exists t[id] else CODE` to require a visible target."
   },
   {
     "id": "writes-13",
@@ -345,7 +345,7 @@
     "id": "writes-17-4",
     "card": "writes",
     "home": "E_INPUT",
-    "text": "A reference column checks the id's shape, not that\nits target exists: when a mutation needs a visible target, guard first —\n`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point\nread that is false for an absent or hidden row; deleting a target neither\ndeletes nor refuses the rows that reference it, so a lifecycle is the\napplication's, in its mutations and rules."
+    "text": "A reference column accepts any id string and never\nreads its target: when a mutation needs a visible target, guard first —\n`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point\nread that is false for an absent or hidden row; deleting a target neither\ndeletes nor refuses the rows that reference it, so a lifecycle is the\napplication's, in its mutations and rules."
   },
   {
     "id": "writes-18",
@@ -729,7 +729,7 @@
     "id": "types-04-3",
     "card": "types",
     "home": "E_INPUT",
-    "text": "- **References** are typed ids, with no implicit existence check and no\n  delete cascade. The string `\"null\"` is an id; JSON `null` only fits an\n  optional reference. When a mutation requires a visible target, write\n  `require exists prompts[promptId] else PROMPT_NOT_FOUND` before its\n  writes: a metered point read that refuses absent and hidden targets\n  alike. Target deletion and dependent-row cleanup are the application's\n  policy, expressed in mutations and rules."
+    "text": "- **References** are typed ids, with no implicit existence check and no\n  delete cascade. Any string is an id, including `\"\"` and `\"null\"`; JSON\n  `null` only fits an optional reference. When a mutation requires a visible target, write\n  `require exists prompts[promptId] else PROMPT_NOT_FOUND` before its\n  writes: a metered point read that refuses absent and hidden targets\n  alike. Target deletion and dependent-row cleanup are the application's\n  policy, expressed in mutations and rules."
   },
   {
     "id": "types-04-4",

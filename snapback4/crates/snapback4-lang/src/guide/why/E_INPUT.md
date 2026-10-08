@@ -1,8 +1,8 @@
 # Writes — E_INPUT
 
 E_INPUT means an argument or row value does not fit its declared type.
-Correct the named field or its declaration. A typed reference checks the id's
-shape; use `require exists t[id] else CODE` to require a visible target.
+Correct the named field or its declaration. A typed reference never reads its
+target; use `require exists t[id] else CODE` to require a visible target.
 
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
@@ -24,8 +24,8 @@ per client-minted id and principal. Valued updates/upserts and conflict
 `current` are ordinary read-rule gets (null or withheld when hidden), evaluated
 at the read's state; a write that grants read authority may return its row.
 
-A reference column checks the id's shape, not that
-its target exists: when a mutation needs a visible target, guard first —
+A reference column accepts any id string and never
+reads its target: when a mutation needs a visible target, guard first —
 `require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
 read that is false for an absent or hidden row; deleting a target neither
 deletes nor refuses the rows that reference it, so a lifecycle is the
@@ -47,8 +47,8 @@ application's, in its mutations and rules.
   N, use the enum type on the helper parameter instead.
 
 - **References** are typed ids, with no implicit existence check and no
-  delete cascade. The string `"null"` is an id; JSON `null` only fits an
-  optional reference. When a mutation requires a visible target, write
+  delete cascade. Any string is an id, including `""` and `"null"`; JSON
+  `null` only fits an optional reference. When a mutation requires a visible target, write
   `require exists prompts[promptId] else PROMPT_NOT_FOUND` before its
   writes: a metered point read that refuses absent and hidden targets
   alike. Target deletion and dependent-row cleanup are the application's

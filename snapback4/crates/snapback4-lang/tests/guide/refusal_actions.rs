@@ -111,7 +111,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_HOST_UNICODE", &["Use a browser with standard `String.prototype.normalize`", "do not substitute a different normalization or bypass the check"]),
     ("E_ID_REUSED", &["keep its operation, ID and raw arguments exactly", "for a new invitation, use a new ID"]),
     ("E_INDEX_KEY_BYTES", &["Bound the named text column", "shorten or delete old oversized values before adoption", "Deletes remain available"]),
-    ("E_INPUT", &["Correct the named field or its declaration", "A typed reference checks the id's shape", "use `require exists t[id] else CODE` to require a visible target"]),
+    ("E_INPUT", &["Correct the named field or its declaration", "A typed reference never reads its target", "use `require exists t[id] else CODE` to require a visible target"]),
     ("E_INTERNAL", &["Recompile with `snapback4 check`", "report the operation and site as a compiler defect"]),
     ("E_JOB_CURSOR_INDEX", &["Use `for t in tasks:` to sweep by id", "declare its order columns `immutable` when they truly never change", "the chunk cursor and its writes commit together"]),
     ("E_JOB_GENERATION", &["Inspect `snapback4 doctor`, check the new definition, and queue the job again"]),
