@@ -91781,3 +91781,35 @@ unchanged. Dependency preflight prints deps-ok; ref-check and whitespace checks
 pass. Work stayed on eb1000; no push, publication or local Darwin claim.
 
 [Round-1 report, per-test timings, permanent controls and raw evidence](reports/20261008-bt-bounded-following-time/round1/REPORT.md).
+
+## 2026-10-08 — BT round 2: include queued timers and a second immediate
+
+Grok's round-1 scheduled-publication finding reproduces on wasm: the owned-event
+cached-answer mutant passes after a zero-delay timer or two immediates, logging
+release before publication. The release helper now holds custody through an
+immediate, a zero-delay timer and one further immediate, then checks every
+read and opens the gate in the same synchronous continuation. Both wasm
+mutants now fail at releaseCustody with one publication and zero release logs.
+They are permanent controls alongside the earlier 49. The helper and report
+state the limit: no fixed number of yields drains arbitrary chains scheduling
+their next turn or guarantees future delayed work has run.
+
+The four integration files remain byte-identical to round 1, including all
+682 explicit assertions, existing guards, POST/apply separation, final values
+and both real 30-second controls. Helper regressions retain all 17 cases and
+add eight timer/immediate × fulfillment/rejection × POST/apply cases. No
+product source or built artifact changes. Dependency preflight prints deps-ok.
+
+Three complete passes produce 534/534 integration successes. Bounded-following
+runs in 313.997, 315.826 and 317.562 seconds
+(median 315.826, versus 314.208 in round 1 and 1,219.176 originally).
+Retained-history's median is 68.876 seconds, routing 4.137, lifecycle
+42.929. Both deadline controls pass in every run with their unchanged
+E_QUERY_RETRY and ≥30,000 ms assertions. All 378 one-shot/dependency/publication
+regressions and 75 helper-test executions pass. All 51 mutation cases fail at
+the expected unsettled assertion, including eight at the actual release
+boundary. The complete verification runner exits 0; no skips or cancellations.
+Reference and whitespace checks pass. Native, wasm and 128 SDK hashes remain
+unchanged. Work stayed on eb1000; nothing pushed or published.
+
+[Round-2 report, per-test timings, controls and evidence](reports/20261008-bt-bounded-following-time/round2/REPORT.md).

@@ -19,18 +19,23 @@ function fixture(t) {
   };
 }
 
-// Wait entry can precede public settlement by any number of microtasks. Both
-// fulfillment and rejection must prevent the actual gate opening, even when a
-// healthy sibling is first in the group or POST has already been released.
+// Wait entry can precede public settlement by microtasks or queued macrotasks.
+// Both fulfillment and rejection must prevent the actual gate opening, even
+// when a healthy sibling is first or POST has already been released.
 for (const phase of ['POST', 'apply']) for (const outcome of ['answer', 'rejection']) {
-  for (const ticks of [0, 2, 8, 64]) {
-    test(`custody release: late ${outcome} after ${ticks} microtasks before ${phase}`, { timeout: hangBudget() }, async t => {
+  for (const delay of [0, 2, 8, 64, 'setTimeout(0)', 'two immediates']) {
+    const scheduling = typeof delay === 'number' ? `${delay} microtasks` : delay;
+    test(`custody release: late ${outcome} after ${scheduling} before ${phase}`, { timeout: hangBudget() }, async t => {
       const f = fixture(t), publish = Promise.withResolvers();
       const healthy = f.read({ async query() { await f.wait(); return { data: 'observed' }; } }, { name: 'healthy' }, {});
       const broken = f.read({ async query() {
         void f.wait().catch(() => {});
         await publish.promise;
-        for (let i = 0; i < ticks; i++) await Promise.resolve();
+        if (delay === 'setTimeout(0)') await new Promise(resolve => setTimeout(resolve, 0));
+        else if (delay === 'two immediates') {
+          await new Promise(resolve => setImmediate(resolve));
+          await new Promise(resolve => setImmediate(resolve));
+        } else for (let i = 0; i < delay; i++) await Promise.resolve();
         if (outcome === 'rejection') throw new Error('early rejection');
         return { data: 'unchanged' };
       } }, { name: 'broken' }, {});

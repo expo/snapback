@@ -1,5 +1,10 @@
 # BT round 1 — guard the actual release boundaries
 
+**Follow-up:** [Round 2](../round2/REPORT.md) adds a timers phase and another
+immediate for Grok's queued-macrotask controls. No fixed-yield checkpoint can
+drain arbitrary chains of future scheduled work. The results below describe
+the round-1 revision.
+
 Base `cacea20f5d4135863abeb91feb959f8f309faf73`; same branch and worktree on
 eb1000 (`expose-builder-pixel`). Test-only changes. No product source, built
 product bytes, dependency lock, timer, retry limit or timeout declaration in

@@ -1,0 +1,31 @@
+{
+  "original_cases_retained": [
+    "custody release: late answer after 0 microtasks before POST",
+    "custody release: late answer after 2 microtasks before POST",
+    "custody release: late answer after 8 microtasks before POST",
+    "custody release: late answer after 64 microtasks before POST",
+    "custody release: late rejection after 0 microtasks before POST",
+    "custody release: late rejection after 2 microtasks before POST",
+    "custody release: late rejection after 8 microtasks before POST",
+    "custody release: late rejection after 64 microtasks before POST",
+    "custody release: late answer after 0 microtasks before apply",
+    "custody release: late answer after 2 microtasks before apply",
+    "custody release: late answer after 8 microtasks before apply",
+    "custody release: late answer after 64 microtasks before apply",
+    "custody release: late rejection after 0 microtasks before apply",
+    "custody release: late rejection after 2 microtasks before apply",
+    "custody release: late rejection after 8 microtasks before apply",
+    "custody release: late rejection after 64 microtasks before apply",
+    "custody release: original and fresh reads stay held across POST and apply"
+  ],
+  "new_cases": [
+    "custody release: late answer after setTimeout(0) before POST",
+    "custody release: late answer after two immediates before POST",
+    "custody release: late rejection after setTimeout(0) before POST",
+    "custody release: late rejection after two immediates before POST",
+    "custody release: late answer after setTimeout(0) before apply",
+    "custody release: late answer after two immediates before apply",
+    "custody release: late rejection after setTimeout(0) before apply",
+    "custody release: late rejection after two immediates before apply"
+  ]
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "bounded-following",
+    "count": 39,
+    "original_s": 1219.17609139,
+    "round1_median_s": 314.208205762,
+    "round2_s": [
+      313.996855322,
+      315.825624128,
+      317.562142234
+    ],
+    "median_s": 315.825624128
+  },
+  {
+    "name": "retained-history",
+    "count": 78,
+    "original_s": 192.56987050799998,
+    "round1_median_s": 68.763347559,
+    "round2_s": [
+      68.875677454,
+      69.192931197,
+      68.676479026
+    ],
+    "median_s": 68.875677454
+  },
+  {
+    "name": "following-routing",
+    "count": 4,
+    "original_s": 33.194745107,
+    "round1_median_s": 4.136518626,
+    "round2_s": [
+      4.136785845,
+      4.137933824,
+      4.133522567
+    ],
+    "median_s": 4.136785845
+  },
+  {
+    "name": "client-lifecycle",
+    "count": 57,
+    "original_s": 45.256388863,
+    "round1_median_s": 42.93001138,
+    "round2_s": [
+      42.929020917,
+      42.960741478,
+      42.556955324
+    ],
+    "median_s": 42.929020917
+  }
+]

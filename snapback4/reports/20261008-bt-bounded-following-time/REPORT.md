@@ -1,5 +1,8 @@
 # BT — bounded Following time without weaker custody checks
 
+**Latest:** [Round 2](round2/REPORT.md) extends the release checkpoint to cover
+the queued timer and two-immediate controls and states the fixed-yield limit.
+
 **Round-1 correction:** Astra found that round 0's wait-entry assertion could
 miss publication later in the hold, including an unchanged answer. The timings
 and narrower bypass results below remain historical measurements; they did

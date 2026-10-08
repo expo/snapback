@@ -1,0 +1,10 @@
+{
+  "driver_exit": 0,
+  "all_results_expected": true,
+  "integration_passes": 534,
+  "one_shot_passes": 378,
+  "helper_passes": 75,
+  "expected_mutation_failures": 51,
+  "skipped": 0,
+  "cancelled": 0
+}
