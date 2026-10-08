@@ -91712,3 +91712,35 @@ The settlement contract, SDK, compiler, device and wasm budget are unchanged.
 Work stayed on eb1000; no push or publication.
 
 [Round-8 report, timings, mutation controls and logs](reports/20261007-sn-one-shot-settlement/round8/REPORT.md).
+
+## 2026-10-08 — BT: bounded Following checks custody in flight
+
+Fresh measurements on eb1000 put bounded-following at 1,219.176 seconds after
+SN's event-driven one-shot settlement. Its holds consumed 50 query deadlines in
+34 sequential timer intervals. Held reads whose purpose is withholding now
+assert that the exact call has reached the real custody wait without settling,
+then release the hold and check that call's final answer. Fresh reads after
+acknowledgement independently retain the before-apply checks. The scalar-cut
+case on each device tier keeps its real 30-second exhaustion and unchanged
+`E_QUERY_RETRY` assertion. All 39 cases, raw provenance, request counts, offline,
+transport, native, cursor, prediction and final-result controls remain.
+
+Three final file runs pass 39/39 in 314.008, 314.052 and 314.261 seconds: the
+median saves 905.124 seconds (74.2%). The same treatment takes retained-history
+from 192.570 to a 68.989-second median and following-routing from 33.195 to
+4.133 seconds. Lifecycle's two replay cases replace a shortened timer with
+causal withholding and final-answer checks; its median is 43.079 versus 45.256
+seconds. All four complete files pass three times (3 × 178 executions), and the
+one-shot/dependency/publication regressions pass 354/354.
+
+Admission bypasses fail 26 selected cases; receipt-only bypasses fail all nine
+before-apply cases. Eight selective sibling bypasses fail independently,
+including retained-history's unchanged homePage gate payload. All 43 fail at
+unsettled assertions, never a hang; disabled loaders pass the full files.
+The observer preserves the real wait's predicate, promise, wakeup and deadline,
+using async context to identify concurrent invocations. Product artifacts are
+unchanged; ref-check and whitespace checks pass. The report lists remaining
+reset/guest/expiry deadline controls and the complete file audit. Tests, their
+helper and evidence only; no product change, push, publication or Darwin claim.
+
+[Report, per-test timings, mutation controls and logs](reports/20261008-bt-bounded-following-time/REPORT.md).

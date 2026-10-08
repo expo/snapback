@@ -1,0 +1,85 @@
+{
+  "bounded-following": {
+    "before": 219,
+    "after": 220,
+    "removedOrRewritten": [
+      "assert.equal(heldReads[0].denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal(heldReads[1].denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal(heldReads[2].denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal(heldReads[3].denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\", \"an unrelated held post cannot validate the speculative branch\")",
+      "assert.equal((await bob.client.query(query(\"filteredEvents\"), {})).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await bob.client.query(query(name), {})).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\", name)",
+      "assert.equal(read.denied?.code, offline ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await original).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\", \"an unknown branch cannot publish a placeholder or replace a prediction\")",
+      "assert.equal((await bob.client.query(query(\"conditionalHelper\"), input)).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal(answer.denied?.code, \"E_QUERY_RETRY\", \"an unrelated held page cannot validate a speculative profile\")",
+      "assert.equal((await bob.client.query(query(\"wide\"), { c: null })).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await bob.client.query(query(\"wide\"), { c: null })).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await result).denied?.code, \"E_QUERY_RETRY\", \"the response predating admission cannot replace a prediction\")",
+      "assert.equal((await alice.client.query(query(\"crossing\"), input)).denied?.code, alice.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await alice.client.query(query(\"crossing\"), input)).denied?.code, alice.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await alice.client.query(query(\"crossing\"), input)).denied?.code, \"E_QUERY_RETRY\", \"a one-shot cannot acknowledge an unobserved nonpredictable intent\")",
+      "assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")",
+      "assert.equal((await bob.client.query(op, input)).denied?.code, bob.client.link() === \"offline\" ? \"E_OFFLINE\" : \"E_QUERY_RETRY\")"
+    ],
+    "addedOrRewritten": [
+      "assert.equal((await heldReads[0].promise).data.id, \"p3\")",
+      "assert.ok((await read.promise).data.some(row => row.postId === \"own-event\"))",
+      "assert.ok((await held.promise).data.some(row => row.postId === \"own-filtered\"))",
+      "assert.equal((await bob.client.query(query(name), {})).denied?.code, \"E_OFFLINE\", name)",
+      "assert.deepEqual(answer.data, (await f.request(`/q/${name}`, \"bob\", {})).data)",
+      "assert.equal(answer.data.id, \"a1\")",
+      "assert.ok(answer.data.length > 0)",
+      "assert.equal((await bob.client.query(query(name), input)).denied?.code, \"E_OFFLINE\")",
+      "assert.equal((await original.promise).denied?.code, \"E_OFFLINE\", \"an unknown branch cannot publish a placeholder or replace a prediction\")",
+      "assert.ok((await read.promise).data.some(row => row.post === \"own/conditional\"))",
+      "assert.equal((await heldReads[2].promise).data.id, \"own/conditional\")",
+      "assert.ok(performance.now() - started >= 30_000, \"custody exhaustion uses the real 30-second timer\")",
+      "assert.equal(final.data.profile.id, \"old\")",
+      "assert.ok(final.data.rows.some(row => row.post.id === \"own-profile\"))",
+      "assert.deepEqual((await held.promise).data, answer.data)",
+      "assert.deepEqual((await read.promise).data, answer.data)",
+      "assert.ok((await read.promise).data.some(row => row.post === \"own\"))",
+      "assert.ok(final.data.some(row => row.post.id === \"racing\"))",
+      "assert.deepEqual(final.data, (await f.request(\"/q/wide\", \"bob\", { c: null })).data)",
+      "assert.deepEqual((await read.promise).data, (await f.request(\"/q/crossing\", \"alice\", input)).data)",
+      "assert.deepEqual((await nonpredictable.promise).data, (await f.request(\"/q/crossing\", \"alice\", input)).data)",
+      "assert.deepEqual((await read.promise).data, (await f.request(\"/q/native_cards\", \"bob\", input)).data)"
+    ]
+  },
+  "retained-history": {
+    "before": 254,
+    "after": 257,
+    "removedOrRewritten": [],
+    "addedOrRewritten": [
+      "assert.deepEqual(answer.data.older, name === \"home\" ? [] : expected(\"left\", 1))",
+      "assert.ok(answer.data.events.some(row => row.postId === \"own-home\"))",
+      "assert.deepEqual(answer.data.events, [{ id: \"gate\", enabled: true }])"
+    ]
+  },
+  "following-routing": {
+    "before": 8,
+    "after": 10,
+    "removedOrRewritten": [
+      "assert.equal(result.denied?.code, scenario === \"pending\" ? \"E_QUERY_RETRY\" : \"E_OFFLINE\")"
+    ],
+    "addedOrRewritten": [
+      "assert.deepEqual((await read.promise).data, { kept: [\"local\"], current: [\"observed\"] })",
+      "assert.equal(requests.length, 1, \"the released local answer needs no second server request\")",
+      "assert.equal(result.denied?.code, \"E_OFFLINE\")"
+    ]
+  },
+  "client-lifecycle": {
+    "before": 195,
+    "after": 195,
+    "removedOrRewritten": [
+      "assert.equal(rebased.denied?.code, \"E_QUERY_RETRY\", \"withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of\")"
+    ],
+    "addedOrRewritten": [
+      "assert.equal((await rebased.promise).data.length, 2, \"the held one-shot includes both authoritative rows\")"
+    ]
+  }
+}

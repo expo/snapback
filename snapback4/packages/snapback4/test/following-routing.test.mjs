@@ -2,6 +2,7 @@
 // integration and native guest execution are covered in bounded-following.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { custodyReads } from './helpers/custody-read.mjs';
 import { createLocalClient } from "../dist/local.js";
 
 for (const scenario of ["server", "offline", "pending", "transport recovered"]) {
@@ -15,7 +16,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
       ],
     };
     const input = { c: "original-cursor" }, requests = [];
-    let client, observations = 0, pending = false, recover, recovering;
+    let client, observations = 0, pending = false, released = false, recover, recovering;
     const recovery = new Promise(resolve => { recover = resolve; });
     const core = {
       async call(request) {
@@ -33,6 +34,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
             if (request.name === "probe") return { ok: { loading: true, unknown: true } };
             assert.equal(request.name, "read");
             assert.deepEqual(request.args, input);
+            if (released) return { ok: { data: { kept: ["local"], current: ["observed"] }, complete: true, unknown: false, tables: ["posts", "feedFeed"] } };
             if (++observations === 1) return { ok: {
               data: { kept: ["local"], current: [] }, speculative: false, held: true, complete: false, unknown: true, tables: ["feedFeed"],
               components: { kept: { complete: true, retained: true }, current: { complete: false, unknown: true } },
@@ -72,12 +74,20 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
     t.after(() => client.close());
     await client.sync();
     if (scenario === "transport recovered") recovering = client.query({ kind: "query", name: "probe" }, {});
-    const result = await client.query({ kind: "query", name: "read" }, input);
+    const read = custodyReads(t)(client, { kind: "query", name: "read" }, input);
+    let result;
+    if (scenario === "pending") await read.withheld();
+    else result = await read.promise;
     // Pending discovery interrupts the composed attempt once; the retry then
-    // waits for custody events until the shared deadline.
+    // waits for custody events without repeating either evaluator or request.
     assert.equal(observations, ["pending", "transport recovered"].includes(scenario) ? 3 : 2);
     assert.deepEqual(requests, Array.from({ length: scenario === "transport recovered" ? 2 : 1 }, () => ({ args: input })));
-    if (scenario === "server") assert.deepEqual(result.data, { kept: ["server"], current: ["original"] });
-    else assert.equal(result.denied?.code, scenario === "pending" ? "E_QUERY_RETRY" : "E_OFFLINE");
+    if (scenario === "pending") {
+      pending = false; released = true;
+      await client.sync();
+      assert.deepEqual((await read.promise).data, { kept: ["local"], current: ["observed"] });
+      assert.equal(requests.length, 1, "the released local answer needs no second server request");
+    } else if (scenario === "server") assert.deepEqual(result.data, { kept: ["server"], current: ["original"] });
+    else assert.equal(result.denied?.code, "E_OFFLINE");
   });
 }

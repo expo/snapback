@@ -1,5 +1,6 @@
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
+import { custodyReads } from './helpers/custody-read.mjs';
 // Retained history on the real server and both real device hosts.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -514,6 +515,7 @@ query wordBoth():
     return;
   }
   if (eventCase) {
+    const startRead = custodyReads(t), heldReads = [];
     for (const name of ["home", "homePage"]) {
       const before = await client.query({ kind: "query", name }, {});
       // The compiler conservatively gives a two-read filtered field no plan;
@@ -532,11 +534,15 @@ query wordBoth():
       } else { offline = true; await client.sync(); }
       for (const name of ["home", "homePage"]) {
         const requestsBefore = allRequests.filter(path => path === `/q/${name}`).length;
-        const answer = await client.query({ kind: "query", name }, {});
+        let answer;
+        if (fenced) {
+          const read = startRead(client, { kind: "query", name }, {});
+          await read.withheld(); heldReads.push({ name, read });
+        } else answer = await client.query({ kind: "query", name }, {});
         if (name === "home" && !fenced) {
           assert.ok(answer.data.events.some(row => row.postId === "p3"), "an ineligible whole query recovers its server answer, never the empty placeholder");
           assert.equal(answer.fresh, false);
-        } else assert.equal(answer.denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+        } else if (!fenced) assert.equal(answer.denied?.code, client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
         assert.equal(allRequests.filter(path => path === `/q/${name}`).length, requestsBefore);
         const raw = allAnswers.findLast(answer => answer.name === name);
         assert.deepEqual(raw.data.older, expected("left", 1)); assert.deepEqual(raw.data.events, []);
@@ -545,6 +551,17 @@ query wordBoth():
         } else assert.equal(raw.components, undefined, "cross-read filtered fields have no component plan");
         assert.equal(raw.loading, undefined, "the engine's available placeholder must still be withheld by rule 4");
       }
+    }
+    heldReads.forEach(({ read }) => read.pending());
+    holdWrites = false;
+    await until(async () => { await client.sync(); return (await core.call({ op: "queued" })).ok.length === 0; }, "speculative event predictions observed");
+    for (const { name, read } of heldReads) {
+      const answer = await read.promise;
+      // The same pre-hold distinction still applies: home has no component
+      // plan and uses the whole server answer; homePage retains local history.
+      assert.deepEqual(answer.data.older, name === "home" ? [] : expected("left", 1));
+      if (name === "home") assert.ok(answer.data.events.some(row => row.postId === "own-home"));
+      else assert.deepEqual(answer.data.events, [{ id: "gate", enabled: true }]);
     }
     return;
   }
