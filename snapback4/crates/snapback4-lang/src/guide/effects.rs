@@ -38,6 +38,9 @@ mutation send(roomId: id, body: text <=4000):
 
 Put each worker at `snapback/workers/<service>.mjs` (also `.mts` or `.ts`).
 For example, `snapback/workers/push.mjs` declares the `service:push` worker.
+Workers (and `use server` handlers) run on Node 24: `node` on PATH, or
+`SNAPBACK_NODE=/path/to/node`; Bun is not accepted, and without Node 24 `dev`
+and `serve` exit at startup naming the worker file and what they found.
 `snapback4 dev` and `snapback4 serve` start it, inject its token,
 prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
 stop its group on server exit, including abrupt death. Host restart waits for

@@ -90866,3 +90866,21 @@ listed on the language card and the §5 guide line (reflowed so the tested
 budget, and the language-19 fact fixture follows the new list. §5 now says
 persona plus bearer together refuse `E_AUTH` (verified on dev) rather than
 "a bearer wins". Guide suite: 113 passed.
+
+## 2026-10-08 — App farm round 1: say where workers need Node 24
+
+Cluster 3 of the round-1 synthesis (S-NODE24): 3 builds, the only Snapback 4
+blocker. order-relay-hooks-0037 (7 min) found `dev` exiting with "worker needs
+Node 24" on a Bun-only host and that `SNAPBACK_NODE=bun` is refused;
+interview-slot-picker-0433 left delivery queued; tutor-payroll-export-0298 cut
+a scheduled `use server` action (15 min). The README says "Use Node 24" once at
+the top, `guide actions` states it for `use server`, but `guide effects`, where
+`snapback/workers/<service>.mjs` is introduced, and the README's effects line
+did not. Both now state Node 24, `SNAPBACK_NODE`, that Bun is not accepted,
+and that dev/serve exit at startup without it. The refusal (dev_worker.rs) now
+names the worker file, the executable it tried and what that reported (for
+example `/…/bun reports 1.4.2`), and the ways out, including moving the worker
+out of `snapback/` to serve without it. Not reproduced here:
+tutor-payroll-export-0298's report that a real Node 24.11.0 still failed
+`check`'s server-toolchain helper (`host[method]` undefined); it needs that
+app's toolchain state and stays with the S-NODE24 evidence.

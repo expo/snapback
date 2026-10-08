@@ -200,8 +200,11 @@ impl DevWorker {
         warn_if_esm_entry_is_not_declared(&source);
         validate_environment(&lock(&shared.bound).schema)?;
         let node = node();
-        let version = command(&node).arg("--version").output().map_err(|e| format!("worker needs Node 24: {e}"))?;
-        if !version.status.success() || !String::from_utf8_lossy(&version.stdout).starts_with("v24.") { return Err("worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable".into()); }
+        // App-farm builds with only Bun lost minutes here: name what was found and every way out.
+        let needs = |found: String| format!("worker {} needs Node 24, and {} {found}. Install Node 24 and put it on PATH, or set SNAPBACK_NODE to its executable (Bun is not accepted); to serve without this worker, move it out of snapback/", source.display(), node.display());
+        let version = command(&node).arg("--version").output().map_err(|e| needs(format!("cannot start: {e}")))?;
+        let reported = String::from_utf8_lossy(&version.stdout).trim().to_owned();
+        if !version.status.success() || !reported.starts_with("v24.") { return Err(needs(if reported.is_empty() { "reports no version".into() } else { format!("reports {reported}") })); }
         let revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
         // @ref LLP 3000.009#5.2 — a new store can reuse sequence/ordinal effect ids.
         let ledger = {
