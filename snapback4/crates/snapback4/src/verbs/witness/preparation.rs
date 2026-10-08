@@ -259,10 +259,14 @@ fn node_with_deadline(options: &Options, args: &[&str], label: &str, mut deadlin
         if deadline.expired(Instant::now()) { break Err(deadline.problem()); }
         if let Err(e) = tick() { break Err(e); }
     };
+    // The preparation outcome is settled before descendant cleanup, which has
+    // its own deadline. Cleanup must not age a successful preparation receipt
+    // into an expired one. Still publish the receipt only after cleanup succeeds.
+    let completed = Instant::now();
     // Also clean descendants after success. The caller still holds its lease.
     let cleanup = child.cleanup();
     if let Err(problem) = cleanup { return Err(problem); }
-    deadline.finish(&options.artifacts)?;
+    deadline.finish(&options.artifacts, completed)?;
     result
 }
 

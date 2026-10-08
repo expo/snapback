@@ -286,6 +286,7 @@ query required(id: heldRows):
     }
     #[test]
     fn smoke_barrier_advances_only_the_commit_clock() {
+        if !test_process::isolated() { return; }
         let dir = std::env::temp_dir().join(format!("smoke-barrier-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("store.sqlite");
@@ -301,7 +302,7 @@ query required(id: heldRows):
         let before = engine.seq().unwrap();
         let identity = engine.store().meta("store_id").unwrap().unwrap();
         drop(engine);
-        {
+        let inherited = {
             let mut owner = crate::store_owner::command(&path).unwrap();
             crate::store_owner::announce(&mut owner, "127.0.0.1:1234".parse().unwrap()).unwrap();
             let refused = barrier(&path, &identity, before).unwrap_err();
@@ -309,7 +310,13 @@ query required(id: heldRows):
             assert!(!refused.contains("http://127.0.0.1:1234"), "refusal must not echo the port");
             let store = owner.open_store(std::time::Duration::from_secs(5)).unwrap();
             assert_eq!(store.seq().unwrap(), before);
-        }
+            test_process::ForkHolder::new()
+        };
+        assert!(barrier(&path, &identity, before).unwrap_err().contains("cannot acquire backend store; stop its owner"),
+            "a fork still owns the sidecar after the explicit Owner and Store drop");
+        let cause = crate::store_owner::command(&path).err().expect("fork retains ownership");
+        assert!(cause.starts_with("E_STORE_BUSY at "), "{cause}");
+        drop(inherited); // wait for the last known holder, not a scheduling delay
         let seq = barrier(&path, &identity, before).unwrap();
         assert!(seq > before);
         let store = snapback4_core::Store::open(&path).unwrap();

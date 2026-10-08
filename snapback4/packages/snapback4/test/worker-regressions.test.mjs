@@ -53,7 +53,7 @@ function fixture(t, source, cleanupChildren) {
     const report = servers.map(s => {
       let statuses;
       try {
-        const db = new DatabaseSync(s.mode === 'serve' ? join(dir, 'release/store.sqlite') : join(dir, '.snapback4/store.sqlite'), { readOnly: true });
+        const db = new DatabaseSync(s.mode === 'serve' ? join(dir, 'release/store.sqlite') : join(s.workdir, '.snapback4/store.sqlite'), { readOnly: true });
         try { statuses = db.prepare("SELECT key, value FROM _meta WHERE key LIKE 'worker:status%'").all(); }
         finally { db.close(); }
       } catch (error) { statuses = String(error); }
@@ -92,11 +92,11 @@ function fixture(t, source, cleanupChildren) {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-  return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev") {
+  return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev", project = dir) {
     const release = join(dir, 'release');
     if (mode === 'serve' && !existsSync(release)) { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
-    const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
-    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], mode, diagnostics, workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
+    const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: project, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], mode, diagnostics, workdir: mode === 'serve' ? join(release, 'releases/1') : project };
     servers.push(s);
     child.stderr.on('data', b => { s.log += b; s.events.push({ at: performance.now(), text: String(b) }); });
     let output = '';
@@ -176,9 +176,14 @@ for (const scope of ['snapback', 'project', 'ancestor']) test(`named snapshot re
     writeFileSync(join(project,'snapback/workers/push.mjs'),idle);
   }
   symlinkSync(outside,manifest);
-  const result=spawnSync(binary,['dev','--port','0','--no-watch'],{cwd:project,encoding:'utf8',timeout:hangBudget()});
-  assert.match(result.stderr,/workers:.*(symbolic|symlink|regular|loop)/i);
+  const server = await f.start([], {}, false, 'dev', project);
+  const refusal = /workers:.*(symbolic|symlink|regular|loop)/i;
+  await until(() => { assert.equal(server.child.exitCode, null, server.log); return refusal.test(server.log); });
+  assert.match(server.log, refusal);
   assert.equal(existsSync(join(project,'starts')),false);
+  server.child.kill('SIGTERM');
+  await cleanup(() => server.done, 'refused worker host', server.diagnostics, [server.child]);
+  assert.equal(existsSync(join(project,'starts')),false, 'refused source never starts, including during shutdown');
 });
 
 for (const mode of ['dev','serve']) test(`${mode} startup clears a removed worker's stale running status after host death`, async t => {

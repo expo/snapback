@@ -1,0 +1,173 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=2",
+    "--test-name-pattern=snapshot refuses|declares two workers",
+    "packages/snapback4/test/worker-regressions.test.mjs",
+    "packages/snapback4/test/supervised-workers.test.mjs"
+  ],
+  "cpus": "76,77",
+  "busy_pids": [
+    3323134,
+    3323135,
+    3323136,
+    3323137,
+    3323138,
+    3323139
+  ],
+  "busy_reaped": true,
+  "jobs": 2,
+  "results": [
+    {
+      "round": 1,
+      "status": 0,
+      "seconds": 5.076
+    },
+    {
+      "round": 2,
+      "status": 0,
+      "seconds": 4.926
+    },
+    {
+      "round": 3,
+      "status": 0,
+      "seconds": 4.73
+    },
+    {
+      "round": 4,
+      "status": 0,
+      "seconds": 4.925
+    },
+    {
+      "round": 5,
+      "status": 0,
+      "seconds": 4.976
+    },
+    {
+      "round": 6,
+      "status": 0,
+      "seconds": 4.875
+    },
+    {
+      "round": 7,
+      "status": 0,
+      "seconds": 4.775
+    },
+    {
+      "round": 8,
+      "status": 0,
+      "seconds": 5.08
+    },
+    {
+      "round": 9,
+      "status": 0,
+      "seconds": 4.775
+    },
+    {
+      "round": 10,
+      "status": 0,
+      "seconds": 5.229
+    },
+    {
+      "round": 11,
+      "status": 0,
+      "seconds": 5.486
+    },
+    {
+      "round": 12,
+      "status": 0,
+      "seconds": 4.674
+    },
+    {
+      "round": 13,
+      "status": 0,
+      "seconds": 4.825
+    },
+    {
+      "round": 14,
+      "status": 0,
+      "seconds": 5.026
+    },
+    {
+      "round": 15,
+      "status": 0,
+      "seconds": 4.988
+    },
+    {
+      "round": 16,
+      "status": 0,
+      "seconds": 4.725
+    },
+    {
+      "round": 17,
+      "status": 0,
+      "seconds": 5.227
+    },
+    {
+      "round": 18,
+      "status": 0,
+      "seconds": 4.775
+    },
+    {
+      "round": 19,
+      "status": 0,
+      "seconds": 4.573
+    },
+    {
+      "round": 20,
+      "status": 0,
+      "seconds": 4.874
+    },
+    {
+      "round": 21,
+      "status": 0,
+      "seconds": 4.674
+    },
+    {
+      "round": 22,
+      "status": 0,
+      "seconds": 4.875
+    },
+    {
+      "round": 23,
+      "status": 0,
+      "seconds": 4.827
+    },
+    {
+      "round": 24,
+      "status": 0,
+      "seconds": 4.524
+    },
+    {
+      "round": 25,
+      "status": 0,
+      "seconds": 5.327
+    },
+    {
+      "round": 26,
+      "status": 0,
+      "seconds": 4.425
+    },
+    {
+      "round": 27,
+      "status": 0,
+      "seconds": 5.238
+    },
+    {
+      "round": 28,
+      "status": 0,
+      "seconds": 4.836
+    },
+    {
+      "round": 29,
+      "status": 0,
+      "seconds": 5.433
+    },
+    {
+      "round": 30,
+      "status": 0,
+      "seconds": 5.33
+    }
+  ]
+}

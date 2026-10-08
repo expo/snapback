@@ -1,0 +1,27 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=3",
+    "--test-name-pattern=^dev declares two workers",
+    "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-missing-logs.test.mjs"
+  ],
+  "cpus": "78,79",
+  "busy_pids": [
+    3346322,
+    3346324,
+    3346325,
+    3346326,
+    3346327,
+    3346329
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 1,
+      "seconds": 124.335
+    }
+  ]
+}

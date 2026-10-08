@@ -90731,3 +90731,17 @@ during verification. Work stays on eb1000; nothing pushed, no Darwin or full
 publication qualification claimed. Earlier round-8 open tickets stay open.
 
 [Round-10 buffer sizing, complete call audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-10/REPORT.md).
+
+## 2026-10-08 — FS: deterministic witness custody and worker refusal observations
+
+The loaded witness campaign reproduced orphan reconciliation (4/30), unfinished-export discovery (6/30), ownerless-shell recovery (1/30), and repeated-kill orphan-marker failures (9/30). A close-on-exec flock descriptor can survive local drop in an unrelated libtest fork until exec/exit. The affected last-close scenarios now run individually in isolated test processes while their neighbours remain parallel. Pipe-gated fork controls retain actual store, retention, run/export and destination custody after parent drop and are reaped before reacquisition. No product lock is explicitly unlocked or relaxed. Retained-holder mutations still fail every original positive assertion. EM's exact two recovery cases and existing ticket were found by read-only Git-object inspection; no other worktree was accessed.
+
+The three worker manifest-refusal cases now wait for the existing refusal log and explicitly stop/join the fixture-owned host, preserving no-start assertions before and after shutdown. Their baseline spent 122 seconds per case; 30 loaded runs now have medians of 341/247/220 ms. Missing-refusal controls for all three scopes still fail at the original 122-second guard. Preparation lease and supervised-worker log fixes were already present; their tickets close with new repeated evidence. Both supervised modes pass 30 forced file-before-log controls; removing the wait or permanently withholding logs fails.
+
+One product diagnostic error surfaced in all 30 baseline witness runs: a successful preparation receipt sampled deadline expiry after descendant cleanup. It now records the preparation completion instant before cleanup but is still published only after cleanup succeeds. Cleanup retains its own deadline and all bounds stay unchanged. Virtual-time expiry and late-cleanup controls cover the receipt, and the original real-output/forced-stall case passes 30/30 on final source.
+
+All requested portable Rust cases pass 30 final runs with four test threads, two concurrent binaries and twelve busy loops confined to two CPUs. The complete witness inventory passes 29/30 runs (2,189 passes and one separately tracked native /proc inspection refusal). Four of five final whole-CLI load runs are green; one retains the unchanged latency timing assertion. The standard affected Rust command passes 335 unit cases with four existing ignores plus 32 Linux integration cases, the affected client files pass 82/82, and ref-check has zero errors. An isolated two-wrapper neighbour also exposed intentional recovery/publisher custody contention; it remains a separate open ticket. These failures are retained, not dismissed by passing reruns.
+
+Six requested tickets and the additional receipt ticket are closed. The existing-app driver ticket remains open because its actual case is Darwin-only: 30 Linux fixture controls establish its deterministic running PID, not a Darwin driver qualification. All stress processes were owned and reaped on eb1000; nothing pushed or published. No full Darwin dry-run claim.
+
+[FS report, commands, immutable artifact hashes, controls and ticket dispositions](reports/20261008-fs-witness-worker-flakes/REPORT.md).

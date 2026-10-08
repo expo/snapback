@@ -1,0 +1,48 @@
+# Snapback 4: parallel recovery fixtures intermittently retain lease custody
+
+Status: Closed — 2026-10-08, FS
+
+Original report: observed on eb1000 during EM round 5, 2026-10-08 (Berlin date).
+The cause is unconfirmed. Two assertions fail under the default parallel Rust
+test harness, both with the sleep fix and with round-4 retention code restored:
+
+- `ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence`,
+  `recovery.rs:683`: `E_WITNESS_ARTIFACT: retention lock busy`.
+- `discovery_of_an_unfinished_leased_export_keeps_maintenance_pending`,
+  `recovery.rs:712`: `all discoveries were covered`.
+
+Both runs finished 23 passed / 2 failed. The fixed-source serial run passed
+25/25. Astra had independently retained the first signature in its round-4
+review and two passing serial reruns. A transient descriptor inherited during
+another test's concurrent fork is a hypothesis, not an established cause.
+The source of both recovery tests and the recovery implementation is unchanged
+by EM round 5. This is distinct from the export-maintenance drain timeout and
+the separate `/proc` process-group inspection refusal.
+
+Reproduce from `snapback4/`:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4 --bin snapback4 recovery
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4 --bin snapback4 recovery -- --test-threads=1
+```
+
+The [EM round-5 report](../../snapback4/reports/20261008-fs-witness-worker-flakes/em-provenance.txt)
+retains the initial failure, serial pass, source/binary identities and baseline
+failure. Its scratch reproduction keeps the same recovery source and restores
+retention.rs byte-for-byte from `9337691bee`. No assertion, lease check or
+product timeout was relaxed. Investigate descriptor lifetime across concurrent
+spawns and retain the observed owner/lock state before selecting a fix; passing
+serial reruns do not resolve this ticket.
+
+EM round 7, 2026-10-08: the default parallel run again failed exactly these two
+assertions (23/25), and the fixed unit harness plus sibling CLI passed serially
+(25/25). Both are retained in the
+[round-7 report](../../snapback4/reports/20261008-fs-witness-worker-flakes/em-provenance.txt).
+Recovery source and assertions remain unchanged. The producer-publication fix
+does not claim to resolve this separate issue; it remains open.
+
+## FS resolution — 2026-10-08
+
+EM's existing ticket/report was read from local Git object e408e47929; its source changes were not imported and no other worktree was accessed. FS reproduces ownerless-shell failure 1/30 and unfinished-export discovery failure 6/30 under four-thread witness execution and CPU load. Isolate their last-close scenarios from unrelated libtest forks; a deliberate fork verifies that a dropped parent export lease still defers discovery until child exit. Both named cases pass all 30 final loaded witness runs and five final whole-unit runs. Separate retained-holder mutations make each original success assertion fail. Production cleanup, custody and retention limits are unchanged. The distinct /proc inspection and intentional two-wrapper contention failures remain open in their own tickets.
+
+[Full commands, baseline/final logs, controls and limits](../../snapback4/reports/20261008-fs-witness-worker-flakes/REPORT.md).

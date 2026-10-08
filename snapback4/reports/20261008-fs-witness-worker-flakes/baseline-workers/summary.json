@@ -1,0 +1,28 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=2",
+    "--test-name-pattern=snapshot refuses|declares two workers",
+    "packages/snapback4/test/worker-regressions.test.mjs",
+    "packages/snapback4/test/supervised-workers.test.mjs"
+  ],
+  "cpus": "72,73",
+  "busy_pids": [
+    3238868,
+    3238869,
+    3238870,
+    3238871,
+    3238872,
+    3238873
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 0,
+      "seconds": 367.656
+    }
+  ]
+}

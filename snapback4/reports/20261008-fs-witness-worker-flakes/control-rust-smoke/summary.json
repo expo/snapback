@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-smoke",
+    "--exact",
+    "verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock",
+    "--nocapture"
+  ],
+  "cpus": "82,83",
+  "busy_pids": [
+    3428943,
+    3428944,
+    3428945,
+    3428946,
+    3428947,
+    3428948
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 101,
+      "seconds": 0.065
+    }
+  ]
+}
