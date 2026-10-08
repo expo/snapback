@@ -499,7 +499,10 @@ handler runs. Optional generated `effects` must name declared effects and use
 `(payload: unknown, ctx: EffectContext<the effect's secret names>)`. Low-level
 `runWorker` retains its `(payload, EffectMeta)` signature.
 
-Install `typescript` and `@types/node` in the application. `check` and `dev`
+Install `typescript` and `@types/node` in the application
+(`bun add --dev typescript@5.9.3 @types/node@24`): the checker drives the
+TypeScript 5 or 6 compiler API, and TypeScript 7 (the native compiler, the
+unpinned `latest`) is refused with `E_SERVER_TOOLCHAIN`. `check` and `dev`
 typecheck the conventional server entry and its imports without executing it;
 UI files outside that graph are not checked. Handler checks remain strict even
 with a permissive application tsconfig. Node 24 runs erasable TypeScript;

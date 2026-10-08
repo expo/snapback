@@ -10,7 +10,14 @@ const require = createRequire(resolve(root, "package.json"));
 let ts;
 try { ts = require("typescript"); }
 catch {
-  console.error("E_SERVER_TOOLCHAIN: install TypeScript in this application (bun add --dev typescript @types/node), then run snapback4 check again");
+  console.error("E_SERVER_TOOLCHAIN: install TypeScript in this application (bun add --dev typescript@5.9.3 @types/node@24), then run snapback4 check again");
+  process.exit(1);
+}
+// TypeScript 7 is the native compiler: its package exports only `version`,
+// not the compiler API this checker drives. Name the version, not a crash.
+const major = Number(String(ts?.version ?? "").split(".")[0]);
+if (!(major >= 5 && major < 7) || typeof ts.createProgram !== "function" || !ts.sys) {
+  console.error(`E_SERVER_TOOLCHAIN: this application's TypeScript ${ts?.version ?? "(unknown version)"} has no compiler API that check can load; check needs TypeScript 5 or 6 (TypeScript 7 is the native compiler). Install a supported one (bun add --dev typescript@5.9.3 @types/node@24), then run snapback4 check again`);
   process.exit(1);
 }
 // Persist the checker's actual graph, not every UI file under the app root.

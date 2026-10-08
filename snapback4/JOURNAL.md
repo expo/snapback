@@ -91396,3 +91396,19 @@ The round-11 entry above incorrectly reports the separate crash matrix as
 The retained [raw log](reports/20261008-em-export-run-removal/crash-matrix.log.gz)
 and Astra's independent rerun contain the same 26 cases, with zero failures.
 The round-11 report is corrected; the original JOURNAL entry remains intact.
+
+## 2026-10-08 — Farm round 2: `check` refuses TypeScript 7 by version
+
+Round-2 synthesis cluster 13 (5 GPT builds across arms: api-latency-tracker-0852,
+clip-rendition-0732, crossing-digest-0548, episode-feed-guard-0737,
+riddle-hotline-0340). Reproduced in a scratch app with `typescript@7.0.2`:
+`check` died in the embedded checker with `TypeError: Cannot read properties of
+undefined (reading 'readFile')`. TypeScript 7's package is the native compiler
+and exports only `version`/`versionMajorMinor`; the checker resolves the
+application's own compiler, so a pin in `snapback4`'s package would not reach
+it. `server_check.mjs` now refuses a major outside 5–6 (or a package without
+`createProgram`/`sys`) with `E_SERVER_TOOLCHAIN` naming the installed version
+and `bun add --dev typescript@5.9.3 @types/node@24`; `--json` reports the same
+code. TypeScript 6.0.3 was checked and works. SERVER.md, `guide server` and
+`why E_SERVER_TOOLCHAIN` carry the pinned recipe. Test:
+`farm2_typescript_7_is_refused_by_version_not_crashed_on` (a stub 7.0.2 package).

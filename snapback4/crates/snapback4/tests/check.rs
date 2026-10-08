@@ -1205,6 +1205,30 @@ fn w11r1c_toolchain_why_explains_node_start_failure_too() {
     assert!(repaired.status.success(), "{repaired:?}");
 }
 
+#[test]
+fn farm2_typescript_7_is_refused_by_version_not_crashed_on() {
+    // TypeScript 7's package exports only `version` (the native compiler);
+    // the farm's unpinned installs crashed the checker reading `ts.sys`.
+    let p = Project::new();
+    p.source("query answer():\n  return 42\n");
+    fs::write(p.0.join("snapback/server.ts"), "export default {};\n").unwrap();
+    let ts7 = p.0.join("node_modules/typescript");
+    fs::create_dir_all(&ts7).unwrap();
+    fs::write(ts7.join("package.json"), r#"{"name":"typescript","version":"7.0.2","main":"index.js"}"#).unwrap();
+    fs::write(ts7.join("index.js"), "module.exports = { version: '7.0.2', versionMajorMinor: '7.0' };\n").unwrap();
+    let output = p.run(&["check"]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("E_SERVER_TOOLCHAIN: this application's TypeScript 7.0.2 has no compiler API"), "{stderr}");
+    assert!(stderr.contains("typescript@5.9.3") && !stderr.contains("TypeError"), "{stderr}");
+    let json = p.run(&["check", "--json"]);
+    assert_eq!(parsed(&json)["problems"][0]["code"], "E_SERVER_TOOLCHAIN", "{json:?}");
+    fs::remove_dir_all(&ts7).unwrap();
+    std::os::unix::fs::symlink(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/typescript"), &ts7).unwrap();
+    let repaired = p.run(&["check"]);
+    assert!(repaired.status.success(), "{repaired:?}");
+}
+
 
 #[test]
 fn w11r2_generic_application_refusals_do_not_claim_the_feed_recipe() {

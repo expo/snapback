@@ -169,8 +169,10 @@ action, mutation or effect, including bindings, attempts, settlement and
 payload sizes/digests; `--values` also prints stored arguments and results.
 Mutation arguments and results are not recorded; their binding keeps only
 the operation name, argument digest and admission time beside the receipt.
-Install TypeScript and @types/node in the app: `check` and `dev` check the
-server entry's import graph strictly without running it. Node 24 requires
+Install TypeScript 5 or 6 and @types/node in the app (`bun add --dev
+typescript@5.9.3 @types/node@24`; TypeScript 7 has no compiler API to load):
+`check` and `dev` check the server entry's import graph strictly without
+running it. Node 24 requires
 extensions on relative TypeScript imports. Work and step records have no
 automatic retention expiry; their ids are never silently reusable. Parked
 work needs operator reconciliation; there is no resume command in this slice.
@@ -303,7 +305,10 @@ For example, a new app with a `snapback/server.ts` entry but no
 TypeScript dependency cannot check that entry. Install `typescript` and
 `@types/node` as development dependencies in the application, then rerun
 `snapback4 check`. A globally installed compiler alone is insufficient;
-`check` does not download a compiler while checking the app.
+`check` does not download a compiler while checking the app. The checker
+drives the TypeScript 5 or 6 compiler API: TypeScript 7 (the native compiler,
+which unpinned `bun add --dev typescript` now installs) exports none and is
+refused by version; pin `typescript@5.9.3`.
 
 E_SERVER_TYPECHECK means the server entry or an imported module fails
 TypeScript checking. For example, an action declared `returns { count: int }`
