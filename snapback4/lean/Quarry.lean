@@ -6,3 +6,10 @@ import Quarry.Eval
 import Quarry.Write
 import Quarry.Run
 import Quarry.Json
+import Quarry.Proofs.Authority
+import Quarry.Proofs.Walk
+import Quarry.Proofs.Disclosure
+import Quarry.Proofs.Determinism
+import Quarry.Proofs.ShortCircuit
+import Quarry.Proofs.Hoare
+import Quarry.Proofs.Continuation

@@ -91560,3 +91560,58 @@ crates verified clean:
 The memory store is exercised natively, with the core's `sqlite` feature on,
 not as the wasm artifact. The nightly runner adds `run-devices` to its
 calibration and campaign.
+
+## 2026-10-08 — Quarry in Lean, Stage 2: a small core with its security proofs
+
+LLP 3000.035 §5.2's model is in `snapback4/lean/`. It is a Lake project
+pinned to Lean 4.34.1, with no Mathlib. `./check.sh` builds it in about 15 s
+cold and under 1 s warm. The script refuses any `sorry`, `admit`,
+`native_decide` or `axiom`, and audits 38 headline theorems for standard
+axioms only. It also runs 30 hand-written examples taken from the guide
+cards. All 30 agree.
+
+The model was written from the language card, the guide cards, the `why`
+pages and the LLPs. The interpreter, binder, `value.rs`, `key.rs` and the
+device crate were not read. Each point the documents leave open is in
+`lean/OPEN.md` with the model's choice: 30 points, 3 of them confirmed by a
+document or corpus case. The engine has not been consulted on any of them.
+The points most likely to disagree with it are these:
+
+- R1: a probe inside a rule sees rows its own table's read rule hides.
+- R2: an unnamed `update <- R` judges both old and next.
+- V2: null sorts before every other kind.
+- C2: a page that fills exactly has `next: null` when no candidate follows.
+- W1–W4: precedence among refusal codes.
+- W2: an insert of a row its writer cannot read returns null.
+
+**What is proved**, over the executable big-step semantics:
+
+- The scalar order is a total order. Keys are ordered lexicographically, and
+  the order agrees with an order-preserving, self-delimiting key encoding.
+- Scan order is determined by key order: permuting the stored rows changes
+  no page.
+- A query's whole outcome is a function of the viewer's visible rows. This
+  covers data, `complete`, `next`, refusal and unavailability. Every
+  returned row and every cursor passes its read rule. `count` is exactly the
+  number of visible matches. `exists` is true exactly when a visible row
+  matches. A hidden insert changes no query.
+- Write authority holds for each write and for whole mutations, as a chain
+  of authorized steps.
+- A page that reports `complete` returned exactly the first N qualifying
+  visible rows. A cut page's rows, followed by its continuation's, equal the
+  uncut page. That is oracle 2, now a theorem.
+- `true or e` skips `e` for every `e`, and `identity(1) + identity(2) = 3`.
+- Hoare rules for each statement form are sound.
+
+Four planted model faults each made `lake build` fail:
+
+- a cut page reported complete;
+- an eager `or`;
+- a dropped insert-rule check;
+- a leaking view.
+
+**Next is the emitter and harness lane.** `lean/README.md` sketches the case
+format: tagged scalars and the bound program as JSON. It also gives the
+field-by-field comparison rule. `next` is compared for presence and through
+continuation, never by bytes. Cut positions are not compared, because the
+model's only meter is an abstract count of visible candidates.

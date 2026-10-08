@@ -171,11 +171,49 @@ def pointRead (vw : View) (t : String) (ks : List (String × Scalar)) : Value :=
     | some r => r.toValue
     | none => .null
 
-def markIncomplete : EM Unit := modify fun rs => { rs with complete := false }
+def markIncomplete : EM Unit := fun rs => .ok ((), { rs with complete := false })
+
+def markIf (b : Bool) : EM Unit := if b then markIncomplete else pure ()
 
 /-- A cut scalar read: unavailable in a query, `E_BOUND` in a mutation. -/
 def cutScalar {α : Type} (cx : Ctx) : EM α :=
   if cx.mutation then refuse "E_BOUND" else throw .unavailable
+
+def pageAnswer (order : List String) (w : Walk) : Value × Option Value :=
+  let next := match w.stop with
+    | .exhausted => none
+    | _ => w.last.map fun r => keyValue (rowKey order r)
+  (.arr (w.rows.map Row.toValue), some (next.getD .null))
+
+/-- A page: walk the candidates; a cut page is incomplete (and refuses
+`E_BOUND` in a mutation); a page whose read rule the pins do not decide is
+never complete; `next` follows the last examined row unless the walk
+exhausted the candidates (reads card; LLP 3000.007 §5.6). -/
+def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (filt : Row → EM Bool) (order : List String) (desc : Bool) (take : Nat) (cur : Option Key) :
+    EM (Value × Option Value) := do
+  let w ← walk filt cx.budget take [] none (candidates vw t ps order desc cur)
+  if w.stop = .cut && cx.mutation then refuse "E_BOUND"
+  else do
+    markIf (w.stop = .cut || !(uniform cx.schema t ps))
+    pure (pageAnswer order w)
+
+/-- `count(domain)`: the number of visible rows that match, or unavailable
+when cut (bounds card). -/
+def countRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (filt : Row → EM Bool) : EM (Value × Option Value) := do
+  let cs := candidates vw t ps [] false none
+  let w ← walk filt cx.budget (cs.length + 1) [] none cs
+  if w.stop = .cut then cutScalar cx
+  else return (.ofInt w.rows.length, none)
+
+/-- `exists domain`: stops at a visible match; a cut cannot establish a
+negative answer (reads card). -/
+def existsRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (filt : Row → EM Bool) : EM (Value × Option Value) := do
+  let w ← walk filt cx.budget 1 [] none (candidates vw t ps [] false none)
+  if w.stop = .cut then cutScalar cx
+  else return (.ofBool !w.rows.isEmpty, none)
 
 /-! ## Expressions -/
 
@@ -260,25 +298,13 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       let cur ← match after with
         | none => pure none
         | some a => do parseCursor order (← ev a).1
-      let w ← walk (filt f) cx.budget take [] none (candidates vw t ps order desc cur)
-      if w.stop = .cut && cx.mutation then refuse "E_BOUND"
-      else
-        if w.stop = .cut || !(uniform cx.schema t ps) then markIncomplete
-        let next := match w.stop with
-          | .exhausted => none
-          | _ => w.last.map fun r => keyValue (rowKey order r)
-        return (.arr (w.rows.map Row.toValue), some (next.getD .null))
+      pageRead cx vw t ps (filt f) order desc take cur
     | .count t pins f => do
       let ps ← evPins pins
-      let cs := candidates vw t ps [] false none
-      let w ← walk (filt f) cx.budget (cs.length + 1) [] none cs
-      if w.stop = .cut then cutScalar cx
-      else return (.ofInt w.rows.length, none)
+      countRead cx vw t ps (filt f)
     | .exists_ t pins f => do
       let ps ← evPins pins
-      let w ← walk (filt f) cx.budget 1 [] none (candidates vw t ps [] false none)
-      if w.stop = .cut then cutScalar cx
-      else return (.ofBool !w.rows.isEmpty, none)
+      existsRead cx vw t ps (filt f)
 
 /-! ## Statements -/
 
