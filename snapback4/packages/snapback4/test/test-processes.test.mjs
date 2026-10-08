@@ -3,7 +3,8 @@ import { inspectSignalTarget, signalRecorded, signalChild, spawnTracked as spawn
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, copyFileSync, chmodSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { fixtureCommand } from './helpers/fixture-command.mjs';
+import { fixtureTestMs } from '../../../scripts/test-work-bounds.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,7 +66,7 @@ test(`a ps taking over two seconds recovers and passes the file (${phase})`, asy
   writeFileSync(file, "import test from 'node:test';test('healthy',()=>{});\n");
   let keeper, snapshots = 0;
   const budgets = [], durations = [];
-  const result = await runFile(file, { timeout: 3000, onOutput: () => {}, onStart: child => { keeper = child; },
+  const result = await runFile(file, { onOutput: () => {}, onStart: child => { keeper = child; },
     inspect: async options => {
       snapshots++;
       return await processTable({ ...options, run: async (command, args, options) => {
@@ -452,7 +453,7 @@ test('owned UID, start and state metadata are checked and exact rejected bytes s
   await assert.rejects(async () => await parse(raw, { group: 100 }), error => error.message.includes(raw.toString('base64')));
 });
 
-test('real runner CLI preserves pass, failure and subsequent execution with PATH ps shims', { timeout: 30000 }, t => {
+test('real runner CLI preserves pass, failure and subsequent execution with PATH ps shims', { timeout: fixtureTestMs(6) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ps-shim-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const shimDir = join(dir, 'bin'); mkdirSync(shimDir);
@@ -467,11 +468,12 @@ test('real runner CLI preserves pass, failure and subsequent execution with PATH
   delete env.SB4_PS_SHIM_HITS;
   const hitsFile = join(dir, 'shim-hits'); writeFileSync(hitsFile, '');
   const hits = () => readFileSync(hitsFile, 'utf8').split('\n').filter(Boolean).length;
-  const execute = (paths, shimmed) => {
+  const execute = async (paths, shimmed) => {
     const before = hits();
-    const result = spawnSync(process.execPath, [runner, '1', 'files', ...paths], {
+    const result = await fixtureCommand(process.execPath, [runner, '1', 'files', ...paths], {
+      label: `real runner CLI (${shimmed ? 'PATH ps shim' : 'baseline'}, ${paths.length} files)`,
       env: { ...env, PATH: `${shimmed ? shimDir + ':' : ''}${env.PATH}`,
-        ...(shimmed ? { SB4_PS_SHIM_HITS: hitsFile } : {}) }, encoding: 'utf8', timeout: 10000,
+        ...(shimmed ? { SB4_PS_SHIM_HITS: hitsFile } : {}) },
     });
     assert.equal(result.error, undefined); assert.equal(result.signal, null);
     if (shimmed) assert.ok(hits() > before, 'this CLI invocation must execute the PATH shim');
@@ -480,7 +482,7 @@ test('real runner CLI preserves pass, failure and subsequent execution with PATH
     return { status: result.status, verdicts: [...result.stdout.matchAll(/^-- client file (ok|FAIL): (.+) \(\d+ ms\)$/gm)].map(m => m.slice(1)),
       counts: result.stdout.match(/^-- client files: .*$/m)?.[0], output: result.stdout + result.stderr };
   };
-  const baseline = execute(files, false), passing = execute([files[0]], false);
+  const baseline = await execute(files, false), passing = await execute([files[0]], false);
   assert.equal(baseline.status, 1); assert.equal(passing.status, 0);
   assert.deepEqual(baseline.verdicts, files.map((file, i) => [i === 1 ? 'FAIL' : 'ok', file]));
   for (const mode of ['nobody', 'unrelated malformed metadata']) {
@@ -490,7 +492,7 @@ test('real runner CLI preserves pass, failure and subsequent execution with PATH
   awk '{$4 = "unreadable"; print}'
 `);
     for (const [paths, control] of [[files, baseline], [[files[0]], passing]]) {
-      const actual = execute(paths, true);
+      const actual = await execute(paths, true);
       assert.equal(actual.status, control.status, actual.output);
       assert.deepEqual(actual.verdicts, control.verdicts, actual.output);
       assert.equal(actual.counts, control.counts, actual.output);
@@ -507,37 +509,37 @@ test('every external test signal rechecks exact command and birth at dispatch', 
   const exited = once(child, 'exit');
   try {
     await once(child.stdout, 'data');
-    const record = inspectSignalTarget(child.pid, child.spawnargs);
+    const record = await inspectSignalTarget(child.pid, child.spawnargs);
     const originalKill = process.kill, originalChildKill = child.kill, attempted = [], handles = [];
     process.kill = (...args) => { attempted.push(args); return true; };
     child.kill = signal => { handles.push(signal); return true; };
     try {
-      for (const pid of [0, -1, undefined, NaN, 1.5, 2147483648]) assert.throws(() => signalRecorded({ ...record, pid }, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
-      assert.throws(() => signalRecorded({ ...record, start: ['wrong-boot', 'wrong-birth'] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
-      assert.throws(() => signalRecorded({ ...record, start: undefined }, 'SIGKILL', child.spawnargs), /recorded birth required/);
-      assert.throws(() => signalRecorded(record, 'SIGKILL', [...child.spawnargs, 'wrong-command']), /expected process command/);
-      assert.throws(() => signalChild({ pid: child.pid, exitCode: null, signalCode: null, spawnargs: child.spawnargs }, 'SIGKILL'), /no captured child birth/);
+      for (const pid of [0, -1, undefined, NaN, 1.5, 2147483648]) await assert.rejects(() => signalRecorded({ ...record, pid }, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
+      await assert.rejects(() => signalRecorded({ ...record, start: ['wrong-boot', 'wrong-birth'] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
+      await assert.rejects(() => signalRecorded({ ...record, start: undefined }, 'SIGKILL', child.spawnargs), /recorded birth required/);
+      await assert.rejects(() => signalRecorded(record, 'SIGKILL', [...child.spawnargs, 'wrong-command']), /expected process command/);
+      await assert.rejects(() => signalChild({ pid: child.pid, exitCode: null, signalCode: null, spawnargs: child.spawnargs }, 'SIGKILL'), /no captured child birth/);
       // A successful earlier inspection cannot authorize a later wrong command
       // or birth; the signal API must run the shared check again itself.
-      inspectSignalTarget(record.pid, child.spawnargs, record.start);
-      assert.throws(() => signalRecorded({ ...record, start: [0, 0] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
+      await inspectSignalTarget(record.pid, child.spawnargs, record.start);
+      await assert.rejects(() => signalRecorded({ ...record, start: [0, 0] }, 'SIGKILL', child.spawnargs), /stale.*birth/);
       assert.deepEqual(attempted, []);
-      signalRecorded(record, 'SIGTERM', child.spawnargs);
-      signalChild(child, 'SIGINT');
+      await signalRecorded(record, 'SIGTERM', child.spawnargs);
+      await signalChild(child, 'SIGINT');
       assert.deepEqual(attempted, [[child.pid, 'SIGTERM']]);
       assert.deepEqual(handles, ['SIGINT'], 'tracked child dispatch uses the retained handle');
       // A handle can close after metadata inspection. That is a refused fault,
       // not a successful injection and never a reason to fall back to its PID.
       child.kill = () => false;
-      assert.throws(() => signalChild(child, 'SIGKILL'), /owned child exited before dispatch/);
+      await assert.rejects(() => signalChild(child, 'SIGKILL'), /owned child exited before dispatch/);
       assert.deepEqual(attempted, [[child.pid, 'SIGTERM']]);
     } finally { process.kill = originalKill; child.kill = originalChildKill; }
     child.stdin.end(); await exited;
     const originalKillAfterExit = process.kill, staleAttempts = [];
     process.kill = (...args) => { staleAttempts.push(args); return true; };
     try {
-      assert.throws(() => signalRecorded(record, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
-      assert.throws(() => signalChild(child, 'SIGKILL'), /already exited/);
+      await assert.rejects(() => signalRecorded(record, 'SIGKILL', child.spawnargs), /TEST_SIGNAL_REFUSED/);
+      await assert.rejects(() => signalChild(child, 'SIGKILL'), /already exited/);
       assert.deepEqual(staleAttempts, []);
     } finally { process.kill = originalKillAfterExit; }
   } finally { child.stdin.end(); await exited; }

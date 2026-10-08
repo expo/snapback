@@ -73,7 +73,9 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
     await client.sync();
     if (scenario === "transport recovered") recovering = client.query({ kind: "query", name: "probe" }, {});
     const result = await client.query({ kind: "query", name: "read" }, input);
-    assert.equal(observations, scenario === "pending" ? 5 : scenario === "transport recovered" ? 3 : 2);
+    // Pending discovery interrupts the composed attempt once; the retry then
+    // waits for custody events until the shared deadline.
+    assert.equal(observations, ["pending", "transport recovered"].includes(scenario) ? 3 : 2);
     assert.deepEqual(requests, Array.from({ length: scenario === "transport recovered" ? 2 : 1 }, () => ({ args: input })));
     if (scenario === "server") assert.deepEqual(result.data, { kept: ["server"], current: ["original"] });
     else assert.equal(result.denied?.code, scenario === "pending" ? "E_QUERY_RETRY" : "E_OFFLINE");

@@ -18,9 +18,17 @@ cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; 
 cd apps/chat && bun run dev                            # the app on the real client (?as=bob picks a persona)
 bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
-cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and replay of found cases (in test.sh, ~1–2 s)
+cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and replay (opt-in, no database by default)
 cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --workers 6 --out /tmp/quarry-difftest
 cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
+# Store tests require SNAPBACK4_EVAL_POSTGRES pointing to a private evaluation cluster.
+cargo test -p snapback4-difftest --features postgres  # fails if the cluster is absent
+cargo run --release -p snapback4-difftest --features postgres -- run-stores --seed 0 --cases 1000000 --workers 8 --seconds 10800 --out /tmp/quarry-stores
+cargo run --release -p snapback4-difftest --features postgres -- replay /path/to/found-case
+python3 scripts/test-difftest-scheduled.py  # runner/ticket tests; no schedule or push
+scripts/difftest-scheduled.sh --checkout "$HOME/quarry-difftest-runner" --state-dir "$HOME/.snapback-quarry-difftest" --hours 3
+# Operator only: install daily launchd (Darwin) or user systemd timer (Linux).
+scripts/install-difftest-schedule.sh --checkout "$HOME/quarry-difftest-runner"
 cargo test -p snapback4-sim          # the chat world under faults: the seven invariants
 cargo test -p snapback4-sim --test exhaustive   # every sequence of two writes (two viewers, two groups): disclosure and write authority against a model of the rules
 SNAPBACK4_EXHAUSTIVE_DEPTH=3 cargo test -p snapback4-sim --test exhaustive -- --ignored   # three writes: ~7,000 states, minutes
@@ -49,8 +57,8 @@ log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
 (Quarry lexer, parser, binder, diagnostics, the TypeScript emitter),
 `snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
 world hosting the engine and a replica device), `snapback4-difftest` (seeded
-Quarry source generator, rewrite and meter oracles, structural shrinking and
-replay; not published or linked by shipped crates), `snapback4-device` (the
+Quarry source generator, rewrite and meter oracles, optional Postgres store
+oracles with prefetch on/off, structural shrinking and replay; not published or linked by shipped crates), `snapback4-device` (the
 interpreter over a `DeviceStore`: the core's SQLite under the native
 module for Expo and Exact2 hosts, memory under wasm on the web; one
 dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is
@@ -164,3 +172,53 @@ Gotchas you cannot derive from the code:
   [`reports/20260927-lx-linux-package/REPORT.md`](./reports/20260927-lx-linux-package/REPORT.md).
 - The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.
 - Native jobs (LLP 3000.005) need `rustup target add wasm32-unknown-unknown`; the suite's fixture build fails loudly without it. The guest SDK `crates/snapback4-native` is a path dependency until it is published; an app's `snapback/native/Cargo.toml` names it by path.
+
+Quarry store testing (LLP 3000.035 §5.1): `SNAPBACK4_EVAL_POSTGRES` is an
+explicit evaluation connection. The factory owns one physical schema per worker,
+restores its rows and bookkeeping, installs the compiled fixture, then opens the
+ordinary engine. Mutation attempts restore a seeded snapshot; shrinking reuses
+that same factory. `Database::connect_fresh()` is an opt-in test mode. Fresh and
+restored outcomes must serialize to identical bytes. The local wire observer
+retains SQLSTATE, message, detail and SQL statement before the public query API
+converts a driver error to a refusal; it never changes the traffic.
+
+Reads sweep every public boundary. Mutations compare every discovered position
+twice on SQLite, and compare up to eight seeded positions per dimension on
+Postgres (including first/last), plus the case's original budget. Sampling
+counters are in `store_stats`; each selected position runs prefetch on and off.
+Physical prefetch counters are separate from the exact public outcome record.
+The present generator does not fill the Postgres prefetch cache: it emits no
+per-row related-key lookup in a page loop, so its reads receive no prefetch marks.
+The focused control in the DT-B report demonstrates that a consumed cached-hit
+fault changes an outcome; the random campaign does not claim this coverage.
+See the [prefetch coverage ticket](../issues/20261007-quarry-store-oracle-prefetch-coverage-gap.md). Store heap accounting also differs at low budgets; those
+remain disagreements and ticket candidates, never normalized into passes.
+The cluster regression asserts its known signatures and refuses new/missing ones.
+
+`run-stores --seconds N` stops each worker between cases after N seconds; a case
+and any shrinking already underway finish. `cases` remains the requested count,
+`generated` is actual completed generation, and `time_limited_workers` reports
+the early stop. Slowest-case timing includes generation, comparisons, shrinking
+and artifact saving. It does not silently claim the requested million. The scheduled
+runner rejects incomplete reports; its own `--hours` option instead chooses a
+case count from a 256-case calibration of both campaigns, with 20% headroom and
+a million-case cap. This is a sizing estimate, not a hard deadline.
+
+Quarry scheduled testing: prepare a separate clean clone whose current branch
+can fast-forward to `origin/main`. The runner fetches/fast-forwards it and starts
+its own socket-only evaluation cluster with `fsync=off`,
+`synchronous_commit=off`, `full_page_writes=off`, `shared_buffers=1GB`, and
+`max_connections=200`. It runs the SQLite and store campaigns on the selected
+seed window, replays shrunk findings twice, and files/appends open `issues/*.md`
+tickets. Only ticket changes are committed/pushed, with three fetch/rebase
+retries. State and reports live outside Git under `--state-dir`; seeds advance
+only after completed work and successful owned-cluster cleanup. Dirty/diverged
+trees, overlap, setup failures, partial reports and failed publication refuse.
+A crash can retain the lock and cluster directory; inspect `lock/owner.json`
+and the run report. Never stop a cluster by process name.
+
+`--dry-run --cases 32` writes previews and a separate `next-seed.dry-run.json`,
+never commits or pushes. Dry runs may explicitly supply `--external-postgres
+'host=... user=... dbname=...'`; that cluster is neither started nor stopped by
+the runner. Ambient connections do not override normal private-cluster ownership.
+The installer remains an operator action; do not invoke it during development.

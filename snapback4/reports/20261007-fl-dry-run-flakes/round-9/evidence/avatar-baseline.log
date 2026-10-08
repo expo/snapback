@@ -1,0 +1,162 @@
+TAP version 13
+# Subtest: Expo conversion refusal keeps the local client online (native store, mutable)
+not ok 1 - Expo conversion refusal keeps the local client online (native store, mutable)
+  ---
+  duration_ms: 3078.644268
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:23:93'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_OFFLINE'
+    - 'E_CLIENT'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLIENT'
+  actual: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:42:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (native store, sealed)
+not ok 2 - Expo conversion refusal keeps the local client online (native store, sealed)
+  ---
+  duration_ms: 2666.376266
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:23:93'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_OFFLINE'
+    - 'E_CLIENT'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLIENT'
+  actual: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:42:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (native store, frozen)
+not ok 3 - Expo conversion refusal keeps the local client online (native store, frozen)
+  ---
+  duration_ms: 2674.738272
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:23:93'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_OFFLINE'
+    - 'E_CLIENT'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLIENT'
+  actual: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:42:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (duplicate Blob, mutable)
+not ok 4 - Expo conversion refusal keeps the local client online (duplicate Blob, mutable)
+  ---
+  duration_ms: 2388.612917
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:23:93'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_OFFLINE'
+    - 'E_CLIENT'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLIENT'
+  actual: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:42:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (duplicate Blob, sealed)
+not ok 5 - Expo conversion refusal keeps the local client online (duplicate Blob, sealed)
+  ---
+  duration_ms: 2379.873226
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:23:93'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_OFFLINE'
+    - 'E_CLIENT'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLIENT'
+  actual: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:42:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: Expo conversion refusal keeps the local client online (duplicate Blob, frozen)
+not ok 6 - Expo conversion refusal keeps the local client online (duplicate Blob, frozen)
+  ---
+  duration_ms: 2694.402701
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:23:93'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_OFFLINE'
+    - 'E_CLIENT'
+         ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_CLIENT'
+  actual: 'E_OFFLINE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r9-avatar-989039.test.mjs:42:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16022.474952
+
+{"baseline":"dcd5d06707","reproduced":6,"groupDrained":true}

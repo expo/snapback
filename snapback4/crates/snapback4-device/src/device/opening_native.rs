@@ -26,7 +26,7 @@ pub(super) fn open<S: DeviceStore>(mut store: S, backend: Backend, metadata: BTr
         }
         Ok((native, if valid { digest } else { None }, tx.meta(STORE_ID)?))
     })?;
-    Ok(Device { preserved: None, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
+    Ok(Device { preserved: None, settlement_unchanged: false, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
         store, schema: backend.schema,
         programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
         generation: backend.generation, backend_identity, store_identity, snapshot_owner: None,

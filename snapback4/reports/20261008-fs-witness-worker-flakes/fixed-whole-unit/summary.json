@@ -1,0 +1,45 @@
+{
+  "command": [
+    "target/debug/deps/fs-fixed-unit",
+    "--test-threads=4",
+    "--nocapture"
+  ],
+  "cpus": "74,75",
+  "busy_pids": [
+    3407844,
+    3407845,
+    3407846,
+    3407847,
+    3407848,
+    3407849
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 101,
+      "seconds": 39.657
+    },
+    {
+      "round": 2,
+      "status": 101,
+      "seconds": 41.81
+    },
+    {
+      "round": 3,
+      "status": 101,
+      "seconds": 40.825
+    },
+    {
+      "round": 4,
+      "status": 101,
+      "seconds": 42.266
+    },
+    {
+      "round": 5,
+      "status": 101,
+      "seconds": 41.568
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+-- client file start: /tmp/sn-round5-reproductions/discovery-auth.test.mjs; stall bound 900000 ms
+-- client file start: /tmp/sn-round5-reproductions/prediction-replay.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"tier":"wasm","firstId":"01M4CBD53DT63RQ4QHGBAN6V77","dependent":{"state":"pending","id":"01M4CBD53QPFQWQJEV9S4KMS0T"},"result":{"data":{"at":1,"body":"Bob","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"atPublication":{"ok":{"complete":true,"cut":null,"data":{"at":1,"body":"Bob","id":"item","pending":true,"room":"room"},"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"members":[{"0":"room"}],"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":false,"watermark":1}},"postOutcome":{"generation":1,"head":2,"id":"01M4CBD53DT63RQ4QHGBAN6V77","preserved":[],"state":"failed","store_id":"ed6150d5e38f4b34a15d087b92debaa2","why":{"code":"BLOCKED","family":"rule","guide":"programs","message":"the program refused with BLOCKED","rule":"BLOCKED","site":"schema.q:51:3"}},"checks":6}
+# Subtest: wasm: failing unrelated write replays a dependent prediction before final facade publication
+ok 1 - wasm: failing unrelated write replays a dependent prediction before final facade publication
+  ---
+  duration_ms: 638.464018
+  type: 'test'
+  ...
+# {"tier":"process","firstId":"01M4CBD5BA7WQXC89CE0VX7GJV","dependent":{"state":"pending","id":"01M4CBD5BCCEBPAW8XPFVZ9NHH"},"result":{"data":{"at":1,"body":"Bob","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"atPublication":{"ok":{"complete":true,"cut":null,"data":{"at":1,"body":"Bob","id":"item","pending":true,"room":"room"},"decorationExpiry":null,"next":null,"nextExpiry":null,"retained":false,"scopes":{"members":[{"0":"room"}],"messages":[{"0":"room"}]},"tables":["members","messages"],"unknown":false,"watermark":1}},"postOutcome":{"generation":1,"head":2,"id":"01M4CBD5BA7WQXC89CE0VX7GJV","preserved":[],"state":"failed","store_id":"99d30178e5194e6b26373b75113591cd","why":{"code":"BLOCKED","family":"rule","guide":"programs","message":"the program refused with BLOCKED","rule":"BLOCKED","site":"schema.q:51:3"}},"checks":6}
+# Subtest: process: failing unrelated write replays a dependent prediction before final facade publication
+ok 2 - process: failing unrelated write replays a dependent prediction before final facade publication
+  ---
+  duration_ms: 251.841104
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1022.736609
+-- process inspection: {"snapshots":3,"unrelatedRows":3349}
+-- client file ok: /tmp/sn-round5-reproductions/prediction-replay.test.mjs (1273 ms)
+TAP version 13
+# {"facade":false,"refusal":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"},"read":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}},"link":"signed-out"}
+# Subtest: current-credential E_AUTH from settlement discovery wins publication; facade=false
+ok 1 - current-credential E_AUTH from settlement discovery wins publication; facade=false
+  ---
+  duration_ms: 175.064755
+  type: 'test'
+  ...
+# {"facade":true,"refusal":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"},"read":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}},"link":"signed-out"}
+# Subtest: current-credential E_AUTH from settlement discovery wins publication; facade=true
+ok 2 - current-credential E_AUTH from settlement discovery wins publication; facade=true
+  ---
+  duration_ms: 152.791287
+  type: 'test'
+  ...
+# {"facade":false,"trigger":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}},"read":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}}}
+# Subtest: DK cause wakes an already parked dependent-write wait; facade=false
+ok 3 - DK cause wakes an already parked dependent-write wait; facade=false
+  ---
+  duration_ms: 326.387159
+  type: 'test'
+  ...
+# {"facade":true,"trigger":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}},"read":{"denied":{"code":"E_AUTH","family":"auth","guide":"personas","message":"this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store"}}}
+# Subtest: DK cause wakes an already parked dependent-write wait; facade=true
+ok 4 - DK cause wakes an already parked dependent-write wait; facade=true
+  ---
+  duration_ms: 527.014273
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1285.408529
+-- process inspection: {"snapshots":3,"unrelatedRows":3338}
+-- client file ok: /tmp/sn-round5-reproductions/discovery-auth.test.mjs (1531 ms)
+-- client files: 2/2; failed 0; tests {"tests":6,"pass":6,"fail":0,"cancelled":0,"skipped":0,"todo":0}

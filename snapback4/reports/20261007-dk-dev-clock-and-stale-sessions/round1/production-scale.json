@@ -1,0 +1,188 @@
+{
+  "scratch": "/tmp/dk-r1-benchmark-scxgwi3x",
+  "profile": "production; LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "published_tarball": "https://registry.npmjs.org/snapback4-linux-x64/-/snapback4-linux-x64-0.4.14.tgz",
+  "published_integrity": "sha512-Krx8cJCwCAuT4vDjNKCHD2MRd8xcqIuuHnFiGRrjUlcBNpJUzhaoQC6BjggtaD/mXp7j3/z6GAVJ5xdLoEJH6w==",
+  "binaries": {
+    "published-0.4.14": "ea8b00e2316f8457cc5bdf46a17c8f1a2202f2315ee9c235c8cf84a9bfc620f1",
+    "dk-round1-production": "6e792f9405bc70aace5dd3e5eeb32afbe3379823d13d255dc06de7ea4f24ba14"
+  },
+  "seed_seconds": 16.741020567002124,
+  "normal_clock_runs": [
+    {
+      "binary": "published-0.4.14",
+      "iteration": 0,
+      "startup_ms": 7.255257005454041
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 0,
+      "startup_ms": 5.150662007508799,
+      "clock_status": {
+        "storeAhead": null
+      },
+      "clock_status_ms": 1.7710149986669421,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nsnapback4 dev: http://127.0.0.1:34705  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 540.1946750062052,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 1,
+      "startup_ms": 6.037842002115212
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 1,
+      "startup_ms": 5.574757000431418,
+      "clock_status": {
+        "storeAhead": null
+      },
+      "clock_status_ms": 1.6462479979963973,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nsnapback4 dev: http://127.0.0.1:34089  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 537.6340670045465,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 2,
+      "startup_ms": 6.58507201296743
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 2,
+      "startup_ms": 5.672814993886277,
+      "clock_status": {
+        "storeAhead": null
+      },
+      "clock_status_ms": 1.8826419982360676,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nsnapback4 dev: http://127.0.0.1:44903  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 538.523429990164,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 3,
+      "startup_ms": 6.253745988942683
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 3,
+      "startup_ms": 5.627345992252231,
+      "clock_status": {
+        "storeAhead": null
+      },
+      "clock_status_ms": 1.7801790090743452,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nsnapback4 dev: http://127.0.0.1:42883  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 534.8140290006995,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 4,
+      "startup_ms": 6.001046989695169
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 4,
+      "startup_ms": 5.141799003467895,
+      "clock_status": {
+        "storeAhead": null
+      },
+      "clock_status_ms": 1.9258670072304085,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nsnapback4 dev: http://127.0.0.1:37279  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 546.2224310031161,
+      "doctor_exit": 0
+    }
+  ],
+  "rows": 100001,
+  "file_bytes": 882970624,
+  "future_commit_runs": [
+    {
+      "binary": "published-0.4.14",
+      "iteration": 0,
+      "startup_ms": 5.7230700040236115
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 0,
+      "startup_ms": 4.917651996947825,
+      "clock_status": {
+        "storeAhead": "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89999735ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue"
+      },
+      "clock_status_ms": 1.1585570027818903,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nN_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89999737ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue\nsnapback4 dev: http://127.0.0.1:33797  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 532.09852699365,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 1,
+      "startup_ms": 6.565423012943938
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 1,
+      "startup_ms": 5.647115001920611,
+      "clock_status": {
+        "storeAhead": "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89998962ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue"
+      },
+      "clock_status_ms": 2.5763019948499277,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nN_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89998964ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue\nsnapback4 dev: http://127.0.0.1:45325  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 537.2704809997231,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 2,
+      "startup_ms": 6.523588992422447
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 2,
+      "startup_ms": 5.289289998472668,
+      "clock_status": {
+        "storeAhead": "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89998182ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue"
+      },
+      "clock_status_ms": 1.8373040074948221,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nN_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89998184ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue\nsnapback4 dev: http://127.0.0.1:38243  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 539.8439489945304,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 3,
+      "startup_ms": 5.403620001743548
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 3,
+      "startup_ms": 5.680895992554724,
+      "clock_status": {
+        "storeAhead": "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89997401ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue"
+      },
+      "clock_status_ms": 1.5559419989585876,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nN_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89997403ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue\nsnapback4 dev: http://127.0.0.1:34617  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 535.8400969998911,
+      "doctor_exit": 0
+    },
+    {
+      "binary": "published-0.4.14",
+      "iteration": 4,
+      "startup_ms": 6.555626998306252
+    },
+    {
+      "binary": "dk-round1-production",
+      "iteration": 4,
+      "startup_ms": 5.127536991494708,
+      "clock_status": {
+        "storeAhead": "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89996624ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue"
+      },
+      "clock_status_ms": 1.5527179930359125,
+      "startup_note": "snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=65536 hard=1048576; descriptor_exhaustions=0; startup soft=1024 target=65536\nN_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to 89996626ms (latest 64 commits; tables: notes); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue\nsnapback4 dev: http://127.0.0.1:34751  (schema: snapback/, types: /tmp/dk-r1-benchmark-scxgwi3x/scale/snapback/generated/api.ts)\nstore: /tmp/dk-r1-benchmark-scxgwi3x/scale/.snapback4/store.sqlite\nsnapback4 dev: development only \u2014 admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.\nsnapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply\n",
+      "doctor_ms": 531.5270410064841,
+      "doctor_exit": 0
+    }
+  ],
+  "sqlite_schema_unchanged": true
+}

@@ -1,0 +1,172 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=3",
+    "--test-name-pattern=declares two workers",
+    "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-delayed.test.mjs"
+  ],
+  "cpus": "78,79",
+  "busy_pids": [
+    3379536,
+    3379537,
+    3379538,
+    3379539,
+    3379540,
+    3379541
+  ],
+  "busy_reaped": true,
+  "jobs": 2,
+  "results": [
+    {
+      "round": 1,
+      "status": 0,
+      "seconds": 12.643
+    },
+    {
+      "round": 2,
+      "status": 0,
+      "seconds": 12.046
+    },
+    {
+      "round": 3,
+      "status": 0,
+      "seconds": 12.44
+    },
+    {
+      "round": 4,
+      "status": 0,
+      "seconds": 12.84
+    },
+    {
+      "round": 5,
+      "status": 0,
+      "seconds": 12.243
+    },
+    {
+      "round": 6,
+      "status": 0,
+      "seconds": 12.197
+    },
+    {
+      "round": 7,
+      "status": 0,
+      "seconds": 6.078
+    },
+    {
+      "round": 8,
+      "status": 0,
+      "seconds": 5.726
+    },
+    {
+      "round": 9,
+      "status": 0,
+      "seconds": 5.276
+    },
+    {
+      "round": 10,
+      "status": 0,
+      "seconds": 5.489
+    },
+    {
+      "round": 11,
+      "status": 0,
+      "seconds": 5.427
+    },
+    {
+      "round": 12,
+      "status": 0,
+      "seconds": 5.426
+    },
+    {
+      "round": 13,
+      "status": 0,
+      "seconds": 5.327
+    },
+    {
+      "round": 14,
+      "status": 0,
+      "seconds": 5.527
+    },
+    {
+      "round": 15,
+      "status": 0,
+      "seconds": 5.827
+    },
+    {
+      "round": 16,
+      "status": 0,
+      "seconds": 5.977
+    },
+    {
+      "round": 17,
+      "status": 0,
+      "seconds": 5.276
+    },
+    {
+      "round": 18,
+      "status": 0,
+      "seconds": 5.426
+    },
+    {
+      "round": 19,
+      "status": 0,
+      "seconds": 5.228
+    },
+    {
+      "round": 20,
+      "status": 0,
+      "seconds": 5.327
+    },
+    {
+      "round": 21,
+      "status": 0,
+      "seconds": 5.325
+    },
+    {
+      "round": 22,
+      "status": 0,
+      "seconds": 5.377
+    },
+    {
+      "round": 23,
+      "status": 0,
+      "seconds": 5.327
+    },
+    {
+      "round": 24,
+      "status": 0,
+      "seconds": 5.277
+    },
+    {
+      "round": 25,
+      "status": 0,
+      "seconds": 5.376
+    },
+    {
+      "round": 26,
+      "status": 0,
+      "seconds": 5.327
+    },
+    {
+      "round": 27,
+      "status": 0,
+      "seconds": 5.232
+    },
+    {
+      "round": 28,
+      "status": 0,
+      "seconds": 5.477
+    },
+    {
+      "round": 29,
+      "status": 0,
+      "seconds": 5.176
+    },
+    {
+      "round": 30,
+      "status": 0,
+      "seconds": 5.576
+    }
+  ]
+}

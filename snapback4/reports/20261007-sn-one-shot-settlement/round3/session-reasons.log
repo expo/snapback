@@ -1,0 +1,794 @@
+-- client file start: packages/snapback4/test/session-reasons.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/app.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/app-state.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online: each dev/serve refusal survives terminal cleanup and the online arm
+    # Subtest: dev unknown
+    ok 1 - dev unknown
+      ---
+      duration_ms: 49.10202
+      type: 'test'
+      ...
+    # Subtest: dev expired
+    ok 2 - dev expired
+      ---
+      duration_ms: 7.806163
+      type: 'test'
+      ...
+    # Subtest: dev revoked
+    ok 3 - dev revoked
+      ---
+      duration_ms: 7.78462
+      type: 'test'
+      ...
+    # Subtest: serve unknown
+    ok 4 - serve unknown
+      ---
+      duration_ms: 7.318461
+      type: 'test'
+      ...
+    # Subtest: serve expired
+    ok 5 - serve expired
+      ---
+      duration_ms: 7.433103
+      type: 'test'
+      ...
+    # Subtest: serve revoked
+    ok 6 - serve revoked
+      ---
+      duration_ms: 7.390099
+      type: 'test'
+      ...
+    1..6
+ok 1 - online: each dev/serve refusal survives terminal cleanup and the online arm
+  ---
+  duration_ms: 217.866721
+  type: 'test'
+  ...
+# Subtest: local: each dev/serve refusal survives terminal cleanup and the online arm
+    # Subtest: dev unknown
+    ok 1 - dev unknown
+      ---
+      duration_ms: 443.239003
+      type: 'test'
+      ...
+    # Subtest: dev expired
+    ok 2 - dev expired
+      ---
+      duration_ms: 19.227464
+      type: 'test'
+      ...
+    # Subtest: dev revoked
+    ok 3 - dev revoked
+      ---
+      duration_ms: 17.252083
+      type: 'test'
+      ...
+    # Subtest: serve unknown
+    ok 4 - serve unknown
+      ---
+      duration_ms: 17.861747
+      type: 'test'
+      ...
+    # Subtest: serve expired
+    ok 5 - serve expired
+      ---
+      duration_ms: 17.622659
+      type: 'test'
+      ...
+    # Subtest: serve revoked
+    ok 6 - serve revoked
+      ---
+      duration_ms: 16.947778
+      type: 'test'
+      ...
+    1..6
+ok 2 - local: each dev/serve refusal survives terminal cleanup and the online arm
+  ---
+  duration_ms: 657.469813
+  type: 'test'
+  ...
+# Subtest: app-online: each dev/serve refusal survives terminal cleanup and the online arm
+    # Subtest: dev unknown
+    ok 1 - dev unknown
+      ---
+      duration_ms: 40.252174
+      type: 'test'
+      ...
+    # Subtest: dev expired
+    ok 2 - dev expired
+      ---
+      duration_ms: 21.63229
+      type: 'test'
+      ...
+    # Subtest: dev revoked
+    ok 3 - dev revoked
+      ---
+      duration_ms: 22.821031
+      type: 'test'
+      ...
+    # Subtest: serve unknown
+    ok 4 - serve unknown
+      ---
+      duration_ms: 24.688512
+      type: 'test'
+      ...
+    # Subtest: serve expired
+    ok 5 - serve expired
+      ---
+      duration_ms: 22.707682
+      type: 'test'
+      ...
+    # Subtest: serve revoked
+    ok 6 - serve revoked
+      ---
+      duration_ms: 22.077637
+      type: 'test'
+      ...
+    1..6
+ok 3 - app-online: each dev/serve refusal survives terminal cleanup and the online arm
+  ---
+  duration_ms: 287.187071
+  type: 'test'
+  ...
+# Subtest: app-device: each dev/serve refusal survives terminal cleanup and the online arm
+    # Subtest: dev unknown
+    ok 1 - dev unknown
+      ---
+      duration_ms: 38.522
+      type: 'test'
+      ...
+    # Subtest: dev expired
+    ok 2 - dev expired
+      ---
+      duration_ms: 29.490059
+      type: 'test'
+      ...
+    # Subtest: dev revoked
+    ok 3 - dev revoked
+      ---
+      duration_ms: 30.27117
+      type: 'test'
+      ...
+    # Subtest: serve unknown
+    ok 4 - serve unknown
+      ---
+      duration_ms: 30.7837
+      type: 'test'
+      ...
+    # Subtest: serve expired
+    ok 5 - serve expired
+      ---
+      duration_ms: 31.850568
+      type: 'test'
+      ...
+    # Subtest: serve revoked
+    ok 6 - serve revoked
+      ---
+      duration_ms: 28.30282
+      type: 'test'
+      ...
+    1..6
+ok 4 - app-device: each dev/serve refusal survives terminal cleanup and the online arm
+  ---
+  duration_ms: 331.609136
+  type: 'test'
+  ...
+# Subtest: ordinary signed-out client and app online arm still say sign in
+ok 5 - ordinary signed-out client and app online arm still say sign in
+  ---
+  duration_ms: 1.208932
+  type: 'test'
+  ...
+# Subtest: real dev unknown-store bearer keeps the repair through online query and saved local startup
+ok 6 - real dev unknown-store bearer keeps the repair through online query and saved local startup
+  ---
+  duration_ms: 273.034595
+  type: 'test'
+  ...
+# Subtest: device app restoring a foreign-store token keeps its refusal on the signed-out online facade
+ok 7 - device app restoring a foreign-store token keeps its refusal on the signed-out online facade
+  ---
+  duration_ms: 1194.882855
+  type: 'test'
+  ...
+# Subtest: ordinary never-signed-in app stays generic (device: false)
+ok 8 - ordinary never-signed-in app stays generic (device: false)
+  ---
+  duration_ms: 1.897245
+  type: 'test'
+  ...
+# Subtest: ordinary never-signed-in app stays generic (device: true)
+ok 9 - ordinary never-signed-in app stays generic (device: true)
+  ---
+  duration_ms: 1.030304
+  type: 'test'
+  ...
+1..9
+# tests 33
+# suites 0
+# pass 33
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3137.784428
+-- process inspection: {"snapshots":3,"unrelatedRows":3749}
+-- client file ok: packages/snapback4/test/session-reasons.test.mjs (3427 ms)
+TAP version 13
+# Subtest: online: refused bearer cannot reopen offline or disclose its replica
+ok 1 - online: refused bearer cannot reopen offline or disclose its replica
+  ---
+  duration_ms: 200.40306
+  type: 'test'
+  ...
+# Subtest: local: refused bearer cannot reopen offline or disclose its replica
+ok 2 - local: refused bearer cannot reopen offline or disclose its replica
+  ---
+  duration_ms: 245.204875
+  type: 'test'
+  ...
+# Subtest: rollback cannot publish Alice after observing Charlie's held replacement
+ok 3 - rollback cannot publish Alice after observing Charlie's held replacement
+  ---
+  duration_ms: 1182.847133
+  type: 'test'
+  ...
+# Subtest: online: global logout waits for rotation and retains failed retry custody in this app
+ok 4 - online: global logout waits for rotation and retains failed retry custody in this app
+  ---
+  duration_ms: 934.676252
+  type: 'test'
+  ...
+# Subtest: online: global logout waits for rotation and retains failed retry custody across restart
+ok 5 - online: global logout waits for rotation and retains failed retry custody across restart
+  ---
+  duration_ms: 904.929107
+  type: 'test'
+  ...
+# Subtest: local: global logout waits for rotation and retains failed retry custody in this app
+ok 6 - local: global logout waits for rotation and retains failed retry custody in this app
+  ---
+  duration_ms: 986.388555
+  type: 'test'
+  ...
+# Subtest: local: global logout waits for rotation and retains failed retry custody across restart
+ok 7 - local: global logout waits for rotation and retains failed retry custody across restart
+  ---
+  duration_ms: 966.878096
+  type: 'test'
+  ...
+# Subtest: a refusal during schema restoration also prevents the next offline replica open
+ok 8 - a refusal during schema restoration also prevents the next offline replica open
+  ---
+  duration_ms: 154.396711
+  type: 'test'
+  ...
+# Subtest: global logout owns a successor whose session save failed
+ok 9 - global logout owns a successor whose session save failed
+  ---
+  duration_ms: 905.98529
+  type: 'test'
+  ...
+# Subtest: foreign global retirement credentials never reach this backend
+ok 10 - foreign global retirement credentials never reach this backend
+  ---
+  duration_ms: 12.436744
+  type: 'test'
+  ...
+# Subtest: online: client notifications cannot publish a signed-in view after credential loss
+ok 11 - online: client notifications cannot publish a signed-in view after credential loss
+  ---
+  duration_ms: 148.183516
+  type: 'test'
+  ...
+# Subtest: local: client notifications cannot publish a signed-in view after credential loss
+ok 12 - local: client notifications cannot publish a signed-in view after credential loss
+  ---
+  duration_ms: 205.041233
+  type: 'test'
+  ...
+# Subtest: online: closing the current public client closes its app view
+ok 13 - online: closing the current public client closes its app view
+  ---
+  duration_ms: 143.035038
+  type: 'test'
+  ...
+# Subtest: local: closing the current public client closes its app view
+ok 14 - local: closing the current public client closes its app view
+  ---
+  duration_ms: 194.002094
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7295.853356
+-- process inspection: {"snapshots":3,"unrelatedRows":3721}
+-- client file ok: packages/snapback4/test/app-state.test.mjs (7564 ms)
+TAP version 13
+# Subtest: app online: signup, restart, rotation, account-bound pending writes and logout
+ok 1 - app online: signup, restart, rotation, account-bound pending writes and logout
+  ---
+  duration_ms: 1886.531247
+  type: 'test'
+  ...
+# Subtest: app local: signup, restart, rotation, account-bound pending writes and logout
+ok 2 - app local: signup, restart, rotation, account-bound pending writes and logout
+  ---
+  duration_ms: 6925.242711
+  type: 'test'
+  ...
+# Subtest: online app recovers two lost confirmations with original IDs and immutable arguments
+ok 3 - online app recovers two lost confirmations with original IDs and immutable arguments
+  ---
+  duration_ms: 411.561484
+  type: 'test'
+  ...
+# Subtest: logoutEverywhere revokes other sessions and session restore cancellation cannot resurrect identity
+ok 4 - logoutEverywhere revokes other sessions and session restore cancellation cannot resurrect identity
+  ---
+  duration_ms: 804.351698
+  type: 'test'
+  ...
+# Subtest: online logout completes while rotation is stalled and revokes the late successor
+ok 5 - online logout completes while rotation is stalled and revokes the late successor
+  ---
+  duration_ms: 24.429323
+  type: 'test'
+  ...
+# Subtest: online custody refuses unstored admission and retains committed writes when receipt storage fails
+ok 6 - online custody refuses unstored admission and retains committed writes when receipt storage fails
+  ---
+  duration_ms: 154.506785
+  type: 'test'
+  ...
+# Subtest: failed session commit revokes only the provisional bearer before reporting signed-out
+ok 7 - failed session commit revokes only the provisional bearer before reporting signed-out
+  ---
+  duration_ms: 147.074293
+  type: 'test'
+  ...
+# Subtest: logout clears credentials after journal failure, and credential deletion is retryable
+ok 8 - logout clears credentials after journal failure, and credential deletion is retryable
+  ---
+  duration_ms: 8.477259
+  type: 'test'
+  ...
+# Subtest: logoutEverywhere clears credentials after journal failure, and credential deletion is retryable
+ok 9 - logoutEverywhere clears credentials after journal failure, and credential deletion is retryable
+  ---
+  duration_ms: 7.048907
+  type: 'test'
+  ...
+# Subtest: signed-out completion waits for durable credential deletion
+ok 10 - signed-out completion waits for durable credential deletion
+  ---
+  duration_ms: 7.617409
+  type: 'test'
+  ...
+# Subtest: logout online deletes the bearer while network work is held
+ok 11 - logout online deletes the bearer while network work is held
+  ---
+  duration_ms: 150.950614
+  type: 'test'
+  ...
+# Subtest: logout local deletes the bearer while network work is held
+ok 12 - logout local deletes the bearer while network work is held
+  ---
+  duration_ms: 193.108104
+  type: 'test'
+  ...
+# Subtest: ordinary online app close retires an unread rotation and reopening refuses its consumed predecessor
+ok 13 - ordinary online app close retires an unread rotation and reopening refuses its consumed predecessor
+  ---
+  duration_ms: 211.053177
+  type: 'test'
+  ...
+# Subtest: ordinary local app close retires an unread rotation and reopening refuses its consumed predecessor
+ok 14 - ordinary local app close retires an unread rotation and reopening refuses its consumed predecessor
+  ---
+  duration_ms: 1207.558357
+  type: 'test'
+  ...
+# Subtest: a stale online refresh preserves another owner's kept successor
+ok 15 - a stale online refresh preserves another owner's kept successor
+  ---
+  duration_ms: 1648.690831
+  type: 'test'
+  ...
+# Subtest: a stale local refresh preserves another owner's kept successor
+ok 16 - a stale local refresh preserves another owner's kept successor
+  ---
+  duration_ms: 307.653192
+  type: 'test'
+  ...
+# Subtest: stale online restoration restarts when another app rotates before its first save
+ok 17 - stale online restoration restarts when another app rotates before its first save
+  ---
+  duration_ms: 208.310935
+  type: 'test'
+  ...
+# Subtest: stale local restoration restarts when another app rotates before its first save
+ok 18 - stale local restoration restarts when another app rotates before its first save
+  ---
+  duration_ms: 555.955009
+  type: 'test'
+  ...
+# Subtest: stale online restoration restarts when another app rotates before its final save
+ok 19 - stale online restoration restarts when another app rotates before its final save
+  ---
+  duration_ms: 456.13784
+  type: 'test'
+  ...
+# Subtest: stale local restoration restarts when another app rotates before its backend acquisition
+ok 20 - stale local restoration restarts when another app rotates before its backend acquisition
+  ---
+  duration_ms: 1055.601163
+  type: 'test'
+  ...
+# Subtest: online auth rejection after a failed login completes signed-out cleanup
+ok 21 - online auth rejection after a failed login completes signed-out cleanup
+  ---
+  duration_ms: 863.930214
+  type: 'test'
+  ...
+# Subtest: local auth rejection after a failed login completes signed-out cleanup
+ok 22 - local auth rejection after a failed login completes signed-out cleanup
+  ---
+  duration_ms: 953.555063
+  type: 'test'
+  ...
+# Subtest: shared logout fences a held online rotation while signed out
+ok 23 - shared logout fences a held online rotation while signed out
+  ---
+  duration_ms: 916.945851
+  type: 'test'
+  ...
+# Subtest: shared logout fences a held online rotation across Bob's login
+ok 24 - shared logout fences a held online rotation across Bob's login
+  ---
+  duration_ms: 1297.502956
+  type: 'test'
+  ...
+# Subtest: shared logout fences a held local rotation while signed out
+ok 25 - shared logout fences a held local rotation while signed out
+  ---
+  duration_ms: 962.828194
+  type: 'test'
+  ...
+# Subtest: shared logout fences a held local rotation across Bob's login
+ok 26 - shared logout fences a held local rotation across Bob's login
+  ---
+  duration_ms: 1321.879769
+  type: 'test'
+  ...
+# Subtest: a sign-in started before another app's logout cannot overwrite its later login
+ok 27 - a sign-in started before another app's logout cannot overwrite its later login
+  ---
+  duration_ms: 994.188477
+  type: 'test'
+  ...
+# Subtest: restoration cleanup of invalid JSON preserves a replacement written after its read
+ok 28 - restoration cleanup of invalid JSON preserves a replacement written after its read
+  ---
+  duration_ms: 546.324762
+  type: 'test'
+  ...
+# Subtest: restoration cleanup of expired session preserves a replacement written after its read
+ok 29 - restoration cleanup of expired session preserves a replacement written after its read
+  ---
+  duration_ms: 197.383824
+  type: 'test'
+  ...
+# Subtest: expired stored-session cleanup deletes bytes without revoking the live bearer
+ok 30 - expired stored-session cleanup deletes bytes without revoking the live bearer
+  ---
+  duration_ms: 152.985745
+  type: 'test'
+  ...
+# Subtest: refresh started after a shared logout refuses before dispatch even if remote logout failed
+ok 31 - refresh started after a shared logout refuses before dispatch even if remote logout failed
+  ---
+  duration_ms: 648.620747
+  type: 'test'
+  ...
+# Subtest: offline logout replaces credentials when its epoch write exceeds quota
+ok 32 - offline logout replaces credentials when its epoch write exceeds quota
+  ---
+  duration_ms: 146.717478
+  type: 'test'
+  ...
+# Subtest: offline logout replaces credentials when its epoch write keeps failing
+ok 33 - offline logout replaces credentials when its epoch write keeps failing
+  ---
+  duration_ms: 145.981154
+  type: 'test'
+  ...
+# Subtest: near-expiry restoration defers automatic refresh until journal opening and comparison commit succeed
+ok 34 - near-expiry restoration defers automatic refresh until journal opening and comparison commit succeed
+  ---
+  duration_ms: 194.67265
+  type: 'test'
+  ...
+# Subtest: logout tombstone fences another app's held refresh when storage rejects the epoch key
+ok 35 - logout tombstone fences another app's held refresh when storage rejects the epoch key
+  ---
+  duration_ms: 925.912873
+  type: 'test'
+  ...
+# Subtest: logout tombstone fences another app's held login when storage rejects the epoch key
+ok 36 - logout tombstone fences another app's held login when storage rejects the epoch key
+  ---
+  duration_ms: 1279.778884
+  type: 'test'
+  ...
+# Subtest: logout tombstone fences another app's held refresh when quota blocks the epoch key
+ok 37 - logout tombstone fences another app's held refresh when quota blocks the epoch key
+  ---
+  duration_ms: 927.696647
+  type: 'test'
+  ...
+# Subtest: logout tombstone fences another app's held login when quota blocks the epoch key
+ok 38 - logout tombstone fences another app's held login when quota blocks the epoch key
+  ---
+  duration_ms: 1358.376612
+  type: 'test'
+  ...
+# Subtest: logout does not delete or revoke before either durable fence can be stored
+ok 39 - logout does not delete or revoke before either durable fence can be stored
+  ---
+  duration_ms: 204.762095
+  type: 'test'
+  ...
+# Subtest: invalid local asset budget -1 leaves a restored bearer untouched
+ok 40 - invalid local asset budget -1 leaves a restored bearer untouched
+  ---
+  duration_ms: 1112.856866
+  type: 'test'
+  ...
+# Subtest: invalid local asset budget 1.5 leaves a restored bearer untouched
+ok 41 - invalid local asset budget 1.5 leaves a restored bearer untouched
+  ---
+  duration_ms: 1112.906901
+  type: 'test'
+  ...
+# Subtest: failed fence revokes a discarded refresh before logout retry
+ok 42 - failed fence revokes a discarded refresh before logout retry
+  ---
+  duration_ms: 462.612205
+  type: 'test'
+  ...
+# Subtest: failed fence revokes a discarded refresh after logout retry
+ok 43 - failed fence revokes a discarded refresh after logout retry
+  ---
+  duration_ms: 548.414244
+  type: 'test'
+  ...
+# Subtest: failed fence revokes a discarded login before logout retry
+ok 44 - failed fence revokes a discarded login before logout retry
+  ---
+  duration_ms: 888.488228
+  type: 'test'
+  ...
+# Subtest: failed fence revokes a discarded login after logout retry
+ok 45 - failed fence revokes a discarded login after logout retry
+  ---
+  duration_ms: 1138.526988
+  type: 'test'
+  ...
+# Subtest: logout retry revokes a discarded login after its token-comparison read throws
+ok 46 - logout retry revokes a discarded login after its token-comparison read throws
+  ---
+  duration_ms: 1511.594444
+  type: 'test'
+  ...
+# Subtest: logout retry drains deferred revocation after a newer login of the same account
+ok 47 - logout retry drains deferred revocation after a newer login of the same account
+  ---
+  duration_ms: 1004.06353
+  type: 'test'
+  ...
+# Subtest: sign-in keeps the tombstone until its epoch promotion is durable
+ok 48 - sign-in keeps the tombstone until its epoch promotion is durable
+  ---
+  duration_ms: 152.56916
+  type: 'test'
+  ...
+# Subtest: local restoration captures the asset budget before the caller mutates it
+ok 49 - local restoration captures the asset budget before the caller mutates it
+  ---
+  duration_ms: 197.425817
+  type: 'test'
+  ...
+# Subtest: the native instrumentation hook receives createApp's own restored client
+ok 50 - the native instrumentation hook receives createApp's own restored client
+  ---
+  duration_ms: 222.010503
+  type: 'test'
+  ...
+# Subtest: native smoke observes only the published replacement of a near-expiry restored session
+ok 51 - native smoke observes only the published replacement of a near-expiry restored session
+  ---
+  duration_ms: 326.293146
+  type: 'test'
+  ...
+# Subtest: committed refresh body survives sign-out and its unkept bearer is revoked
+ok 52 - committed refresh body survives sign-out and its unkept bearer is revoked
+  ---
+  duration_ms: 180.010579
+  type: 'test'
+  ...
+# Subtest: committed refresh body survives replacement and its unkept bearer is revoked
+ok 53 - committed refresh body survives replacement and its unkept bearer is revoked
+  ---
+  duration_ms: 645.095791
+  type: 'test'
+  ...
+# Subtest: local close cancels a mutation caller without aborting its committed response
+ok 54 - local close cancels a mutation caller without aborting its committed response
+  ---
+  duration_ms: 2287.540877
+  type: 'test'
+  ...
+# Subtest: local close cancels a upload caller without aborting its committed response
+ok 55 - local close cancels a upload caller without aborting its committed response
+  ---
+  duration_ms: 229.218168
+  type: 'test'
+  ...
+# Subtest: online app keeps an unrotated bearer when refresh rejects before replacement reopens
+ok 56 - online app keeps an unrotated bearer when refresh rejects before replacement reopens
+  ---
+  duration_ms: 916.671439
+  type: 'test'
+  ...
+# Subtest: online app keeps an unrotated bearer when refresh rejects after replacement reopens
+ok 57 - online app keeps an unrotated bearer when refresh rejects after replacement reopens
+  ---
+  duration_ms: 1000.601991
+  type: 'test'
+  ...
+# Subtest: sign-in after a failed fence advances the epoch in the same runtime
+ok 58 - sign-in after a failed fence advances the epoch in the same runtime
+  ---
+  duration_ms: 662.030448
+  type: 'test'
+  ...
+# Subtest: sign-in after a failed fence advances the epoch after restart
+ok 59 - sign-in after a failed fence advances the epoch after restart
+  ---
+  duration_ms: 565.863792
+  type: 'test'
+  ...
+# Subtest: displaced-bearer revocation survives restart after offline instead of acknowledgement
+ok 60 - displaced-bearer revocation survives restart after offline instead of acknowledgement
+  ---
+  duration_ms: 294.246564
+  type: 'test'
+  ...
+# Subtest: displaced-bearer revocation survives restart after refusal instead of acknowledgement
+ok 61 - displaced-bearer revocation survives restart after refusal instead of acknowledgement
+  ---
+  duration_ms: 653.422394
+  type: 'test'
+  ...
+# Subtest: failed journal write during sign-in preserves the displaced session bytes
+ok 62 - failed journal write during sign-in preserves the displaced session bytes
+  ---
+  duration_ms: 164.046507
+  type: 'test'
+  ...
+# Subtest: failed epoch write during sign-in preserves the displaced session bytes
+ok 63 - failed epoch write during sign-in preserves the displaced session bytes
+  ---
+  duration_ms: 154.946054
+  type: 'test'
+  ...
+# Subtest: failed bearer write during sign-in preserves the displaced session bytes
+ok 64 - failed bearer write during sign-in preserves the displaced session bytes
+  ---
+  duration_ms: 151.500599
+  type: 'test'
+  ...
+# Subtest: a comparison read failure retains a discarded login for the next successful logout
+ok 65 - a comparison read failure retains a discarded login for the next successful logout
+  ---
+  duration_ms: 1136.404276
+  type: 'test'
+  ...
+# Subtest: a comparison read failure retains a discarded login for the next successful sign-in
+ok 66 - a comparison read failure retains a discarded login for the next successful sign-in
+  ---
+  duration_ms: 1516.171676
+  type: 'test'
+  ...
+# Subtest: a foreign revocation journal never sends its bearer to this backend
+ok 67 - a foreign revocation journal never sends its bearer to this backend
+  ---
+  duration_ms: 132.171952
+  type: 'test'
+  ...
+# Subtest: replacement preserves a guest when fourth save fails
+ok 68 - replacement preserves a guest when fourth save fails
+  ---
+  duration_ms: 152.16173
+  type: 'test'
+  ...
+# Subtest: replacement preserves a guest when device opening fails
+ok 69 - replacement preserves a guest when device opening fails
+  ---
+  duration_ms: 214.758941
+  type: 'test'
+  ...
+# Subtest: failed replacement cannot advance the epoch or make a peer revoke the stored bearer
+ok 70 - failed replacement cannot advance the epoch or make a peer revoke the stored bearer
+  ---
+  duration_ms: 501.944539
+  type: 'test'
+  ...
+# Subtest: acknowledged retirement removes journal and tombstone entries
+ok 71 - acknowledged retirement removes journal and tombstone entries
+  ---
+  duration_ms: 1511.544488
+  type: 'test'
+  ...
+# Subtest: an observed replacement fences device reads, cached watches and native asset credentials
+ok 72 - an observed replacement fences device reads, cached watches and native asset credentials
+  ---
+  duration_ms: 133.788636
+  type: 'test'
+  ...
+# Subtest: a provisional online login cannot replay pending writes before its session commits
+ok 73 - a provisional online login cannot replay pending writes before its session commits
+  ---
+  duration_ms: 1228.443774
+  type: 'test'
+  ...
+# Subtest: failed local restoration cannot consume a near-expiry guest before device opening succeeds
+ok 74 - failed local restoration cannot consume a near-expiry guest before device opening succeeds
+  ---
+  duration_ms: 161.056024
+  type: 'test'
+  ...
+# Subtest: foreign tombstone retirement credentials are preserved without dispatch
+ok 75 - foreign tombstone retirement credentials are preserved without dispatch
+  ---
+  duration_ms: 11.918147
+  type: 'test'
+  ...
+# Subtest: Client signOut and logoutAll use the app's atomic logout boundary
+ok 76 - Client signOut and logoutAll use the app's atomic logout boundary
+  ---
+  duration_ms: 163.721199
+  type: 'test'
+  ...
+# Subtest: session custody preserves a class store's methods and receiver
+ok 77 - session custody preserves a class store's methods and receiver
+  ---
+  duration_ms: 3.598554
+  type: 'test'
+  ...
+# Subtest: a session comparison read failure returns client refusals without losing identity
+ok 78 - a session comparison read failure returns client refusals without losing identity
+  ---
+  duration_ms: 999.055723
+  type: 'test'
+  ...
+1..78
+# tests 78
+# suites 0
+# pass 78
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 55055.095309
+-- process inspection: {"snapshots":3,"unrelatedRows":3659}
+-- client file ok: packages/snapback4/test/app.test.mjs (55328 ms)
+-- client files: 3/3; failed 0; tests {"tests":125,"pass":125,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -1,0 +1,2041 @@
+{
+  "baseline-whole-unit": {
+    "command": [
+      "target/debug/deps/snapback4-54c72c0d37cc6d9b",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "74,75",
+    "busy_pids": [
+      3279899,
+      3279900,
+      3279901,
+      3279902,
+      3279903,
+      3279904
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 39.856
+      },
+      {
+        "round": 2,
+        "status": 101,
+        "seconds": 40.611
+      },
+      {
+        "round": 3,
+        "status": 101,
+        "seconds": 40.758
+      },
+      {
+        "round": 4,
+        "status": 101,
+        "seconds": 40.308
+      },
+      {
+        "round": 5,
+        "status": 101,
+        "seconds": 40.459
+      }
+    ],
+    "failures_by_case": {
+      "serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording": 1,
+      "verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export": 2,
+      "verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained": 2
+    },
+    "outer_rust_results": {
+      "test result: ok. 334 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 39.71s": 1,
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 40.44s": 1,
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 40.65s": 1,
+      "test result: FAILED. 332 passed; 2 failed; 4 ignored; 0 measured; 0 filtered out; finished in 40.22s": 1,
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 40.34s": 1
+    }
+  },
+  "baseline-witness": {
+    "command": [
+      "target/debug/deps/snapback4-54c72c0d37cc6d9b",
+      "witness",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "72,73",
+    "busy_pids": [
+      3241438,
+      3241439,
+      3241440,
+      3241441,
+      3241442,
+      3241443
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 30.684
+      },
+      {
+        "round": 2,
+        "status": 101,
+        "seconds": 30.587
+      },
+      {
+        "round": 3,
+        "status": 101,
+        "seconds": 30.535
+      },
+      {
+        "round": 4,
+        "status": 101,
+        "seconds": 30.688
+      },
+      {
+        "round": 5,
+        "status": 101,
+        "seconds": 31.588
+      },
+      {
+        "round": 6,
+        "status": 101,
+        "seconds": 30.183
+      },
+      {
+        "round": 7,
+        "status": 101,
+        "seconds": 30.155
+      },
+      {
+        "round": 8,
+        "status": 101,
+        "seconds": 30.586
+      },
+      {
+        "round": 9,
+        "status": 101,
+        "seconds": 32.089
+      },
+      {
+        "round": 10,
+        "status": 101,
+        "seconds": 29.835
+      },
+      {
+        "round": 11,
+        "status": 101,
+        "seconds": 31.691
+      },
+      {
+        "round": 12,
+        "status": 101,
+        "seconds": 30.888
+      },
+      {
+        "round": 13,
+        "status": 101,
+        "seconds": 30.289
+      },
+      {
+        "round": 14,
+        "status": 101,
+        "seconds": 30.386
+      },
+      {
+        "round": 15,
+        "status": 101,
+        "seconds": 31.336
+      },
+      {
+        "round": 16,
+        "status": 101,
+        "seconds": 30.886
+      },
+      {
+        "round": 17,
+        "status": 101,
+        "seconds": 32.038
+      },
+      {
+        "round": 18,
+        "status": 101,
+        "seconds": 31.688
+      },
+      {
+        "round": 19,
+        "status": 101,
+        "seconds": 33.535
+      },
+      {
+        "round": 20,
+        "status": 101,
+        "seconds": 33.54
+      },
+      {
+        "round": 21,
+        "status": 101,
+        "seconds": 32.881
+      },
+      {
+        "round": 22,
+        "status": 101,
+        "seconds": 32.938
+      },
+      {
+        "round": 23,
+        "status": 101,
+        "seconds": 26.264
+      },
+      {
+        "round": 24,
+        "status": 101,
+        "seconds": 26.071
+      },
+      {
+        "round": 25,
+        "status": 101,
+        "seconds": 23.267
+      },
+      {
+        "round": 26,
+        "status": 101,
+        "seconds": 23.818
+      },
+      {
+        "round": 27,
+        "status": 101,
+        "seconds": 24.32
+      },
+      {
+        "round": 28,
+        "status": 101,
+        "seconds": 24.27
+      },
+      {
+        "round": 29,
+        "status": 101,
+        "seconds": 24.521
+      },
+      {
+        "round": 30,
+        "status": 101,
+        "seconds": 24.621
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity": 4,
+      "verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained": 30,
+      "verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending": 6,
+      "verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune": 9,
+      "verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export": 1,
+      "verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence": 1,
+      "verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 69 passed; 3 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.63s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.55s": 1,
+      "test result: FAILED. 69 passed; 3 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.48s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.64s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 31.56s": 1,
+      "test result: FAILED. 68 passed; 4 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.16s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.10s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.54s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 32.04s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 29.78s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 31.65s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.82s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.22s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.32s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 31.30s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 30.86s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 31.99s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 31.66s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.48s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.50s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 32.84s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 32.92s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 26.20s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 26.01s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 23.21s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 23.77s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 24.29s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 24.24s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 24.46s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 24.59s": 1
+    }
+  },
+  "baseline-workers": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=2",
+      "--test-name-pattern=snapshot refuses|declares two workers",
+      "packages/snapback4/test/worker-regressions.test.mjs",
+      "packages/snapback4/test/supervised-workers.test.mjs"
+    ],
+    "cpus": "72,73",
+    "busy_pids": [
+      3238868,
+      3238869,
+      3238870,
+      3238871,
+      3238872,
+      3238873
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 367.656
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "control-delayed": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=3",
+      "--test-name-pattern=declares two workers",
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-delayed.test.mjs"
+    ],
+    "cpus": "78,79",
+    "busy_pids": [
+      3379536,
+      3379537,
+      3379538,
+      3379539,
+      3379540,
+      3379541
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 12.643
+      },
+      {
+        "round": 2,
+        "status": 0,
+        "seconds": 12.046
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 12.44
+      },
+      {
+        "round": 4,
+        "status": 0,
+        "seconds": 12.84
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 12.243
+      },
+      {
+        "round": 6,
+        "status": 0,
+        "seconds": 12.197
+      },
+      {
+        "round": 7,
+        "status": 0,
+        "seconds": 6.078
+      },
+      {
+        "round": 8,
+        "status": 0,
+        "seconds": 5.726
+      },
+      {
+        "round": 9,
+        "status": 0,
+        "seconds": 5.276
+      },
+      {
+        "round": 10,
+        "status": 0,
+        "seconds": 5.489
+      },
+      {
+        "round": 11,
+        "status": 0,
+        "seconds": 5.427
+      },
+      {
+        "round": 12,
+        "status": 0,
+        "seconds": 5.426
+      },
+      {
+        "round": 13,
+        "status": 0,
+        "seconds": 5.327
+      },
+      {
+        "round": 14,
+        "status": 0,
+        "seconds": 5.527
+      },
+      {
+        "round": 15,
+        "status": 0,
+        "seconds": 5.827
+      },
+      {
+        "round": 16,
+        "status": 0,
+        "seconds": 5.977
+      },
+      {
+        "round": 17,
+        "status": 0,
+        "seconds": 5.276
+      },
+      {
+        "round": 18,
+        "status": 0,
+        "seconds": 5.426
+      },
+      {
+        "round": 19,
+        "status": 0,
+        "seconds": 5.228
+      },
+      {
+        "round": 20,
+        "status": 0,
+        "seconds": 5.327
+      },
+      {
+        "round": 21,
+        "status": 0,
+        "seconds": 5.325
+      },
+      {
+        "round": 22,
+        "status": 0,
+        "seconds": 5.377
+      },
+      {
+        "round": 23,
+        "status": 0,
+        "seconds": 5.327
+      },
+      {
+        "round": 24,
+        "status": 0,
+        "seconds": 5.277
+      },
+      {
+        "round": 25,
+        "status": 0,
+        "seconds": 5.376
+      },
+      {
+        "round": 26,
+        "status": 0,
+        "seconds": 5.327
+      },
+      {
+        "round": 27,
+        "status": 0,
+        "seconds": 5.232
+      },
+      {
+        "round": 28,
+        "status": 0,
+        "seconds": 5.477
+      },
+      {
+        "round": 29,
+        "status": 0,
+        "seconds": 5.176
+      },
+      {
+        "round": 30,
+        "status": 0,
+        "seconds": 5.576
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "control-missing-logs": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=3",
+      "--test-name-pattern=^dev declares two workers",
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-missing-logs.test.mjs"
+    ],
+    "cpus": "78,79",
+    "busy_pids": [
+      3346322,
+      3346324,
+      3346325,
+      3346326,
+      3346327,
+      3346329
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 1,
+        "seconds": 124.335
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "control-missing-refusal": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=3",
+      "--test-name-pattern=named snapshot refuses",
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-missing-refusal-snapback.test.mjs",
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-missing-refusal-project.test.mjs",
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-missing-refusal-ancestor.test.mjs"
+    ],
+    "cpus": "78,79",
+    "busy_pids": [
+      3345825,
+      3345826,
+      3345827,
+      3345828,
+      3345829,
+      3345830
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 1,
+        "seconds": 122.986
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "control-old-observer": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=3",
+      "--test-name-pattern=^dev declares two workers",
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/packages/snapback4/test/.fs-control-old-observer.test.mjs"
+    ],
+    "cpus": "78,79",
+    "busy_pids": [
+      3379716,
+      3379717,
+      3379718,
+      3379719,
+      3379720,
+      3379721
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 1,
+        "seconds": 4.173
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "control-rust-deadline": {
+    "command": [
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-deadline",
+      "--exact",
+      "verbs::witness::preparation_deadline::tests::completion_receipt_does_not_charge_later_cleanup_to_preparation",
+      "--nocapture"
+    ],
+    "cpus": "82,83",
+    "busy_pids": [
+      3541883,
+      3541884,
+      3541885,
+      3541886,
+      3541887,
+      3541888
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 0.032
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::preparation_deadline::tests::completion_receipt_does_not_charge_later_cleanup_to_preparation": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.00s": 1
+    }
+  },
+  "control-rust-lease": {
+    "command": [
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-lease",
+      "--exact",
+      "verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop",
+      "--nocapture"
+    ],
+    "cpus": "82,83",
+    "busy_pids": [
+      3435541,
+      3435542,
+      3435543,
+      3435544,
+      3435545,
+      3435546
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 0.065
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::preparation::tests::lease_fork_fixture": 1,
+      "verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 337 filtered out; finished in 0.03s": 1
+    }
+  },
+  "control-rust-ownerless": {
+    "command": [
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-ownerless",
+      "--exact",
+      "verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence",
+      "--nocapture"
+    ],
+    "cpus": "82,83",
+    "busy_pids": [
+      3700188,
+      3700189,
+      3700190,
+      3700191,
+      3700192,
+      3700193
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 0.064
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.04s": 1
+    }
+  },
+  "control-rust-recovery": {
+    "command": [
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-recovery",
+      "--exact",
+      "verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending",
+      "--nocapture"
+    ],
+    "cpus": "82,83",
+    "busy_pids": [
+      3433315,
+      3433316,
+      3433317,
+      3433318,
+      3433319,
+      3433320
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 0.165
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 337 filtered out; finished in 0.14s": 1
+    }
+  },
+  "control-rust-retention": {
+    "command": [
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-retention",
+      "--exact",
+      "verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity",
+      "--nocapture"
+    ],
+    "cpus": "82,83",
+    "busy_pids": [
+      3431195,
+      3431196,
+      3431197,
+      3431198,
+      3431200,
+      3431201
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 0.065
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 337 filtered out; finished in 0.02s": 1
+    }
+  },
+  "control-rust-smoke": {
+    "command": [
+      "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-smoke",
+      "--exact",
+      "verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock",
+      "--nocapture"
+    ],
+    "cpus": "82,83",
+    "busy_pids": [
+      3428943,
+      3428944,
+      3428945,
+      3428946,
+      3428947,
+      3428948
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 0.065
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 337 filtered out; finished in 0.03s": 1
+    }
+  },
+  "final-deadline-receipt": {
+    "command": [
+      "target/fs-final/debug/deps/fs-unit",
+      "--exact",
+      "verbs::witness::preparation_deadline::tests::completion_receipt_does_not_charge_later_cleanup_to_preparation",
+      "--nocapture"
+    ],
+    "cpus": "88,89",
+    "busy_pids": [
+      3598513,
+      3598514,
+      3598515,
+      3598516,
+      3598517,
+      3598518
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 0.065
+      },
+      {
+        "round": 2,
+        "status": 0,
+        "seconds": 0.065
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 0.032
+      },
+      {
+        "round": 4,
+        "status": 0,
+        "seconds": 0.033
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 0.032
+      },
+      {
+        "round": 6,
+        "status": 0,
+        "seconds": 0.016
+      },
+      {
+        "round": 7,
+        "status": 0,
+        "seconds": 0.033
+      },
+      {
+        "round": 8,
+        "status": 0,
+        "seconds": 0.016
+      },
+      {
+        "round": 9,
+        "status": 0,
+        "seconds": 0.032
+      },
+      {
+        "round": 10,
+        "status": 0,
+        "seconds": 0.016
+      },
+      {
+        "round": 11,
+        "status": 0,
+        "seconds": 0.064
+      },
+      {
+        "round": 12,
+        "status": 0,
+        "seconds": 0.09
+      },
+      {
+        "round": 13,
+        "status": 0,
+        "seconds": 0.08
+      },
+      {
+        "round": 14,
+        "status": 0,
+        "seconds": 0.065
+      },
+      {
+        "round": 15,
+        "status": 0,
+        "seconds": 0.032
+      },
+      {
+        "round": 16,
+        "status": 0,
+        "seconds": 0.033
+      },
+      {
+        "round": 17,
+        "status": 0,
+        "seconds": 0.032
+      },
+      {
+        "round": 18,
+        "status": 0,
+        "seconds": 0.016
+      },
+      {
+        "round": 19,
+        "status": 0,
+        "seconds": 0.032
+      },
+      {
+        "round": 20,
+        "status": 0,
+        "seconds": 0.016
+      },
+      {
+        "round": 21,
+        "status": 0,
+        "seconds": 0.071
+      },
+      {
+        "round": 22,
+        "status": 0,
+        "seconds": 0.066
+      },
+      {
+        "round": 23,
+        "status": 0,
+        "seconds": 0.069
+      },
+      {
+        "round": 24,
+        "status": 0,
+        "seconds": 0.069
+      },
+      {
+        "round": 25,
+        "status": 0,
+        "seconds": 0.137
+      },
+      {
+        "round": 26,
+        "status": 0,
+        "seconds": 0.033
+      },
+      {
+        "round": 27,
+        "status": 0,
+        "seconds": 0.064
+      },
+      {
+        "round": 28,
+        "status": 0,
+        "seconds": 0.064
+      },
+      {
+        "round": 29,
+        "status": 0,
+        "seconds": 0.033
+      },
+      {
+        "round": 30,
+        "status": 0,
+        "seconds": 0.065
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.04s": 6,
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.01s": 11,
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.00s": 1,
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.03s": 5,
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.02s": 6,
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.06s": 1
+    }
+  },
+  "final-whole-unit": {
+    "command": [
+      "target/fs-final/debug/deps/fs-unit",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "86,87",
+    "busy_pids": [
+      3529394,
+      3529395,
+      3529396,
+      3529397,
+      3529399,
+      3529401
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 45.211
+      },
+      {
+        "round": 2,
+        "status": 101,
+        "seconds": 44.606
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 45.709
+      },
+      {
+        "round": 4,
+        "status": 0,
+        "seconds": 46.421
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 43.96
+      }
+    ],
+    "failures_by_case": {
+      "serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording": 1
+    },
+    "outer_rust_results": {
+      "test result: ok. 335 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 45.09s": 1,
+      "test result: FAILED. 334 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 44.51s": 1,
+      "test result: ok. 335 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 45.56s": 1,
+      "test result: ok. 335 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 46.32s": 1,
+      "test result: ok. 335 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 43.83s": 1
+    }
+  },
+  "final-witness": {
+    "command": [
+      "target/fs-final/debug/deps/fs-unit",
+      "witness",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "84,85",
+    "busy_pids": [
+      3528954,
+      3528955,
+      3528956,
+      3528957,
+      3528958,
+      3528959,
+      3528960,
+      3528961,
+      3528962,
+      3528963,
+      3528964,
+      3528965
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 41.858
+      },
+      {
+        "round": 2,
+        "status": 0,
+        "seconds": 42.556
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 42.761
+      },
+      {
+        "round": 4,
+        "status": 101,
+        "seconds": 42.308
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 41.41
+      },
+      {
+        "round": 6,
+        "status": 0,
+        "seconds": 40.992
+      },
+      {
+        "round": 7,
+        "status": 0,
+        "seconds": 41.847
+      },
+      {
+        "round": 8,
+        "status": 0,
+        "seconds": 42.461
+      },
+      {
+        "round": 9,
+        "status": 0,
+        "seconds": 41.546
+      },
+      {
+        "round": 10,
+        "status": 0,
+        "seconds": 41.863
+      },
+      {
+        "round": 11,
+        "status": 0,
+        "seconds": 40.807
+      },
+      {
+        "round": 12,
+        "status": 0,
+        "seconds": 40.806
+      },
+      {
+        "round": 13,
+        "status": 0,
+        "seconds": 40.003
+      },
+      {
+        "round": 14,
+        "status": 0,
+        "seconds": 40.254
+      },
+      {
+        "round": 15,
+        "status": 0,
+        "seconds": 40.054
+      },
+      {
+        "round": 16,
+        "status": 0,
+        "seconds": 39.803
+      },
+      {
+        "round": 17,
+        "status": 0,
+        "seconds": 38.801
+      },
+      {
+        "round": 18,
+        "status": 0,
+        "seconds": 39.104
+      },
+      {
+        "round": 19,
+        "status": 0,
+        "seconds": 37.793
+      },
+      {
+        "round": 20,
+        "status": 0,
+        "seconds": 37.603
+      },
+      {
+        "round": 21,
+        "status": 0,
+        "seconds": 37.302
+      },
+      {
+        "round": 22,
+        "status": 0,
+        "seconds": 37.254
+      },
+      {
+        "round": 23,
+        "status": 0,
+        "seconds": 37.551
+      },
+      {
+        "round": 24,
+        "status": 0,
+        "seconds": 38.205
+      },
+      {
+        "round": 25,
+        "status": 0,
+        "seconds": 37.249
+      },
+      {
+        "round": 26,
+        "status": 0,
+        "seconds": 37.753
+      },
+      {
+        "round": 27,
+        "status": 0,
+        "seconds": 37.45
+      },
+      {
+        "round": 28,
+        "status": 0,
+        "seconds": 36.902
+      },
+      {
+        "round": 29,
+        "status": 0,
+        "seconds": 35.743
+      },
+      {
+        "round": 30,
+        "status": 0,
+        "seconds": 34.896
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper": 1
+    },
+    "outer_rust_results": {
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 41.83s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 42.52s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 42.72s": 1,
+      "test result: FAILED. 72 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 42.28s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 41.36s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 40.92s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 41.79s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 42.42s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 41.53s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 41.82s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 40.78s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 40.77s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 39.99s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 40.19s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 40.02s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 39.74s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 38.77s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 39.06s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.76s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.55s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.28s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.18s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.52s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 38.16s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.22s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.71s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 37.39s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 36.84s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 35.71s": 1,
+      "test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.83s": 1
+    }
+  },
+  "fixed-whole-unit": {
+    "command": [
+      "target/debug/deps/fs-fixed-unit",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "74,75",
+    "busy_pids": [
+      3407844,
+      3407845,
+      3407846,
+      3407847,
+      3407848,
+      3407849
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 39.657
+      },
+      {
+        "round": 2,
+        "status": 101,
+        "seconds": 41.81
+      },
+      {
+        "round": 3,
+        "status": 101,
+        "seconds": 40.825
+      },
+      {
+        "round": 4,
+        "status": 101,
+        "seconds": 42.266
+      },
+      {
+        "round": 5,
+        "status": 101,
+        "seconds": 41.568
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained": 5,
+      "serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 39.52s": 1,
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 41.69s": 1,
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 40.69s": 1,
+      "test result: FAILED. 332 passed; 2 failed; 4 ignored; 0 measured; 0 filtered out; finished in 42.12s": 1,
+      "test result: FAILED. 333 passed; 1 failed; 4 ignored; 0 measured; 0 filtered out; finished in 41.41s": 1
+    }
+  },
+  "fixed-witness": {
+    "command": [
+      "target/debug/deps/fs-fixed-unit",
+      "witness",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "72,73",
+    "busy_pids": [
+      3407506,
+      3407507,
+      3407508,
+      3407509,
+      3407510,
+      3407511,
+      3407512,
+      3407513,
+      3407514,
+      3407515,
+      3407516,
+      3407517
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 101,
+        "seconds": 33.942
+      },
+      {
+        "round": 2,
+        "status": 101,
+        "seconds": 34.384
+      },
+      {
+        "round": 3,
+        "status": 101,
+        "seconds": 33.54
+      },
+      {
+        "round": 4,
+        "status": 101,
+        "seconds": 34.844
+      },
+      {
+        "round": 5,
+        "status": 101,
+        "seconds": 34.894
+      },
+      {
+        "round": 6,
+        "status": 101,
+        "seconds": 33.992
+      },
+      {
+        "round": 7,
+        "status": 101,
+        "seconds": 33.44
+      },
+      {
+        "round": 8,
+        "status": 101,
+        "seconds": 33.833
+      },
+      {
+        "round": 9,
+        "status": 101,
+        "seconds": 34.798
+      },
+      {
+        "round": 10,
+        "status": 101,
+        "seconds": 34.093
+      },
+      {
+        "round": 11,
+        "status": 101,
+        "seconds": 32.987
+      },
+      {
+        "round": 12,
+        "status": 101,
+        "seconds": 34.641
+      },
+      {
+        "round": 13,
+        "status": 101,
+        "seconds": 33.591
+      },
+      {
+        "round": 14,
+        "status": 101,
+        "seconds": 33.242
+      },
+      {
+        "round": 15,
+        "status": 101,
+        "seconds": 34.388
+      },
+      {
+        "round": 16,
+        "status": 101,
+        "seconds": 34.995
+      },
+      {
+        "round": 17,
+        "status": 101,
+        "seconds": 34.041
+      },
+      {
+        "round": 18,
+        "status": 101,
+        "seconds": 34.143
+      },
+      {
+        "round": 19,
+        "status": 101,
+        "seconds": 36.441
+      },
+      {
+        "round": 20,
+        "status": 101,
+        "seconds": 35.938
+      },
+      {
+        "round": 21,
+        "status": 101,
+        "seconds": 42.408
+      },
+      {
+        "round": 22,
+        "status": 101,
+        "seconds": 35.289
+      },
+      {
+        "round": 23,
+        "status": 101,
+        "seconds": 35.138
+      },
+      {
+        "round": 24,
+        "status": 101,
+        "seconds": 36.398
+      },
+      {
+        "round": 25,
+        "status": 101,
+        "seconds": 36.232
+      },
+      {
+        "round": 26,
+        "status": 101,
+        "seconds": 34.239
+      },
+      {
+        "round": 27,
+        "status": 101,
+        "seconds": 35.136
+      },
+      {
+        "round": 28,
+        "status": 101,
+        "seconds": 36.298
+      },
+      {
+        "round": 29,
+        "status": 101,
+        "seconds": 35.241
+      },
+      {
+        "round": 30,
+        "status": 101,
+        "seconds": 34.443
+      }
+    ],
+    "failures_by_case": {
+      "verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained": 30,
+      "verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export": 1
+    },
+    "outer_rust_results": {
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.89s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.35s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.51s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.83s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.84s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.94s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.38s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.78s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.76s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.03s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 32.94s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.57s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.53s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.21s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.33s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.93s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 33.98s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.10s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 36.39s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 35.89s": 1,
+      "test result: FAILED. 70 passed; 2 failed; 0 ignored; 0 measured; 266 filtered out; finished in 42.37s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 35.24s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 35.10s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 36.38s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 36.17s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.21s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 35.07s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 36.24s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 35.22s": 1,
+      "test result: FAILED. 71 passed; 1 failed; 0 ignored; 0 measured; 266 filtered out; finished in 34.41s": 1
+    }
+  },
+  "fixed-workers": {
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=2",
+      "--test-name-pattern=snapshot refuses|declares two workers",
+      "packages/snapback4/test/worker-regressions.test.mjs",
+      "packages/snapback4/test/supervised-workers.test.mjs"
+    ],
+    "cpus": "76,77",
+    "busy_pids": [
+      3323134,
+      3323135,
+      3323136,
+      3323137,
+      3323138,
+      3323139
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 5.076
+      },
+      {
+        "round": 2,
+        "status": 0,
+        "seconds": 4.926
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 4.73
+      },
+      {
+        "round": 4,
+        "status": 0,
+        "seconds": 4.925
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 4.976
+      },
+      {
+        "round": 6,
+        "status": 0,
+        "seconds": 4.875
+      },
+      {
+        "round": 7,
+        "status": 0,
+        "seconds": 4.775
+      },
+      {
+        "round": 8,
+        "status": 0,
+        "seconds": 5.08
+      },
+      {
+        "round": 9,
+        "status": 0,
+        "seconds": 4.775
+      },
+      {
+        "round": 10,
+        "status": 0,
+        "seconds": 5.229
+      },
+      {
+        "round": 11,
+        "status": 0,
+        "seconds": 5.486
+      },
+      {
+        "round": 12,
+        "status": 0,
+        "seconds": 4.674
+      },
+      {
+        "round": 13,
+        "status": 0,
+        "seconds": 4.825
+      },
+      {
+        "round": 14,
+        "status": 0,
+        "seconds": 5.026
+      },
+      {
+        "round": 15,
+        "status": 0,
+        "seconds": 4.988
+      },
+      {
+        "round": 16,
+        "status": 0,
+        "seconds": 4.725
+      },
+      {
+        "round": 17,
+        "status": 0,
+        "seconds": 5.227
+      },
+      {
+        "round": 18,
+        "status": 0,
+        "seconds": 4.775
+      },
+      {
+        "round": 19,
+        "status": 0,
+        "seconds": 4.573
+      },
+      {
+        "round": 20,
+        "status": 0,
+        "seconds": 4.874
+      },
+      {
+        "round": 21,
+        "status": 0,
+        "seconds": 4.674
+      },
+      {
+        "round": 22,
+        "status": 0,
+        "seconds": 4.875
+      },
+      {
+        "round": 23,
+        "status": 0,
+        "seconds": 4.827
+      },
+      {
+        "round": 24,
+        "status": 0,
+        "seconds": 4.524
+      },
+      {
+        "round": 25,
+        "status": 0,
+        "seconds": 5.327
+      },
+      {
+        "round": 26,
+        "status": 0,
+        "seconds": 4.425
+      },
+      {
+        "round": 27,
+        "status": 0,
+        "seconds": 5.238
+      },
+      {
+        "round": 28,
+        "status": 0,
+        "seconds": 4.836
+      },
+      {
+        "round": 29,
+        "status": 0,
+        "seconds": 5.433
+      },
+      {
+        "round": 30,
+        "status": 0,
+        "seconds": 5.33
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "simctl-fixture": {
+    "command": [
+      "python3",
+      "reports/20261008-fs-witness-worker-flakes/simctl-control.py"
+    ],
+    "cpus": "80,81",
+    "busy_pids": [
+      3390864,
+      3390865,
+      3390866,
+      3390867,
+      3390868,
+      3390869
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 0.526
+      },
+      {
+        "round": 2,
+        "status": 0,
+        "seconds": 0.526
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 0.516
+      },
+      {
+        "round": 4,
+        "status": 0,
+        "seconds": 0.465
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 0.966
+      },
+      {
+        "round": 6,
+        "status": 0,
+        "seconds": 0.766
+      },
+      {
+        "round": 7,
+        "status": 0,
+        "seconds": 1.017
+      },
+      {
+        "round": 8,
+        "status": 0,
+        "seconds": 1.019
+      },
+      {
+        "round": 9,
+        "status": 0,
+        "seconds": 0.973
+      },
+      {
+        "round": 10,
+        "status": 0,
+        "seconds": 1.066
+      },
+      {
+        "round": 11,
+        "status": 0,
+        "seconds": 1.217
+      },
+      {
+        "round": 12,
+        "status": 0,
+        "seconds": 1.017
+      },
+      {
+        "round": 13,
+        "status": 0,
+        "seconds": 1.075
+      },
+      {
+        "round": 14,
+        "status": 0,
+        "seconds": 1.067
+      },
+      {
+        "round": 15,
+        "status": 0,
+        "seconds": 1.067
+      },
+      {
+        "round": 16,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 17,
+        "status": 0,
+        "seconds": 1.116
+      },
+      {
+        "round": 18,
+        "status": 0,
+        "seconds": 1.017
+      },
+      {
+        "round": 19,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 20,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 21,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 22,
+        "status": 0,
+        "seconds": 1.017
+      },
+      {
+        "round": 23,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 24,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 25,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 26,
+        "status": 0,
+        "seconds": 1.067
+      },
+      {
+        "round": 27,
+        "status": 0,
+        "seconds": 1.117
+      },
+      {
+        "round": 28,
+        "status": 0,
+        "seconds": 1.017
+      },
+      {
+        "round": 29,
+        "status": 0,
+        "seconds": 0.566
+      },
+      {
+        "round": 30,
+        "status": 0,
+        "seconds": 0.516
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "simctl-mutant": {
+    "command": [
+      "python3",
+      "reports/20261008-fs-witness-worker-flakes/simctl-control.py",
+      "--mutant"
+    ],
+    "cpus": "80,81",
+    "busy_pids": [
+      3408428,
+      3408429,
+      3408430,
+      3408431,
+      3408432,
+      3408433
+    ],
+    "busy_reaped": true,
+    "jobs": 1,
+    "results": [
+      {
+        "round": 1,
+        "status": 1,
+        "seconds": 0.465
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {}
+  },
+  "witness-integration": {
+    "command": [
+      "target/debug/deps/witness-b743be7b57bb153f",
+      "--test-threads=4",
+      "--nocapture"
+    ],
+    "cpus": "80,81",
+    "busy_pids": [
+      3391212,
+      3391213,
+      3391214,
+      3391215,
+      3391216,
+      3391217
+    ],
+    "busy_reaped": true,
+    "jobs": 2,
+    "results": [
+      {
+        "round": 1,
+        "status": 0,
+        "seconds": 1.168
+      },
+      {
+        "round": 2,
+        "status": 0,
+        "seconds": 1.03
+      },
+      {
+        "round": 3,
+        "status": 0,
+        "seconds": 0.916
+      },
+      {
+        "round": 4,
+        "status": 0,
+        "seconds": 0.866
+      },
+      {
+        "round": 5,
+        "status": 0,
+        "seconds": 0.867
+      },
+      {
+        "round": 6,
+        "status": 0,
+        "seconds": 0.866
+      },
+      {
+        "round": 7,
+        "status": 0,
+        "seconds": 0.767
+      },
+      {
+        "round": 8,
+        "status": 0,
+        "seconds": 0.866
+      },
+      {
+        "round": 9,
+        "status": 0,
+        "seconds": 0.867
+      },
+      {
+        "round": 10,
+        "status": 0,
+        "seconds": 0.785
+      },
+      {
+        "round": 11,
+        "status": 0,
+        "seconds": 0.867
+      },
+      {
+        "round": 12,
+        "status": 0,
+        "seconds": 0.816
+      },
+      {
+        "round": 13,
+        "status": 0,
+        "seconds": 0.867
+      },
+      {
+        "round": 14,
+        "status": 0,
+        "seconds": 0.666
+      },
+      {
+        "round": 15,
+        "status": 0,
+        "seconds": 0.917
+      },
+      {
+        "round": 16,
+        "status": 0,
+        "seconds": 0.766
+      },
+      {
+        "round": 17,
+        "status": 0,
+        "seconds": 0.872
+      },
+      {
+        "round": 18,
+        "status": 0,
+        "seconds": 1.022
+      },
+      {
+        "round": 19,
+        "status": 0,
+        "seconds": 0.716
+      },
+      {
+        "round": 20,
+        "status": 0,
+        "seconds": 0.816
+      },
+      {
+        "round": 21,
+        "status": 0,
+        "seconds": 0.767
+      },
+      {
+        "round": 22,
+        "status": 0,
+        "seconds": 0.766
+      },
+      {
+        "round": 23,
+        "status": 0,
+        "seconds": 0.717
+      },
+      {
+        "round": 24,
+        "status": 0,
+        "seconds": 0.766
+      },
+      {
+        "round": 25,
+        "status": 0,
+        "seconds": 0.817
+      },
+      {
+        "round": 26,
+        "status": 0,
+        "seconds": 0.767
+      },
+      {
+        "round": 27,
+        "status": 0,
+        "seconds": 0.867
+      },
+      {
+        "round": 28,
+        "status": 0,
+        "seconds": 0.817
+      },
+      {
+        "round": 29,
+        "status": 0,
+        "seconds": 0.816
+      },
+      {
+        "round": 30,
+        "status": 0,
+        "seconds": 0.766
+      }
+    ],
+    "failures_by_case": {},
+    "outer_rust_results": {
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s": 2,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s": 3,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s": 3,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s": 3,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s": 2,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s": 1,
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s": 1
+    }
+  }
+}

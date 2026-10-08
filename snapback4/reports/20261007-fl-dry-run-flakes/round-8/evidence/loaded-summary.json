@@ -1,0 +1,278 @@
+{
+  "cpus": "80-87",
+  "busyLoops": 8,
+  "concurrentJobs": 4,
+  "loopPids": [
+    473830,
+    473831,
+    473832,
+    473833,
+    473834,
+    473835,
+    473836,
+    473837
+  ],
+  "loopsReaped": true,
+  "sourceHashes": {
+    "scripts/test-command-group.mjs": "6c0798ec3d989a6073519ca14b1a98ff50b633e67068b37320542036a6ddc88d",
+    "scripts/test-file-owner.mjs": "4e708993ba827a01fe390508be43bf56096e50807d6fe528a261b12ec5f73fbc",
+    "scripts/test-work-bounds.mjs": "b11f8d9ae6199448381d4c55f6d7fdabc6a297c778b9c78abfa15f49c82fc0b0",
+    "scripts/test-command-owner.mjs": "fbb398f8b8e8dfd80c75508cc74bd5dacfbf41b4803e2d3e98ddd40b793654b9",
+    "scripts/test-owned-command.mjs": "28929a418aaa4c689c939a6ea43e4af8ac615cedcda0ec6561be912dc67d21c1",
+    "scripts/test-signals.mjs": "e65c5d90f319c41d5ebfe0f97c581eadeef3b03cced8128efbb69da19250cd14",
+    "scripts/test-progress-reporter.mjs": "d0f14f8f0e9ff6dbf2c176e0350b9c50bee4ee38babbdf974c02a95765dc80a5",
+    "scripts/test-processes.mjs": "74d05aa5d102d68db31a7c7581ec975cab74ef9c3c95a4f99396e877c447125f",
+    "scripts/run-client-tests.mjs": "291911b7a7eb926dcfb95ca87121807c6abe05a6df9b3d868975f74f8d29137d",
+    "packages/snapback4/test/export-background.test.mjs": "2e2d32bf95a4691d19bbcc368ff68db220ae9342d4b4c7f8080bb19f0499638a",
+    "packages/snapback4/test/export-failure.test.mjs": "597c98b13ce78305783ddc91110b247e1aeb3c7d6fb89ad3935de2b7901f5503",
+    "packages/snapback4/test/test-processes.test.mjs": "7b2d74b4fc4bd6ee8f750aa971fa4cae4a2bc22faf915aa96d99a80702840f71",
+    "packages/snapback4/test/test-file-runner.test.mjs": "1fcb5510d29532d7c0c026c4ea30483411f1d49219da9c441d16b73afbca04cc",
+    "packages/snapback4/test/test-signals.test.mjs": "acc15547d5bead5082cf2afff90bc574fdda2da3ca4092804e1a71302c7641a1",
+    "packages/snapback4/test/helpers/fixture-signals.mjs": "e708a18995c1c852c575dda60279f16758b8043b5ad220bf0c858e6e3a7f03ca",
+    "packages/snapback4/test/helpers/fixture-command.mjs": "1f4609803cbd16fa5b3566cb9f98cfb5000dac44f49ba79b823eefb35ba78011"
+  },
+  "sourcesUnchanged": false,
+  "rounds": [
+    {
+      "round": 1,
+      "group": "background",
+      "status": 0,
+      "seconds": 528.98
+    },
+    {
+      "round": 1,
+      "group": "other",
+      "status": 0,
+      "seconds": 39.11
+    },
+    {
+      "round": 2,
+      "group": "background",
+      "status": 0,
+      "seconds": 525.94
+    },
+    {
+      "round": 2,
+      "group": "other",
+      "status": 0,
+      "seconds": 38.74
+    },
+    {
+      "round": 3,
+      "group": "background",
+      "status": 0,
+      "seconds": 544.23
+    },
+    {
+      "round": 3,
+      "group": "other",
+      "status": 0,
+      "seconds": 40.15
+    },
+    {
+      "round": 4,
+      "group": "background",
+      "status": 0,
+      "seconds": 563.37
+    },
+    {
+      "round": 4,
+      "group": "other",
+      "status": 0,
+      "seconds": 53.81
+    },
+    {
+      "round": 5,
+      "group": "background",
+      "status": 0,
+      "seconds": 605.53
+    },
+    {
+      "round": 5,
+      "group": "other",
+      "status": 0,
+      "seconds": 54.71
+    },
+    {
+      "round": 6,
+      "group": "background",
+      "status": 0,
+      "seconds": 587.7
+    },
+    {
+      "round": 6,
+      "group": "other",
+      "status": 0,
+      "seconds": 43.61
+    },
+    {
+      "round": 7,
+      "group": "background",
+      "status": 0,
+      "seconds": 580.09
+    },
+    {
+      "round": 7,
+      "group": "other",
+      "status": 0,
+      "seconds": 42.46
+    },
+    {
+      "round": 8,
+      "group": "background",
+      "status": 0,
+      "seconds": 570.5
+    },
+    {
+      "round": 8,
+      "group": "other",
+      "status": 0,
+      "seconds": 41.87
+    },
+    {
+      "round": 9,
+      "group": "background",
+      "status": 1,
+      "seconds": 587.01
+    },
+    {
+      "round": 9,
+      "group": "other",
+      "status": 0,
+      "seconds": 39.3
+    },
+    {
+      "round": 10,
+      "group": "background",
+      "status": 1,
+      "seconds": 581.35
+    },
+    {
+      "round": 10,
+      "group": "other",
+      "status": 0,
+      "seconds": 37.75
+    },
+    {
+      "round": 11,
+      "group": "background",
+      "status": 1,
+      "seconds": 564.18
+    },
+    {
+      "round": 11,
+      "group": "other",
+      "status": 0,
+      "seconds": 39.88
+    },
+    {
+      "round": 12,
+      "group": "background",
+      "status": 0,
+      "seconds": 489.83
+    },
+    {
+      "round": 12,
+      "group": "other",
+      "status": 0,
+      "seconds": 40.02
+    },
+    {
+      "round": 13,
+      "group": "background",
+      "status": 0,
+      "seconds": 548.92
+    },
+    {
+      "round": 13,
+      "group": "other",
+      "status": 0,
+      "seconds": 37.91
+    },
+    {
+      "round": 14,
+      "group": "background",
+      "status": 0,
+      "seconds": 592.05
+    },
+    {
+      "round": 14,
+      "group": "other",
+      "status": 0,
+      "seconds": 39.32
+    },
+    {
+      "round": 15,
+      "group": "background",
+      "status": 0,
+      "seconds": 612.33
+    },
+    {
+      "round": 15,
+      "group": "other",
+      "status": 0,
+      "seconds": 40.09
+    },
+    {
+      "round": 16,
+      "group": "background",
+      "status": 0,
+      "seconds": 693.18
+    },
+    {
+      "round": 16,
+      "group": "other",
+      "status": 0,
+      "seconds": 77.37
+    },
+    {
+      "round": 17,
+      "group": "background",
+      "status": 0,
+      "seconds": 991.52
+    },
+    {
+      "round": 17,
+      "group": "other",
+      "status": 0,
+      "seconds": 76.54
+    },
+    {
+      "round": 18,
+      "group": "background",
+      "status": 0,
+      "seconds": 993.77
+    },
+    {
+      "round": 18,
+      "group": "other",
+      "status": 0,
+      "seconds": 80.33
+    },
+    {
+      "round": 19,
+      "group": "background",
+      "status": 0,
+      "seconds": 992.15
+    },
+    {
+      "round": 19,
+      "group": "other",
+      "status": 0,
+      "seconds": 79.0
+    },
+    {
+      "round": 20,
+      "group": "background",
+      "status": 0,
+      "seconds": 989.74
+    },
+    {
+      "round": 20,
+      "group": "other",
+      "status": 0,
+      "seconds": 81.7
+    }
+  ],
+  "seconds": 3666.0
+}

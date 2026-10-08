@@ -1,0 +1,328 @@
+-- client file start: packages/snapback4/test/test-processes.test.mjs; stall bound 6900000 ms
+TAP version 13
+# Subtest: a ps taking over two seconds recovers and passes the file (before release)
+ok 1 - a ps taking over two seconds recovers and passes the file (before release)
+  ---
+  duration_ms: 6415.367346
+  type: 'test'
+  ...
+# Subtest: a ps taking over two seconds recovers and passes the file (cleanup verification)
+ok 2 - a ps taking over two seconds recovers and passes the file (cleanup verification)
+  ---
+  duration_ms: 6232.29198
+  type: 'test'
+  ...
+# Subtest: real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+ok 3 - real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+  ---
+  duration_ms: 21305.083966
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 34207.204091
+-- process inspection: {"snapshots":3,"unrelatedRows":3983}
+-- client file ok: packages/snapback4/test/test-processes.test.mjs (35065 ms)
+LOAD_RESULT {"key":"processes","file":"test-processes.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3983},"elapsed":35065,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":6900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-processes.test.mjs"}
+-- client file start: packages/snapback4/test/test-file-runner.test.mjs; stall bound 2400000 ms
+TAP version 13
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 1 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 1657.829224
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 2 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 1707.338152
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 3 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 1699.704769
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 4 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 13.177344
+  type: 'test'
+  ...
+# Subtest: group cleanup reaps an unsampled orphan after its sampled parent exits
+ok 5 - group cleanup reaps an unsampled orphan after its sampled parent exits
+  ---
+  duration_ms: 1340.332498
+  type: 'test'
+  ...
+# Subtest: native buffered synchronous tests are bounded until Node delivers progress
+ok 6 - native buffered synchronous tests are bounded until Node delivers progress
+  ---
+  duration_ms: 5631.95433
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 7 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 1866.444997
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 8 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 1716.920616
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 9 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 1859.495819
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 10 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 1780.526888
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 11 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 1724.96133
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 12 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 1731.44508
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 13 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 1448.794412
+  type: 'test'
+  ...
+# Subtest: reaped keeper before its exit callback cannot make the runner send a signal
+ok 14 - reaped keeper before its exit callback cannot make the runner send a signal
+  ---
+  duration_ms: 906.587185
+  type: 'test'
+  ...
+# Subtest: runner death closes the keeper pipe and kills its living group
+ok 15 - runner death closes the keeper pipe and kills its living group
+  ---
+  duration_ms: 940.029658
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26248.73503
+-- process inspection: {"snapshots":3,"unrelatedRows":3961}
+-- client file ok: packages/snapback4/test/test-file-runner.test.mjs (27143 ms)
+LOAD_RESULT {"key":"parity","file":"test-file-runner.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3961},"elapsed":27143,"counts":{"tests":15,"pass":15,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":2400000,"progressCount":32,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-file-runner.test.mjs"}
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 862.462598
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 124.321789
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 72.573745
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 117.251571
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 5 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 545.425491
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: none
+ok 6 - newborn command capture after empty exec state: none
+  ---
+  duration_ms: 66.278457
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different birth
+ok 7 - newborn command capture after empty exec state: different birth
+  ---
+  duration_ms: 104.438924
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: malformed command
+ok 8 - newborn command capture after empty exec state: malformed command
+  ---
+  duration_ms: 114.440427
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2249.030337
+-- process inspection: {"snapshots":3,"unrelatedRows":3947}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (3116 ms)
+LOAD_RESULT {"key":"signals","file":"test-signals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3947},"elapsed":3116,"counts":{"tests":8,"pass":8,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":18,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/test-signals.test.mjs"}
+-- client file start: packages/snapback4/test/export-failure.test.mjs; stall bound 13650000 ms
+TAP version 13
+# Subtest: installed CLI shim preserves each forwarded child termination signal
+ok 1 - installed CLI shim preserves each forwarded child termination signal
+  ---
+  duration_ms: 2167.725844
+  type: 'test'
+  ...
+# Subtest: real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim
+ok 2 - real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim
+  ---
+  duration_ms: 21816.971603
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24186.914308
+-- process inspection: {"snapshots":3,"unrelatedRows":3928}
+-- client file ok: packages/snapback4/test/export-failure.test.mjs (25130 ms)
+LOAD_RESULT {"key":"failure","file":"export-failure.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3928},"elapsed":25130,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":13650000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-failure.test.mjs"}
+-- client file start: packages/snapback4/test/export-native.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: retention keeps five completed runs, compresses older receipts and leaves active runs alone
+ok 1 - retention keeps five completed runs, compresses older receipts and leaves active runs alone
+  ---
+  duration_ms: 4320.4972
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4560.195179
+-- process inspection: {"snapshots":3,"unrelatedRows":3935}
+-- client file ok: packages/snapback4/test/export-native.test.mjs (5498 ms)
+LOAD_RESULT {"key":"native","file":"export-native.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3935},"elapsed":5498,"counts":{"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-native.test.mjs"}
+-- client file start: packages/snapback4/test/export-publication.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 432.652344
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 439.026089
+  type: 'test'
+  ...
+# Subtest: actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning
+ok 3 - actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning
+  ---
+  duration_ms: 1467.802066
+  type: 'test'
+  ...
+# Subtest: publication refuses changed inventory and a changed proof; no success receipt
+ok 4 - publication refuses changed inventory and a changed proof; no success receipt
+  ---
+  duration_ms: 289.610462
+  type: 'test'
+  ...
+# Subtest: SIGKILL releases the actual Node wrapper lease and cleanup recovers its run
+ok 5 - SIGKILL releases the actual Node wrapper lease and cleanup recovers its run
+  ---
+  duration_ms: 1152.878888
+  type: 'test'
+  ...
+# Subtest: publisher inherits custody if its Node wrapper is killed while publication is blocked
+ok 6 - publisher inherits custody if its Node wrapper is killed while publication is blocked
+  ---
+  duration_ms: 1248.656247
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5271.091686
+-- process inspection: {"snapshots":3,"unrelatedRows":3948}
+-- client file ok: packages/snapback4/test/export-publication.test.mjs (6129 ms)
+LOAD_RESULT {"key":"publication","file":"export-publication.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3948},"elapsed":6129,"counts":{"tests":6,"pass":6,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":14,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-publication.test.mjs"}
+-- client file start: packages/snapback4/test/schema-capability-refusals.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:3270158) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: refused native open and adoption preserve the timeline-v2 fixture
+ok 1 - refused native open and adoption preserve the timeline-v2 fixture
+  ---
+  duration_ms: 806.266816
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the recorded-attribution fixture
+ok 2 - refused native open and adoption preserve the recorded-attribution fixture
+  ---
+  duration_ms: 579.785941
+  type: 'test'
+  ...
+# Subtest: refused native open and adoption preserve the maintained-column fixture
+ok 3 - refused native open and adoption preserve the maintained-column fixture
+  ---
+  duration_ms: 576.188237
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2202.357189
+-- process inspection: {"snapshots":3,"unrelatedRows":4038}
+-- client file ok: packages/snapback4/test/schema-capability-refusals.test.mjs (3233 ms)
+LOAD_RESULT {"key":"schema","file":"schema-capability-refusals.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":4038},"elapsed":3233,"counts":{"tests":3,"pass":3,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":8,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/schema-capability-refusals.test.mjs"}

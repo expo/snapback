@@ -30,6 +30,12 @@ const fenceSkip=fenceSetting==='off'?'SNAPBACK4_FENCE_PUBLISHED=off':!fenceHost&
 // additive query key. RV additionally permits top-level commit certification on
 // apply/admit/settle only; their ok payloads and every query key stay exact.
 function sameAnswer(actual,published,message,operation='query') {
+  // LLP 3000.023 §11: commit-bound proof of unchanged rows after complete replay.
+  if(operation==='settle'&&Object.hasOwn(actual,'settlement_unchanged')&&!Object.hasOwn(published,'settlement_unchanged')) {
+    assert.ok(Object.hasOwn(actual,'ok')&&Object.hasOwn(published,'ok')&&!Object.hasOwn(actual,'denied')&&!Object.hasOwn(published,'denied'));
+    assert.equal(actual.settlement_unchanged,true);
+    const {settlement_unchanged:_unchanged,...rest}=actual;actual=rest;
+  }
   // LLP 3000.023 §12: private authority-preservation evidence, never query data.
   if(['apply','admit','settle'].includes(operation)&&Object.hasOwn(actual,'preserved')&&!Object.hasOwn(published,'preserved')) {
     assert.ok(Object.hasOwn(actual,'ok')&&Object.hasOwn(published,'ok')&&!Object.hasOwn(actual,'denied')&&!Object.hasOwn(published,'denied'),'commit evidence requires successful replies');
@@ -363,8 +369,11 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');
   // Pin the complete canonical 0.4 backend after the behavioral checks. This
   // fixture includes the new first-10 site spelling and selection explanation.
+  // SN adds settlement summaries to the program envelope (+150 bytes). Published
+  // 0.2.33 devices accept them: install/adopt/query/reopen passed above (also
+  // confirmed by the Apartment mini at 2baacccde1). Stored schema/IR stay unchanged.
   const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
-  assert.equal(pinned.length,2950);
+  assert.equal(pinned.length,3100);
   // /schema also reports the serving store's random identity (LLP 3000.007 §20.4),
   // which is not program content: pin the backend bytes without that last key.
   const schemaText=newApp.backendBytes.toString('utf8'),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
@@ -386,6 +395,10 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
 
 test('RV publication allowance is confined to commit evidence', () => {
   for(const op of ['apply','admit','settle']) sameAnswer({ok:null,preserved:['messages']},{ok:null},op,op);
+  sameAnswer({ok:null,settlement_unchanged:true},{ok:null},'unchanged settlement','settle');
+  for(const marker of [false,null,{},[],1,'true']) assert.throws(()=>sameAnswer({ok:null,settlement_unchanged:marker},{ok:null},'invalid certificate','settle'));
+  for(const op of ['query','apply','admit','state','adopt']) assert.throws(()=>sameAnswer({ok:null,settlement_unchanged:true},{ok:null},'wrong operation',op));
+  for(const reply of [{denied:{code:'E_INPUT'}},{ok:null,denied:{code:'E_INPUT'}}]) assert.throws(()=>sameAnswer({...reply,settlement_unchanged:true},reply,'failed settlement','settle'));
   for(const op of ['apply','admit','settle']) {
     for(const reply of [{},{denied:{code:'E_RULE'}},{ok:null,denied:{code:'E_RULE'}}]) {
       assert.throws(()=>sameAnswer({...reply,preserved:[]},reply,'unsuccessful',op));

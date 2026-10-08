@@ -1,0 +1,36 @@
+✖ retention process listing reads a large complete table and refuses partial output (31.917314ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 93.844283
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-background.fl-r10-2035829-default-buffer.test.mjs:6:39
+✖ retention process listing reads a large complete table and refuses partial output (31.917314ms)
+  Error: TEST_FIXTURE_COMMAND_FAILED: ps -axww -o pid=,command=; spawnSync ps ENOBUFS
+      at checkedSpawnSync (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/helpers/fixture-command.mjs:7:27)
+      at retentionProcesses (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-background.fl-r10-2035829-default-buffer.test.mjs:683:18)
+      ... 4 lines matching cause stack trace ...
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    [cause]: Error: spawnSync ps ENOBUFS
+        at Object.spawnSync (node:internal/child_process:1120:20)
+        at spawnSync (node:child_process:911:24)
+        at checkedSpawnSync (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/helpers/fixture-command.mjs:6:18)
+        at retentionProcesses (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-background.fl-r10-2035829-default-buffer.test.mjs:683:18)
+        at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-background.fl-r10-2035829-default-buffer.test.mjs:719:20)
+        at Test.runInAsyncScope (node:async_hooks:214:14)
+        at Test.run (node:internal/test_runner/test:1103:25)
+        at Test.start (node:internal/test_runner/test:1000:17)
+        at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+      errno: -105,
+      code: 'ENOBUFS',
+      syscall: 'spawnSync ps',
+      path: 'ps',
+      spawnargs: [ '-axww', '-o', 'pid=,command=' ]
+    }
+  }

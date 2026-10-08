@@ -1,5 +1,5 @@
 // Process-group custody; visible descendants also receive metadata validation.
-import { signalChild, spawnTracked as spawn } from './test-signals.mjs';
+import { spawnTracked as spawn } from './test-signals.mjs';
 import { killOwned } from './test-owned-command.mjs';
 import { readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -28,8 +28,6 @@ async function freshSnapshots(inspect) {
 export function runProcess(command, args, { timeout, maxBuffer, env }) {
   return new Promise(resolve => {
     let child;
-    try { child = spawn(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] }); }
-    catch (error) { resolve({ error }); return; }
     let error, bytes = 0;
     const stdout = [], stderr = [];
     const fail = failure => {
@@ -37,17 +35,14 @@ export function runProcess(command, args, { timeout, maxBuffer, env }) {
       error = failure;
       // ps has no cleanup protocol. SIGKILL bounds even an unresponsive child;
       // destroying its pipes also prevents inherited writers holding close open.
-      try { signalChild(child, 'SIGKILL'); }
-      catch (refused) {
-        // Inspection failure cannot abandon our own command. Preserve the
-        // timeout/overflow and diagnostic, and reap through the retained native
-        // handle. Disk records/untracked objects cannot use this fallback.
-        error.cause = refused;
-        killOwned(child, 'SIGKILL');
-      }
+      // This is owned-command cleanup, not recorded-PID fault injection.
+      // Neither pending capture nor an unavailable inspector may delay it.
+      killOwned(child, 'SIGKILL');
       child.stdout.destroy(); child.stderr.destroy();
     };
     const timer = setTimeout(() => fail(Object.assign(Error(`${command} ETIMEDOUT`), { code: 'ETIMEDOUT' })), timeout);
+    try { child = spawn(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] }); }
+    catch (error) { clearTimeout(timer); resolve({ error }); return; }
     const capture = target => chunk => {
       if (error) return;
       bytes += chunk.length;

@@ -296,6 +296,13 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         Mode::Release { expected, .. } => host_owner.as_ref().unwrap().open_store(Duration::from_secs(5)).and_then(|store| project.open_release_engine(store, &bound, *expected, clock.now())),
     }.map_err(|e| e.to_string())?;
     adoption::report(&engine);
+    if dev {
+        match crate::dev_clock_store::ahead(&engine, clock.now()) {
+            Ok(Some(note)) => snapback4_core::diagnostic!("{note}"),
+            Ok(None) => {},
+            Err(error) => snapback4_core::diagnostic!("clock     store-ahead inspection unavailable: {error}"),
+        }
+    }
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also
     // here so a fresh clone serves without a separate step.
@@ -659,6 +666,11 @@ fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
     Ok(())
 }
 
+// @ref LLP 3000.007#20.2 — public routes bypass dev admission, never the privacy boundary.
+pub(crate) fn trusted_dev_request(request: &Request, shared: &Shared) -> bool {
+    shared.personas && dev_request(request, shared).is_ok()
+}
+
 pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
@@ -747,6 +759,9 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared {
         for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
+        // @ref LLP 3000.023#11 — discover compiler dependency summaries without probing older servers.
+        response.add_header(Header::from_bytes("X-Snapback-Settlement", "1").unwrap());
+        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement").unwrap());
     }
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
@@ -903,8 +918,10 @@ fn handle(mut request: Request, shared: &Shared) {
         let generation = *lock(&shared.generation);
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":shared.now(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
+        let now = shared.now();
+        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
+    if method == Method::Get && path == "/dev/clock/status" { return maintenance::clock_status(request, shared); }
     if method == Method::Options {
         respond_empty(request, 204);
         return;

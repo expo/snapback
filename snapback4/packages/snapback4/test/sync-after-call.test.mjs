@@ -174,3 +174,23 @@ test("a failed older round cannot skip the explicit follow-up attempt", { timeou
   await failure; await explicit;
   assert.equal(f.control.attempts - before, 2);
 });
+
+// @ref LLP 3000.023#11 — a one-shot's observation can bypass a held send,
+// without letting an explicit sync join a round older than its invocation.
+const { LocalNetwork } = await import('../dist/local-network.js');
+for (const fails of [false, true]) test(`explicit sync follows a priority observation even when it ${fails ? 'fails' : 'succeeds'}`, async () => {
+  const send = Promise.withResolvers(), observation = Promise.withResolvers();
+  let rounds = 0;
+  const network = new LocalNetwork(() => ++rounds === 1 ? observation.promise : Promise.resolve(true), () => false, () => {});
+  const writing = network.run(() => send.promise);
+  await Promise.resolve();
+  const priority = network.acquire();
+  assert.equal(rounds, 1, 'receipt observation starts while the send is held');
+  assert.equal(network.acquire(), priority, 'overlapping observations share one sync');
+  const explicit = network.afterCall();
+  send.resolve(); await writing;
+  if (fails) observation.reject(Error('observation failed')); else observation.resolve(true);
+  assert.equal(await explicit, true);
+  assert.equal(rounds, 2, 'explicit sync owns a newer round, including after failure');
+  assert.equal(network.busy, false);
+});

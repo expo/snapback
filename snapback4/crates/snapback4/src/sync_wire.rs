@@ -39,6 +39,8 @@ pub(crate) struct StreamReply {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) acquisitions: Vec<wire::Acquisition>,
     pub(crate) acknowledged: BTreeMap<String, u64>,
+    #[serde(skip_serializing_if = "serde_json::Value::is_null")]
+    pub changes: serde_json::Value,
     // Serialized order is alphabetical among the always-present fields, which
     // is what the byte-exact encoding test compares against `json!`.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]

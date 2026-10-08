@@ -1,0 +1,90 @@
+✖ wasm: a newly started read observes an acknowledged write behind an unrelated held send (30574.196941ms)
+✖ process: a newly started read observes an acknowledged write behind an unrelated held send (30157.878098ms)
+✖ app-wasm: a newly started read observes an acknowledged write behind an unrelated held send (30113.787843ms)
+✖ app-process: a newly started read observes an acknowledged write behind an unrelated held send (30163.053064ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 121136.661449
+
+✖ failing tests:
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:185:65
+✖ wasm: a newly started read observes an acknowledged write behind an unrelated held send (30574.196941ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'observed-first'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:199:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'observed-first',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:185:65
+✖ process: a newly started read observes an acknowledged write behind an unrelated held send (30157.878098ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'observed-first'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:199:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'observed-first',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:185:65
+✖ app-wasm: a newly started read observes an acknowledged write behind an unrelated held send (30113.787843ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'observed-first'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:199:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'observed-first',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:185:65
+✖ app-process: a newly started read observes an acknowledged write behind an unrelated held send (30163.053064ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'observed-first'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:199:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'observed-first',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

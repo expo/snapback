@@ -52,3 +52,19 @@ Evidence remains in `snapback4/target/lane-dc-round3/full-suite.log`,
 `transport-retest.log`, `global-current-repeat.log` and
 `global-baseline-repeat.log`. Exact full-suite result and all failure
 classifications: [DC round-3 report](../snapback4/reports/20260927-dc-delivery-client/ROUND3.md).
+
+
+## FT investigation — 2026-10-08
+
+Still open. The three named files were repeated with ordinary neighbouring
+client files and synthetic CPU contention confined to CPUs 64–71 on eb1000.
+The original direct-fetch `ECONNRESET` was not reproduced. Final exact file/test
+counts and timing are in the FT report below.
+The server and SDK transport have changed since this incident (KA commit
+`49164c847d`: advertised idle leases and one narrowly qualified reused-socket
+retry). These fixture calls still use global `fetch`; the SDK retry is not a
+proof about them. No broader retry was added and no transport fix is claimed.
+A later reproduction should retain response/socket identity and the exact
+request stage before retrying anything.
+
+[FT commands, retained evidence and final counts](../snapback4/reports/20261008-ft-client-flakes/REPORT.md).

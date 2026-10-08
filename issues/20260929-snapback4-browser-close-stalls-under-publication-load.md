@@ -33,3 +33,23 @@ Next reproduction should instrument app close, raw-client close, active network
 waits, device/storage queues and Web Lock release on a Mac under publication
 contention. Keep all outcome/authority assertions and preserve the failing
 trace; a larger cleanup timeout alone is not a resolution.
+
+
+## FT investigation — 2026-10-08
+
+Still open. FT is restricted to eb1000, so it makes no Darwin reproduction or
+publication-cleanup claim. The four named browser files were exercised with
+confined CPU contention and their usual neighbours. No close stall was
+reproduced; final exact case counts and timings are in the FT report below.
+One deterministic setup failure prevented `web-admission-review` from reaching
+its first scenario: its test-only sync hook referred to `syncOnce`, removed by
+SN. FT now wraps the current `network.once` at the same attempt boundary,
+preserving promise identity, arguments and scheduling. The complete 55-test
+file then passed, and repeated focused runs cover the original first scenario
+and receipt cases that consume that hook. Typing teardown now resumes its
+controlled clock; immutable browser fixtures and FL's process custody also
+postdate the ticket. These changes are relevant history, not evidence that all
+four original Mac stalls had one resolved cause. Keep this ticket open for an
+instrumented Darwin failure.
+
+[FT commands, retained evidence and final counts](../snapback4/reports/20261008-ft-client-flakes/REPORT.md).

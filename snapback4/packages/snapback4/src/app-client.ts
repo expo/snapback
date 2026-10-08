@@ -1,3 +1,4 @@
+import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
 import { guardFollowing, notifyFollowing } from "./following-transport.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
 import { guardPendingIntents, forwardIntentObserver } from "./pending-items.ts";
@@ -15,7 +16,7 @@ import { episodeDeadline } from "./read-episode.ts";
 import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
 import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
-import { queryAttempt, queryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
+import { queryAttempt, queryWaiting, queryRefusal, settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
@@ -96,7 +97,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       return () => {
         if (after) return { denied: after };
         const read = publish();
-        return read && approveDelivery(read) ? read : undefined;
+        return queryWaiting(read) ? read : read && approveDelivery(read) ? read : undefined;
       };
     }, () => terminalQueryRefusal({ scope: valid() ? null : why(), store: null, closed: null,
       session: null, changes: null, partition: null, inherited: queryRefusal(raw) }), queries.signal),
@@ -320,6 +321,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   // LocalClient's existing runtime helper also crosses the data boundary.
   const local = raw as Client & { sync?: () => Promise<void> };
   if (local.sync) Object.assign(client, { async sync() { if (!await refusal()) await local.sync!(); } });
+  bindSessionRefusal(client, () => sessionRefusal(raw) ?? (!valid() ? why() : undefined));
   return { client, fence() {
     if (!active) return () => {};
     active = false;

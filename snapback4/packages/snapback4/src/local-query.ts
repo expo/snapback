@@ -29,7 +29,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = ValueDeadlines & { publicationCurrent?: () => boolean; heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = ValueDeadlines & { custodyWaiting?: boolean; publicationCurrent?: () => boolean; heldUnavailable?: boolean; scopes?: ReadScopes | undefined; deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { watermark?: number; decorationExpiry?: number | null | undefined; scopes?: ReadScopes; loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -38,7 +38,7 @@ class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 export interface QueryEnvironment {
   current?(): boolean;
   /** Captured hard evidence fence; only the whole-server route may use it. */
-  serverCurrent?(cut: number): boolean;
+  serverCurrent?(cut: number, tables: ReadonlySet<string>): boolean;
   inputsCurrent?(tables: ReadonlySet<string>): boolean;
   retainedCurrent?(watermark: number | undefined): boolean;
   revalidate?: boolean;
@@ -108,7 +108,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   let latest: { outcome: Outcome; result: Result<R> } | undefined;
   let serverCut: number | undefined;
   const serverCurrent = env.serverCurrent;
-  const covered = () => serverCut !== undefined && serverCurrent?.(serverCut) === true;
+  const covered = () => serverCut !== undefined && serverCurrent?.(serverCut, tables) === true;
   const inputsCurrent = env.inputsCurrent;
   // Keep static and observed authorization dependencies, including branches
   // not taken. This proof never uses the server cut to validate local rows.
@@ -124,9 +124,10 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // Rule 4: retained siblings cannot validate a speculative component. The
   // atomic Read<T> contract has no per-component loading word; withhold it all.
   const fallback = (): Result<R> => placeholder() ? loading : latest?.result ?? loading;
-  const localCandidate = (): Candidate<R> => { serverCut = undefined; return {
+  const localCandidate = (): Candidate<R> => { serverCut = undefined; const result = fallback(); return {
     // Rule 4 can withhold a value without removing its next expiry wakeup.
-    result: { ...fallback(), nextExpiry: latest?.result.nextExpiry ?? null }, origin: "local",
+    // @ref LLP 3000.023#11 — only this completed pending gate parks custody; later interruption/expiry does not.
+    result: { ...result, custodyWaiting: "loading" in result.read && pendingResult, nextExpiry: latest?.result.nextExpiry ?? null }, origin: "local",
   }; };
   // Rule 1. This check also preserves the local-commit invalidation fence.
   const checkpoint = () => {
@@ -395,7 +396,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // also needs its own covering cut; recovery cannot renew an old cache ticket.
     publishingCurrent = () => routeCurrent() && (candidate.origin === "server" && covered() || unchanged()
       && (candidate.origin === "local" || (candidate.origin === "server" || candidate.origin === "composed")
-        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq) === true));
+        && candidate.result.seq !== undefined && serverCurrent?.(candidate.result.seq, tables) === true));
     for (let attempt = 0; ; attempt++) {
       checkpoint();
       // Rules 1/5: the same delivery fence applies after retry routing, including

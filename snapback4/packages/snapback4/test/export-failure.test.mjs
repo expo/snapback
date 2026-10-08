@@ -1,3 +1,5 @@
+import { fixtureCommand } from './helpers/fixture-command.mjs';
+import { fixtureTestMs, fixtureWorkMs } from '../../../scripts/test-work-bounds.mjs';
 import { signalTargetAlive } from '../../../scripts/test-signals.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,13 +24,13 @@ function install(root) {
   fs.chmodSync(path.join(installed, 'bin/snapback4.js'), 0o755);
   return path.join(installed, 'bin/snapback4.js');
 }
-test('installed CLI shim preserves each forwarded child termination signal', () => {
+test('installed CLI shim preserves each forwarded child termination signal', { timeout: fixtureTestMs(3) }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-shim-signals-'));
   try {
     const shim = install(root), child = path.join(root, 'child.mjs');
     fs.writeFileSync(child, `#!${process.execPath}\nimport {signalSelf} from ${JSON.stringify(new URL('../../../scripts/test-owned-command.mjs', import.meta.url).href)};signalSelf(process.argv[2]); setTimeout(()=>process.exit(99),1000);`); fs.chmodSync(child, 0o755);
     for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-      const result = spawnSync(process.execPath, [shim, signal], { env: { ...process.env, SNAPBACK4_BIN: child }, encoding: 'utf8', timeout: 5000 });
+      const result = await fixtureCommand(process.execPath, [shim, signal], { label: `installed CLI shim ${signal}`, env: { ...process.env, SNAPBACK4_BIN: child } });
       assert.ok(result.signal === signal || result.status === 128 + os.constants.signals[signal], JSON.stringify({ signal, status: result.status, actualSignal: result.signal, stderr: result.stderr }));
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -37,18 +39,18 @@ test('installed CLI shim preserves each forwarded child termination signal', () 
 // Successful publication schedules detached maintenance even when its native
 // handoff fails. Keep this fixture's custody records until those owners exit.
 async function maintenanceExited(root) {
-  const live = name => {
+  const live = async name => {
     let record;
     try { record=JSON.parse(fs.readFileSync(path.join(root,'artifacts/native-smoke',name),'utf8')).process; } catch { return false; }
     return record ? signalTargetAlive(record) : false;
   };
   const deadline=Date.now()+45000;
-  while(['maintenance-next.json','maintenance-active.json'].some(live)) {
+  while((await Promise.all(['maintenance-next.json','maintenance-active.json'].map(live))).some(Boolean)) {
     assert.ok(Date.now()<deadline,'fixture maintenance exited before deleting its custody records');
     await new Promise(resolve=>setTimeout(resolve,25));
   }
 }
-test('real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim', { timeout: 120000 }, async () => {
+test('real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim', { timeout: fixtureTestMs(12) }, async () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-wrapper-fault-')));
   try {
     install(root);
@@ -84,7 +86,7 @@ if(args[1]==='ios') {
 `); fs.chmodSync(dispatcher, 0o755);
     const env = { ...process.env, SNAPBACK4_BIN: dispatcher, PATH: path.join(root, 'node_modules/.bin') + ':' + process.env.PATH, SB4_FAULT_TARGET: path.join(root, 'dist') };
     delete env.SNAPBACK4_NATIVE_SMOKE;
-    const run = fault => spawnSync(process.execPath, ['--input-type=module', '-e', `Object.defineProperty(process,'platform',{value:'darwin'});const {main}=await import(${JSON.stringify(wrapper)});try{process.exitCode=await main()}catch(e){console.error(e);process.exitCode=1}`], { cwd: root, env: { ...env, SB4_FAULT: fault }, encoding: 'utf8', timeout: 20000 });
+    const run = fault => { const result = spawnSync(process.execPath, ['--input-type=module', '-e', `Object.defineProperty(process,'platform',{value:'darwin'});const {main}=await import(${JSON.stringify(wrapper)});try{process.exitCode=await main()}catch(e){console.error(e);process.exitCode=1}`], { cwd: root, env: { ...env, SB4_FAULT: fault }, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' }); assert.equal(result.error, undefined, `publication fixture ${fault}: ${result.error?.message}`); return result; };
     for (const fault of ['missing', 'mismatch', 'skip-missing', 'skip-mismatch', 'before', 'after', 'tamper']) {
       await maintenanceExited(root);
       fs.rmSync(path.join(root, 'artifacts'), { recursive: true, force: true });

@@ -1,0 +1,111 @@
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 232.249149
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 22.538186
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.863301
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 23.132317
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 5 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3007.119486
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 6 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3007.682189
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 7 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.253009
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 8 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 178.119165
+  type: 'test'
+  ...
+# Subtest: Darwin inspector compiler escalates when its child handles SIGTERM
+ok 9 - Darwin inspector compiler escalates when its child handles SIGTERM
+  ---
+  duration_ms: 31325.964072
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: none
+ok 10 - newborn command capture after empty exec state: none
+  ---
+  duration_ms: 26.241318
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different birth
+ok 11 - newborn command capture after empty exec state: different birth
+  ---
+  duration_ms: 24.288651
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different parent
+ok 12 - newborn command capture after empty exec state: different parent
+  ---
+  duration_ms: 37.560096
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: malformed command
+ok 13 - newborn command capture after empty exec state: malformed command
+  ---
+  duration_ms: 23.095191
+  type: 'test'
+  ...
+# {"timeoutMs":200,"spawnReturnMs":2.0238640000025043,"elapsedMs":202.9594320000033,"firstHeartbeat":20.167072000003827,"ticks":11,"commandReads":20,"reaped":true}
+# Subtest: persistent empty cmdline yields to sibling timers and owned command timeout
+ok 14 - persistent empty cmdline yields to sibling timers and owned command timeout
+  ---
+  duration_ms: 233.634977
+  type: 'test'
+  ...
+# Subtest: native identity leaf inspection yields and reaps on timeout
+ok 15 - native identity leaf inspection yields and reaps on timeout
+  ---
+  duration_ms: 204.834333
+  type: 'test'
+  ...
+# Subtest: native identity leaf inspection yields and reaps on abort
+ok 16 - native identity leaf inspection yields and reaps on abort
+  ---
+  duration_ms: 202.572172
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 38631.432347
+-- process inspection: {"snapshots":3,"unrelatedRows":3737}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (38906 ms)
+-- client files: 1/1; failed 0; tests {"tests":16,"pass":16,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -1,0 +1,178 @@
+✖ wasm: complete dependent prediction settles promptly online (1539.098513ms)
+✔ wasm: dependent non-predicting custody refuses promptly when already offline (181.062792ms)
+✖ wasm: complete dependent prediction settles promptly offline (1176.186872ms)
+✔ wasm: dependent non-predicting custody refuses promptly when already offline (162.174978ms)
+✖ process: complete dependent prediction settles promptly online (1118.896375ms)
+✔ process: dependent non-predicting custody refuses promptly when already offline (212.011013ms)
+✖ process: complete dependent prediction settles promptly offline (1213.827437ms)
+✔ process: dependent non-predicting custody refuses promptly when already offline (217.483315ms)
+✖ app-wasm: complete dependent prediction settles promptly online (1106.229838ms)
+✔ app-wasm: dependent non-predicting custody refuses promptly when already offline (178.323646ms)
+✖ app-wasm: complete dependent prediction settles promptly offline (1194.234326ms)
+✔ app-wasm: dependent non-predicting custody refuses promptly when already offline (183.806624ms)
+✖ app-process: complete dependent prediction settles promptly online (1127.246884ms)
+✔ app-process: dependent non-predicting custody refuses promptly when already offline (217.555183ms)
+✖ app-process: complete dependent prediction settles promptly offline (1222.223684ms)
+✔ app-process: dependent non-predicting custody refuses promptly when already offline (226.529516ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 8
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12348.204811
+
+✖ failing tests:
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ wasm: complete dependent prediction settles promptly online (1539.098513ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ wasm: complete dependent prediction settles promptly offline (1176.186872ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ process: complete dependent prediction settles promptly online (1118.896375ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ process: complete dependent prediction settles promptly offline (1213.827437ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ app-wasm: complete dependent prediction settles promptly online (1106.229838ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ app-wasm: complete dependent prediction settles promptly offline (1194.234326ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ app-process: complete dependent prediction settles promptly online (1127.246884ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/one-shot-dependencies.test.mjs:73:3
+✖ app-process: complete dependent prediction settles promptly offline (1222.223684ms)
+  AssertionError [ERR_ASSERTION]: {"timeout":true}
+  + actual - expected
+
+  + undefined
+  - 'predicted-answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:85:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'predicted-answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

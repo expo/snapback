@@ -1,0 +1,18 @@
+{
+  "sn_parent": "5aa91a4ab315e5adcce4ea9fdd72912e28259b1e",
+  "main_parent": "07f4c495ea87b944bfe63efe5a958347dcb13807",
+  "line_counts": {
+    "client.ts": 1339,
+    "local.ts": 1498,
+    "app.ts": 873,
+    "app-client.ts": 335,
+    "app-online-arm.ts": 70,
+    "session-refusal.ts": 7
+  },
+  "journal_parent_entries": "both parents preserved byte-for-byte before the round-3 append",
+  "unresolved_conflicts": [],
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "binaryen": "132.0.0",
+  "changed_sources_at_or_above_1500_lines": []
+}

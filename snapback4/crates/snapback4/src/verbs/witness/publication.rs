@@ -358,6 +358,7 @@ mod tests {
     }
     #[test]
     fn witness_pruning_cannot_delete_through_an_export_during_atomic_publication() {
+        if !test_process::isolated() { return; }
         let (root, dir, source) = fixture("race");
         // Match the review's large tree and exercise both sides of exchange.
         for i in 0..10_000 { fs::write(source.join(format!("asset-{i}")), "pixels").unwrap(); }
@@ -425,6 +426,7 @@ mod tests {
     }
     #[test]
     fn witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export() {
+        if !test_process::isolated() { return; }
         let (root, dir, source) = fixture("killed");
         // Don't make the survivor a completed retention fixture.
         let survivor = root.join("runs/9-123"); fs::create_dir_all(survivor.join("export")).unwrap();
@@ -462,6 +464,7 @@ mod tests {
 
     #[test]
     fn witness_retention_recovers_verified_publication_without_a_later_publisher() {
+        if !test_process::isolated() { return; }
         for absent in [false, true] {
             let (root, dir, source) = fixture("retention-committed");
             if absent { fs::remove_dir_all(root.join("dist")).unwrap(); }
@@ -485,6 +488,7 @@ mod tests {
 
     #[test]
     fn witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune() {
+        if !test_process::isolated() { return; }
         for action in ["commit", "rollback", "intent"] {
             for absent in [false, true] {
                 let (root, dir, source) = fixture(&format!("orphan-{action}-{absent}"));
@@ -554,15 +558,25 @@ mod tests {
 
     #[test]
     fn witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity() {
+        if !test_process::isolated() { return; }
         let (root, dir, source) = fixture("orphan-locks");
         let target = root.join("dist");
         let pending = json!({ "source": source, "target": target, "new": inode(&source).unwrap(), "old": inode(&target).unwrap() });
         save(&dir.join("publication-pending.json"), &pending).unwrap();
+        let held = preparation::lease(&root.join("runs/retention.lock")).unwrap();
+        let inherited = test_process::ForkHolder::new();
+        drop(held);
+        assert_eq!(recovery::cleanup_inner(&root.join("runs"), None).unwrap_err(), "E_WITNESS_ARTIFACT: retention lock busy");
+        drop(inherited);
         for path in [dir.join("run.lock"), dir.join("export.lock"), lock_path(&target).unwrap()] {
             let held = preparation::lease(&path).unwrap();
             recovery::cleanup_inner(&root.join("runs"), None).unwrap();
             assert!(source.exists()); assert!(dir.join("publication-pending.json").exists());
+            let inherited = test_process::ForkHolder::new();
             drop(held);
+            recovery::cleanup_inner(&root.join("runs"), None).unwrap();
+            assert!(source.exists()); assert!(dir.join("publication-pending.json").exists());
+            drop(inherited);
         }
         let destination = lock_path(&target).unwrap().with_file_name("publication-pending.json");
         save(&destination, &pending).unwrap();
@@ -600,6 +614,7 @@ mod tests {
     }
     #[test]
     fn witness_orphan_deletion_does_not_hold_the_publication_lock() {
+        if !test_process::isolated() { return; }
         let (root, dir, source) = fixture("delete-outside-lock");
         let target = root.join("dist");
         save(&dir.join("publication-pending.json"), &json!({ "source": source, "target": target, "new": inode(&source).unwrap(), "old": inode(&target).unwrap() })).unwrap();

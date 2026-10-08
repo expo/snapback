@@ -2,7 +2,7 @@ import { failedAdmission } from "./admission.ts";
 import { identityRefusal } from "./identity-admission.ts";
 import type { Write } from "./contract.ts";
 
-type Terminal = Exclude<Write, { state: "pending" }>;
+type Terminal = Exclude<Write, { state: "pending" }> & { store_id?: string };
 interface Storage {
   read(): Promise<string | null>;
   /** The receipts a caller's lookup may answer from, including a web host's shared corrections. */
@@ -114,10 +114,11 @@ export class MutationIds {
 
 // @ref LLP 3000.007#17 — recovering by id confirms execution, never historical result values.
 function receipt(write: Terminal): Terminal {
+  const binding = write.store_id ? { store_id: write.store_id } : {};
   if (write.state === "failed" && ["E_ADMISSION_TIMEOUT", "E_ADMISSION_STORE"].includes(write.why.code)) return { state: "failed", id: write.id, why: identityRefusal(write.why.code === "E_ADMISSION_TIMEOUT") };
   return write.state === "sent"
-    ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+    ? { ...binding, state: "sent", id: write.id, seq: write.seq, replayed: true }
+    : { ...binding, state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
 }
 
 /** Persist before retiring an outbox entry. Durable receipts are read straight
@@ -147,13 +148,13 @@ export class WriteHistory {
     return write;
   }
 
-  async keep(write: Terminal, revalidatedStore?: string): Promise<void> {
+  async keep(write: Terminal, revalidatedStore?: string, dispatchStore?: string): Promise<void> {
     if (revalidatedStore) {
       const prior = this.unpersisted.get(write.id);
       if (prior?.state === "failed" && prior.why.code === "E_STORE_REPLACED") this.unpersisted.delete(write.id);
       this.revalidated.set(write.id, revalidatedStore);
     }
-    write = this.unpersisted.get(write.id) ?? write;
+    write = this.unpersisted.get(write.id) ?? { ...write, ...(dispatchStore ? { store_id: dispatchStore } : {}) };
     if (this.storage) {
       this.unpersisted.set(write.id, receipt(write));
       const proof = this.revalidated.get(write.id);

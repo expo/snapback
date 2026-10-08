@@ -159,3 +159,34 @@ No ownership checks were relaxed and no other process was signalled.
 Evidence: [FL round-2 report](../snapback4/reports/20261007-fl-dry-run-flakes/round-2/REPORT.md),
 with `witness-unit.log`, `witness-focused-rerun.log`, `witness-unit-rerun.log` and
 `failed-unit-process-check.json` in its evidence directory. This ticket stays open.
+
+## 2026-10-08 — FL round 8 recurrence
+
+A complete background suite run of the round-8 diagnostic candidate at base
+`2797247960` failed `repeated raced retention-lock deferrals stay pending and
+restore the bound after release`: the contender's stderr contained
+`E_WITNESS_PROCESS: invalid /proc process group` where the test requires
+`retention lock busy`. It reported 62 passes, one failure and 32 Darwin skips.
+The keeper acknowledged cleanup, with no file leak or JavaScript inspection
+error. Native witness code and the debug executable were unchanged throughout
+this run. The round changes JavaScript work guards and failure diagnostics;
+the failing assertion is unchanged.
+
+The failed native stat bytes were not retained, so this occurrence adds no
+root-cause conclusion. Two earlier maintenance-drain failures in the frozen
+load replay are [recorded separately](20261008-snapback4-maintenance-drain-fl-load.md);
+similar scheduling conditions do not establish a shared cause. No ownership
+or process-group classification check has been relaxed.
+
+Evidence: [complete candidate run](../snapback4/reports/20261007-fl-dry-run-flakes/round-8/evidence/background-diagnostics-final.log),
+with the [round-8 report](../snapback4/reports/20261007-fl-dry-run-flakes/round-8/REPORT.md)
+recording the final-source checks separately. This ticket remains open.
+
+The final canonical background-file rerun passed 63 tests with 32 skips, using
+the same native binary. It does not explain or erase the failed candidate run.
+
+## 2026-10-08 — FS loaded witness recurrence
+
+The unchanged FS base `ecba83f39e2f8539ffa08d73949e8e953760f3e7` failed `preparation::tests::recovery_direct_node_drains_late_group_member` once in 30 four-thread witness-module runs. `baseline-witness/026.log.gz` reports `E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_PROCESS: invalid /proc process group`. This is separate from the fork-inherited lease failures reproduced in the same campaign. The refused stat snapshot is still unavailable; no new parser cause is claimed and no process-classification check changed. See the [FS report](../snapback4/reports/20261008-fs-witness-worker-flakes/REPORT.md). This ticket stays open.
+
+FS's final-source loaded witness run also refused `invalid /proc process group` in `recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper` (`final-witness/004.log.gz`). That scenario was isolated from unrelated libtest forks; the raw stat snapshot is still unavailable. This further distinguishes process inspection from the last-close lease assertions.

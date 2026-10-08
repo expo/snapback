@@ -27,9 +27,9 @@ export function signalSelf(signal, { group = false } = {}) {
   process.kill(group ? 0 : process.pid, signal);
 }
 
-// Only for the fixed system ps executable below, which does not fork. Compiler
-// commands need the separate group lifetime in runOwnedCommand.
-function runInspection(command, args, { timeout, env, maxBuffer }) {
+// Only for leaf inspection executables (system ps and the native identity
+// probe), which do not fork. Compilers need runOwnedCommand's private group.
+export function runInspection(command, args, { timeout, env, maxBuffer, signal: abort }) {
   return new Promise(resolve => {
     let child;
     try { child = spawnOwned(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] }); }
@@ -46,6 +46,9 @@ function runInspection(command, args, { timeout, env, maxBuffer }) {
       kill();
     };
     const timer = setTimeout(() => fail(Object.assign(Error(`${command} ETIMEDOUT`), { code: 'ETIMEDOUT' })), timeout);
+    const cancelled = () => fail(abort.reason);
+    abort?.addEventListener('abort', cancelled, { once: true });
+    if (abort?.aborted) cancelled();
     const capture = target => chunk => {
       if (error) return;
       bytes += chunk.length;
@@ -57,7 +60,8 @@ function runInspection(command, args, { timeout, env, maxBuffer }) {
     child.on('error', failure => { error ??= failure; });
     child.once('close', (status, signal) => {
       clearTimeout(timer);
-      resolve({ status, signal, error, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
+      abort?.removeEventListener('abort', cancelled);
+      resolve({ pid: child.pid, status, signal, error, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
     });
   });
 }

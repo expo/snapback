@@ -1,0 +1,32 @@
+[
+  {
+    "name": "compiler-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "query_settlement",
+      "--test",
+      "guide"
+    ],
+    "exit": 0,
+    "seconds": 43.4
+  },
+  {
+    "name": "serve",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "--",
+      "serve::"
+    ],
+    "exit": 0,
+    "seconds": 61.14
+  }
+]

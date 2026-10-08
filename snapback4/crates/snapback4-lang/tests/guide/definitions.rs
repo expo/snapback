@@ -221,6 +221,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WORKER_REFRESH", "E_WORKER_REFRESH means this token belongs to a supervised worker family."),
     ("E_BOUND", "A query past a ceiling returns what it found with `complete: false`; a mutation aborts with E_BOUND naming the meter, the ceiling and the site (never the count: it would measure rows the viewer may not read)."),
     ("E_CLIENT", "E_CLIENT means a client exception prevented the expected write or asset outcome."),
+    ("N_CLOCK_STORE_AHEAD", "recent commit stamps are more than five seconds ahead of the current clock"),
     ("E_CLOCK_DEV_ONLY", "`serve` refuses clock flags and the control endpoint with E_CLOCK_DEV_ONLY."),
     ("E_CLOCK_INPUT", "Backward/zero advances and invalid values refuse E_CLOCK_INPUT."),
     ("E_CLOSED", "E_CLOSED means the client closed while a request was in flight."),

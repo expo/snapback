@@ -1,0 +1,22 @@
+baseline-whole-unit {'0': 1, '101': 4} {'serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording': 1, 'verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export': 2, 'verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained': 2}
+baseline-witness {'101': 30} {'verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity': 4, 'verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained': 30, 'verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending': 6, 'verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune': 9, 'verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export': 1, 'verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence': 1, 'verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member': 1}
+baseline-workers {'0': 1} {}
+control-delayed {'0': 30} {}
+control-missing-logs {'1': 1} {}
+control-missing-refusal {'1': 1} {}
+control-old-observer {'1': 1} {}
+control-rust-deadline {'101': 1} {'verbs::witness::preparation_deadline::tests::completion_receipt_does_not_charge_later_cleanup_to_preparation': 1}
+control-rust-lease {'101': 1} {'verbs::witness::preparation::tests::lease_fork_fixture': 1, 'verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop': 1}
+control-rust-ownerless {'101': 1} {'verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence': 1}
+control-rust-recovery {'101': 1} {'verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending': 1}
+control-rust-retention {'101': 1} {'verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity': 1}
+control-rust-smoke {'101': 1} {'verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock': 1}
+final-deadline-receipt {'0': 30} {}
+final-whole-unit {'0': 4, '101': 1} {'serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording': 1}
+final-witness {'0': 29, '101': 1} {'verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper': 1}
+fixed-whole-unit {'101': 5} {'verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained': 5, 'serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording': 1}
+fixed-witness {'101': 30} {'verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained': 30, 'verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export': 1}
+fixed-workers {'0': 30} {}
+simctl-fixture {'0': 30} {}
+simctl-mutant {'1': 1} {}
+witness-integration {'0': 30} {}

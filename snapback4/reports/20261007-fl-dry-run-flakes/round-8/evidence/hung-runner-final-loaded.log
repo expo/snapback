@@ -1,0 +1,5 @@
+TEST_FIXTURE_COMMAND_TIMEOUT: deliberately hung real runner; work bound 10000 ms; /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node ETIMEDOUT
+-- client file start: /home/ccheever/sb4-intent/lane-fl/snapback4/target/fl-r8-hung-ORm7qH/hung.test.mjs; stall bound 900000 ms
+
+
+{"expectedFailure":true,"code":"ETIMEDOUT","pids":[2311737,2311801],"descendantsGone":true,"groupDrained":true,"milliseconds":11568}

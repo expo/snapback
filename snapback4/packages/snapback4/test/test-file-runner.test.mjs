@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { fixtureCommand } from './helpers/fixture-command.mjs';
+import { fixtureTestMs, fixtureWorkMs } from '../../../scripts/test-work-bounds.mjs';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
@@ -13,7 +15,7 @@ import { identity, live, processTable, cleanupProcesses, processExists, runProce
 
 const nativeEnv = { ...process.env };
 delete nativeEnv.NODE_TEST_CONTEXT;
-const nativeTest = path => spawnSync(process.execPath, ['--test', '--test-reporter=tap', path], { env: nativeEnv, encoding: 'utf8', timeout: 10000 });
+const nativeTest = path => fixtureCommand(process.execPath, ['--test', '--test-reporter=tap', path], { env: nativeEnv, label: 'native node --test baseline' });
 
 for (const block of ['event loop', 'leaked handle']) test(`file watchdog diagnoses ${block} and reaps group descendants`, { timeout: 20000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-file-watchdog-'));
@@ -57,14 +59,14 @@ test('file runner preserves test failures and continues to a following healthy f
   assert.match(output, /kept failure/);
 });
 
-for (const todo of [false, true]) test(`Node failure semantics survive ${todo ? 'an expected TODO failure' : 'a beforeExit exit-code override'}`, async t => {
+for (const todo of [false, true]) test(`Node failure semantics survive ${todo ? 'an expected TODO failure' : 'a beforeExit exit-code override'}`, { timeout: fixtureTestMs(2) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-result-semantics-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'failure.test.mjs');
   writeFileSync(path, `import test from 'node:test';
 test('fails', {todo:${todo}}, () => { throw Error('failure'); });
 ${todo ? '' : "process.on('beforeExit', () => { process.exitCode = 0; });"}`);
-  const native = nativeTest(path);
+  const native = await nativeTest(path);
   assert.equal(native.status, todo ? 0 : 1, native.stdout + native.stderr);
   let output = '';
   const result = await runFile(path, { onOutput: text => { output += text; } });
@@ -95,14 +97,14 @@ test('a stale parent link cannot claim or signal a process outside the file grou
   assert.ok((await identity(sibling.pid))?.alive, 'runner left our separately launched sibling alone');
 });
 
-test('a cancelled test cannot pass by overriding its exit status', async t => {
+test('a cancelled test cannot pass by overriding its exit status', { timeout: fixtureTestMs(2) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-cancelled-result-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'cancelled.test.mjs');
   writeFileSync(path, `import test from 'node:test';
 test('cancelled', {signal:AbortSignal.abort()}, () => {});
 process.on('beforeExit', () => { process.exitCode = 0; });`);
-  const native = nativeTest(path);
+  const native = await nativeTest(path);
   assert.equal(native.status, 1, native.stdout + native.stderr);
   const result = await runFile(path, { onOutput: () => {} });
   assert.equal(result.code, native.status);
@@ -300,6 +302,9 @@ test('a foreign listing over five seconds leaves sibling cleanup and watchdog ti
 
 test('stall bounds cover single guards with margin, including serial mode and seed overrides', () => {
   const derived = {
+    'test-processes': [5520000,6900000], 'test-file-runner': [1920000,2400000],
+    'test-signals': [1020000,1275000], 'export-background': [1020000,1275000],
+    'export-failure': [10920000,13650000],
     'ordinary-search-oracle': [8592000,10740000], 'web-admission-review': [6832000,8540000],
     'mixed-evidence-oracle': [1800000,2250000], 'app-session-model': [10000000,12500000],
     'online-client-model': [6000000,7500000], 'horizon-boundary': [10120000,12650000],
@@ -347,14 +352,14 @@ test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bi
 // Keep this interleaving deterministic: the real ps snapshot contains a shell
 // parent; only after the snapshot is taken may it fork, publish the child PID
 // and exit. That child never appears in the stale snapshot returned to runFile.
-test('group cleanup reaps an unsampled orphan after its sampled parent exits', { timeout: 20000 }, async t => {
+test('group cleanup reaps an unsampled orphan after its sampled parent exits', { timeout: fixtureTestMs(2) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-fork-snapshot-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'fork.test.mjs'), go = join(dir, 'go'), ready = join(dir, 'ready'), pidFile = join(dir, 'pid');
   writeFileSync(path, `import test from 'node:test';
 import {spawnSync} from 'node:child_process';
 test('owned helper', () => {
-  spawnSync('/bin/sh', ['-c', '(echo ready > "${ready}"; while [ ! -f "${go}" ]; do sleep 0.01; done; sleep 600 </dev/null >/dev/null 2>&1 & echo $! > "${pidFile}.tmp"; mv "${pidFile}.tmp" "${pidFile}") </dev/null >/dev/null 2>&1 & while [ ! -f "${ready}" ]; do sleep 0.01; done'], {timeout:5000});
+  spawnSync('/bin/sh', ['-c', '(echo ready > "${ready}"; while [ ! -f "${go}" ]; do sleep 0.01; done; sleep 600 </dev/null >/dev/null 2>&1 & echo $! > "${pidFile}.tmp"; mv "${pidFile}.tmp" "${pidFile}") </dev/null >/dev/null 2>&1 & while [ ! -f "${ready}" ]; do sleep 0.01; done'], {timeout:${fixtureWorkMs},killSignal:'SIGKILL'});
 });`);
   let inspections = 0, output = '', orphan;
   const { existsSync } = await import('node:fs');
@@ -364,7 +369,7 @@ test('owned helper', () => {
     if (++inspections === 1) {
       assert.ok(existsSync(ready));
       writeFileSync(go, 'go');
-      const deadline = performance.now() + 5000;
+      const deadline = performance.now() + fixtureWorkMs;
       while ((!existsSync(pidFile) || !readFileSync(pidFile, 'utf8').trim()) && performance.now() < deadline) pause();
       orphan = (await identity(Number(readFileSync(pidFile, 'utf8'))));
       assert.ok(orphan?.alive);
@@ -466,7 +471,7 @@ test(`stale exited members do not reset empty snapshots; observed live leaks rem
 });
 
 
-test('native buffered synchronous tests are bounded until Node delivers progress', { timeout: 20000 }, async t => {
+test('native buffered synchronous tests are bounded until Node delivers progress', { timeout: fixtureTestMs(2) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-sync-progress-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'sync.test.mjs');
@@ -476,7 +481,7 @@ for(let i=0;i<10;i++)test('synchronous '+i,{timeout:500},()=>{
 });`);
   let output = '';
   const result = await runFile(path, {timeout:1000,onOutput:text=>{output+=text}});
-  assert.equal(nativeTest(path).status, 0);
+  assert.equal((await nativeTest(path)).status, 0);
   assert.equal(result.passed, false, output);
   assert.equal(result.reason, 'TEST_FILE_HANG');
   assert.match(result.lastProgress, /test:dequeue: .*sync.test.mjs/);
@@ -606,13 +611,13 @@ for (const [name, body] of [
   ['late unhandled rejection', "test('passes',()=>{setImmediate(()=>{Promise.reject(Error('late rejection'))})});"],
   ['skipped failure', "test.skip('skipped',()=>{throw Error('skipped failure')});"],
   ['explicit successful exit', 'process.exit(0);'],
-]) test(`native node --test parity: ${name} with exit-code override`, async t => {
+]) test(`native node --test parity: ${name} with exit-code override`, { timeout: fixtureTestMs(2) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-native-parity-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'parity.test.mjs');
   writeFileSync(path, `import test from 'node:test';${body}
 process.on('beforeExit',()=>{process.exitCode=0});`);
-  const native = nativeTest(path);
+  const native = await nativeTest(path);
   assert.equal(native.error, undefined);
   assert.equal(native.signal, null);
   assert.equal(native.status, name.startsWith('skipped') || name.startsWith('explicit') ? 0 : 1, native.stdout + native.stderr);
@@ -623,13 +628,14 @@ process.on('beforeExit',()=>{process.exitCode=0});`);
   assert.equal(result.passed, native.status === 0, output);
 });
 
-test('a test killing its own group fails without any runner signal', async t => {
+test('a test killing its own group fails without any runner signal', { timeout: fixtureTestMs(2) }, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-self-kill-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const path = join(dir, 'kill.test.mjs');
   writeFileSync(path, "import test from 'node:test';test('kill own group',()=>process.kill(0,'SIGKILL'));");
   // Both groups are freshly created here, so the fixture can only kill its own.
-  const native = spawnSync(process.execPath, ['--test', path], {env: nativeEnv, detached: true, timeout:10000});
+  const native = spawnSync(process.execPath, ['--test', path], {env: nativeEnv, detached: true, timeout:fixtureWorkMs, killSignal:'SIGKILL'});
+  assert.equal(native.error, undefined, 'self-kill must complete before the native baseline guard');
   assert.equal(native.signal, 'SIGKILL');
   const calls = [], kill = process.kill;
   t.mock.method(process, 'kill', (pid, signal) => {
@@ -644,7 +650,7 @@ test('a test killing its own group fails without any runner signal', async t => 
   assert.deepEqual(calls, []);
 });
 
-test('reaped keeper before its exit callback cannot make the runner send a signal', {timeout:20000}, async t => {
+test('reaped keeper before its exit callback cannot make the runner send a signal', {timeout:fixtureTestMs(2)}, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-reaped-keeper-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const first = spawn(process.execPath, ['-e', 'process.stdin.once("data",()=>process.exit(0));console.log("ready")'], {stdio:['pipe','pipe','ignore']});
@@ -668,11 +674,11 @@ test('reaped keeper before its exit callback cannot make the runner send a signa
     child.stdin.write('release'); first.stdin.write('release');
     // Hold JS until both exit; libuv then reaps both before calling the first
     // handle's exit listener, leaving the keeper's JS fields temporarily null.
-    const deadline = performance.now() + 5000;
+    const deadline = performance.now() + fixtureWorkMs;
     while (performance.now() < deadline) {
       // This fixture deliberately blocks its own JS to expose the reaping
       // window. Query only its two children; production inspection is async.
-      const states = spawnSync('ps', ['-p', `${first.pid},${child.pid}`, '-o', 'stat='], { encoding: 'utf8', timeout: 2000 });
+      const states = spawnSync('ps', ['-p', `${first.pid},${child.pid}`, '-o', 'stat='], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
       assert.equal(states.error, undefined);
       assert.ok(states.status === 0 || states.status === 1);
       if (states.stdout.trim().split(/\s+/).every(state => !state || state.startsWith('Z'))) break;
@@ -686,7 +692,7 @@ test('reaped keeper before its exit callback cannot make the runner send a signa
   assert.deepEqual(calls, []);
 });
 
-test('runner death closes the keeper pipe and kills its living group', {timeout:20000}, async t => {
+test('runner death closes the keeper pipe and kills its living group', {timeout:fixtureTestMs(2)}, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-runner-death-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const pidFile = join(dir, 'pid'), path = join(dir, 'alive.test.mjs'), driver = join(dir, 'driver.mjs');
@@ -698,12 +704,13 @@ await runFile(${JSON.stringify(path)}, {onStart:child=>console.log(child.pid),on
   const exited = once(runner,'exit');
   const output = createInterface({input:runner.stdout});
   let group;
-  try { group = Number((await once(output, 'line', {signal:AbortSignal.timeout(5000)}))[0]); }
+  try { group = Number((await once(output, 'line', {signal:AbortSignal.timeout(fixtureWorkMs)}))[0]); }
   finally { output.close(); }
-  const deadline = performance.now()+5000;
+  let deadline = performance.now()+fixtureWorkMs;
   while (!existsSync(pidFile) && performance.now()<deadline) await new Promise(resolve=>setTimeout(resolve,20));
   assert.ok(existsSync(pidFile));
   runner.kill('SIGKILL'); await exited;
+  deadline = performance.now()+120000;
   while ((await processTable({group})).some(row=>row.group===group && row.alive) && performance.now()<deadline)
     await new Promise(resolve=>setTimeout(resolve,20));
   assert.equal((await processTable({group})).some(row=>row.group===group && row.alive),false);

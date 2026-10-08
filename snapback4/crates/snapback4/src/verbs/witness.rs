@@ -14,6 +14,8 @@ mod recorded_process;
 pub(crate) mod process_group;
 mod publication;
 pub(super) mod background;
+#[cfg(test)]
+mod test_process;
 use protocol::*;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};

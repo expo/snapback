@@ -1,0 +1,98 @@
+-- client file start: packages/snapback4/test/schema-capabilities.test.mjs; stall bound 900000 ms
+-- client file start: reports/20261007-sn-one-shot-settlement/round4/fixture-witness.mjs; stall bound 900000 ms
+TAP version 13
+# (node:358899) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: published 0.2.33 capability fence: timeline-v2
+ok 1 - published 0.2.33 capability fence: timeline-v2 # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.631356
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 capability fence: recorded-attribution
+ok 2 - published 0.2.33 capability fence: recorded-attribution # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.091938
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 capability fence: maintained-column
+ok 3 - published 0.2.33 capability fence: maintained-column # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.067271
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 list minimum fence: argument
+ok 4 - published 0.2.33 list minimum fence: argument # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.056625
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 list minimum fence: column
+ok 5 - published 0.2.33 list minimum fence: column # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.066841
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 list minimum fence: nested
+ok 6 - published 0.2.33 list minimum fence: nested # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.070545
+  type: 'test'
+  ...
+# Subtest: Linux schema-byte fixture is the published capability-free control source
+ok 7 - Linux schema-byte fixture is the published capability-free control source
+  ---
+  duration_ms: 0.170946
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 control: capability-free bytes and stores stay compatible
+ok 8 - published 0.2.33 control: capability-free bytes and stores stay compatible # SKIP the published 0.2.33 native witness requires darwin-arm64
+  ---
+  duration_ms: 0.079208
+  type: 'test'
+  ...
+# Subtest: RV publication allowance is confined to commit evidence
+ok 9 - RV publication allowance is confined to commit evidence
+  ---
+  duration_ms: 6.987424
+  type: 'test'
+  ...
+# Subtest: published answer comparison admits only neutral additive metadata
+ok 10 - published answer comparison admits only neutral additive metadata
+  ---
+  duration_ms: 3.093197
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 7
+# todo 0
+# duration_ms 66.13946
+-- process inspection: {"snapshots":3,"unrelatedRows":3492}
+-- client file ok: packages/snapback4/test/schema-capabilities.test.mjs (329 ms)
+TAP version 13
+# (node:358907) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: real compiler pin and unchanged stored schema/device IR on Linux
+ok 1 - real compiler pin and unchanged stored schema/device IR on Linux
+  ---
+  duration_ms: 163.913164
+  type: 'test'
+  ...
+# {"priorBytes":2950,"bytes":3100,"delta":150,"sha256":"c32d97550b9e16c302baca23a461a11411cd99d436ea8bdd2b8a4eee51748e7a","storedSchemaBytes":1359,"storedSchemaSha256":"3332755018a4eee39994e3e431051a39dc54fcfd0d7af5e37e9c671418f19745","nativeAndWasmStoredBackendBytes":2389,"nativeAndWasmStoredBackendSha256":"eb27bfdce483dab7266d3d91032bba98ea8023c06bd159aa8fd067f3e0267c48","onlySettlementChanged":true,"storedSchemaUnchanged":true,"summariesPersisted":false}
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 225.719387
+-- process inspection: {"snapshots":3,"unrelatedRows":3471}
+-- client file ok: reports/20261007-sn-one-shot-settlement/round4/fixture-witness.mjs (496 ms)
+-- client files: 2/2; failed 0; tests {"tests":11,"pass":4,"fail":0,"cancelled":0,"skipped":7,"todo":0}

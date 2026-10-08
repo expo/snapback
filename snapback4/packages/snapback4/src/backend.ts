@@ -20,6 +20,7 @@ export interface OperationFacts {
 }
 
 export interface ProgramJson extends OperationFacts {
+  settlement?: import("./query-dependencies.ts").QueryDependencies | null;
   name: string;
   kind: "Query" | "Mutation" | "job" | "action";
   args: Record<string, unknown>;
@@ -81,6 +82,7 @@ export function operationTables(program: ProgramJson, schema: SchemaJson): Set<s
     }
   };
   walk(program.body);
+  for (const table of Object.keys(program.settlement?.reads ?? {})) tables.add(table);
   for (const table of tables) {
     walk((schema.tables[table] as { rules?: unknown } | undefined)?.rules);
     // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a partial event prediction writes its source slot, not an owned row.

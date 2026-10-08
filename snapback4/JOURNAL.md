@@ -90044,6 +90044,130 @@ missing generated-demo prerequisites, with its log retained. Work stayed in
 lane-em on eb1000. No other worktree, remote host or other lane's process was
 changed; nothing was pushed or published.
 
+## 2026-10-07 — SN: one-shots settle across unrelated writes
+
+Implemented LLP 3000.023 §11's dependency-scoped custody barrier across local,
+online, app facades and mock. Compiler summaries include authorization,
+receipt-owned fields, derived counts/views, search and inherited inputs/effects.
+Unknown facts remain blocking. Dependent writes wait for observation or failure
+on events within one 30-second timer; unrelated writes and known disjoint
+commits no longer consume the four publication rounds. Complete pending
+predictions remain available through observations, but cannot satisfy a
+dependent one-shot. The client guide and retry explanation reflect this.
+
+Reproduced the original barrier before changing it: 12 aggregate/commit and six
+receipt-history failures across the six arms. Mixed-queue regressions also
+caught observation sync waiting behind an unrelated send, including when the
+query began after the dependent acknowledgement. Observation sync now overlaps
+that held send while syncs remain serialized and mutation FIFO, device capture
+fences, explicit-sync freshness, rotation and close remain intact. The final
+extraction brings `local.ts` from 1,537 to 1,498 lines.
+
+The calibration evidence supports the receipt diagnosis but needs a distinction:
+its Trending query sorts by maintained `likeCount`, so likes must precede its
+answer; independent reactions need not. External builder evidence was cited in
+place, never copied into the repository. The [SN report](reports/20261007-sn-one-shot-settlement/REPORT.md)
+contains the contract, retained reproductions, negative controls, validation
+commands and results. The clean lifecycle selection passed 317 tests (one
+measurement skip); discovery/online compatibility passed 121; affected clients
+passed 535 (one unavailable legacy binary); compiler/guide checks passed 156;
+server checks passed 190 (four documented ignores). Typecheck/build and the
+reference audit pass. Final custody/terminal/deadline/explicit-sync rechecks
+passed 166 tests.
+
+No core/device/wasm source or budget changed. Fresh Linux bootstrap measured
+2,135,336 raw / 645,448 gzip bytes under the inherited 645,607 budget (159 bytes
+headroom); this is not a claim of the requested 500-byte margin for a future
+wasm change or of macOS qualification. Both wasm-budget tests pass. Work stayed
+in lane-sn on the assigned host. Nothing pushed or published.
+
+## 2026-10-07 — SN round 1: preserve predicted one-shots and order adoption
+
+Corrected round 0's stronger custody barrier per the author's ruling. A complete
+predicted device answer again settles online and offline; dependency intersection
+filters the old `!predictable || served || localWakeup` predicate. The mock's
+complete predictions follow the same exception. Restored the five test files
+that round 0 changed from one-shots to observations, including the offline
+admitted-value model. Online custody still waits on events, but a known-offline
+link refuses E_OFFLINE promptly and wakes existing waits. Only an actual pending
+gate parks a loading candidate; interruption/expiry still causes a bounded retry.
+
+The requested overlap qualification found a real hole in round 0's argument:
+store replacement could stamp a held POST's late success with the new identity,
+leaving a phantom dependency. Same-store acquisition still overlaps, under the
+existing captured send-revision, pending declaration and publication fences.
+Identity/schema adoption now defers until the ordinary POST records its outcome,
+then retries in FIFO order. Regressions cover its own success/refusal, receipt
+lookup during observation, stale pages overtaken by a later send, real store
+replacement and generation deployment on both device hosts and app facades.
+Offline wakeups also cover both online arms.
+
+LLP 3000.023 §11, the client card and E_QUERY_RETRY state the corrected guarantee:
+every relevant admitted write is observed/failed or included in a complete
+predicted device answer. The [round-1 report](reports/20261007-sn-one-shot-settlement/round1/REPORT.md)
+records the retained prediction and store-overlap reproductions, the precise
+fences, and final affected-scope validation. The one-shot fixture now supplies
+idle change-stream heartbeats so an intended 30-second online test does not
+silently become an offline test after the four-second transport watchdog.
+
+No engine/device/wasm source, budget or contract.ts change. `local.ts` is 1,499
+lines; custody policy stays in its extracted helper. Work stayed in lane-sn on
+the assigned host; nothing pushed or published. Round 0's independent review
+remains separate from this corrective round.
+
+Final validation: 330 one-shot/settlement tests, 419 affected-client tests (one
+unavailable historical-binary skip), and 118 compiler/guide tests passed. Build,
+typecheck and ref-check passed (10,547 references, zero errors/unchecked).
+
+## 2026-10-08 — SN round 2: bind publication facts and narrow completing commits
+
+Addressed both round-0 reviews on round-1 tip c6217f0eda, preserving the compiler
+summary design and the complete-prediction exception. The reviewers' original
+25 tests were run first: 17 passed, 8 failed. Five failures were outstanding
+product bugs; three asserted the pre-round-1 prediction barrier. The unchanged
+scripts now pass 22, and permanent adaptations cover the three intended hazards
+without strengthening the barrier. The report records every result and adaptation.
+
+Online final publication and custody waits now bind installed facts, store and
+highest discovered generation, including final facade approval and late discovery.
+Receipt history carries the dispatch store through persistence, adoption and
+recovery. Device settlement retires foreign-store custody without losing the
+original success or stamping its sequence into the replacement. Public Write
+shape stays unchanged. Round 1's FIFO identity/schema adoption guard remains.
+
+Completing commits retain compiler field sets. Complete authoritative sync/change
+intervals reuse the existing bounded recorder; private maintained targets project
+to public owner columns, with unmapped private changes unknown. Local input and
+server cut proofs stay independent; composed/retained answers still require their
+local coverage. Five completing receipt commits against history and unrelated
+aggregate commits settle in one round across all six tiers. Unknown/gapped
+intervals, relevant commits and malformed mock summaries retain their barriers.
+Empty same-cut sync preserves delivery debt, with a real-commit withdrawal control.
+The broader suite caught and fixed private-name exposure and a public receipt
+shape regression before commit. Its prediction-replay test now controls the
+query deadline before the independently parked change-stream watchdog.
+
+Validation: 368 settlement tests; 576 affected-client tests with two documented
+opt-in/unavailable-artifact skips; 205 custody tests; 56 supporting client tests;
+118 compiler/guide tests; 191 serve tests with four existing ignores; three core
+revocation and thirteen device receipt/authority tests. Final discovery, wasm and
+reference checks are recorded in the [round-2 report](reports/20261007-sn-one-shot-settlement/round2/REPORT.md).
+
+Locked Linux wasm: 2,135,614 raw / 645,498 gzip bytes, +278/+50 against round 1.
+The budget is 645,998: 500 bytes of headroom as requested for macOS's observed
+up-to-435-byte difference. The 391-byte cap increase includes restoring 341 bytes
+of missing platform allowance. No macOS measurement or interpreter ceiling
+change. local.ts stays under 1,500 lines. All work stayed in the assigned lane-sn
+worktree on eb1000; nothing pushed or published.
+
+Round-2 final checks: discovery/adoption/fencing passed 20 tests; the final wasm
+rebuild matched the recorded bytes and passed 30 overlap/budget tests. The final
+commit-evidence file also retains the reviewers' four relevant external-commit
+controls and compiler branch/helper closure case. Ref-check passed 531 documents
+and 10,553 references with zero errors or unchecked references. Two frozen
+change-wire expectations now include the additive interval certificate. The
+client batch's skips are specifically the optional Following shaped measurement
+and the unavailable historical 0.2.32 binary.
 ## 2026-10-07 — FL: publication dry-run flakes retain their assertions
 
 The developer-evidence test compared an absent point before the fixture's
@@ -90631,3 +90755,472 @@ the parallel recovery issue stays separately open. All work remained on eb1000
 in lane-em, with no push or publication.
 
 [Round-10 evidence, source identities, controls and mini soak command](reports/20261008-em-interrupted-publication-custody/REPORT.md).
+## 2026-10-07 — DK: dev clock and stale sessions explain themselves
+
+Calibration #31 d-01/d-04 now have product diagnostics. Dev startup and doctor
+report `N_CLOCK_STORE_AHEAD` for retained write stamps more than five seconds
+ahead, naming the maximum lead, tables and repairs. Doctor also shows offset
+from wall time; clock advance's CLI/endpoint report cumulative offset and restart
+lifetime, with an isolated-test hint when data already exists. The jobs card
+uses the existing `dev --fresh --port 4401` recipe. `check --store` remains a
+schema-adoption check because it has no running-clock selector. Detection uses
+minted row times and time fields matching recorded commits, not arbitrary future
+expiry/appointment values; it never rewrites data.
+
+Dev auth distinguishes unknown-store, expired and signed-out/revoked/refreshed
+bearers. A bounded SQLite history keeps 4,096 retired-token digests/deadlines,
+installed after accepted opening; serve removes it and keeps all three causes
+generic to avoid disclosing token membership. `E_AUTH`/`auth` and the public type
+shape are unchanged. Online/local SDKs retain the validated reason through
+terminal cleanup and app online custody/fences. Generated declarations and docs
+were updated consistently. LLP 3000.007 §20.2/§20.12 and its Revised line carry
+the lasting decisions; LLP 3000.033's read-session authority/opening rules stand.
+
+Affected checks passed: 191 server units (four ignored), 64 clock/replay/dev-refusal
+integration tests, one clock tolerance test, 23 core identity/session tests,
+113 guide checks, SDK build/typecheck, the new 30-test reason matrix, app/transport/
+read-only regressions and the full 52-test app session model (5,000 sequences per
+tier). Root ref-check passed. The broader CLI unit run retained an unrelated
+witness retention-lock failure (329 passed/one failed/four ignored), passing alone;
+no full-suite-green claim. No web/device engine changes: a fresh local wasm build
+measured 2,135,336 raw / 645,448 gzip bytes against the inherited 645,607 cap (159 B
+margin); no macOS margin or raised budget is claimed. Work stayed in this lane;
+nothing pushed. Details, privacy rationale, detection limits and harness outcomes:
+[DK report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+
+## 2026-10-07 — DK round 1: trusted dev explanations and bounded clock evidence
+
+Astra's r0 NOT READY review identified public-route disclosure and an unbounded
+startup scan that could mistake an ordinary appointment for a future write.
+Detailed E_AUTH wording now requires the dev-only endpoint peer/Host/Origin
+trust check, even on public POST routes. Serve and untrusted dev callers get the
+same generic text for unknown, expired and signed-out/refreshed tokens. Removed
+r0's persistent diagnostic objects and lifecycle hooks entirely; the preceding
+DK entry's storage design is superseded. No process cache is kept. Existing
+records can explain expiry; absent records explain the possible earlier-store,
+expiry or sign-out causes and tell the developer to sign in and discard saved
+old-store tokens. The SDK's reason preservation remains intact.
+
+Clock startup/doctor inspect only the latest 64 commit stamps, never application
+row values. Table metadata is bounded before loading (4 KiB per commit), the
+printed table list is bounded, and omitted names are explicit. This deliberately
+can miss older future commits and can still report historical stamps after rows
+are deleted; the guide and LLP now state those limits. The matching-appointment
+control, public-route controls, session/read-only regressions, affected Rust
+suites and guide checks passed. Doctor offsets, cumulative advance/restart
+wording and the isolated `dev --fresh --port 4401` recipe remain. Governing LLP
+3000.007 §20.2/§20.12 and Revised were updated. Production benchmark evidence,
+final model counts and full commands are in
+[the round-1 report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-1 final evidence: the 100,001-row production benchmark measured
+4.918–5.681 ms startup against published 0.4.14's 5.404–6.565 ms (five
+interleaved runs each); SQLite schema remained unchanged. All 52 app-session
+model tests passed at 5,000 sequences per tier. The final ref-check passed
+531 LLP documents and 10,539 references with zero errors/unchecked.
+
+## 2026-10-07 — DK round 2: refusal custody on restored apps and identity doors
+
+Astra's round-1 review found that a device app restoring a saved foreign-store
+token kept the repair in ready/auth but lost it on the signed-out online facade.
+The failed-opening path now passes the terminal refusal into that facade when
+no valid previous owner is being restored. A real two-store startup regression
+checks query, mutate and act, then proves a new sign-in replaces the cause.
+Never-signed-in online/device apps stay generic. Local logout-everywhere also
+keeps an already retained terminal cause, addressing Grok's round-0 finding.
+
+Logout/narrow retain their transactional authority checks and now use the same
+HTTP 401 E_AUTH/auth envelope and personas guide as the data doors. Refresh's
+fallback and logout-all's recheck preserve the actual refusal instead of
+stringifying it. Expanded door controls check status, wording, guide and public
+privacy; a deterministic expiry between refresh resolution and rotation covers
+the rare fallback. Live wrong-kind credentials retain their operation-specific
+explanation. No session authority or stored format changed.
+
+Round 1 already avoided all application row images during clock inspection.
+A new real-startup control confirms an unparsable image cannot break that check.
+Other inspection failures now print unavailable and allow dev startup to continue;
+a malformed commit-stamp control proves it. Ordinary store/schema admission
+still applies. The bounded query and its documented limitations are unchanged.
+Focused tests, 193 affected HTTP tests, 23 clock integrations, session-security
+and read-only regressions, 113 guide tests and ref-check passed. LLP 3000.007
+§20.2/§20.12 and Revised were updated with the guide/client docs. Final model
+counts and commands are in [the report](reports/20261007-dk-dev-clock-and-stale-sessions/REPORT.md).
+Work stayed on eb1000 in lane DK; nothing pushed.
+
+DK round-2 final evidence: all 52 app-session model tests passed at 5,000
+sequences per tier; 92 restoration/account-custody regressions also passed.
+The SDK selection passed 231 tests with one optional 0.4.13 downgrade test
+skipped because that verified binary was not supplied. Ref-check passed 531 LLP
+documents and 10,540 references with zero errors/unchecked.
+
+## 2026-10-07 — DT-B: store oracle and scheduled runner (Continuation 1)
+
+Extended the opt-in Quarry generator with exact SQLite/Postgres comparisons,
+with prefetch on and off. Both modes receive the same generated source, typed
+inputs, seed rows, clock, IDs and ceilings. Public meter boundaries include
+mutation aborts and their post-write observations; cursor continuations retain
+and compare every public outcome. No store-specific outcome fields are omitted.
+
+Continuation 1 replaces a schema per mutation attempt with one physical schema
+per worker, including during shrinking. It restores all persisted tables and
+bookkeeping with DELETE and saved row images, installs the next compiled fixture,
+and opens the ordinary Postgres engine. This preserves physical table files.
+Mutation attempts restore the seeded snapshot and reopen the engine. An opt-in
+fresh-schema mode verifies identical serialized outcomes across reads, mutations,
+ceilings and both prefetch settings. SQLite snapshots use temporary change
+tracking triggers to restore only tables actually changed by the prior attempt;
+committed-write/reset equivalence also passes. Engine code is unchanged.
+
+Every discovered mutation position is compared twice on SQLite. Postgres checks
+up to eight seeded positions per dimension, always including first/last, plus the
+original case budget. Reads retain the full public-boundary sweep. Counters state
+selected and skipped positions. The local diagnostic observer copies unchanged
+Postgres wire traffic and retains SQLSTATE, message, detail, server fields and
+SQL statement before the query API discards the driver source. A raised server
+error tests the full diagnostics. Setup/admin errors retain their source chains.
+
+The final 2,000-case release pilot on the provided non-durable Mac cluster took
+193.258 s with eight workers (37,256 cases/hour); its slowest case took 16.048 s.
+The preceding pilot took 217.600 s (33,088 cases/hour, slowest 16.824 s).
+The supplied before measurement was 7,890 s for a requested 200 cases with two
+failed workers. The throughput aim is 100,000 cases/hour and is not yet met.
+The remaining long mutation cases enumerate byte allowances where the public
+refusal exposes no next charge; they are counted, not silently skipped.
+
+The old cluster assertion assumed no disagreements. Low-budget heap scratch
+accounting differs across stores, affecting meters, cuts, returned data and
+mutation refusals/commits. These remain reported disagreements, with shrunk
+artifacts and ticket text; the regression now requires its eight diagnosed
+signatures rather than turning them into passes. The required cargo build,
+default difftest tests and Postgres-feature tests pass; the warm cluster target
+finishes in 18.68 s. Prefetch transfer counts in the random pilot are zero: the
+current generator emits no per-row related-key lookup in a page loop and
+therefore receives no prefetch marks. The focused probe adds an eight-row
+projection with eight distinct related lookup keys.
+
+The scheduled runner sizes its default three-hour window from a 256-case
+calibration of both campaigns with 20% headroom. Its private cluster uses
+fsync=off, synchronous_commit=off, full_page_writes=off, shared_buffers=1GB and
+max_connections=200. A dry run can explicitly use an operator-owned external
+cluster and never starts/stops it. The eight Python tests cover these settings,
+calibration, external ownership, failures and seed rotation. The real 32-case
+dry run completed against a scratch clone and the provided cluster, produced
+stable ticket previews, and advanced only its dry-run seed state. No schedule
+was installed and nothing was pushed. Scratch-clone commits serve local
+qualification only; nothing is committed in this worktree.
+
+The two 2,000-seed controls and the subsequent time-bounded million-case request
+are being completed; final counters, diagnoses and command summaries belong in
+`~/projects/snapback-difftest-lane/report-b.md`, Continuation 1. This amends the
+same day's slice entry at the author's explicit request.
+
+## 2026-10-08 — SN round 3: merge FL and DK before review
+
+Merged fetched origin/main `07f4c495ea` (DK retained session reasons), including
+FL `2797247960` (test-process custody and dry-run fixes), into SN round 2
+`5aa91a4ab3`. Resolved client.ts/local.ts import conflicts by retaining both
+SN dependency/network/custody imports and DK's refusal binding. Local Following
+binding remains in SN's network helper. Automatic merges preserve DK's terminal
+causes through raw clients, app custody and online arms alongside SN's event
+waits, generation/store proofs, field-level fences and dispatch-store receipts.
+The JOURNAL conflict preserves both parent histories byte-for-byte; no entry was
+rewritten or dropped. Related declarations keep local.ts at 1,498 lines; every
+changed source file remains below 1,500 lines. No contract or design change.
+
+After resolution, frozen Bun installation and the supplied SDK checker passed
+(`deps-ok`); native, wasm and client builds and TypeScript typecheck passed.
+The final Linux wasm is byte-identical to round 2: 2,135,614 raw / 645,498 gzip
+bytes. The unchanged 645,998-byte cap retains exactly 500 bytes above Linux,
+including the requested allowance for macOS's observed up-to-435-byte difference.
+No macOS build or measurement is claimed.
+
+Merged validation: 373 one-shot/dependency/settlement tests; 576 affected-client
+tests with the same two opt-in/unavailable-artifact skips; 205 custody tests;
+33 DK reason tests plus 92 app/restoration tests; 69 FL process-custody tests;
+118 compiler/guide tests; 194 serve tests with four existing ignores. The full
+app-session model passed 52 tests, including 5,000 seeded sequences per tier.
+Original round-0 scripts again returned 22 passes and the same three assertions
+superseded by round 1's complete-prediction exception; corrected permanent
+regressions passed. No failing assertion is counted as a pass. Commands, logs,
+reference validation and conflict details are in the
+[round-3 report](reports/20261007-sn-one-shot-settlement/round3/REPORT.md).
+Work stayed on eb1000 in the assigned lane-sn worktree; nothing pushed or published.
+
+
+## 2026-10-08 — SN round 4: deliberate capability-free backend pin refresh
+
+Regenerated the exact capability-free `/schema` fixture from the real compiler
+and current server on eb1000, dropping only its trailing random store_id. The
+pin grows from 2,950 to 3,100 bytes: exactly three additive settlement summaries.
+Deleting only those summary members reproduces the old pin byte-for-byte.
+The length assertion stays exact; its adjacent comment records why the pin
+changed and the author's Apartment mini evidence that published 0.2.33 native
+and WASM install/adopt/query/reopen passed before the old pin failed.
+
+The stored-schema comparison against the real 0.2.33 encoding is unchanged,
+including its two allowed diagnostic substitutions. The real Linux server's
+stored generation schema still equals the unchanged 1,359-byte golden file.
+Current native SQLite and WASM persistence both contain the same 2,389-byte
+typed backend with no settlement summary, including adoption and WASM reopen.
+A new compiler regression compares the full backend pin and original typed
+schema/Program encoding; it first reproduced the stale pin failure. LLP
+3000.023 §11 and Revised now state the additive envelope's byte change and
+one-time backend fetch/adoption on server upgrade, with no stored schema,
+interpreter IR, capability or storage migration change.
+
+The full language suite also exposed four test-only StreamReply constructors
+missed when SN round 2 added optional commit evidence. Added the neutral null
+changes field to Clique, derived-maintenance, column-commit and timeline-delivery
+helpers; its existing omission rule preserves their wire bytes and assertions.
+No runtime/device/wasm implementation or budget changed. Linux verification,
+regeneration commands and exact digests are in the
+[round-4 report](reports/20261007-sn-one-shot-settlement/round4/REPORT.md).
+The author will rerun the complete Darwin fence; no new macOS run is claimed.
+Work stayed in lane-sn on eb1000; nothing pushed or published.
+
+Round-4 final validation: the full language package passed 1,541 tests with
+13 existing ignores, including six settlement tests and 113 guide checks.
+Core schema-capability tests passed eight; affected native transport fixtures
+passed 26. The JS fixture/witness run passed four and explicitly skipped seven
+Darwin-only cases. Ref-check passed 531 documents and 10,562 references with
+zero errors or unchecked references. The exact old stored-schema assertion
+remains unchanged for the author's mini rerun.
+
+## 2026-10-08 — SN round 5: whole-settlement replay fence and discovery E_AUTH
+
+Reproduced Astra's two round-3 P1s on the round-4 tip before edits: both device
+hosts published the pre-rollback message after another prediction's replay had
+changed it, and raw online plus its facade discarded a real current-session
+E_AUTH from settlement discovery. The existing two parked-custody auth controls
+already passed. The external reviewer scripts remain unchanged except for their
+checkout import prefix; portable regressions retain both publication races.
+
+Local settlement no longer trusts the settled operation's static footprint by
+itself. The device emits transient settlement_unchanged=true only when its
+transaction restored/replayed no prediction rows and the existing bounded
+recorder proves no net row changes through delivery publication. Any prediction
+activity, changed row, recorder overflow/rollback or absent/malformed evidence
+widens the commit to unknown. Equal final rows alone do not certify unchanged
+provisional-read metadata. This preserves field narrowing for ordinary unrelated
+non-predicting settlements without guessing the contents of a racing outbox.
+The existing compiler summaries, event wait, complete-prediction exception and
+prompt offline refusal remain unchanged. The new tests cover both hosts at the
+facade's final continuation, old/malformed markers, and certificate non-reuse on
+a failed device call. The published-reply comparison allows only this precise
+successful-settlement metadata addition; its payload and backend/storage pins
+stay exact.
+
+Online discovery now routes refusals through the existing credential-revision
+handler before considering optional metadata. Current E_AUTH ends credentials
+and retains DK's exact reason; obsolete failures during or after rotation do not
+end the replacement. Successful facts from an old credential revision cannot
+install either. Raw online/facade regressions cover all these orderings. LLP
+3000.023 §11 and Revised state both fixes; the client card and E_QUERY_RETRY
+meaning remain unchanged.
+
+Reinstalled frozen dependencies (deps-ok) and rebuilt native, locked wasm and
+SDK; TypeScript checks passed. Linux wasm is 2,135,891 B raw / 645,680 B gzip,
++277 raw / +182 gzip versus round 3. Raise the cap by 182 B to 646,180 B to retain
+500 B of headroom over Linux (the author reports macOS up to +435 B). No macOS
+measurement, storage/schema/IR migration or interpreter resource ceiling change.
+local.ts remains below 1,500 lines at 1,499; client.ts has 1,341 lines.
+
+Commands, test outcomes, inherited skips, and the three original round-0
+assertions superseded by round 1 are recorded in the
+[round-5 report](reports/20261007-sn-one-shot-settlement/round5/REPORT.md).
+Work stayed in lane-sn on eb1000; nothing pushed or published. Grok's round-3
+review remains with the author for the next round; no verdict is inferred here.
+
+## 2026-10-08 — FL round 8: bound correctness work independently of launch latency
+
+Fetched and merged origin/main at 2797247960, installed the frozen Snapback 4
+workspace dependencies, and obtained deps-ok from the requested SDK check.
+The real runner CLI parity case now awaits its six invocations through the
+existing owned-command keeper. Each receives the ordinary fifteen-minute
+file-stall floor as a work allowance; one aggregate guard covers the six calls
+and cleanup. The runner's declared-guard census preserves its outer margin.
+Timeouts report TEST_FIXTURE_COMMAND_TIMEOUT distinctly. Verdicts, counts,
+PATH-shim hits, KEPT_FAILURE and inspection/keeper-error refusals are unchanged.
+The sibling audit fixes short correctness-work and readiness bounds in native
+parity, process, signal, export and schema-refusal tests. Intentional watchdog
+and product-deadline assertions retain their clocks and required outcomes.
+
+Loaded repetition also exposed empty Linux cmdline bytes during an env exec.
+Initial child capture now waits only for that incomplete state, retaining the
+first live birth and parent. Changed births, malformed nonempty commands and
+read errors refuse. Three regressions and two mutations cover the distinction.
+Signal dispatch still rechecks exact identity immediately; owned groups and
+retained handles are preferred. Recorded-PID dispatch retains the small
+exit/reuse race between its last inspection and the syscall.
+
+The affected ten-file suite passed 200 tests with 33 Darwin skips; unchanged
+dev_refusals passed 22/22. The frozen load replay ran each changed Linux case
+20 times with eight busy loops and eight test jobs confined to CPUs 80–87.
+The primary and other non-background cases passed 20/20 each. Background
+passed 18/20: two unchanged maintenance-drain predicates failed. Totals were
+2,018 passes, two failures and 640 skips; all keepers acknowledged cleanup and
+all owned load loops were reaped. Both failed cases then passed 60 focused
+repetitions each, which does not explain or erase their failures. The new
+maintenance-drain ticket records them. Failure diagnostics now retain queue
+records, maintenance logs and fresh process observations without changing
+the predicate or its 90-second bound. A later diagnostic candidate run hit
+the existing native invalid-/proc-group error, recorded on its own open ticket.
+No native custody check was relaxed. The final canonical background file with
+diagnostics then passed 63 tests with 32 skips; that rerun does not erase the
+earlier failures. This is not clean loaded qualification.
+
+A twelve-second startup-delay control passes the fixed six-invocation case
+and fails the landed ten-second version. A real hung-runner control fails
+distinctly, drains its private group and detached test descendants, and never
+uses its emergency release. Diagnostic controls preserve the original drain
+assertion. Ref-check passes with zero errors. Work stayed on eb1000 in this
+worktree; no Mac execution or push.
+
+[Round-8 audit, controls, all outcomes and unresolved tickets](reports/20261007-fl-dry-run-flakes/round-8/REPORT.md).
+
+## 2026-10-08 — FL round 9: identity capture cannot suspend watchdog delivery
+
+Astra's round-8 P1 was correct: the new Atomics.wait capture loop blocked the
+runner thread before runProcess armed its timeout. Initial capture now yields
+through abortable timers, keeps the first live birth and spawning parent, and
+settles/cancels when its child exits. Spawn returns the owned child immediately.
+The command clock is armed before capture; timeout/overflow cleanup uses the
+retained native handle immediately and waits for reaping. It cannot depend on
+capture or another inspector finishing. Fault injection still awaits capture
+and fresh exact identity. Borrowed handles, incomplete records, changed births
+and wrong commands remain refusals.
+
+The shared Darwin probe also used a synchronous subprocess. It now uses the
+asynchronous owned leaf-inspection helper with its existing timeout and KILL/
+reaping, and capture cancellation stops an in-flight probe. Compiler group
+custody and its deadline are unchanged. All signal/liveness callers now await
+their results, including Darwin export branches and ordinary fixture cleanup.
+Positive PID validation, selected executable/root spelling and every earlier
+fault outcome remain checked. Recorded-PID checks still have a small exit/
+reuse race before the syscall; owned handles and keeper groups remain preferred.
+
+The persistent-empty-command regression retains real stat/birth/parent and
+proves sibling heartbeats, the 200 ms command timeout, reaping and cancellation
+of pending capture. Final 20-round load checks pass the main CLI case and seven
+capture/leaf cases each: 160 passes, fixed source hashes, every keeper release
+acknowledged and all eight taskset-confined busy loops reaped. Capture timeout/
+reaping takes 202–209 ms and first heartbeats arrive at 19–25 ms. The blocking
+mutation fails at 5.5 seconds; no-wait, missing-birth and missing-parent mutations
+also fail and drain their groups. The real hung-runner control still fails
+distinctly, reaps its descendants and does not use its emergency release.
+
+The ten affected files pass 204 tests with 33 Darwin skips; the final signal
+file passes 16/16 and unchanged dev_refusals passes 22/22. Initial missing
+dependencies were restored from the frozen lockfile, yielding deps-ok. Extra
+helper consumers exposed stale generated SDK artifacts: the avatar failures
+also reproduced with round 8's helper, then disappeared after the ordinary SDK
+build. All four extra consumer files pass 117 tests with current artifacts.
+Ref-check passes with zero errors. Earlier setup/stale-artifact failures are
+retained separately. Round 8's open maintenance/native-inspection failures
+remain unresolved; this is no macOS soak or full-publication claim. Work stayed
+on eb1000 in this worktree; nothing pushed.
+
+[Round-9 correction, API audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-9/REPORT.md).
+
+## 2026-10-08 — FL round 10: count the complete retention process table
+
+The user's macOS r9 soak exposed the default 1 MiB capture limit on the
+coalescing test's full-command ps listing. Round 8 correctly made ENOBUFS
+visible; older code could silently count the truncated table. Both coalescing
+variants now share a 128 MiB listing (32,768 rows averaging 4 KiB; 20,000 with
+headroom), request wide commands, and require successful completion before
+filtering. Overflow still fails explicitly. The original 28-export, one
+observer, no-custodian and full/compressed retention assertions are unchanged.
+
+The new regression puts one matching worker before 20,000 unrelated rows and
+two after them, beyond 1 MiB. It requires all three exact rows and refuses
+both nonzero ps completion and real overflow beyond 128 MiB. Private-copy
+controls fail when the default buffer returns, when truncated output is
+accepted, or when a failed ps status is ignored. All control groups drain.
+
+Every synchronous subprocess call in round 8's eight test files and four
+helper/runner modules was audited, including generated fixture source. The
+other full-table shims already use explicit 16 MiB metadata buffers. Remaining
+calls return fixed fixture data, selected-PID state, small diagnostics, or
+inherit streams. No further host-scaled default-buffer exposure was found.
+Product code and shared asynchronous capture/watchdogs are unchanged. No new
+recorded-PID dispatch is introduced; its previously documented inspection-to-
+syscall race remains, with group/handle custody preferred for owned processes.
+
+The ten affected/surrounding files pass 205 tests with 33 Darwin skips and no
+failures or leaks; export-background contributes 64 passes and 32 skips.
+The focused regression and three expected-failure controls pass, deps-ok is
+confirmed, and ref-check reports zero errors. Source and binary stay fixed
+during verification. Work stays on eb1000; nothing pushed, no Darwin or full
+publication qualification claimed. Earlier round-8 open tickets stay open.
+
+[Round-10 buffer sizing, complete call audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-10/REPORT.md).
+
+## 2026-10-08 — FT: client-test preconditions and nine flake dispositions
+
+Worked only in lane-ft on eb1000 from ecba83f39e; frozen dependencies and the
+SDK check pass (deps-ok). Native, locked wasm and SDK were built locally.
+Wasm remains 2,135,891 B raw / 645,680 B gzip; no budget or product source changed.
+
+Recreated offline-watch failure reproduced seven times in 55 original/diagnostic
+runs. The snapshot was loading: a server query displayed a2 before the seed's
+sync publication cleared remembered answers. The mounted observation retained
+its image while the new offline watch had no memory. The test now awaits sync
+and a fresh, settled replacement before disconnecting, preserving every
+freshness/data/since/reconnect assertion and adding bounded failure diagnostics.
+A held watermark-2 apply proves the ordering: fixed passes, barrier removal
+fails at the original recreated predicate. The full fixed file passes 30 loaded
+runs and a final complete rerun. The older freshness-downgrade signature was
+not reproduced and remains open separately.
+
+W5R2a now admits with zero caller wait and waits for terminal onWrite plus
+matching durable receipt state. Its queued-state, eviction and exactly-once
+checks remain. An intermediate receipt-only candidate was too early and failed
+all 30 two-host runs at the second emission count; those reds are retained.
+The final event/receipt wait passes 30 repetitions on each host. A six-second
+response delay fails the old default four-second wait and passes the final
+case; withholding terminal events still fails its unchanged state guard.
+Eleven neighbouring acquisition assertions now expect SN's specified prompt
+E_OFFLINE instead of the superseded E_QUERY_RETRY. Final complete acquisition:
+47/47.
+
+SN also left private test instrumentation naming removed syncOnce/syncing
+locals. Browser admission now observes network.once without changing its
+scheduling or promise identity; the delivery matrix uses network.current/once
+and current semantic site IDs. All 162 delivery recipes/classifications remain,
+with the boundary audit recorded. Full matrix 339/339 and admission 55/55;
+30 repeated follow/retry runs pass 330 cases, and 30 focused admission runs pass
+300. Removing the shared-operation drain reproduces the original zero-injection
+assertion. The existing session-revocation and React storage-listener repairs
+also pass 30 full-file repetitions each and detecting negative controls.
+
+Five tickets close, including the resurrected React duplicate. Four stay open
+with measured evidence: direct fixture ECONNRESET, historical freshness downgrade,
+Darwin browser-close stalls and the mixed-oracle timeout. The three transport
+files and typing/session-authority/web-start each pass 30 full-file runs. Five
+complete mixed-oracle runs pass all 1,500 process and 1,500 wasm histories, with
+all three schedules per history and the existing guards. Successful Linux runs
+do not identify those original failures or establish Darwin qualification.
+
+Campaigns use the ordinary keeper runner, eight client slots and eight busy
+loops per campaign confined to CPUs 64–71; campaigns overlap within this
+worktree. All 72 load loops are reaped, every keeper acknowledges cleanup,
+and no runner inspection/leak error occurs. Ref-check passes with zero errors.
+No test or assertion was deleted and no hang guard was raised. No push or
+publication. Commands, source hashes, all baseline/intermediate failures,
+controls and exact counts: [FT report](reports/20261008-ft-client-flakes/REPORT.md).
+## 2026-10-08 — FS: deterministic witness custody and worker refusal observations
+
+The loaded witness campaign reproduced orphan reconciliation (4/30), unfinished-export discovery (6/30), ownerless-shell recovery (1/30), and repeated-kill orphan-marker failures (9/30). A close-on-exec flock descriptor can survive local drop in an unrelated libtest fork until exec/exit. The affected last-close scenarios now run individually in isolated test processes while their neighbours remain parallel. Pipe-gated fork controls retain actual store, retention, run/export and destination custody after parent drop and are reaped before reacquisition. No product lock is explicitly unlocked or relaxed. Retained-holder mutations still fail every original positive assertion. EM's exact two recovery cases and existing ticket were found by read-only Git-object inspection; no other worktree was accessed.
+
+The three worker manifest-refusal cases now wait for the existing refusal log and explicitly stop/join the fixture-owned host, preserving no-start assertions before and after shutdown. Their baseline spent 122 seconds per case; 30 loaded runs now have medians of 341/247/220 ms. Missing-refusal controls for all three scopes still fail at the original 122-second guard. Preparation lease and supervised-worker log fixes were already present; their tickets close with new repeated evidence. Both supervised modes pass 30 forced file-before-log controls; removing the wait or permanently withholding logs fails.
+
+One product diagnostic error surfaced in all 30 baseline witness runs: a successful preparation receipt sampled deadline expiry after descendant cleanup. It now records the preparation completion instant before cleanup but is still published only after cleanup succeeds. Cleanup retains its own deadline and all bounds stay unchanged. Virtual-time expiry and late-cleanup controls cover the receipt, and the original real-output/forced-stall case passes 30/30 on final source.
+
+All requested portable Rust cases pass 30 final runs with four test threads, two concurrent binaries and twelve busy loops confined to two CPUs. The complete witness inventory passes 29/30 runs (2,189 passes and one separately tracked native /proc inspection refusal). Four of five final whole-CLI load runs are green; one retains the unchanged latency timing assertion. The standard affected Rust command passes 335 unit cases with four existing ignores plus 32 Linux integration cases, the affected client files pass 82/82, and ref-check has zero errors. An isolated two-wrapper neighbour also exposed intentional recovery/publisher custody contention; it remains a separate open ticket. These failures are retained, not dismissed by passing reruns.
+
+Six requested tickets and the additional receipt ticket are closed. The existing-app driver ticket remains open because its actual case is Darwin-only: 30 Linux fixture controls establish its deterministic running PID, not a Darwin driver qualification. All stress processes were owned and reaped on eb1000; nothing pushed or published. No full Darwin dry-run claim.
+
+[FS report, commands, immutable artifact hashes, controls and ticket dispositions](reports/20261008-fs-witness-worker-flakes/REPORT.md).

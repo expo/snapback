@@ -64,8 +64,8 @@ impl Deadline {
             "hardLimitMs": self.hard.as_millis(), "progressObservations": self.observations,
             "outputBytes": self.high_water.values().sum::<u64>(), "expired": self.expired(at) })
     }
-    pub(super) fn finish(&self, dir: &Path) -> Result<()> {
-        if self.background { recovery::write(&dir.join("preparation-deadline.json"), &self.record(Instant::now()))?; }
+    pub(super) fn finish(&self, dir: &Path, completed: Instant) -> Result<()> {
+        if self.background { recovery::write(&dir.join("preparation-deadline.json"), &self.record(completed))?; }
         Ok(())
     }
     pub(super) fn problem(&self) -> String {
@@ -111,6 +111,24 @@ mod tests {
     fn live_output_passes_original_budget_and_stalled_child_is_drained() {
         super::super::preparation::deadline_fixture(false);
         super::super::preparation::deadline_fixture(true);
+    }
+    #[test]
+    fn completion_receipt_does_not_charge_later_cleanup_to_preparation() {
+        let dir = std::env::temp_dir().join(format!("sb4-deadline-receipt-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let start = Instant::now() - Duration::from_secs(10);
+        let mut deadline = Deadline::with_limits(start, true, Duration::from_millis(500), Duration::from_secs(5));
+        assert!(deadline.observe(start + Duration::from_millis(100), output(1)));
+        // The recorded completion is before expiry; the actual clock is beyond
+        // even the hard cap. No host scheduling speed is part of this assertion.
+        deadline.finish(&dir, start + Duration::from_millis(300)).unwrap();
+        let record = recovery::read(&dir.join("preparation-deadline.json"));
+        assert_eq!(record["expired"], false);
+        assert_eq!(record["elapsedMs"], 300);
+        assert_eq!(record["idleMs"], 200);
+        deadline.finish(&dir, start + Duration::from_millis(600)).unwrap();
+        assert_eq!(recovery::read(&dir.join("preparation-deadline.json"))["expired"], true);
+        fs::remove_dir_all(dir).unwrap();
     }
     pub(super) fn short(start: Instant) -> Deadline {
         Deadline::with_limits(start, true, Duration::from_millis(500), Duration::from_secs(5))

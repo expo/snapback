@@ -1,0 +1,1420 @@
+-- client file start: packages/snapback4/test/online-store-order.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/online-store-terminal.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/online-terminal-entrypoints.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/app-store-replacement.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/store-reset-review.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/store-reset-reconnect.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: terminal replacement refuses every active entry point
+ok 1 - terminal replacement refuses every active entry point
+  ---
+  duration_ms: 22.519629
+  type: 'test'
+  ...
+# Subtest: terminal regression refuses every active entry point
+ok 2 - terminal regression refuses every active entry point
+  ---
+  duration_ms: 1.469332
+  type: 'test'
+  ...
+# Subtest: in-flight assets and action are fenced without aborting effects on replacement
+ok 3 - in-flight assets and action are fenced without aborting effects on replacement
+  ---
+  duration_ms: 13.884925
+  type: 'test'
+  ...
+# Subtest: in-flight assets and action are fenced without aborting effects on regression
+ok 4 - in-flight assets and action are fenced without aborting effects on regression
+  ---
+  duration_ms: 11.031948
+  type: 'test'
+  ...
+# Subtest: late refresh successor cannot change terminal credentials; awaited E_AUTH gap: false
+ok 5 - late refresh successor cannot change terminal credentials; awaited E_AUTH gap: false
+  ---
+  duration_ms: 13.812916
+  type: 'test'
+  ...
+# Subtest: late refresh successor cannot change terminal credentials; awaited E_AUTH gap: true
+ok 6 - late refresh successor cannot change terminal credentials; awaited E_AUTH gap: true
+  ---
+  duration_ms: 11.792428
+  type: 'test'
+  ...
+# Subtest: late refresh refusal cannot change terminal credentials; awaited E_AUTH gap: false
+ok 7 - late refresh refusal cannot change terminal credentials; awaited E_AUTH gap: false
+  ---
+  duration_ms: 2.362501
+  type: 'test'
+  ...
+# Subtest: late refresh refusal cannot change terminal credentials; awaited E_AUTH gap: true
+ok 8 - late refresh refusal cannot change terminal credentials; awaited E_AUTH gap: true
+  ---
+  duration_ms: 2.364284
+  type: 'test'
+  ...
+# Subtest: a change poll waiting for refresh never resumes its retired lifetime
+ok 9 - a change poll waiting for refresh never resumes its retired lifetime
+  ---
+  duration_ms: 5.346094
+  type: 'test'
+  ...
+# Subtest: app replacement never persists a late successor before probing the kept session
+ok 10 - app replacement never persists a late successor before probing the kept session
+  ---
+  duration_ms: 28.288406
+  type: 'test'
+  ...
+# Subtest: a rejected refresh cleans up only after sign-out (session, sign-out)
+ok 11 - a rejected refresh cleans up only after sign-out (session, sign-out)
+  ---
+  duration_ms: 11.828913
+  type: 'test'
+  ...
+# Subtest: a rejected refresh cleans up only after sign-out (session, replacement)
+ok 12 - a rejected refresh cleans up only after sign-out (session, replacement)
+  ---
+  duration_ms: 2.46123
+  type: 'test'
+  ...
+# Subtest: a rejected refresh cleans up only after sign-out (session, restore)
+ok 13 - a rejected refresh cleans up only after sign-out (session, restore)
+  ---
+  duration_ms: 1.289353
+  type: 'test'
+  ...
+# Subtest: a rejected refresh cleans up only after sign-out (token, sign-out)
+ok 14 - a rejected refresh cleans up only after sign-out (token, sign-out)
+  ---
+  duration_ms: 10.02576
+  type: 'test'
+  ...
+# Subtest: a rejected refresh cleans up only after sign-out (token, replacement)
+ok 15 - a rejected refresh cleans up only after sign-out (token, replacement)
+  ---
+  duration_ms: 2.182011
+  type: 'test'
+  ...
+# Subtest: a rejected refresh cleans up only after sign-out (token, restore)
+ok 16 - a rejected refresh cleans up only after sign-out (token, restore)
+  ---
+  duration_ms: 2.26804
+  type: 'test'
+  ...
+# Subtest: refresh fetch rejects on abort: sign-out still logs out next
+ok 17 - refresh fetch rejects on abort: sign-out still logs out next
+  ---
+  duration_ms: 11.92095
+  type: 'test'
+  ...
+# Subtest: refresh fetch rejects on abort: replacement still logs out next
+ok 18 - refresh fetch rejects on abort: replacement still logs out next
+  ---
+  duration_ms: 11.68055
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 271.866572
+-- process inspection: {"snapshots":3,"unrelatedRows":4153}
+-- client file ok: packages/snapback4/test/online-terminal-entrypoints.test.mjs (583 ms)
+-- client file start: packages/snapback4/test/store-reset.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: replayed mutation cannot lower the query floor
+ok 1 - replayed mutation cannot lower the query floor
+  ---
+  duration_ms: 47.363522
+  type: 'test'
+  ...
+# Subtest: replayed mutation cannot lower the observation floor
+ok 2 - replayed mutation cannot lower the observation floor
+  ---
+  duration_ms: 43.55355
+  type: 'test'
+  ...
+# Subtest: closing while a stale HTTP body is in flight prevents publication and refetch
+ok 3 - closing while a stale HTTP body is in flight prevents publication and refetch
+  ---
+  duration_ms: 263.236124
+  type: 'test'
+  ...
+# Subtest: same-store head regression reports E_STORE_RESTORE and stops polling and reading
+ok 4 - same-store head regression reports E_STORE_RESTORE and stops polling and reading
+  ---
+  duration_ms: 121.857996
+  type: 'test'
+  ...
+# Subtest: a change response captured before a write is not evidence of a same-store restore
+ok 5 - a change response captured before a write is not evidence of a same-store restore
+  ---
+  duration_ms: 22.335513
+  type: 'test'
+  ...
+# Subtest: direct stale-sequence reads back off and stop after four requests
+ok 6 - direct stale-sequence reads back off and stop after four requests
+  ---
+  duration_ms: 433.600255
+  type: 'test'
+  ...
+# Subtest: observed stale-sequence reads back off and stop after four requests
+ok 7 - observed stale-sequence reads back off and stop after four requests
+  ---
+  duration_ms: 445.182458
+  type: 'test'
+  ...
+# Subtest: closing the last owner during backoff cancels the next stale-response request
+ok 8 - closing the last owner during backoff cancels the next stale-response request
+  ---
+  duration_ms: 264.102913
+  type: 'test'
+  ...
+# Subtest: closing one of two subscribed owners does not cancel their shared fetch
+ok 9 - closing one of two subscribed owners does not cancel their shared fetch
+  ---
+  duration_ms: 31.57926
+  type: 'test'
+  ...
+# Subtest: a buffered first identity reply cannot lower a newer write floor
+ok 10 - a buffered first identity reply cannot lower a newer write floor
+  ---
+  duration_ms: 37.33639
+  type: 'test'
+  ...
+# Subtest: first poll after a completed write refuses a lower head (new identity)
+ok 11 - first poll after a completed write refuses a lower head (new identity)
+  ---
+  duration_ms: 71.50358
+  type: 'test'
+  ...
+# Subtest: first poll after a completed write refuses a lower head (known identity)
+ok 12 - first poll after a completed write refuses a lower head (known identity)
+  ---
+  duration_ms: 71.175508
+  type: 'test'
+  ...
+# Subtest: first identity discovery remembers the acknowledged receipt for later heads
+ok 13 - first identity discovery remembers the acknowledged receipt for later heads
+  ---
+  duration_ms: 22.194241
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1965.52224
+-- process inspection: {"snapshots":3,"unrelatedRows":4152}
+-- client file ok: packages/snapback4/test/online-store-order.test.mjs (2266 ms)
+-- client file start: packages/snapback4/test/app-local-session.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: a failed local rotation save is not silently repeated by its notification
+ok 1 - a failed local rotation save is not silently repeated by its notification
+  ---
+  duration_ms: 582.86798
+  type: 'test'
+  ...
+# Subtest: a local query retries its consumed predecessor after the owned rotation arrives
+ok 2 - a local query retries its consumed predecessor after the owned rotation arrives
+  ---
+  duration_ms: 214.367706
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 934.960668
+-- process inspection: {"snapshots":3,"unrelatedRows":4151}
+-- client file ok: packages/snapback4/test/app-local-session.test.mjs (1232 ms)
+-- client file start: packages/snapback4/test/app-local-outcomes.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: query: replacement is terminal for all reads and writes
+ok 1 - query: replacement is terminal for all reads and writes
+  ---
+  duration_ms: 429.889452
+  type: 'test'
+  ...
+# Subtest: query: regression is terminal for all reads and writes
+ok 2 - query: regression is terminal for all reads and writes
+  ---
+  duration_ms: 413.927053
+  type: 'test'
+  ...
+# Subtest: mutation: replacement is terminal for all reads and writes
+ok 3 - mutation: replacement is terminal for all reads and writes
+  ---
+  duration_ms: 422.977611
+  type: 'test'
+  ...
+# Subtest: mutation: regression is terminal for all reads and writes
+ok 4 - mutation: regression is terminal for all reads and writes
+  ---
+  duration_ms: 424.11832
+  type: 'test'
+  ...
+# Subtest: changes: replacement is terminal for all reads and writes
+ok 5 - changes: replacement is terminal for all reads and writes
+  ---
+  duration_ms: 422.98374
+  type: 'test'
+  ...
+# Subtest: changes: regression is terminal for all reads and writes
+ok 6 - changes: regression is terminal for all reads and writes
+  ---
+  duration_ms: 423.680273
+  type: 'test'
+  ...
+# Subtest: probe: replacement is terminal for all reads and writes
+ok 7 - probe: replacement is terminal for all reads and writes
+  ---
+  duration_ms: 2415.430912
+  type: 'test'
+  ...
+# Subtest: probe: regression is terminal for all reads and writes
+ok 8 - probe: regression is terminal for all reads and writes
+  ---
+  duration_ms: 2422.448152
+  type: 'test'
+  ...
+# Subtest: direct queries detect replacement in a ready response without polling
+ok 9 - direct queries detect replacement in a ready response without polling
+  ---
+  duration_ms: 3.750843
+  type: 'test'
+  ...
+# Subtest: direct queries detect replacement in a unavailable response without polling
+ok 10 - direct queries detect replacement in a unavailable response without polling
+  ---
+  duration_ms: 1.726739
+  type: 'test'
+  ...
+# Subtest: direct queries detect replacement in a denied response without polling
+ok 11 - direct queries detect replacement in a denied response without polling
+  ---
+  duration_ms: 2.67468
+  type: 'test'
+  ...
+# Subtest: a replacement-store revocation receipt fences an already evaluated replacement-store private page
+ok 12 - a replacement-store revocation receipt fences an already evaluated replacement-store private page
+  ---
+  duration_ms: 12.092217
+  type: 'test'
+  ...
+# Subtest: same-head same-generation replacement denies outstanding old-store answers
+ok 13 - same-head same-generation replacement denies outstanding old-store answers
+  ---
+  duration_ms: 21.943285
+  type: 'test'
+  ...
+# Subtest: replayed receipts verify their current head without lowering the historical commit fence
+ok 14 - replayed receipts verify their current head without lowering the historical commit fence
+  ---
+  duration_ms: 1.279898
+  type: 'test'
+  ...
+# Subtest: a replayed historical receipt cannot authorize a later sequence-1 read
+ok 15 - a replayed historical receipt cannot authorize a later sequence-1 read
+  ---
+  duration_ms: 0.812077
+  type: 'test'
+  ...
+# Subtest: a buffered refusal head below an observed write is refetched before publication
+ok 16 - a buffered refusal head below an observed write is refetched before publication
+  ---
+  duration_ms: 27.050661
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7542.7545
+-- process inspection: {"snapshots":3,"unrelatedRows":4169}
+-- client file ok: packages/snapback4/test/online-store-terminal.test.mjs (7833 ms)
+-- client file start: packages/snapback4/test/raw-read-deadlines.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm: persisted device reacquires after two backend replacements and preserves an unsent write
+ok 1 - wasm: persisted device reacquires after two backend replacements and preserves an unsent write
+  ---
+  duration_ms: 2959.439139
+  type: 'test'
+  ...
+# reset observed: A={"generation":1,"native":null,"watermark":3}, B={"generation":1,"native":null,"watermark":0}, local={"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true,"watermark":0}}, queue=[{"args":{"body":"unsent"},"id":"01M4C6FRG8P3X0SD7JAFD1Q23X","new_ids":["01M4C6FRG988ET3MZT4ZXBSPP7"],"now":1791410823689,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice","store_id":"2a2d0d1d5d4b065b94e389b47cc7d99b"}], reply={"request":{"generation":1,"from":3,"limit":10000,"after":null,"stream":false,"pending":["01M4C6FRG8P3X0SD7JAFD1Q23X"],"store_id":"db68672c6e2fbcc980eff5dfe99d6270"},"reply":{"acknowledged":{},"events":[],"generation":1,"images_at":1,"joined":{},"more":false,"now":1791410823828,"snapshot":false,"store_id":"2a2d0d1d5d4b065b94e389b47cc7d99b","watermark":1}}
+# reacquired: B rows=2, C rows=2, pending POSTs=1, resets=2
+# Subtest: sync store identity survives a server restart; a live client detects an equal-watermark replacement
+ok 2 - sync store identity survives a server restart; a live client detects an equal-watermark replacement
+  ---
+  duration_ms: 2445.110935
+  type: 'test'
+  ...
+# server: identity length=32, restart IDs=1, replacement IDs=2, equal watermark=3
+# Subtest: wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID
+ok 3 - wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID
+  ---
+  duration_ms: 1217.885938
+  type: 'test'
+  ...
+# receipts across reset: known POSTs=0, unknown POSTs=1, duplicate replay=true
+# Subtest: wasm: a replacement reloads backend programs even when the generation number repeats
+ok 4 - wasm: a replacement reloads backend programs even when the generation number repeats
+  ---
+  duration_ms: 1210.079675
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7988.791909
+-- process inspection: {"snapshots":3,"unrelatedRows":4175}
+-- client file ok: packages/snapback4/test/store-reset.test.mjs (8289 ms)
+-- client file start: packages/snapback4/test/legacy-receipts.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: closing a raw local handle stops its episode timer but keeps the deadline
+ok 1 - closing a raw local handle stops its episode timer but keeps the deadline
+  ---
+  duration_ms: 3.027488
+  type: 'test'
+  ...
+# Subtest: wasm: raw resubscription validates revocation before starting a bounded episode
+ok 2 - wasm: raw resubscription validates revocation before starting a bounded episode
+  ---
+  duration_ms: 761.804591
+  type: 'test'
+  ...
+# Subtest: wasm: raw resubscription validates revocation before rearming its original episode
+ok 3 - wasm: raw resubscription validates revocation before rearming its original episode
+  ---
+  duration_ms: 197.176916
+  type: 'test'
+  ...
+# Subtest: process: raw resubscription validates revocation before starting a bounded episode
+ok 4 - process: raw resubscription validates revocation before starting a bounded episode
+  ---
+  duration_ms: 221.471234
+  type: 'test'
+  ...
+# Subtest: process: raw resubscription validates revocation before rearming its original episode
+ok 5 - process: raw resubscription validates revocation before rearming its original episode
+  ---
+  duration_ms: 242.814911
+  type: 'test'
+  ...
+# Subtest: closed raw local handle checks its device deadline when closed before it is due
+ok 6 - closed raw local handle checks its device deadline when closed before it is due
+  ---
+  duration_ms: 0.602874
+  type: 'test'
+  ...
+# Subtest: closed raw local handle checks its device deadline when closed after it is due
+ok 7 - closed raw local handle checks its device deadline when closed after it is due
+  ---
+  duration_ms: 0.203505
+  type: 'test'
+  ...
+# Subtest: closed raw local handle checks its server deadline when closed before it is due
+ok 8 - closed raw local handle checks its server deadline when closed before it is due
+  ---
+  duration_ms: 0.243425
+  type: 'test'
+  ...
+# Subtest: closed raw local handle checks its server deadline when closed after it is due
+ok 9 - closed raw local handle checks its server deadline when closed after it is due
+  ---
+  duration_ms: 0.21341
+  type: 'test'
+  ...
+# Subtest: a closed remembered answer ignores a local wakeup but still checks its server deadline
+ok 10 - a closed remembered answer ignores a local wakeup but still checks its server deadline
+  ---
+  duration_ms: 0.33346
+  type: 'test'
+  ...
+# Subtest: raw snapshot latches its device row deadline before timers, keep=undefined
+ok 11 - raw snapshot latches its device row deadline before timers, keep=undefined
+  ---
+  duration_ms: 0.452148
+  type: 'test'
+  ...
+# Subtest: raw peek latches its device row deadline before timers, keep=undefined
+ok 12 - raw peek latches its device row deadline before timers, keep=undefined
+  ---
+  duration_ms: 0.243305
+  type: 'test'
+  ...
+# Subtest: raw snapshot latches its server row deadline before timers, keep=undefined
+ok 13 - raw snapshot latches its server row deadline before timers, keep=undefined
+  ---
+  duration_ms: 0.226429
+  type: 'test'
+  ...
+# Subtest: raw peek latches its server row deadline before timers, keep=undefined
+ok 14 - raw peek latches its server row deadline before timers, keep=undefined
+  ---
+  duration_ms: 0.248192
+  type: 'test'
+  ...
+# Subtest: raw snapshot latches its device row deadline before timers, keep=true
+ok 15 - raw snapshot latches its device row deadline before timers, keep=true
+  ---
+  duration_ms: 0.253911
+  type: 'test'
+  ...
+# Subtest: raw peek latches its device row deadline before timers, keep=true
+ok 16 - raw peek latches its device row deadline before timers, keep=true
+  ---
+  duration_ms: 0.194852
+  type: 'test'
+  ...
+# Subtest: raw snapshot latches its server row deadline before timers, keep=true
+ok 17 - raw snapshot latches its server row deadline before timers, keep=true
+  ---
+  duration_ms: 0.174592
+  type: 'test'
+  ...
+# Subtest: raw peek latches its server row deadline before timers, keep=true
+ok 18 - raw peek latches its server row deadline before timers, keep=true
+  ---
+  duration_ms: 0.155333
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1584.621196
+-- process inspection: {"snapshots":3,"unrelatedRows":4178}
+-- client file ok: packages/snapback4/test/raw-read-deadlines.test.mjs (1877 ms)
+-- client file start: packages/snapback4/test/read-only-peer-rotation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: local wasm: mutation-sent held across app.close keeps its outcome unknown
+ok 1 - local wasm: mutation-sent held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 656.449125
+  type: 'test'
+  ...
+# Subtest: local wasm: mutation-failed held across app.close keeps its outcome unknown
+ok 2 - local wasm: mutation-failed held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 213.578773
+  type: 'test'
+  ...
+# Subtest: local wasm: action-done held across app.close keeps its outcome unknown
+ok 3 - local wasm: action-done held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 182.080114
+  type: 'test'
+  ...
+# Subtest: local wasm: action-failed held across app.close keeps its outcome unknown
+ok 4 - local wasm: action-failed held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 159.916249
+  type: 'test'
+  ...
+# Subtest: local wasm: query held across app.close keeps its outcome unknown
+ok 5 - local wasm: query held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 158.057873
+  type: 'test'
+  ...
+# Subtest: local native: mutation-sent held across app.close keeps its outcome unknown
+ok 6 - local native: mutation-sent held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 1250.159349
+  type: 'test'
+  ...
+# Subtest: local native: mutation-failed held across app.close keeps its outcome unknown
+ok 7 - local native: mutation-failed held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 1236.17853
+  type: 'test'
+  ...
+# Subtest: local native: action-done held across app.close keeps its outcome unknown
+ok 8 - local native: action-done held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 192.517811
+  type: 'test'
+  ...
+# Subtest: local native: action-failed held across app.close keeps its outcome unknown
+ok 9 - local native: action-failed held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 186.296044
+  type: 'test'
+  ...
+# Subtest: local native: query held across app.close keeps its outcome unknown
+ok 10 - local native: query held across app.close keeps its outcome unknown
+  ---
+  duration_ms: 196.673691
+  type: 'test'
+  ...
+# Subtest: local wasm: mutation-sent arriving during close cleanup remains known
+ok 11 - local wasm: mutation-sent arriving during close cleanup remains known
+  ---
+  duration_ms: 164.596955
+  type: 'test'
+  ...
+# Subtest: local wasm: mutation-failed arriving during close cleanup remains known
+ok 12 - local wasm: mutation-failed arriving during close cleanup remains known
+  ---
+  duration_ms: 156.059206
+  type: 'test'
+  ...
+# Subtest: local wasm: action-done arriving during close cleanup remains known
+ok 13 - local wasm: action-done arriving during close cleanup remains known
+  ---
+  duration_ms: 162.555745
+  type: 'test'
+  ...
+# Subtest: local wasm: action-failed arriving during close cleanup remains known
+ok 14 - local wasm: action-failed arriving during close cleanup remains known
+  ---
+  duration_ms: 161.408526
+  type: 'test'
+  ...
+# Subtest: local native: mutation-sent arriving during close cleanup remains known
+ok 15 - local native: mutation-sent arriving during close cleanup remains known
+  ---
+  duration_ms: 210.070624
+  type: 'test'
+  ...
+# Subtest: local native: mutation-failed arriving during close cleanup remains known
+ok 16 - local native: mutation-failed arriving during close cleanup remains known
+  ---
+  duration_ms: 196.563055
+  type: 'test'
+  ...
+# Subtest: local native: action-done arriving during close cleanup remains known
+ok 17 - local native: action-done arriving during close cleanup remains known
+  ---
+  duration_ms: 197.572489
+  type: 'test'
+  ...
+# Subtest: local native: action-failed arriving during close cleanup remains known
+ok 18 - local native: action-failed arriving during close cleanup remains known
+  ---
+  duration_ms: 188.575181
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6022.816369
+-- process inspection: {"snapshots":3,"unrelatedRows":4181}
+-- client file ok: packages/snapback4/test/app-local-outcomes.test.mjs (6327 ms)
+TAP version 13
+# Subtest: R2 item 1: changes with a foreign identity returns before its production wait
+ok 1 - R2 item 1: changes with a foreign identity returns before its production wait
+  ---
+  duration_ms: 417.189213
+  type: 'test'
+  ...
+# foreign identity wait=25: 2 ms
+# Subtest: R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25)
+ok 2 - R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25)
+  ---
+  duration_ms: 4916.402999
+  type: 'test'
+  ...
+# wasm: same-store restart syncs=0
+# wasm: wait=25, replacement=2164 ms, stale fresh snapshots=0, idle syncs=0
+# Subtest: R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20)
+ok 3 - R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20)
+  ---
+  duration_ms: 4643.993082
+  type: 'test'
+  ...
+# process: same-store restart syncs=0
+# process: wait=20, replacement=2215 ms, stale fresh snapshots=0, idle syncs=0
+# Subtest: R2 item 4: wasm replacement while a snapshot after request is in flight
+ok 4 - R2 item 4: wasm replacement while a snapshot after request is in flight
+  ---
+  duration_ms: 311.54299
+  type: 'test'
+  ...
+# wasm: A staged rows=2/5, B final rows=3, old rows=0
+# Subtest: R2 item 4: process replacement while a snapshot after request is in flight
+ok 5 - R2 item 4: process replacement while a snapshot after request is in flight
+  ---
+  duration_ms: 364.747899
+  type: 'test'
+  ...
+# process: A staged rows=2/5, B final rows=3, old rows=0
+# Subtest: R2 item 3: restoring the same store at a lower head halts reads and retries
+ok 6 - R2 item 3: restoring the same store at a lower head halts reads and retries
+  ---
+  duration_ms: 1674.049747
+  type: 'test'
+  ...
+# restore before/after heads=3/1, read={"denied":{"code":"E_STORE_RESTORE","family":"store","guide":"sync","message":"E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"}}
+# restore: old watermark preserved=3, retry syncs=0, offline reopen refuses=true, fresh device rows=1
+# Subtest: R3 finding 5: server idle poll after populated maintain adoption stays healthy
+ok 7 - R3 finding 5: server idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 554.159484
+  type: 'test'
+  ...
+# maintain: acquired=4, idle notice=4
+# Subtest: R3 finding 5: wasm idle poll after populated maintain adoption stays healthy
+ok 8 - R3 finding 5: wasm idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 569.866801
+  type: 'test'
+  ...
+# wasm: acquired=4, idle notice=4, restore=none
+# Subtest: R3 finding 5: process idle poll after populated maintain adoption stays healthy
+ok 9 - R3 finding 5: process idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 614.997325
+  type: 'test'
+  ...
+# process: acquired=4, idle notice=4, restore=none
+# Subtest: R4: wasm a same-identity head below acquisition halts as a restore
+ok 10 - R4: wasm a same-identity head below acquisition halts as a restore
+  ---
+  duration_ms: 2183.898556
+  type: 'test'
+  ...
+# wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+# Subtest: R4: process a same-identity head below acquisition halts as a restore
+ok 11 - R4: process a same-identity head below acquisition halts as a restore
+  ---
+  duration_ms: 2200.300173
+  type: 'test'
+  ...
+# process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+# Subtest: R3 finding 5: concurrent commits and an older receipt retry keep the actual head
+ok 12 - R3 finding 5: concurrent commits and an older receipt retry keep the actual head
+  ---
+  duration_ms: 1569.326819
+  type: 'test'
+  ...
+# commits=1,2; replay=1; acquired=2; idle head=2
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20153.135888
+-- process inspection: {"snapshots":3,"unrelatedRows":4136}
+-- client file ok: packages/snapback4/test/store-reset-reconnect.test.mjs (20446 ms)
+TAP version 13
+# Subtest: logout after peer refresh attempt; readOnly=true
+ok 1 - logout after peer refresh attempt; readOnly=true
+  ---
+  duration_ms: 569.481303
+  type: 'test'
+  ...
+# Subtest: peer refresh attempt then logout fences a pending login; readOnly=true
+ok 2 - peer refresh attempt then logout fences a pending login; readOnly=true
+  ---
+  duration_ms: 801.610965
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for same principal, new epoch; readOnly=true
+ok 3 - stale logout follows principal ruling for same principal, new epoch; readOnly=true
+  ---
+  duration_ms: 910.991556
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for different principal; readOnly=true
+ok 4 - stale logout follows principal ruling for different principal; readOnly=true
+  ---
+  duration_ms: 939.968525
+  type: 'test'
+  ...
+# Subtest: committed login stays successful across logout without public adoption; readOnly=true
+ok 5 - committed login stays successful across logout without public adoption; readOnly=true
+  ---
+  duration_ms: 820.220873
+  type: 'test'
+  ...
+# Subtest: logout after peer refresh attempt; readOnly=false
+ok 6 - logout after peer refresh attempt; readOnly=false
+  ---
+  duration_ms: 544.900674
+  type: 'test'
+  ...
+# Subtest: peer refresh attempt then logout fences a pending login; readOnly=false
+ok 7 - peer refresh attempt then logout fences a pending login; readOnly=false
+  ---
+  duration_ms: 806.511351
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for same principal, new epoch; readOnly=false
+ok 8 - stale logout follows principal ruling for same principal, new epoch; readOnly=false
+  ---
+  duration_ms: 925.879254
+  type: 'test'
+  ...
+# Subtest: stale logout follows principal ruling for different principal; readOnly=false
+ok 9 - stale logout follows principal ruling for different principal; readOnly=false
+  ---
+  duration_ms: 896.787753
+  type: 'test'
+  ...
+# Subtest: committed login stays successful across logout without public adoption; readOnly=false
+ok 10 - committed login stays successful across logout without public adoption; readOnly=false
+  ---
+  duration_ms: 794.764942
+  type: 'test'
+  ...
+# Subtest: a read peer stays usable after both clients refuse refresh
+ok 11 - a read peer stays usable after both clients refuse refresh
+  ---
+  duration_ms: 553.326766
+  type: 'test'
+  ...
+# Subtest: full-session ordinary peer rejection preserves the completed successor
+ok 12 - full-session ordinary peer rejection preserves the completed successor
+  ---
+  duration_ms: 645.762265
+  type: 'test'
+  ...
+# Subtest: full-session late predecessor rejection preserves the committed successor
+ok 13 - full-session late predecessor rejection preserves the committed successor
+  ---
+  duration_ms: 553.544842
+  type: 'test'
+  ...
+# Subtest: malformed stored JSON is collected; readOnly=true
+ok 14 - malformed stored JSON is collected; readOnly=true
+  ---
+  duration_ms: 434.227295
+  type: 'test'
+  ...
+# Subtest: malformed stored JSON is collected; readOnly=false
+ok 15 - malformed stored JSON is collected; readOnly=false
+  ---
+  duration_ms: 431.888258
+  type: 'test'
+  ...
+# Subtest: logout honors the legacy committed epoch; readOnly=true
+ok 16 - logout honors the legacy committed epoch; readOnly=true
+  ---
+  duration_ms: 426.590837
+  type: 'test'
+  ...
+# Subtest: logout honors the legacy committed epoch; readOnly=false
+ok 17 - logout honors the legacy committed epoch; readOnly=false
+  ---
+  duration_ms: 422.926194
+  type: 'test'
+  ...
+# Subtest: logout owns the unchanged credential after two peer refresh refusals
+ok 18 - logout owns the unchanged credential after two peer refresh refusals
+  ---
+  duration_ms: 526.707962
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12141.999311
+-- process inspection: {"snapshots":3,"unrelatedRows":4134}
+-- client file ok: packages/snapback4/test/read-only-peer-rotation.test.mjs (12441 ms)
+TAP version 13
+# Subtest: review: reset delivery retains a prior emission across concurrent lookup
+ok 1 - review: reset delivery retains a prior emission across concurrent lookup
+  ---
+  duration_ms: 475.360507
+  type: 'test'
+  ...
+# Subtest: review: acknowledged success retirement retains prior emission across lookup
+ok 2 - review: acknowledged success retirement retains prior emission across lookup
+  ---
+  duration_ms: 23.779197
+  type: 'test'
+  ...
+# Subtest: review: pre-dispatch receipt recovery survives post-commit host failure
+ok 3 - review: pre-dispatch receipt recovery survives post-commit host failure
+  ---
+  duration_ms: 17.250511
+  type: 'test'
+  ...
+# Subtest: review: pending subscriber triggers duplicate successful recovery without a host delay
+ok 4 - review: pending subscriber triggers duplicate successful recovery without a host delay
+  ---
+  duration_ms: 24.553107
+  type: 'test'
+  ...
+# Subtest: replacement cannot duplicate a success still in an older flush snapshot
+ok 5 - replacement cannot duplicate a success still in an older flush snapshot
+  ---
+  duration_ms: 51.756217
+  type: 'test'
+  ...
+# Subtest: a delayed queue snapshot protects emissions until its entries can own delivery
+ok 6 - a delayed queue snapshot protects emissions until its entries can own delivery
+  ---
+  duration_ms: 0.302784
+  type: 'test'
+  ...
+# Subtest: a failed queue snapshot releases emission cleanup
+ok 7 - a failed queue snapshot releases emission cleanup
+  ---
+  duration_ms: 0.634551
+  type: 'test'
+  ...
+# Subtest: a retired settlement keeps its emitted refusal across a queue read
+ok 8 - a retired settlement keeps its emitted refusal across a queue read
+  ---
+  duration_ms: 0.205157
+  type: 'test'
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: replacement-first
+ok 9 - overlapping receipt notifications keep their emission marker: replacement-first
+  ---
+  duration_ms: 1.090474
+  type: 'test'
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: acknowledgement-first
+ok 10 - overlapping receipt notifications keep their emission marker: acknowledgement-first
+  ---
+  duration_ms: 0.16005
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after settle throws
+ok 11 - receipt emission protection releases after settle throws
+  ---
+  duration_ms: 0.241682
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after publish throws
+ok 12 - receipt emission protection releases after publish throws
+  ---
+  duration_ms: 0.104888
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after replacement-publish throws
+ok 13 - receipt emission protection releases after replacement-publish throws
+  ---
+  duration_ms: 0.095353
+  type: 'test'
+  ...
+# Subtest: a queued send follows a settled receipt without waiting for an intermediate sync
+ok 14 - a queued send follows a settled receipt without waiting for an intermediate sync
+  ---
+  duration_ms: 32.759409
+  type: 'test'
+  ...
+# Subtest: a success followed by a terminal refusal syncs the committed write before the batch finishes
+ok 15 - a success followed by a terminal refusal syncs the committed write before the batch finishes
+  ---
+  duration_ms: 33.765467
+  type: 'test'
+  ...
+# Subtest: an early flush exit syncs an earlier success when another owner retires the tail
+ok 16 - an early flush exit syncs an earlier success when another owner retires the tail
+  ---
+  duration_ms: 33.819158
+  type: 'test'
+  ...
+# Subtest: repeating media failure cannot gate an already queued send and retries stay bounded
+ok 17 - repeating media failure cannot gate an already queued send and retries stay bounded
+  ---
+  duration_ms: 60.979193
+  type: 'test'
+  ...
+# Subtest: a committed admission still sends when media housekeeping keeps failing
+ok 18 - a committed admission still sends when media housekeeping keeps failing
+  ---
+  duration_ms: 32.497086
+  type: 'test'
+  ...
+# Subtest: repeating post-commit receipt-save failure cannot gate an already queued send
+ok 19 - repeating post-commit receipt-save failure cannot gate an already queued send
+  ---
+  duration_ms: 43.433451
+  type: 'test'
+  ...
+# Subtest: the observation catch schedules the only retry that can publish an earlier success
+ok 20 - the observation catch schedules the only retry that can publish an earlier success
+  ---
+  duration_ms: 42.482354
+  type: 'test'
+  ...
+# Subtest: a durable refusal still completes when its observation queue read fails
+ok 21 - a durable refusal still completes when its observation queue read fails
+  ---
+  duration_ms: 42.234823
+  type: 'test'
+  ...
+# Subtest: receipt-save retry preserves refusal notification deduplication through observation
+ok 22 - receipt-save retry preserves refusal notification deduplication through observation
+  ---
+  duration_ms: 29.107404
+  type: 'test'
+  ...
+# Subtest: the final flush sync publishes an earlier success when the tail retires before its queue lookup
+ok 23 - the final flush sync publishes an earlier success when the tail retires before its queue lookup
+  ---
+  duration_ms: 39.845872
+  type: 'test'
+  ...
+# Subtest: recovered refusal delivery survives post-commit media failure
+ok 24 - recovered refusal delivery survives post-commit media failure
+  ---
+  duration_ms: 16.919394
+  type: 'test'
+  ...
+# Subtest: recovered refusal delivery survives post-commit host failure
+ok 25 - recovered refusal delivery survives post-commit host failure
+  ---
+  duration_ms: 17.342397
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit state failure
+ok 26 - replacement retired-success delivery survives post-commit state failure
+  ---
+  duration_ms: 1006.787573
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit metadata failure
+ok 27 - replacement retired-success delivery survives post-commit metadata failure
+  ---
+  duration_ms: 1006.037238
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit media failure
+ok 28 - replacement retired-success delivery survives post-commit media failure
+  ---
+  duration_ms: 1006.536447
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit host failure
+ok 29 - replacement retired-success delivery survives post-commit host failure
+  ---
+  duration_ms: 1006.583606
+  type: 'test'
+  ...
+# Subtest: keepalive refusal delivery survives post-commit media failure
+ok 30 - keepalive refusal delivery survives post-commit media failure
+  ---
+  duration_ms: 1014.089459
+  type: 'test'
+  ...
+# Subtest: keepalive refusal delivery survives post-commit host failure
+ok 31 - keepalive refusal delivery survives post-commit host failure
+  ---
+  duration_ms: 1016.887854
+  type: 'test'
+  ...
+# Subtest: receipt head observations do not rescan retained media until publication or replacement
+ok 32 - receipt head observations do not rescan retained media until publication or replacement
+  ---
+  duration_ms: 68.702211
+  type: 'test'
+  ...
+# Subtest: R2 item 2: getSnapshot is cleared after validated reset and before backend adoption
+ok 33 - R2 item 2: getSnapshot is cleared after validated reset and before backend adoption
+  ---
+  duration_ms: 36.238095
+  type: 'test'
+  ...
+# Subtest: FF1: committed reset invalidates watches and acquisition before a denied sync_state read
+ok 34 - FF1: committed reset invalidates watches and acquisition before a denied sync_state read
+  ---
+  duration_ms: 24.328911
+  type: 'test'
+  ...
+# Subtest: FF1 boundary: observe_store invalidates before fallible media reconciliation
+ok 35 - FF1 boundary: observe_store invalidates before fallible media reconciliation
+  ---
+  duration_ms: 33.492829
+  type: 'test'
+  ...
+# Subtest: FF1 boundary: adopt invalidates before fallible media reconciliation
+ok 36 - FF1 boundary: adopt invalidates before fallible media reconciliation
+  ---
+  duration_ms: 36.478164
+  type: 'test'
+  ...
+# Subtest: FF1 adoption audit: committed generation invalidates before a thrown sync_state read
+ok 37 - FF1 adoption audit: committed generation invalidates before a thrown sync_state read
+  ---
+  duration_ms: 31.632911
+  type: 'test'
+  ...
+# Subtest: FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up
+ok 38 - FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up
+  ---
+  duration_ms: 9.784768
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with healthy recovery
+ok 39 - HH1/II1: snapshot publication preserves watch invalidation with healthy recovery
+  ---
+  duration_ms: 1036.618693
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with media recovery
+ok 40 - HH1/II1: snapshot publication preserves watch invalidation with media recovery
+  ---
+  duration_ms: 1038.271611
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with host recovery
+ok 41 - HH1/II1: snapshot publication preserves watch invalidation with host recovery
+  ---
+  duration_ms: 1042.991836
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with healthy recovery
+ok 42 - HH1/II1: stream publication preserves watch invalidation with healthy recovery
+  ---
+  duration_ms: 1029.153621
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with media recovery
+ok 43 - HH1/II1: stream publication preserves watch invalidation with media recovery
+  ---
+  duration_ms: 1047.710069
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with host recovery
+ok 44 - HH1/II1: stream publication preserves watch invalidation with host recovery
+  ---
+  duration_ms: 1033.017324
+  type: 'test'
+  ...
+# Subtest: R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head
+ok 45 - R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head
+  ---
+  duration_ms: 12.490004
+  type: 'test'
+  ...
+# Subtest: finding 1: failed same-generation backend adoption survives retry and offline reopen
+ok 46 - finding 1: failed same-generation backend adoption survives retry and offline reopen
+  ---
+  duration_ms: 31.683786
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed server answer cannot escape its incarnation
+ok 47 - finding 2: delayed server answer cannot escape its incarnation
+  ---
+  duration_ms: 51.176198
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed horizon answer cannot escape its incarnation
+ok 48 - finding 2: delayed horizon answer cannot escape its incarnation
+  ---
+  duration_ms: 62.677209
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed watch answer cannot escape its incarnation
+ok 49 - finding 2: delayed watch answer cannot escape its incarnation
+  ---
+  duration_ms: 32.441112
+  type: 'test'
+  ...
+# Subtest: finding 2: changes observation drops freshness while a mutation holds the network queue
+ok 50 - finding 2: changes observation drops freshness while a mutation holds the network queue
+  ---
+  duration_ms: 30036.963403
+  type: 'test'
+  ...
+# Subtest: finding 3: orphan import retires foreign receipts and disables unknown predictions
+ok 51 - finding 3: orphan import retires foreign receipts and disables unknown predictions
+  ---
+  duration_ms: 7.600434
+  type: 'test'
+  ...
+# Subtest: legacy clock-less predictable orphan imports without local rows and survives replay
+ok 52 - legacy clock-less predictable orphan imports without local rows and survives replay
+  ---
+  duration_ms: 7.62444
+  type: 'test'
+  ...
+# Subtest: finding 2: a delayed device read is retried before returning
+ok 53 - finding 2: a delayed device read is retried before returning
+  ---
+  duration_ms: 47.845234
+  type: 'test'
+  ...
+# Subtest: orphan provenance survives an unidentified destination and resolves on sync
+ok 54 - orphan provenance survives an unidentified destination and resolves on sync
+  ---
+  duration_ms: 6.388317
+  type: 'test'
+  ...
+# Subtest: same-store orphan adoption preserves receipts, order and row IDs without predictions
+ok 55 - same-store orphan adoption preserves receipts, order and row IDs without predictions
+  ---
+  duration_ms: 4.742079
+  type: 'test'
+  ...
+# Subtest: replacement receipts use ordinary transport without replaying known writes
+ok 56 - replacement receipts use ordinary transport without replaying known writes
+  ---
+  duration_ms: 1005.979622
+  type: 'test'
+  ...
+# Subtest: replacement receipts use exit transport without replaying known writes
+ok 57 - replacement receipts use exit transport without replaying known writes
+  ---
+  duration_ms: 1008.111577
+  type: 'test'
+  ...
+# Subtest: finding 2: a rerun started by replacement observation cannot publish the old partition
+ok 58 - finding 2: a rerun started by replacement observation cannot publish the old partition
+  ---
+  duration_ms: 54.662954
+  type: 'test'
+  ...
+# Subtest: generation discovery clears retained answers even when backend adoption cannot start
+ok 59 - generation discovery clears retained answers even when backend adoption cannot start
+  ---
+  duration_ms: 23.580149
+  type: 'test'
+  ...
+# Subtest: review extra: repeating acknowledged-observation failure cannot strand queued tail
+ok 60 - review extra: repeating acknowledged-observation failure cannot strand queued tail
+  ---
+  duration_ms: 51.449748
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 60
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50071.908493
+-- process inspection: {"snapshots":3,"unrelatedRows":4131}
+-- client file ok: packages/snapback4/test/store-reset-review.test.mjs (50353 ms)
+TAP version 13
+# (node:2735049) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: sequence-only acknowledgement with no history stays unknown
+ok 1 - sequence-only acknowledgement with no history stays unknown
+  ---
+  duration_ms: 1.276463
+  type: 'test'
+  ...
+# Subtest: authored refusal NOT_ADMIN wins over a success-qualified acknowledgement
+ok 2 - authored refusal NOT_ADMIN wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.195383
+  type: 'test'
+  ...
+# Subtest: authored refusal NOT_FOUND wins over a success-qualified acknowledgement
+ok 3 - authored refusal NOT_FOUND wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.128943
+  type: 'test'
+  ...
+# Subtest: authored refusal CONFLICT wins over a success-qualified acknowledgement
+ok 4 - authored refusal CONFLICT wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.115183
+  type: 'test'
+  ...
+# Subtest: an aborted replay receipt retains its original-store proof for persistence retry
+ok 5 - an aborted replay receipt retains its original-store proof for persistence retry
+  ---
+  duration_ms: 0.66006
+  type: 'test'
+  ...
+# Subtest: memory: legacy observed_seq with empty history replays NOT_ADMIN without executing
+ok 6 - memory: legacy observed_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3699.314237
+  type: 'test'
+  ...
+# {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M4C6G0MZ2TRJ76A8TKSR31Q8","replayed":true,"audit":0}
+# Subtest: memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+ok 7 - memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3282.928958
+  type: 'test'
+  ...
+# {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M4C6G3VXR6YYB7HYZTWG1CEY","replayed":true,"audit":0}
+# Subtest: memory: legacy sent_seq with empty history replays NOT_ADMIN without executing
+ok 8 - memory: legacy sent_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3086.906394
+  type: 'test'
+  ...
+# {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M4C6G6W99Y52NWS5ZF7X82DR","replayed":true,"audit":0}
+# Subtest: memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+ok 9 - memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3092.301541
+  type: 'test'
+  ...
+# {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M4C6G9WYWBV9HHBPRCXZPYB6","replayed":true,"audit":0}
+# Subtest: memory: legacy old-page with empty history replays NOT_ADMIN without executing
+ok 10 - memory: legacy old-page with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3074.288037
+  type: 'test'
+  ...
+# {"tier":"memory","field":"old-page","prior":"empty","id":"01M4C6GCX0H1S8Z1Q16NV0TRG1","replayed":true,"audit":0}
+# Subtest: memory: legacy old-page with replacement history replays NOT_ADMIN without executing
+ok 11 - memory: legacy old-page with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3087.698221
+  type: 'test'
+  ...
+# {"tier":"memory","field":"old-page","prior":"replacement","id":"01M4C6GFXMWKA0E1MDHDN8374C","replayed":true,"audit":0}
+# Subtest: sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing
+ok 12 - sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4166.370255
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M4C6GJZ99X20EXPKXY8ZHX4G","replayed":true,"audit":0}
+# Subtest: sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+ok 13 - sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4259.190049
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M4C6GQ26N4Q4H46M6GJN922D","replayed":true,"audit":0}
+# Subtest: sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing
+ok 14 - sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4258.360996
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M4C6GV6CBSQJ8TGSQH2EYC86","replayed":true,"audit":0}
+# Subtest: sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+ok 15 - sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4262.918689
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M4C6GZBRCGVD7SXYYCPJQDPV","replayed":true,"audit":0}
+# Subtest: sqlite: legacy old-page with empty history replays NOT_ADMIN without executing
+ok 16 - sqlite: legacy old-page with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4266.668771
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"old-page","prior":"empty","id":"01M4C6H3GJN0BZD4DSNJYZJYMM","replayed":true,"audit":0}
+# Subtest: sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing
+ok 17 - sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4254.651616
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"old-page","prior":"replacement","id":"01M4C6H7NRKAA1RJ6ZFPZM1TGZ","replayed":true,"audit":0}
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44931.880962
+-- process inspection: {"snapshots":3,"unrelatedRows":4127}
+-- client file ok: packages/snapback4/test/legacy-receipts.test.mjs (45230 ms)
+TAP version 13
+# Subtest: online app reopens after replacement; replacement accepts session: true
+ok 1 - online app reopens after replacement; replacement accepts session: true
+  ---
+  duration_ms: 59.595618
+  type: 'test'
+  ...
+# Subtest: online app reopens after replacement; replacement accepts session: false
+ok 2 - online app reopens after replacement; replacement accepts session: false
+  ---
+  duration_ms: 34.522192
+  type: 'test'
+  ...
+# Subtest: logout cancels replacement verification without restoring the old account
+ok 3 - logout cancels replacement verification without restoring the old account
+  ---
+  duration_ms: 13.292386
+  type: 'test'
+  ...
+# Subtest: close cancels replacement verification without restoring the old account
+ok 4 - close cancels replacement verification without restoring the old account
+  ---
+  duration_ms: 12.978977
+  type: 'test'
+  ...
+# Subtest: login cancels replacement verification without restoring the old account
+ok 5 - login cancels replacement verification without restoring the old account
+  ---
+  duration_ms: 15.185705
+  type: 'test'
+  ...
+# Subtest: replacement waits for durable retirement of admitted writes; persistence fails: false
+ok 6 - replacement waits for durable retirement of admitted writes; persistence fails: false
+  ---
+  duration_ms: 56.571255
+  type: 'test'
+  ...
+# Subtest: replacement waits for durable retirement of admitted writes; persistence fails: true
+ok 7 - replacement waits for durable retirement of admitted writes; persistence fails: true
+  ---
+  duration_ms: 43.476264
+  type: 'test'
+  ...
+# Subtest: replacement pins retired receipt ids at the history limit (0 older unknown failures)
+ok 8 - replacement pins retired receipt ids at the history limit (0 older unknown failures)
+  ---
+  duration_ms: 30035.220539
+  type: 'test'
+  ...
+# Subtest: replacement pins retired receipt ids at the history limit (8 older unknown failures)
+ok 9 - replacement pins retired receipt ids at the history limit (8 older unknown failures)
+  ---
+  duration_ms: 30030.355339
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 60417.801786
+-- process inspection: {"snapshots":3,"unrelatedRows":4085}
+-- client file ok: packages/snapback4/test/app-store-replacement.test.mjs (60700 ms)
+-- client files: 12/12; failed 0; tests {"tests":205,"pass":205,"fail":0,"cancelled":0,"skipped":0,"todo":0}

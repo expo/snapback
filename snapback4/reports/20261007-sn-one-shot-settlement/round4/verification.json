@@ -1,0 +1,41 @@
+{
+  "compiler-guide": {
+    "passed": 1541,
+    "failed": 0,
+    "ignored": 13,
+    "results": 116
+  },
+  "schema-capabilities-rust": {
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0,
+    "results": 1
+  },
+  "transport-fixtures": {
+    "passed": 24,
+    "failed": 0,
+    "ignored": 0,
+    "results": 2
+  },
+  "timeline-delivery": {
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0,
+    "results": 2
+  },
+  "compiler_ignored": [
+    "test l26_a_constant_helper_called_in_a_read_loop_has_no_read_data ... ignored, L29: loops prefer silence",
+    "test l29_unconditional_reset_precision ... ignored, L29: loops prefer silence",
+    "test review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence ... ignored, F15: helper-mediated carried increments do not yet receive READ cardinality evidence",
+    "test survey_retained_calibration_schemas ... ignored, requires the retained calibration packets; set SNAPBACK4_CALIBRATION_PACKETS to their parent",
+    "test copied_calibration_store_job_and_preview_match_independent_oracle ... ignored, full calibration store: DG_STORE must name a worktree-owned writable copy",
+    "test measure_ephemeral_receipt_lookup_cost ... ignored, measurement: run explicitly with --ignored --nocapture",
+    "test backlog_measurements ... ignored, lane ER instrument, explicit only",
+    "test crash_child ... ignored, child of committed_checkpoint_survives_process_exit",
+    "test staged_replay_measurement ... ignored, research measurement: FA_SCALE=1 or 10, FA_DIR is an isolated output directory",
+    "test calibration_atomic_launch_measurement ... ignored, release-profile measurement: FA_SCALE=1 or 10, FA_ATOMIC_DIR is a fresh directory",
+    "test crash_before_launch_commit ... ignored, process-death child",
+    "test sparse_history_and_existing_indexed_control ... ignored, FH scale evidence; run explicitly with --ignored --nocapture --test-threads=1",
+    "test unbounded_follows_exhaust_existing_merge_discovery ... ignored, FH scale evidence; run explicitly with --ignored --nocapture --test-threads=1"
+  ]
+}

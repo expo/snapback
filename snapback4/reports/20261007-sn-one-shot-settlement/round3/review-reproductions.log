@@ -1,0 +1,277 @@
+-- client file start: /tmp/sn-round2-reproductions/adversarial.test.mjs; stall bound 900000 ms
+-- client file start: /tmp/sn-round2-reproductions/generation.test.mjs; stall bound 900000 ms
+-- client file start: /tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs; stall bound 900000 ms
+-- client file start: /tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs; stall bound 900000 ms
+TAP version 13
+# {"oldGeneration":1,"newGeneration":2,"oldWrites":{"profiles":null},"newWrites":{"messages":null}}
+# {"doneBeforeWrite":false,"schemaReads":2,"checks":4,"pending":[{"id":"01M4C7XMRZYXRANKDE8CWK2ZSA","op":"rename","args":{"name":"changed by v2"},"state":"sent","predicted":[]}]}
+# {"read":{"data":{"at":1,"body":"changed by v2","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":790,"indexEntries":0,"outputBytes":102,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}}
+# Subtest: discovery of a new generation fences a prior facade candidate and its old write summary
+ok 1 - discovery of a new generation fences a prior facade candidate and its old write summary
+  ---
+  duration_ms: 689.95503
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 803.729532
+-- process inspection: {"snapshots":3,"unrelatedRows":3719}
+-- client file ok: /tmp/sn-round2-reproductions/generation.test.mjs (1088 ms)
+TAP version 13
+# {"tier":"online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+# Subtest: online: unrelated commits do not exhaust a server aggregate
+ok 1 - online: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 183.046721
+  type: 'test'
+  ...
+# {"tier":"wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: wasm: unrelated commits do not exhaust a server aggregate
+ok 2 - wasm: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 691.556661
+  type: 'test'
+  ...
+# {"tier":"process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: process: unrelated commits do not exhaust a server aggregate
+ok 3 - process: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 245.972603
+  type: 'test'
+  ...
+# {"tier":"app-online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+# Subtest: app-online: unrelated commits do not exhaust a server aggregate
+ok 4 - app-online: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 179.142847
+  type: 'test'
+  ...
+# {"tier":"app-wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: app-wasm: unrelated commits do not exhaust a server aggregate
+ok 5 - app-wasm: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 228.571908
+  type: 'test'
+  ...
+# {"tier":"app-process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+# Subtest: app-process: unrelated commits do not exhaust a server aggregate
+ok 6 - app-process: unrelated commits do not exhaust a server aggregate
+  ---
+  duration_ms: 255.583001
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1948.12817
+-- process inspection: {"snapshots":3,"unrelatedRows":3697}
+-- client file ok: /tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs (2218 ms)
+TAP version 13
+# {"tier":"wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+# Subtest: wasm: sync covering a relevant online-only commit fences the old answer
+ok 1 - wasm: sync covering a relevant online-only commit fences the old answer
+  ---
+  duration_ms: 673.945579
+  type: 'test'
+  ...
+# {"tier":"process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+# Subtest: process: sync covering a relevant online-only commit fences the old answer
+ok 2 - process: sync covering a relevant online-only commit fences the old answer
+  ---
+  duration_ms: 265.860749
+  type: 'test'
+  ...
+# {"tier":"app-wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+# Subtest: app-wasm: sync covering a relevant online-only commit fences the old answer
+ok 3 - app-wasm: sync covering a relevant online-only commit fences the old answer
+  ---
+  duration_ms: 253.853288
+  type: 'test'
+  ...
+# {"tier":"app-process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+# Subtest: app-process: sync covering a relevant online-only commit fences the old answer
+ok 4 - app-process: sync covering a relevant online-only commit fences the old answer
+  ---
+  duration_ms: 282.113114
+  type: 'test'
+  ...
+# {"done":true,"pending":[{"id":"mmuyonaxi-1","op":"edit","args":{},"state":"sent","predicted":[]}]}
+# Subtest: mock: malformed query footprint stays unknown
+not ok 5 - mock: malformed query footprint stays unknown
+  ---
+  duration_ms: 107.835028
+  type: 'test'
+  location: '/tmp/sn-round2-reproductions/adversarial.test.mjs:24:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    malformed summary must not authorize publication
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/adversarial.test.mjs:35:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: compiler summaries include inlined helpers and both branches
+ok 6 - compiler summaries include inlined helpers and both branches
+  ---
+  duration_ms: 150.830133
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2157.194797
+-- process inspection: {"snapshots":3,"unrelatedRows":3682}
+-- client file FAIL: /tmp/sn-round2-reproductions/adversarial.test.mjs (2428 ms)
+TAP version 13
+# {"tier":"wasm","adopt":false,"earlier":{"id":"01M4C7XMW1PYYSPBT9SNSDV0HK","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C7XMWCQNKW8X8BKZWGV871","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: wasm: observation overlapping a committed POST preserves its outcome; adopt=false
+ok 1 - wasm: observation overlapping a committed POST preserves its outcome; adopt=false
+  ---
+  duration_ms: 719.627582
+  type: 'test'
+  ...
+# {"tier":"wasm","adopt":true,"earlier":{"id":"01M4C7XN319TN5HFF9468MM7TN","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C7XN32P5Q3725T8NGGPH6H","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: wasm: observation overlapping a committed POST preserves its outcome; adopt=true
+ok 2 - wasm: observation overlapping a committed POST preserves its outcome; adopt=true
+  ---
+  duration_ms: 609.586577
+  type: 'test'
+  ...
+# {"tier":"process","adopt":false,"earlier":{"id":"01M4C7XNQKYCE4B31Q89G9CSB6","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C7XNQN47FTBM4E5WPAS4SF","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: process: observation overlapping a committed POST preserves its outcome; adopt=false
+ok 3 - process: observation overlapping a committed POST preserves its outcome; adopt=false
+  ---
+  duration_ms: 260.975725
+  type: 'test'
+  ...
+# {"tier":"process","adopt":true,"earlier":{"id":"01M4C7XNZNYW8SX4N3XN52KFNA","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C7XNZQZP9D5GR8P8VBQE96","replayed":true,"seq":3,"state":"sent"}}
+# Subtest: process: observation overlapping a committed POST preserves its outcome; adopt=true
+ok 4 - process: observation overlapping a committed POST preserves its outcome; adopt=true
+  ---
+  duration_ms: 639.146762
+  type: 'test'
+  ...
+# Subtest: online: gap receipt cannot hide a relevant commit
+ok 5 - online: gap receipt cannot hide a relevant commit
+  ---
+  duration_ms: 200.852974
+  type: 'test'
+  ...
+# Subtest: online: replay receipt cannot hide a relevant commit
+ok 6 - online: replay receipt cannot hide a relevant commit
+  ---
+  duration_ms: 192.847934
+  type: 'test'
+  ...
+# Subtest: online: dependent receipt cannot hide a relevant commit
+ok 7 - online: dependent receipt cannot hide a relevant commit
+  ---
+  duration_ms: 184.449593
+  type: 'test'
+  ...
+# Subtest: app-online: gap receipt cannot hide a relevant commit
+ok 8 - app-online: gap receipt cannot hide a relevant commit
+  ---
+  duration_ms: 210.197712
+  type: 'test'
+  ...
+# Subtest: app-online: replay receipt cannot hide a relevant commit
+ok 9 - app-online: replay receipt cannot hide a relevant commit
+  ---
+  duration_ms: 200.501968
+  type: 'test'
+  ...
+# Subtest: app-online: dependent receipt cannot hide a relevant commit
+ok 10 - app-online: dependent receipt cannot hide a relevant commit
+  ---
+  duration_ms: 194.941412
+  type: 'test'
+  ...
+# {"tier":"wasm","replacementRead":{"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C7XQSFJ80C0Y30TGYB5F52","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+# Subtest: wasm: store replacement during observation does not rewrite the held POST outcome
+not ok 11 - wasm: store replacement during observation does not rewrite the held POST outcome
+  ---
+  duration_ms: 296.149545
+  type: 'test'
+  location: '/tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:68:41'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+    + actual - expected
+
+    + 'old-first'
+    - 'image-1'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'image-1'
+  actual: 'old-first'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:95:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# {"tier":"process","replacementRead":{"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C7XR3FR163QHD5W4NZJ0M3","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+# Subtest: process: store replacement during observation does not rewrite the held POST outcome
+not ok 12 - process: store replacement during observation does not rewrite the held POST outcome
+  ---
+  duration_ms: 325.37688
+  type: 'test'
+  location: '/tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:68:41'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+    + actual - expected
+
+    + 'old-first'
+    - 'image-1'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'image-1'
+  actual: 'old-first'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:95:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 10
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4213.90243
+-- process inspection: {"snapshots":3,"unrelatedRows":3682}
+-- client file FAIL: /tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs (4487 ms)
+-- client files: 4/4; failed 2; tests {"tests":25,"pass":22,"fail":3,"cancelled":0,"skipped":0,"todo":0}

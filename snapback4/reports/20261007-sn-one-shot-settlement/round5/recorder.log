@@ -1,0 +1,10 @@
+   Compiling snapback4-core v0.4.14 (/home/ccheever/sb4-intent/lane-sn/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 26.64s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-510e6b309e6a78a2)
+
+running 3 tests
+test revocation::tests::widened_envelopes_never_regain_certification ... ok
+test revocation::tests::insert_body_update_and_net_prediction_replay_preserve_authority ... ok
+test revocation::tests::delete_rule_input_and_rule_column_stay_revoking ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 270 filtered out; finished in 0.00s

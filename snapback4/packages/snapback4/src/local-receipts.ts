@@ -3,13 +3,20 @@ import type { MutationIds, WriteHistory } from "./writes.ts";
 import type { Queued } from "./local-types.ts";
 
 type Terminal = Exclude<Write, { state: "pending" }>;
+export function publicWrite(write: Terminal): Terminal;
+export function publicWrite(write: Write | undefined): Write | undefined;
+export function publicWrite(write: Write | undefined): Write | undefined {
+  if (!write || !("store_id" in write)) return write;
+  const { store_id: _binding, ...outcome } = write;
+  return outcome;
+}
 type Call = (request: Record<string, unknown>) => Promise<{ denied?: Refusal }>;
 
 // @ref LLP 3000.013#6 — persist known terminal custody before sync or replay;
 // both success and refusal retain their original outcome after a failed save.
-export async function settleReceipt(history: WriteHistory, call: Call, write: Terminal, revalidatedStore?: string): Promise<void> {
-  await history.keep(write, revalidatedStore);
-  const applied = await call({ op: "settle", id: write.id, ...(write.state === "sent" ? { seq: write.seq } : {}) });
+export async function settleReceipt(history: WriteHistory, call: Call, write: Terminal, revalidatedStore?: string, dispatchStore = (write as Terminal & { store_id?: string }).store_id): Promise<void> {
+  await history.keep(write, revalidatedStore, dispatchStore);
+  const applied = await call({ op: "settle", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === "sent" ? { seq: write.seq } : {}) });
   if (applied.denied) throw new Error(applied.denied.message);
 }
 
@@ -94,8 +101,8 @@ export async function lookupWrite(history: WriteHistory, queued: () => Promise<Q
     receipt = seq == null ? await history.read(id) : await history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id));
   }
   if (unavailable()) return;
-  if (!entry || (receipt && receipt.state !== "pending")) return receipt;
-  return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
+  if (!entry || (receipt && receipt.state !== "pending")) return publicWrite(receipt);
+  return publicWrite(receipt) ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
     ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
 }
 
@@ -133,6 +140,6 @@ export async function resolveClosingWrites(queued: () => Promise<Queued[]>, hist
   for (const [id, { resolve }] of waiting) {
     const entry = entries.find(entry => entry.id === id), seq = successSequence(entry);
     const known = await (seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined);
-    resolve(known ?? (seq === undefined ? { state: "pending", id } : { state: "sent", id, seq, replayed: true }));
+    resolve(publicWrite(known) ?? (seq === undefined ? { state: "pending", id } : { state: "sent", id, seq, replayed: true }));
   }
 }

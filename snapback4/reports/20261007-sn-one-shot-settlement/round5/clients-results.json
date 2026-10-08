@@ -1,0 +1,138 @@
+[
+  {
+    "name": "settlement",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "6",
+      "files",
+      "packages/snapback4/test/one-shot-bounds.test.mjs",
+      "packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+      "packages/snapback4/test/one-shot-dependencies.test.mjs",
+      "packages/snapback4/test/one-shot-discovery-auth.test.mjs",
+      "packages/snapback4/test/one-shot-generation.test.mjs",
+      "packages/snapback4/test/one-shot-model.test.mjs",
+      "packages/snapback4/test/one-shot-prediction-replay.test.mjs",
+      "packages/snapback4/test/one-shot-review-races.test.mjs",
+      "packages/snapback4/test/one-shot-review.test.mjs",
+      "packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+      "packages/snapback4/test/one-shot.test.mjs",
+      "packages/snapback4/test/query-dependencies.test.mjs",
+      "packages/snapback4/test/query-publication-session.test.mjs",
+      "packages/snapback4/test/live-margin-settlement.test.mjs",
+      "packages/snapback4/test/sync-after-call.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 139.01
+  },
+  {
+    "name": "affected",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "6",
+      "files",
+      "packages/snapback4/test/client-seams.test.mjs",
+      "packages/snapback4/test/client-lifecycle.test.mjs",
+      "packages/snapback4/test/following-routing.test.mjs",
+      "packages/snapback4/test/following-history.test.mjs",
+      "packages/snapback4/test/following-own-writes.test.mjs",
+      "packages/snapback4/test/following-unfollow.test.mjs",
+      "packages/snapback4/test/prediction-routing.test.mjs",
+      "packages/snapback4/test/maintained-columns.test.mjs",
+      "packages/snapback4/test/app-receipts.test.mjs",
+      "packages/snapback4/test/app-local-receipts.test.mjs",
+      "packages/snapback4/test/delivery-publication.test.mjs",
+      "packages/snapback4/test/delivery-clients.test.mjs",
+      "packages/snapback4/test/sync-generation.test.mjs",
+      "packages/snapback4/test/sync-overflow.test.mjs",
+      "packages/snapback4/test/observation-publication.test.mjs",
+      "packages/snapback4/test/observation-publication-live.test.mjs",
+      "packages/snapback4/test/read-only-custody-races.test.mjs",
+      "packages/snapback4/test/wasm-budget.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 283.42
+  },
+  {
+    "name": "custody",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "6",
+      "files",
+      "packages/snapback4/test/online-store-order.test.mjs",
+      "packages/snapback4/test/online-store-terminal.test.mjs",
+      "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+      "packages/snapback4/test/app-store-replacement.test.mjs",
+      "packages/snapback4/test/store-reset-review.test.mjs",
+      "packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "packages/snapback4/test/store-reset.test.mjs",
+      "packages/snapback4/test/app-local-session.test.mjs",
+      "packages/snapback4/test/app-local-outcomes.test.mjs",
+      "packages/snapback4/test/raw-read-deadlines.test.mjs",
+      "packages/snapback4/test/legacy-receipts.test.mjs",
+      "packages/snapback4/test/read-only-peer-rotation.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 60.72
+  },
+  {
+    "name": "session-reasons",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "4",
+      "files",
+      "packages/snapback4/test/session-reasons.test.mjs",
+      "packages/snapback4/test/app.test.mjs",
+      "packages/snapback4/test/app-state.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 58.54
+  },
+  {
+    "name": "new-review-reproductions",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "2",
+      "files",
+      "/tmp/sn-round5-reproductions/discovery-auth.test.mjs",
+      "/tmp/sn-round5-reproductions/prediction-replay.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 1.56
+  },
+  {
+    "name": "replay-and-compatibility",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "4",
+      "files",
+      "packages/snapback4/test/schema-capabilities.test.mjs",
+      "packages/snapback4/test/session-security.test.mjs",
+      "packages/snapback4/test/repair-b.test.mjs",
+      "packages/snapback4/test/repair-b-round9.test.mjs",
+      "packages/snapback4/test/row-view-prediction.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 5.22
+  },
+  {
+    "name": "review-reproductions",
+    "command": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "4",
+      "files",
+      "/tmp/sn-round2-reproductions/adversarial.test.mjs",
+      "/tmp/sn-round2-reproductions/generation.test.mjs",
+      "/tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs",
+      "/tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs"
+    ],
+    "exit": 1,
+    "seconds": 4.46
+  }
+]

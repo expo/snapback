@@ -491,9 +491,17 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
   const f = await fixture(t, tier); f.mode("online");
   const client = await f.open(), events = [];
   client.onWrite(write => events.push(write)); f.mode("sent-queued");
-  // This checks terminal emission ownership, not the caller's default wait.
-  // The deliberately refused sync can leave dispatch behind retry backoff.
-  const first = await client.mutate({ kind: "mutation", name: "add" }, { body: "sent but not caught up" }, { waitSeconds: 25 });
+  // Dispatch can sit behind retry backoff while sync is deliberately refused.
+  // A persisted receipt can precede onWrite. Wait for that terminal emission,
+  // then require the durable receipt to agree before checking emission counts.
+  const terminal = async (admitted) => {
+    const event = await until(() => events.find(write => write.id === admitted.id && write.state !== "pending"),
+      `terminal emission for ${admitted.id}`);
+    const receipt = await client.write(admitted.id);
+    assert.equal(receipt?.state, event.state, "terminal emission agrees with durable custody");
+    return receipt;
+  };
+  const first = await terminal(await client.mutate({ kind: "mutation", name: "add" }, { body: "sent but not caught up" }, { waitSeconds: 0 }));
   assert.equal(first.state, "sent");
   assert.equal(ok(await f.core().call({ op: "queued" }))[0].sent_seq, first.seq);
   // Acquired local refusals are terminal emissions too, with no outbox row.
@@ -501,7 +509,7 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
   // Evict A from the receipt window as well: its outbox row must pin emission.
   for (let n = 0; n < 256; n++) await keepReceipt(f.core(), sentReceipt(`other-${n}`, n + 1));
   assert.equal((await client.write(first.id)).state, "sent", "the queued terminal still owns its outcome");
-  const next = await client.mutate({ kind: "mutation", name: "add" }, { body: "trigger the next flush" }, { waitSeconds: 25 });
+  const next = await terminal(await client.mutate({ kind: "mutation", name: "add" }, { body: "trigger the next flush" }, { waitSeconds: 0 }));
   assert.equal(next.state, "sent");
   const count = events.filter(write => write.id === first.id).length;
   t.diagnostic(`other_emissions=256 first_id_emissions=${count} queued=${ok(await f.core().call({ op: "queued" })).length}`);
@@ -637,7 +645,7 @@ for (const form of ["rule", "require", "constraint", "named constraint", "postco
     assert.equal(held.length, 1);
     assert.equal(held[0].predictable, false);
     assert.deepEqual(held[0].predicted, []);
-    assert.equal((await client.query(query("history"), { conversationId: "c" })).denied?.code, "E_QUERY_RETRY", "one-shot cannot answer ahead of an admitted unpredicted write");
+    assert.equal((await client.query(query("history"), { conversationId: "c" })).denied?.code, "E_OFFLINE", "offline one-shot refuses ahead of an admitted unpredicted write");
     f.mode("online"); await client.sync();
     await until(async () => (await client.write(write.id))?.state === "sent", "server did not accept ordinal 6");
     await until(async () => (await client.query(query("history"), { conversationId: "c" })).data?.[0]?.ordinal === 6, "settled ordinal was not delivered");

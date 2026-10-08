@@ -51,7 +51,7 @@ console.log(JSON.stringify({...result,error:result.error?.code,cleanupError:resu
     assert.equal(fs.existsSync(path.join(dir, 'emergency')), false, 'bounded KILL precedes fixture emergency release');
   } finally {
     put('release', '');
-    if (runner.exitCode === null && runner.signalCode === null) signalChild(runner, 'SIGTERM');
+    if (runner.exitCode === null && runner.signalCode === null) await signalChild(runner, 'SIGTERM');
     await ended;
     const deadline = performance.now() + 10000;
     for (const role of ['driver', 'frontend']) {

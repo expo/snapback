@@ -60,11 +60,69 @@ pub fn engine(case: &Case, source: &str) -> Result<Engine, String> {
     engine.set_ceilings(case.budget);
     Ok(engine)
 }
-pub fn execute(engine: &mut Engine, case: &Case, name: &str, args: &Json) -> Outcome {
-    let p = engine
-        .programs()
-        .find(|p| p.name == name)
-        .expect("generated entry point");
+pub trait Executor {
+    fn program(&self, name: &str) -> &snapback4_core::ir::Program;
+    fn query(
+        &mut self,
+        name: &str,
+        context: Context,
+    ) -> Result<snapback4_core::QueryOutcome, Refusal>;
+    fn mutate(
+        &mut self,
+        name: &str,
+        context: Context,
+    ) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError>;
+    fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings);
+}
+impl Executor for Engine {
+    fn program(&self, name: &str) -> &snapback4_core::ir::Program {
+        self.programs()
+            .find(|p| p.name == name)
+            .expect("generated entry point")
+    }
+    fn query(
+        &mut self,
+        name: &str,
+        context: Context,
+    ) -> Result<snapback4_core::QueryOutcome, Refusal> {
+        Engine::query(self, name, context)
+    }
+    fn mutate(
+        &mut self,
+        name: &str,
+        context: Context,
+    ) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError> {
+        Engine::mutate(self, name, None, context)
+    }
+    fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings) {
+        Engine::set_ceilings(self, ceilings);
+    }
+}
+#[cfg(feature = "postgres")]
+impl Executor for snapback4_core::engine::postgres::PostgresEngine {
+    fn program(&self, name: &str) -> &snapback4_core::ir::Program {
+        &self.programs()[name]
+    }
+    fn query(
+        &mut self,
+        name: &str,
+        context: Context,
+    ) -> Result<snapback4_core::QueryOutcome, Refusal> {
+        Self::query(self, name, context)
+    }
+    fn mutate(
+        &mut self,
+        name: &str,
+        context: Context,
+    ) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError> {
+        Self::mutate(self, name, None, context)
+    }
+    fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings) {
+        Self::set_ceilings(self, ceilings);
+    }
+}
+pub fn execute(engine: &mut impl Executor, case: &Case, name: &str, args: &Json) -> Outcome {
+    let p = engine.program(name);
     let input = p
         .args
         .iter()
@@ -97,7 +155,7 @@ pub fn execute(engine: &mut Engine, case: &Case, name: &str, args: &Json) -> Out
             },
         }
     } else {
-        match engine.mutate(name, None, context) {
+        match engine.mutate(name, context) {
             Ok(v) => {
                 let receipt_only = v.receipt_only;
                 let mut value = serde_json::to_value(v).unwrap();

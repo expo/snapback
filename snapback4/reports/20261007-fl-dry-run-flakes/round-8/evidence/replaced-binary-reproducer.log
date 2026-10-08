@@ -1,0 +1,35 @@
+-- client file start: packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs; stall bound 1275000 ms
+TAP version 13
+# QUEUE_FAILURE {"records":{"maintenance-next.json":{"at":1791410898965,"expiresAt":1791414498964,"process":{"pid":2809729,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\\n","13458170"]},"state":"pending"},"maintenance-request.json":{"attempts":0,"producer":{"pid":2818671,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\\n","13458860"]},"state":"pending"}},"log":"witness: evidence cleanup deferred: E_WITNESS_PROCESS: No such file or directory (os error 2)\\n"}
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo succeeds)
+not ok 1 - maintenance crash matrix: publication-committed (off, next Expo succeeds)
+  ---
+  duration_ms: 16364.084913
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs:6:39'
+  failureType: 'testCodeFailure'
+  error: 'coalesced maintenance queue drained'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs:32:12)
+    async maintenanceIdle (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs:657:9)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs:1097:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16476.147745
+-- process inspection: {"snapshots":3,"unrelatedRows":4092}
+-- client file FAIL: packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs (16778 ms)
+REPLACED_BINARY_CONTROL {"file":"packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs","code":1,"signal":null,"passed":false,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":4092},"elapsed":16778,"counts":{"tests":1,"pass":0,"fail":1,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-replaced-2809125.test.mjs"}
