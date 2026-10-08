@@ -1,6 +1,6 @@
 # Snapback 4: a job writing the reserved system principal compiles, then parks at runtime
 
-Status: Open
+Status: Closed 2026-10-08 (lane S1; LLP 3000.036 §4 A)
 Date: 2026-10-08
 Scope: Snapback 4 binder (`crates/snapback4-lang`; lead session — one owner on the core)
 Reproduced: yes, on main cc9e0f58d6
@@ -94,3 +94,18 @@ or name a service principal ('service:reminders')`. Add the code to
 `guide::CODES` and a sentence under "Jobs run as the system principal" in
 `guide jobs`. Values that flow through locals or arguments can stay a runtime
 refusal.
+
+## Resolution
+
+Closed 2026-10-08 by app-farm lane S1 (LLP 3000.036 §4 A). The binder refuses
+`E_SYSTEM_PRINCIPAL_WRITE` at the written field when a `principal`,
+`principal ?` or `[principal]` column receives the literal `'system'` (any
+operation) or a job's `viewer` (alone or as a list item), and at the write when
+a job's insert leaves a column defaulting to `viewer` (or `'system'`)
+to its default. The repro's `tick` and `tock` now fail `check` at
+`schema.q:23:23` and `schema.q:27:23` with the guide's repair (an optional
+principal written `null`, or `'service:reminders'`). Values through locals or
+arguments stay the engine's runtime refusal. The doubled `E_INPUT: E_INPUT:`
+prefix in the stored run error is left open: removing it changes the wire
+`message` of every E_INPUT refusal.
+

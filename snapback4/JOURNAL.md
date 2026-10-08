@@ -92061,3 +92061,56 @@ existence oracle). Three development-side changes:
   card's line budget.
 
 Nothing changes on the wire or in what programs are accepted.
+
+## 2026-10-08 — S1: writing the reserved system principal is refused at `check` (LLP 3000.036 §4 A)
+
+Twelve farm builds (11 GPT) wrote `actor: 'system'` or a job's `viewer` into
+a principal column. `check` said ok, and the job parked when a schedule fired,
+with `E_INPUT: E_INPUT: activity.actor cannot carry the reserved system
+principal` in `doctor`. The binder now refuses `E_SYSTEM_PRINCIPAL_WRITE` at
+the field, for a `principal`, `principal ?` or `[principal]` column, when the
+written value is the literal `'system'` (in any operation), a job's `viewer`
+(alone or as a list item; inside `as` writes are already refused), or when a
+job insert omits a column whose default is `viewer` or `'system'`:
+
+```
+schema.q:23:23 — E_SYSTEM_PRINCIPAL_WRITE: activity.actor cannot store the reserved system principal, and this writes `viewer`, which in a job (outside `as`) is the system: the write can never succeed and would park the job at runtime
+  rewrite: make the column optional and write null for system events (`actor: principal ?`, then `actor: null`), or name a service principal (`actor: 'service:reminders'`)
+  guide: jobs
+```
+
+This is the one item that narrows what `check` accepts: a never-invoked job
+holding such a write now fails `check`. It preserves every runtime outcome,
+since the write could never succeed. Values that reach the column through a
+local or an argument stay a runtime refusal (the engine check is unchanged and
+remains the backstop). The code is in `guide::CODES` and `guide jobs`.
+Ticket `…-reserved-system-principal-compiles-then-parks` is closed. The doubled
+`E_INPUT: E_INPUT:` prefix in the stored run error is not changed here: it
+would change the wire `message` of every E_INPUT refusal.
+
+Review (lane S1, all four commits): one blind GPT-6 Astra review at xhigh,
+three rounds. Round 1, NOT READY, six findings, all folded:
+- An upsert's insert arm runs only when the row is absent, so the
+  default-viewer refusal now applies to plain inserts only.
+- The principal check skips writes with a spread (a later spread replaces the
+  field), immutable columns on update and upsert (dropped against a hidden
+  row), and if-absent inserts into a sequence table (a no-op at a full
+  sequence).
+- `N_WRITE_DENIED` treats immutable fields beside `written by` fields as
+  droppable.
+- `update <- false` gets the note.
+- A recorded non-rule cause (an authorization allowance) keeps its name.
+- A forwarded `run` no longer matches the dev record by time.
+
+Round 2, NOT READY, three findings in the trace printer, folded:
+- A forwarded `run` picks a record only when every response sequence after its
+  pre-send baseline is present and exactly one matches, so a delayed, dropped
+  or evicted record prints nothing.
+- Only a local `run` quotes source, from the exact captured files it compiled.
+  A forwarded `run` prints the recorded cause, site and generation, and the
+  dev record now carries `siteKind` so an omitted rule is named without
+  source.
+- Comment stripping is quote-aware.
+
+Round 3: READY.
+

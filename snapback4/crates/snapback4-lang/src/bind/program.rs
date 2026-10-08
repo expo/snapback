@@ -27,6 +27,7 @@ mod expr;
 mod extrema;
 mod objects;
 mod write_keys;
+mod system_principal;
 mod denied_writes;
 mod keys;
 mod reads;
@@ -991,6 +992,7 @@ impl<'a> Binder<'a> {
                 return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
             }
         }
+        self.system_principal_write(info, op, fields, *if_absent, site)?;
         self.note_denied_write(info, op, fields, site);
         // Writes share table-level residency facts, but every source occurrence
         // (including an expanded helper) belongs in a changed-prediction note.

@@ -54,10 +54,11 @@ Jobs run as the system principal; `as recipient.principal:` applies the recipien
 read rules, audiences, field disclosure and expiry to every read in its block. Each recipient's
 live counts and effect key below commit in one transaction.
 The system principal is never stored: writing a job's `viewer` (outside `as`)
-or the literal `'system'` into a principal column compiles but parks the job
-with `E_INPUT: … cannot carry the reserved system principal`. For an audit
-actor, make the column optional and write `null` for system events, or name a
-service principal such as `'service:reminders'`.
+or the literal `'system'` into a principal column is refused at `check` with
+`E_SYSTEM_PRINCIPAL_WRITE`; a value that reaches the column through a local or
+an argument parks the job with `E_INPUT: … cannot carry the reserved system
+principal`. For an audit actor, make the column optional and write `null` for
+system events, or name a service principal such as `'service:reminders'`.
 `once` removes the need for a marker table; worker/provider delivery retries
 still need an idempotency key.
 
@@ -343,6 +344,8 @@ E_JOB_VIEWER_CONTEXT means as belongs inside a job sweep and cannot nest. Put as
 E_JOB_VIEWER_PRINCIPAL means as requires a present non-system principal. Use a principal column or argument; keep intentional system reads outside as.
 
 E_JOB_VIEWER_READ_ONLY means as refuses writes, emits, new ids and once asset consumption. Compute inside as; act outside the block.
+
+E_SYSTEM_PRINCIPAL_WRITE means a write would store the reserved system principal: the literal `'system'`, a job's `viewer` outside `as`, or a principal column whose default is one of them. It could never succeed. Make the column optional and write `null` for system events, or name a service principal (`'service:reminders'`).
 
 E_JOB_VIEWER_FLOW means return cannot leave an as block. Assign a local inside, then return outside; break and continue need a loop inside the block.
 
