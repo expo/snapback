@@ -123,7 +123,6 @@ Inserts, missing upserts and moves into an expiring capped group queue without
 predicted rows. Updates within the same group and deletes can still predict
 under the ordinary rules. Observe the queued write's settlement (guide writes).
 
-
 An unreadable output does not prevent prediction. For example, a moderation
 report predicts but stays invisible to its writer until settlement removes or
 replaces the overlay. A later pending grant can make a row visible; a later
@@ -299,7 +298,6 @@ mutation setLike(postId: id, liked: bool) predicts:
   return null
 ```
 
-
 ## Operations
 
 Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
@@ -318,6 +316,8 @@ observe its pending/failed/sent state instead of treating missing local
 rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
 invent an empty row or mint different IDs on replay.
+
+A plain `insert` with a caller-supplied id still predicts without proving that id absent: if a row this device cannot read already has it, the server refuses `E_RULE`, the write settles `failed` and its pending row is withdrawn. An omitted id or `new` is minted for the call and never collides this way.
 
 ## Read-through upserts
 

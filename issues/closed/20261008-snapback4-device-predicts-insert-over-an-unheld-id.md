@@ -1,6 +1,6 @@
 # Snapback 4 device predicts an insert whose caller-supplied id belongs to a row it does not hold
 
-**Status:** Open
+**Status:** Closed (2026-10-08, ruled: keep predicting; documented; named harness outcome)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -76,3 +76,51 @@ Exit 1 with the signature means it still reproduces.
 **Failure signature:** `device-memory--write-predicted-refused--admitted`  
 
 Recurrences:
+
+## Resolution
+
+**Ruling (Charlie, 2026-10-08): keep predicting supplied-id inserts** (the
+runtime behaviour, unchanged) **and document that such a prediction can end in
+a typed server refusal that withdraws the pending row.**
+
+**Rejected: WIP commit `628596dec9`** ("device proves a supplied insert id
+absent before predicting", branch `sb4/predict-supplied-id`, never landed;
+the branch was reset to `origin/main`). It made a plain device insert whose id
+was not minted at submission predict only when `upsert_absence_proven` held
+for `byId`, and queue with `E_PREDICT` otherwise. It cleared both retained
+cases, but broke 67 device tests in 15 files and paved guide forms (the
+`N_HORIZON_GUARD` rewrite, feeds `post`, read-through `post`): every insert
+with a literal or argument id on a private, membership or horizon table lost
+its prediction, so chat-style clients that mint row ids themselves and pass
+them as arguments would stop seeing their own sends. The prediction card also
+exceeded its start budget.
+
+**Documentation.**
+- Guide `prediction`, Refusals: "A plain `insert` with a caller-supplied id
+  still predicts without proving that id absent: if a row this device cannot
+  read already has it, the server refuses `E_RULE`, the write settles
+  `failed` and its pending row is withdrawn. An omitted id or `new` is
+  minted for the call and never collides this way." The card stays at its
+  368-line budget (two doubled blank lines removed).
+- `packages/snapback4/src/contract.ts`, the `Write` doc comment, says the
+  same. The client path was checked: `local.ts` turns the `/m` reply into
+  `{ state: "failed", why }` (here `E_RULE`), settles it (`settle` without a
+  sequence removes the prediction, `device.rs::settle_from`), reruns the
+  predicted tables and emits the failed write.
+
+**Harness: a named outcome.** `snapback4-difftest` gains `Verdict::Named`,
+counted in `Counts.named`, never as a pass and never as a disagreement.
+`device_writes.rs::refused_over_unheld_id` is the exact condition: the program
+is an insert (the generator's inserts take their row id from the `key`
+argument); the device admitted it predicting `items/<key>`; the server
+refused it `E_RULE`; the server held an `items` row with that id before the
+call; neither the server's answer to the viewer nor the device's answer
+before admission shows that row; and convergence after `settle` and a sync
+round passes. Then the write is `predicted-then-refused-unheld-id`. Every
+other predicted-then-refused write stays the `write-predicted-refused`
+disagreement (a test plants a hidden secondary-unique collision under a fresh
+id and gets the disagreement on both stores). Both retained cases stay under
+`cases/found/` as regression cases and replay as `named:
+predicted-then-refused-unheld-id` (exit 0); their DIAGNOSIS.md files and
+`tests/devices.rs` say so. `run-devices --seed 0 --cases 20000 --workers 8`
+counts 11 per store under the name and zero write disagreements.

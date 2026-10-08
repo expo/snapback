@@ -11,14 +11,19 @@ Shrunk outcome (server, then device):
 {"ok": {"args": {"a": 0, "b": 0, "bucket": 0, "c": null, "key": "r0", "n": null}, "id": "w1", "new_ids": [], "now": 83301, "observed_seq": null, "op": "run", "predictable": true, "predicted": ["items/r0"], "sent_seq": null, "seq": 1, "viewer": "bob"}}
 ```
 
-**Diagnosis: device defect or underspecified point (prediction
-eligibility).** The device predicts an insert whose caller-supplied id belongs
-to a row outside its partition (`sync to .owner`; the conflicting row is
-another owner's). The server refuses `E_RULE` (a unique key holds a row the
-viewer cannot read). Convergence holds: after `settle` and a sync round the
-device withdraws the row and agrees with the server (LLP 3000 §6 invariant 4).
-An `upsert` proves its insert arm's absence on a device
-(`engine/write.rs::insert_attempt` → `prove_upsert_insert`); a plain `insert`
-does not, while an update or delete of an unheld target queues with
-`E_PREDICT` (`write_target.rs::write_miss`). Ticket:
-`issues/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`.
+**Diagnosis: ruled behaviour, retained as a regression case.** The device
+predicts an insert whose caller-supplied id belongs to a row outside its
+partition (`sync to .owner`; the conflicting row is another owner's). The
+server refuses `E_RULE` (a unique key holds a row the viewer cannot read).
+Settling the refusal withdraws the pending row, and after a sync round the
+device agrees with the server (LLP 3000 §6 invariant 4).
+
+Charlie ruled on 2026-10-08 to keep predicting supplied-id inserts and to
+document that such a prediction can end in this typed refusal (guide
+`prediction`, Refusals; `contract.ts` `Write`). The oracle classifies exactly
+this shape as the named outcome `predicted-then-refused-unheld-id`
+(`device_writes.rs::refused_over_unheld_id`, and only when convergence
+passes): never a pass, never a disagreement. This case now replays as
+`named: predicted-then-refused-unheld-id` (exit 0); a disagreement here means
+the exception's condition or the device's behaviour changed. Ticket:
+`issues/closed/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`.

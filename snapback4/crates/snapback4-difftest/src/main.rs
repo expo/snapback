@@ -49,6 +49,10 @@ fn command() -> Result<bool, String> {
                 println!("unsupported: {reason}");
                 Ok(false)
             }
+            Verdict::Named(outcome) => {
+                println!("named: {outcome}");
+                Ok(false)
+            }
             Verdict::Disagree(f) => {
                 println!("{}", serde_json::to_string_pretty(&f).unwrap());
                 Ok(true)

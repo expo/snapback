@@ -9,6 +9,7 @@ use snapback4_difftest::{
     oracle::{Oracle, Verdict},
     shrink,
 };
+use snapback4_difftest::device_writes::{UNHELD_ID, refused_over_unheld_id};
 use std::collections::BTreeSet;
 
 #[test]
@@ -83,6 +84,8 @@ fn retained_device_findings_still_reproduce() {
         let artifact: shrink::Artifact = serde_json::from_slice(&std::fs::read(path.join("case.json")).unwrap()).unwrap();
         assert!(matches!(artifact.finding.oracle, Oracle::Device { .. }));
         match shrink::replay(&path).unwrap() {
+            // Regression cases of the ruled exception (DIAGNOSIS.md): they replay as its name.
+            Verdict::Named(n) if name.contains("--write-predicted-refused--") => assert_eq!(n, UNHELD_ID, "{name}"),
             Verdict::Disagree(f) => assert_eq!(f.signature, name),
             other => panic!("{name} no longer reproduces ({other:?}): diagnose, update its DIAGNOSIS.md and this test"),
         }
@@ -103,4 +106,82 @@ fn isolated_device_workers_agree_with_serial_counts() {
     }
     assert_eq!(one, two);
     std::fs::remove_dir_all(root).unwrap();
+}
+
+fn unheld_id_case() -> snapback4_difftest::generate::Case {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("cases/found/device-sqlite--write-predicted-refused--admitted");
+    let artifact: shrink::Artifact = serde_json::from_slice(&std::fs::read(path.join("case.json")).unwrap()).unwrap();
+    artifact.case
+}
+
+#[test]
+fn a_predicted_insert_over_an_unheld_supplied_id_is_the_named_outcome() {
+    // Bob inserts with key "r0", which names alice's row on `sync to .owner`.
+    let case = unheld_id_case();
+    let mut report = snapback4_difftest::campaign::Report::default();
+    let mut files = devices::Files::new().unwrap();
+    let mut found = Vec::new();
+    devices::check(&case, &mut report, &mut files, |f| found.push(f.signature)).unwrap();
+    assert!(found.is_empty(), "{found:?}");
+    for store in devices::STORES {
+        let write = &report.by_oracle[&format!("device-{store}-write")];
+        assert_eq!((write.attempted, write.passed, write.disagreeing), (1, 0, 0), "{report:#?}");
+        assert_eq!(write.named.get(UNHELD_ID), Some(&1), "{report:#?}");
+        assert_eq!(report.by_oracle[&format!("device-{store}-converge")].passed, 1, "{report:#?}");
+    }
+    // What the guide states: the client reports E_RULE and settling the
+    // refusal withdraws the pending row, before any further sync.
+    let source = case.program.source();
+    for store in devices::STORES {
+        let mut server = devices::server(&case, &source).unwrap();
+        let mut dev = devices::open(store, &mut files, &server.backend).unwrap();
+        devices::acquire(dev.as_mut(), &mut server, &case.principal, devices::page_limit(case.seed), case.clock).unwrap();
+        let entry = json!({"id": "w1", "seq": 1, "op": "run", "args": case.args, "viewer": case.principal, "now": case.clock,
+            "new_ids": [], "predictable": true, "predicted": [], "replay_candidate": false});
+        let admitted = dev.call_text(&json!({"op": "admit", "entry": entry}).to_string());
+        assert_eq!(admitted["ok"]["predicted"], json!(["items/r0"]), "{store}: {admitted}");
+        let observe = json!({"key": "r0"});
+        let pending = devices::device_answer_named(dev.as_mut(), &case, "observe", &observe).outcome;
+        assert_eq!(pending.data().unwrap()["Row"]["pending"], json!({"Bool": true}), "{store}: {pending:?}");
+        let settled = dev.call_text(&json!({"op": "settle", "id": "w1", "store_id": server.store_id}).to_string());
+        assert!(settled.get("denied").is_none(), "{store}: {settled}");
+        let after = devices::device_answer_named(dev.as_mut(), &case, "observe", &observe).outcome;
+        assert!(after.data().and_then(|d| d.get("Row")).is_none(), "{store}: {after:?}");
+    }
+}
+
+#[test]
+fn a_predicted_refusal_of_another_shape_is_still_a_disagreement() {
+    // A hidden collision on a secondary unique key, with a fresh row id: the
+    // device predicts, the server refuses E_RULE, but no row has the id.
+    let mut case = unheld_id_case();
+    case.program.tables[0].keys.push(("byTag".into(), vec!["tag".into()], true));
+    case.rows[0].1["tag"] = json!("tag");
+    case.args["key"] = json!("fresh");
+    let mut report = snapback4_difftest::campaign::Report::default();
+    let mut files = devices::Files::new().unwrap();
+    let mut found = BTreeSet::new();
+    devices::check(&case, &mut report, &mut files, |f| { found.insert(f.signature); }).unwrap();
+    let expected: BTreeSet<_> = devices::STORES.iter().map(|s| format!("device-{s}--write-predicted-refused--admitted")).collect();
+    assert_eq!(found, expected, "{report:#?}");
+    for store in devices::STORES {
+        assert!(report.by_oracle[&format!("device-{store}-write")].named.is_empty(), "{report:#?}");
+    }
+    // Each clause of the exact condition is necessary.
+    let case = unheld_id_case();
+    let admitted = json!({"ok": {"predictable": true, "predicted": ["items/r0"]}});
+    let refused = |code: &str| Outcome { kind: "mutation".into(), value: json!({"state": "failed", "why": {"code": code}}) };
+    let none = Outcome { kind: "query".into(), value: json!({"data": "Null"}) };
+    let row = Outcome { kind: "query".into(), value: json!({"data": {"Row": {}}}) };
+    assert!(refused_over_unheld_id(&case, &admitted, &refused("E_RULE"), &none, &none));
+    assert!(!refused_over_unheld_id(&case, &admitted, &refused("E_CONSTRAINT"), &none, &none));
+    assert!(!refused_over_unheld_id(&case, &admitted, &refused("E_RULE"), &row, &none), "the viewer can read it");
+    assert!(!refused_over_unheld_id(&case, &admitted, &refused("E_RULE"), &none, &row), "the device holds it");
+    assert!(!refused_over_unheld_id(&case, &json!({"ok": {"predictable": true, "predicted": []}}), &refused("E_RULE"), &none, &none));
+    let mut absent = case.clone();
+    absent.rows.clear();
+    assert!(!refused_over_unheld_id(&absent, &admitted, &refused("E_RULE"), &none, &none), "no row has the id");
+    let mut upsert = case.clone();
+    upsert.program.body = Body::Write(Write::Upsert, Expr::Int(1));
+    assert!(!refused_over_unheld_id(&upsert, &admitted, &refused("E_RULE"), &none, &none), "only a plain insert");
 }

@@ -19,12 +19,20 @@
 //!
 //! A write the client marks unpredictable (some table it touches is not
 //! synced) or the device declines (`E_PREDICT`) is counted by that reason,
-//! never as a pass. The stream reply mirrors `sync_wire.rs::StreamReply`;
+//! never as a pass.
+//!
+//! One predicted write may end refused: an insert whose row id the caller
+//! supplies predicts without proving that id absent (guide `prediction`,
+//! Refusals), so a row the device does not hold with that id makes the
+//! server refuse `E_RULE`. When convergence then holds, that write is the
+//! named outcome [`UNHELD_ID`] ([`refused_over_unheld_id`] states the exact
+//! condition); every other predicted-then-refused write is a disagreement. The stream reply mirrors `sync_wire.rs::StreamReply`;
 //! `changes` (the TypeScript client's settlement summary, not a device
 //! field) is omitted, and `preserved` comes from
 //! `revocation::preserved_between`, as `serve_sync.rs` computes it.
 // @ref LLP 3000.035#5.1 — predicted device writes against committed server outcomes.
 use crate::{
+    ast::{Body, Write},
     campaign::Report,
     devices::{self, Dev, Server},
     execute::Outcome,
@@ -36,6 +44,35 @@ use snapback4_core::{Context, WriteState, wire};
 use std::collections::BTreeMap;
 
 pub const WRITE_ID: &str = "w1";
+
+/// A predicted insert over a caller-supplied id that a row the device does
+/// not hold already has; the server's refusal withdraws it (ruling of
+/// 2026-10-08, `issues/closed/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`).
+pub const UNHELD_ID: &str = "predicted-then-refused-unheld-id";
+
+fn holds_row(o: &Outcome) -> bool {
+    o.data().and_then(|d| d.get("Row")).is_some()
+}
+
+/// The exact condition of [`UNHELD_ID`], before convergence (which
+/// `compare` also requires): the program is an insert (the generator's
+/// inserts take their row id from the `key` argument), the device admitted
+/// it as a prediction of `items/<key>`, the server refused it `E_RULE`, the
+/// server held an `items` row with that id before the call, and neither the
+/// server's answer to the viewer nor the device's answer before admission
+/// shows that row.
+pub fn refused_over_unheld_id(case: &Case, admitted: &Json, committed: &Outcome, server_view: &Outcome, device_before: &Outcome) -> bool {
+    let Some(key) = case.args["key"].as_str() else { return false };
+    let refusal = committed.value.get("why").or_else(|| committed.value.get("refusal"));
+    matches!(case.program.body, Body::Write(Write::Insert, _))
+        && admitted["ok"]["predictable"] == json!(true)
+        && admitted["ok"]["predicted"].as_array().is_some_and(|p| p.contains(&json!(format!("items/{key}"))))
+        && committed.value.get("seq").is_none_or(Json::is_null)
+        && refusal.is_some_and(|r| r["code"] == "E_RULE")
+        && case.rows.iter().any(|(t, row)| t == "items" && row["id"] == json!(key))
+        && !holds_row(server_view)
+        && !holds_row(device_before)
+}
 
 fn ids() -> Vec<String> {
     (0..8).map(|i| format!("minted-{i}")).collect()
@@ -86,6 +123,9 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     let predictable = devices::operation_tables(&backend, "run").iter().all(synced);
     let entry = json!({"id": WRITE_ID, "seq": 1, "op": "run", "args": case.args, "viewer": case.principal, "now": case.clock,
         "new_ids": ids(), "predictable": predictable, "predicted": [], "replay_candidate": false});
+    let observed = json!({"key": case.args["key"]});
+    let device_before = devices::device_answer_online(dev, case, "observe", &observed, server.online("observe")).outcome;
+    report.executed += 1;
     let admitted = dev.call_text(&json!({"op": "admit", "entry": entry}).to_string());
     let (_, pending_device) = observe(server, dev, case);
     let (committed, seq) = mutate(server, case);
@@ -101,6 +141,7 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
         crate::ast::Body::Write(w, _) => format!("{w:?}").to_lowercase(),
         _ => unreachable!(),
     };
+    let mut unheld = false;
     let (class, prediction) = if let Some(denied) = admitted.get("denied") {
         // Definite device refusal: final for the client. The server must refuse identically.
         let server_refusal = committed.value.get("why").or_else(|| committed.value.get("refusal")).cloned();
@@ -112,6 +153,7 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
         (format!("refused-{}", denied["code"].as_str().unwrap_or("?")), v)
     } else if admitted["ok"]["predictable"] == json!(true) {
         let v = if seq.is_none() {
+            unheld = refused_over_unheld_id(case, &admitted, &committed, &after_server, &device_before);
             finding(store, "write", "predicted-refused", committed.clone(), admission.clone(), &trail)
         } else if !matches!(pending_device.class.as_str(), "complete" | "refused") {
             Verdict::Unsupported(format!("pending-observe-{}", pending_device.class))
@@ -162,6 +204,8 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     } else {
         Verdict::Unsupported(format!("converge-observe-{}", d.class))
     };
+    // The named exception holds only when the withdrawn prediction converged.
+    let prediction = if unheld && matches!(converge, Verdict::Pass) { Verdict::Named(UNHELD_ID.into()) } else { prediction };
     Ok([("write".into(), prediction), ("converge".into(), converge)])
 }
 

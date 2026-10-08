@@ -156,6 +156,10 @@ pub struct Finding {
 pub enum Verdict {
     Pass,
     Unsupported(String),
+    /// A documented outcome the oracle recognises by an exact condition
+    /// (`device_writes.rs::UNHELD_ID`): counted under its name, never as a
+    /// pass and never as a disagreement.
+    Named(String),
     Disagree(Finding),
 }
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -163,6 +167,8 @@ pub struct Counts {
     pub attempted: u64,
     pub passed: u64,
     pub unsupported: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub named: BTreeMap<String, u64>,
     pub disagreeing: u64,
     pub signatures: BTreeMap<String, u64>,
     pub meter_fields_omitted: u64,
@@ -173,6 +179,7 @@ impl Counts {
         match v {
             Verdict::Pass => self.passed += 1,
             Verdict::Unsupported(s) => *self.unsupported.entry(s.clone()).or_default() += 1,
+            Verdict::Named(s) => *self.named.entry(s.clone()).or_default() += 1,
             Verdict::Disagree(f) => {
                 self.disagreeing += 1;
                 *self.signatures.entry(f.signature.clone()).or_default() += 1;

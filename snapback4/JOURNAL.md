@@ -92141,3 +92141,33 @@ have caught both.
 Quick blind GPT-6 Astra look (high): READY. The name match cannot exempt an
 authored mutation, the clause-site match is exact, and the test change is
 sound.
+
+
+## 2026-10-08 — A predicted insert over an unheld supplied id is documented, not prevented
+
+The device oracle's two `write-predicted-refused` cases (slice C) are a plain
+`insert` whose caller-supplied id names another owner's row on a `sync to
+.owner` table. The device predicts it, the server refuses `E_RULE`, and
+settlement withdraws the row. A first lane made the device prove such an id
+absent before predicting (WIP `628596dec9`, not landed). That broke 67 device
+tests and paved guide forms, because every literal or argument id on a
+private, membership or horizon table lost its prediction; a chat client that
+mints its own row ids would stop seeing its sends.
+
+Charlie ruled for the other option: keep the prediction and say what can
+happen. The `prediction` card's Refusals section and `contract.ts`'s `Write`
+comment now state that a plain insert with a supplied id predicts without
+proving it absent, that a row the device cannot read with that id makes the
+server refuse `E_RULE` and settlement withdraw the pending row, and that ids
+minted for the call never collide this way. The card holds its 368-line
+budget by dropping two doubled blank lines.
+
+The harness gains a third kind of verdict, `Named`, for a documented outcome
+recognised by an exact condition. `predicted-then-refused-unheld-id` requires
+an insert, a prediction of `items/<key>`, an `E_RULE` refusal, a server row
+with that id that neither the viewer's server read nor the device's
+pre-admission read shows, and passing convergence. It is never a pass. A
+hidden collision on a secondary unique key under a fresh id is still a
+disagreement. The two retained cases replay as the name. Seeds 0–19,999:
+433 compared writes per store, 422 passed, 11 named, 1,950 not compared
+(1,821 unsynced table, 129 declined), zero write disagreements.
