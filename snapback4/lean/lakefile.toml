@@ -1,0 +1,10 @@
+name = "quarry"
+version = "0.1.0"
+defaultTargets = ["Quarry", "quarry-model"]
+
+[[lean_lib]]
+name = "Quarry"
+
+[[lean_exe]]
+name = "quarry-model"
+root = "Main"
