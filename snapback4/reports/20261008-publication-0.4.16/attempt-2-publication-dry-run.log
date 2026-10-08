@@ -1,0 +1,535 @@
+== the suite
+== cargo build
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:455:51
+    |
+455 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+-- ok: cargo build (10 s)
+== wasm build
+Binaryen 132.0.0 (locked workspace dependency)
+warning: unused imports: `Bounds`, `Dir`, `Maintain`, `MeterKind`, `RuntimeError`, `materialize_optional_fields`, and `value::Value`
+ --> crates/snapback4-core/src/engine/aggregate_expiry.rs:3:21
+  |
+3 | use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Maintain, materialize_optional_fields}, value::Value};
+  |                     ^^^^^^^^^  ^^^^^^^^^^^^          ^^^^^^  ^^^            ^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::BTreeMap`
+  --> crates/snapback4-core/src/engine/maintains.rs:13:5
+   |
+13 | use std::collections::BTreeMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `MeterKind`
+ --> crates/snapback4-core/src/engine/columns.rs:6:21
+  |
+6 | use crate::{error::{MeterKind, RuntimeError}, schema::{Maintain, reservations::{COLUMNS, ASSETS}}, value::Value};
+  |                     ^^^^^^^^^
+
+warning: unused import: `Stmt`
+ --> crates/snapback4-core/src/engine/presence.rs:3:45
+  |
+3 | use crate::{error::RuntimeError, ir::{Expr, Stmt}, value::Value};
+  |                                             ^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:462:13
+    |
+462 |         let mut unsettled = existing.as_ref().is_none_or(pending);
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/row_views.rs:643:25
+    |
+643 |                     let mut unsettled = existing.as_ref().is_some_and(pending);
+    |                         ----^^^^^^^^^
+    |                         |
+    |                         help: remove this `mut`
+
+warning: unused variable: `runner`
+   --> crates/snapback4-core/src/engine/receipts.rs:278:121
+    |
+278 |                     (crate::error::MeterKind::IndexEntries, price[1]), (crate::error::MeterKind::Examined, price[2])], |runner, _| {
+    |                                                                                                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_runner`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `old`
+   --> crates/snapback4-core/src/engine/receipts.rs:268:17
+    |
+268 |             let old = self.receipt_scope(f, row.field(&f.message_group)?)?;
+    |                 ^^^ help: if this is intentional, prefix it with an underscore: `_old`
+
+warning: struct `Authority` is never constructed
+  --> crates/snapback4-core/src/authority.rs:12:12
+   |
+12 | pub struct Authority {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `SessionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:19:19
+   |
+19 | pub(crate) struct SessionRecord {
+   |                   ^^^^^^^^^^^^^
+
+warning: struct `WorkRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:31:19
+   |
+31 | pub(crate) struct WorkRecord {
+   |                   ^^^^^^^^^^
+
+warning: struct `AdmissionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:43:19
+   |
+43 | pub(crate) struct AdmissionRecord {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: trait `AuthorityTransaction` is never used
+  --> crates/snapback4-core/src/authority.rs:51:18
+   |
+51 | pub(crate) trait AuthorityTransaction {
+   |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `AdmissionStanding` is never used
+  --> crates/snapback4-core/src/authority.rs:70:17
+   |
+70 | pub(crate) enum AdmissionStanding {
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `admission_authority` is never used
+  --> crates/snapback4-core/src/authority.rs:79:15
+   |
+79 | pub(crate) fn admission_authority(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `family_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:106:15
+    |
+106 | pub(crate) fn family_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `work_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:150:15
+    |
+150 | pub(crate) fn work_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_window_is_live` is never used
+   --> crates/snapback4-core/src/authority.rs:170:4
+    |
+170 | fn claim_window_is_live(work: &WorkRecord, now: i64) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_is_owned` is never used
+   --> crates/snapback4-core/src/authority.rs:176:15
+    |
+176 | pub(crate) fn claim_is_owned(work: &WorkRecord, worker: &str, digest: &str) -> bool {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `live_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:180:15
+    |
+180 | pub(crate) fn live_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `held_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:191:15
+    |
+191 | pub(crate) fn held_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `live_session` is never used
+   --> crates/snapback4-core/src/authority.rs:207:15
+    |
+207 | pub(crate) fn live_session(
+    |               ^^^^^^^^^^^^
+
+warning: function `live_service_session` is never used
+   --> crates/snapback4-core/src/authority.rs:231:15
+    |
+231 | pub(crate) fn live_service_session(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `SessionScope` is never used
+   --> crates/snapback4-core/src/authority.rs:244:10
+    |
+244 | pub enum SessionScope { Full, Read }
+    |          ^^^^^^^^^^^^
+
+warning: field `session_digest` is never read
+   --> crates/snapback4-core/src/engine/mod.rs:166:16
+    |
+149 | pub struct Context {
+    |            ------- field in this struct
+...
+166 |     pub(crate) session_digest: Option<String>,
+    |                ^^^^^^^^^^^^^^
+    |
+    = note: `Context` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `asset`, `claim_asset`, and `release_asset` are never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:100:19
+    |
+ 29 | impl<'a> GuardedRows<'a> {
+    | ------------------------ methods in this implementation
+...
+100 |     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
+    |                   ^^^^^
+101 |     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { sel...
+    |                   ^^^^^^^^^^^
+102 |     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #...
+    |                   ^^^^^^^^^^^^^
+
+warning: method `room` is never used
+   --> crates/snapback4-core/src/engine/authorized_scan.rs:355:19
+    |
+342 | impl InternalMeter<'_> {
+    | ---------------------- method in this implementation
+...
+355 |     pub(crate) fn room(&self, kind: MeterKind, amount: u64) -> bool { self.0.room(kind, amount) }
+    |                   ^^^^
+
+warning: method `timeline_page` is never used
+   --> crates/snapback4-core/src/engine/timeline.rs:320:8
+    |
+ 61 | impl Runner<'_> {
+    | --------------- method in this implementation
+...
+320 |     fn timeline_page(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool, cursor: Option<&[u8]>) -> R...
+    |        ^^^^^^^^^^^^^
+
+warning: variant `Purge` is never constructed
+  --> crates/snapback4-core/src/engine/timeline_authority.rs:12:5
+   |
+ 8 | pub(super) enum Authority {
+   |                 --------- variant in this enum
+...
+12 |     Purge(BTreeMap<String, u64>),
+   |     ^^^^^
+
+warning: function `expression_scans` is never used
+   --> crates/snapback4-core/src/ir.rs:648:15
+    |
+648 | pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    |               ^^^^^^^^^^^^^^^^
+
+warning: associated items `zero`, `plus`, and `fits` are never used
+   --> crates/snapback4-core/src/value.rs:428:19
+    |
+427 | impl InternalPrice {
+    | ------------------ associated items in this implementation
+428 |     pub(crate) fn zero() -> Self { Self(0) }
+    |                   ^^^^
+429 |     pub(crate) fn plus(self, other: Self) -> Self { Self(self.0.saturating_add(other.0)) }
+    |                   ^^^^
+...
+432 |     pub(crate) fn fits(&self, meter: &crate::engine::InternalMeter<'_>, _: &crate::engine::Authorization) -> bool { meter.room(crat...
+    |                   ^^^^
+
+wasm 2136182 B raw, 645356 B gzip (budget 646180: ok)
+-- ok: wasm build (25 s)
+== docs budget
+docs budget: README 300/300 physical lines
+
+running 1 test
+test w14b_first_account_screen_is_self_contained ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 112 filtered out; finished in 0.01s
+
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:455:51
+    |
+455 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 59.28s
+     Running tests/guide.rs (target/debug/deps/guide-3d490780b768933e)
+-- ok: docs budget (59 s)
+== release guard
+release guard: ok (web-device-check refuses the wasm profile)
+-- ok: release guard (7 s)
+== package typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: package typecheck (2 s)
+== package build
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+-- ok: package build (1 s)
+== chat app check
+check: ok — 6 tables (5 synced), 12 operations, no problems, 1 note, 24.3 ms
+note: schema.q:79:1 — N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue
+1 mutations never predict: markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+-- ok: chat app check (1 s)
+/Users/ccheever/projects/snapback-pub-0416/snapback4/scripts/test.sh: line 64: printf: write error: No space left on device
+fail
+== cargo test
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-core)
+   Compiling snapback4-native v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-native)
+   Compiling snapback4-lang v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-lang)
+   Compiling snapback4-sim v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-sim)
+   Compiling snapback4-device v0.4.16 (/Users/ccheever/projects/snapback-pub-0416/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:455:51
+    |
+455 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `programs` is never read
+ --> crates/snapback4-core/tests/schema_capabilities_legacy.rs:9:34
+  |
+9 | struct Backend { schema: Schema, programs: Vec<Program> }
+  |        -------                   ^^^^^^^^
+  |        |
+  |        field in this struct
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-core/tests/../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `schema` is never read
+ --> crates/snapback4-core/tests/common/acquisition.rs:7:9
+  |
+6 | pub struct Fixture {
+  |            ------- field in this struct
+7 |     pub schema: Schema,
+  |         ^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "lane_source") generated 1 warning
+warning: `snapback4-core` (test "schema_capabilities_legacy") generated 1 warning
+warning: `snapback4-core` (test "rows") generated 1 warning
+rustc-LLVM ERROR: IO failure on output stream: No space left on device
+warning: `snapback4-device` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `snapback4-device` (lib test); 1 warning emitted
+
+Caused by:
+  process didn't exit successfully: `/Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc --crate-name snapback4_device --edition=2024 crates/snapback4-device/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C opt-level=3 -C embed-bitcode=no -C debuginfo=2 -C split-debuginfo=unpacked -C debug-assertions=on --test --cfg 'feature="default"' --cfg 'feature="native"' --cfg 'feature="wasm-host"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "native", "wasm-host", "web", "web-device-check"))' -C metadata=ca30d0c5594b467d -C extra-filename=-b50ee1afd7a5bce7 --out-dir /Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps -C incremental=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/incremental -L dependency=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps --extern rusqlite=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/librusqlite-1def8ab7a2763b4e.rlib --extern serde=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libserde-3e62853a1935b8ca.rlib --extern serde_json=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libserde_json-da562029584dc3af.rlib --extern sha2=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libsha2-66034bcd60ee598b.rlib --extern snapback4_core=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libsnapback4_core-42fa165e21096f74.rlib --extern snapback4_lang=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libsnapback4_lang-c1521e3f7f9e0828.rlib -L native=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/build/libsqlite3-sys-1fb3b7ae99599bf1/out` (exit status: 101)
+warning: build failed, waiting for other jobs to finish...
+
+error: failed to build archive at `/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libsnapback4_device.a`: No space left on device (os error 28)
+
+warning: `snapback4-device` (lib) generated 1 warning
+error: could not compile `snapback4-device` (lib) due to 1 previous error; 1 warning emitted
+error: could not compile `snapback4-core` (lib test)
+
+Caused by:
+  failed to create file `/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/.fingerprint/snapback4-core-3a644f7c5d9ecca5/output-test-lib-snapback4_core`
+
+Caused by:
+  failed to parse process output: `/Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc --crate-name snapback4_core --edition=2024 crates/snapback4-core/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --emit=dep-info,link -C opt-level=1 -C embed-bitcode=no -C debuginfo=2 -C split-debuginfo=unpacked --warn=unexpected_cfgs --check-cfg 'cfg(kani)' -C debug-assertions=on --test --cfg 'feature="default"' --cfg 'feature="native"' --cfg 'feature="server-search"' --cfg 'feature="sqlite"' --cfg 'feature="wasm-host"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "native", "postgres", "server-search", "sqlite", "wasm-host", "web", "web-device-check"))' -C metadata=7c7008bc884d350a -C extra-filename=-3a644f7c5d9ecca5 --out-dir /Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps -C incremental=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/incremental -L dependency=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps --extern argon2=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libargon2-9e95de67ccc2f801.rlib --extern getrandom=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libgetrandom-e42e70b7fb9ffe45.rlib --extern libc=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/liblibc-3b794a6abb4ea28f.rlib --extern rusqlite=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/librusqlite-1def8ab7a2763b4e.rlib --extern serde=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libserde-3e62853a1935b8ca.rlib --extern serde_json=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libserde_json-da562029584dc3af.rlib --extern sha2=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libsha2-66034bcd60ee598b.rlib --extern snapback4_lang=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libsnapback4_lang-c1521e3f7f9e0828.rlib --extern thiserror=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libthiserror-65242a2d1a64b502.rlib --extern unicode_normalization=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libunicode_normalization-673f832371cda79c.rlib --extern wasmi=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/deps/libwasmi-9c1a4b8ae6776885.rlib -L native=/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/build/libsqlite3-sys-1fb3b7ae99599bf1/out` (exit status: 1)
+-- FAIL: Cargo test artifact build
+
+database or disk is full
+
+Caused by:
+  Error code 13: database or disk is full
+error: failed to link or copy `/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/build/proc-macro2-c42521f94553881f/build_script_build-c42521f94553881f` to `/Users/ccheever/projects/snapback-pub-0416/snapback4/target/debug/build/proc-macro2-c42521f94553881f/build-script-build`
+
+Caused by:
+  No space left on device (os error 28)
+-- rust target: workspace doctests (0.3 s)
+-- FAIL: cargo test (92 s)
+== chat app typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+-- client file start: fixtures/; stall bound 900000 ms
+TAP version 13
+# Subtest: all combined, starter, checkpoint, spot and artifact manifest facts match
+ok 1 - all combined, starter, checkpoint, spot and artifact manifest facts match
+  ---
+  duration_ms: 960.571
+  type: 'test'
+  ...
+# Subtest: scale hub facts come from the manifest, with the starter contribution removed
+ok 2 - scale hub facts come from the manifest, with the starter contribution removed
+  ---
+  duration_ms: 743.235875
+  type: 'test'
+  ...
+# Subtest: two full CLI builds are byte-identical, and every output reference resolves
+ok 3 - two full CLI builds are byte-identical, and every output reference resolves
+  ---
+  duration_ms: 2119.640958
+  type: 'test'
+  ...
+# Subtest: sample-50 round trip preserves all verb intents, media, quotes, ids and timestamps
+ok 4 - sample-50 round trip preserves all verb intents, media, quotes, ids and timestamps
+  ---
+  duration_ms: 10.852459
+  type: 'test'
+  ...
+# Subtest: --scale 2 keeps registration order and drops actors and cascading dependencies
+ok 5 - --scale 2 keeps registration order and drops actors and cascading dependencies
+  ---
+  duration_ms: 787.047834
+  type: 'test'
+  ...
+# Subtest: grammar decodes JSON escapes and enforces schema variants and constraints
+ok 6 - grammar decodes JSON escapes and enforces schema variants and constraints
+  ---
+  duration_ms: 0.542417
+  type: 'test'
+  ...
+# Subtest: set-state retries, DM pair reuse and filtered quote chains retain their meaning
+ok 7 - set-state retries, DM pair reuse and filtered quote chains retain their meaning
+  ---
+  duration_ms: 0.415875
+  type: 'test'
+  ...
+# Subtest: stats CLI verifies manifests and reports the selected dataset
+ok 8 - stats CLI verifies manifests and reports the selected dataset
+  ---
+  duration_ms: 1441.361125
+  type: 'test'
+  ...
+# Subtest: mismatches name the field and both values, and CLI failures exit 1
+ok 9 - mismatches name the field and both values, and CLI failures exit 1
+  ---
+  duration_ms: 78.63225
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6243.563667
+-- process inspection: {"snapshots":3,"unrelatedRows":13385}
+-- client file ok: fixtures/ (6835 ms)
+-- client files: 1/1; failed 0; tests {"tests":9,"pass":9,"fail":0,"cancelled":0,"skipped":0,"todo":0}
+-- ok: fixture wrapper tests (7 s)
+-- available CPUs: 18; client file concurrency: 1
+/Users/ccheever/projects/snapback-pub-0416/snapback4/scripts/test.sh: line 64: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T//snapback4-test.iFc6xQ/client-tests.status: No space left on device
+cat: stdout: No space left on device
+== client tests
+-- FAIL: client tests (parallel worker ended before reporting)
+== client models
+node:fs:3050
+  return binding.mkdtemp(prefix, options.encoding);
+                 ^
+
+Error: ENOSPC: no space left on device, mkdtemp '/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-test-identity-XXXXXX'
+    at Object.mkdtempSync (node:fs:3050:18)
+    at buildDarwinProbe (file:///Users/ccheever/projects/snapback-pub-0416/snapback4/scripts/test-signals.mjs:18:18)
+    at file:///Users/ccheever/projects/snapback-pub-0416/snapback4/scripts/test-signals.mjs:179:50
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -28,
+  code: 'ENOSPC',
+  syscall: 'mkdtemp',
+  path: '/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-test-identity-XXXXXX'
+}
+
+Node.js v24.18.0
+-- FAIL: client models (0 s)
+== 3 failure(s) in 207 s
+   cargo test
+   client tests
+   client models
+file:///Users/ccheever/projects/snapback-pub-0416/snapback4/scripts/publish.mjs:67
+  catch { throw new Error(`publish: the suite is red; snapback4@${version} is not published`); }
+                ^
+
+Error: publish: the suite is red; snapback4@0.4.16 is not published
+    at file:///Users/ccheever/projects/snapback-pub-0416/snapback4/scripts/publish.mjs:67:17
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0
