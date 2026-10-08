@@ -675,6 +675,7 @@ mod tests {
 
     #[test]
     fn ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence() {
+        if !test_process::isolated() { return; }
         let project = std::env::temp_dir().join(format!("sb4-ownerless-{}-{}", std::process::id(), now()));
         let root = project.join("artifacts/native-smoke"); let dir = root.join("1-1");
         fs::create_dir_all(&dir).unwrap();
@@ -694,6 +695,7 @@ mod tests {
 
     #[test]
     fn discovery_of_an_unfinished_leased_export_keeps_maintenance_pending() {
+        if !test_process::isolated() { return; }
         let root = std::env::temp_dir().join(format!("sb4-deferred-discovery-{}-{}", std::process::id(), now()));
         for n in 1..=8 {
             let dir = root.join(format!("{n}-1")); fs::create_dir_all(dir.join("export")).unwrap();
@@ -706,7 +708,13 @@ mod tests {
         cleanup_inner(&root, None).unwrap();
         assert!(root.join("maintenance-request.json").exists(), "discovery must retain deferred work");
         assert!(root.join("1-1/export").exists());
+        let inherited = test_process::ForkHolder::new();
         drop(lease);
+        remove(&root.join("maintenance-request.json")).unwrap();
+        cleanup_inner(&root, None).unwrap();
+        assert!(root.join("maintenance-request.json").exists(), "fork-inherited custody still defers discovery");
+        assert!(root.join("1-1/export").exists());
+        drop(inherited);
         remove(&root.join("maintenance-request.json")).unwrap(); // next scan claims it
         cleanup_inner(&root, None).unwrap();
         assert!(!root.join("maintenance-request.json").exists(), "all discoveries were covered");
@@ -716,6 +724,7 @@ mod tests {
 
     #[test]
     fn retention_pins_current_and_pending_swap_generations_before_start_order() {
+        if !test_process::isolated() { return; }
         let project = std::env::temp_dir().join(format!("sb4-retention-pins-{}-{}", std::process::id(), now()));
         let root = project.join("artifacts/native-smoke");
         let target = project.join("dist");
@@ -747,6 +756,7 @@ mod tests {
 
     #[test]
     fn abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid() {
+        if !test_process::isolated() { return; }
         let root = std::env::temp_dir().join(format!("sb4-abandoned-{}-{}", std::process::id(), now()));
         let dir = root.join("1-123"); fs::create_dir_all(dir.join("export.app")).unwrap();
         fs::create_dir_all(dir.join("build.xcresult")).unwrap();
@@ -767,6 +777,7 @@ mod tests {
 
     #[test]
     fn recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper() {
+        if !test_process::isolated() { return; }
         use std::os::unix::process::CommandExt;
         let root = std::env::temp_dir().join(format!("sb4-group-recover-{}-{}", std::process::id(), now()));
         let dir = root.join("1-123"); fs::create_dir_all(dir.join("export.app")).unwrap();
@@ -821,6 +832,7 @@ mod tests {
 
     #[test]
     fn live_wrapper_lease_preserves_export_and_journal_after_driver_exit() {
+        if !test_process::isolated() { return; }
         let root = std::env::temp_dir().join(format!("sb4-wrapper-{}-{}", std::process::id(), now()));
         let dir = root.join("1-123"); fs::create_dir_all(dir.join("export")).unwrap();
         fs::write(dir.join("export/bundle"), "proved bytes").unwrap();

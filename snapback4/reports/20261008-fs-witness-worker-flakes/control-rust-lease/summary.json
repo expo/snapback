@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/home/ccheever/sb4-intent/lane-fs/snapback4/target/debug/deps/fs-control-lease",
+    "--exact",
+    "verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop",
+    "--nocapture"
+  ],
+  "cpus": "82,83",
+  "busy_pids": [
+    3435541,
+    3435542,
+    3435543,
+    3435544,
+    3435545,
+    3435546
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 101,
+      "seconds": 0.065
+    }
+  ]
+}

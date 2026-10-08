@@ -1,0 +1,45 @@
+{
+  "command": [
+    "target/debug/deps/snapback4-54c72c0d37cc6d9b",
+    "--test-threads=4",
+    "--nocapture"
+  ],
+  "cpus": "74,75",
+  "busy_pids": [
+    3279899,
+    3279900,
+    3279901,
+    3279902,
+    3279903,
+    3279904
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 0,
+      "seconds": 39.856
+    },
+    {
+      "round": 2,
+      "status": 101,
+      "seconds": 40.611
+    },
+    {
+      "round": 3,
+      "status": 101,
+      "seconds": 40.758
+    },
+    {
+      "round": 4,
+      "status": 101,
+      "seconds": 40.308
+    },
+    {
+      "round": 5,
+      "status": 101,
+      "seconds": 40.459
+    }
+  ]
+}

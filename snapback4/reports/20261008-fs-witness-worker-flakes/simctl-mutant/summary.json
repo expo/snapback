@@ -1,0 +1,25 @@
+{
+  "command": [
+    "python3",
+    "reports/20261008-fs-witness-worker-flakes/simctl-control.py",
+    "--mutant"
+  ],
+  "cpus": "80,81",
+  "busy_pids": [
+    3408428,
+    3408429,
+    3408430,
+    3408431,
+    3408432,
+    3408433
+  ],
+  "busy_reaped": true,
+  "jobs": 1,
+  "results": [
+    {
+      "round": 1,
+      "status": 1,
+      "seconds": 0.465
+    }
+  ]
+}
