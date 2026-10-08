@@ -1,8 +1,10 @@
 # Lane SN: one-shot settlement
 
-**Latest: [Round 6](round6/REPORT.md).** Attribute the seven qualification files,
-retain the publication-race bound after custody waits, skip discovery for failed
-queries, and reconcile fixtures with the accepted contract.
+**Latest: [Round 7](round7/REPORT.md).** Match canonical worker and ledger paths
+in test expectations, preserving the wrapper's supplied spelling and all assertions.
+[Round 6](round6/REPORT.md) attributed the seven qualification files,
+retained the publication-race bound after custody waits, skipped discovery for failed
+queries, and reconciled fixtures with the accepted contract.
 [Round 5](round5/REPORT.md) fenced complete prediction replay and
 retained current-session discovery refusals. [Round 4](round4/REPORT.md) refreshed the exact capability-free backend
 pin for the additive settlement envelope and verified unchanged schema/IR/storage on

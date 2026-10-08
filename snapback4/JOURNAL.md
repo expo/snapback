@@ -91439,3 +91439,26 @@ historical builds and causal controls separately from the final passing suite.
 
 [Round-6 report and complete logs](reports/20261007-sn-one-shot-settlement/round6/REPORT.md).
 No push or publication.
+
+## 2026-10-08 — SN round 7: canonical worker-path expectations
+
+Corrected the worker retry test's expected worker filename to use the physical
+fixture root. The `SNAPBACK_NODE` wrapper remains exactly as supplied, matching
+`project::node()` and the diagnostic formatter on both platforms. The worker,
+wrapper, rejected version, retry marker, repair/start and no-extra-adoption
+assertions all remain. A Linux symlinked `TMPDIR` reproduces the macOS failure
+on unchanged round-6 code: the original test exhausts its 122,000 ms guard while
+the diagnostic prints a canonical worker path and the supplied wrapper path.
+
+The audit of round-6 test/tool files found one more raw/canonical comparison:
+the fresh-store ledger exclusion. Canonicalizing its expected `.snapback4`
+prefix prevents that negative assertion from passing on spelling alone. Other
+worker cwd, project and module checks already normalize their expected paths;
+filesystem accesses and HTTP-path assertions do not need this change.
+
+The complete worker-regressions file passes 77/77 with normal temporary paths
+and 77/77 with symlinked temporary paths. All timeout bounds and assertions are
+retained. No production or settlement behavior changed, and no new macOS run is
+claimed. Work stayed on eb1000; no push or publication.
+
+[Round-7 report, failed control, path audit and passing logs](reports/20261007-sn-one-shot-settlement/round7/REPORT.md).

@@ -1,0 +1,75 @@
+Round-6 changed test/tool files:
+snapback4/packages/snapback4/test/bounded-following.test.mjs
+snapback4/packages/snapback4/test/delivery-fault-instrument.mjs
+snapback4/packages/snapback4/test/one-shot-discovery-auth.test.mjs
+snapback4/packages/snapback4/test/online-client-model.test.mjs
+snapback4/packages/snapback4/test/page-ready.test.mjs
+snapback4/packages/snapback4/test/per-row-liveness.test.mjs
+snapback4/packages/snapback4/test/retained-history.test.mjs
+snapback4/packages/snapback4/test/worker-regressions.test.mjs
+snapback4/reports/20260929-fw-follow-window/round1/tools/adoption-page.mjs
+snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs
+snapback4/reports/20260929-fw-follow-window/round1/tools/helpers.mjs
+snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs
+snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs
+
+Path assertion candidates (before round-7 edit):
+snapback4/packages/snapback4/test/bounded-following.test.mjs:163:    assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
+snapback4/packages/snapback4/test/bounded-following.test.mjs:430:    assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
+snapback4/packages/snapback4/test/bounded-following.test.mjs:469:      assert.deepEqual(bob.queries.at(-1), { path: `/q/${name}`, args: input });
+snapback4/packages/snapback4/test/bounded-following.test.mjs:548:    assert.ok(bob.queries.some(request => request.path === "/q/cards" && request.args.c === input.c));
+snapback4/packages/snapback4/test/bounded-following.test.mjs:708:    assert.ok(alice.queries.some(q => q.path === "/q/crossing" && q.args.c === c));
+snapback4/packages/snapback4/test/bounded-following.test.mjs:759:  assert.deepEqual(bob.queries.at(-1), { path: "/q/native_cards", args: input });
+snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:56:    assert.equal(await keeper.evaluate(() => window.direct), undefined);
+snapback4/reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs:59:    assert.equal(await keeper.evaluate(() => window.direct), undefined, 'one-shot also waits for observation');
+snapback4/packages/snapback4/test/page-ready.test.mjs:129:  assert.ok(requests.filter(path => path === "/q/inbox").length > before, "unavailable predictions do not block server fallback");
+snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs:74:      assert.equal(direct, undefined, 'the dependent read cannot publish before execution');
+snapback4/reports/20260929-fw-follow-window/tools/follow-window.test.mjs:80:      assert.equal(direct, undefined, `${op}: the dependent read cannot publish before apply`);
+snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:22:        assert.equal(direct.complete, true, `${name}: the complete prediction or like-disjoint answer settles`);
+snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:23:        assert.equal(direct.data.length, count);
+snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:50:      assert.equal(direct, undefined, 'even an empty answer waits for dependent custody');
+snapback4/reports/20260929-fw-follow-window/round1/tools/recovery.test.mjs:53:      assert.deepEqual((await reading).data, []); assert.equal(direct.complete, true);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:8:import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync, chmodSync, statSync, realpathSync } from 'node:fs';
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:165:  assert.equal(JSON.parse(readFileSync(join(s.workdir,'package-lookup'),'utf8')), 'ERR_MODULE_NOT_FOUND');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:186:  assert.equal(existsSync(join(project,'starts')),false, 'refused source never starts, including during shutdown');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:258:  assert.equal(direct.status, 0, direct.stderr);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:264:  assert.deepEqual(JSON.parse(readFileSync(join(s.workdir, 'package-result'), 'utf8')), expected);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:294:    assert.equal(existsSync(installed), false, 'deploy ships source, never host dependencies');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:302:  assert.equal(result.cwd, realpathSync(s.workdir));
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:303:  assert.ok(fileURLToPath(result.module).startsWith(join(realpathSync(s.workdir), '.snapback4/worker-')));
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:322:  assert.equal(rows(join(f.dir, 'starts')).length, 0, 'linked entry must never execute');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:323:  assert.match(s.log, /workers:|source-blocked/);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:339:  await until(() => s.log.includes('workers:') || rows(join(f.dir, 'starts')).length > 1);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:340:  assert.equal(rows(join(f.dir, 'starts')).length, 1);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:360:  assert.equal(readFileSync(join(f.dir, 'values'), 'utf8'), 'validated');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:384:        assert.equal(response.status, 401, `${path} must refuse the retired family while deletion is locked`);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:395:  assert.equal(rows(join(f.dir, 'starts')).length, 1);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:411:  assert.equal(existsSync(join(f.dir, 'escaped')), false, 'rejected source must never execute');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:412:  assert.equal(rows(join(f.dir, 'starts')).length, 1);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:433:  assert.equal(readFileSync(join(f.dir, 'values'), 'utf8'), 'validated');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:501:  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes(`worker ${join(f.dir, 'snapback/workers/push.mjs')} needs Node 24`) && line.includes(`${wrapper} reports v23.0.0`) && line.includes('declaration will retry')));
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:563:    assert.equal(rows(join(f.dir, 'starts')).length, 1);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:568:  assert.equal((await claim(s, rows(join(f.dir, 'starts'))[1].token)).status, 200);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:605:  assert.notEqual(result.status, 0, 'unsafe source must not deploy');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:607:  assert.equal(existsSync(join(f.dir, 'release/releases/1/snapback/workers/.env.test')), false);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:643:  assert.equal(new Set(paths).size, 4, 'ledger namespace belongs to actual store identity');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:644:  assert.ok(paths.slice(0, 2).every(p => !p.startsWith(join(f.dir, '.snapback4'))));
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:716:  assert.equal(rows(join(f.dir, 'starts')).length, 0);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:772:  assert.equal(actual.preloaded, false, 'only validated project source runs before its declared imports');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:795:  assert.equal(existsSync(join(s.workdir,'claims')), false);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:851:    assert.equal(existsSync(join(f.dir,'checked-value')),false);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:860:    assert.equal(readFileSync(join(f.dir,'checked-value'),'utf8'),'validated');
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:886:  assert.deepEqual(rows(log), [{id:'stable-key',payload:{text:'acceptance'}},{id:'next-key',payload:{text:'after chdir'}}]);
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:888:  assert.equal(paths.projectDir,realpathSync(s.workdir)); assert.equal(paths.cwd,realpathSync(s.workdir));
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:889:  if(entry === 'external.mjs') assert.equal(fileURLToPath(paths.module),realpathSync(source));
+snapback4/packages/snapback4/test/worker-regressions.test.mjs:890:  else assert.ok(fileURLToPath(paths.module).startsWith(join(realpathSync(s.workdir),'.snapback4/worker-')));
+snapback4/packages/snapback4/test/retained-history.test.mjs:224:    if (session && ["/m/join", "/m/leave"].includes(path)) { path += "As"; body = { ...body, args: { ...body.args, person: session.principal } }; }
+snapback4/packages/snapback4/test/retained-history.test.mjs:296:      if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
+snapback4/packages/snapback4/test/retained-history.test.mjs:308:      if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
+snapback4/packages/snapback4/test/retained-history.test.mjs:393:    assert.equal(allRequests.filter(path => path === `/q/${op.name}`).length, 0);
+snapback4/packages/snapback4/test/retained-history.test.mjs:437:      assert.equal(allRequests.filter(path => path === "/q/expiryBranch").length, 1);
+snapback4/packages/snapback4/test/retained-history.test.mjs:446:      assert.equal(allRequests.filter(path => path === "/q/expiryPage").length, 0);
+snapback4/packages/snapback4/test/retained-history.test.mjs:540:        assert.equal(allRequests.filter(path => path === `/q/${name}`).length, requestsBefore);
+snapback4/packages/snapback4/test/retained-history.test.mjs:629:      assert.equal(allRequests.filter(path => path === "/q/completeOnly").length, 1);
+snapback4/packages/snapback4/test/retained-history.test.mjs:692:      assert.equal((await post(path, { args: scenario === "MQ delete current" ? {} : { room: "current" }, id: "remove-current" })).state, "sent");
+snapback4/packages/snapback4/test/retained-history.test.mjs:723:      assert.ok(allRequests.filter(path => path === `/q/${delayedName}`).length >= from + 3, "old backend query must be retried");
