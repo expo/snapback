@@ -1,0 +1,86 @@
+Host: eb1000 (OS hostname expose-builder-pixel)
+Worktree: /home/ccheever/sb4-intent/lane-bt
+Branch: sb4-intent/bt-bounded-following-time
+Base: 6b8ff187bbb1f6eb231db4105d1727580d95d0aa
+Node v24.13.1; Bun 1.3.14
+
+Dependency preflight:
+  Initial bun install --frozen-lockfile ran at the repository root. The SDK
+  checker from there failed to find ./packages/snapback4/package.json.
+  Repeated both in snapback4/ before any build/test:
+    bun install --frozen-lockfile
+    bash ~/sb4-intent/check-sdk-deps.sh
+  -> deps-ok
+
+All build/test commands below run in snapback4/:
+  LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_BUILD_JOBS=8 cargo build -p snapback4
+  CARGO_BUILD_JOBS=8 bash scripts/build-wasm.sh
+  bun run --cwd packages/snapback4 build
+  -> build-native.log, build-wasm.log, build-sdk.log (compressed at completion)
+
+Baseline:
+  node --test --test-reporter=tap packages/snapback4/test/bounded-following.test.mjs
+  -> bounded-before.tap, started before editing the module (Node loaded all tests).
+  For retained-history, following-routing and client-lifecycle, git show HEAD:
+  snapback4/packages/snapback4/test/<name>.test.mjs was copied byte-for-byte to
+  packages/snapback4/test/.bt-before-<name>.mjs. These preserve relative imports
+  and fixture roots; no other checkout is used. The three Node commands ran
+  sequentially after bounded-before's final TAP duration line:
+    node --test --test-reporter=tap packages/snapback4/test/.bt-before-<name>.mjs
+  -> <name>-before.tap. Owned temporary copies removed after verification.
+
+Exploratory checks (overlap the long baseline; not final timing runs):
+  node --test --test-concurrency=1 --test-reporter=tap packages/snapback4/test/{bounded-following,following-routing}.test.mjs
+  -> exploratory-1.tap
+  node --test --test-concurrency=1 --test-reporter=tap --test-name-pattern='MQ speculative events|population growth' packages/snapback4/test/{retained-history,client-lifecycle}.test.mjs
+  -> exploratory-extra.tap (two new final-history expectations initially wrong;
+     home has no component plan, unlike homePage; corrected to match the already
+     asserted pre-hold routing; no existing assertion removed).
+  node --test --test-reporter=tap --test-name-pattern='MQ speculative events' packages/snapback4/test/retained-history.test.mjs
+  -> exploratory-extra-2.tap
+  node --test --test-reporter=tap packages/snapback4/test/following-routing.test.mjs
+  -> exploratory-routing.tap
+
+Complete repeated runs:
+  BT_BYPASS_STAGE=disabled node --import ./reports/20261008-bt-bounded-following-time/custody-bypass.mjs --test --test-reporter=tap packages/snapback4/test/<name>.test.mjs
+  -> <name>-after-1.tap for all four changed files. The three extra files ran
+     during the unchanged bounded baseline; bounded-after-1 waited until all
+     unchanged baseline files completed.
+  node --test --test-reporter=tap packages/snapback4/test/<name>.test.mjs
+  -> <name>-after-2.tap and <name>-after-3.tap. All final commands run one file
+     at a time, after this lane's baseline/exploratory/mutation jobs finish.
+  Exact commands and exits for the queued runs: rerun-exits.json.
+
+Mutation controls (same worktree, import-time mutations only; disk product
+bytes untouched):
+  BT_BYPASS_STAGE=admission node --import ./reports/20261008-bt-bounded-following-time/custody-bypass.mjs --test --test-concurrency=1 --test-reporter=tap --test-name-pattern='owned-event fallback|rejected owned|unrelated held reads|unknown conditions|speculative profile|composed reads withhold|predicted post fences|online-only repost cards|response racing prediction|inbox floors|native query module|MQ speculative events|population growth|re-observation: pending' packages/snapback4/test/{bounded-following,retained-history,following-routing,client-lifecycle}.test.mjs
+  -> bypass-admission.tap (expected exit 1)
+  BT_BYPASS_STAGE=receipt node --import ./reports/20261008-bt-bounded-following-time/custody-bypass.mjs --test --test-reporter=tap --test-name-pattern='unknown conditions|predicted post fences|online-only repost cards|inbox floors|native query module' packages/snapback4/test/bounded-following.test.mjs
+  -> bypass-receipt.tap (expected exit 1)
+  With admission mode, BT_BYPASS_QUERY selects only one grouped sibling:
+    conditionalEventsHeld / --test-name-pattern='owned-event fallback'
+    speculativePage / --test-name-pattern='unrelated held reads'
+    conditionalOriginal / --test-name-pattern='unknown conditions'
+  -> bypass-<query>.tap (each expected exit 1, both tiers).
+  After final timing measurements, the same selective command with
+  BT_BYPASS_QUERY=homePage and --test-name-pattern='MQ speculative events' on
+  retained-history.test.mjs -> bypass-homePage.tap (two expected failures).
+  The full after-1 file runs use the same loader with its mutation disabled.
+
+Additional qualification:
+  node --test --test-concurrency=4 --test-reporter=tap packages/snapback4/test/one-shot*.test.mjs packages/snapback4/test/query-dependencies.test.mjs packages/snapback4/test/query-publication-session.test.mjs
+  -> one-shot-regressions.tap (354 top-level + 24 nested = 378 total; count corrected in round 1)
+  node --test --test-concurrency=1 --test-reporter=tap --test-name-pattern='changes observation drops freshness|native client .*unobserved prediction' packages/snapback4/test/{store-reset-review,prediction-routing}.test.mjs
+  -> audit-reset-routing.tap (5 unchanged controls; 151.086 s)
+
+From repository root:
+  ./ref-check
+  git diff --check
+  TypeScript's JS parser extracted assert.* call sites from HEAD and working
+  files for assertion-delta.json; removed/rewritten sites were inspected.
+  environment.json records the built native/wasm/SDK hashes. These are checked
+  again before commit; no runtime rebuild or source change occurs between runs.
+
+No complete publication suite, Darwin run, push or publication is claimed.
+
+Completed .tap and .log evidence is stored with an additional .gz suffix.

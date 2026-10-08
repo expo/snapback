@@ -1,0 +1,30 @@
+{
+  "bounded-following": {
+    "originalAssertions": 220,
+    "currentAssertions": 220,
+    "assertionsIdentical": true,
+    "timeoutDeclarations": 20,
+    "guardsIdentical": true
+  },
+  "retained-history": {
+    "originalAssertions": 257,
+    "currentAssertions": 257,
+    "assertionsIdentical": true,
+    "timeoutDeclarations": 1,
+    "guardsIdentical": true
+  },
+  "following-routing": {
+    "originalAssertions": 10,
+    "currentAssertions": 10,
+    "assertionsIdentical": true,
+    "timeoutDeclarations": 0,
+    "guardsIdentical": true
+  },
+  "client-lifecycle": {
+    "originalAssertions": 195,
+    "currentAssertions": 195,
+    "assertionsIdentical": true,
+    "timeoutDeclarations": 28,
+    "guardsIdentical": true
+  }
+}

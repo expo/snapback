@@ -1,0 +1,1818 @@
+{
+  "bounded-following": {
+    "files": [
+      "bounded-following-after-1.tap.gz",
+      "bounded-following-after-2.tap.gz",
+      "bounded-following-after-3.tap.gz"
+    ],
+    "tests": [
+      {
+        "name": "event slots wasm: owned-event fallback waits for the source prediction",
+        "original_s": 38.52910342,
+        "round1_median_s": 8.552774029,
+        "round2_s": [
+          8.555056658,
+          8.503025019,
+          8.675609426000001
+        ]
+      },
+      {
+        "name": "event slots wasm: rejected owned events cannot make a speculative scan publishable",
+        "original_s": 38.024899459,
+        "round1_median_s": 8.058222596,
+        "round2_s": [
+          8.053063509,
+          8.049798235,
+          8.041925175000001
+        ]
+      },
+      {
+        "name": "bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages",
+        "original_s": 38.182667961,
+        "round1_median_s": 13.339675117,
+        "round2_s": [
+          13.347956822,
+          13.340696227,
+          13.357534352999998
+        ]
+      },
+      {
+        "name": "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+        "original_s": 64.292424524,
+        "round1_median_s": 9.321795214,
+        "round2_s": [
+          9.31957953,
+          9.303597472,
+          9.322990068
+        ]
+      },
+      {
+        "name": "bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced",
+        "original_s": 35.447594856,
+        "round1_median_s": 35.435791792,
+        "round2_s": [
+          35.428608965,
+          35.427135781,
+          35.398264630999996
+        ]
+      },
+      {
+        "name": "bounded Following wasm: a known branch wins over static server routing",
+        "original_s": 4.23455849,
+        "round1_median_s": 4.2334820319999995,
+        "round2_s": [
+          4.236258768,
+          4.242099239,
+          4.239898988
+        ]
+      },
+      {
+        "name": "bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows",
+        "original_s": 34.248101078,
+        "round1_median_s": 9.299061229000001,
+        "round2_s": [
+          9.309592129,
+          9.309415467,
+          9.284618279
+        ]
+      },
+      {
+        "name": "bounded Following wasm: a late card miss and oversized withheld output still use fallback",
+        "original_s": 1.2142406920000002,
+        "round1_median_s": 1.216330692,
+        "round2_s": [
+          1.218406622,
+          1.120422308,
+          1.214707753
+        ]
+      },
+      {
+        "name": "bounded Following wasm: untaken online-only card branches remain answerable when held",
+        "original_s": 0.505537173,
+        "round1_median_s": 0.51534929,
+        "round2_s": [
+          0.52195169,
+          0.520082097,
+          0.519810482
+        ]
+      },
+      {
+        "name": "bounded Following wasm: composed reads withhold the entire answer across the prediction fence",
+        "original_s": 38.019154009,
+        "round1_median_s": 8.031313581000001,
+        "round2_s": [
+          8.017634913,
+          8.031327267,
+          8.023228938
+        ]
+      },
+      {
+        "name": "bounded Following wasm: exact offline pages, original-cursor fallback and quiet authors",
+        "original_s": 1.1539040760000001,
+        "round1_median_s": 1.182495791,
+        "round2_s": [
+          1.180845466,
+          1.1777101159999999,
+          1.154122823
+        ]
+      },
+      {
+        "name": "bounded Following wasm: a predicted post fences fallback until observation",
+        "original_s": 68.006938255,
+        "round1_median_s": 8.030074454,
+        "round2_s": [
+          8.01670338,
+          8.025928678,
+          8.030642854
+        ]
+      },
+      {
+        "name": "bounded Following wasm: online-only cards withhold offline",
+        "original_s": 0.22054096,
+        "round1_median_s": 0.228332437,
+        "round2_s": [
+          0.242021637,
+          0.213190239,
+          0.232937433
+        ]
+      },
+      {
+        "name": "bounded Following wasm: repost prediction needs a held original",
+        "original_s": 8.110178488999999,
+        "round1_median_s": 8.220416948,
+        "round2_s": [
+          8.21518648,
+          8.218802308,
+          8.221118151
+        ]
+      },
+      {
+        "name": "bounded Following wasm: held cards and transport failures stay withheld",
+        "original_s": 0.401681818,
+        "round1_median_s": 0.406403176,
+        "round2_s": [
+          0.400292966,
+          0.398204171,
+          0.401033746
+        ]
+      },
+      {
+        "name": "bounded Following wasm: online-only repost cards use the prediction fence before server routing",
+        "original_s": 68.02489956599999,
+        "round1_median_s": 8.046616525000001,
+        "round2_s": [
+          8.037278116,
+          8.046316661,
+          8.045197865
+        ]
+      },
+      {
+        "name": "bounded Following wasm: a response racing prediction admission is invalidated",
+        "original_s": 30.152300987,
+        "round1_median_s": 8.06514844,
+        "round2_s": [
+          8.062731741,
+          8.067628991,
+          8.066381138
+        ]
+      },
+      {
+        "name": "bounded Following wasm: repost horizon misses withhold but full-source nulls remain data",
+        "original_s": 0.213413079,
+        "round1_median_s": 0.21658571299999999,
+        "round2_s": [
+          0.244623658,
+          0.224875692,
+          0.221361485
+        ]
+      },
+      {
+        "name": "bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes",
+        "original_s": 104.414102106,
+        "round1_median_s": 18.413661036,
+        "round2_s": [
+          18.414183704,
+          18.389702834,
+          18.430485933
+        ]
+      },
+      {
+        "name": "event slots native: owned-event fallback waits for the source prediction",
+        "original_s": 38.139117247,
+        "round1_median_s": 8.146508254,
+        "round2_s": [
+          8.115658621,
+          8.149175475,
+          8.142291377
+        ]
+      },
+      {
+        "name": "event slots native: rejected owned events cannot make a speculative scan publishable",
+        "original_s": 38.119201882,
+        "round1_median_s": 8.123550656,
+        "round2_s": [
+          8.107968506,
+          8.116884227,
+          8.09250814
+        ]
+      },
+      {
+        "name": "bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages",
+        "original_s": 38.207088047999996,
+        "round1_median_s": 13.433288225,
+        "round2_s": [
+          13.459247776,
+          13.478538301,
+          13.445298606
+        ]
+      },
+      {
+        "name": "bounded Following native: unknown conditions preserve static and helper dependencies",
+        "original_s": 64.356807506,
+        "round1_median_s": 9.396844705,
+        "round2_s": [
+          9.442336115,
+          9.445528786,
+          9.464576569999998
+        ]
+      },
+      {
+        "name": "bounded Following native: a scalar cut before the feed keeps its possible reads fenced",
+        "original_s": 35.699110791,
+        "round1_median_s": 35.673876932,
+        "round2_s": [
+          35.667620199,
+          35.67859122,
+          35.64851194
+        ]
+      },
+      {
+        "name": "bounded Following native: a known branch wins over static server routing",
+        "original_s": 4.2869673839999995,
+        "round1_median_s": 4.279693495,
+        "round2_s": [
+          4.270931593999999,
+          4.284270972,
+          4.275760619
+        ]
+      },
+      {
+        "name": "bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows",
+        "original_s": 34.289903912,
+        "round1_median_s": 9.371706298,
+        "round2_s": [
+          9.362453828,
+          9.46441356,
+          9.368296193
+        ]
+      },
+      {
+        "name": "bounded Following native: a late card miss and oversized withheld output still use fallback",
+        "original_s": 1.888152383,
+        "round1_median_s": 1.95056679,
+        "round2_s": [
+          1.918137715,
+          2.1749742139999997,
+          1.945841177
+        ]
+      },
+      {
+        "name": "bounded Following native: untaken online-only card branches remain answerable when held",
+        "original_s": 0.5632216,
+        "round1_median_s": 0.557574628,
+        "round2_s": [
+          0.5513216569999999,
+          0.545690506,
+          0.546940387
+        ]
+      },
+      {
+        "name": "bounded Following native: composed reads withhold the entire answer across the prediction fence",
+        "original_s": 38.11879713,
+        "round1_median_s": 8.109672142,
+        "round2_s": [
+          8.089198959,
+          8.144882674,
+          8.13913954
+        ]
+      },
+      {
+        "name": "bounded Following native: exact offline pages, original-cursor fallback and quiet authors",
+        "original_s": 1.239561469,
+        "round1_median_s": 1.272392862,
+        "round2_s": [
+          1.254455892,
+          1.272170517,
+          1.288669894
+        ]
+      },
+      {
+        "name": "bounded Following native: a predicted post fences fallback until observation",
+        "original_s": 68.106873184,
+        "round1_median_s": 8.098786181000001,
+        "round2_s": [
+          8.099140536,
+          8.072114061999999,
+          8.154694266
+        ]
+      },
+      {
+        "name": "bounded Following native: online-only cards withhold offline",
+        "original_s": 0.269411857,
+        "round1_median_s": 0.264253806,
+        "round2_s": [
+          0.264323419,
+          0.263995977,
+          0.259571793
+        ]
+      },
+      {
+        "name": "bounded Following native: repost prediction needs a held original",
+        "original_s": 8.260539649,
+        "round1_median_s": 8.259776798,
+        "round2_s": [
+          8.252637621,
+          8.25355675,
+          8.252881768
+        ]
+      },
+      {
+        "name": "bounded Following native: held cards and transport failures stay withheld",
+        "original_s": 0.452733227,
+        "round1_median_s": 0.45142599,
+        "round2_s": [
+          0.444003388,
+          0.458536408,
+          0.445358392
+        ]
+      },
+      {
+        "name": "bounded Following native: online-only repost cards use the prediction fence before server routing",
+        "original_s": 68.1393683,
+        "round1_median_s": 8.105723932,
+        "round2_s": [
+          8.104602052999999,
+          8.549842989,
+          8.113425188999999
+        ]
+      },
+      {
+        "name": "bounded Following native: a response racing prediction admission is invalidated",
+        "original_s": 30.194366765999998,
+        "round1_median_s": 8.135228406,
+        "round2_s": [
+          8.127820133,
+          9.136913111,
+          8.593389139000001
+        ]
+      },
+      {
+        "name": "bounded Following native: repost horizon misses withhold but full-source nulls remain data",
+        "original_s": 0.25885849,
+        "round1_median_s": 0.261750844,
+        "round2_s": [
+          0.24910056700000002,
+          0.275345807,
+          1.565946123
+        ]
+      },
+      {
+        "name": "bounded Following native: inbox floors use all routing branches and preserve meter prefixes",
+        "original_s": 105.10730102,
+        "round1_median_s": 19.190334747,
+        "round2_s": [
+          19.143875454,
+          19.225672482,
+          20.694363888
+        ]
+      },
+      {
+        "name": "bounded Following native query module: executed dependencies fence fallback until prediction observation",
+        "original_s": 69.955347717,
+        "round1_median_s": 10.073530264,
+        "round2_s": [
+          10.097274665,
+          10.07229717,
+          10.091005416
+        ]
+      }
+    ]
+  },
+  "retained-history": {
+    "files": [
+      "retained-history-after-1.tap.gz",
+      "retained-history-after-2.tap.gz",
+      "retained-history-after-3.tap.gz"
+    ],
+    "tests": [
+      {
+        "name": "W14A horizon-free matching wasm: retained history and independent held coverage",
+        "original_s": 1.207608897,
+        "round1_median_s": 0.708963391,
+        "round2_s": [
+          0.750444034,
+          0.918495794,
+          0.676435389
+        ]
+      },
+      {
+        "name": "W14A positive existence wasm: retained history and independent held coverage",
+        "original_s": 0.520828255,
+        "round1_median_s": 0.260307746,
+        "round2_s": [
+          0.274447475,
+          0.276045005,
+          0.273098507
+        ]
+      },
+      {
+        "name": "R5 history wasm: retained history and independent held coverage",
+        "original_s": 0.754651161,
+        "round1_median_s": 0.303286079,
+        "round2_s": [
+          0.30715605399999996,
+          0.31751845300000003,
+          0.31280901299999997
+        ]
+      },
+      {
+        "name": "RH held leave wasm: retained history and independent held coverage",
+        "original_s": 0.5291699569999999,
+        "round1_median_s": 0.309224207,
+        "round2_s": [
+          0.31873089099999996,
+          0.34165643,
+          0.31296466700000003
+        ]
+      },
+      {
+        "name": "RH stalled leave wasm: retained history and independent held coverage",
+        "original_s": 1.5286470859999999,
+        "round1_median_s": 1.322157109,
+        "round2_s": [
+          1.319818407,
+          1.322271252,
+          1.304520403
+        ]
+      },
+      {
+        "name": "RH empty catch-up wasm: retained history and independent held coverage",
+        "original_s": 0.527401045,
+        "round1_median_s": 0.265950492,
+        "round2_s": [
+          0.25289053899999997,
+          0.26941150399999997,
+          0.266351084
+        ]
+      },
+      {
+        "name": "R1a empty search wasm: retained history and independent held coverage",
+        "original_s": 0.531714391,
+        "round1_median_s": 0.256089387,
+        "round2_s": [
+          0.241012027,
+          0.249133343,
+          0.248615904
+        ]
+      },
+      {
+        "name": "R1a mixed reads wasm: retained history and independent held coverage",
+        "original_s": 0.433198761,
+        "round1_median_s": 0.257087443,
+        "round2_s": [
+          0.256811885,
+          0.25848564,
+          0.251300277
+        ]
+      },
+      {
+        "name": "R2 mixed result wasm: retained history and independent held coverage",
+        "original_s": 1.524003025,
+        "round1_median_s": 1.301568201,
+        "round2_s": [
+          1.3568302859999999,
+          1.455678694,
+          1.303030049
+        ]
+      },
+      {
+        "name": "R2 sync during reply wasm: retained history and independent held coverage",
+        "original_s": 0.583932048,
+        "round1_median_s": 0.27645223199999996,
+        "round2_s": [
+          0.253967673,
+          0.29359587,
+          0.2852642
+        ]
+      },
+      {
+        "name": "R2 unknown sync during reply wasm: retained history and independent held coverage",
+        "original_s": 1.0075302689999999,
+        "round1_median_s": 0.298226705,
+        "round2_s": [
+          0.297940193,
+          0.279117922,
+          0.288438458
+        ]
+      },
+      {
+        "name": "R2 relevant sync during reply wasm: retained history and independent held coverage",
+        "original_s": 1.125098706,
+        "round1_median_s": 0.295179898,
+        "round2_s": [
+          0.296365974,
+          0.28009363400000004,
+          0.301613664
+        ]
+      },
+      {
+        "name": "MQ authoritative bound wasm: retained history and independent held coverage",
+        "original_s": 1.173441054,
+        "round1_median_s": 0.45482567999999995,
+        "round2_s": [
+          0.430511243,
+          0.41136245000000005,
+          0.453401507
+        ]
+      },
+      {
+        "name": "MQ speculative component wasm: retained history and independent held coverage",
+        "original_s": 0.8065867640000001,
+        "round1_median_s": 0.267089168,
+        "round2_s": [
+          0.27146681899999997,
+          0.27754344099999995,
+          0.26500572699999997
+        ]
+      },
+      {
+        "name": "MQ speculative events wasm: retained history and independent held coverage",
+        "original_s": 68.736480973,
+        "round1_median_s": 9.415401551,
+        "round2_s": [
+          9.403236797,
+          9.407307947,
+          9.384084290999999
+        ]
+      },
+      {
+        "name": "MQ expiry local left wasm: retained history and independent held coverage",
+        "original_s": 1.232392395,
+        "round1_median_s": 1.240187763,
+        "round2_s": [
+          1.236789438,
+          1.263598049,
+          1.243469204
+        ]
+      },
+      {
+        "name": "MQ expiry local watch left wasm: retained history and independent held coverage",
+        "original_s": 1.2252078469999999,
+        "round1_median_s": 1.242754796,
+        "round2_s": [
+          1.246463176,
+          1.254060455,
+          1.247075618
+        ]
+      },
+      {
+        "name": "MQ local permit wasm: retained history and independent held coverage",
+        "original_s": 1.2489903930000001,
+        "round1_median_s": 1.249656635,
+        "round2_s": [
+          1.248186118,
+          1.2467858630000002,
+          1.2386561999999999
+        ]
+      },
+      {
+        "name": "MQ local permit watch wasm: retained history and independent held coverage",
+        "original_s": 1.2380019629999999,
+        "round1_median_s": 1.249773419,
+        "round2_s": [
+          1.319013405,
+          1.2212513429999998,
+          1.249409666
+        ]
+      },
+      {
+        "name": "MQ local branch wasm: retained history and independent held coverage",
+        "original_s": 0.229642491,
+        "round1_median_s": 0.268679737,
+        "round2_s": [
+          0.264739547,
+          0.236526098,
+          0.245716308
+        ]
+      },
+      {
+        "name": "MQ local branch watch wasm: retained history and independent held coverage",
+        "original_s": 0.230213115,
+        "round1_median_s": 0.261442748,
+        "round2_s": [
+          0.25969100100000003,
+          0.24673549,
+          0.25880867
+        ]
+      },
+      {
+        "name": "MQ local page wasm: retained history and independent held coverage",
+        "original_s": 0.235176084,
+        "round1_median_s": 0.258277558,
+        "round2_s": [
+          0.262596004,
+          0.25589724,
+          0.240642013
+        ]
+      },
+      {
+        "name": "MQ ineligible wasm: retained history and independent held coverage",
+        "original_s": 0.26110217399999996,
+        "round1_median_s": 0.293601723,
+        "round2_s": [
+          0.280174929,
+          0.279926043,
+          0.276858782
+        ]
+      },
+      {
+        "name": "MQ points wasm: retained history and independent held coverage",
+        "original_s": 0.235247181,
+        "round1_median_s": 0.281608133,
+        "round2_s": [
+          0.270631307,
+          0.26502790499999995,
+          0.239641093
+        ]
+      },
+      {
+        "name": "MQ delete current wasm: retained history and independent held coverage",
+        "original_s": 0.330838628,
+        "round1_median_s": 0.348670069,
+        "round2_s": [
+          0.320159433,
+          0.338489353,
+          0.349484622
+        ]
+      },
+      {
+        "name": "MQ revoke current wasm: retained history and independent held coverage",
+        "original_s": 0.325785885,
+        "round1_median_s": 0.331184732,
+        "round2_s": [
+          0.332279607,
+          0.316587478,
+          0.2980813
+        ]
+      },
+      {
+        "name": "MQ rejoin wasm: retained history and independent held coverage",
+        "original_s": 0.323108662,
+        "round1_median_s": 0.3287545,
+        "round2_s": [
+          0.321806522,
+          0.307710574,
+          0.321146149
+        ]
+      },
+      {
+        "name": "MQ held change wasm: retained history and independent held coverage",
+        "original_s": 0.337603578,
+        "round1_median_s": 0.325745292,
+        "round2_s": [
+          0.338377115,
+          0.332469421,
+          0.314957544
+        ]
+      },
+      {
+        "name": "MQ close wasm: retained history and independent held coverage",
+        "original_s": 0.254635972,
+        "round1_median_s": 0.25706463300000004,
+        "round2_s": [
+          0.264102612,
+          0.26042130100000005,
+          0.269852983
+        ]
+      },
+      {
+        "name": "MQ sign-out wasm: retained history and independent held coverage",
+        "original_s": 0.264727869,
+        "round1_median_s": 0.249689267,
+        "round2_s": [
+          0.270345218,
+          0.26306108699999997,
+          0.254509737
+        ]
+      },
+      {
+        "name": "MQ transport wasm: retained history and independent held coverage",
+        "original_s": 0.242891789,
+        "round1_median_s": 0.260599729,
+        "round2_s": [
+          0.262617848,
+          0.271032363,
+          0.264252048
+        ]
+      },
+      {
+        "name": "MQ adoption wasm: retained history and independent held coverage",
+        "original_s": 0.638198926,
+        "round1_median_s": 0.645789986,
+        "round2_s": [
+          0.6457982990000001,
+          0.69161316,
+          0.684909951
+        ]
+      },
+      {
+        "name": "MQ reset wasm: retained history and independent held coverage",
+        "original_s": 1.315927692,
+        "round1_median_s": 1.334123376,
+        "round2_s": [
+          1.313560445,
+          1.335964137,
+          1.3246875889999998
+        ]
+      },
+      {
+        "name": "MQ rotation wasm: retained history and independent held coverage",
+        "original_s": 0.303084029,
+        "round1_median_s": 0.317309177,
+        "round2_s": [
+          0.32855213099999997,
+          0.326598813,
+          0.334887664
+        ]
+      },
+      {
+        "name": "MQ prediction wasm: retained history and independent held coverage",
+        "original_s": 4.37180257,
+        "round1_median_s": 4.354766914,
+        "round2_s": [
+          4.359847489,
+          4.363195246,
+          4.352824109
+        ]
+      },
+      {
+        "name": "MQ expiry left wasm: retained history and independent held coverage",
+        "original_s": 0.35061165499999997,
+        "round1_median_s": 0.34728954900000003,
+        "round2_s": [
+          0.351542036,
+          0.328816687,
+          0.34486158299999997
+        ]
+      },
+      {
+        "name": "MQ expiry held wasm: retained history and independent held coverage",
+        "original_s": 0.328053303,
+        "round1_median_s": 0.357097928,
+        "round2_s": [
+          0.33555007,
+          0.35048929900000003,
+          0.34061995500000003
+        ]
+      },
+      {
+        "name": "MQ interrupted snapshot wasm: retained history and independent held coverage",
+        "original_s": 1.345496743,
+        "round1_median_s": 1.3438276789999999,
+        "round2_s": [
+          1.366051944,
+          1.365222168,
+          1.333960748
+        ]
+      },
+      {
+        "name": "MQ retained snapshot wasm: retained history and independent held coverage",
+        "original_s": 0.327324542,
+        "round1_median_s": 0.340059664,
+        "round2_s": [
+          0.336855166,
+          0.334398543,
+          0.34041591
+        ]
+      },
+      {
+        "name": "W14A horizon-free matching process: retained history and independent held coverage",
+        "original_s": 0.304602655,
+        "round1_median_s": 0.30056005599999996,
+        "round2_s": [
+          0.303183473,
+          0.30634481799999996,
+          0.305610885
+        ]
+      },
+      {
+        "name": "W14A positive existence process: retained history and independent held coverage",
+        "original_s": 0.543139035,
+        "round1_median_s": 0.302568236,
+        "round2_s": [
+          0.30994727,
+          0.31616559699999996,
+          0.305648441
+        ]
+      },
+      {
+        "name": "R5 history process: retained history and independent held coverage",
+        "original_s": 0.359408972,
+        "round1_median_s": 0.364205723,
+        "round2_s": [
+          0.36665607699999997,
+          0.365223871,
+          0.353092148
+        ]
+      },
+      {
+        "name": "RH held leave process: retained history and independent held coverage",
+        "original_s": 0.397277441,
+        "round1_median_s": 0.391772202,
+        "round2_s": [
+          0.391170867,
+          0.401036245,
+          0.404901327
+        ]
+      },
+      {
+        "name": "RH stalled leave process: retained history and independent held coverage",
+        "original_s": 1.377340901,
+        "round1_median_s": 1.377430774,
+        "round2_s": [
+          1.395665015,
+          1.384044007,
+          1.3931578500000001
+        ]
+      },
+      {
+        "name": "RH empty catch-up process: retained history and independent held coverage",
+        "original_s": 0.3092762,
+        "round1_median_s": 0.314431494,
+        "round2_s": [
+          0.313602508,
+          0.312080274,
+          0.306213058
+        ]
+      },
+      {
+        "name": "R1a empty search process: retained history and independent held coverage",
+        "original_s": 0.30399663600000004,
+        "round1_median_s": 0.29779708299999996,
+        "round2_s": [
+          0.293351829,
+          0.28546148,
+          0.304635033
+        ]
+      },
+      {
+        "name": "R1a mixed reads process: retained history and independent held coverage",
+        "original_s": 0.30224426,
+        "round1_median_s": 0.316421198,
+        "round2_s": [
+          0.354294652,
+          0.30092623700000004,
+          0.29858742899999996
+        ]
+      },
+      {
+        "name": "R2 mixed result process: retained history and independent held coverage",
+        "original_s": 1.409238121,
+        "round1_median_s": 1.346791293,
+        "round2_s": [
+          1.347880141,
+          1.380287067,
+          1.40238501
+        ]
+      },
+      {
+        "name": "R2 sync during reply process: retained history and independent held coverage",
+        "original_s": 0.304490767,
+        "round1_median_s": 0.29971641699999996,
+        "round2_s": [
+          0.310929862,
+          0.285217233,
+          0.305932297
+        ]
+      },
+      {
+        "name": "R2 unknown sync during reply process: retained history and independent held coverage",
+        "original_s": 0.359921059,
+        "round1_median_s": 0.34761039,
+        "round2_s": [
+          0.342940535,
+          0.33081578300000003,
+          0.346463203
+        ]
+      },
+      {
+        "name": "R2 relevant sync during reply process: retained history and independent held coverage",
+        "original_s": 0.330751398,
+        "round1_median_s": 0.345513568,
+        "round2_s": [
+          0.349901588,
+          0.34883833399999997,
+          0.348111334
+        ]
+      },
+      {
+        "name": "MQ authoritative bound process: retained history and independent held coverage",
+        "original_s": 0.50128967,
+        "round1_median_s": 0.511699769,
+        "round2_s": [
+          0.5176350559999999,
+          0.515078854,
+          0.5052091750000001
+        ]
+      },
+      {
+        "name": "MQ speculative component process: retained history and independent held coverage",
+        "original_s": 0.33382958100000004,
+        "round1_median_s": 0.315422618,
+        "round2_s": [
+          0.317864054,
+          0.312894624,
+          0.32619049899999997
+        ]
+      },
+      {
+        "name": "MQ speculative events process: retained history and independent held coverage",
+        "original_s": 68.293145492,
+        "round1_median_s": 9.483732214,
+        "round2_s": [
+          9.531815108,
+          9.519656986,
+          9.48395844
+        ]
+      },
+      {
+        "name": "MQ expiry local left process: retained history and independent held coverage",
+        "original_s": 1.2849123059999998,
+        "round1_median_s": 1.294676481,
+        "round2_s": [
+          1.280823649,
+          1.296278462,
+          1.298328385
+        ]
+      },
+      {
+        "name": "MQ expiry local watch left process: retained history and independent held coverage",
+        "original_s": 1.327968201,
+        "round1_median_s": 1.286526777,
+        "round2_s": [
+          1.282318871,
+          1.2988649780000001,
+          1.303545113
+        ]
+      },
+      {
+        "name": "MQ local permit process: retained history and independent held coverage",
+        "original_s": 1.292575122,
+        "round1_median_s": 1.2957955349999999,
+        "round2_s": [
+          1.288200154,
+          1.294503172,
+          1.285282333
+        ]
+      },
+      {
+        "name": "MQ local permit watch process: retained history and independent held coverage",
+        "original_s": 1.2876558580000002,
+        "round1_median_s": 1.2917092339999998,
+        "round2_s": [
+          1.289321685,
+          1.298655855,
+          1.290451379
+        ]
+      },
+      {
+        "name": "MQ local branch process: retained history and independent held coverage",
+        "original_s": 0.32245415200000005,
+        "round1_median_s": 0.30569654100000004,
+        "round2_s": [
+          0.321860405,
+          0.30988651599999995,
+          0.30577793600000003
+        ]
+      },
+      {
+        "name": "MQ local branch watch process: retained history and independent held coverage",
+        "original_s": 0.311125792,
+        "round1_median_s": 0.30970182599999996,
+        "round2_s": [
+          0.31624021199999997,
+          0.323183285,
+          0.318239673
+        ]
+      },
+      {
+        "name": "MQ local page process: retained history and independent held coverage",
+        "original_s": 0.320062568,
+        "round1_median_s": 0.31576377,
+        "round2_s": [
+          0.326351696,
+          0.316914359,
+          0.30584819199999996
+        ]
+      },
+      {
+        "name": "MQ ineligible process: retained history and independent held coverage",
+        "original_s": 0.36987345699999996,
+        "round1_median_s": 0.357997399,
+        "round2_s": [
+          0.373759664,
+          0.38143969499999997,
+          0.374038853
+        ]
+      },
+      {
+        "name": "MQ points process: retained history and independent held coverage",
+        "original_s": 0.325502501,
+        "round1_median_s": 0.315224571,
+        "round2_s": [
+          0.340559128,
+          0.336159743,
+          0.314517294
+        ]
+      },
+      {
+        "name": "MQ delete current process: retained history and independent held coverage",
+        "original_s": 0.389639493,
+        "round1_median_s": 0.38189785,
+        "round2_s": [
+          0.380078594,
+          0.40480622499999996,
+          0.39168232599999997
+        ]
+      },
+      {
+        "name": "MQ revoke current process: retained history and independent held coverage",
+        "original_s": 0.377616852,
+        "round1_median_s": 0.393937212,
+        "round2_s": [
+          0.39164317699999995,
+          0.38874506400000003,
+          0.387603763
+        ]
+      },
+      {
+        "name": "MQ rejoin process: retained history and independent held coverage",
+        "original_s": 0.395277734,
+        "round1_median_s": 0.401972798,
+        "round2_s": [
+          0.385750606,
+          0.391922777,
+          0.384761643
+        ]
+      },
+      {
+        "name": "MQ held change process: retained history and independent held coverage",
+        "original_s": 0.381853452,
+        "round1_median_s": 0.388544161,
+        "round2_s": [
+          0.358446685,
+          0.385534422,
+          0.404363492
+        ]
+      },
+      {
+        "name": "MQ close process: retained history and independent held coverage",
+        "original_s": 0.31361168700000003,
+        "round1_median_s": 0.3315154,
+        "round2_s": [
+          0.30585731099999997,
+          0.30434522199999997,
+          0.324186837
+        ]
+      },
+      {
+        "name": "MQ sign-out process: retained history and independent held coverage",
+        "original_s": 0.30202361,
+        "round1_median_s": 0.316569639,
+        "round2_s": [
+          0.304170433,
+          0.334928487,
+          0.313168773
+        ]
+      },
+      {
+        "name": "MQ transport process: retained history and independent held coverage",
+        "original_s": 0.323457385,
+        "round1_median_s": 0.305116063,
+        "round2_s": [
+          0.298514497,
+          0.307126369,
+          0.305718527
+        ]
+      },
+      {
+        "name": "MQ adoption process: retained history and independent held coverage",
+        "original_s": 0.703928075,
+        "round1_median_s": 0.696813129,
+        "round2_s": [
+          0.71376246,
+          0.7085682329999999,
+          0.681821182
+        ]
+      },
+      {
+        "name": "MQ reset process: retained history and independent held coverage",
+        "original_s": 1.358434265,
+        "round1_median_s": 1.378670442,
+        "round2_s": [
+          1.3405685900000002,
+          1.3486811600000002,
+          1.469721001
+        ]
+      },
+      {
+        "name": "MQ rotation process: retained history and independent held coverage",
+        "original_s": 0.39966312699999995,
+        "round1_median_s": 0.397418071,
+        "round2_s": [
+          0.400244327,
+          0.41161482899999996,
+          0.376594863
+        ]
+      },
+      {
+        "name": "MQ prediction process: retained history and independent held coverage",
+        "original_s": 4.450773882,
+        "round1_median_s": 4.462312116,
+        "round2_s": [
+          4.43887943,
+          4.4148390179999994,
+          4.433073308
+        ]
+      },
+      {
+        "name": "MQ expiry left process: retained history and independent held coverage",
+        "original_s": 0.40144166200000003,
+        "round1_median_s": 0.42095441699999997,
+        "round2_s": [
+          0.3932863,
+          0.40404515500000004,
+          0.401911056
+        ]
+      },
+      {
+        "name": "MQ expiry held process: retained history and independent held coverage",
+        "original_s": 0.409678498,
+        "round1_median_s": 0.419961685,
+        "round2_s": [
+          0.399744979,
+          0.435586257,
+          0.410075532
+        ]
+      },
+      {
+        "name": "MQ interrupted snapshot process: retained history and independent held coverage",
+        "original_s": 1.359237849,
+        "round1_median_s": 1.3588246320000001,
+        "round2_s": [
+          1.413419171,
+          1.362344539,
+          1.3207731349999998
+        ]
+      },
+      {
+        "name": "MQ retained snapshot process: retained history and independent held coverage",
+        "original_s": 0.381747043,
+        "round1_median_s": 0.410288254,
+        "round2_s": [
+          0.368347174,
+          0.391306514,
+          0.43049868199999997
+        ]
+      }
+    ]
+  },
+  "following-routing": {
+    "files": [
+      "following-routing-after-1.tap.gz",
+      "following-routing-after-2.tap.gz",
+      "following-routing-after-3.tap.gz"
+    ],
+    "tests": [
+      {
+        "name": "Following becomes withheld on composed re-observation: server",
+        "original_s": 1.020914482,
+        "round1_median_s": 1.020510583,
+        "round2_s": [
+          1.0210314489999999,
+          1.020521799,
+          1.0221535880000001
+        ]
+      },
+      {
+        "name": "Following becomes withheld on composed re-observation: offline",
+        "original_s": 1.003097988,
+        "round1_median_s": 1.003213104,
+        "round2_s": [
+          1.003301167,
+          1.003135071,
+          1.003174804
+        ]
+      },
+      {
+        "name": "Following becomes withheld on composed re-observation: pending",
+        "original_s": 30.065144341,
+        "round1_median_s": 1.003076082,
+        "round2_s": [
+          1.004238471,
+          1.004505304,
+          1.004219899
+        ]
+      },
+      {
+        "name": "Following becomes withheld on composed re-observation: transport recovered",
+        "original_s": 1.003304257,
+        "round1_median_s": 1.004118559,
+        "round2_s": [
+          1.004703558,
+          1.003938756,
+          1.002584628
+        ]
+      }
+    ]
+  },
+  "client-lifecycle": {
+    "files": [
+      "client-lifecycle-after-1.tap.gz",
+      "client-lifecycle-after-2.tap.gz",
+      "client-lifecycle-after-3.tap.gz"
+    ],
+    "tests": [
+      {
+        "name": "online reconnect requires the authenticated GET /probe contract",
+        "original_s": 6.304707349999999,
+        "round1_median_s": 6.280845543000001,
+        "round2_s": [
+          6.264731547999999,
+          6.336542811999999,
+          6.291290603
+        ]
+      },
+      {
+        "name": "online pending writes emit their terminal outcome exactly once",
+        "original_s": 0.563720255,
+        "round1_median_s": 0.561620129,
+        "round2_s": [
+          0.56213444,
+          0.558633652,
+          0.558178944
+        ]
+      },
+      {
+        "name": "online auth refusal settles writes that were queued behind the refused request",
+        "original_s": 0.002850502,
+        "round1_median_s": 0.003506756,
+        "round2_s": [
+          0.003312845,
+          0.003288348,
+          0.003297482
+        ]
+      },
+      {
+        "name": "local pending writes emit once with the kept device identity",
+        "original_s": 0.074085223,
+        "round1_median_s": 0.076759433,
+        "round2_s": [
+          0.076503945,
+          0.07677883099999999,
+          0.076600185
+        ]
+      },
+      {
+        "name": "local pending writes emit once with their original binding ahead of a newer device identity",
+        "original_s": 0.063392216,
+        "round1_median_s": 0.063711248,
+        "round2_s": [
+          0.063699235,
+          0.063856063,
+          0.063257307
+        ]
+      },
+      {
+        "name": "local reconnect requires the authenticated GET /probe contract",
+        "original_s": 5.248402694,
+        "round1_median_s": 5.172312364000001,
+        "round2_s": [
+          5.141306319,
+          5.072008728,
+          5.179701214
+        ]
+      },
+      {
+        "name": "local startup releases a device when initialization after the protocol probe fails",
+        "original_s": 0.001209694,
+        "round1_median_s": 0.002794519,
+        "round2_s": [
+          0.002871163,
+          0.002625555,
+          0.003082049
+        ]
+      },
+      {
+        "name": "local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal",
+        "original_s": 0.008429635,
+        "round1_median_s": 0.020701917,
+        "round2_s": [
+          0.020625611,
+          0.014782114,
+          0.02177123
+        ]
+      },
+      {
+        "name": "local observations skip idle polls and rerun after a committed page",
+        "original_s": 0.033762675,
+        "round1_median_s": 0.038195528000000006,
+        "round2_s": [
+          0.037494231999999995,
+          0.033515271,
+          0.036599624
+        ]
+      },
+      {
+        "name": "local generation adoption reruns observations whose dependencies changed",
+        "original_s": 0.033301544,
+        "round1_median_s": 0.038281126,
+        "round2_s": [
+          0.037549405,
+          0.037700563,
+          0.033518927
+        ]
+      },
+      {
+        "name": "closing a pending watch prevents its response from scheduling expiry or rerunning dirty work",
+        "original_s": 0.05402154,
+        "round1_median_s": 0.054241672000000005,
+        "round2_s": [
+          0.05649653,
+          0.058482579,
+          0.057027851
+        ]
+      },
+      {
+        "name": "local auth invalidation notifies viewer listeners before session deletion can fail",
+        "original_s": 0.0021516250000000003,
+        "round1_median_s": 0.003857511,
+        "round2_s": [
+          0.0048279560000000004,
+          0.005101426,
+          0.004718061
+        ]
+      },
+      {
+        "name": "local observations rerun when the device-reported visible lifetime expires",
+        "original_s": 0.21416596400000001,
+        "round1_median_s": 0.216030286,
+        "round2_s": [
+          0.21795246199999999,
+          0.21802567199999998,
+          0.216784527
+        ]
+      },
+      {
+        "name": "a refused device adopt keeps the previous backend active in JavaScript",
+        "original_s": 0.011660237,
+        "round1_median_s": 0.014171239,
+        "round2_s": [
+          0.015041092,
+          0.014664828999999999,
+          0.014563257
+        ]
+      },
+      {
+        "name": "a failed native replacement falls back without a stale local answer and is retried",
+        "original_s": 0.002570963,
+        "round1_median_s": 0.005999392,
+        "round2_s": [
+          0.006209846,
+          0.006214473,
+          0.005888996
+        ]
+      },
+      {
+        "name": "every local prediction invalidates observations, including unrelated tables",
+        "original_s": 0.022085723999999998,
+        "round1_median_s": 0.02438713,
+        "round2_s": [
+          0.024691044000000002,
+          0.022422135,
+          0.021943528
+        ]
+      },
+      {
+        "name": "online watches retain their changes watermark; bare tokens clear on refusal",
+        "original_s": 0.30218297899999996,
+        "round1_median_s": 0.273098077,
+        "round2_s": [
+          0.267898355,
+          0.293890323,
+          0.26907876399999997
+        ]
+      },
+      {
+        "name": "wasm: pending metadata survives repeated profile/vote updates and offline replay",
+        "original_s": 2.8522073650000004,
+        "round1_median_s": 2.8669952899999998,
+        "round2_s": [
+          2.927994072,
+          2.959369847,
+          2.887067688
+        ]
+      },
+      {
+        "name": "wasm: no-op and nosync writes retire when the partition stream is empty",
+        "original_s": 0.250081235,
+        "round1_median_s": 0.24472719,
+        "round2_s": [
+          0.253153176,
+          0.247516291,
+          0.240050837
+        ]
+      },
+      {
+        "name": "wasm: a write already sending when a snapshot starts is correlated after catch-up",
+        "original_s": 0.336250921,
+        "round1_median_s": 0.318204747,
+        "round2_s": [
+          0.34744617099999997,
+          0.341393489,
+          0.324640827
+        ]
+      },
+      {
+        "name": "wasm: a sync started before admission finishes before that write can be sent",
+        "original_s": 0.254016935,
+        "round1_median_s": 0.253977389,
+        "round2_s": [
+          0.253670231,
+          0.256595778,
+          0.232155845
+        ]
+      },
+      {
+        "name": "wasm: sync before a delayed write reply does not apply an increment twice",
+        "original_s": 0.306671505,
+        "round1_median_s": 0.297888231,
+        "round2_s": [
+          0.29515372100000004,
+          0.304722528,
+          0.30002324199999997
+        ]
+      },
+      {
+        "name": "wasm: sync before a lost write reply does not apply an increment twice",
+        "original_s": 1.283317397,
+        "round1_median_s": 1.275345779,
+        "round2_s": [
+          1.284320819,
+          1.282534738,
+          1.269599279
+        ]
+      },
+      {
+        "name": "wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server",
+        "original_s": 1.476641622,
+        "round1_median_s": 1.5188406110000001,
+        "round2_s": [
+          1.5198955719999998,
+          1.493817835,
+          1.666785644
+        ]
+      },
+      {
+        "name": "wasm: population growth cannot mint new IDs during prediction replay",
+        "original_s": 1.331931242,
+        "round1_median_s": 0.310372292,
+        "round2_s": [
+          0.296875212,
+          0.305289899,
+          0.307989441
+        ]
+      },
+      {
+        "name": "wasm: retry without observers, online-only routing and denied-watch recovery",
+        "original_s": 1.0025187899999999,
+        "round1_median_s": 0.868864435,
+        "round2_s": [
+          0.8898166129999999,
+          0.868349995,
+          0.875777537
+        ]
+      },
+      {
+        "name": "wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction",
+        "original_s": 0.26527038199999997,
+        "round1_median_s": 0.25920108900000005,
+        "round2_s": [
+          0.259848029,
+          0.253261381,
+          0.25797480100000003
+        ]
+      },
+      {
+        "name": "wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction",
+        "original_s": 0.26550916,
+        "round1_median_s": 0.250447916,
+        "round2_s": [
+          0.252769121,
+          0.262840248,
+          0.256767762
+        ]
+      },
+      {
+        "name": "native: pending metadata survives repeated profile/vote updates and offline replay",
+        "original_s": 2.493187677,
+        "round1_median_s": 2.4924324849999997,
+        "round2_s": [
+          2.508432927,
+          2.469809317,
+          2.494378123
+        ]
+      },
+      {
+        "name": "native: no-op and nosync writes retire when the partition stream is empty",
+        "original_s": 0.307817864,
+        "round1_median_s": 0.288364784,
+        "round2_s": [
+          0.264052341,
+          0.28623441000000005,
+          0.294900103
+        ]
+      },
+      {
+        "name": "native: a write already sending when a snapshot starts is correlated after catch-up",
+        "original_s": 0.426423498,
+        "round1_median_s": 0.40473182300000005,
+        "round2_s": [
+          0.333478428,
+          0.39240936699999995,
+          0.39852433000000004
+        ]
+      },
+      {
+        "name": "native: another client sending after sync capture cannot publish an uncorrelated page",
+        "original_s": 1.225005026,
+        "round1_median_s": 1.2709628949999998,
+        "round2_s": [
+          1.2356273450000002,
+          1.234287769,
+          1.210580925
+        ]
+      },
+      {
+        "name": "native: a sync started before admission finishes before that write can be sent",
+        "original_s": 0.28692125399999996,
+        "round1_median_s": 0.30011458399999996,
+        "round2_s": [
+          0.297529152,
+          0.30592523,
+          0.302480154
+        ]
+      },
+      {
+        "name": "native: sync before a delayed write reply does not apply an increment twice",
+        "original_s": 0.320122558,
+        "round1_median_s": 0.368008555,
+        "round2_s": [
+          0.36252237600000004,
+          0.35952819799999997,
+          0.368884599
+        ]
+      },
+      {
+        "name": "native: sync before a lost write reply does not apply an increment twice",
+        "original_s": 1.346198797,
+        "round1_median_s": 1.353803828,
+        "round2_s": [
+          1.375253551,
+          1.370107628,
+          1.356034414
+        ]
+      },
+      {
+        "name": "native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server",
+        "original_s": 1.983517104,
+        "round1_median_s": 1.986797182,
+        "round2_s": [
+          1.99362121,
+          1.983649934,
+          1.517161915
+        ]
+      },
+      {
+        "name": "native: population growth cannot mint new IDs during prediction replay",
+        "original_s": 1.306009089,
+        "round1_median_s": 0.34681968799999996,
+        "round2_s": [
+          0.34713816000000003,
+          0.349778966,
+          0.35077758
+        ]
+      },
+      {
+        "name": "native: retry without observers, online-only routing and denied-watch recovery",
+        "original_s": 1.013617927,
+        "round1_median_s": 0.836818286,
+        "round2_s": [
+          0.83976269,
+          0.839307559,
+          0.834159932
+        ]
+      },
+      {
+        "name": "native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction",
+        "original_s": 0.32323042500000004,
+        "round1_median_s": 0.30782266700000005,
+        "round2_s": [
+          0.32965499899999995,
+          0.319528097,
+          0.32192330399999997
+        ]
+      },
+      {
+        "name": "native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction",
+        "original_s": 0.32514390400000004,
+        "round1_median_s": 0.31851712600000004,
+        "round2_s": [
+          0.32530904600000005,
+          0.32067718,
+          0.31558650699999996
+        ]
+      },
+      {
+        "name": "close cancels online write callers without aborting committed delivery",
+        "original_s": 0.18736877799999999,
+        "round1_median_s": 0.183892751,
+        "round2_s": [
+          0.180586823,
+          0.183794229,
+          0.18222971799999998
+        ]
+      },
+      {
+        "name": "device process failures reject opening and pending calls instead of leaving close waiting",
+        "original_s": 0.050297469,
+        "round1_median_s": 0.049510491999999996,
+        "round2_s": [
+          0.053484305999999995,
+          0.04865437,
+          0.05030161
+        ]
+      },
+      {
+        "name": "device compatibility rejects old and malformed protocols before online or offline startup",
+        "original_s": 0.06544338000000001,
+        "round1_median_s": 0.06384197,
+        "round2_s": [
+          0.06435199400000001,
+          0.062402545000000004,
+          0.061471371
+        ]
+      },
+      {
+        "name": "device compatibility closes the core and preserves operational startup errors",
+        "original_s": 0.001399677,
+        "round1_median_s": 0.001385206,
+        "round2_s": [
+          0.0013497429999999998,
+          0.001330054,
+          0.000640751
+        ]
+      },
+      {
+        "name": "device compatibility accepts the current core online and on an offline reopen",
+        "original_s": 1.2425422510000002,
+        "round1_median_s": 1.241534707,
+        "round2_s": [
+          1.2444227479999999,
+          1.2443816079999999,
+          1.242165773
+        ]
+      },
+      {
+        "name": "online serialization failures retain the minted id without scheduling network retries",
+        "original_s": 0.001196503,
+        "round1_median_s": 0.0014988360000000001,
+        "round2_s": [
+          0.001369232,
+          0.0013456870000000001,
+          0.0013254760000000001
+        ]
+      },
+      {
+        "name": "wasm: close waits for an applying acknowledgment and aborts sync",
+        "original_s": 0.258035908,
+        "round1_median_s": 0.266878807,
+        "round2_s": [
+          0.262560205,
+          0.271588289,
+          0.271912961
+        ]
+      },
+      {
+        "name": "native: close waits for an applying acknowledgment and aborts sync",
+        "original_s": 0.31974147599999997,
+        "round1_median_s": 0.30911064499999996,
+        "round2_s": [
+          0.33104472199999996,
+          0.327780536,
+          0.32935286
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: cursorless",
+        "original_s": 1.004271067,
+        "round1_median_s": 1.003749748,
+        "round2_s": [
+          1.003590196,
+          1.004198216,
+          1.003198429
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: meter",
+        "original_s": 1.003202806,
+        "round1_median_s": 1.003149724,
+        "round2_s": [
+          1.0019561179999998,
+          1.003070917,
+          1.003261885
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: words",
+        "original_s": 1.003683726,
+        "round1_median_s": 1.004446881,
+        "round2_s": [
+          1.0024932229999999,
+          1.0045490129999999,
+          1.004188303
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: missing fact",
+        "original_s": 1.0047667599999999,
+        "round1_median_s": 1.003131458,
+        "round2_s": [
+          1.002931259,
+          1.002213182,
+          1.0024664030000001
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: presence",
+        "original_s": 1.00373287,
+        "round1_median_s": 1.002341906,
+        "round2_s": [
+          1.003444508,
+          1.0029020450000001,
+          1.002803358
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: offline missing fact",
+        "original_s": 1.003817498,
+        "round1_median_s": 1.003311106,
+        "round2_s": [
+          1.003009717,
+          1.002923526,
+          1.0036534209999999
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: held",
+        "original_s": 1.004135593,
+        "round1_median_s": 1.002627887,
+        "round2_s": [
+          1.002933603,
+          1.00300586,
+          1.0034496960000001
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: retained",
+        "original_s": 1.002313202,
+        "round1_median_s": 1.003501986,
+        "round2_s": [
+          1.002807303,
+          1.003494934,
+          1.00251769
+        ]
+      },
+      {
+        "name": "W13b fallback boundary: pending predictable write",
+        "original_s": 1.0030549039999999,
+        "round1_median_s": 1.003364508,
+        "round2_s": [
+          1.003023539,
+          1.002972701,
+          1.002689867
+        ]
+      }
+    ]
+  }
+}

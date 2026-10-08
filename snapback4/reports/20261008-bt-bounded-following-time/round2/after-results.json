@@ -1,0 +1,38 @@
+[
+  {
+    "mode": "timeout",
+    "command": [
+      "node",
+      "--import",
+      "./reports/20261008-bt-bounded-following-time/round2/late-publication.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=event slots wasm: owned-event fallback",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ],
+    "env": {
+      "BT_LATE_MODE": "timeout"
+    },
+    "exit": 1,
+    "elapsed_s": 4.85834765600157,
+    "valid": true
+  },
+  {
+    "mode": "two-immediates",
+    "command": [
+      "node",
+      "--import",
+      "./reports/20261008-bt-bounded-following-time/round2/late-publication.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=event slots wasm: owned-event fallback",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ],
+    "env": {
+      "BT_LATE_MODE": "two-immediates"
+    },
+    "exit": 1,
+    "elapsed_s": 4.903002855979139,
+    "valid": true
+  }
+]

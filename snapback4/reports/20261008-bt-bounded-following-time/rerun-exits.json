@@ -1,0 +1,94 @@
+[
+  {
+    "file": "bounded-following-after-1.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--import",
+      "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ]
+  },
+  {
+    "file": "bounded-following-after-2.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ]
+  },
+  {
+    "file": "retained-history-after-2.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/retained-history.test.mjs"
+    ]
+  },
+  {
+    "file": "following-routing-after-2.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/following-routing.test.mjs"
+    ]
+  },
+  {
+    "file": "client-lifecycle-after-2.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/client-lifecycle.test.mjs"
+    ]
+  },
+  {
+    "file": "bounded-following-after-3.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ]
+  },
+  {
+    "file": "retained-history-after-3.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/retained-history.test.mjs"
+    ]
+  },
+  {
+    "file": "following-routing-after-3.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/following-routing.test.mjs"
+    ]
+  },
+  {
+    "file": "client-lifecycle-after-3.tap",
+    "exit": 0,
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "packages/snapback4/test/client-lifecycle.test.mjs"
+    ]
+  }
+]

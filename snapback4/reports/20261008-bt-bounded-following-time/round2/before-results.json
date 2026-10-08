@@ -1,0 +1,30 @@
+[
+  {
+    "mode": "timeout",
+    "command": [
+      "node",
+      "--import",
+      "/home/ccheever/sb4-intent/reviews/bt-r1.grok.evidence/late-timer.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=event slots wasm: owned-event fallback",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ],
+    "exit": 0,
+    "elapsed_s": 8.783345650997944
+  },
+  {
+    "mode": "two-immediates",
+    "command": [
+      "node",
+      "--import",
+      "/home/ccheever/sb4-intent/reviews/bt-r1.grok.evidence/late-timer.mjs",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=event slots wasm: owned-event fallback",
+      "packages/snapback4/test/bounded-following.test.mjs"
+    ],
+    "exit": 0,
+    "elapsed_s": 8.822125470993342
+  }
+]

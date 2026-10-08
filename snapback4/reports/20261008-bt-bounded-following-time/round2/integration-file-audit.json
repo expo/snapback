@@ -1,0 +1,18 @@
+{
+  "snapback4/packages/snapback4/test/bounded-following.test.mjs": {
+    "unchanged_from_round1": true,
+    "sha256": "e1949037d47fb69eeabebb3c4def44aa13473105fb14534577c75e8933bac409"
+  },
+  "snapback4/packages/snapback4/test/retained-history.test.mjs": {
+    "unchanged_from_round1": true,
+    "sha256": "2fb56e558b404b5a4aa34da97a171c772d08880d78a49aa3f3e98191c46be8fd"
+  },
+  "snapback4/packages/snapback4/test/following-routing.test.mjs": {
+    "unchanged_from_round1": true,
+    "sha256": "69d9b8983084705c9c8408d921c31c7a13a43ce81d09e404d533f6fb3bc154e4"
+  },
+  "snapback4/packages/snapback4/test/client-lifecycle.test.mjs": {
+    "unchanged_from_round1": true,
+    "sha256": "07517bd31d7fc27010fdd66ebec996a52a006b21735d8d5546861492ae277aca"
+  }
+}

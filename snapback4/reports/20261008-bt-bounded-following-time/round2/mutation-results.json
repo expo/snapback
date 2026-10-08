@@ -1,0 +1,156 @@
+[
+  {
+    "label": "bypass-admission",
+    "cases": [
+      "event slots wasm: owned-event fallback waits for the source prediction",
+      "event slots wasm: rejected owned events cannot make a speculative scan publishable",
+      "bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages",
+      "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+      "bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows",
+      "bounded Following wasm: composed reads withhold the entire answer across the prediction fence",
+      "bounded Following wasm: a predicted post fences fallback until observation",
+      "bounded Following wasm: online-only repost cards use the prediction fence before server routing",
+      "bounded Following wasm: a response racing prediction admission is invalidated",
+      "bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes",
+      "event slots native: owned-event fallback waits for the source prediction",
+      "event slots native: rejected owned events cannot make a speculative scan publishable",
+      "bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages",
+      "bounded Following native: unknown conditions preserve static and helper dependencies",
+      "bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows",
+      "bounded Following native: composed reads withhold the entire answer across the prediction fence",
+      "bounded Following native: a predicted post fences fallback until observation",
+      "bounded Following native: online-only repost cards use the prediction fence before server routing",
+      "bounded Following native: a response racing prediction admission is invalidated",
+      "bounded Following native: inbox floors use all routing branches and preserve meter prefixes",
+      "bounded Following native query module: executed dependencies fence fallback until prediction observation",
+      "wasm: population growth cannot mint new IDs during prediction replay",
+      "native: population growth cannot mint new IDs during prediction replay",
+      "Following becomes withheld on composed re-observation: pending",
+      "MQ speculative events wasm: retained history and independent held coverage",
+      "MQ speculative events process: retained history and independent held coverage"
+    ],
+    "failures": 26,
+    "assertion": "settled while custody was held",
+    "exit": 1
+  },
+  {
+    "label": "bypass-receipt",
+    "cases": [
+      "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+      "bounded Following wasm: a predicted post fences fallback until observation",
+      "bounded Following wasm: online-only repost cards use the prediction fence before server routing",
+      "bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes",
+      "bounded Following native: unknown conditions preserve static and helper dependencies",
+      "bounded Following native: a predicted post fences fallback until observation",
+      "bounded Following native: online-only repost cards use the prediction fence before server routing",
+      "bounded Following native: inbox floors use all routing branches and preserve meter prefixes",
+      "bounded Following native query module: executed dependencies fence fallback until prediction observation"
+    ],
+    "failures": 9,
+    "assertion": "settled while custody was held",
+    "exit": 1
+  },
+  {
+    "label": "bypass-conditionalEventsHeld",
+    "cases": [
+      "event slots wasm: owned-event fallback waits for the source prediction",
+      "event slots native: owned-event fallback waits for the source prediction"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1
+  },
+  {
+    "label": "bypass-speculativePage",
+    "cases": [
+      "bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages",
+      "bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1
+  },
+  {
+    "label": "bypass-conditionalOriginal",
+    "cases": [
+      "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+      "bounded Following native: unknown conditions preserve static and helper dependencies"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1
+  },
+  {
+    "label": "bypass-homePage",
+    "cases": [
+      "MQ speculative events wasm: retained history and independent held coverage",
+      "MQ speculative events process: retained history and independent held coverage"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1
+  },
+  {
+    "label": "delayed-post-ownedEvent",
+    "cases": [
+      "event slots wasm: owned-event fallback waits for the source prediction",
+      "event slots native: owned-event fallback waits for the source prediction"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1,
+    "publications": 2,
+    "releases": 0,
+    "release_boundary_stacks": 2
+  },
+  {
+    "label": "delayed-post-homePage",
+    "cases": [
+      "MQ speculative events wasm: retained history and independent held coverage",
+      "MQ speculative events process: retained history and independent held coverage"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1,
+    "publications": 2,
+    "releases": 0,
+    "release_boundary_stacks": 2
+  },
+  {
+    "label": "delayed-apply-conditionalHelper",
+    "cases": [
+      "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+      "bounded Following native: unknown conditions preserve static and helper dependencies"
+    ],
+    "failures": 2,
+    "assertion": "settled while custody was held",
+    "exit": 1,
+    "publications": 2,
+    "releases": 2,
+    "release_boundary_stacks": 2
+  },
+  {
+    "label": "delayed-post-ownedEvent-timeout-wasm",
+    "cases": [
+      "event slots wasm: owned-event fallback waits for the source prediction"
+    ],
+    "failures": 1,
+    "assertion": "settled while custody was held",
+    "exit": 1,
+    "publications": 1,
+    "releases": 0,
+    "release_boundary_stacks": 1
+  },
+  {
+    "label": "delayed-post-ownedEvent-two-immediates-wasm",
+    "cases": [
+      "event slots wasm: owned-event fallback waits for the source prediction"
+    ],
+    "failures": 1,
+    "assertion": "settled while custody was held",
+    "exit": 1,
+    "publications": 1,
+    "releases": 0,
+    "release_boundary_stacks": 1
+  }
+]

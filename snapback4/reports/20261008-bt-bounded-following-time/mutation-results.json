@@ -1,0 +1,210 @@
+{
+  "bypass-admission.tap": {
+    "pass": 0,
+    "fail": 26,
+    "failures": [
+      {
+        "name": "event slots wasm: owned-event fallback waits for the source prediction",
+        "assertion": "ownedEvent: settled while custody was held"
+      },
+      {
+        "name": "event slots wasm: rejected owned events cannot make a speculative scan publishable",
+        "assertion": "filteredEvents: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages",
+        "assertion": "filteredEvents: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+        "assertion": "conditionalFeed: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows",
+        "assertion": "an unrelated held page cannot validate a speculative profile: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: composed reads withhold the entire answer across the prediction fence",
+        "assertion": "composed: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: a predicted post fences fallback until observation",
+        "assertion": "wide before execution: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: online-only repost cards use the prediction fence before server routing",
+        "assertion": "repost cards before execution: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: a response racing prediction admission is invalidated",
+        "assertion": "the response predating admission cannot replace a prediction: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes",
+        "assertion": "inbox before execution: settled while custody was held"
+      },
+      {
+        "name": "event slots native: owned-event fallback waits for the source prediction",
+        "assertion": "ownedEvent: settled while custody was held"
+      },
+      {
+        "name": "event slots native: rejected owned events cannot make a speculative scan publishable",
+        "assertion": "filteredEvents: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages",
+        "assertion": "filteredEvents: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: unknown conditions preserve static and helper dependencies",
+        "assertion": "conditionalFeed: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows",
+        "assertion": "an unrelated held page cannot validate a speculative profile: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: composed reads withhold the entire answer across the prediction fence",
+        "assertion": "composed: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: a predicted post fences fallback until observation",
+        "assertion": "wide before execution: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: online-only repost cards use the prediction fence before server routing",
+        "assertion": "repost cards before execution: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: a response racing prediction admission is invalidated",
+        "assertion": "the response predating admission cannot replace a prediction: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: inbox floors use all routing branches and preserve meter prefixes",
+        "assertion": "inbox before execution: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native query module: executed dependencies fence fallback until prediction observation",
+        "assertion": "native cards before execution: settled while custody was held"
+      },
+      {
+        "name": "wasm: population growth cannot mint new IDs during prediction replay",
+        "assertion": "withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of: settled while custody was held"
+      },
+      {
+        "name": "native: population growth cannot mint new IDs during prediction replay",
+        "assertion": "withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of: settled while custody was held"
+      },
+      {
+        "name": "Following becomes withheld on composed re-observation: pending",
+        "assertion": "read: settled while custody was held"
+      },
+      {
+        "name": "MQ speculative events wasm: retained history and independent held coverage",
+        "assertion": "home: settled while custody was held"
+      },
+      {
+        "name": "MQ speculative events process: retained history and independent held coverage",
+        "assertion": "home: settled while custody was held"
+      }
+    ]
+  },
+  "bypass-conditionalEventsHeld.tap": {
+    "pass": 0,
+    "fail": 2,
+    "failures": [
+      {
+        "name": "event slots wasm: owned-event fallback waits for the source prediction",
+        "assertion": "conditionalEventsHeld: settled while custody was held"
+      },
+      {
+        "name": "event slots native: owned-event fallback waits for the source prediction",
+        "assertion": "conditionalEventsHeld: settled while custody was held"
+      }
+    ]
+  },
+  "bypass-conditionalOriginal.tap": {
+    "pass": 0,
+    "fail": 2,
+    "failures": [
+      {
+        "name": "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+        "assertion": "conditionalOriginal: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: unknown conditions preserve static and helper dependencies",
+        "assertion": "conditionalOriginal: settled while custody was held"
+      }
+    ]
+  },
+  "bypass-homePage.tap": {
+    "pass": 0,
+    "fail": 2,
+    "failures": [
+      {
+        "name": "MQ speculative events wasm: retained history and independent held coverage",
+        "assertion": "homePage: settled while custody was held"
+      },
+      {
+        "name": "MQ speculative events process: retained history and independent held coverage",
+        "assertion": "homePage: settled while custody was held"
+      }
+    ]
+  },
+  "bypass-receipt.tap": {
+    "pass": 0,
+    "fail": 9,
+    "failures": [
+      {
+        "name": "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+        "assertion": "conditional helper before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: a predicted post fences fallback until observation",
+        "assertion": "wide before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: online-only repost cards use the prediction fence before server routing",
+        "assertion": "repost cards before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes",
+        "assertion": "inbox before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: unknown conditions preserve static and helper dependencies",
+        "assertion": "conditional helper before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: a predicted post fences fallback until observation",
+        "assertion": "wide before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: online-only repost cards use the prediction fence before server routing",
+        "assertion": "repost cards before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: inbox floors use all routing branches and preserve meter prefixes",
+        "assertion": "inbox before apply: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native query module: executed dependencies fence fallback until prediction observation",
+        "assertion": "native cards before apply: settled while custody was held"
+      }
+    ]
+  },
+  "bypass-speculativePage.tap": {
+    "pass": 0,
+    "fail": 2,
+    "failures": [
+      {
+        "name": "bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages",
+        "assertion": "speculativePage: settled while custody was held"
+      },
+      {
+        "name": "bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages",
+        "assertion": "speculativePage: settled while custody was held"
+      }
+    ]
+  }
+}

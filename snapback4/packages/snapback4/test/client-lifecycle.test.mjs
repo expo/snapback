@@ -1,5 +1,6 @@
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
+import { custodyReads, releaseCustody } from './helpers/custody-read.mjs';
 // Real clients, real authored programs, and owned server/device processes.
 // The transport gates only control ordering or inject a transient link failure.
 import test from "node:test";
@@ -1130,19 +1131,15 @@ for (const tier of ["wasm", "native"]) {
     assert.equal((await f.server.mutate(mutation("addSource"), {})).state, "sent");
     syncRelease.resolve();
     await syncing;
-    // This deliberately held write cannot settle. Advance the one-shot deadline
-    // before the independently parked change stream's transport watchdog fires.
-    const originalTimeout = globalThis.setTimeout;
-    const queryTimer = t.mock.method(globalThis, "setTimeout", (fn, ms, ...args) => originalTimeout(fn, ms === 30_000 ? 1000 : ms, ...args));
-    let rebased;
-    try { rebased = await client.query(query("copied"), {}); } finally { queryTimer.mock.restore(); }
+    const rebased = custodyReads(t)(client, query("copied"), {});
+    await rebased.withheld("withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of");
     assert.deepEqual(deviceRefusals, [], "withdrawing an expanded replay still commits the authoritative stream transaction");
-    assert.equal(rebased.denied?.code, "E_QUERY_RETRY", "withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of");
-    sendRelease.resolve();
+    await releaseCustody([rebased], () => sendRelease.resolve());
     await entered.promise;
     assert.deepEqual(postedIds, [originalId], "the in-flight request retains exactly the admitted IDs");
-    release.resolve();
+    await releaseCustody([rebased], () => release.resolve());
     assert.equal((await write).state, "sent");
+    assert.equal((await rebased.promise).data.length, 2, "the held one-shot includes both authoritative rows");
     await until(async () => (await client.query(query("copied"), {})).data?.length === 2, "authority provides both final rows");
   });
 

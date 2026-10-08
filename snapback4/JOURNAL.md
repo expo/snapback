@@ -91815,3 +91815,103 @@ mistake in `guide rules` (so `guide start` too) and `why E_RULE` now say that
 mutation writes pass table rules as the caller, only jobs run as the system,
 and `why recent` names the refusing clause under `dev`. `why E_RULE` is 4,024
 of its 4,096 bytes.
+## 2026-10-08 — BT: bounded Following checks custody in flight
+
+Fresh measurements on eb1000 put bounded-following at 1,219.176 seconds after
+SN's event-driven one-shot settlement. Its holds consumed 50 query deadlines in
+34 sequential timer intervals. Held reads whose purpose is withholding now
+assert that the exact call has reached the real custody wait without settling,
+then release the hold and check that call's final answer. Fresh reads after
+acknowledgement independently retain the before-apply checks. The scalar-cut
+case on each device tier keeps its real 30-second exhaustion and unchanged
+`E_QUERY_RETRY` assertion. All 39 cases, raw provenance, request counts, offline,
+transport, native, cursor, prediction and final-result controls remain.
+
+Three final file runs pass 39/39 in 314.008, 314.052 and 314.261 seconds: the
+median saves 905.124 seconds (74.2%). The same treatment takes retained-history
+from 192.570 to a 68.989-second median and following-routing from 33.195 to
+4.133 seconds. Lifecycle's two replay cases replace a shortened timer with
+causal withholding and final-answer checks; its median is 43.079 versus 45.256
+seconds. All four complete files pass three times (3 × 178 executions), and the
+one-shot/dependency/publication regressions pass 354/354.
+
+Admission bypasses fail 26 selected cases; receipt-only bypasses fail all nine
+before-apply cases. Eight selective sibling bypasses fail independently,
+including retained-history's unchanged homePage gate payload. All 43 fail at
+unsettled assertions, never a hang; disabled loaders pass the full files.
+The observer preserves the real wait's predicate, promise, wakeup and deadline,
+using async context to identify concurrent invocations. Product artifacts are
+unchanged; ref-check and whitespace checks pass. The report lists remaining
+reset/guest/expiry deadline controls and the complete file audit. Tests, their
+helper and evidence only; no product change, push, publication or Darwin claim.
+
+[Report, per-test timings, mutation controls and logs](reports/20261008-bt-bounded-following-time/REPORT.md).
+
+## 2026-10-08 — BT round 1: check custody at actual gate release
+
+Astra's round-0 P2 reproduced locally: ownedEvent and homePage could enter the
+real wait and publish their earlier answer while held, yet the converted tests
+passed on both tiers. Wait entry alone left a temporal coverage gap. The shared
+release helper now gives queued promise continuations an event-loop checkpoint
+while the hold remains active, checks every tracked read together, and opens
+the gate synchronously with no await after the check. Every converted POST
+release uses it. The five before-apply scenarios check both original and fresh
+reads again; lifecycle checks begin-send and actual POST execution separately.
+Final answers, offline/refusal/provenance/request/cursor/prediction assertions
+and both genuine 30-second exhaustion controls are unchanged. All 682 explicit
+assert calls and existing hangBudget declarations in the four files match
+round 0 exactly. No product change.
+
+Three full runs pass 534/534 integration-test executions. Bounded-following
+runs in 314.037, 314.334 and 314.208 seconds (median 314.208); retained-history's
+median is 68.763 seconds, following-routing 4.137, lifecycle 42.930. The original
+bounded baseline was 1,219.176 seconds: 904.968 seconds saved (74.2%).
+All 378 one-shot/dependency/publication regressions pass (354 top-level plus 24
+nested; this corrects the earlier journal's top-level-only count). Seventeen
+new helper controls pass three times, covering delayed fulfillment/rejection,
+grouped siblings and distinct POST/apply phases. Both real deadline controls
+pass on all three runs with the original E_QUERY_RETRY assertion.
+
+The 43 prior admission/receipt/sibling bypasses still fail. Astra's delayed
+cached-answer mutant is now a permanent control: four POST cases and two
+before-apply cases fail at the actual release boundary. All 49 are the expected
+unsettled assertion, not a hang. An exploratory wide apply selection had no
+cached answer and did not mutate; that rejected control is retained in the
+report and replaced by the active conditionalHelper selection. Disabled
+loaders pass the four full files. Native, wasm and 128 SDK artifact hashes are
+unchanged. Dependency preflight prints deps-ok; ref-check and whitespace checks
+pass. Work stayed on eb1000; no push, publication or local Darwin claim.
+
+[Round-1 report, per-test timings, permanent controls and raw evidence](reports/20261008-bt-bounded-following-time/round1/REPORT.md).
+
+## 2026-10-08 — BT round 2: include queued timers and a second immediate
+
+Grok's round-1 scheduled-publication finding reproduces on wasm: the owned-event
+cached-answer mutant passes after a zero-delay timer or two immediates, logging
+release before publication. The release helper now holds custody through an
+immediate, a zero-delay timer and one further immediate, then checks every
+read and opens the gate in the same synchronous continuation. Both wasm
+mutants now fail at releaseCustody with one publication and zero release logs.
+They are permanent controls alongside the earlier 49. The helper and report
+state the limit: no fixed number of yields drains arbitrary chains scheduling
+their next turn or guarantees future delayed work has run.
+
+The four integration files remain byte-identical to round 1, including all
+682 explicit assertions, existing guards, POST/apply separation, final values
+and both real 30-second controls. Helper regressions retain all 17 cases and
+add eight timer/immediate × fulfillment/rejection × POST/apply cases. No
+product source or built artifact changes. Dependency preflight prints deps-ok.
+
+Three complete passes produce 534/534 integration successes. Bounded-following
+runs in 313.997, 315.826 and 317.562 seconds
+(median 315.826, versus 314.208 in round 1 and 1,219.176 originally).
+Retained-history's median is 68.876 seconds, routing 4.137, lifecycle
+42.929. Both deadline controls pass in every run with their unchanged
+E_QUERY_RETRY and ≥30,000 ms assertions. All 378 one-shot/dependency/publication
+regressions and 75 helper-test executions pass. All 51 mutation cases fail at
+the expected unsettled assertion, including eight at the actual release
+boundary. The complete verification runner exits 0; no skips or cancellations.
+Reference and whitespace checks pass. Native, wasm and 128 SDK hashes remain
+unchanged. Work stayed on eb1000; nothing pushed or published.
+
+[Round-2 report, per-test timings, controls and evidence](reports/20261008-bt-bounded-following-time/round2/REPORT.md).
