@@ -24,7 +24,8 @@ Write results contain omitted optional columns as null and defaults as values;
 updates retain unchanged fields. These fields add no prediction dependency.
 Owned/sequence/receipt fields keep their projection and settlement rules.
 E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
-Refusals roll back the mutation.
+Refusals roll back the mutation. Mutation writes pass table rules as the caller;
+only jobs run as the system.
 Retry an intent with its original minted write id.
 
 Receipt gaps: `guide sequences`.

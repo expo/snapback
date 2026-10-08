@@ -91802,3 +91802,16 @@ Adding compiled mutations to `guide writes` and `guide wire` (items 3 and 4)
 changed the device crate's authoring census (`tests/readauth/census.txt`):
 two new `never` entries and renumbered writes blocks. That baseline landed as
 `883bc1217b`; the census was red on `main` between `22f78603fc` and it.
+
+## 2026-10-08 — App-farm lane S2, item 5: the E_RULE sentence
+
+LLP 3000.036 §3 D, landed before lane S1's `run` print (nothing from S1 on
+`origin/main` at `98eef43487`). Verified under `dev` with the ticket's
+`update <- deny` schema: `run submit --as alice` forwards and prints the
+four-cause E_RULE; `snapback4 why recent` then prints the record with
+`clause: "update rule"`, `site: "schema.q:8:3"` and `executionSite: "submit:2"`.
+`guide writes` (13 words, inside the six-card ceiling), the `E_RULE` first
+mistake in `guide rules` (so `guide start` too) and `why E_RULE` now say that
+mutation writes pass table rules as the caller, only jobs run as the system,
+and `why recent` names the refusing clause under `dev`. `why E_RULE` is 4,024
+of its 4,096 bytes.

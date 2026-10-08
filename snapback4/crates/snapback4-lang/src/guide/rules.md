@@ -12,7 +12,7 @@ table reactions:
 
 - `E_READ_THROUGH`: the path must spell the whole parent rule; use a required immutable reference without a default, and immutable parent rule/expiry fields.
 - `E_QUARRY_SELF_EQUALITY`: a nested predicate compares its row to itself; capture the outer value in a local before entering that predicate.
-- `E_RULE`: an insert lacks authority; require a live readable parent and the child's insert rule (omitted rules deny).
+- `E_RULE`: a write lacks authority (mutations write as the caller; omitted rules deny); require a live readable parent and the child's insert rule, and under `dev` read the refusing clause with `snapback4 why recent`.
 
 ## Reference
 
