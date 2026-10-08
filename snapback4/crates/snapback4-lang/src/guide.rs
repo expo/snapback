@@ -64,7 +64,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -74,6 +74,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("cold start", "bounds"), ("cold restart", "bounds"), ("acquire", "bounds"),
     ("latency", "bounds"), ("performance", "bounds"), ("p95", "bounds"),
     ("benchmark", "bounds"), ("load test", "bounds"),
+    ("http", "wire"), ("curl", "wire"), ("rest", "wire"), ("protocol", "wire"),
     ("react", "client"), ("hooks", "client"), ("expo", "client"), ("ios", "client"), ("react native", "client"),
     ("dm", "social"), ("direct message", "social"), ("chat", "social"),
     ("composer", "client"), ("unread", "client"), ("readPresentation", "client"), ("read-presentation", "client"),
@@ -155,6 +156,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "start" => start::card(),
         "language" => LANGUAGE,
         "ephemeral" => include_str!("guide/ephemeral.md"),
+        "wire" => include_str!("guide/wire.md"),
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "witness" => include_str!("guide/witness.md"),

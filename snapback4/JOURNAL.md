@@ -90846,3 +90846,23 @@ mapping, the curl form and the seed example's validity. `cargo test -p
 snapback4` passes except `stalled_resolver_sigint_is_bounded_journalled_and_drained`,
 which fails only under the full parallel load and passes alone (unchanged
 witness code). Guide, `--help` and CLIENT-AND-OPERATIONS §5 describe it.
+
+## 2026-10-08 — App farm round 1: `guide wire` for non-JS clients
+
+The round-1 synthesis found 22 Muse builds that called the backend from
+hand-written `fetch`/curl and reverse-engineered the protocol from
+`dist/client.js` (order-relay-hooks-0037 wrote ~60 lines of adapter;
+archive-names-0724 praised the wire once found). It was documented only in
+CLIENT-AND-OPERATIONS §5 "The wire" and in no card. New card `guide wire`
+(aliases `http`, `curl`, `rest`, `protocol`): persona and bearer identity,
+`/q` and `/m` bodies and replies, the at-most-once `id`, value encodings
+(time ms; `money`/`decimal` as integer minor units, which three Muse builds
+found by trial; hex bytes), `/changes` long-poll, the dev doors (`/seed`,
+`/dev/clock/advance`, `/dev/jobs/<job>`, `/dev/status`), status codes, and a
+pointer to the full section. `guide start` names it in one line. The card is
+listed on the language card and the §5 guide line (reflowed so the tested
+400-character window still reaches `witness`); one word on the language card
+("explains refusals") keeps the six measured cards within the 30% reduction
+budget, and the language-19 fact fixture follows the new list. §5 now says
+persona plus bearer together refuse `E_AUTH` (verified on dev) rather than
+"a bearer wins". Guide suite: 113 passed.
