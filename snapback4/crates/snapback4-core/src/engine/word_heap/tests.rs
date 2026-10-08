@@ -454,6 +454,23 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     println!("W14A {storage} positive_rows=1 rust_allocated={rust_bytes} first_native={first_native} next_fetch_native={next_native} next_read_native={read_native} cumulative_fetch_native={} first_charge={first} next_fetch_charge={} next_read_charge={}", first_native + next_native, ample.used.heap_bytes - first, next_read.used.heap_bytes);
 }
 
+#[test]
+fn streamed_value_price_equals_the_canonical_text_price() {
+    use value::{Value, object, canonical_json};
+    let tricky = "a \\ \" {\"Row\": {\"Map\": [1,2], x: café 𐐨";
+    let mut values = vec![object([("id", Value::Id("x".into()))]), Value::Null, Value::Array(vec![]),
+        object([("id", Value::Id(tricky.into())), ("list", Value::Array(vec![Value::Int(1), Value::String(tricky.into()), object([("k", Value::Bool(true))])]))])];
+    for fields in [0, 1, 11, 12, 33] {
+        values.push(object((0..fields).map(|n| (format!("f{n}"), if n % 3 == 0 { Value::String(tricky.repeat(n)) } else if n % 3 == 1 { Value::Int(n as i64) } else { object([("inner", Value::Array(vec![Value::Null; n]))]) }))));
+    }
+    for row in &values {
+        let json = canonical_json(row);
+        assert_eq!(accounting::stored_value_bytes(row).unwrap(), stored_price(&json), "{json}");
+        let (_, allocated) = measured(|| accounting::stored_value_bytes(row).unwrap());
+        assert_eq!(allocated, 0, "pricing a held row allocates nothing: {json}");
+    }
+}
+
 // @ref LLP 3000.007#20.24.5 — the guard is physical, has its own code, and sits far above every ceiling.
 #[test]
 fn store_guard_refuses_a_pathological_scan_with_its_own_code() {

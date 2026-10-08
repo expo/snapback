@@ -387,7 +387,7 @@ impl Rows for MemoryRows {
         let mut out = Vec::new();
         let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
             if let Some(row) = rows.get(&(table.to_owned(), id.clone())) {
-                let additional = word_heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), &crate::value::canonical_json(row), key)?;
+                let additional = word_heap::scan_value_entry(meter, &mut guard, out.len(), out.capacity(), row, key)?;
                 if additional != 0 { out.reserve_exact(additional); }
                 out.push((row.clone(), key.clone()));
             }

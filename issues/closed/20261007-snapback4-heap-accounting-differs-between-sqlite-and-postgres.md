@@ -208,8 +208,9 @@ oracle passed all of its checks (15,670,863 after). The remaining device
 signature, `device-*--write-predicted-refused--admitted` (11 per store), is the
 separate prediction ticket, not heap.
 
-**Retired found cases** (no longer reproduce; replay passes): the eight
-`device-{sqlite,memory}--heap-bytes-*` / `--steps-metered-*` cases and
+**Retired found cases** (no longer reproduce; replay passes): ten case
+directories in total — the nine device cases (`device-memory--` five,
+`device-sqlite--` four, all `--heap-bytes-*` / `--steps-metered-*`) and
 `store-postgres-off--heap-bytes-result--E_BOUND`. Their diagnoses are in git
 history and summarized above. The pinned sets in
 `snapback4-difftest/tests/stores.rs` and `tests/smoke.rs` are now empty.

@@ -48,7 +48,7 @@
 //! | Store encoded bounds/range endpoints | bounded store scratch | R(prefix,bounds)+A(table.index name), every store | scan_open, before scan_range and range lookup |
 //! | Every store's fetched row and key | bounded store scratch | J(canonical stored JSON)+A(key bytes)+G<(Value,Vec<u8>)> for each fetched entry, in index order, every store | scan_entry, before decode/key copy/result reserve |
 //! | SQLite native column payload scratch | store guard, not public | 2*page_size per scan, then 2*(JSON/key byte lengths)+64 per preflight row | preflight rows before stepping again; the guard prepays the first row's resident copy; the preflight stops at the first entry whose floor 4*A(JSON)+A(key) the meter cannot admit, and the payload SQL fetches no further; overflow payloads are not read; database pages, cached VM and per-execution statement storage are shared images |
-//! | Memory scan names, range copies | store guard, not public | 2*A(table.index)+A(lo)+A(hi) | scan_metered, before the range lookup |
+//! | Memory scan names, range copies | neither public nor guarded | 0; bounded by the 512-byte label and 2,048-byte key limits | memory stores reserve only their entries on the guard; MemoryRows prices each held row's canonical image by streaming it (stored_value_bytes), allocating nothing before the charge |
 //! | Memory row maps; compiled schema/program; SQLite database/cache | shared images | 0 per Arc/borrow; storage engine's existing pages/cache are not interpreter heap | store borrowing; no row-body clone per lane |
 //! | PostgreSQL optional adapter batch | store guard, not public | 2*R+4096, then 2*(JSON/key bytes)+256 per preflight row | per-row size preflight in the same snapshot, same stop rule as SQLite, before the driver owns the batch |
 //! | Every decoded discovery/refill key component | bounded store scratch | 4*S<Value>(max(components,4))+4*A(max(key bytes,8)) | key_decode allowance before key::decode |
@@ -236,6 +236,38 @@ fn stored_row_bytes(json: &str) -> u64 {
         + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1)
 }
 
+/// stored_row_bytes of a value's canonical JSON, streamed: the same counts
+/// (quoted bytes, `{"Row":`/`{"Map":` roots, tags, arrays, fields, commas)
+/// gathered from the serializer's writes without materializing the text.
+pub(crate) fn stored_value_bytes(row: &Value) -> Result<u64, RuntimeError> {
+    #[derive(Default)]
+    struct Shape { len: usize, quoted: bool, escaped: bool, row: Option<usize>, map: Option<usize>, objects: u64, tags: u64, arrays: u64, fields: u64, commas: u64 }
+    impl std::io::Write for Shape {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            for &b in bytes {
+                // Root detection reads the raw bytes after an unquoted `{`, as starts_with does.
+                for (matched, pattern) in [(&mut self.row, b"\"Row\":"), (&mut self.map, b"\"Map\":")] {
+                    if let Some(k) = *matched {
+                        *matched = if pattern[k] == b { if k + 1 == pattern.len() { self.objects += 1; None } else { Some(k + 1) } } else { None };
+                    }
+                }
+                if self.quoted {
+                    if self.escaped { self.escaped = false; } else if b == b'\\' { self.escaped = true; } else if b == b'"' { self.quoted = false; }
+                } else { match b { b'"' => self.quoted = true, b'{' => { self.tags += 1; self.row = Some(0); self.map = Some(0); }, b'[' => self.arrays += 1, b':' => self.fields += 1, b',' => self.commas += 1, _ => {} } }
+            }
+            self.len += bytes.len();
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    }
+    let mut shape = Shape::default();
+    serde_json::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    let Shape { len, objects, tags, arrays, fields, commas, .. } = shape;
+    let fields = fields - (tags - objects);
+    Ok(4 * allocation(len) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
+        + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1))
+}
+
 // @ref LLP 3000.007#20.24.5 — one logical scan charge on every store; physical scratch is the store's guard.
 /// The public charge for opening a store scan, the same on every store and
 /// on the device: the encoded range and the copied table/index name. No
@@ -250,7 +282,18 @@ pub fn scan_open(meter: &mut crate::engine::InternalMeter<'_>, table: &str, inde
 /// The store's guard holds the same bytes. Returns the result vector's
 /// additional capacity, already charged, for the caller to reserve.
 pub fn scan_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, json: &str, key: &[u8]) -> Result<usize, RuntimeError> {
-    let (row, key) = (stored_row_bytes(json), allocation(key.len()));
+    scan_entry_priced(meter, guard, len, capacity, stored_row_bytes(json), key)
+}
+
+/// scan_entry for a store that holds decoded rows: J of the row's canonical
+/// image, counted while serializing into no buffer, so the refusal precedes
+/// every allocation of the entry.
+pub(crate) fn scan_value_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, row: &Value, key: &[u8]) -> Result<usize, RuntimeError> {
+    scan_entry_priced(meter, guard, len, capacity, stored_value_bytes(row)?, key)
+}
+
+fn scan_entry_priced(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, row: u64, key: &[u8]) -> Result<usize, RuntimeError> {
+    let key = allocation(key.len());
     meter.heap(row)?;
     meter.heap(key)?;
     // G<(Value,Vec<u8>)>: the whole replacement allocation, before growth.
