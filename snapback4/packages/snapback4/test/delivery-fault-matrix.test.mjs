@@ -124,7 +124,7 @@ for (const entry of cases) for (const mode of (process.env.RG_MATRIX_MODE ? [pro
       },
       fetch(path, init) {
         fault();
-        if (prepared && enabled && ((index === 37 && path === '/probe') || (index === 44 && path === '/changes') || (index === 47 && path === '/sync' && stack.getStore()?.some(id=>id.startsWith('local.ts:follow:syncOnce')))) && failures < budget) { failures++; throw error; }
+        if (prepared && enabled && ((index === 37 && path === '/probe') || (index === 44 && path === '/changes') || (index === 47 && path === '/sync' && stack.getStore()?.some(id=>id === followSync))) && failures < budget) { failures++; throw error; }
         if (path === '/probe') return index === 157 ? Response.json({denied:{code:'E_RATE_LIMIT',family:'limit',message:'busy',retryable:true}}, {status:503}) : Response.json({ok:true,store_id:'A',seq:11});
         if (scenario === 'acknowledgement' && queueIds.length && path === '/sync') return Response.json({snapshot:false,store_id:'A',generation:1,events:[],watermark:11,more:false});
         if (!prepared) return;

@@ -337,7 +337,7 @@
   },
   {
     "index": 48,
-    "id": "local.ts:follow:syncOnce()#1",
+    "id": "local.ts:follow:network.once()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
@@ -393,14 +393,14 @@
   },
   {
     "index": 56,
-    "id": "local.ts:flushOnce:syncOnce()#1",
+    "id": "local.ts:flushOnce:network.once()#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 57,
-    "id": "local.ts:flushOnce:network(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
+    "id": "local.ts:flushOnce:network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -449,7 +449,7 @@
   },
   {
     "index": 64,
-    "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined)#1",
+    "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -554,14 +554,14 @@
   },
   {
     "index": 79,
-    "id": "local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore)#1",
+    "id": "local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore, dispatchStore)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 80,
-    "id": "local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1",
+    "id": "local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false

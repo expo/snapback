@@ -43,3 +43,20 @@ final timing cohort drained: **300/300 wasm histories pass in 176.905 s**
 unchanged. This does not erase the original canonical red or identify its cause.
 The original canonical summary is `== 1 failure(s) in 3501 s` (`client tests`);
 its final model phase passes 79/79.
+
+
+## FT investigation — 2026-10-08
+
+Still open. FT ran the unchanged complete oracle repeatedly under confined
+CPU contention with real neighbouring client files. Every repetition retains
+300 independent process histories and 300 wasm histories, each with all three
+schedules, the existing 1,800-second per-host guard and original assertions.
+Final exact repetitions and measured durations are in the FT report below.
+The timeout did not reproduce. SN changed one-shot settlement and FL/QF's
+ordinary file runner now owns and drains descendant process groups; neither
+fact identifies the formerly stalled operation or proves every oracle gate
+settles. No seed/guard reduction or product change was made. Preserve this
+as an unresolved oracle-progress failure rather than equating successful
+Linux reruns with the original loaded Darwin event.
+
+[FT commands, retained evidence and final counts](../snapback4/reports/20261008-ft-client-flakes/REPORT.md).
