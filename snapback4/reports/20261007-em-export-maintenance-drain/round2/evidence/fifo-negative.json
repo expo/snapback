@@ -1,0 +1,7 @@
+{
+  "exit": 1,
+  "expected": 1,
+  "binary": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8/snapback4",
+  "elapsed": 4.111506024986738,
+  "reason": "original observer blocks beyond its deadline; only the test watchdog kills it"
+}

@@ -1,0 +1,61 @@
+{
+  "files": [
+    {
+      "file": "packages/snapback4/test/maintenance-evidence.test.mjs",
+      "elapsedMs": 4732,
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+      "elapsedMs": 11338,
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-signals.test.mjs",
+      "elapsedMs": 38254,
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-background.test.mjs",
+      "elapsedMs": 390602,
+      "tests": 95,
+      "pass": 63,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 32
+    }
+  ],
+  "totals": {
+    "tests": 119,
+    "pass": 87,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 32
+  },
+  "recovery": {
+    "parallel": {
+      "passed": 23,
+      "failed": 2
+    },
+    "round4RetentionBaseline": {
+      "passed": 23,
+      "failed": 2
+    },
+    "serial": {
+      "passed": 25,
+      "failed": 0
+    }
+  }
+}

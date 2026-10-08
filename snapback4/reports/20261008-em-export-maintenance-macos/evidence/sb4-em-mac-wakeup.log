@@ -1,0 +1,56 @@
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418241146777000-9aa8eeba-cleanup-cleanup
+✔ maintenance wakeup: empty second check cannot strand a coalesced request (2775.632375ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418244095393000-900eb1d3-cleanup-cleanup
+✔ maintenance wakeup: expiry guard cannot strand a coalesced request (2945.315459ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418246074798000-ea6df8d7-cleanup-cleanup
+✔ maintenance wakeup: cancellation guard cannot strand a coalesced request (1980.59825ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418248811858000-4bde6148-cleanup-cleanup
+✔ maintenance wakeup: producer retries when the holder exits before notification (2736.872625ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418251258087000-ecd1c892-cleanup-cleanup
+✔ maintenance wakeup: expiry remains a stop without a fresh producer (2444.599125ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418252695603000-a99197d6-cleanup-cleanup
+✔ maintenance wakeup: cancellation remains a stop without a fresh producer (1437.843583ms)
+maintenance evidence (sleep-retry-false): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418253619840000-842893b4-failure-sleep-retry-false
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418255302351000-5a651567-cleanup-cleanup
+✔ maintenance sleep: notification crosses sleep, producer retry=false (2605.825375ms)
+maintenance evidence (sleep-retry-true): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418256232280000-68fcea99-failure-sleep-retry-true
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418257423959000-07257b67-cleanup-cleanup
+✔ maintenance sleep: notification crosses sleep, producer retry=true (2121.865792ms)
+maintenance evidence (sleep-successor-start): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418258456805000-300e4496-failure-sleep-successor-start
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418259991496000-39550df8-cleanup-cleanup
+✔ maintenance sleep: successor keeps the sample accepted before launch (2568.619417ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418261634480000-dcf9966d-cleanup-cleanup
+✔ maintenance sleep: no fresh producer stops, a post-sleep export can recover (1640.767541ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418268923179000-5fda5a79-cleanup-cleanup
+✔ maintenance deadline: idle success adopts a later coalesced intent (7289.490167ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418274581391000-a576b978-cleanup-cleanup
+✔ maintenance deadline: live guard adopts a later coalesced intent (5658.674792ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418275212178000-b6bee241-cleanup-cleanup
+✔ maintenance deadline: consumption preserves a concurrent replacement (632.672ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418277452635000-d22e335c-cleanup-cleanup
+✔ maintenance deadline: a later wakeup that crossed sleep is not adopted (2238.354625ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418278964515000-bebe47c9-cleanup-cleanup
+✔ maintenance deadline: cancellation while consuming leaves an adoptable receipt (1511.87325ms)
+maintenance evidence (producer-order): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418281520978000-566b1c48-failure-producer-order
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418281551427000-413a9b20-cleanup-cleanup
+✔ maintenance publication: stale producer resumes=false (2585.491458ms)
+maintenance evidence (producer-order): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418283910830000-ab00eec2-failure-producer-order
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418283945009000-c40f96d5-cleanup-cleanup
+✔ maintenance publication: stale producer resumes=true (2394.09975ms)
+maintenance evidence (producer-order): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418286174261000-e8fa61bb-failure-producer-order
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418286207144000-08f4564c-cleanup-cleanup
+✔ maintenance publication: older valid producer resumes=true (2261.44075ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418288867055000-f931417d-cleanup-cleanup
+✔ maintenance publication: writers serialize, owner killed=false (2660.767625ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418291359359000-899055d0-cleanup-cleanup
+✔ maintenance publication: writers serialize, owner killed=true (2492.543916ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791418298625524000-c94e2918-cleanup-cleanup
+✔ maintenance publication: a stuck writer refuses within its acquisition bound (7266.556625ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60315.28925

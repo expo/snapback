@@ -1,0 +1,5 @@
+--- fixed
++++ trace-line-negative
+@@ -47 +47 @@
+-        let remaining = ((LIMIT - size) as usize).min(LINE_LIMIT);
++        let remaining = (LIMIT - size) as usize;

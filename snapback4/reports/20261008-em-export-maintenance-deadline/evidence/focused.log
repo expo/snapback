@@ -1,0 +1,111 @@
+TAP version 13
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412864380848288-39150e54-cleanup-cleanup
+# Subtest: maintenance wakeup: empty second check cannot strand a coalesced request
+ok 1 - maintenance wakeup: empty second check cannot strand a coalesced request
+  ---
+  duration_ms: 627.824239
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412865703860901-63320f90-cleanup-cleanup
+# Subtest: maintenance wakeup: expiry guard cannot strand a coalesced request
+ok 2 - maintenance wakeup: expiry guard cannot strand a coalesced request
+  ---
+  duration_ms: 1320.359175
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412866401428423-5e4ed673-cleanup-cleanup
+# Subtest: maintenance wakeup: cancellation guard cannot strand a coalesced request
+ok 3 - maintenance wakeup: cancellation guard cannot strand a coalesced request
+  ---
+  duration_ms: 698.293951
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412867674948811-32b8f803-cleanup-cleanup
+# Subtest: maintenance wakeup: producer retries when the holder exits before notification
+ok 4 - maintenance wakeup: producer retries when the holder exits before notification
+  ---
+  duration_ms: 1273.206217
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412868916939794-c9149c2f-cleanup-cleanup
+# Subtest: maintenance wakeup: expiry remains a stop without a fresh producer
+ok 5 - maintenance wakeup: expiry remains a stop without a fresh producer
+  ---
+  duration_ms: 1241.48217
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412869558198763-258123e7-cleanup-cleanup
+# Subtest: maintenance wakeup: cancellation remains a stop without a fresh producer
+ok 6 - maintenance wakeup: cancellation remains a stop without a fresh producer
+  ---
+  duration_ms: 641.80071
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-false): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412870389172024-376f9cff-failure-sleep-retry-false
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412870855911018-5cd4e583-cleanup-cleanup
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=false
+ok 7 - maintenance sleep: notification crosses sleep, producer retry=false
+  ---
+  duration_ms: 1297.087258
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-true): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412871701190386-6b3fc7e0-failure-sleep-retry-true
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412872248821996-d44b65c8-cleanup-cleanup
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=true
+ok 8 - maintenance sleep: notification crosses sleep, producer retry=true
+  ---
+  duration_ms: 1392.826562
+  type: 'test'
+  ...
+# maintenance evidence (sleep-successor-start): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412873199324535-909e17e2-failure-sleep-successor-start
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412873680591778-bd8e3004-cleanup-cleanup
+# Subtest: maintenance sleep: successor keeps the sample accepted before launch
+ok 9 - maintenance sleep: successor keeps the sample accepted before launch
+  ---
+  duration_ms: 1431.859056
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412874320456807-6b56c6b5-cleanup-cleanup
+# Subtest: maintenance sleep: no fresh producer stops, a post-sleep export can recover
+ok 10 - maintenance sleep: no fresh producer stops, a post-sleep export can recover
+  ---
+  duration_ms: 639.331049
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412879963394458-050899e5-cleanup-cleanup
+# Subtest: maintenance deadline: idle success adopts a later coalesced intent
+ok 11 - maintenance deadline: idle success adopts a later coalesced intent
+  ---
+  duration_ms: 5643.274416
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412885599737282-0307b8f5-cleanup-cleanup
+# Subtest: maintenance deadline: live guard adopts a later coalesced intent
+ok 12 - maintenance deadline: live guard adopts a later coalesced intent
+  ---
+  duration_ms: 5635.952199
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412886259578758-4d5f806f-cleanup-cleanup
+# Subtest: maintenance deadline: consumption preserves a concurrent replacement
+ok 13 - maintenance deadline: consumption preserves a concurrent replacement
+  ---
+  duration_ms: 659.787154
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-deadline/evidence/focused-snapshots/maintenance-cb65a433eb364227/snapshot-1791412887525656780-5a9ca70a-cleanup-cleanup
+# Subtest: maintenance deadline: a later wakeup that crossed sleep is not adopted
+ok 14 - maintenance deadline: a later wakeup that crossed sleep is not adopted
+  ---
+  duration_ms: 1265.675548
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23825.574976

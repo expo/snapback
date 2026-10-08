@@ -3,6 +3,10 @@ use super::*;
 use std::os::{fd::{AsRawFd, FromRawFd}, unix::process::CommandExt};
 use std::sync::{Arc, Mutex};
 
+#[path = "export_policy.rs"]
+mod policy;
+pub(super) fn export_command() -> Command { policy::command(&executable()) }
+
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 pub(super) fn active() -> bool { ACTIVE.load(Ordering::Relaxed) }
 pub(super) fn lower_app(pid: u32) -> Result<Value> {
@@ -21,7 +25,7 @@ pub(super) fn lower_app(pid: u32) -> Result<Value> {
 }
 fn read(path: &Path) -> Value { recovery::read(path) }
 fn save(path: &Path, value: &Value) -> Result<()> { recovery::write(path, value) }
-fn own_policy() -> i32 {
+pub(super) fn own_policy() -> i32 {
     #[cfg(target_os = "macos")]
     { unsafe { libc::getpriority(libc::PRIO_DARWIN_PROCESS, 0) } }
     #[cfg(not(target_os = "macos"))]
@@ -104,10 +108,7 @@ pub(super) fn schedule(dir: &Path, target: &Path, export: &File) {
         save(&dir.join("request.json"), &request)?;
         save(&dir.parent().unwrap().join("latest.json"), &request)?;
         let log = output(&dir.join("background.log"))?;
-        #[cfg(target_os = "macos")]
-        let mut command = { let mut c = Command::new("/usr/sbin/taskpolicy"); c.args(["-b", "-c", "background"]).arg(executable()); c };
-        #[cfg(not(target_os = "macos"))]
-        let mut command = Command::new(executable());
+        let mut command = export_command();
         command.args(["witness", "background-worker"]).arg(dir).stdin(Stdio::null())
             .stdout(log.try_clone().map_err(|e| error("E_WITNESS_ARTIFACT", e))?).stderr(log);
         let child = spawn_owned(command, export, None, true)?;
@@ -190,7 +191,7 @@ pub(super) fn worker(args: &[String]) -> i32 {
         let policy = own_policy();
         save(&dir.join("worker.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now(), "darwinBackground": policy }))?;
         #[cfg(target_os = "macos")]
-        if policy != 1 { return Err(error("E_WITNESS_PROCESS", "background policy was not inherited")); }
+        if policy != policy::expected() { return Err(error("E_WITNESS_PROCESS", if policy::expected() == 0 { "fixture launch did not inherit normal priority" } else { "background policy was not inherited" })); }
         let lock_path = Path::new(".snapback4-witness/background.lock");
         fs::create_dir_all(lock_path.parent().unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         let lock = OpenOptions::new().create(true).truncate(false).read(true).write(true).open(lock_path).map_err(|e| error("E_WITNESS_PROCESS", e))?;
@@ -272,6 +273,19 @@ pub(super) fn worker(args: &[String]) -> i32 {
 // continuous clock advances asleep; uptime does not. Unit tests inject samples.
 #[allow(deprecated)]
 pub(super) fn sleep_clock() -> u64 {
+    // Debug-only replay of Darwin clock samples, without suspending the host.
+    #[cfg(debug_assertions)]
+    if let Some(path) = std::env::var_os("SNAPBACK4_TEST_SLEEP_CLOCK") {
+        use std::os::unix::fs::OpenOptionsExt;
+        if let Ok(file) = OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW).open(path) {
+            if file.metadata().is_ok_and(|m| m.is_file() && m.len() <= 32) {
+                let mut sample = String::new();
+                if file.take(32).read_to_string(&mut sample).is_ok() {
+                    if let Ok(sample) = sample.trim().parse() { return sample; }
+                }
+            }
+        }
+    }
     #[cfg(target_os = "macos")]
     unsafe {
         unsafe extern "C" { fn mach_continuous_time() -> u64; }
@@ -297,7 +311,7 @@ pub(super) fn driver(args: &[String]) -> i32 {
         let policy = own_policy();
         save(&dir.join("driver.json"), &json!({ "process": recovery::identity(std::process::id()), "at": now(), "darwinBackground": policy }))?;
         #[cfg(target_os = "macos")]
-        if policy != 1 { return Err(error("E_WITNESS_PROCESS", "driver did not inherit background policy")); }
+        if policy != policy::expected() { return Err(error("E_WITNESS_PROCESS", if policy::expected() == 0 { "fixture driver did not inherit normal priority" } else { "driver did not inherit background policy" })); }
         let done = Arc::new(AtomicBool::new(false));
         let why = Arc::new(Mutex::new(None::<String>));
         let monitor = {

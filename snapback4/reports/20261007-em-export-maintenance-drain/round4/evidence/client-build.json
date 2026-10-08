@@ -1,0 +1,13 @@
+{
+  "command": [
+    "bun",
+    "run",
+    "--cwd",
+    "packages/snapback4",
+    "build"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T21:27:05.810495+00:00",
+  "elapsedSeconds": 2.765002046013251,
+  "exitCode": 0
+}

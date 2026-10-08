@@ -1,0 +1,12 @@
+{
+  "command": [
+    "python3",
+    "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-priority/stalls.py",
+    "--binary",
+    "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/be70c0b0520f174618599ea68f98c43840880f77dc58b2504ba07ef9094d428d/snapback4"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-08T03:26:15.329938+00:00",
+  "elapsedSeconds": 182.517957966018,
+  "exitCode": 0
+}

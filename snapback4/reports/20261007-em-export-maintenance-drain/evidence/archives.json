@@ -1,0 +1,86 @@
+{
+  "baseline": {
+    "files": 144,
+    "uncompressedBytes": 88340,
+    "archiveBytes": 9626,
+    "sha256": "e9ae600c7ed94868c9da53e74577313799f6f7721c9ab17a13ba99d970361c9b"
+  },
+  "baseline-ready": {
+    "files": 888,
+    "uncompressedBytes": 521719,
+    "archiveBytes": 68995,
+    "sha256": "6a6c141eddc19f40065d7a8359f426bd5763b261a7c5e4603e22c7bdbf411fea"
+  },
+  "deadline-reproduce": {
+    "files": 2242,
+    "uncompressedBytes": 698906,
+    "archiveBytes": 130604,
+    "sha256": "4b2782537b0b745bedbe18c782aa4be2769610f2c6b9b8ee8ac685bc7053eeac"
+  },
+  "reproduce": {
+    "files": 7278,
+    "uncompressedBytes": 5191483,
+    "archiveBytes": 625209,
+    "sha256": "7e825a51f6f8a5afefaad81b1927d3fd74df4a348d80467f654352603f113637"
+  },
+  "pinned-baseline": {
+    "files": 26402,
+    "uncompressedBytes": 17432828,
+    "archiveBytes": 2236588,
+    "sha256": "50c68fd84739c8f7888206514543bc9b9297493f5923b265c73e9c707ba54e58"
+  },
+  "pinned-races": {
+    "files": 92802,
+    "uncompressedBytes": 68543455,
+    "archiveBytes": 8344428,
+    "sha256": "3b607e8967d7e39688d4a5b4cb8b5d3af21e9df16bbef987268dddc2fe8b0df1"
+  },
+  "original-baseline": {
+    "files": 13003,
+    "uncompressedBytes": 6568037,
+    "archiveBytes": 895658,
+    "sha256": "ae5ac516be540cdd5d01714b5dc6b382703626cf0d0812043dae282db2c976b6"
+  },
+  "fh-baseline": {
+    "files": 9422,
+    "uncompressedBytes": 7212092,
+    "archiveBytes": 868477,
+    "sha256": "8c7acb4c6444dc4705bc7224a9c73ce81981bcf26fe1416c2d14b7bf619668a0"
+  },
+  "whole-file-baseline": {
+    "files": 60410,
+    "uncompressedBytes": 33134582,
+    "archiveBytes": 4639822,
+    "sha256": "049063f721c92e3ed62fc54b1df6ad4bce2785c20ca758360b138b55e42db7ce"
+  },
+  "negative": {
+    "files": 54,
+    "uncompressedBytes": 155465,
+    "archiveBytes": 14601,
+    "sha256": "1df884b7b47c8602ec30a15e2d4913ee8b36966934dc6842f6e119342cccd6b2"
+  },
+  "negative-current": {
+    "files": 118,
+    "uncompressedBytes": 187134,
+    "archiveBytes": 21255,
+    "sha256": "cc109cfa21b98dd4d4e0b56e105541494e5d7e8d1f397e2ed790b898975f939e"
+  },
+  "whole-file-final-launch": {
+    "files": 4,
+    "uncompressedBytes": 1081,
+    "archiveBytes": 884,
+    "sha256": "4ddd46ed8b38743803e55e6470478cd24662e97aafb618a7ab3609d886b90980"
+  },
+  "bursty-four-core": {
+    "files": 19043,
+    "uncompressedBytes": 12289255,
+    "archiveBytes": 1562990,
+    "sha256": "81b79c074d9f034842eb6d8062798fdcc1fa9403cd5a408c6343c9ddc8dd675c"
+  },
+  "whole-file-final": {
+    "files": 7554,
+    "uncompressedBytes": 4342258,
+    "archiveBytes": 594805,
+    "sha256": "c51205d488affefed9d873bb62f1f46fdffd3e8f55dc853622f777bc817a4b8f"
+  }
+}

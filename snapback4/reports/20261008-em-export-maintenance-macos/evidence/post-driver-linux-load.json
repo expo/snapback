@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=first-started last-published generation",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-08T01:00:05.231291+00:00",
+  "elapsedSeconds": 0.08739778099698015,
+  "exitCode": 0
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "../ref-check",
+    "--root",
+    "..",
+    "--verbose"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T22:51:20.742542+00:00",
+  "elapsedSeconds": 3.9597635949903633,
+  "exitCode": 0
+}

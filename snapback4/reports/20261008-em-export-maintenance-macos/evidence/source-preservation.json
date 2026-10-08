@@ -1,0 +1,19 @@
+{
+  "snapback4/packages/snapback4/test/helpers/maintenance_processes.py": {
+    "unchanged": true,
+    "sha256": "50ef3f37d2dd0428131c45374f929f04de30ae700b8a185b2562b0be66037b0d"
+  },
+  "snapback4/scripts/test-signals.mjs": {
+    "unchanged": true,
+    "sha256": "e65c5d90f319c41d5ebfe0f97c581eadeef3b03cced8128efbb69da19250cd14"
+  },
+  "snapback4/packages/snapback4/test/helpers/fixture-signals.mjs": {
+    "unchanged": true,
+    "sha256": "e708a18995c1c852c575dda60279f16758b8043b5ad220bf0c858e6e3a7f03ca"
+  },
+  "maintenanceIdle": {
+    "unchanged": true,
+    "sha256": "217b5add89c364ce3d54c31772eeb228317a3228db2378c0a77a6ff56a78b731"
+  },
+  "rustSourceUnchanged": true
+}

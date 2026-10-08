@@ -1,0 +1,19 @@
+{
+  "command": [
+    "env",
+    "SNAPBACK4_EXPORT_TEST_BINARY=/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/da8d88838c98b49f1a417415587b07c8c52938fbc68955e19ef729af1ee551b3/snapback4",
+    "SNAPBACK4_MAINTENANCE_EVIDENCE=/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots",
+    "node",
+    "scripts/run-client-tests.mjs",
+    "3",
+    "files",
+    "packages/snapback4/test/export-background.test.mjs",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+    "packages/snapback4/test/maintenance-evidence.test.mjs",
+    "packages/snapback4/test/test-signals.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T23:40:40.379666+00:00",
+  "elapsedSeconds": 383.0330274760199,
+  "exitCode": 0
+}

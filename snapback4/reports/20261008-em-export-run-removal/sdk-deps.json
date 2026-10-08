@@ -1,0 +1,10 @@
+{
+  "name": "sdk-deps",
+  "command": [
+    "bash",
+    "/home/ccheever/sb4-intent/check-sdk-deps.sh"
+  ],
+  "exitCode": 0,
+  "seconds": 0.0224534859880805,
+  "childUmask": "0o2"
+}

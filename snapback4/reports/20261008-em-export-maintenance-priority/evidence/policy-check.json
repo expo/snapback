@@ -1,0 +1,53 @@
+[
+  {
+    "mode": "yes",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--test",
+      "-C",
+      "debug-assertions=yes",
+      "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round9-policy-x0pi2jyu/harness.rs",
+      "-o",
+      "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round9-policy-x0pi2jyu/policy-test"
+    ],
+    "sourceSha256": "bc9787298d493ac8997a7f75056b1f0710b2d7774c1bf98e27498843d4fc12e3",
+    "override": "1",
+    "exitCode": 0,
+    "expectedExit": 0
+  },
+  {
+    "mode": "no",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--test",
+      "-C",
+      "debug-assertions=no",
+      "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round9-policy-x0pi2jyu/harness.rs",
+      "-o",
+      "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round9-policy-x0pi2jyu/policy-test"
+    ],
+    "sourceSha256": "bc9787298d493ac8997a7f75056b1f0710b2d7774c1bf98e27498843d4fc12e3",
+    "override": "1",
+    "exitCode": 0,
+    "expectedExit": 0
+  },
+  {
+    "mode": "negative-release",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--test",
+      "-C",
+      "debug-assertions=no",
+      "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round9-policy-x0pi2jyu/harness.rs",
+      "-o",
+      "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round9-policy-x0pi2jyu/policy-test"
+    ],
+    "sourceSha256": "180f86b55d334a30fc68cc21a79c3a1314092e0f8d5af51cfe1e6f3912fcc465",
+    "override": "1",
+    "exitCode": 101,
+    "expectedExit": 101
+  }
+]

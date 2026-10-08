@@ -116,6 +116,31 @@ Ownership and process-group checks remain unchanged.
 Evidence: `round5-full-suite.log.gz` and `round5-cli-rerun.log.gz` under the
 [RO report evidence](../snapback4/reports/20261006-ro-read-only/evidence/).
 
+
+## 2026-10-07 — EM round 3: parked export maintenance with retained state
+
+The four-core CPU/disk cohort's invocation 15 failed
+`maintenance crash matrix: publication-handoff (off, next Expo fails)` after
+104.99 seconds. The other three selected cases in that invocation passed. The
+maintenance result records `E_WITNESS_PROCESS: invalid /proc process group`;
+the strict 90-second drain check finds a parked claim after the observer exits.
+Native work itself returned successfully in 142 ms, but its group cleanup
+refused and left the `.retention-*` journal directory. The scan then recorded
+the error and handed off with the claim parked, as designed for a known failure.
+
+The [EM round-3 report](../snapback4/reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
+links the complete TAP and bounded failure snapshot. It retains queue/result
+journals, trace timestamps and verified fixture-process observations. The
+rejected `/proc` row itself is still unavailable: no claim is made about its
+contents, PID, a disappearing process or an owned leak. EM changes queue wakeup
+handoffs, not `recovery.rs` or native inspection. The recorded CLI is SHA-256
+`121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c`.
+
+This connects the known native inspection refusal to an observed maintenance
+drain assertion, without identifying the earlier incidents' causes. Keep this
+ticket open. No process-group or parked-drain check is weakened; the recurrence
+remains a failure even if later repetitions pass.
+
 ## 2026-10-07 — FL round 2 recurrence
 
 The FL round-2 affected witness-module run (one test thread) reported this same
@@ -165,3 +190,18 @@ the same native binary. It does not explain or erase the failed candidate run.
 The unchanged FS base `ecba83f39e2f8539ffa08d73949e8e953760f3e7` failed `preparation::tests::recovery_direct_node_drains_late_group_member` once in 30 four-thread witness-module runs. `baseline-witness/026.log.gz` reports `E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_PROCESS: invalid /proc process group`. This is separate from the fork-inherited lease failures reproduced in the same campaign. The refused stat snapshot is still unavailable; no new parser cause is claimed and no process-classification check changed. See the [FS report](../snapback4/reports/20261008-fs-witness-worker-flakes/REPORT.md). This ticket stays open.
 
 FS's final-source loaded witness run also refused `invalid /proc process group` in `recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper` (`final-witness/004.log.gz`). That scenario was isolated from unrelated libtest forks; the raw stat snapshot is still unavailable. This further distinguishes process inspection from the last-close lease assertions.
+
+## 2026-10-08 — EM round 11 integration recurrence
+
+After merging main `376fb2912e`, the four-thread native witness run passed
+78/79 cases and failed
+`preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits`
+with `E_WITNESS_PROCESS: invalid /proc process group` at `preparation.rs:182`.
+The same case passed an isolated rerun. The emitting inspection/parser and
+that preparation test are unchanged by EM; all retention, recovery and
+publication cases passed in the failed aggregate. No refused raw stat bytes
+were retained, so neither the rerun nor this recurrence establishes the
+underlying inspection cause. The classification checks remain unchanged.
+See [EM round 11](../snapback4/reports/20261008-em-export-run-removal/REPORT.md)
+and its retained `native-witness.log.gz` / `native-inspection-recheck.log.gz`.
+This ticket remains open.

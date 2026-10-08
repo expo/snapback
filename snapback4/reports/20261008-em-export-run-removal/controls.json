@@ -1,0 +1,35 @@
+[
+  {
+    "name": "build-negative",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exitCode": 0,
+    "seconds": 1.610780799004715
+  },
+  {
+    "name": "negative-controls",
+    "command": [
+      "node",
+      "--test",
+      "--test-name-pattern=failed export removal|shell repair cannot",
+      "packages/snapback4/test/export-background.test.mjs"
+    ],
+    "exitCode": 1,
+    "seconds": 2.17446359799942
+  },
+  {
+    "name": "build-final",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exitCode": 0,
+    "seconds": 1.6465170349983964
+  }
+]

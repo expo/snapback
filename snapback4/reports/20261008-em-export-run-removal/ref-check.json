@@ -1,0 +1,12 @@
+{
+  "name": "ref-check",
+  "command": [
+    "../ref-check",
+    "--root",
+    "..",
+    "--verbose"
+  ],
+  "exitCode": 0,
+  "seconds": 6.401596470997902,
+  "childUmask": "0o2"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "crash-matrix",
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=maintenance crash matrix|expired checkpoint refuses",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "exitCode": 0,
+  "seconds": 151.93326604997856
+}

@@ -1,0 +1,13 @@
+{
+  "name": "preparation-recheck",
+  "command": [
+    "node",
+    "scripts/run-client-tests.mjs",
+    "1",
+    "files",
+    "packages/snapback4/test/witness-preparation.test.mjs"
+  ],
+  "exitCode": 0,
+  "seconds": 3.352815995021956,
+  "childUmask": "0o2"
+}

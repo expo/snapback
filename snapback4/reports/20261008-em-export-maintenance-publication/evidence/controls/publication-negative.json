@@ -1,0 +1,22 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=maintenance publication: (stale|older valid) producer",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/ccheever/sb4-intent/lane-em/snapback4/target",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "6"
+  },
+  "overrides": {
+    "SNAPBACK4_EXPORT_TEST_BINARY": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/34e8d5349e16ee7f552cadb2a67ccc73bf263c2bbf4b1f168c58b0412c20523c/snapback4",
+    "SNAPBACK4_MAINTENANCE_EVIDENCE": "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/controls/publication-negative-snapshots"
+  },
+  "exitCode": 1,
+  "seconds": 94.12968360900413,
+  "retentionSha256": "5f40c475bfbfa7b9511fbc9d3fe9a3b8beb35af0fd8cd88577a3725e5f051864",
+  "traceSha256": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746"
+}

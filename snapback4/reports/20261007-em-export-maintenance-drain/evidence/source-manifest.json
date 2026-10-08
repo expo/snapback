@@ -1,0 +1,20 @@
+{
+  "baseCommit": "46803201b49980417cc3f2109289c22cbed8a439",
+  "branch": "sb4-intent/em-export-maintenance-drain",
+  "sources": {
+    "snapback4/crates/snapback4/src/verbs/witness/retention.rs": "755b01efd5653c3120752a3b0ae1db01423ffdf8d51d16c7f9cba0f27b82f7ea",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04",
+    "snapback4/crates/snapback4/src/verbs/witness/background.rs": "d119d7fd4259dfe4692bf974d42b6179e5d4f55a184fc61a2bac6d2e474842af",
+    "snapback4/crates/snapback4/src/verbs/witness/publication.rs": "e5b1d1d046f5ccdda7e32e0ea24d5ad4afa4c886807ffdfd04538bd4bdfb5163",
+    "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "540ea12d889f995cfaf82e072c491c427e349cea0fd2c43fba09cec8e7b6dc3e",
+    "snapback4/crates/snapback4/src/verbs/witness/process_group.rs": "918e1f0d859dc26275b9af988b39eaee7d4ad5ec03925be086dd39832ed3ef77",
+    "snapback4/packages/snapback4-expo/export-ios.mjs": "80d03cf2f794131605d4b8458510b952c2e11d2420e908f3e855f2303fff33ac",
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "8ac2beb44d44d6e8e06bd06ddcc1662d143226367e6e046d668da0f8284c7752",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs": "646647f60c77b0c4e8cd0555d05a5f0018fb94aa0fdc8d746ada17d8988bf235",
+    "snapback4/reports/20261007-em-export-maintenance-drain/analyze.py": "add2dcc49fbd0dfd4305f556e2bda8da78c465c21325024f2c037d9ca8143784",
+    "snapback4/reports/20261007-em-export-maintenance-drain/negative.py": "401a9d25121341b1568168abb106238649b32411d7c58aad29b9c7ffe4e65aee",
+    "snapback4/reports/20261007-em-export-maintenance-drain/stress.py": "e16582201a49f354e6cc6e17b80f2d2e002912c2b2cc50a0a933a7d9d2205d69",
+    "snapback4/reports/20261007-em-export-maintenance-drain/archive.py": "a6c13288e649b9d464902ea6337cfc026f84b2417f27c59c087ac3590f9d8622"
+  },
+  "finalBinarySha256": "8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8"
+}

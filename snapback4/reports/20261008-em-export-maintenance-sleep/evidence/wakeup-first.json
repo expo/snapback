@@ -1,0 +1,15 @@
+{
+  "command": [
+    "env",
+    "SNAPBACK4_EXPORT_TEST_BINARY=/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b5b4fd9d2bb586f33d02a4ccdcbe0be488dc9cff8c728258a48b80cff91abd67/snapback4",
+    "SNAPBACK4_MAINTENANCE_EVIDENCE=/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-sleep/evidence/positive-snapshots",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T22:05:05.768547+00:00",
+  "elapsedSeconds": 11.396764001983684,
+  "exitCode": 0
+}

@@ -1,0 +1,26 @@
+maintenance evidence (probe): /tmp/sb4-em-custody-JBmZzm/maintenance-85b6b00a6380c106/snapshot-1791420996320164187-bc288875-failure-probe
+✖ bounded snapshots retain concurrent retention custody and the current proof before history (59.482555ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.101071
+
+✖ failing tests:
+
+test at snapback4/target/em/diagnostic-control-yyhusvdx/maintenance-evidence.test.mjs:91:1
+✖ bounded snapshots retain concurrent retention custody and the current proof before history (59.482555ms)
+  Error: ENOENT: no such file or directory, open '/tmp/sb4-em-custody-JBmZzm/maintenance-85b6b00a6380c106/snapshot-1791420996320164187-bc288875-failure-probe/files/1-1/worker.json'
+      at Object.readFileSync (node:fs:439:20)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-em/snapback4/target/em/diagnostic-control-yyhusvdx/maintenance-evidence.test.mjs:111:56)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/sb4-em-custody-JBmZzm/maintenance-85b6b00a6380c106/snapshot-1791420996320164187-bc288875-failure-probe/files/1-1/worker.json'
+  }

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bun",
+    "install",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T21:25:30.293110+00:00",
+  "elapsedSeconds": 0.035104473994579166,
+  "exitCode": 0
+}

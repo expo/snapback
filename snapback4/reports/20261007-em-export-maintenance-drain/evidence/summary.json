@@ -1,0 +1,1904 @@
+{
+  "baseline": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "80-83",
+      "loadWorkers": 4,
+      "jobs": 2,
+      "start": 1791397152.3790507,
+      "binarySha256": "70a65fc0059dc600a8d737644a439b4a98f47ccc795b53cc58af953e4044cd7d",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/baseline",
+        "rounds": 30,
+        "jobs": 2,
+        "cpus": "80-83",
+        "load": 4,
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|skipped maintenance never blocks publication and drains under deadline \\(off\\)",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 2,
+    "passedInvocations": 0,
+    "exitCodes": {
+      "1": 2
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      0.9117207527160645,
+      0.9953699111938477
+    ],
+    "casePasses": 0,
+    "cases": {},
+    "traceTimings": {},
+    "expectedWorkErrors": {},
+    "malformedTraceLines": 0
+  },
+  "baseline-ready": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "80-83",
+      "loadWorkers": 4,
+      "jobs": 2,
+      "start": 1791397181.6904583,
+      "binarySha256": "70a65fc0059dc600a8d737644a439b4a98f47ccc795b53cc58af953e4044cd7d",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/baseline-ready",
+        "rounds": 30,
+        "jobs": 2,
+        "cpus": "80-83",
+        "load": 4,
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|skipped maintenance never blocks publication and drains under deadline \\(off\\)",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 2,
+    "passedInvocations": 0,
+    "exitCodes": {
+      "1": 2
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      53.25631904602051,
+      53.66788029670715
+    ],
+    "casePasses": 0,
+    "cases": {},
+    "traceTimings": {},
+    "expectedWorkErrors": {},
+    "malformedTraceLines": 0
+  },
+  "bursty-four-core": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "80-83",
+      "loadWorkers": 12,
+      "jobs": 4,
+      "start": 1791400036.7491395,
+      "binarySha256": "b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3/snapback4",
+      "sources": {
+        "packages/snapback4/test/export-background.test.mjs": "8ac2beb44d44d6e8e06bd06ddcc1662d143226367e6e046d668da0f8284c7752",
+        "packages/snapback4/test/helpers/maintenance-evidence.mjs": "7d25a43a502e7b83d7671126181f684378fbff260241b71df0b713c4c12bc26e"
+      },
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/bursty-four-core",
+        "rounds": 32,
+        "jobs": 4,
+        "cpus": "80-83",
+        "load": 12,
+        "io_workers": 2,
+        "burst_seconds": 2.0,
+        "binary": "target/debug/snapback4",
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|skipped maintenance never blocks publication and drains under deadline \\(off\\)|repeated raced retention-lock deferrals stay pending and restore the bound after release",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 32,
+    "passedInvocations": 32,
+    "exitCodes": {
+      "0": 32
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      74.590261220932,
+      74.96654796600342,
+      74.98440074920654,
+      75.30316400527954,
+      72.8393337726593,
+      72.95173025131226,
+      73.05465364456177,
+      75.49542450904846,
+      73.08046817779541,
+      73.20450949668884,
+      73.40052366256714,
+      73.76849269866943,
+      74.72075033187866,
+      74.72165417671204,
+      74.72373247146606,
+      74.72451186180115,
+      75.25216317176819,
+      75.56433892250061,
+      75.78393912315369,
+      75.99816560745239,
+      75.58240175247192,
+      75.7441041469574,
+      75.90008568763733,
+      76.00602674484253,
+      103.6700873374939,
+      104.33162331581116,
+      104.48703265190125,
+      104.54542803764343,
+      106.78573656082153,
+      107.62384104728699,
+      107.75811958312988,
+      108.30550599098206
+    ],
+    "casePasses": 128,
+    "cases": {
+      "skipped maintenance never blocks publication and drains under deadline (off)": {
+        "n": 32,
+        "medianMs": 32036.078,
+        "p95Ms": 32409.367,
+        "maxMs": 32430.9
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 32,
+        "medianMs": 15812.399,
+        "p95Ms": 27725.355,
+        "maxMs": 28060.333
+      },
+      "repeated raced retention-lock deferrals stay pending and restore the bound after release": {
+        "n": 32,
+        "medianMs": 13573.005,
+        "p95Ms": 24947.613,
+        "maxMs": 25671.956
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 32,
+        "medianMs": 14178.083,
+        "p95Ms": 23871.142,
+        "maxMs": 24034.877
+      }
+    },
+    "traceTimings": {
+      "work-ended:error": {
+        "n": 160,
+        "medianMs": 141.5,
+        "p95Ms": 30013,
+        "maxMs": 30022
+      },
+      "cleanup-ended": {
+        "n": 335,
+        "medianMs": 393,
+        "p95Ms": 30439,
+        "maxMs": 30556
+      },
+      "work-ended:ok": {
+        "n": 175,
+        "medianMs": 223,
+        "p95Ms": 926,
+        "maxMs": 1212
+      },
+      "test-drain-end:assertion": {
+        "n": 160,
+        "medianMs": 706.0,
+        "p95Ms": 1614.812,
+        "maxMs": 2139.795
+      },
+      "test-drain-end:cleanup": {
+        "n": 128,
+        "medianMs": 0.11,
+        "p95Ms": 0.325,
+        "maxMs": 1.603
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred": 32,
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: retention lock busy\n": 128
+    },
+    "malformedTraceLines": 0
+  },
+  "deadline-reproduce": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "82-83",
+      "loadWorkers": 8,
+      "jobs": 2,
+      "start": 1791397374.9323256,
+      "binarySha256": "47bf23420f57563a4fee5904f146aa48ad371b81ce0bc1c964115c529b94dd14",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/deadline-reproduce",
+        "rounds": 30,
+        "jobs": 2,
+        "cpus": "82-83",
+        "load": 8,
+        "pattern": "skipped maintenance never blocks publication and drains under deadline \\(off\\)",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 12,
+    "passedInvocations": 10,
+    "exitCodes": {
+      "0": 10,
+      "1": 2
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      35.84515118598938,
+      35.84893012046814,
+      35.50242304801941,
+      35.50635576248169,
+      35.76543307304382,
+      35.78647232055664,
+      35.723737716674805,
+      35.90949273109436,
+      35.86132764816284,
+      35.87326979637146,
+      122.17518615722656,
+      122.18141865730286
+    ],
+    "casePasses": 10,
+    "cases": {
+      "skipped maintenance never blocks publication and drains under deadline (off)": {
+        "n": 10,
+        "medianMs": 35350.77,
+        "p95Ms": 35474.104,
+        "maxMs": 35474.104
+      }
+    },
+    "traceTimings": {
+      "work-ended:error": {
+        "n": 10,
+        "medianMs": 30004.0,
+        "p95Ms": 30016,
+        "maxMs": 30016
+      },
+      "cleanup-ended": {
+        "n": 20,
+        "medianMs": 17023.5,
+        "p95Ms": 30685,
+        "maxMs": 30709
+      },
+      "work-ended:ok": {
+        "n": 10,
+        "medianMs": 2882.5,
+        "p95Ms": 2966,
+        "maxMs": 2966
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred": 10
+    },
+    "malformedTraceLines": 0
+  },
+  "fh-baseline": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "84-85",
+      "loadWorkers": 4,
+      "jobs": 2,
+      "start": 1791397982.1726124,
+      "binarySha256": "b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3/snapback4",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/fh-baseline",
+        "rounds": 60,
+        "jobs": 2,
+        "cpus": "84-85",
+        "load": 4,
+        "pattern": "repeated raced retention-lock deferrals stay pending and restore the bound after release",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 60,
+    "passedInvocations": 60,
+    "exitCodes": {
+      "0": 60
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      24.78597640991211,
+      24.84372329711914,
+      24.679142951965332,
+      24.780134439468384,
+      24.126291036605835,
+      24.459505558013916,
+      23.68058705329895,
+      23.941097259521484,
+      24.815646648406982,
+      24.94016695022583,
+      25.205405712127686,
+      25.214014768600464,
+      24.650431871414185,
+      24.65428137779236,
+      24.760743856430054,
+      24.8740177154541,
+      24.340190887451172,
+      24.395344734191895,
+      23.96469497680664,
+      24.43305540084839,
+      24.48514986038208,
+      24.990127563476562,
+      24.4595365524292,
+      24.65684747695923,
+      23.25126075744629,
+      23.820645570755005,
+      24.53482723236084,
+      24.725701093673706,
+      24.007590532302856,
+      24.45442223548889,
+      24.524707555770874,
+      24.542288303375244,
+      24.843414545059204,
+      25.07620596885681,
+      24.817698001861572,
+      24.91567897796631,
+      25.259348154067993,
+      25.32983922958374,
+      24.18952989578247,
+      24.64615488052368,
+      25.01838755607605,
+      25.453513860702515,
+      24.671003341674805,
+      24.8479266166687,
+      24.65224289894104,
+      24.718726634979248,
+      25.346111297607422,
+      25.575864553451538,
+      24.082759857177734,
+      24.94100570678711,
+      24.336198329925537,
+      24.871273040771484,
+      24.60113024711609,
+      24.625219345092773,
+      24.668771982192993,
+      24.791547775268555,
+      24.554667949676514,
+      24.98581290245056,
+      24.894192934036255,
+      24.903322458267212
+    ],
+    "casePasses": 60,
+    "cases": {
+      "repeated raced retention-lock deferrals stay pending and restore the bound after release": {
+        "n": 60,
+        "medianMs": 24436.523,
+        "p95Ms": 25047.773,
+        "maxMs": 25349.322
+      }
+    },
+    "traceTimings": {
+      "work-ended:error": {
+        "n": 240,
+        "medianMs": 143.0,
+        "p95Ms": 152,
+        "maxMs": 157
+      },
+      "cleanup-ended": {
+        "n": 300,
+        "medianMs": 531.0,
+        "p95Ms": 886,
+        "maxMs": 1002
+      },
+      "work-ended:ok": {
+        "n": 60,
+        "medianMs": 463.5,
+        "p95Ms": 552,
+        "maxMs": 560
+      },
+      "test-drain-end:assertion": {
+        "n": 34,
+        "medianMs": 1072.804,
+        "p95Ms": 1271.839,
+        "maxMs": 1328.943
+      },
+      "test-drain-end:cleanup": {
+        "n": 34,
+        "medianMs": 0.12,
+        "p95Ms": 5.853,
+        "maxMs": 6.942
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: retention lock busy\n": 240
+    },
+    "malformedTraceLines": 0
+  },
+  "original-baseline": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "84-85",
+      "loadWorkers": 4,
+      "jobs": 4,
+      "start": 1791398796.141795,
+      "binarySha256": "4ee8e2db8167bd0c9c8acabb5e5f26e3df410bfd4b8358d23239ed7bdb21eed6",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/4ee8e2db8167bd0c9c8acabb5e5f26e3df410bfd4b8358d23239ed7bdb21eed6/snapback4",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/original-baseline",
+        "rounds": 100,
+        "jobs": 4,
+        "cpus": "84-85",
+        "load": 4,
+        "binary": "target/em/original-snapback4",
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|repeated raced retention-lock deferrals stay pending and restore the bound after release",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 28,
+    "passedInvocations": 28,
+    "exitCodes": {
+      "0": 28
+    },
+    "uncompletedLogs": [
+      "run-029.log",
+      "run-030.log",
+      "run-031.log",
+      "run-032.log"
+    ],
+    "elapsedSeconds": [
+      104.99074816703796,
+      104.99466800689697,
+      106.41858577728271,
+      107.07361626625061,
+      104.83606719970703,
+      104.98919653892517,
+      105.60645771026611,
+      106.21314644813538,
+      106.17002773284912,
+      106.19839644432068,
+      107.11274814605713,
+      107.28643894195557,
+      106.5496757030487,
+      107.09033942222595,
+      107.64656138420105,
+      107.64989900588989,
+      105.57575130462646,
+      106.04390597343445,
+      106.22663474082947,
+      106.3371684551239,
+      104.62937140464783,
+      105.16200923919678,
+      106.39650964736938,
+      107.56229543685913,
+      102.8790009021759,
+      103.65279865264893,
+      103.73263430595398,
+      104.31316804885864
+    ],
+    "casePasses": 84,
+    "cases": {
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 28,
+        "medianMs": 39591.854,
+        "p95Ms": 40295.07,
+        "maxMs": 40295.268
+      },
+      "repeated raced retention-lock deferrals stay pending and restore the bound after release": {
+        "n": 28,
+        "medianMs": 33179.635,
+        "p95Ms": 33782.524,
+        "maxMs": 34472.605
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 28,
+        "medianMs": 32901.439,
+        "p95Ms": 33693.461,
+        "maxMs": 33859.466
+      }
+    },
+    "traceTimings": {
+      "test-drain-end:assertion": {
+        "n": 112,
+        "medianMs": 1282.719,
+        "p95Ms": 1529.122,
+        "maxMs": 1636.902
+      },
+      "test-drain-end:cleanup": {
+        "n": 84,
+        "medianMs": 0.114,
+        "p95Ms": 2.699,
+        "maxMs": 8.532
+      }
+    },
+    "expectedWorkErrors": {},
+    "malformedTraceLines": 0
+  },
+  "pinned-baseline": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "80-83",
+      "loadWorkers": 8,
+      "jobs": 4,
+      "start": 1791397741.802592,
+      "binarySha256": "b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3/snapback4",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/pinned-baseline",
+        "rounds": 60,
+        "jobs": 4,
+        "cpus": "80-83",
+        "load": 8,
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|skipped maintenance never blocks publication and drains under deadline \\(off\\)",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 60,
+    "passedInvocations": 60,
+    "exitCodes": {
+      "0": 60
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      119.1976683139801,
+      119.58677458763123,
+      121.37737941741943,
+      122.69193863868713,
+      88.27247452735901,
+      88.3408510684967,
+      88.40081930160522,
+      88.55315852165222,
+      88.15492844581604,
+      88.17330574989319,
+      88.39347553253174,
+      88.7459864616394,
+      88.58147931098938,
+      88.72258615493774,
+      88.96285080909729,
+      89.0409209728241,
+      88.67263460159302,
+      88.82584023475647,
+      89.08564400672913,
+      89.4737811088562,
+      89.06415963172913,
+      89.40229511260986,
+      89.97012567520142,
+      89.98062634468079,
+      89.38509225845337,
+      89.48468446731567,
+      90.04586005210876,
+      90.09130716323853,
+      97.84938478469849,
+      98.2897117137909,
+      98.30100893974304,
+      98.71479725837708,
+      99.0352942943573,
+      99.23207783699036,
+      99.23503541946411,
+      99.32217979431152,
+      98.801424741745,
+      99.47210693359375,
+      99.65307831764221,
+      99.9343650341034,
+      143.7534418106079,
+      144.2933075428009,
+      144.46706676483154,
+      144.9175567626953,
+      135.57051634788513,
+      136.82631731033325,
+      137.2562165260315,
+      139.73081922531128,
+      126.16735291481018,
+      127.32202649116516,
+      127.34861707687378,
+      127.7064516544342,
+      94.22934126853943,
+      94.957692861557,
+      95.33779716491699,
+      95.79647850990295,
+      97.25529098510742,
+      97.7501540184021,
+      98.74999380111694,
+      98.75055408477783
+    ],
+    "casePasses": 180,
+    "cases": {
+      "skipped maintenance never blocks publication and drains under deadline (off)": {
+        "n": 60,
+        "medianMs": 34067.158,
+        "p95Ms": 36100.467,
+        "maxMs": 36605.019
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 60,
+        "medianMs": 34377.82,
+        "p95Ms": 58121.296,
+        "maxMs": 59774.12
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 60,
+        "medianMs": 28391.899,
+        "p95Ms": 48870.584,
+        "maxMs": 51173.076
+      }
+    },
+    "traceTimings": {
+      "work-ended:ok": {
+        "n": 291,
+        "medianMs": 496,
+        "p95Ms": 2433,
+        "maxMs": 3363
+      },
+      "cleanup-ended": {
+        "n": 351,
+        "medianMs": 992,
+        "p95Ms": 30571,
+        "maxMs": 31033
+      },
+      "work-ended:error": {
+        "n": 60,
+        "medianMs": 30010.0,
+        "p95Ms": 30018,
+        "maxMs": 30021
+      },
+      "test-drain-end:assertion": {
+        "n": 144,
+        "medianMs": 1322.276,
+        "p95Ms": 4034.525,
+        "maxMs": 4718.428
+      },
+      "test-drain-end:cleanup": {
+        "n": 108,
+        "medianMs": 0.1,
+        "p95Ms": 0.126,
+        "maxMs": 7.478
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred": 60
+    },
+    "malformedTraceLines": 0
+  },
+  "pinned-races": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "86-95",
+      "loadWorkers": 10,
+      "jobs": 8,
+      "start": 1791398108.1471503,
+      "binarySha256": "b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3/snapback4",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/pinned-races",
+        "rounds": 200,
+        "jobs": 8,
+        "cpus": "86-95",
+        "load": 10,
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|repeated raced retention-lock deferrals stay pending and restore the bound after release",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 200,
+    "passedInvocations": 200,
+    "exitCodes": {
+      "0": 200
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      48.2748703956604,
+      48.36698246002197,
+      48.671913623809814,
+      48.684624671936035,
+      48.74624228477478,
+      48.76162791252136,
+      48.935704946517944,
+      49.37386417388916,
+      49.586915254592896,
+      49.61667346954346,
+      50.009260416030884,
+      50.02074694633484,
+      50.1767692565918,
+      50.38597059249878,
+      50.442049980163574,
+      50.46833062171936,
+      49.51499128341675,
+      49.548786878585815,
+      49.76385188102722,
+      49.87519025802612,
+      50.069151163101196,
+      50.16724610328674,
+      50.175588846206665,
+      50.68716645240784,
+      48.89539361000061,
+      49.5794141292572,
+      49.810988664627075,
+      49.81122827529907,
+      49.8147451877594,
+      49.91068148612976,
+      50.22498035430908,
+      50.52957081794739,
+      48.77562618255615,
+      48.887895345687866,
+      49.211721897125244,
+      49.21526551246643,
+      49.32134771347046,
+      49.36792230606079,
+      49.611961364746094,
+      50.1239378452301,
+      48.450990438461304,
+      49.07494354248047,
+      49.41466927528381,
+      49.4539532661438,
+      49.571335554122925,
+      49.58242726325989,
+      49.71888566017151,
+      49.993399143218994,
+      55.03966498374939,
+      55.69163703918457,
+      55.88161635398865,
+      56.31725788116455,
+      56.4001739025116,
+      56.409834146499634,
+      56.41495943069458,
+      56.80563497543335,
+      51.20201253890991,
+      51.412336587905884,
+      51.97677540779114,
+      52.232516050338745,
+      52.35034680366516,
+      52.45160126686096,
+      52.46212363243103,
+      52.499072790145874,
+      53.736242055892944,
+      53.74129676818848,
+      53.78482747077942,
+      53.86869788169861,
+      54.03530788421631,
+      54.16634011268616,
+      54.319384813308716,
+      54.426576137542725,
+      51.90594530105591,
+      52.174919843673706,
+      52.94923639297485,
+      53.04187250137329,
+      53.074150800704956,
+      53.075257539749146,
+      53.212968826293945,
+      53.323787689208984,
+      54.234015226364136,
+      54.58761525154114,
+      54.801674127578735,
+      54.88743448257446,
+      54.94065475463867,
+      55.181252002716064,
+      55.1973831653595,
+      55.265442848205566,
+      53.92537975311279,
+      54.06276988983154,
+      54.16194796562195,
+      54.401938915252686,
+      54.46384930610657,
+      54.47357702255249,
+      54.5717408657074,
+      54.63627243041992,
+      53.99974465370178,
+      54.007508993148804,
+      54.1027410030365,
+      54.17257356643677,
+      54.180535078048706,
+      54.268004179000854,
+      54.39122915267944,
+      54.71516036987305,
+      60.892504930496216,
+      61.06125736236572,
+      61.27499532699585,
+      61.51533603668213,
+      61.89767837524414,
+      61.946513652801514,
+      62.082772731781006,
+      62.094045639038086,
+      61.03569960594177,
+      61.04981565475464,
+      61.52166986465454,
+      61.55119967460632,
+      61.69785261154175,
+      62.05468678474426,
+      62.136698484420776,
+      62.48591661453247,
+      60.61033654212952,
+      60.790775775909424,
+      60.79561400413513,
+      61.00238060951233,
+      61.368499517440796,
+      61.59624528884888,
+      61.79687452316284,
+      62.1127769947052,
+      59.19715356826782,
+      59.63188886642456,
+      59.74372935295105,
+      59.75740075111389,
+      60.25200128555298,
+      60.33420515060425,
+      60.41229748725891,
+      60.527220487594604,
+      58.71007752418518,
+      59.101969957351685,
+      59.10584545135498,
+      59.10713076591492,
+      59.36840605735779,
+      59.552183389663696,
+      59.64275908470154,
+      59.64491939544678,
+      57.85891890525818,
+      57.956425189971924,
+      57.964194774627686,
+      58.51815128326416,
+      58.5287082195282,
+      58.76476240158081,
+      59.03334069252014,
+      59.137553453445435,
+      54.42375898361206,
+      54.96435523033142,
+      55.01160430908203,
+      55.40907573699951,
+      55.484984159469604,
+      55.49314785003662,
+      55.60513520240784,
+      55.769734382629395,
+      54.923786878585815,
+      55.2146110534668,
+      55.40792965888977,
+      55.5880024433136,
+      55.67034411430359,
+      55.78431844711304,
+      55.99821615219116,
+      56.01588773727417,
+      55.24577879905701,
+      55.59072923660278,
+      55.59066867828369,
+      56.021857023239136,
+      56.02147173881531,
+      56.24364900588989,
+      56.25219702720642,
+      56.263259410858154,
+      52.65309405326843,
+      52.982879638671875,
+      53.043883323669434,
+      53.18217849731445,
+      53.270397901535034,
+      53.27015161514282,
+      53.343990087509155,
+      53.856685638427734,
+      52.59358501434326,
+      52.6069016456604,
+      52.714709758758545,
+      52.85645818710327,
+      52.95936560630798,
+      53.12128686904907,
+      53.28148436546326,
+      53.387357234954834,
+      52.08338022232056,
+      52.18800330162048,
+      52.19485139846802,
+      52.72263813018799,
+      52.78954482078552,
+      53.28033971786499,
+      53.302231788635254,
+      53.465906620025635
+    ],
+    "casePasses": 600,
+    "cases": {
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 200,
+        "medianMs": 19672.53,
+        "p95Ms": 22463.448,
+        "maxMs": 22883.591
+      },
+      "repeated raced retention-lock deferrals stay pending and restore the bound after release": {
+        "n": 200,
+        "medianMs": 17151.671,
+        "p95Ms": 19868.431,
+        "maxMs": 20398.087
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 200,
+        "medianMs": 16850.895,
+        "p95Ms": 19724.791,
+        "maxMs": 20398.643
+      }
+    },
+    "traceTimings": {
+      "work-ended:ok": {
+        "n": 993,
+        "medianMs": 350,
+        "p95Ms": 472,
+        "maxMs": 548
+      },
+      "cleanup-ended": {
+        "n": 1793,
+        "medianMs": 435,
+        "p95Ms": 737,
+        "maxMs": 872
+      },
+      "work-ended:error": {
+        "n": 800,
+        "medianMs": 142.0,
+        "p95Ms": 149,
+        "maxMs": 167
+      },
+      "test-drain-end:assertion": {
+        "n": 672,
+        "medianMs": 911.485,
+        "p95Ms": 1069.7,
+        "maxMs": 1169.719
+      },
+      "test-drain-end:cleanup": {
+        "n": 504,
+        "medianMs": 0.112,
+        "p95Ms": 2.058,
+        "maxMs": 8.849
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: retention lock busy\n": 800
+    },
+    "malformedTraceLines": 0
+  },
+  "reproduce": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "80-81",
+      "loadWorkers": 4,
+      "jobs": 4,
+      "start": 1791397259.5714133,
+      "binarySha256": "47bf23420f57563a4fee5904f146aa48ad371b81ce0bc1c964115c529b94dd14",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/reproduce",
+        "rounds": 60,
+        "jobs": 4,
+        "cpus": "80-81",
+        "load": 4,
+        "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 12,
+    "passedInvocations": 8,
+    "exitCodes": {
+      "0": 8,
+      "1": 4
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      69.48922848701477,
+      69.65731859207153,
+      69.66280150413513,
+      69.97348761558533,
+      90.65597248077393,
+      91.95393514633179,
+      92.1415364742279,
+      93.2205753326416,
+      252.22222757339478,
+      252.5140254497528,
+      253.34982228279114,
+      253.6138551235199
+    ],
+    "casePasses": 16,
+    "cases": {
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 8,
+        "medianMs": 37791.804,
+        "p95Ms": 38615.214,
+        "maxMs": 38615.214
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 8,
+        "medianMs": 42259.825,
+        "p95Ms": 54211.464,
+        "maxMs": 54211.464
+      }
+    },
+    "traceTimings": {
+      "work-ended:ok": {
+        "n": 28,
+        "medianMs": 543.0,
+        "p95Ms": 1371,
+        "maxMs": 1509
+      },
+      "cleanup-ended": {
+        "n": 28,
+        "medianMs": 1002.5,
+        "p95Ms": 2383,
+        "maxMs": 2572
+      }
+    },
+    "expectedWorkErrors": {},
+    "malformedTraceLines": 8
+  },
+  "whole-file-baseline": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "80-95",
+      "loadWorkers": 0,
+      "jobs": 4,
+      "start": 1791398423.9341452,
+      "binarySha256": "b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/b4e1d18926df68cd693694c2849d1ab427a80dcffeeb86ac016b40a0e9dbead3/snapback4",
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/whole-file-baseline",
+        "rounds": 8,
+        "jobs": 4,
+        "cpus": "80-95",
+        "load": 0,
+        "pattern": ".*",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 8,
+    "passedInvocations": 8,
+    "exitCodes": {
+      "0": 8
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      662.7492566108704,
+      663.4907882213593,
+      663.6999311447144,
+      664.6819722652435,
+      438.44255805015564,
+      438.53692388534546,
+      439.00304317474365,
+      439.35225200653076
+    ],
+    "casePasses": 464,
+    "cases": {
+      "failed export-skipped handoff cannot report an older pass (off, equal bytes)": {
+        "n": 8,
+        "medianMs": 1730.458,
+        "p95Ms": 1856.146,
+        "maxMs": 1856.146
+      },
+      "failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)": {
+        "n": 8,
+        "medianMs": 1744.149,
+        "p95Ms": 1919.858,
+        "maxMs": 1919.858
+      },
+      "first opt-out publishes a complete skipped handoff": {
+        "n": 8,
+        "medianMs": 1785.849,
+        "p95Ms": 2000.5,
+        "maxMs": 2000.5
+      },
+      "repeated skipped exports retain five full plus twenty compressed runs (off)": {
+        "n": 8,
+        "medianMs": 21902.374,
+        "p95Ms": 23273.115,
+        "maxMs": 23273.115
+      },
+      "repeated skipped exports retain five full plus twenty compressed runs (non-macOS)": {
+        "n": 8,
+        "medianMs": 22358.304,
+        "p95Ms": 24217.228,
+        "maxMs": 24217.228
+      },
+      "skipped maintenance never blocks publication and drains under SIGTERM (off)": {
+        "n": 8,
+        "medianMs": 4725.358,
+        "p95Ms": 5195.331,
+        "maxMs": 5195.331
+      },
+      "skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)": {
+        "n": 8,
+        "medianMs": 4602.388,
+        "p95Ms": 5260.731,
+        "maxMs": 5260.731
+      },
+      "skipped maintenance never blocks publication and drains under deadline (off)": {
+        "n": 8,
+        "medianMs": 33347.759,
+        "p95Ms": 33522.959,
+        "maxMs": 33522.959
+      },
+      "held retention lock coalesces 28 skipped exports into one pending observer (off)": {
+        "n": 8,
+        "medianMs": 26556.902,
+        "p95Ms": 27224.002,
+        "maxMs": 27224.002
+      },
+      "held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)": {
+        "n": 8,
+        "medianMs": 27222.935,
+        "p95Ms": 27641.287,
+        "maxMs": 27641.287
+      },
+      "a held exclusive publication lock pauses one observer without starting retention workers": {
+        "n": 8,
+        "medianMs": 14714.95,
+        "p95Ms": 14968.353,
+        "maxMs": 14968.353
+      },
+      "a held shared publication lock pauses one observer without starting retention workers": {
+        "n": 8,
+        "medianMs": 14172.444,
+        "p95Ms": 15180.076,
+        "maxMs": 15180.076
+      },
+      "failed maintenance retains a parked request and a later export retries it": {
+        "n": 8,
+        "medianMs": 7384.474,
+        "p95Ms": 8186.201,
+        "maxMs": 8186.201
+      },
+      "retention repairs an ownerless publication before exchange without worker respawn": {
+        "n": 8,
+        "medianMs": 25561.651,
+        "p95Ms": 27146.818,
+        "maxMs": 27146.818
+      },
+      "retention repairs an ownerless publication after exchange without worker respawn": {
+        "n": 8,
+        "medianMs": 19861.483,
+        "p95Ms": 26138.939,
+        "maxMs": 26138.939
+      },
+      "a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)": {
+        "n": 8,
+        "medianMs": 16575.347,
+        "p95Ms": 25324.968,
+        "maxMs": 25324.968
+      },
+      "a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)": {
+        "n": 8,
+        "medianMs": 16604.813,
+        "p95Ms": 24379.123,
+        "maxMs": 24379.123
+      },
+      "retention cannot remove a run between directory creation and export lease acquisition": {
+        "n": 8,
+        "medianMs": 16746.91,
+        "p95Ms": 24034.443,
+        "maxMs": 24034.443
+      },
+      "export initialization refuses a live stuck initializer within five seconds": {
+        "n": 8,
+        "medianMs": 6273.338,
+        "p95Ms": 6770.417,
+        "maxMs": 6770.417
+      },
+      "SIGKILL of the sole maintenance custodian restores retention without another export": {
+        "n": 8,
+        "medianMs": 1917.81,
+        "p95Ms": 2227.057,
+        "maxMs": 2227.057
+      },
+      "SIGKILL of the sole maintenance observer restores retention without another export": {
+        "n": 8,
+        "medianMs": 2015.132,
+        "p95Ms": 2568.28,
+        "maxMs": 2568.28
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 8,
+        "medianMs": 11972.163,
+        "p95Ms": 14481.338,
+        "maxMs": 14481.338
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)": {
+        "n": 8,
+        "medianMs": 12402.756,
+        "p95Ms": 14843.479,
+        "maxMs": 14843.479
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (background)": {
+        "n": 8,
+        "medianMs": 12183.494,
+        "p95Ms": 14720.69,
+        "maxMs": 14720.69
+      },
+      "repeated raced retention-lock deferrals stay pending and restore the bound after release": {
+        "n": 8,
+        "medianMs": 10809.356,
+        "p95Ms": 12858.95,
+        "maxMs": 12858.95
+      },
+      "maintenance crash matrix: publication-committed (off, next Expo succeeds)": {
+        "n": 8,
+        "medianMs": 13332.998,
+        "p95Ms": 18194.75,
+        "maxMs": 18194.75
+      },
+      "maintenance crash matrix: publication-committed (off, next Expo fails)": {
+        "n": 8,
+        "medianMs": 14200.209,
+        "p95Ms": 19882.842,
+        "maxMs": 19882.842
+      },
+      "maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)": {
+        "n": 8,
+        "medianMs": 14722.228,
+        "p95Ms": 21048.001,
+        "maxMs": 21048.001
+      },
+      "maintenance crash matrix: publication-committed (non-macOS, next Expo fails)": {
+        "n": 8,
+        "medianMs": 15641.113,
+        "p95Ms": 23561.464,
+        "maxMs": 23561.464
+      },
+      "maintenance crash matrix: publication-committed (background, next Expo succeeds)": {
+        "n": 8,
+        "medianMs": 14561.388,
+        "p95Ms": 20932.349,
+        "maxMs": 20932.349
+      },
+      "maintenance crash matrix: publication-committed (background, next Expo fails)": {
+        "n": 8,
+        "medianMs": 14259.225,
+        "p95Ms": 20453.131,
+        "maxMs": 20453.131
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo succeeds)": {
+        "n": 8,
+        "medianMs": 14079.821,
+        "p95Ms": 19556.953,
+        "maxMs": 19556.953
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 8,
+        "medianMs": 13988.591,
+        "p95Ms": 19827.479,
+        "maxMs": 19827.479
+      },
+      "maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)": {
+        "n": 8,
+        "medianMs": 13953.252,
+        "p95Ms": 20204.408,
+        "maxMs": 20204.408
+      },
+      "maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)": {
+        "n": 8,
+        "medianMs": 14088.924,
+        "p95Ms": 20528.557,
+        "maxMs": 20528.557
+      },
+      "maintenance crash matrix: publication-handoff (background, next Expo succeeds)": {
+        "n": 8,
+        "medianMs": 15204.991,
+        "p95Ms": 24394.404,
+        "maxMs": 24394.404
+      },
+      "maintenance crash matrix: publication-handoff (background, next Expo fails)": {
+        "n": 8,
+        "medianMs": 13866.334,
+        "p95Ms": 20490.835,
+        "maxMs": 20490.835
+      },
+      "maintenance crash matrix: request-created (next export)": {
+        "n": 8,
+        "medianMs": 1653.115,
+        "p95Ms": 2567.663,
+        "maxMs": 2567.663
+      },
+      "maintenance crash matrix: request-prepared (next export)": {
+        "n": 8,
+        "medianMs": 1814.317,
+        "p95Ms": 2770.481,
+        "maxMs": 2770.481
+      },
+      "maintenance crash matrix: request-committed (next export)": {
+        "n": 8,
+        "medianMs": 2077.342,
+        "p95Ms": 2715.562,
+        "maxMs": 2715.562
+      },
+      "maintenance crash matrix: claim-renamed (peer)": {
+        "n": 8,
+        "medianMs": 1553.748,
+        "p95Ms": 2046.265,
+        "maxMs": 2046.265
+      },
+      "maintenance crash matrix: claim-recorded (peer)": {
+        "n": 8,
+        "medianMs": 1561.465,
+        "p95Ms": 2041.411,
+        "maxMs": 2041.411
+      },
+      "maintenance crash matrix: scan-starting (peer)": {
+        "n": 8,
+        "medianMs": 1620.698,
+        "p95Ms": 1995.763,
+        "maxMs": 1995.763
+      },
+      "maintenance crash matrix: compress-before (next export)": {
+        "n": 8,
+        "medianMs": 2712.293,
+        "p95Ms": 3429.472,
+        "maxMs": 3429.472
+      },
+      "maintenance crash matrix: compress-committed (next export)": {
+        "n": 8,
+        "medianMs": 2648.658,
+        "p95Ms": 3509.703,
+        "maxMs": 3509.703
+      },
+      "maintenance crash matrix: delete-before (next export)": {
+        "n": 8,
+        "medianMs": 2522.795,
+        "p95Ms": 3364.749,
+        "maxMs": 3364.749
+      },
+      "maintenance crash matrix: delete-after (next export)": {
+        "n": 8,
+        "medianMs": 2551.79,
+        "p95Ms": 3283.843,
+        "maxMs": 3283.843
+      },
+      "maintenance crash matrix: scan-complete (peer)": {
+        "n": 8,
+        "medianMs": 1853.997,
+        "p95Ms": 2553.607,
+        "maxMs": 2553.607
+      },
+      "maintenance crash matrix: done-before (peer)": {
+        "n": 8,
+        "medianMs": 1891.843,
+        "p95Ms": 2450.451,
+        "maxMs": 2450.451
+      },
+      "maintenance crash matrix: done-after (already complete)": {
+        "n": 8,
+        "medianMs": 1388.479,
+        "p95Ms": 1772.628,
+        "maxMs": 1772.628
+      },
+      "a custodian killed after claiming an empty legacy request resumes without a later export": {
+        "n": 8,
+        "medianMs": 1519.849,
+        "p95Ms": 2061.45,
+        "maxMs": 2061.45
+      },
+      "maintenance handoff crash matrix: handoff-pending kills observer": {
+        "n": 8,
+        "medianMs": 1722.428,
+        "p95Ms": 2229.007,
+        "maxMs": 2229.007
+      },
+      "maintenance handoff crash matrix: handoff-pending kills custodian": {
+        "n": 8,
+        "medianMs": 1762.646,
+        "p95Ms": 2431.753,
+        "maxMs": 2431.753
+      },
+      "maintenance handoff crash matrix: handoff-busy kills observer": {
+        "n": 8,
+        "medianMs": 1766.488,
+        "p95Ms": 2384.128,
+        "maxMs": 2384.128
+      },
+      "maintenance handoff crash matrix: handoff-busy kills custodian": {
+        "n": 8,
+        "medianMs": 1615.894,
+        "p95Ms": 2197.384,
+        "maxMs": 2197.384
+      },
+      "next export repairs parked maintenance even when Expo fails (off)": {
+        "n": 8,
+        "medianMs": 1644.605,
+        "p95Ms": 2842.301,
+        "maxMs": 2842.301
+      },
+      "next export repairs parked maintenance even when Expo fails (non-macOS)": {
+        "n": 8,
+        "medianMs": 1659.679,
+        "p95Ms": 3037.87,
+        "maxMs": 3037.87
+      },
+      "next export repairs parked maintenance even when Expo fails (background)": {
+        "n": 8,
+        "medianMs": 1797.409,
+        "p95Ms": 3050.67,
+        "maxMs": 3050.67
+      }
+    },
+    "traceTimings": {
+      "work-ended:ok": {
+        "n": 1149,
+        "medianMs": 169,
+        "p95Ms": 583,
+        "maxMs": 1987
+      },
+      "cleanup-ended": {
+        "n": 1285,
+        "medianMs": 483,
+        "p95Ms": 1025,
+        "maxMs": 30375
+      },
+      "test-drain-end:assertion": {
+        "n": 536,
+        "medianMs": 815.816,
+        "p95Ms": 1463.815,
+        "maxMs": 2780.544
+      },
+      "test-drain-end:cleanup": {
+        "n": 528,
+        "medianMs": 0.088,
+        "p95Ms": 556.958,
+        "maxMs": 912.058
+      },
+      "work-ended:error": {
+        "n": 136,
+        "medianMs": 149.0,
+        "p95Ms": 30003,
+        "maxMs": 30015
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention failed: ": 32,
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: retention lock busy\n": 64,
+      "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes": 8,
+      "E_WITNESS_INTERRUPTED: maintenance observer exited; resuming claim after drain": 16,
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: receipt compression failed\n": 8,
+      "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred": 8
+    },
+    "malformedTraceLines": 0
+  },
+  "whole-file-final": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "84-85",
+      "loadWorkers": 4,
+      "jobs": 1,
+      "start": 1791400387.4721684,
+      "binarySha256": "8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8/snapback4",
+      "sources": {
+        "packages/snapback4/test/export-background.test.mjs": "8ac2beb44d44d6e8e06bd06ddcc1662d143226367e6e046d668da0f8284c7752",
+        "packages/snapback4/test/helpers/maintenance-evidence.mjs": "646647f60c77b0c4e8cd0555d05a5f0018fb94aa0fdc8d746ada17d8988bf235"
+      },
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/whole-file-final",
+        "rounds": 1,
+        "jobs": 1,
+        "cpus": "84-85",
+        "load": 4,
+        "io_workers": 1,
+        "burst_seconds": 0,
+        "binary": "target/debug/snapback4",
+        "pattern": ".*",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 1,
+    "passedInvocations": 1,
+    "exitCodes": {
+      "0": 1
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      593.9673836231232
+    ],
+    "casePasses": 58,
+    "cases": {
+      "failed export-skipped handoff cannot report an older pass (off, equal bytes)": {
+        "n": 1,
+        "medianMs": 1269.067,
+        "p95Ms": 1269.067,
+        "maxMs": 1269.067
+      },
+      "failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)": {
+        "n": 1,
+        "medianMs": 1546.509,
+        "p95Ms": 1546.509,
+        "maxMs": 1546.509
+      },
+      "first opt-out publishes a complete skipped handoff": {
+        "n": 1,
+        "medianMs": 1378.268,
+        "p95Ms": 1378.268,
+        "maxMs": 1378.268
+      },
+      "repeated skipped exports retain five full plus twenty compressed runs (off)": {
+        "n": 1,
+        "medianMs": 20771.948,
+        "p95Ms": 20771.948,
+        "maxMs": 20771.948
+      },
+      "repeated skipped exports retain five full plus twenty compressed runs (non-macOS)": {
+        "n": 1,
+        "medianMs": 20295.503,
+        "p95Ms": 20295.503,
+        "maxMs": 20295.503
+      },
+      "skipped maintenance never blocks publication and drains under SIGTERM (off)": {
+        "n": 1,
+        "medianMs": 3734.383,
+        "p95Ms": 3734.383,
+        "maxMs": 3734.383
+      },
+      "skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)": {
+        "n": 1,
+        "medianMs": 3652.375,
+        "p95Ms": 3652.375,
+        "maxMs": 3652.375
+      },
+      "skipped maintenance never blocks publication and drains under deadline (off)": {
+        "n": 1,
+        "medianMs": 32564.673,
+        "p95Ms": 32564.673,
+        "maxMs": 32564.673
+      },
+      "held retention lock coalesces 28 skipped exports into one pending observer (off)": {
+        "n": 1,
+        "medianMs": 18601.804,
+        "p95Ms": 18601.804,
+        "maxMs": 18601.804
+      },
+      "held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)": {
+        "n": 1,
+        "medianMs": 18486.479,
+        "p95Ms": 18486.479,
+        "maxMs": 18486.479
+      },
+      "a held exclusive publication lock pauses one observer without starting retention workers": {
+        "n": 1,
+        "medianMs": 11256.463,
+        "p95Ms": 11256.463,
+        "maxMs": 11256.463
+      },
+      "a held shared publication lock pauses one observer without starting retention workers": {
+        "n": 1,
+        "medianMs": 11493.965,
+        "p95Ms": 11493.965,
+        "maxMs": 11493.965
+      },
+      "failed maintenance retains a parked request and a later export retries it": {
+        "n": 1,
+        "medianMs": 6245.853,
+        "p95Ms": 6245.853,
+        "maxMs": 6245.853
+      },
+      "retention repairs an ownerless publication before exchange without worker respawn": {
+        "n": 1,
+        "medianMs": 20365.282,
+        "p95Ms": 20365.282,
+        "maxMs": 20365.282
+      },
+      "retention repairs an ownerless publication after exchange without worker respawn": {
+        "n": 1,
+        "medianMs": 18854.667,
+        "p95Ms": 18854.667,
+        "maxMs": 18854.667
+      },
+      "a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)": {
+        "n": 1,
+        "medianMs": 17715.555,
+        "p95Ms": 17715.555,
+        "maxMs": 17715.555
+      },
+      "a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)": {
+        "n": 1,
+        "medianMs": 17892.163,
+        "p95Ms": 17892.163,
+        "maxMs": 17892.163
+      },
+      "retention cannot remove a run between directory creation and export lease acquisition": {
+        "n": 1,
+        "medianMs": 18063.57,
+        "p95Ms": 18063.57,
+        "maxMs": 18063.57
+      },
+      "export initialization refuses a live stuck initializer within five seconds": {
+        "n": 1,
+        "medianMs": 6792.298,
+        "p95Ms": 6792.298,
+        "maxMs": 6792.298
+      },
+      "SIGKILL of the sole maintenance custodian restores retention without another export": {
+        "n": 1,
+        "medianMs": 3169.394,
+        "p95Ms": 3169.394,
+        "maxMs": 3169.394
+      },
+      "SIGKILL of the sole maintenance observer restores retention without another export": {
+        "n": 1,
+        "medianMs": 3440.778,
+        "p95Ms": 3440.778,
+        "maxMs": 3440.778
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (off)": {
+        "n": 1,
+        "medianMs": 19812.356,
+        "p95Ms": 19812.356,
+        "maxMs": 19812.356
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)": {
+        "n": 1,
+        "medianMs": 20245.268,
+        "p95Ms": 20245.268,
+        "maxMs": 20245.268
+      },
+      "failed Expo exports and dead wrapper journals never occupy keep slots (background)": {
+        "n": 1,
+        "medianMs": 20043.227,
+        "p95Ms": 20043.227,
+        "maxMs": 20043.227
+      },
+      "repeated raced retention-lock deferrals stay pending and restore the bound after release": {
+        "n": 1,
+        "medianMs": 16854.696,
+        "p95Ms": 16854.696,
+        "maxMs": 16854.696
+      },
+      "maintenance crash matrix: publication-committed (off, next Expo succeeds)": {
+        "n": 1,
+        "medianMs": 16968.125,
+        "p95Ms": 16968.125,
+        "maxMs": 16968.125
+      },
+      "maintenance crash matrix: publication-committed (off, next Expo fails)": {
+        "n": 1,
+        "medianMs": 17475.987,
+        "p95Ms": 17475.987,
+        "maxMs": 17475.987
+      },
+      "maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)": {
+        "n": 1,
+        "medianMs": 17239.438,
+        "p95Ms": 17239.438,
+        "maxMs": 17239.438
+      },
+      "maintenance crash matrix: publication-committed (non-macOS, next Expo fails)": {
+        "n": 1,
+        "medianMs": 17821.32,
+        "p95Ms": 17821.32,
+        "maxMs": 17821.32
+      },
+      "maintenance crash matrix: publication-committed (background, next Expo succeeds)": {
+        "n": 1,
+        "medianMs": 17378.618,
+        "p95Ms": 17378.618,
+        "maxMs": 17378.618
+      },
+      "maintenance crash matrix: publication-committed (background, next Expo fails)": {
+        "n": 1,
+        "medianMs": 17229.468,
+        "p95Ms": 17229.468,
+        "maxMs": 17229.468
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo succeeds)": {
+        "n": 1,
+        "medianMs": 17669.929,
+        "p95Ms": 17669.929,
+        "maxMs": 17669.929
+      },
+      "maintenance crash matrix: publication-handoff (off, next Expo fails)": {
+        "n": 1,
+        "medianMs": 18014.306,
+        "p95Ms": 18014.306,
+        "maxMs": 18014.306
+      },
+      "maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)": {
+        "n": 1,
+        "medianMs": 17697.616,
+        "p95Ms": 17697.616,
+        "maxMs": 17697.616
+      },
+      "maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)": {
+        "n": 1,
+        "medianMs": 16705.064,
+        "p95Ms": 16705.064,
+        "maxMs": 16705.064
+      },
+      "maintenance crash matrix: publication-handoff (background, next Expo succeeds)": {
+        "n": 1,
+        "medianMs": 17795.984,
+        "p95Ms": 17795.984,
+        "maxMs": 17795.984
+      },
+      "maintenance crash matrix: publication-handoff (background, next Expo fails)": {
+        "n": 1,
+        "medianMs": 17509.608,
+        "p95Ms": 17509.608,
+        "maxMs": 17509.608
+      },
+      "maintenance crash matrix: request-created (next export)": {
+        "n": 1,
+        "medianMs": 2412.091,
+        "p95Ms": 2412.091,
+        "maxMs": 2412.091
+      },
+      "maintenance crash matrix: request-prepared (next export)": {
+        "n": 1,
+        "medianMs": 2358.203,
+        "p95Ms": 2358.203,
+        "maxMs": 2358.203
+      },
+      "maintenance crash matrix: request-committed (next export)": {
+        "n": 1,
+        "medianMs": 2676.862,
+        "p95Ms": 2676.862,
+        "maxMs": 2676.862
+      },
+      "maintenance crash matrix: claim-renamed (peer)": {
+        "n": 1,
+        "medianMs": 1945.577,
+        "p95Ms": 1945.577,
+        "maxMs": 1945.577
+      },
+      "maintenance crash matrix: claim-recorded (peer)": {
+        "n": 1,
+        "medianMs": 1906.073,
+        "p95Ms": 1906.073,
+        "maxMs": 1906.073
+      },
+      "maintenance crash matrix: scan-starting (peer)": {
+        "n": 1,
+        "medianMs": 1941.476,
+        "p95Ms": 1941.476,
+        "maxMs": 1941.476
+      },
+      "maintenance crash matrix: compress-before (next export)": {
+        "n": 1,
+        "medianMs": 3295.04,
+        "p95Ms": 3295.04,
+        "maxMs": 3295.04
+      },
+      "maintenance crash matrix: compress-committed (next export)": {
+        "n": 1,
+        "medianMs": 3274.65,
+        "p95Ms": 3274.65,
+        "maxMs": 3274.65
+      },
+      "maintenance crash matrix: delete-before (next export)": {
+        "n": 1,
+        "medianMs": 3196.535,
+        "p95Ms": 3196.535,
+        "maxMs": 3196.535
+      },
+      "maintenance crash matrix: delete-after (next export)": {
+        "n": 1,
+        "medianMs": 3094.049,
+        "p95Ms": 3094.049,
+        "maxMs": 3094.049
+      },
+      "maintenance crash matrix: scan-complete (peer)": {
+        "n": 1,
+        "medianMs": 2391.85,
+        "p95Ms": 2391.85,
+        "maxMs": 2391.85
+      },
+      "maintenance crash matrix: done-before (peer)": {
+        "n": 1,
+        "medianMs": 2141.234,
+        "p95Ms": 2141.234,
+        "maxMs": 2141.234
+      },
+      "maintenance crash matrix: done-after (already complete)": {
+        "n": 1,
+        "medianMs": 1584.822,
+        "p95Ms": 1584.822,
+        "maxMs": 1584.822
+      },
+      "a custodian killed after claiming an empty legacy request resumes without a later export": {
+        "n": 1,
+        "medianMs": 1969.681,
+        "p95Ms": 1969.681,
+        "maxMs": 1969.681
+      },
+      "maintenance handoff crash matrix: handoff-pending kills observer": {
+        "n": 1,
+        "medianMs": 2089.275,
+        "p95Ms": 2089.275,
+        "maxMs": 2089.275
+      },
+      "maintenance handoff crash matrix: handoff-pending kills custodian": {
+        "n": 1,
+        "medianMs": 2067.294,
+        "p95Ms": 2067.294,
+        "maxMs": 2067.294
+      },
+      "maintenance handoff crash matrix: handoff-busy kills observer": {
+        "n": 1,
+        "medianMs": 2180.604,
+        "p95Ms": 2180.604,
+        "maxMs": 2180.604
+      },
+      "maintenance handoff crash matrix: handoff-busy kills custodian": {
+        "n": 1,
+        "medianMs": 2229.806,
+        "p95Ms": 2229.806,
+        "maxMs": 2229.806
+      },
+      "next export repairs parked maintenance even when Expo fails (off)": {
+        "n": 1,
+        "medianMs": 2435.838,
+        "p95Ms": 2435.838,
+        "maxMs": 2435.838
+      },
+      "next export repairs parked maintenance even when Expo fails (non-macOS)": {
+        "n": 1,
+        "medianMs": 2231.095,
+        "p95Ms": 2231.095,
+        "maxMs": 2231.095
+      },
+      "next export repairs parked maintenance even when Expo fails (background)": {
+        "n": 1,
+        "medianMs": 2254.066,
+        "p95Ms": 2254.066,
+        "maxMs": 2254.066
+      }
+    },
+    "traceTimings": {
+      "work-ended:error": {
+        "n": 17,
+        "medianMs": 150,
+        "p95Ms": 30016,
+        "maxMs": 30016
+      },
+      "cleanup-ended": {
+        "n": 166,
+        "medianMs": 516.0,
+        "p95Ms": 837,
+        "maxMs": 30324
+      },
+      "work-ended:ok": {
+        "n": 149,
+        "medianMs": 165,
+        "p95Ms": 414,
+        "maxMs": 1307
+      },
+      "test-drain-end:assertion": {
+        "n": 67,
+        "medianMs": 910.509,
+        "p95Ms": 1621.756,
+        "maxMs": 1915.908
+      },
+      "test-drain-end:cleanup": {
+        "n": 66,
+        "medianMs": 0.087,
+        "p95Ms": 507.522,
+        "maxMs": 755.556
+      }
+    },
+    "expectedWorkErrors": {
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: retention lock busy\n": 8,
+      "E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_ARTIFACT: receipt compression failed\n": 1,
+      "E_WITNESS_INTERRUPTED: maintenance observer exited; resuming claim after drain": 2,
+      "E_WITNESS_ARTIFACT: evidence retention failed: ": 4,
+      "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred": 1,
+      "E_WITNESS_INTERRUPTED: witness interrupted; stopping its owned processes": 1
+    },
+    "malformedTraceLines": 0
+  },
+  "whole-file-final-launch": {
+    "host": {
+      "host": "expose-builder-pixel",
+      "cpus": "84-85",
+      "loadWorkers": 4,
+      "jobs": 1,
+      "start": 1791400370.2296562,
+      "binarySha256": "8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8",
+      "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/8abc682835af6b5a95fedf3dd672af95fe399d4cff2fdd504b551039e41c7fe8/snapback4",
+      "sources": {
+        "packages/snapback4/test/export-background.test.mjs": "8ac2beb44d44d6e8e06bd06ddcc1662d143226367e6e046d668da0f8284c7752",
+        "packages/snapback4/test/helpers/maintenance-evidence.mjs": "646647f60c77b0c4e8cd0555d05a5f0018fb94aa0fdc8d746ada17d8988bf235"
+      },
+      "args": {
+        "out": "reports/20261007-em-export-maintenance-drain/evidence/whole-file-final",
+        "rounds": 1,
+        "jobs": 1,
+        "cpus": "84-85",
+        "load": 4,
+        "io_workers": 1,
+        "burst_seconds": 0,
+        "binary": "target/debug/snapback4",
+        "pattern": "",
+        "keep_going": false
+      }
+    },
+    "recordedInvocations": 1,
+    "passedInvocations": 0,
+    "exitCodes": {
+      "9": 1
+    },
+    "uncompletedLogs": [],
+    "elapsedSeconds": [
+      0.008468389511108398
+    ],
+    "casePasses": 0,
+    "cases": {},
+    "traceTimings": {},
+    "expectedWorkErrors": {},
+    "malformedTraceLines": 0
+  }
+}

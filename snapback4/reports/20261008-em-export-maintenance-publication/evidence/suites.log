@@ -1,0 +1,979 @@
+-- client file start: packages/snapback4/test/export-background.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/export-maintenance-wakeup.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/maintenance-evidence.test.mjs; stall bound 900000 ms
+TAP version 13
+# maintenance evidence (probe): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440584844260-779796ea-failure-probe
+# maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440629864317-96a6da19-failure-drain-timeout
+# maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440672475954-620fc2af-failure-drain-timeout
+# maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440715132238-01c7026b-failure-drain-timeout
+# maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440759276532-df2f7dcb-failure-drain-timeout
+# maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440803514056-4632ed33-failure-drain-timeout
+# maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440846789719-237a840d-failure-drain-timeout
+# maintenance evidence (cleanup): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440890036437-480be23c-cleanup-cleanup
+# maintenance evidence (cleanup): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440933081524-58ca714b-cleanup-cleanup
+# maintenance evidence (cleanup): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416440976266080-ce39b986-cleanup-cleanup
+# maintenance evidence (cleanup): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416441019735333-07bb44f6-cleanup-cleanup
+# maintenance evidence (cleanup): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416441064058876-ae38ebd8-cleanup-cleanup
+# maintenance evidence (cleanup): /tmp/sb4-em-evidence-AwK9Ez/maintenance-cb65a433eb364227/snapshot-1791416441108914136-c39911f6-cleanup-cleanup
+# Subtest: maintenance snapshots bound tails, files, inventory, bytes and retained history
+ok 1 - maintenance snapshots bound tails, files, inventory, bytes and retained history
+  ---
+  duration_ms: 633.379026
+  type: 'test'
+  ...
+# maintenance evidence (probe): /tmp/sb4-em-processes-LR5a7T/maintenance-cb65a433eb364227/snapshot-1791416441188199558-95bbb7d6-failure-probe
+# Subtest: maintenance capture refuses stale birth, unrelated commands and foreign groups; arguments stay private
+ok 2 - maintenance capture refuses stale birth, unrelated commands and foreign groups; arguments stay private
+  ---
+  duration_ms: 59.136669
+  type: 'test'
+  ...
+# Subtest: a FIFO trace sink cannot delay an observer deadline, lease release or the test drain wait
+ok 3 - a FIFO trace sink cannot delay an observer deadline, lease release or the test drain wait
+  ---
+  duration_ms: 1559.898404
+  type: 'test'
+  ...
+# maintenance evidence (drain-timeout): capture skipped or exceeded its bound
+# Subtest: a stuck collector leaves the event loop running and preserves the original drain error
+ok 4 - a stuck collector leaves the event loop running and preserves the original drain error
+  ---
+  duration_ms: 2003.562037
+  type: 'test'
+  ...
+# Subtest: partial write errors cannot recover snapshot byte or file budget
+ok 5 - partial write errors cannot recover snapshot byte or file budget
+  ---
+  duration_ms: 89.998001
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4409.583299
+-- process inspection: {"snapshots":3,"unrelatedRows":3450}
+-- client file ok: packages/snapback4/test/maintenance-evidence.test.mjs (4676 ms)
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 900000 ms
+TAP version 13
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416441085888469-756daa1f-cleanup-cleanup
+# Subtest: maintenance wakeup: empty second check cannot strand a coalesced request
+ok 1 - maintenance wakeup: empty second check cannot strand a coalesced request
+  ---
+  duration_ms: 592.111974
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416442405072510-9c9b7884-cleanup-cleanup
+# Subtest: maintenance wakeup: expiry guard cannot strand a coalesced request
+ok 2 - maintenance wakeup: expiry guard cannot strand a coalesced request
+  ---
+  duration_ms: 1317.073837
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416443118617819-dc241eba-cleanup-cleanup
+# Subtest: maintenance wakeup: cancellation guard cannot strand a coalesced request
+ok 3 - maintenance wakeup: cancellation guard cannot strand a coalesced request
+  ---
+  duration_ms: 712.781354
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416444570731678-388b425b-cleanup-cleanup
+# Subtest: maintenance wakeup: producer retries when the holder exits before notification
+ok 4 - maintenance wakeup: producer retries when the holder exits before notification
+  ---
+  duration_ms: 1452.630394
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416445810123657-df92d54c-cleanup-cleanup
+# Subtest: maintenance wakeup: expiry remains a stop without a fresh producer
+ok 5 - maintenance wakeup: expiry remains a stop without a fresh producer
+  ---
+  duration_ms: 1239.0527
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416446446991863-eed7ac2b-cleanup-cleanup
+# Subtest: maintenance wakeup: cancellation remains a stop without a fresh producer
+ok 6 - maintenance wakeup: cancellation remains a stop without a fresh producer
+  ---
+  duration_ms: 635.798824
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-false): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416447274477304-b93929ac-failure-sleep-retry-false
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416447841467310-1a73c4d2-cleanup-cleanup
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=false
+ok 7 - maintenance sleep: notification crosses sleep, producer retry=false
+  ---
+  duration_ms: 1394.665161
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-true): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416448685980857-e2c99b7c-failure-sleep-retry-true
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416449151034185-6f9d7b43-cleanup-cleanup
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=true
+ok 8 - maintenance sleep: notification crosses sleep, producer retry=true
+  ---
+  duration_ms: 1310.613904
+  type: 'test'
+  ...
+# maintenance evidence (sleep-successor-start): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416450103469492-4298f6c3-failure-sleep-successor-start
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416450583473061-2c26f2a1-cleanup-cleanup
+# Subtest: maintenance sleep: successor keeps the sample accepted before launch
+ok 9 - maintenance sleep: successor keeps the sample accepted before launch
+  ---
+  duration_ms: 1432.419867
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416451202928625-79362f60-cleanup-cleanup
+# Subtest: maintenance sleep: no fresh producer stops, a post-sleep export can recover
+ok 10 - maintenance sleep: no fresh producer stops, a post-sleep export can recover
+  ---
+  duration_ms: 618.981504
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416456943820593-971e401f-cleanup-cleanup
+# Subtest: maintenance deadline: idle success adopts a later coalesced intent
+ok 11 - maintenance deadline: idle success adopts a later coalesced intent
+  ---
+  duration_ms: 5740.855824
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416462582304588-56c2cd9c-cleanup-cleanup
+# Subtest: maintenance deadline: live guard adopts a later coalesced intent
+ok 12 - maintenance deadline: live guard adopts a later coalesced intent
+  ---
+  duration_ms: 5638.225998
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416463338490158-71adc6dd-cleanup-cleanup
+# Subtest: maintenance deadline: consumption preserves a concurrent replacement
+ok 13 - maintenance deadline: consumption preserves a concurrent replacement
+  ---
+  duration_ms: 756.299741
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416464699191376-5e10dd90-cleanup-cleanup
+# Subtest: maintenance deadline: a later wakeup that crossed sleep is not adopted
+ok 14 - maintenance deadline: a later wakeup that crossed sleep is not adopted
+  ---
+  duration_ms: 1360.26201
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416465419534065-1c2db85b-cleanup-cleanup
+# Subtest: maintenance deadline: cancellation while consuming leaves an adoptable receipt
+ok 15 - maintenance deadline: cancellation while consuming leaves an adoptable receipt
+  ---
+  duration_ms: 720.488518
+  type: 'test'
+  ...
+# maintenance evidence (producer-order): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416466745040686-17d80697-failure-producer-order
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416466780213151-5ca80a18-cleanup-cleanup
+# Subtest: maintenance publication: stale producer resumes=false
+ok 16 - maintenance publication: stale producer resumes=false
+  ---
+  duration_ms: 1360.738455
+  type: 'test'
+  ...
+# maintenance evidence (producer-order): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416468140334140-9e0bde06-failure-producer-order
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416468175757531-dd6011f9-cleanup-cleanup
+# Subtest: maintenance publication: stale producer resumes=true
+ok 17 - maintenance publication: stale producer resumes=true
+  ---
+  duration_ms: 1395.348887
+  type: 'test'
+  ...
+# maintenance evidence (producer-order): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416469414839456-850c22d0-failure-producer-order
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416469448845784-c8b4ac77-cleanup-cleanup
+# Subtest: maintenance publication: older valid producer resumes=true
+ok 18 - maintenance publication: older valid producer resumes=true
+  ---
+  duration_ms: 1273.001262
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416470848558803-04875282-cleanup-cleanup
+# Subtest: maintenance publication: writers serialize, owner killed=false
+ok 19 - maintenance publication: writers serialize, owner killed=false
+  ---
+  duration_ms: 1399.805969
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416472124044880-9f20e05b-cleanup-cleanup
+# Subtest: maintenance publication: writers serialize, owner killed=true
+ok 20 - maintenance publication: writers serialize, owner killed=true
+  ---
+  duration_ms: 1274.616003
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416478388813190-7cef2484-cleanup-cleanup
+# Subtest: maintenance publication: a stuck writer refuses within its acquisition bound
+ok 21 - maintenance publication: a stuck writer refuses within its acquisition bound
+  ---
+  duration_ms: 6265.176902
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37953.69706
+-- process inspection: {"snapshots":3,"unrelatedRows":3458}
+-- client file ok: packages/snapback4/test/export-maintenance-wakeup.test.mjs (38205 ms)
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 232.653779
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.914307
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.088449
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 25.093897
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 5 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3010.041039
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 6 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3009.321319
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 7 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.410015
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 8 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 176.309777
+  type: 'test'
+  ...
+# Subtest: Darwin inspector compiler escalates when its child handles SIGTERM
+ok 9 - Darwin inspector compiler escalates when its child handles SIGTERM
+  ---
+  duration_ms: 31350.56476
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37917.288549
+-- process inspection: {"snapshots":3,"unrelatedRows":3396}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (38171 ms)
+TAP version 13
+# Subtest: export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export
+ok 1 - export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export # SKIP
+  ---
+  duration_ms: 1.248312
+  type: 'test'
+  ...
+# Subtest: new publication supersedes blocked smoke; only one driver enters the tool at a time
+ok 2 - new publication supersedes blocked smoke; only one driver enters the tool at a time # SKIP
+  ---
+  duration_ms: 0.077606
+  type: 'test'
+  ...
+# Subtest: SIGKILL of background driver cleans its peer/tools without another export
+ok 3 - SIGKILL of background driver cleans its peer/tools without another export # SKIP
+  ---
+  duration_ms: 0.064096
+  type: 'test'
+  ...
+# Subtest: SIGKILL of background worker cleans its peer/tools without another export
+ok 4 - SIGKILL of background worker cleans its peer/tools without another export # SKIP
+  ---
+  duration_ms: 0.054983
+  type: 'test'
+  ...
+# Subtest: SIGTERM of background worker cleans its peer/tools without another export
+ok 5 - SIGTERM of background worker cleans its peer/tools without another export # SKIP
+  ---
+  duration_ms: 0.080461
+  type: 'test'
+  ...
+# Subtest: SIGHUP of background worker cleans its peer/tools without another export
+ok 6 - SIGHUP of background worker cleans its peer/tools without another export # SKIP
+  ---
+  duration_ms: 0.058217
+  type: 'test'
+  ...
+# Subtest: interrupting a status observer leaves the detached proof running
+ok 7 - interrupting a status observer leaves the detached proof running # SKIP
+  ---
+  duration_ms: 0.057997
+  type: 'test'
+  ...
+# Subtest: background product failure stays loud without changing export success
+ok 8 - background product failure stays loud without changing export success # SKIP
+  ---
+  duration_ms: 0.054281
+  type: 'test'
+  ...
+# Subtest: failed evidence pruning does not rewrite a completed native outcome
+ok 9 - failed evidence pruning does not rewrite a completed native outcome # SKIP
+  ---
+  duration_ms: 0.071507
+  type: 'test'
+  ...
+# Subtest: driver death during auto-create-buffered-timeout deletes only its recorded simulator
+ok 10 - driver death during auto-create-buffered-timeout deletes only its recorded simulator # SKIP
+  ---
+  duration_ms: 0.122704
+  type: 'test'
+  ...
+# Subtest: driver death during auto-create-race deletes only its recorded simulator
+ok 11 - driver death during auto-create-race deletes only its recorded simulator # SKIP
+  ---
+  duration_ms: 0.085748
+  type: 'test'
+  ...
+# Subtest: worker death during auto-create-race deletes only its recorded simulator
+ok 12 - worker death during auto-create-race deletes only its recorded simulator # SKIP
+  ---
+  duration_ms: 0.049775
+  type: 'test'
+  ...
+# Subtest: an explicit opt-out supersedes an in-flight proof and reports the new export as skipped
+ok 13 - an explicit opt-out supersedes an in-flight proof and reports the new export as skipped # SKIP
+  ---
+  duration_ms: 0.061212
+  type: 'test'
+  ...
+# Subtest: failed latest handoff cannot report an older pass (export one)
+ok 14 - failed latest handoff cannot report an older pass (export one) # SKIP
+  ---
+  duration_ms: 0.041181
+  type: 'test'
+  ...
+# Subtest: failed latest handoff cannot report an older pass (changed export)
+ok 15 - failed latest handoff cannot report an older pass (changed export) # SKIP
+  ---
+  duration_ms: 0.034291
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416441304664916-0d995cc7-cleanup-cleanup
+# Subtest: failed export-skipped handoff cannot report an older pass (off, equal bytes)
+ok 16 - failed export-skipped handoff cannot report an older pass (off, equal bytes)
+  ---
+  duration_ms: 809.04655
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416442116465634-b01e9929-cleanup-cleanup
+# Subtest: failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)
+ok 17 - failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)
+  ---
+  duration_ms: 811.299087
+  type: 'test'
+  ...
+# retention before SIGTERM: complete custody drained in 152 ms; newer proof started
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416444652510629-5963e32e-cleanup-cleanup
+# Subtest: blocked retention has bounded custody: before SIGTERM
+ok 18 - blocked retention has bounded custody: before SIGTERM
+  ---
+  duration_ms: 2543.26646
+  type: 'test'
+  ...
+# retention before SIGKILL: complete custody drained in 101 ms; newer proof started
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416447515009674-f5b946d6-cleanup-cleanup
+# Subtest: blocked retention has bounded custody: before SIGKILL
+ok 19 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 2862.556672
+  type: 'test'
+  ...
+# retention before supersede: complete custody drained in 346 ms; newer proof started
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416449849203324-d982810f-cleanup-cleanup
+# Subtest: blocked retention has bounded custody: before supersede
+ok 20 - blocked retention has bounded custody: before supersede
+  ---
+  duration_ms: 2332.576186
+  type: 'test'
+  ...
+# retention before deadline: complete custody drained in 29648 ms; newer proof started
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416482237123500-0d155047-cleanup-cleanup
+# Subtest: blocked retention has bounded custody: before deadline
+ok 21 - blocked retention has bounded custody: before deadline
+  ---
+  duration_ms: 32389.420865
+  type: 'test'
+  ...
+# Subtest: blocked retention has bounded custody: after SIGTERM
+ok 22 - blocked retention has bounded custody: after SIGTERM # SKIP
+  ---
+  duration_ms: 0.208924
+  type: 'test'
+  ...
+# Subtest: blocked retention has bounded custody: after SIGKILL
+ok 23 - blocked retention has bounded custody: after SIGKILL # SKIP
+  ---
+  duration_ms: 0.076434
+  type: 'test'
+  ...
+# Subtest: blocked retention has bounded custody: after supersede
+ok 24 - blocked retention has bounded custody: after supersede # SKIP
+  ---
+  duration_ms: 0.06001
+  type: 'test'
+  ...
+# Subtest: overlapping skipped export cannot inherit a concurrent publication's proof (marker failure)
+ok 25 - overlapping skipped export cannot inherit a concurrent publication's proof (marker failure) # SKIP
+  ---
+  duration_ms: 0.049034
+  type: 'test'
+  ...
+# Subtest: overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure)
+ok 26 - overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure) # SKIP
+  ---
+  duration_ms: 0.04652
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416483026910861-379c2ee5-cleanup-cleanup
+# Subtest: first opt-out publishes a complete skipped handoff
+ok 27 - first opt-out publishes a complete skipped handoff
+  ---
+  duration_ms: 780.553579
+  type: 'test'
+  ...
+# Subtest: request timestamp begins at publication commit, not private marker creation
+ok 28 - request timestamp begins at publication commit, not private marker creation # SKIP
+  ---
+  duration_ms: 0.199058
+  type: 'test'
+  ...
+# Subtest: direct export-retain has bounded custody and the inner worker rejects manual use
+ok 29 - direct export-retain has bounded custody and the inner worker rejects manual use # SKIP
+  ---
+  duration_ms: 0.063906
+  type: 'test'
+  ...
+# Subtest: SIGKILL overlap defers a still-held retention lock and starts the next proof
+ok 30 - SIGKILL overlap defers a still-held retention lock and starts the next proof # SKIP
+  ---
+  duration_ms: 0.081422
+  type: 'test'
+  ...
+# {"mode":"off","exports":28,"full":5,"compressed":20,"returnMs":[239,239,235,245,244,235,237,240,239,239,239,248,244,236,236,240,242,239,236,238,237,235,234,248,246,242,239,234]}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416490496063897-e448b72d-cleanup-cleanup
+# Subtest: repeated skipped exports retain five full plus twenty compressed runs (off)
+ok 31 - repeated skipped exports retain five full plus twenty compressed runs (off)
+  ---
+  duration_ms: 7488.16775
+  type: 'test'
+  ...
+# {"mode":"non-macOS","exports":28,"full":5,"compressed":20,"returnMs":[237,243,245,306,237,242,259,236,234,226,237,230,223,232,231,239,236,238,237,238,239,237,234,228,244,407,230,242]}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416498093643934-cd19a151-cleanup-cleanup
+# Subtest: repeated skipped exports retain five full plus twenty compressed runs (non-macOS)
+ok 32 - repeated skipped exports retain five full plus twenty compressed runs (non-macOS)
+  ---
+  duration_ms: 7599.732133
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416499888294707-35706ddb-cleanup-cleanup
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 33 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 1788.264278
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416501601486558-93afc0e3-cleanup-cleanup
+# Subtest: skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)
+ok 34 - skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)
+  ---
+  duration_ms: 1713.146564
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416533012924791-691a20f7-cleanup-cleanup
+# Subtest: skipped maintenance never blocks publication and drains under deadline (off)
+ok 35 - skipped maintenance never blocks publication and drains under deadline (off)
+  ---
+  duration_ms: 31406.418358
+  type: 'test'
+  ...
+# {"mode":"off","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[237,238,238,240,235,228,232,233,236,236,246,239,236,236,236,250,240,239,246,230,249,236,238,235,249,237,304,244]}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416541823515887-90510deb-cleanup-cleanup
+# Subtest: held retention lock coalesces 28 skipped exports into one pending observer (off)
+ok 36 - held retention lock coalesces 28 skipped exports into one pending observer (off)
+  ---
+  duration_ms: 8821.635803
+  type: 'test'
+  ...
+# {"mode":"non-macOS","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[236,237,244,231,242,238,243,246,239,235,236,242,240,236,239,383,241,245,231,237,241,234,246,235,239,238,242,247]}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416550652980268-7ce34405-cleanup-cleanup
+# Subtest: held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)
+ok 37 - held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)
+  ---
+  duration_ms: 8821.897728
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (off)
+ok 38 - first-started last-published generation remains full evidence (off) # SKIP
+  ---
+  duration_ms: 0.135153
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (non-macOS)
+ok 39 - first-started last-published generation remains full evidence (non-macOS) # SKIP
+  ---
+  duration_ms: 0.041262
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (background)
+ok 40 - first-started last-published generation remains full evidence (background) # SKIP
+  ---
+  duration_ms: 0.035583
+  type: 'test'
+  ...
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (off)
+ok 41 - failed handoffs with held wrapper leases retain deferred maintenance (off) # SKIP
+  ---
+  duration_ms: 0.030025
+  type: 'test'
+  ...
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (non-macOS)
+ok 42 - failed handoffs with held wrapper leases retain deferred maintenance (non-macOS) # SKIP
+  ---
+  duration_ms: 0.035804
+  type: 'test'
+  ...
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (background)
+ok 43 - failed handoffs with held wrapper leases retain deferred maintenance (background) # SKIP
+  ---
+  duration_ms: 0.041352
+  type: 'test'
+  ...
+# {"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416557245994295-8ded2386-cleanup-cleanup
+# Subtest: a held exclusive publication lock pauses one observer without starting retention workers
+ok 44 - a held exclusive publication lock pauses one observer without starting retention workers
+  ---
+  duration_ms: 6593.979714
+  type: 'test'
+  ...
+# {"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416563732879099-4b6eae15-cleanup-cleanup
+# Subtest: a held shared publication lock pauses one observer without starting retention workers
+ok 45 - a held shared publication lock pauses one observer without starting retention workers
+  ---
+  duration_ms: 6485.632948
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416567156816003-0cd0c2f4-cleanup-cleanup
+# Subtest: failed maintenance retains a parked request and a later export retries it
+ok 46 - failed maintenance retains a parked request and a later export retries it
+  ---
+  duration_ms: 3419.203098
+  type: 'test'
+  ...
+# {"interruptedPublication":"before","workerStarts":1,"repairMs":1220,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416578192923437-03351534-cleanup-cleanup
+# Subtest: retention repairs an ownerless publication before exchange without worker respawn
+ok 47 - retention repairs an ownerless publication before exchange without worker respawn
+  ---
+  duration_ms: 11048.255355
+  type: 'test'
+  ...
+# {"interruptedPublication":"after","workerStarts":1,"repairMs":1219,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416588815707322-deaf0fbf-cleanup-cleanup
+# Subtest: retention repairs an ownerless publication after exchange without worker respawn
+ok 48 - retention repairs an ownerless publication after exchange without worker respawn
+  ---
+  duration_ms: 10623.188591
+  type: 'test'
+  ...
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (off)
+ok 49 - failed export lease removes its shell and retention repairs legacy ownerless runs (off) # SKIP
+  ---
+  duration_ms: 0.264527
+  type: 'test'
+  ...
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS)
+ok 50 - failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS) # SKIP
+  ---
+  duration_ms: 0.088323
+  type: 'test'
+  ...
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (background)
+ok 51 - failed export lease removes its shell and retention repairs legacy ownerless runs (background) # SKIP
+  ---
+  duration_ms: 0.087501
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416598195801771-02627fc2-cleanup-cleanup
+# Subtest: a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)
+ok 52 - a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)
+  ---
+  duration_ms: 9379.262462
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416607588293297-bed5478f-cleanup-cleanup
+# Subtest: a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)
+ok 53 - a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)
+  ---
+  duration_ms: 9391.768853
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416617427760507-df545100-cleanup-cleanup
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 54 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 9840.680369
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416623438300657-33ef0e13-cleanup-cleanup
+# Subtest: export initialization refuses a live stuck initializer within five seconds
+ok 55 - export initialization refuses a live stuck initializer within five seconds
+  ---
+  duration_ms: 5987.354413
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416625209292471-575e342e-cleanup-cleanup
+# Subtest: SIGKILL of the sole maintenance custodian restores retention without another export
+ok 56 - SIGKILL of the sole maintenance custodian restores retention without another export
+  ---
+  duration_ms: 1786.107644
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416626954813744-0555bed2-cleanup-cleanup
+# Subtest: SIGKILL of the sole maintenance observer restores retention without another export
+ok 57 - SIGKILL of the sole maintenance observer restores retention without another export
+  ---
+  duration_ms: 1745.357637
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416636447198694-6ef6604c-cleanup-cleanup
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (off)
+ok 58 - failed Expo exports and dead wrapper journals never occupy keep slots (off)
+  ---
+  duration_ms: 9491.329238
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416646126865753-9cd19577-cleanup-cleanup
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+ok 59 - failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+  ---
+  duration_ms: 9687.594823
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416655551248389-43669524-cleanup-cleanup
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (background)
+ok 60 - failed Expo exports and dead wrapper journals never occupy keep slots (background)
+  ---
+  duration_ms: 9424.156597
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416664148186982-4c4db4e1-cleanup-cleanup
+# Subtest: repeated raced retention-lock deferrals stay pending and restore the bound after release
+ok 61 - repeated raced retention-lock deferrals stay pending and restore the bound after release
+  ---
+  duration_ms: 8598.486443
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":937,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416672645397510-b1d89ade-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo succeeds)
+ok 62 - maintenance crash matrix: publication-committed (off, next Expo succeeds)
+  ---
+  duration_ms: 8495.442127
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416702301053525-fb21825d-cleanup-cleanup
+# Subtest: expired checkpoint refuses signal after 22-second dispatch delay
+ok 63 - expired checkpoint refuses signal after 22-second dispatch delay
+  ---
+  duration_ms: 29648.349892
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":549,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416710417124280-931d11b5-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo fails)
+ok 64 - maintenance crash matrix: publication-committed (off, next Expo fails)
+  ---
+  duration_ms: 8115.703635
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":940,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416719003410398-ecef3249-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 65 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 8591.260884
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":543,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416727116065236-08a777dd-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 66 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 8109.17343
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":958,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416735828403987-04700973-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 67 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 8719.248229
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":541,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416744144217375-27bfffc7-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 68 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 8316.201701
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":939,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416752823600858-92aabd33-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-handoff (off, next Expo succeeds)
+ok 69 - maintenance crash matrix: publication-handoff (off, next Expo succeeds)
+  ---
+  duration_ms: 8673.813533
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":553,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416761069488828-cd5ad43b-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-handoff (off, next Expo fails)
+ok 70 - maintenance crash matrix: publication-handoff (off, next Expo fails)
+  ---
+  duration_ms: 8243.18684
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":940,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416769581015376-2ef4fb2e-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)
+ok 71 - maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 8518.091329
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":549,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416777708539514-a5e25bc1-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)
+ok 72 - maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)
+  ---
+  duration_ms: 8208.48339
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":948,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416786386694922-67241d5e-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-handoff (background, next Expo succeeds)
+ok 73 - maintenance crash matrix: publication-handoff (background, next Expo succeeds)
+  ---
+  duration_ms: 8597.209406
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":540,"full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416794413881802-16430f2d-cleanup-cleanup
+# Subtest: maintenance crash matrix: publication-handoff (background, next Expo fails)
+ok 74 - maintenance crash matrix: publication-handoff (background, next Expo fails)
+  ---
+  duration_ms: 8026.871166
+  type: 'test'
+  ...
+# {"point":"request-created","recovery":"next export","restoredMs":654,"full":5,"compressed":20,"attempt":1}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416795531741590-8e618840-cleanup-cleanup
+# Subtest: maintenance crash matrix: request-created (next export)
+ok 75 - maintenance crash matrix: request-created (next export)
+  ---
+  duration_ms: 1111.129399
+  type: 'test'
+  ...
+# {"point":"request-prepared","recovery":"next export","restoredMs":653,"full":5,"compressed":20,"attempt":1}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416796651246895-c710f25d-cleanup-cleanup
+# Subtest: maintenance crash matrix: request-prepared (next export)
+ok 76 - maintenance crash matrix: request-prepared (next export)
+  ---
+  duration_ms: 1119.553036
+  type: 'test'
+  ...
+# {"point":"request-committed","recovery":"next export","restoredMs":1146,"full":5,"compressed":20,"attempt":2}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416798263481611-53b5a994-cleanup-cleanup
+# Subtest: maintenance crash matrix: request-committed (next export)
+ok 77 - maintenance crash matrix: request-committed (next export)
+  ---
+  duration_ms: 1614.613332
+  type: 'test'
+  ...
+# {"point":"claim-renamed","recovery":"peer","restoredMs":655,"full":5,"compressed":20,"attempt":1}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416799398669505-7d42b3c1-cleanup-cleanup
+# Subtest: maintenance crash matrix: claim-renamed (peer)
+ok 78 - maintenance crash matrix: claim-renamed (peer)
+  ---
+  duration_ms: 1133.137069
+  type: 'test'
+  ...
+# {"point":"claim-recorded","recovery":"peer","restoredMs":655,"full":5,"compressed":20,"attempt":1}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416800634501301-72ca22bb-cleanup-cleanup
+# Subtest: maintenance crash matrix: claim-recorded (peer)
+ok 79 - maintenance crash matrix: claim-recorded (peer)
+  ---
+  duration_ms: 1229.735908
+  type: 'test'
+  ...
+# {"point":"scan-starting","recovery":"peer","restoredMs":704,"full":5,"compressed":20,"attempt":1}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416801803815322-83ba42c5-cleanup-cleanup
+# Subtest: maintenance crash matrix: scan-starting (peer)
+ok 80 - maintenance crash matrix: scan-starting (peer)
+  ---
+  duration_ms: 1174.859946
+  type: 'test'
+  ...
+# {"point":"compress-before","recovery":"next export","restoredMs":1400,"full":5,"compressed":20,"attempt":3}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416803781231958-c422cca7-cleanup-cleanup
+# Subtest: maintenance crash matrix: compress-before (next export)
+ok 81 - maintenance crash matrix: compress-before (next export)
+  ---
+  duration_ms: 1978.218147
+  type: 'test'
+  ...
+# {"point":"compress-committed","recovery":"next export","restoredMs":1406,"full":5,"compressed":20,"attempt":3}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416805763521438-bf89a3e3-cleanup-cleanup
+# Subtest: maintenance crash matrix: compress-committed (next export)
+ok 82 - maintenance crash matrix: compress-committed (next export)
+  ---
+  duration_ms: 1982.635429
+  type: 'test'
+  ...
+# {"point":"delete-before","recovery":"next export","restoredMs":1300,"full":5,"compressed":20,"attempt":3}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416807743288377-60f5a59d-cleanup-cleanup
+# Subtest: maintenance crash matrix: delete-before (next export)
+ok 83 - maintenance crash matrix: delete-before (next export)
+  ---
+  duration_ms: 1979.001772
+  type: 'test'
+  ...
+# {"point":"delete-after","recovery":"next export","restoredMs":1298,"full":5,"compressed":20,"attempt":3}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416809796830419-bb4fc97c-cleanup-cleanup
+# Subtest: maintenance crash matrix: delete-after (next export)
+ok 84 - maintenance crash matrix: delete-after (next export)
+  ---
+  duration_ms: 2053.837104
+  type: 'test'
+  ...
+# {"point":"scan-complete","recovery":"peer","restoredMs":602,"full":5,"compressed":20,"attempt":2}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416811172880971-20a252dd-cleanup-cleanup
+# Subtest: maintenance crash matrix: scan-complete (peer)
+ok 85 - maintenance crash matrix: scan-complete (peer)
+  ---
+  duration_ms: 1374.660668
+  type: 'test'
+  ...
+# {"point":"done-before","recovery":"peer","restoredMs":705,"full":5,"compressed":20,"attempt":2}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416812752523500-b28309c3-cleanup-cleanup
+# Subtest: maintenance crash matrix: done-before (peer)
+ok 86 - maintenance crash matrix: done-before (peer)
+  ---
+  duration_ms: 1574.459629
+  type: 'test'
+  ...
+# {"point":"done-after","recovery":"already complete","restoredMs":204,"full":5,"compressed":20,"attempt":1}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416813661555774-5a114a36-cleanup-cleanup
+# Subtest: maintenance crash matrix: done-after (already complete)
+ok 87 - maintenance crash matrix: done-after (already complete)
+  ---
+  duration_ms: 909.081248
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416814842640170-535a2185-cleanup-cleanup
+# Subtest: a custodian killed after claiming an empty legacy request resumes without a later export
+ok 88 - a custodian killed after claiming an empty legacy request resumes without a later export
+  ---
+  duration_ms: 1185.966145
+  type: 'test'
+  ...
+# {"point":"handoff-pending","victim":"observer","recovery":"peer","full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416816115537509-c5afd19e-cleanup-cleanup
+# Subtest: maintenance handoff crash matrix: handoff-pending kills observer
+ok 89 - maintenance handoff crash matrix: handoff-pending kills observer
+  ---
+  duration_ms: 1272.914865
+  type: 'test'
+  ...
+# {"point":"handoff-pending","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416817387372396-3dd17f63-cleanup-cleanup
+# Subtest: maintenance handoff crash matrix: handoff-pending kills custodian
+ok 90 - maintenance handoff crash matrix: handoff-pending kills custodian
+  ---
+  duration_ms: 1271.605192
+  type: 'test'
+  ...
+# {"point":"handoff-busy","victim":"observer","recovery":"peer","full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416818809242965-c05f579c-cleanup-cleanup
+# Subtest: maintenance handoff crash matrix: handoff-busy kills observer
+ok 91 - maintenance handoff crash matrix: handoff-busy kills observer
+  ---
+  duration_ms: 1422.734073
+  type: 'test'
+  ...
+# {"point":"handoff-busy","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416820076718437-2cd5750e-cleanup-cleanup
+# Subtest: maintenance handoff crash matrix: handoff-busy kills custodian
+ok 92 - maintenance handoff crash matrix: handoff-busy kills custodian
+  ---
+  duration_ms: 1266.869683
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416821142213488-bf4f91ef-cleanup-cleanup
+# Subtest: next export repairs parked maintenance even when Expo fails (off)
+ok 93 - next export repairs parked maintenance even when Expo fails (off)
+  ---
+  duration_ms: 1063.19274
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416822094688955-bcaa90dd-cleanup-cleanup
+# Subtest: next export repairs parked maintenance even when Expo fails (non-macOS)
+ok 94 - next export repairs parked maintenance even when Expo fails (non-macOS)
+  ---
+  duration_ms: 954.432702
+  type: 'test'
+  ...
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-publication/evidence/suite-snapshots/maintenance-cb65a433eb364227/snapshot-1791416823156047836-d1c40b62-cleanup-cleanup
+# Subtest: next export repairs parked maintenance even when Expo fails (background)
+ok 95 - next export repairs parked maintenance even when Expo fails (background)
+  ---
+  duration_ms: 1055.745956
+  type: 'test'
+  ...
+1..95
+# tests 95
+# suites 0
+# pass 63
+# fail 0
+# cancelled 0
+# skipped 32
+# todo 0
+# duration_ms 382732.894901
+-- process inspection: {"snapshots":3,"unrelatedRows":3410}
+-- client file ok: packages/snapback4/test/export-background.test.mjs (382994 ms)
+-- client files: 4/4; failed 0; tests {"tests":130,"pass":98,"fail":0,"cancelled":0,"skipped":32,"todo":0}

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "build",
+    "--manifest-path",
+    "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/round6-controls-215769/snapback4/Cargo.toml",
+    "-p",
+    "snapback4"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/ccheever/sb4-intent/lane-em/snapback4/target",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "6"
+  },
+  "overrides": null,
+  "exitCode": 0,
+  "seconds": 2.6675493649963755,
+  "retentionSha256": "8c3f91edea63f0e090e638d9d71e4f63995d00ab3669dc65d41df73b41246441",
+  "traceSha256": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746"
+}

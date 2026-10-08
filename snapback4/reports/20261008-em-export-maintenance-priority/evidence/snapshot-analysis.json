@@ -1,0 +1,614 @@
+{
+  "archiveSha256": "b7b48b6d17e2e07210db515740a422f1f0573d524d61cb2e8b123eb394d381fd",
+  "snapshot": "sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428318052862000-2de450ff-failure-drain-timeout/",
+  "platform": "darwin",
+  "queue": {
+    "maintenance-next.json": {
+      "at": 1791428208730,
+      "awake": 14959559,
+      "expiresAt": 1791431808727,
+      "process": {
+        "pid": 55635,
+        "start": [
+          1791428208,
+          727898
+        ]
+      },
+      "state": "pending"
+    },
+    "maintenance-active.json": {
+      "at": 1791428259601,
+      "attempt": 1,
+      "process": {
+        "pid": 56995,
+        "start": [
+          1791428228,
+          535569
+        ]
+      },
+      "state": "handoff"
+    },
+    "maintenance-parked.json": {
+      "attempts": 1,
+      "state": "claimed"
+    },
+    "maintenance-result.json": {
+      "error": "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred",
+      "finishedAt": 1791428259585,
+      "pending": true
+    }
+  },
+  "processes": {
+    "processes": [],
+    "rejected": [
+      {
+        "pid": 55635,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 56995,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 56940,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 55617,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 55643,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 55691,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 55714,
+        "reason": "birth-or-command-mismatch"
+      }
+    ],
+    "truncated": [],
+    "limits": {
+      "processes": 24,
+      "descriptorsPerProcess": 16
+    }
+  },
+  "drain": [
+    {
+      "at": 1791428227913,
+      "pid": 21611,
+      "step": "test-drain-start",
+      "detail": {
+        "allowParked": false,
+        "elapsedMs": 0.004415999981574714
+      }
+    }
+  ],
+  "workerToFirstCompressionMs": 15782,
+  "commits": 39,
+  "pairedCompressionMs": {
+    "count": 33,
+    "minimum": 14,
+    "median": 53,
+    "maximum": 3157
+  },
+  "timeline": [
+    {
+      "at": 1791428228553,
+      "detail": 56995,
+      "pid": 55635,
+      "step": "scan-launched"
+    },
+    {
+      "at": 1791428228584,
+      "detail": null,
+      "pid": 56995,
+      "step": "claim-renamed"
+    },
+    {
+      "at": 1791428228615,
+      "detail": null,
+      "pid": 56995,
+      "step": "claim-recorded"
+    },
+    {
+      "at": 1791428228615,
+      "detail": null,
+      "pid": 56995,
+      "step": "scan-starting"
+    },
+    {
+      "at": 1791428228624,
+      "detail": null,
+      "pid": 56995,
+      "step": "work-start"
+    },
+    {
+      "at": 1791428229527,
+      "detail": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-ZjFBQ0/artifacts/native-smoke/.retention-56995-1791428228624",
+      "pid": 56995,
+      "step": "worker-launched"
+    },
+    {
+      "at": 1791428245309,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428245686,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428245737,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428245737,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428245855,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428245856,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428246444,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428246595,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428246870,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428246913,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428246963,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428246963,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428247016,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428247033,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428248338,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428248686,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428249847,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428249961,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428253118,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428253118,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428253725,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428253731,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254863,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428254865,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254888,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428254888,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254903,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428254923,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254938,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428254940,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254954,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428254954,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254970,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428254970,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428254992,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428255385,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428255869,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428255976,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428255978,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256244,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256254,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256441,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256442,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256462,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256464,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256502,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256605,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256622,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256625,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256830,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256830,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256850,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256869,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256869,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256886,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256912,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256935,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256943,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256962,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256962,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428256981,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428256981,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428257074,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428257115,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428257167,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428257199,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428257199,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428257350,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428257351,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428257758,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428257758,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428258368,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-committed"
+    },
+    {
+      "at": 1791428258375,
+      "detail": null,
+      "pid": 57036,
+      "step": "compress-before"
+    },
+    {
+      "at": 1791428258896,
+      "detail": {
+        "elapsedMs": 30271,
+        "error": "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred"
+      },
+      "pid": 56995,
+      "step": "work-ended"
+    },
+    {
+      "at": 1791428259560,
+      "detail": {
+        "elapsedMs": 30936
+      },
+      "pid": 56995,
+      "step": "cleanup-ended"
+    },
+    {
+      "at": 1791428259585,
+      "detail": null,
+      "pid": 56995,
+      "step": "scan-complete"
+    },
+    {
+      "at": 1791428259611,
+      "detail": {
+        "error": "E_WITNESS_ARTIFACT: evidence retention exceeded its 30-second deadline; deferred"
+      },
+      "pid": 56995,
+      "step": "scan-handoff"
+    },
+    {
+      "at": 1791428259624,
+      "detail": {
+        "pid": 56995,
+        "success": true
+      },
+      "pid": 55635,
+      "step": "scan-exited"
+    }
+  ]
+}

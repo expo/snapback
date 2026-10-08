@@ -1,0 +1,10 @@
+--- fixed
++++ wakeup-negative
+@@ -180,3 +180 @@
+-            drop(queued);
+-            adopt_later(root, &mut intent);
+-            continue;
++            return Ok(Value::Null); // CONTROL: exit under the empty lease
+@@ -313 +311 @@
+-        if let Err(e) = resume_unobserved(&root) { eprintln!("witness: evidence cleanup deferred: {e}"); }
++        // CONTROL: omit fresh-wakeup handoff on failed guard

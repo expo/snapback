@@ -11,13 +11,14 @@ import path from 'node:path';
 import { checkedSpawnSync as spawnSync } from './helpers/fixture-command.mjs';
 import { once } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
-import { checkSignalRecord, signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
-import { fixtureCommands, signalFixture } from './helpers/fixture-signals.mjs';
+import { maintenanceEvidence, watchMaintenance, observedMaintenance } from './helpers/maintenance-evidence.mjs';
+import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+import { signalFixture } from './helpers/fixture-signals.mjs';
 import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from './helpers/publication-barrier.mjs';
 
 // Use one spelling for launch and exact identity checks, including Darwin's
 // /private temporary roots and native workers spawned via current_exe().
-const binary = fs.realpathSync(new URL('../../../target/debug/snapback4', import.meta.url));
+const binary = fs.realpathSync(process.env.SNAPBACK4_EXPORT_TEST_BINARY || new URL('../../../target/debug/snapback4', import.meta.url));
 const wrapper = new URL('../../snapback4-expo/export-ios.mjs', import.meta.url).pathname;
 const shim = new URL('../bin/snapback4.js', import.meta.url).pathname;
 const pause = () => new Promise(r => setTimeout(r, 50));
@@ -30,7 +31,7 @@ async function until(check, label, timeout = 30000, signal) {
   }
 }
 const read = p => { try { return JSON.parse(fs.readFileSync(p)); } catch { return null; } };
-function fixture() {
+function fixture({ normalPriority = true } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-background-')));
   const put = (p, text, mode) => { p = path.join(root, p); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text, mode ? { mode } : {}); };
   put('package.json', '{}'); put('snapback/schema.q', '');
@@ -54,6 +55,11 @@ if(args.join(' ')==='simctl list runtimes --json') {
   put('bin/package.json', '{"type":"module"}');
   const env = { ...process.env, SNAPBACK4_BIN: binary, PATH: path.join(root, 'bin') + ':' + process.env.PATH,
     SNAPBACK4_SMOKE_DEVICE_PREFIX: 'sb4-nz-test-', XDG_STATE_HOME: path.join(root, 'state') };
+  // Debug-only seam: queue/custody assertions must not depend on Darwin's
+  // discretionary background I/O scheduling. The production-policy case below
+  // explicitly removes it, including any value inherited from the test runner.
+  if (normalPriority) env.SNAPBACK4_TEST_EXPORT_NORMAL_PRIORITY = '1';
+  else delete env.SNAPBACK4_TEST_EXPORT_NORMAL_PRIORITY;
   delete env.SNAPBACK4_NATIVE_SMOKE;
   const maintainers = [];
   const invoke = (bytes = 'export one') => {
@@ -66,7 +72,9 @@ if(args.join(' ')==='simctl list runtimes --json') {
   const latest = () => read(path.join(root, 'artifacts/native-smoke/latest.json'));
   const status = (...args) => spawnSync(binary, ['witness', 'status', ...args], { cwd: root, env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
   const events = () => { try { return fs.readFileSync(path.join(root, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse); } catch { return []; } };
-  return { root, put, env, invoke, latest, status, events, maintainers };
+  const f = { root, put, env, invoke, latest, status, events, maintainers };
+  f.stopMaintenanceWatch = watchMaintenance(f);
+  return f;
 }
 async function cleanup(f) {
   f.put('continue', '');
@@ -86,8 +94,30 @@ async function cleanup(f) {
     const custody = read(path.join(root, dir, 'retention-group.json'));
     if (custody) await until(() => !alive(custody.group) && !alive(custody.guardian?.pid), 'fixture retention keeper and guardian exited', 90000);
   }
+  if (process.env.SNAPBACK4_MAINTENANCE_EVIDENCE) await maintenanceEvidence(f, 'cleanup');
+  f.stopMaintenanceWatch();
   fs.rmSync(f.root, { recursive: true, force: true });
 }
+
+for (const normalPriority of [false,true]) test(`Darwin export launch policy: ${normalPriority?'normal fixture':'production background'}`, {skip:process.platform!=='darwin',timeout:120000}, async()=>{
+  const f=fixture({normalPriority});
+  try {
+    f.env.SNAPBACK4_TEST_RETENTION_POINT='observer-wakeup';
+    f.put('continue','');
+    const run=f.invoke();assert.equal(run.status,0,run.stdout+run.stderr);
+    const root=path.join(f.root,'artifacts/native-smoke'),dir=f.latest().artifacts;
+    const point=path.join(root,'maintenance-test-point.json');
+    // A small policy probe, with no history to compress. The background path
+    // retains its discretionary scheduling; existing semantic waits below do
+    // not receive this probe's startup allowance.
+    await until(()=>read(point)?.point==='observer-wakeup' && read(path.join(dir,'worker.json')) && read(path.join(dir,'driver.json')),
+      'observer, proof custodian and driver recorded their own policy',90000);
+    const expected=normalPriority?0:1;
+    assert.equal(read(point).darwinBackground,expected,'maintenance observer policy');
+    assert.equal(read(path.join(dir,'worker.json')).darwinBackground,expected,'proof custodian policy');
+    assert.equal(read(path.join(dir,'driver.json')).darwinBackground,expected,'proof driver inherited policy');
+  } finally {f.put('artifacts/native-smoke/maintenance-test-resume','');await cleanup(f);}
+});
 
 test('export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export', { skip: process.platform !== 'darwin' }, async () => {
   const f = fixture();
@@ -477,9 +507,89 @@ for (const fault of ['marker', 'handoff']) test(`overlapping skipped export cann
       assert.notEqual(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,current.generation);
       assert.deepEqual(f.latest(),current); noOldPass(f);
     }
+  } catch (error) {
+    await maintenanceEvidence(f, 'overlapping-export');
+    throw error;
   } finally {
     f.put('resume-skip','');
     if(skipped?.exitCode===null&&skipped?.signalCode===null)await once(skipped,'exit');
+    await cleanup(f);
+  }
+});
+
+for(const writer of ['observer','repair'])test(`failed export removal cannot race a maintenance writer (${writer})`, async()=>{
+  const f=fixture();let child,exited,repairExit;
+  const root=path.join(f.root,'artifacts/native-smoke');
+  const resume=point=>f.put(`artifacts/native-smoke/maintenance-test-${point}-resume`,'');
+  const barrier=point=>until(()=>read(path.join(root,`maintenance-test-${point}.json`)),`maintenance paused at ${point}`);
+  try {
+    skipMode(f,'off');
+    // Run the actual marker-failure cleanup. Widen rm's real unlink-to-rmdir
+    // window; the injected code never fabricates ENOTEMPTY or another error.
+    f.put('remove-window.cjs',`const fs=require('fs'),path=require('path'),write=fs.writeFileSync,remove=fs.rmSync;
+const wait=p=>{const end=Date.now()+15000;while(!fs.existsSync(p)){if(Date.now()>end)throw Error('removal fixture barrier expired: '+p);Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10)}};
+fs.writeFileSync=function(p,...args){if(String(p).endsWith('.snapback4-publication.json')){write('marker-ready.json',JSON.stringify({dir:path.dirname(path.dirname(p))}));wait('fail-marker');throw Error('injected skipped marker write failure')}return write.call(this,p,...args)};
+fs.rmSync=function(p,...args){if(/native-smoke\\/\\d+-\\d+$/.test(String(p))){for(const name of fs.readdirSync(p))remove(path.join(p,name),{recursive:true,force:true});write('removal-window','');wait('finish-removal');return fs.rmdirSync(p)}return remove.call(this,p,...args)};`);
+    child=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,NODE_OPTIONS:`--require=${path.join(f.root,'remove-window.cjs')}`},stdio:['ignore','pipe','pipe']});
+    let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);exited=once(child,'close');
+    await until(()=>read(path.join(f.root,'marker-ready.json')),'failed wrapper still holds its private export lease');
+    const dir=read(path.join(f.root,'marker-ready.json')).dir;
+    if(writer==='observer') {
+      f.put('artifacts/native-smoke/maintenance-request.json','{}');
+      const kick=spawnSync(binary,['witness','export-maintenance',root],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:'ready-run-discovered,ready-run-probed'},encoding:'utf8'});
+      assert.equal(kick.status,0,kick.stderr);
+      await barrier('ready-run-discovered');
+    }
+    f.put('fail-marker','');await until(()=>fs.existsSync(path.join(f.root,'removal-window')),'rm unlinked its snapshot but has not called rmdir');
+    assert.deepEqual(fs.readdirSync(dir),[],'the final directory was empty before the probe');
+    if(writer==='observer') {resume('ready-run-discovered');await barrier('ready-run-probed');}
+    else {
+      const repair=spawn(binary,['witness','export-cleanup',root],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:'repair-leased,unused'},stdio:['ignore','ignore','pipe']});
+      let log='',closed=false;repair.stderr.on('data',b=>log+=b);repairExit=once(repair,'close').then(result=>{closed=true;return {result,log};});
+      await until(()=>closed||read(path.join(root,'maintenance-test-repair-leased.json')),'repair deferred or acquired the directory while removal is paused');
+    }
+    const probeFiles=fs.readdirSync(dir);
+    f.put('finish-removal','');const [code]=await exited;
+    console.log(JSON.stringify({writer,removalProbeFiles:probeFiles,code,output}));
+    assert.equal(code,1,output);
+    assert.match(output,/injected skipped marker write failure/);
+    assert.doesNotMatch(output,/ENOTEMPTY/);
+    assert.deepEqual(probeFiles,[],'maintenance must not write into the directory being removed');
+    assert.equal(fs.existsSync(dir),false,'failed attempt is removed, never a keep slot');
+    assert.equal(fs.existsSync(path.join(f.root,'dist')),false,'failure published nothing');
+    resume('ready-run-probed');resume('repair-leased');
+    if(repairExit){const {result,log}=await repairExit;assert.equal(result[0],0,log);}
+    await maintenanceIdle(f);
+  } catch(error) {await maintenanceEvidence(f,'run-removal');throw error;}
+  finally {
+    f.put('fail-marker','');f.put('finish-removal','');resume('ready-run-discovered');resume('ready-run-probed');resume('repair-leased');
+    if(exited)await exited;
+    if(repairExit)await repairExit;
+    await cleanup(f);
+  }
+});
+
+test('shell repair cannot recreate a run removed after its directory discovery', async()=>{
+  const f=fixture();let child,exited;
+  const root=path.join(f.root,'artifacts/native-smoke'),dir=path.join(root,'1-1');
+  try {
+    fs.mkdirSync(dir,{recursive:true});
+    child=spawn(binary,['witness','export-cleanup',root],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:'repair-discovered,repair-leased'},stdio:['ignore','pipe','pipe']});
+    let output='',closed=false;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);exited=once(child,'close').then(result=>{closed=true;return result;});
+    await until(()=>read(path.join(root,'maintenance-test-repair-discovered.json')),'worker retained a stale directory discovery');
+    const {acquireExportLease}=await import('../../snapback4-expo/export-ios.mjs');
+    const lease=acquireExportLease(root,binary,true);
+    try {fs.rmSync(dir,{recursive:true});}finally{fs.closeSync(lease);}
+    f.put('artifacts/native-smoke/maintenance-test-repair-discovered-resume','');
+    await until(()=>closed||read(path.join(root,'maintenance-test-repair-leased.json')),'stale repair skipped or recreated its discovery');
+    assert.equal(fs.existsSync(dir),false,'already removed discoveries must not be recreated');
+    assert.equal((await exited)[0],0,output);
+    await maintenanceIdle(f);
+  } catch(error) {await maintenanceEvidence(f,'stale-discovery');throw error;}
+  finally {
+    f.put('artifacts/native-smoke/maintenance-test-repair-discovered-resume','');
+    f.put('artifacts/native-smoke/maintenance-test-repair-leased-resume','');
+    if(exited)await exited;
     await cleanup(f);
   }
 });
@@ -651,29 +761,9 @@ for(const [mode, fault] of [['off','SIGTERM'],['non-macOS','SIGKILL'],['off','de
 // observer which was launched by the preceding custodian rather than a wrapper.
 async function maintenanceIdle(f, allowParked = false) {
   const root=path.join(f.root,'artifacts/native-smoke');
-  try {
-    await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
-      ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
-      'coalesced maintenance queue drained',90000);
-  } catch (error) {
-    // Preserve the first failure and evidence before fixture cleanup removes
-    // the queue. A later passing rerun cannot explain a missing transition.
-    try {
-      const records = Object.fromEntries(['request','claimed','parked','next','active','result','done']
-        .map(name => [name, read(path.join(root, `maintenance-${name}.json`))]));
-      const processes = Object.fromEntries(await Promise.all(['next','active'].map(async name => {
-        const record = records[name]?.process;
-        if (!record) return [name, null];
-        try { return [name, { verified: await checkSignalRecord(record, fixtureCommands(f.env.SNAPBACK4_BIN, f.root)) }]; }
-        catch (failure) { return [name, { inspection: failure.message }]; }
-      })));
-      let log;
-      try { log = fs.readFileSync(path.join(root, 'maintenance.log'), 'utf8').slice(-65536); }
-      catch (failure) { log = `unavailable: ${failure.code}`; }
-      error.message += '\nMAINTENANCE_SNAPSHOT ' + JSON.stringify({ records, processes, log });
-    } catch (failure) { error.message += `\nMAINTENANCE_SNAPSHOT unavailable: ${failure.message}`; }
-    throw error;
-  }
+  await observedMaintenance(f, allowParked, () => until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
+    ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
+    'coalesced maintenance queue drained',90000));
 }
 function retentionProcesses(root, env = process.env) {
   // Full commands, unlike the runner's short metadata rows, can be kilobytes
@@ -776,7 +866,9 @@ for(const mode of ['off','non-macOS','background']) test(`first-started last-pub
       const sweep=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(sweep.status,0,sweep.stderr);
       assert.ok(fs.existsSync(path.join(early,'request.json')),'current pending proof remains full');
       f.put('continue','');assert.equal(f.status('--wait').status,2);
-      await until(()=>!alive(read(path.join(early,'worker.json'))?.process?.pid),'background proof and post-driver retention finished');
+      try {
+        await until(()=>!alive(read(path.join(early,'worker.json'))?.process?.pid),'background proof and post-driver retention finished');
+      } catch(error) {await maintenanceEvidence(f,'post-driver-timeout');throw error;}
     }
     await maintenanceIdle(f);
     const sweep=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(sweep.status,0,sweep.stderr);
@@ -1195,10 +1287,61 @@ for(const point of ['publication-committed','publication-handoff'])for(const mod
     assert.ok(fs.existsSync(path.join(current,'export')),'committed generation survives recovery');
     if(failNext)assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation);
     console.log(JSON.stringify({point,mode,nextExpo:failNext?'failed':'passed',recovery:'next export inventory',restoredMs:Date.now()-start,full:5,compressed:20}));
-  } finally {
+  } catch(error) {await maintenanceEvidence(f,'publication-crash-matrix');throw error;}
+  finally {
     f.put('artifacts/native-smoke/maintenance-test-resume','');
     if(wrapperExit)await wrapperExit;
     if(held){held.child.stdin.end();await held.exited;}
+    await cleanup(f);
+  }
+});
+// A dead wrapper's export lease may now belong to maintenance. Pause each
+// actual holder, then force the next publisher to contend before releasing it.
+for(const holder of ['ready-pending-export','reconcile-pending-export'])for(const stalled of (holder==='ready-pending-export'?[false,true]:[false]))test(stalled?'interrupted publication preserves a persistently held export lease':`interrupted publication recovers through ${holder} custody`,{timeout:120000},async()=>{
+  const f=fixture();let firstExit,nextExit;
+  const root=path.join(f.root,'artifacts/native-smoke');
+  const resume=point=>f.put(`artifacts/native-smoke/maintenance-test-${point}-resume`,'');
+  try {
+    skipMode(f,'off');f.put('continue','');
+    f.env.SNAPBACK4_TEST_RETENTION_POINT='publication-committed';
+    const first=spawn(process.execPath,[wrapper],{cwd:f.root,env:f.env,stdio:'ignore'});firstExit=once(first,'exit');
+    await until(()=>read(path.join(root,'maintenance-test-point.json'))?.point==='publication-committed','first publication committed');
+    const stopped=read(path.join(root,'maintenance-test-point.json'));
+    const pending=read(path.join(root,'publication-pending.json'));
+    const previous=path.dirname(pending.source);
+    const generation=read(path.join(f.root,'dist/.snapback4-publication.json')).generation;
+    await signalFixture(f,stopped.process,'SIGKILL');await firstExit;
+    assert.equal(alive(first.pid),false,'the Node wrapper has exited before contention');
+    f.env.SNAPBACK4_TEST_RETENTION_POINT=holder+',publication-recovery-busy';
+    const producer=spawnSync(binary,['witness','export-maintenance',root],{cwd:f.root,env:f.env,encoding:'utf8',timeout:10000});
+    assert.equal(producer.status,0,producer.stdout+producer.stderr);
+    await until(()=>read(path.join(root,`maintenance-test-${holder}.json`))?.point===holder,'maintenance holds the interrupted export lease');
+    const next=spawn(process.execPath,[wrapper],{cwd:f.root,env:f.env,stdio:['ignore','pipe','pipe']});nextExit=once(next,'exit');
+    let output='';for(const stream of [next.stdout,next.stderr])stream.on('data',b=>{output=(output+b).slice(-16384);});
+    await until(()=>read(path.join(root,'maintenance-test-publication-recovery-busy.json'))?.point==='publication-recovery-busy','next publisher encountered that custody');
+    assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation,'visible committed generation stays intact during contention');
+    console.log(JSON.stringify({holder,stalled,wrapperExited:first.pid,holderIdentity:read(path.join(root,`maintenance-test-${holder}.json`)).process,publisherIdentity:read(path.join(root,'maintenance-test-publication-recovery-busy.json')).process}));
+    if(stalled) {
+      resume('publication-recovery-busy');
+      assert.equal((await nextExit)[0],1,output);
+      assert.match(output,/interrupted publication still has export custody after 5 seconds; preserved/);
+      assert.ok(alive(read(path.join(root,`maintenance-test-${holder}.json`)).process.pid),'the same paused holder outlives the refusal');
+      assert.deepEqual(read(path.join(root,'publication-pending.json')),pending,'timeout preserves the exact recovery intent');
+      assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation,'timeout leaves the committed namespace intact');
+      resume(holder);await maintenanceIdle(f);
+      const retry=f.invoke('retry after persistent custody');assert.equal(retry.status,0,retry.stdout+retry.stderr);
+    } else {
+      resume(holder);resume('publication-recovery-busy');
+      assert.equal((await nextExit)[0],0,output);
+    }
+    assert.notEqual(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation);
+    assert.ok(read(path.join(f.latest().artifacts,'publication.json')),'next export verified its own publication');
+    await maintenanceIdle(f);
+    assert.ok(fs.existsSync(path.join(previous,'export')),'interrupted committed evidence survives recovery');
+  } catch(error) {await maintenanceEvidence(f,'publication-recovery-failure');throw error;}
+  finally {
+    f.put('artifacts/native-smoke/maintenance-test-resume','');resume(holder);resume('publication-recovery-busy');
+    if(firstExit)await firstExit;if(nextExit)await nextExit;
     await cleanup(f);
   }
 });

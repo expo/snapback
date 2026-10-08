@@ -1,0 +1,1270 @@
+{
+  "baseCommit": "aca7883e26eb3372253eec0db1f7d8f88593ba07",
+  "host": "expose-builder-pixel",
+  "binarySha256": "121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c",
+  "finalBinarySha256": "310eefa9655d700c8efaa5d95920b148fca1d6047b54d216f4f8101942e2700d",
+  "formatOnly": {
+    "beforeSourceSha256": "4a19beb1b6990fc11f2bb78e4269e9225123d880eb8d8d9d8333443e636e5ef1",
+    "afterSourceSha256": "ef9eff9a6874392999a978668ad3ce90de32a5ddc59e5aa05b276846acd7285c",
+    "ignoringIndentationSha256": "575eae607e8b4e5d86e8695b7dccdcf4d75308b1c469740253006cd4db005572",
+    "identicalIgnoringIndentation": true,
+    "beforeBinary": "121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c",
+    "afterBinary": "310eefa9655d700c8efaa5d95920b148fca1d6047b54d216f4f8101942e2700d"
+  },
+  "cohorts": {
+    "wakeup-load": {
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 4,
+        "jobs": 2,
+        "start": 1791406435.3994632,
+        "binarySha256": "121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-maintenance-wakeup.test.mjs": "0cebc35b23db6d87f34116202c594d69f457fb629bfdb1304e01f25cbbe75918",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round3/evidence/wakeup-load",
+          "rounds": 30,
+          "jobs": 2,
+          "cpus": "80-83",
+          "load": 4,
+          "io_workers": 1,
+          "burst_seconds": 0,
+          "binary": "target/em/binaries/121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c/snapback4",
+          "test_file": "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+          "pattern": ".*",
+          "keep_going": false
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "code": 0,
+          "elapsed": 7.227811336517334
+        },
+        {
+          "run": 2,
+          "code": 0,
+          "elapsed": 7.516688585281372
+        },
+        {
+          "run": 3,
+          "code": 0,
+          "elapsed": 7.195298194885254
+        },
+        {
+          "run": 4,
+          "code": 0,
+          "elapsed": 7.219941854476929
+        },
+        {
+          "run": 6,
+          "code": 0,
+          "elapsed": 6.613567352294922
+        },
+        {
+          "run": 5,
+          "code": 0,
+          "elapsed": 6.690574645996094
+        },
+        {
+          "run": 8,
+          "code": 0,
+          "elapsed": 7.150872230529785
+        },
+        {
+          "run": 7,
+          "code": 0,
+          "elapsed": 7.182801723480225
+        },
+        {
+          "run": 10,
+          "code": 0,
+          "elapsed": 7.176660060882568
+        },
+        {
+          "run": 9,
+          "code": 0,
+          "elapsed": 7.398303270339966
+        },
+        {
+          "run": 11,
+          "code": 0,
+          "elapsed": 7.234728813171387
+        },
+        {
+          "run": 12,
+          "code": 0,
+          "elapsed": 7.335167646408081
+        },
+        {
+          "run": 14,
+          "code": 0,
+          "elapsed": 7.136806011199951
+        },
+        {
+          "run": 13,
+          "code": 0,
+          "elapsed": 7.2434282302856445
+        },
+        {
+          "run": 15,
+          "code": 0,
+          "elapsed": 6.8624348640441895
+        },
+        {
+          "run": 16,
+          "code": 0,
+          "elapsed": 6.971690654754639
+        },
+        {
+          "run": 17,
+          "code": 0,
+          "elapsed": 6.455808639526367
+        },
+        {
+          "run": 18,
+          "code": 0,
+          "elapsed": 7.126320838928223
+        },
+        {
+          "run": 19,
+          "code": 0,
+          "elapsed": 6.952037811279297
+        },
+        {
+          "run": 20,
+          "code": 0,
+          "elapsed": 6.957979917526245
+        },
+        {
+          "run": 22,
+          "code": 0,
+          "elapsed": 6.672369003295898
+        },
+        {
+          "run": 21,
+          "code": 0,
+          "elapsed": 6.789243459701538
+        },
+        {
+          "run": 24,
+          "code": 0,
+          "elapsed": 6.909870862960815
+        },
+        {
+          "run": 23,
+          "code": 0,
+          "elapsed": 6.9553656578063965
+        },
+        {
+          "run": 26,
+          "code": 0,
+          "elapsed": 7.11789345741272
+        },
+        {
+          "run": 25,
+          "code": 0,
+          "elapsed": 7.1534295082092285
+        },
+        {
+          "run": 28,
+          "code": 0,
+          "elapsed": 7.0954389572143555
+        },
+        {
+          "run": 27,
+          "code": 0,
+          "elapsed": 7.110517501831055
+        },
+        {
+          "run": 29,
+          "code": 0,
+          "elapsed": 7.114892959594727
+        },
+        {
+          "run": 30,
+          "code": 0,
+          "elapsed": 7.127288103103638
+        }
+      ],
+      "counts": {
+        "run-001.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-002.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-003.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-004.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-005.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-006.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-007.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-008.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-009.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-010.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-011.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-012.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-013.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-014.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-015.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-016.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-017.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-018.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-019.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-020.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-021.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-022.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-023.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-024.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-025.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-026.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-027.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-028.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-029.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-030.log": {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      },
+      "retainedDrainSamples": {
+        "n": 180,
+        "median": 511.0759129999997,
+        "p95": 532.652118,
+        "max": 617.470464
+      }
+    },
+    "export-background": {
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 0,
+        "jobs": 1,
+        "start": 1791406456.9879477,
+        "binarySha256": "121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round3/evidence/export-background",
+          "rounds": 1,
+          "jobs": 1,
+          "cpus": "80-83",
+          "load": 0,
+          "io_workers": 0,
+          "burst_seconds": 0,
+          "binary": "target/em/binaries/121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c/snapback4",
+          "test_file": "packages/snapback4/test/export-background.test.mjs",
+          "pattern": ".*",
+          "keep_going": false
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "code": 0,
+          "elapsed": 462.0127303600311
+        }
+      ],
+      "counts": {
+        "run-001.log": {
+          "tests": 94,
+          "pass": 58,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 36
+        }
+      },
+      "retainedDrainSamples": {
+        "n": 4,
+        "median": 1009.5454784999893,
+        "p95": 1061.0169060000335,
+        "max": 1061.0169060000335
+      }
+    },
+    "affected-load": {
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 4,
+        "jobs": 4,
+        "start": 1791406593.9110215,
+        "binarySha256": "121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round3/evidence/affected-load",
+          "rounds": 30,
+          "jobs": 4,
+          "cpus": "80-83",
+          "load": 4,
+          "io_workers": 1,
+          "burst_seconds": 0,
+          "binary": "target/em/binaries/121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c/snapback4",
+          "test_file": "packages/snapback4/test/export-background.test.mjs",
+          "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|skipped maintenance never blocks publication and drains under deadline \\(off\\)|raced retention-lock deferrals",
+          "keep_going": false
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "code": 0,
+          "elapsed": 92.16109871864319
+        },
+        {
+          "run": 4,
+          "code": 0,
+          "elapsed": 92.43651151657104
+        },
+        {
+          "run": 2,
+          "code": 0,
+          "elapsed": 92.60958504676819
+        },
+        {
+          "run": 3,
+          "code": 0,
+          "elapsed": 92.61426782608032
+        },
+        {
+          "run": 6,
+          "code": 0,
+          "elapsed": 89.60731029510498
+        },
+        {
+          "run": 7,
+          "code": 0,
+          "elapsed": 90.000985622406
+        },
+        {
+          "run": 5,
+          "code": 0,
+          "elapsed": 90.01989412307739
+        },
+        {
+          "run": 8,
+          "code": 0,
+          "elapsed": 90.02236008644104
+        },
+        {
+          "run": 10,
+          "code": 0,
+          "elapsed": 90.70084190368652
+        },
+        {
+          "run": 11,
+          "code": 0,
+          "elapsed": 90.9222800731659
+        },
+        {
+          "run": 12,
+          "code": 0,
+          "elapsed": 91.37725472450256
+        },
+        {
+          "run": 9,
+          "code": 0,
+          "elapsed": 91.43584132194519
+        },
+        {
+          "run": 16,
+          "code": 0,
+          "elapsed": 84.4582085609436
+        },
+        {
+          "run": 14,
+          "code": 0,
+          "elapsed": 84.7189290523529
+        },
+        {
+          "run": 13,
+          "code": 0,
+          "elapsed": 84.99724078178406
+        },
+        {
+          "run": 15,
+          "code": 1,
+          "elapsed": 173.9845380783081
+        }
+      ],
+      "counts": {
+        "run-001.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-002.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-003.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-004.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-005.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-006.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-007.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-008.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-009.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-010.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-011.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-012.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-013.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-014.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-015.log": {
+          "tests": 4,
+          "pass": 3,
+          "fail": 1,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-016.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      },
+      "retainedDrainSamples": {
+        "n": 81,
+        "median": 913.7521080000006,
+        "p95": 1882.0208869999988,
+        "max": 90094.642819
+      }
+    },
+    "affected-load-continuation": {
+      "host": {
+        "host": "expose-builder-pixel",
+        "cpus": "80-83",
+        "loadWorkers": 4,
+        "jobs": 4,
+        "start": 1791407149.9548352,
+        "binarySha256": "310eefa9655d700c8efaa5d95920b148fca1d6047b54d216f4f8101942e2700d",
+        "pinned": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/310eefa9655d700c8efaa5d95920b148fca1d6047b54d216f4f8101942e2700d/snapback4",
+        "sources": {
+          "packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+          "packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+        },
+        "args": {
+          "out": "reports/20261007-em-export-maintenance-drain/round3/evidence/affected-load-continuation",
+          "rounds": 14,
+          "jobs": 4,
+          "cpus": "80-83",
+          "load": 4,
+          "io_workers": 1,
+          "burst_seconds": 0,
+          "binary": "target/em/binaries/310eefa9655d700c8efaa5d95920b148fca1d6047b54d216f4f8101942e2700d/snapback4",
+          "test_file": "packages/snapback4/test/export-background.test.mjs",
+          "pattern": "maintenance crash matrix: publication-handoff \\(off, next Expo fails\\)|failed Expo exports and dead wrapper journals never occupy keep slots \\(off\\)|skipped maintenance never blocks publication and drains under deadline \\(off\\)|raced retention-lock deferrals",
+          "keep_going": true
+        }
+      },
+      "runs": [
+        {
+          "run": 4,
+          "code": 0,
+          "elapsed": 80.27495503425598
+        },
+        {
+          "run": 1,
+          "code": 0,
+          "elapsed": 80.32469367980957
+        },
+        {
+          "run": 3,
+          "code": 0,
+          "elapsed": 80.81389617919922
+        },
+        {
+          "run": 2,
+          "code": 0,
+          "elapsed": 81.27704453468323
+        },
+        {
+          "run": 6,
+          "code": 0,
+          "elapsed": 80.89358639717102
+        },
+        {
+          "run": 8,
+          "code": 0,
+          "elapsed": 81.17244243621826
+        },
+        {
+          "run": 5,
+          "code": 0,
+          "elapsed": 81.7822813987732
+        },
+        {
+          "run": 7,
+          "code": 0,
+          "elapsed": 81.92346119880676
+        },
+        {
+          "run": 12,
+          "code": 0,
+          "elapsed": 81.89602446556091
+        },
+        {
+          "run": 10,
+          "code": 0,
+          "elapsed": 82.01210856437683
+        },
+        {
+          "run": 9,
+          "code": 0,
+          "elapsed": 82.40252637863159
+        },
+        {
+          "run": 11,
+          "code": 0,
+          "elapsed": 82.49416637420654
+        },
+        {
+          "run": 14,
+          "code": 0,
+          "elapsed": 68.8308675289154
+        },
+        {
+          "run": 13,
+          "code": 0,
+          "elapsed": 68.93001556396484
+        }
+      ],
+      "counts": {
+        "run-001.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-002.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-003.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-004.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-005.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-006.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-007.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-008.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-009.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-010.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-011.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-012.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-013.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "run-014.log": {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      },
+      "retainedDrainSamples": {
+        "n": 70,
+        "median": 815.273836999997,
+        "p95": 1669.4810389999984,
+        "max": 1725.7535190000017
+      }
+    }
+  },
+  "commands": [
+    {
+      "name": "retention-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-j",
+        "2",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "verbs::witness::retention::",
+        "--",
+        "--nocapture"
+      ],
+      "code": 0,
+      "elapsed": 7.441349939996144
+    },
+    {
+      "name": "recovery-tests",
+      "command": [
+        "cargo",
+        "test",
+        "-j",
+        "2",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "verbs::witness::recovery::",
+        "--",
+        "--nocapture"
+      ],
+      "code": 0,
+      "elapsed": 1.3732120589993428
+    },
+    {
+      "name": "sleep-clock",
+      "command": [
+        "cargo",
+        "test",
+        "-j",
+        "2",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "sleep_clock_requires_actual_suspended_time"
+      ],
+      "code": 0,
+      "elapsed": 0.08717340500152204
+    },
+    {
+      "name": "release-check",
+      "command": [
+        "cargo",
+        "check",
+        "-j",
+        "2",
+        "--release",
+        "-p",
+        "snapback4"
+      ],
+      "code": 0,
+      "elapsed": 0.7392340709920973
+    },
+    {
+      "name": "restored-build",
+      "command": [
+        "cargo",
+        "build",
+        "-j",
+        "2",
+        "-p",
+        "snapback4"
+      ],
+      "code": 0,
+      "elapsed": 8.050864812001237
+    },
+    {
+      "name": "diagnostics-final",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/maintenance-evidence.test.mjs"
+      ],
+      "code": 0,
+      "elapsed": 4.709700938008609
+    },
+    {
+      "name": "wakeup-final",
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+      ],
+      "code": 0,
+      "elapsed": 6.965714268008014
+    },
+    {
+      "name": "retention-final",
+      "command": [
+        "cargo",
+        "test",
+        "-j",
+        "2",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "verbs::witness::retention::"
+      ],
+      "code": 0,
+      "elapsed": 4.375408412000979
+    },
+    {
+      "name": "release-final",
+      "command": [
+        "cargo",
+        "check",
+        "-j",
+        "2",
+        "--release",
+        "-p",
+        "snapback4"
+      ],
+      "code": 0,
+      "elapsed": 0.8006052540004021
+    },
+    {
+      "name": "recovery-final",
+      "command": [
+        "cargo",
+        "test",
+        "-j",
+        "2",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "verbs::witness::recovery::"
+      ],
+      "code": 0,
+      "elapsed": 1.3993445899977814
+    }
+  ],
+  "controls": {
+    "unfixed-controls": {
+      "expectedExit": 1,
+      "actualExit": 1,
+      "elapsed": 182.80368576200271,
+      "snapshots": [
+        "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round3/evidence/unfixed-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406537334070333-8ca40e9c-failure-drain-timeout",
+        "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round3/evidence/unfixed-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406628885545355-b8a4b16b-failure-drain-timeout"
+      ]
+    },
+    "stall-controls": {
+      "expectedExit": 1,
+      "actualExit": 1,
+      "elapsed": 183.5732574940048,
+      "snapshots": [
+        "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round3/evidence/stall-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406547745964929-90b13959-failure-drain-timeout",
+        "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261007-em-export-maintenance-drain/round3/evidence/stall-controls/snapshots/maintenance-cb65a433eb364227/snapshot-1791406638670591126-fcf9bed8-failure-drain-timeout"
+      ]
+    }
+  },
+  "finalDiagnostics": {
+    "tests": 5,
+    "pass": 5,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "finalWakeup": {
+    "tests": 6,
+    "pass": 6,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "fixedReplay": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "references": "ref-check: ok \u2014 531 LLP docs, 10542 refs in 42770 files, 0 errors, 0 unchecked",
+  "inventory": "failed: unrelated root inventories/guide and missing generated demo preconditions; see inventories.log.gz",
+  "sourceSha256": {
+    "snapback4/crates/snapback4/src/verbs/witness/retention.rs": "ef9eff9a6874392999a978668ad3ce90de32a5ddc59e5aa05b276846acd7285c",
+    "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04",
+    "snapback4/crates/snapback4/src/verbs/witness/retention_trace.rs": "1496ee6347577ec10771c292838cfbd1556aa58a69ab9e9bf9f46f9a296615db",
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "dae11a78bf6e4e9ff0af3f2dd3d5407d82c59914c3daa8018c854f9944a38ae4",
+    "snapback4/packages/snapback4/test/export-maintenance-wakeup.test.mjs": "0cebc35b23db6d87f34116202c594d69f457fb629bfdb1304e01f25cbbe75918",
+    "snapback4/packages/snapback4/test/maintenance-evidence.test.mjs": "a3cd6f5437f9d8db2d6931fab22bbc0746172df57a5bc9fb7d63f7f7df214fe3",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.py": "945bafcff0d4d710def5ea2e7074968a67a771b8601b56807f6c380bc58aef57",
+    "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2",
+    "snapback4/packages/snapback4/test/helpers/maintenance_processes.py": "50ef3f37d2dd0428131c45374f929f04de30ae700b8a185b2562b0be66037b0d"
+  },
+  "archives": {
+    "affected-load.tar.gz": {
+      "sha256": "37ea106a263e3021535ee41bdd0a1e32fd238a0e1809596c9981b55d14cd8297",
+      "bytes": 567965,
+      "files": 4390,
+      "manifest": "affected-load.manifest.json.gz",
+      "manifestSha256": "11633b1b037154f1f8edb84b829d8eaded2d9c08da7fbb2df4c7cb7ec1e4bf79"
+    },
+    "affected-load-continuation.tar.gz": {
+      "sha256": "06209d09d4bd324a42a5b3824892676f6933384d671175c9c58528b441ac46b1",
+      "bytes": 483624,
+      "files": 3783,
+      "manifest": "affected-load-continuation.manifest.json.gz",
+      "manifestSha256": "f6d59c2f0959ee42ccd205dd31629971bbb62509152112b128ae1e572e394fca"
+    },
+    "export-background.tar.gz": {
+      "sha256": "a2fc9030ef4e0fd027ed312752f850cb5f9e552535a157a7c10e54c2a5c072c0",
+      "bytes": 29953,
+      "files": 273,
+      "manifest": "export-background.manifest.json.gz",
+      "manifestSha256": "b982640eef48de8c9e6c33be35602bb23c2f258036662cfaf726433936758ebf"
+    },
+    "fixed-controls.tar.gz": {
+      "sha256": "f8e6627f511a90986c11e69c7cf9be7ceaeb69315e782ef998f2d78064d2859e",
+      "bytes": 4142,
+      "files": 34,
+      "manifest": "fixed-controls.manifest.json.gz",
+      "manifestSha256": "6ab37b7cdc8f8b6e37d98f38c6ed38c74d4ec5ddf1427f330d0dde24f7398f71"
+    },
+    "stall-controls.tar.gz": {
+      "sha256": "e0b4b3b6f69b8232bb69ad3ce894c3acf0a2222d7d23e659d4d82066c8acc3a4",
+      "bytes": 16304,
+      "files": 118,
+      "manifest": "stall-controls.manifest.json.gz",
+      "manifestSha256": "fa07c8b647285197702e9ac6d578e79b2ecf3d25e0eedd6758aadd808e546585"
+    },
+    "unfixed-controls.tar.gz": {
+      "sha256": "ae0a64f7fc4d71f4d4c95ce9a4ef426d3c7660652513d451a720d2409c92cb17",
+      "bytes": 8958,
+      "files": 62,
+      "manifest": "unfixed-controls.manifest.json.gz",
+      "manifestSha256": "da6e4e67085eed97fd5193f3b7e85455a00e455ec0d5b93871fc64525babc28d"
+    },
+    "wakeup-final-snapshots.tar.gz": {
+      "sha256": "3aff28e824fb9bb451a315c19fefca28c6b0aaee02389285712a238d8a3e0f04",
+      "bytes": 7222,
+      "files": 63,
+      "manifest": "wakeup-final-snapshots.manifest.json.gz",
+      "manifestSha256": "5d0005558bebc8b3c2c50063fd40a8f43b87387bfcfcb01748f8cf7e467fc7dd"
+    },
+    "wakeup-initial.tar.gz": {
+      "sha256": "94453d5bdeb52976b5fc1a80025242c9dc585f5931d4f05c65bd11025536d2b6",
+      "bytes": 7158,
+      "files": 63,
+      "manifest": "wakeup-initial.manifest.json.gz",
+      "manifestSha256": "8684e56906a25d5628a388ce8fe888dd332d799060ac7004dc940f22dc41d909"
+    },
+    "wakeup-load.tar.gz": {
+      "sha256": "4b1c4ff1ce614d7f7e051a7459b4b275ae071613c1c3568ad5e33bec481036fd",
+      "bytes": 223403,
+      "files": 1923,
+      "manifest": "wakeup-load.manifest.json.gz",
+      "manifestSha256": "525f39b1faa7474372d5be397c72782eb034ddc9708bcd6033a283d9ebdc1752"
+    },
+    "build.log.gz": {
+      "sha256": "8250f2df447962126245dfbc6d0c402cecc081d54dcce58c97a7fe5f00705399",
+      "bytes": 526,
+      "rawSha256": "19e40a48364e94af37b4874454e2b33a596860f71ee1b4c88d7ca8004e9aef5d",
+      "rawBytes": 1104
+    },
+    "diagnostics-final.log.gz": {
+      "sha256": "6aa118cf06739eb9f432320c5dbff2ecf8296d71787674d5bdbb4c523b108ccd",
+      "bytes": 835,
+      "rawSha256": "d5fcdfdedcc412720d6daa2804a1a7c4dedc146c31b17c157141c8b7653aecee",
+      "rawBytes": 3497
+    },
+    "diagnostics.log.gz": {
+      "sha256": "9cfb399aab961da4d156fafcbf60a91e6faca6b9e35565a28c3fe43765c9aaf3",
+      "bytes": 844,
+      "rawSha256": "fc55fad1d381dabd1b2febe4c0375b7b1122d980f77ae1938d593b715ec11c7e",
+      "rawBytes": 3499
+    },
+    "fixed-controls.log.gz": {
+      "sha256": "117f842aced21c7b800f46818836ab634527554d72ade8d33a1ef9154ad02b89",
+      "bytes": 399,
+      "rawSha256": "be4ddf5f56dadb87abd3dd6bf4345e5ccb0aa11e105b70a76893dd987113e89d",
+      "rawBytes": 1037
+    },
+    "format-build.log.gz": {
+      "sha256": "1786e036be487bdc91e050d289dd9201bea3c34059dcba1c9006046c980c73e5",
+      "bytes": 525,
+      "rawSha256": "21fe35cc2b94792a2281897587383129ad1fe96c67449dab3259131f5f645c2e",
+      "rawBytes": 1104
+    },
+    "inventories.log.gz": {
+      "sha256": "3b0e242e71c8d1265bc8ce741e591b83d8d16395f3542e6d31040c0694287854",
+      "bytes": 1961,
+      "rawSha256": "880764cf844abfa52497c74d2a3f8a3ab21923ff394060881982737041c16a15",
+      "rawBytes": 7320
+    },
+    "recovery-final.log.gz": {
+      "sha256": "ad5d412a55591a2de30a9dcd3d485f9bdef3e7513efcbce93922f8227604001a",
+      "bytes": 1096,
+      "rawSha256": "6b9d8a38d12ae2c8bab054caa545746695351e09c3c67164735b21cc772bb77f",
+      "rawBytes": 2756
+    },
+    "recovery-tests.log.gz": {
+      "sha256": "67595dfb03218ddc286dd1fcdcae242a1b7f41b68292a9defa57799278832c91",
+      "bytes": 1188,
+      "rawSha256": "7baf9c7a9d2d634d9c46212e7a3a5b1850746e6e3e67268fd1097181ba416aee",
+      "rawBytes": 2959
+    },
+    "ref-check.log.gz": {
+      "sha256": "68b780c92adce42cf49f869fddb703b62f987679fd49c76e05d525f6baf74c8c",
+      "bytes": 94,
+      "rawSha256": "f93ade55a8704eb06fb23fa9c6ab8b996dd925756685467d41f42e502f4ec5b5",
+      "rawBytes": 81
+    },
+    "release-check.log.gz": {
+      "sha256": "8471f7b70ea40f9425f9b70973d4ef0ac6ca83042e713561e26f00f9a2fd08a1",
+      "bytes": 527,
+      "rawSha256": "062a3a77f168307e47e7bcbeaf3ccde42f4b83190a535a8646d956e4f194aa60",
+      "rawBytes": 1106
+    },
+    "release-final.log.gz": {
+      "sha256": "3a586ebdf8c9ede00494a066ef7e853d4dc38c3680e5ec8c2478b4dd25088bcc",
+      "bytes": 527,
+      "rawSha256": "8bf6d4349fc42135913af17b15cb769face5aadcec8061d659494e464a6f9e3a",
+      "rawBytes": 1106
+    },
+    "restored-build.log.gz": {
+      "sha256": "28a9ecc8ea9c834d316ea2133389ce2babd11bbdbddbe27967e7cf909c361b4f",
+      "bytes": 535,
+      "rawSha256": "fa96d1a7b1c75c95c7f91403e49d54d27def00bb5a78921f4d243e57ecff985d",
+      "rawBytes": 1212
+    },
+    "retention-final.log.gz": {
+      "sha256": "36e1383691dd9341be2ae333e8b5dd4cc9047c3325b134d51f8bbde27d56e240",
+      "bytes": 828,
+      "rawSha256": "0b2422386354874385453d76151b2c8fc5920bbcd9047610ffd83ebe0f495151",
+      "rawBytes": 1856
+    },
+    "retention-tests.log.gz": {
+      "sha256": "7d40f3b13e0ac62c290b28ca94a4416b7db36b83bca9ebadcdf94c12e5f122f2",
+      "bytes": 825,
+      "rawSha256": "932c3dac9cf2c01ec9d77c13dbbe840bed2f86bee5593ee3eb3a23212dc7f4dd",
+      "rawBytes": 1856
+    },
+    "sleep-clock.log.gz": {
+      "sha256": "1614b910a32f70a44950b7200d0e5dd747ac473fb6dc8f5c8af98480fef2b364",
+      "bytes": 638,
+      "rawSha256": "b49fa35cb4185eec2aabe5e2d64107f15c329d7f267e38cbd8d5a895c274b097",
+      "rawBytes": 1295
+    },
+    "wakeup-final.log.gz": {
+      "sha256": "c088bc32c8bdd73b85d11b9b3cb4113c6a38858fbff0cefa8f96823b996ebb42",
+      "bytes": 599,
+      "rawSha256": "793b2a31375d82ae484d3a74fe41269597ac3fd97c515cdea87a8cce6e0ae743",
+      "rawBytes": 2883
+    },
+    "wakeup-initial.log.gz": {
+      "sha256": "54881a603bcb3103ec4c1356f81ed32bef3235b1f2aa863d298e33837ed30bf8",
+      "bytes": 595,
+      "rawSha256": "6f0edee55cc3ab7f83992ddf7814f991a12f417cc118b0a0c708d4853f6295a0",
+      "rawBytes": 2833
+    }
+  }
+}

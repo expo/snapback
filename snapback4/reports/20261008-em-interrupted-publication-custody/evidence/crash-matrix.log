@@ -1,0 +1,97 @@
+{"point":"publication-committed","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":953,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435618601282042-9d538dd6-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (off, next Expo succeeds) (8432.670348ms)
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435648138564577-6ef49926-cleanup-cleanup
+✔ expired checkpoint refuses signal after 22-second dispatch delay (29528.478397ms)
+{"point":"publication-committed","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":548,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435656250545351-c16f1bf0-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (off, next Expo fails) (8118.979044ms)
+{"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":937,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435664773137287-6483a456-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds) (8522.538626ms)
+{"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":541,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435673000787934-979f73de-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (non-macOS, next Expo fails) (8227.841884ms)
+{"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":935,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435681365306118-09755460-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (background, next Expo succeeds) (8356.314677ms)
+{"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":643,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435689442288804-29a43e4a-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (background, next Expo fails) (8086.181954ms)
+{"point":"publication-handoff","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":936,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435698057502666-b6b51f27-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (off, next Expo succeeds) (8605.660593ms)
+{"point":"publication-handoff","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":540,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435706143925102-f7fae59d-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (off, next Expo fails) (8086.668384ms)
+{"point":"publication-handoff","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":932,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435714716453953-370ca080-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds) (8573.379225ms)
+{"point":"publication-handoff","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":546,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435722947440823-77d6ff7d-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (non-macOS, next Expo fails) (8234.947717ms)
+{"point":"publication-handoff","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":935,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435731529644737-8ecb21b6-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (background, next Expo succeeds) (8585.512714ms)
+{"point":"publication-handoff","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":542,"full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435739759677587-f6dfb36a-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (background, next Expo fails) (8230.892528ms)
+{"point":"request-created","recovery":"next export","restoredMs":654,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435740881546383-9792de64-cleanup-cleanup
+✔ maintenance crash matrix: request-created (next export) (1113.001825ms)
+{"point":"request-prepared","recovery":"next export","restoredMs":653,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435741986198723-3c3e569a-cleanup-cleanup
+✔ maintenance crash matrix: request-prepared (next export) (1104.745238ms)
+{"point":"request-committed","recovery":"next export","restoredMs":1046,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435743483658958-c795c884-cleanup-cleanup
+✔ maintenance crash matrix: request-committed (next export) (1498.089148ms)
+{"point":"claim-renamed","recovery":"peer","restoredMs":705,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435744656898096-8476a478-cleanup-cleanup
+✔ maintenance crash matrix: claim-renamed (peer) (1172.644687ms)
+{"point":"claim-recorded","recovery":"peer","restoredMs":706,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435745836233932-8b886a74-cleanup-cleanup
+✔ maintenance crash matrix: claim-recorded (peer) (1179.369906ms)
+{"point":"scan-starting","recovery":"peer","restoredMs":706,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435747010102001-c7692c5c-cleanup-cleanup
+✔ maintenance crash matrix: scan-starting (peer) (1169.653783ms)
+{"point":"compress-before","recovery":"next export","restoredMs":1391,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435748971662697-3958dde3-cleanup-cleanup
+✔ maintenance crash matrix: compress-before (next export) (1966.359569ms)
+{"point":"compress-committed","recovery":"next export","restoredMs":1396,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435750945243650-84c465ad-cleanup-cleanup
+✔ maintenance crash matrix: compress-committed (next export) (1973.515024ms)
+{"point":"delete-before","recovery":"next export","restoredMs":1289,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435752805559235-158c898d-cleanup-cleanup
+✔ maintenance crash matrix: delete-before (next export) (1859.910668ms)
+{"point":"delete-after","recovery":"next export","restoredMs":1297,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435754791897831-6c6018bf-cleanup-cleanup
+✔ maintenance crash matrix: delete-after (next export) (1986.061861ms)
+{"point":"scan-complete","recovery":"peer","restoredMs":605,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435756167460608-e063315a-cleanup-cleanup
+✔ maintenance crash matrix: scan-complete (peer) (1375.549708ms)
+{"point":"done-before","recovery":"peer","restoredMs":656,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435757547754389-b093abe9-cleanup-cleanup
+✔ maintenance crash matrix: done-before (peer) (1379.205559ms)
+{"point":"done-after","recovery":"already complete","restoredMs":153,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435758474278174-05686a34-cleanup-cleanup
+✔ maintenance crash matrix: done-after (already complete) (926.514902ms)
+{"point":"handoff-pending","victim":"observer","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435759744515927-637d282c-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-pending kills observer (1270.36255ms)
+{"point":"handoff-pending","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435761009269119-f713042d-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-pending kills custodian (1265.02531ms)
+{"point":"handoff-busy","victim":"observer","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435762385148733-713c9f0a-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-busy kills observer (1375.416209ms)
+{"point":"handoff-busy","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/crash-snapshots/maintenance-cb65a433eb364227/snapshot-1791435763648684269-111dd10c-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-busy kills custodian (1263.488466ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 153538.690859

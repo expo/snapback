@@ -1,0 +1,12 @@
+{
+  "command": [
+    "env",
+    "CARGO_BUILD_JOBS=6",
+    "bash",
+    "scripts/build-wasm.sh"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-07T21:25:45.041535+00:00",
+  "elapsedSeconds": 70.05427786501241,
+  "exitCode": 0
+}

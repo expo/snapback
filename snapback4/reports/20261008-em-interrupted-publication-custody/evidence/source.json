@@ -1,0 +1,8 @@
+{
+  "base": "3a160628caab6dd5e2af077f61e68edfd9dadd6c",
+  "files": {
+    "snapback4/crates/snapback4/src/verbs/witness/publication.rs": "10322e5f9a28e8e8363df1231a5e72834da46de4cebed6828458e63eb7db618f",
+    "snapback4/crates/snapback4/src/verbs/witness/retention.rs": "b2eaa0259b440a1214780ef6e42a9c9817cf502b04d7029f2c7c3a2319f75b7c",
+    "snapback4/packages/snapback4/test/export-background.test.mjs": "a04182e3a7b44e3018a67d98e03b1e06eb4f5017678bb5b863e6d085c5e05d10"
+  }
+}

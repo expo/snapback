@@ -1,0 +1,13 @@
+{
+  "command": [
+    "env",
+    "SNAPBACK4_EXPORT_TEST_BINARY=/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/da8d88838c98b49f1a417415587b07c8c52938fbc68955e19ef729af1ee551b3/snapback4",
+    "node",
+    "--test",
+    "packages/snapback4/test/maintenance-evidence.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-08T00:52:56.763439+00:00",
+  "elapsedSeconds": 4.572352840012172,
+  "exitCode": 0
+}

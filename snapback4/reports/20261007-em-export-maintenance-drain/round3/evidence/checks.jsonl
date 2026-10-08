@@ -1,0 +1,10 @@
+{"name": "retention-tests", "command": ["cargo", "test", "-j", "2", "-p", "snapback4", "--bin", "snapback4", "verbs::witness::retention::", "--", "--nocapture"], "code": 0, "elapsed": 7.441349939996144}
+{"name": "recovery-tests", "command": ["cargo", "test", "-j", "2", "-p", "snapback4", "--bin", "snapback4", "verbs::witness::recovery::", "--", "--nocapture"], "code": 0, "elapsed": 1.3732120589993428}
+{"name": "sleep-clock", "command": ["cargo", "test", "-j", "2", "-p", "snapback4", "--bin", "snapback4", "sleep_clock_requires_actual_suspended_time"], "code": 0, "elapsed": 0.08717340500152204}
+{"name": "release-check", "command": ["cargo", "check", "-j", "2", "--release", "-p", "snapback4"], "code": 0, "elapsed": 0.7392340709920973}
+{"name": "restored-build", "command": ["cargo", "build", "-j", "2", "-p", "snapback4"], "code": 0, "elapsed": 8.050864812001237}
+{"name": "diagnostics-final", "command": ["node", "--test", "--test-reporter=tap", "packages/snapback4/test/maintenance-evidence.test.mjs"], "code": 0, "elapsed": 4.709700938008609}
+{"name": "wakeup-final", "command": ["node", "--test", "--test-reporter=tap", "packages/snapback4/test/export-maintenance-wakeup.test.mjs"], "code": 0, "elapsed": 6.965714268008014}
+{"name": "retention-final", "command": ["cargo", "test", "-j", "2", "-p", "snapback4", "--bin", "snapback4", "verbs::witness::retention::"], "code": 0, "elapsed": 4.375408412000979}
+{"name": "release-final", "command": ["cargo", "check", "-j", "2", "--release", "-p", "snapback4"], "code": 0, "elapsed": 0.8006052540004021}
+{"name": "recovery-final", "command": ["cargo", "test", "-j", "2", "-p", "snapback4", "--bin", "snapback4", "verbs::witness::recovery::"], "code": 0, "elapsed": 1.3993445899977814}

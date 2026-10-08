@@ -1,0 +1,27 @@
+   Compiling libsqlite3-sys v0.38.2
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.14 (/home/ccheever/sb4-intent/lane-em/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.14 (/home/ccheever/sb4-intent/lane-em/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.14 (/home/ccheever/sb4-intent/lane-em/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:454:51
+    |
+454 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.14 (/home/ccheever/sb4-intent/lane-em/snapback4/crates/snapback4)
+    Finished `dev` profile [unoptimized] target(s) in 10.15s

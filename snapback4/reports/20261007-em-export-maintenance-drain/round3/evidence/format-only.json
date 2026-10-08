@@ -1,0 +1,8 @@
+{
+  "beforeSourceSha256": "4a19beb1b6990fc11f2bb78e4269e9225123d880eb8d8d9d8333443e636e5ef1",
+  "afterSourceSha256": "ef9eff9a6874392999a978668ad3ce90de32a5ddc59e5aa05b276846acd7285c",
+  "ignoringIndentationSha256": "575eae607e8b4e5d86e8695b7dccdcf4d75308b1c469740253006cd4db005572",
+  "identicalIgnoringIndentation": true,
+  "beforeBinary": "121fde12ce9d73c073d3c25b963d05d054e2fb64f50d8d6cdec6e0dead67402c",
+  "afterBinary": "310eefa9655d700c8efaa5d95920b148fca1d6047b54d216f4f8101942e2700d"
+}

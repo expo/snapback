@@ -540,9 +540,18 @@ pub(super) fn cleanup_inner(root: &Path, completed: Option<&Path>) -> Result<()>
             // Existing recovery drains only recorded, birth-matched ownership.
             // Do this before removing a journal which may still own children.
             if !journal.is_null() && !recover(&dir)? { retention::request(root)?; continue; }
+            retention::checkpoint(root, "repair-discovered");
             let Ok(initializing) = preparation::lease(&root.join("initialization.lock")) else { retention::request(root)?; continue; };
+            // A failed wrapper can remove this discovery before we acquire
+            // initialization custody. Do not recreate it via lease()'s mkdir.
+            match fs::symlink_metadata(&dir) {
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+                Ok(_) => {},
+            }
             let Ok(_run) = preparation::lease(&dir.join("run.lock")) else { retention::request(root)?; continue; };
             let Ok(_export) = preparation::lease(&dir.join("export.lock")) else { retention::request(root)?; continue; };
+            retention::checkpoint(root, "repair-leased");
             let journal = read(&dir.join("live.json"));
             if alive(&journal["owner"]) || alive(&journal["wrapper"]) { retention::request(root)?; continue; }
             drop(initializing);

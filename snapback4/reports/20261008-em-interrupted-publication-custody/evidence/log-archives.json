@@ -1,0 +1,79 @@
+[
+  {
+    "source": "clock-unit.log",
+    "archive": "clock-unit.log.gz",
+    "bytes": 204,
+    "sha256": "e44a0ad84fd042abc747e25613e4f6f8aba407644ec31cd91a5e5cb460499170",
+    "archiveSha256": "3befe0f2e33fd2725ac4230d54485a890c8c20ce1b2bffb6c13ac043f54d7f4f"
+  },
+  {
+    "source": "mac-background-4.log",
+    "archive": "mac-background-4.log.gz",
+    "bytes": 44675,
+    "sha256": "3e58ffb1a2c03f00ea20c9bb2611f79a009fddc0c63e1df3ed811a0017c98ca5",
+    "archiveSha256": "67a98425be55997eb0abfc485d716af20258853e4dd95a376e88f2917e8bcb74"
+  },
+  {
+    "source": "negative-regressions-initial.log",
+    "archive": "negative-regressions-initial.log.gz",
+    "bytes": 3750,
+    "sha256": "11377e7e0d4a7eeafdced8b8fe9407d6b058ddd6c1dab8136509c9882edf1100",
+    "archiveSha256": "936641afe187138dc5feb468d554053c745a831472ef1942d9bbc5a754a18886"
+  },
+  {
+    "source": "negative-regressions.log",
+    "archive": "negative-regressions.log.gz",
+    "bytes": 4314,
+    "sha256": "14f796aa8642a4fa8a2a2abe4a2ac03529a30ec805cdab84d5ed5a27d3121f38",
+    "archiveSha256": "7c9707755ad258b03f62d7c74df6d283e2029ee582910b97bbdd591c0618efd4"
+  },
+  {
+    "source": "policy-unit.log",
+    "archive": "policy-unit.log.gz",
+    "bytes": 354,
+    "sha256": "1ba72f04b980975c7c391cdbd77b5305ce469b1d4aa2307967adce72aca0579f",
+    "archiveSha256": "59aa151bc3d22f74a3b2dd89f3501c05bff9d5424277a40673e023c1735b1e43"
+  },
+  {
+    "source": "publication-unit-pinned.log",
+    "archive": "publication-unit-pinned.log.gz",
+    "bytes": 1709,
+    "sha256": "2bac319adb5ac9c2ed5f33d81c98f2ed5765238ab9de4a5e7b65d0b5eb164147",
+    "archiveSha256": "941c647ca71da2ea36ede277a80cd7aae82405c280b4820f6f4ea893531fae65"
+  },
+  {
+    "source": "publication-unit.log",
+    "archive": "publication-unit.log.gz",
+    "bytes": 4928,
+    "sha256": "09a963c4366d08462f8533cb85ba610f3a1a8f1aed5f5f94f227095a801a9053",
+    "archiveSha256": "72f35edbb3ba218018fd8b462458ef7d901528ec23f1d62e6ad54b148a184bf3"
+  },
+  {
+    "source": "recovery-serial.log",
+    "archive": "recovery-serial.log.gz",
+    "bytes": 3855,
+    "sha256": "0e5606db48591cfd7157bdc3e2992b82d50302adb280a8215bb0c0d169b5b1eb",
+    "archiveSha256": "0e12e475a17c23e7e8d435d140e1c189944501895a5286c1fdd90a9ca819ebc2"
+  },
+  {
+    "source": "recovery.log",
+    "archive": "recovery.log.gz",
+    "bytes": 4492,
+    "sha256": "1acb08e350946a5487f07de378fc9c7031e406b9731483f4f35d2e4d74fde661",
+    "archiveSha256": "fb87b603b1e4762fa21852e9204cd36e35e81d572d2c2cdaba270fb5e6078b9a"
+  },
+  {
+    "source": "retention.log",
+    "archive": "retention.log.gz",
+    "bytes": 1007,
+    "sha256": "1aa7b4188aa40428e77104602683216cefce2f2f6207d2cb7c6598409018fc69",
+    "archiveSha256": "5bc3ac1d758bc1dd9ce6dae93a564c15d5e85813e98c1004dd05b946417a404a"
+  },
+  {
+    "source": "hooks-only.diff",
+    "archive": "hooks-only.diff.gz",
+    "bytes": 2919,
+    "sha256": "09b0d714141f8a984af44210eed4382a50df7a504711f8424cadbc6163719483",
+    "archiveSha256": "9e14dce816585d97e4eb99c134be58bdb5e2b1ea20997845fcaf147c7a7fce6c"
+  }
+]

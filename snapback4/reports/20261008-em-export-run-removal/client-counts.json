@@ -1,0 +1,130 @@
+[
+  {
+    "file": "packages/snapback4/test/maintenance-evidence.test.mjs",
+    "tests": 6,
+    "passed": 6,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/export-publication.test.mjs",
+    "tests": 6,
+    "passed": 6,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/export-failure.test.mjs",
+    "tests": 2,
+    "passed": 2,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/export-native.test.mjs",
+    "tests": 10,
+    "passed": 9,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 1
+  },
+  {
+    "file": "packages/snapback4/test/export-native-round2.test.mjs",
+    "tests": 3,
+    "passed": 3,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+    "tests": 22,
+    "passed": 22,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/test-signals.test.mjs",
+    "tests": 16,
+    "passed": 16,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/test-processes.test.mjs",
+    "tests": 53,
+    "passed": 53,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/test-command-group.test.mjs",
+    "tests": 7,
+    "passed": 7,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/test-file-runner.test.mjs",
+    "tests": 42,
+    "passed": 42,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/supervised-workers.test.mjs",
+    "tests": 5,
+    "passed": 5,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/witness.test.mjs",
+    "tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/witness-preparation.test.mjs",
+    "tests": 15,
+    "passed": 14,
+    "failed": 1,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/worker-regressions.test.mjs",
+    "tests": 77,
+    "passed": 77,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/witness-acquire.test.mjs",
+    "tests": 43,
+    "passed": 43,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  {
+    "file": "packages/snapback4/test/export-background.test.mjs",
+    "tests": 104,
+    "passed": 70,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 34
+  }
+]

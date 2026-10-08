@@ -89929,6 +89929,121 @@ PostgreSQL is untouched. The ticket's final resolution and the
 record the contract correction, review dispositions and logs. No other lane,
 worktree or host was used; nothing pushed.
 
+
+## 2026-10-07 — EM: retain export maintenance drain evidence
+
+Investigated the intermittent export-maintenance drain failures on eb1000 in
+lane-em. The interrupted session's 200 short repetitions and eight whole-file
+runs all passed. Additional focused cohorts passed, including 28 completed
+invocations against the original uninstrumented CLI. A new four-core load with
+12 CPU workers, two fsync disk workers and alternating two-second busy/idle
+phases passed 32 repetitions of each of the four affected cases. The final
+instrumented complete file passed 58 tests with 36 Linux platform skips, bringing
+complete-file repetitions to nine. The existing two retention unit tests pass.
+
+Added debug-only transition/wait/work/cleanup timestamps and a small separate
+test helper that retains queue, lease, journal, process tree and descriptor
+snapshots before timeout cleanup. The shared test file's predicate, 90-second
+guard and process-identity logic remain unchanged for lane FL. Two controls fail
+that exact drain check: a held retention lease and a pending request after killing
+the fixture's idle observer. Their snapshots distinguish a live blocked observer
+from a queue with no scheduled observer; both owned fixtures subsequently drain.
+
+The queue audit found the ordinary exit/request recheck and acknowledged peer
+handoff intact. Explicit launch/error/expiry/peer-loss paths use the documented
+next-export backstop. No evidence identifies one as the historical cause, so
+neither a speculative product fix nor a larger timeout is justified. The two
+commissioned tickets and related FH ticket remain open. Early experiments that
+rebuilt an executing Linux binary produced spawn ENOENT and are excluded; later
+runs use immutable binary copies. The [EM report](reports/20261007-em-export-maintenance-drain/REPORT.md)
+retains all outcomes, source/binary identities, archived snapshots, measured
+sub-five-second drain waits and the macOS soak command. No other host/worktree
+was used, no wasm changed, and nothing was pushed.
+
+## 2026-10-07 — EM round 2: bound diagnostics and remove trace I/O from custody
+
+Addressed Astra's three required diagnostic changes. Captures now retain bounded
+tails (16 KiB/file, 64 copies), a 256-entry inventory and at most 1 MiB of output.
+A separate collector has a two-second parent watchdog; a private namespace keeps
+four failures plus four cleanups, with 0700 directories and 0600 files. Process
+capture requires matching birth, fixture command and verified test/native group;
+only allowlisted arguments and bounded fixture descriptors/locks survive.
+
+Native debug tracing now uses a bounded nonblocking channel to an unjoined writer
+thread that holds no maintenance lease. It refuses nonregular/symlink sinks,
+opens nonblocking, and caps append growth at 256 KiB. Release builds omit argument
+evaluation too. This corrects the round-1 instrumentation's FIFO stall, not the
+unexplained historical queue failure. Test drain timing is a bounded memory ring.
+
+The FIFO regression fails against the round-1 CLI and passes after the change,
+including timely observer expiry and released queue custody. Five diagnostic
+regressions cover size/retention/privacy, stale identities/commands/groups, FIFO,
+a stuck collector and partial-write budget accounting. The export-background file passes 58 tests with 36 Darwin
+skips; both unchanged 90-second stall controls reject and retain distinct states.
+Three retention and 14 recovery/process-inspection tests pass, as do debug build
+and release check. Final rerun details and review dispositions are in the
+[round-2 report](reports/20261007-em-export-maintenance-drain/round2/REPORT.md).
+Queue semantics, drain guard and FL's liveness checks stay unchanged. Tickets
+remain open; no package/wasm change, other host/worktree use or push occurred.
+
+
+Correction to the preceding round-1 EM audit: Grok's review identified the
+under-lease successful `!runnable` return in `kick_until` as an open wakeup
+candidate. A fresh producer can coalesce in the gap before that caller unlocks.
+Guard unwinding after a producer coalesces is another interaction to test,
+although cancellation/expiry are documented stops. This supersedes the earlier
+claim that the exit/request recheck was intact; no reproducer or attribution to
+the historical incidents exists yet. The parent report and three open tickets
+now retain these suspects. Queue changes and a deterministic interleaving test
+remain separate from this diagnostic hardening commit.
+
+
+## 2026-10-07 — EM round 3: close maintenance exit/wakeup races
+
+Fixed both coalescing windows recorded in round 2. An empty second runnable
+check releases the pending lease and rechecks in a loop. Fresh producers seeing
+a busy lease atomically record one bounded wakeup and retry the lease before
+coalescing. Successful observer guards consume that wakeup before examining
+work; all observation exits release the lease before handing off any unobserved
+fresh request. Handoffs inherit the fresh producer's absolute deadline and sleep
+clock. Automatic peers cannot renew the old budget; expiry and cancellation
+without a new producer remain stops. Request/claim acknowledgement, retention
+selection and native custody are unchanged.
+
+Debug-only barriers force a producer to commit/coalesce while each exiting
+holder still has the lease. A scratch build removing just the two exit fixes
+strands both requests and fails the unchanged 90-second drain assertion. The
+fixed build drains both. Six permanent regressions passed 30 repetitions each
+under CPU/disk work confined to four cores, including cancellation, reversed
+notification/exit ordering and unchanged stops without a fresh producer. Both
+independent held-lease/missing-observer controls still reject. The shared
+export-background test file, its guard and lane FL's identity checks are untouched.
+
+The complete export-background file passed 58 tests with 36 Darwin skips in
+462.01 seconds. Four retention, 14 recovery/inspection, five diagnostics and the
+sleep-clock tests pass, as do debug builds, release checks and ref-check. The
+collector now prioritizes the new wakeup record within its existing limits;
+its large-inventory regression verifies that record survives truncation.
+
+Thirty loaded repetitions of each historical affected case produced 119 passes
+and one failure. The publication-handoff failure now has retained evidence:
+native work finished in 142 ms, group cleanup refused with
+`E_WITNESS_PROCESS: invalid /proc process group`, and maintenance parked the claim
+before the observer exited. The 90-second assertion then correctly rejected
+that parked state. This is linked to the existing native inspection ticket;
+the rejected stat bytes/PID are still unavailable, and no ownership check is
+weakened. Subsequent passes do not erase this failure or establish the causes
+of the old incidents. Both commissioned tickets remain open for macOS soak.
+
+The [round-3 report](reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
+retains the exact mutant diff, positive/negative evidence, real failure snapshot,
+commands and source/binary/archive hashes. All CLI runs used immutable copies;
+a final formatting-only native rebuild is bound separately. The optional root
+inventory check reports untouched Snapback 1 inventory/guide failures and
+missing generated-demo prerequisites, with its log retained. Work stayed in
+lane-em on eb1000. No other worktree, remote host or other lane's process was
+changed; nothing was pushed or published.
+
 ## 2026-10-07 — SN: one-shots settle across unrelated writes
 
 Implemented LLP 3000.023 §11's dependency-scoped custody barrier across local,
@@ -90329,6 +90444,317 @@ no push. Darwin execution awaits the user's soak; this is no Mac or publication
 qualification claim.
 
 [Round-7 resolution, complete Darwin audit and controls](reports/20261007-fl-dry-run-flakes/round-7/REPORT.md).
+
+## 2026-10-07 — EM round 4: merge FL before review and the macOS soak
+
+Merged origin/main at 2797247960867e7444f63ba0882dcad9d28d8378 into EM's
+round-3 wakeup fix at df77cebc37e6faf5fd9d0da8ac4ee8ee4ef31081. The three
+conflicts were the background test, native process-inspection ticket and this
+journal. The test keeps FL's tracked spawn, identity-bound fault dispatch,
+publication barriers, retention custody waits and Darwin cases, with EM's
+bounded evidence capture and observed maintenance wait. The selected binary
+override or default is canonicalized once before launch; signalFixture still
+uses each fixture's actual selected binary. The drain predicate and 90-second
+guard are unchanged. Both ticket addenda and both complete journal histories
+are preserved. Native wakeup code, regressions and round-2 diagnostic safety
+were verified unchanged from EM; FL's shared identity helpers are unchanged
+from main.
+
+Frozen Bun installation passed and check-sdk-deps.sh printed deps-ok. Native,
+wasm and client rebuilds passed, with wasm below the existing budget. Eleven
+JavaScript files passed through the shared runner: 205 passes and 33 Darwin
+skips, no failures, cancellations or runner leaks. Background is 63/32;
+wakeup regressions 6/6; diagnostics 5/5. All export and signal/process/group
+helper files, plus the file runner, passed. Rust retention-filtered tests
+passed 6/6, recovery-filtered tests 25/25 and dev_refusals 22/22. Ref-check
+passed with zero errors. Exact commands, source/binary digests, logs and four
+bounded private cleanup snapshots are retained with the report.
+
+Both maintenance tickets stay open. This integration does not attribute the
+historical macOS failures or the separate Linux inspection refusal to the
+repaired wakeup windows. All work stayed on eb1000 in lane-em; nothing pushed
+or published. The user's macOS soak remains outstanding.
+
+[Merge resolutions and Linux verification](reports/20261007-em-export-maintenance-drain/round4/REPORT.md).
+
+## 2026-10-08 — EM round 5: retain sleep-clock intent across retries and starts
+
+Correction to the round-3 entry: “Handoffs inherit the fresh producer's absolute
+deadline and sleep clock” was inaccurate. The deadline survived, but wakeup
+lookup validated and then discarded the clock. Astra reproduced a producer
+retry after sleep and a successor starting after sleep between validation and
+launch. Both could resume the old intent. This does not attribute the historical
+macOS drain timeout to sleep.
+
+Maintenance now carries the expiry/sample pair through retry, wakeup lookup,
+observer launch/entry and scan backup handoff. Internal children inherit the
+sample through a private environment value; exact command forms and FL's
+identity binding remain unchanged. Receivers validate it before consuming a
+notification or starting work. A later fresh export still creates a post-sleep
+intent. Debug-only bounded clock injection tests both reported orderings,
+no-retry rejection, no-fresh-producer stops and fresh-export recovery. Terminal
+trace padding now honors the 4 KiB line cap; the aggregate 256 KiB limit and
+custody-independent tracing are unchanged. The round-3 report, ticket addenda
+and LLP 3000.030 §15 correct their earlier sleep claims.
+
+Four JS files pass 87 tests with 32 Darwin skips: background 63/32, wakeup/sleep
+10/10, diagnostics 5/5 and FL signals 9/9. Native retention passes 6/6, the clock
+unit 1/1 and release check passes. Round-4 retention fails the two new sleep
+assertions while the no-retry control passes. Removing the original two wakeup
+fixes and injecting held-lease/missing-observer stalls each still fails the
+unchanged 90-second drain assertion, with cleanup. Restoring oversized trace
+padding fails at a 4,160-byte line. No fixture guard or outcome was weakened.
+
+The default parallel recovery run retains two failures (23/25), both reproduced
+with round-4 retention code. Serial fixed-source recovery passes 25/25. The
+separate open parallel-recovery ticket records both signatures; a passing serial
+rerun is not a resolution. The initial scratch unit-test setup lacked compile-time
+fixture paths and compiled no tests; those logs remain distinct from the valid
+controls. Work stayed in lane-em on eb1000; nothing pushed or published. Both
+maintenance tickets remain open, and the operator's macOS soak is separate.
+
+[Round-5 fix, claims correction and retained evidence](reports/20261008-em-export-maintenance-sleep/REPORT.md).
+
+## 2026-10-08 — EM round 6: adopt later intent before spawn and consumption
+
+Correction to round 3's “Handoffs inherit the fresh producer's absolute deadline
+and sleep clock” and round 5's “The deadline survived”: those statements were
+too broad. The empty recheck and failed-guard handoff selected fresh producer
+intent, but a successful idle handoff could spawn first with its old deadline.
+A live guard could also delete the fresh wakeup while retaining its old window.
+Round 5 preserved the clock of the selected intent; it did not repair these two
+deadline-selection orderings identified by Grok's round-4 review.
+
+Producer retries, empty rechecks and the acquired-lease path before observer
+launch now adopt a visible strictly later, still-valid expiry together with its
+original sleep sample. Observer entry gates and each notification consumption
+do the same. The live observer updates its caller's accepted pair, so successful
+post-release handoff and later scan launches inherit that pair. Only acceptance
+of a strictly later valid producer intent resets the monotonic ceiling; the
+absolute expiry is not recomputed. A scan already running keeps its accepted
+pair and 30-second work limit. Equal, earlier, expired or crossed-sleep intent
+cannot extend observation. No internal peer creates a fresh producer budget.
+
+Consumption atomically renames the wakeup to a pending-lease-owned receipt,
+validates/adopts again, and removes only that receipt. A concurrent replacement
+survives at the original name; a refused guard leaves the receipt available for
+post-release lookup. Cancellation, sleep and expiry stop the current accepted
+intent. Consumed/expired notifications, launch/I/O failure, exhausted retries
+and simultaneous peer loss can still require the next-export backstop even
+though a producer existed earlier. LLP 3000.030 §15 and both open ticket addenda
+now state these paths and limits.
+
+Five new integration cases cover the two deadline orderings, concurrent
+replacement, crossed-sleep rejection and cancellation during consumption. The
+two main cases drain after retention is held past the old deadline. With only
+adoption disabled in a scratch binary, both consume the wakeup, expire under
+the old deadline and fail the unchanged 90-second drain check; timeout snapshots
+retain the pending requests. Held-lease and missing-observer controls also fail
+that check and recover through their own next-export backstop. A native unit
+test verifies that equal/earlier intents do not reset the monotonic ceiling.
+
+The shared runner passes 92 tests with 32 Darwin skips: background 63/32,
+wakeup/sleep/deadline 15/15, diagnostics 5/5 and FL signals 9/9. Retention passes
+7/7, recovery 25/25 in parallel, the clock unit 1/1, and release check passes.
+Original wakeup controls fail both 90-second guards; round-4 retention fails both
+sleep assertions while its no-retry control passes. Ref-check passes with zero
+errors. The archive verifies 32 snapshots and 746 private files before removing
+unpacked copies.
+The separate intermittent parallel-recovery ticket remains open; this pass does
+not settle it. Diagnostics, FL helpers, the background test and its 90-second
+predicate remain byte-identical to round 5. No historical timeout attribution
+or Darwin qualification is claimed. Work stayed on eb1000 in lane-em; both
+maintenance tickets remain open, with no push or publication.
+
+[Round-6 fix, controls and retained evidence](reports/20261008-em-export-maintenance-deadline/REPORT.md).
+
+## 2026-10-08 — EM round 7: preserve newer intent across concurrent producers
+
+Astra's round-6 review found a producer-to-producer ordering left outside the
+receipt repair. An older producer validated before sleep and paused before
+publication; a newer producer published its valid post-sleep pair and coalesced
+successfully. The older producer then overwrote that pair and rejected its own
+retry. The stopped holder rejected the remaining stale pair, leaving the request
+pending with no observer. Atomic rename protected complete bytes, not ordering.
+Grok marked round 6 READY; Astra marked it READY WITH CHANGES for this P2.
+
+The busy-queue producer path now locks `maintenance-wakeup.lock` across
+validation, comparison and publication. Equal or later valid intent in either
+the wakeup or receipt is preserved; the candidate must itself validate under the
+lock and again before rename. The original expiry/sample pair is retained.
+Consumers keep the round-6 receipt protocol and never acquire this writer lock.
+Only producers serialize here, and no pending or active custody lease is held
+while they wait. Acquisition checks cancellation/sleep/expiry at 20 ms intervals
+and explicitly refuses after five seconds with the request preserved. Kernel
+release handles publisher death. This bound applies to acquisition, not stalled
+filesystem I/O; the existing backstop and trusted-project-file limits remain.
+
+Six integration cases add Astra's stale-write ordering and killed-A control,
+an older but still-valid publisher, writer serialization, death during locked
+publication, and bounded refusal with independent observer release. A native
+unit test covers equal/later preservation, earlier/expired replacement, invalid
+publisher refusal and receipts. Against actual round-6 code, killing A drains;
+resuming stale A fails the unchanged 90-second drain guard, and resuming a valid
+older A fails exact-intent preservation. The fixed cases drain with B's exact
+pair. Queue/journal snapshots retain both original and remaining records.
+
+LLP 3000.030 §15 and both maintenance ticket addenda describe the producer
+ordering and limits. The operator separately reports round-4 macOS results:
+6/6 wakeup cases and six background runs at 95/95 without drain timeouts. This
+lane did not access that host, and does not claim those results qualify later
+rounds or identify the historical cause. Both maintenance tickets remain open.
+
+The shared runner passes 98 tests with 32 Darwin skips: background 63/32,
+wakeup/sleep/deadline/publication 21/21, diagnostics 5/5 and FL signals 9/9.
+Retention passes 8/8, the clock unit 1/1, release check and ref-check pass.
+Parallel recovery retains the two known failures (23/25); the fixed unit harness
+and its sibling CLI pass serially (25/25). Both results are retained and the
+separate recovery ticket stays open. No lease assertion or timeout was weakened.
+The original wakeup, sleep, deadline and held-lease/missing-observer controls
+all failed at their intended assertions and cleaned their own fixtures. The
+archive verified 38 snapshots and 877 private files. All work stayed on
+eb1000 in lane-em, with no push or publication.
+
+[Round-7 implementation, controls and evidence](reports/20261008-em-export-maintenance-publication/REPORT.md).
+
+## 2026-10-08 — EM round 8: retain the missing macOS custody evidence
+
+Both round-7 reviews are READY. The operator's macOS soak of `affcd4919b`
+passed wakeup 21/21 and background run 1 at 95/95; run 2 was 93/95. The
+unchecked whole-table `ps` observer-count failure belongs to FL round 10.
+The other failure was the 30-second post-driver worker wait, before the
+90-second maintenance drain. Its later snapshot shows the wakeup adopted and
+consumed, a live observer and a claimed active scan. It does not show pending
+work with absent observation, as the earlier EM wakeup controls did.
+
+The trace ends at a retention worker's `compress-before` (not an identified
+gzip PID), 79.760 seconds before the snapshot. By then the test had spent about
+50 seconds in its `finally` cleanup. The 64-file cap omitted both retention
+group journals/stderr and the current worker journal/background log. No initial
+failure snapshot or same-fixture final cleanup snapshot survived in the supplied
+archive. Missing trace events cannot establish which syscall or custody phase
+was delayed. The wakeup writer lock is not acquired by observers/scans; its
+empty file is not evidence of a held lock. The real sleep predicate already
+tolerates differences up to 1,000 ms. Native compression/custody paths predate
+EM, but source equality does not prove the incident predates scheduling changes.
+The product cause remains unknown and has a separate open macOS incident ticket.
+
+The bounded collector now prioritizes retention work directories and current
+proof custody before historical receipts. It retains the wakeup receipt too and
+summarizes file-count omissions. Existing byte/file/inventory/time limits,
+private permissions, history rings and process identity admission remain.
+A new regression loses the current worker journal under the old collector and
+retains both groups plus current custody under the fix. The existing post-driver
+wait now captures its original failure before cleanup and rethrows the same
+error. Neither its bound nor maintenanceIdle's predicate/90-second guard changes.
+Injected clock samples at the retained baseline plus 1/20/1,000 ms drain across
+retry and successor start without resampling; the existing 2,000 ms cases stop.
+No product source, retention policy or FL fault dispatch changed.
+
+Linux passes 100 tests with 32 Darwin skips: background 63/63 applicable,
+wakeup/sleep/deadline/publication 22/22, diagnostics 6/6, FL signals 9/9.
+Native retention passes 8/8, parallel recovery 25/25, clock unit 1/1, and
+ref-check has zero errors. Held-lease and missing-observer controls both fail
+the original 90-second assertion and subsequently clean up. The archive verifies
+12 snapshots and 454 private files. The Darwin-only initial-failure capture is
+loaded/skipped here and awaits macOS exercise. Both original maintenance tickets,
+the new incident ticket and the prior intermittent recovery ticket stay open.
+All work remained on eb1000 in lane-em; nothing pushed or published.
+
+[Round-8 analysis, diagnostic repair, tests and exact macOS archive](reports/20261008-em-export-maintenance-macos/REPORT.md).
+
+## 2026-10-08 — EM round 9: separate Darwin background policy from queue semantics
+
+The operator's six-run soak of `e408e47929` passed wakeup 22/22 and five
+background runs 95/95; run 6 was 94/95. The improved capture identifies the
+drain failure: the observer consumed the wakeup, the scan claimed work, its
+worker reached the first compression 15.782 seconds after launch, and 39
+compression commits preceded the explicit 30-second deadline at 30.271 seconds.
+Native cleanup finished at 30.936 seconds. The claim parked durably and the
+observer exited; the unchanged drain check correctly refused the parked work.
+
+Both Darwin launch sites apply `taskpolicy -b -c background`. The observer,
+scan, retention supervisor/worker and gzip inherit background CPU/I/O policy,
+as do the proof custodian, driver and pre/post-driver retention. These delays
+fit discretionary throttling; the snapshot has no kernel throttle counters.
+It does not identify the exact wait in the less complete round-7 capture.
+Production priority and failure parking remain unchanged. A separate fresh
+pending request can continue; otherwise the next export resumes deferred work.
+Automatic progress continuation needs authoritative progress and retry/cleanup
+semantics; lossy traces cannot authorize repeated work budgets, so it is deferred.
+
+A shared launch selector now has a private, exact-value, debug-only fixture
+override. Semantic fixtures inherit normal runner priority while release builds
+ignore the variable. The owned simulator-app setter stays unchanged. Two Darwin
+tests assert the observer, proof custodian and driver's actual self-policy:
+background with the override removed and normal with it enabled. The existing
+90-second drain and 30-second post-driver waits, identity dispatch, sleep,
+deadline and wakeup semantics are unchanged.
+
+Linux passes 100 tests with 34 Darwin skips across background, wakeup/sleep/
+deadline/publication, diagnostics and FL signal helpers. Native retention is
+8/8, parallel recovery 25/25, clock 1/1 and policy 2/2. Release cargo check
+passes. The policy module passes with debug assertions both enabled and disabled;
+removing the release gates makes its negative control fail. Held-lease and
+missing-observer stalls still fail the original 90-second assertion and clean
+up. Ref-check has zero errors. The archive verifies 12 snapshots and 454 private
+files. Darwin policy and the normal-priority soak await the operator; all three
+maintenance/incident
+tickets remain open. All work stayed on eb1000 in lane-em, without push or
+publication.
+
+[Round-9 finding, controls, source references and exact mini soak commands](reports/20261008-em-export-maintenance-priority/REPORT.md).
+
+## 2026-10-08 — EM round 10: interrupted publication retries maintenance custody
+
+The operator's round-9 Mac soak passes policy 2/2, wakeup 22/22 and diagnostics
+5/1 skipped. Five background runs pass 97/97; run 4 is 96/97, with no drain
+timeout in any run. The remaining failure is a status-1 publication refusal
+after killing a publisher at verified commit. The test already reaps the old
+Node wrapper. Its wrapper, shim and foreground publisher never use taskpolicy;
+the fixture priority override needs no extension.
+
+The old diagnostic calls every failed export-lease acquisition "wrapper custody",
+but maintenance can own that lease in its readiness probe or orphan reconciler.
+The next export's pre-Expo backstop races its own later publisher: one failed
+lease attempt under the destination lock immediately refuses publication.
+Both real maintenance holders reproduce that failure with deterministic debug
+barriers on Linux. The acquisition code is identical in rounds 4, 7, 8 and 9;
+changed scheduling can expose the pre-existing race. The supplied Mac archive
+contains the log and only four later cleanup snapshots, not the failed fixture's
+snapshot named by the log. Its exact historical holder PID remains unproven.
+
+Publication now retries only busy custody for up to five seconds at 20 ms
+intervals, keeping the destination serialized and requiring the real export
+lease before existing receipt/inode recovery. The reconciler's reverse lock
+probe remains nonblocking. Cancellation, other I/O errors or persistent custody
+refuse without mutating the interrupted intent or committed generation; the
+timeout diagnostic names export custody rather than a presumed wrapper. This
+is an exceptional transaction handoff, not waiting for maintenance completion.
+Production priority, retention budgets, the 90-second drain assertion and all
+existing semantic/fault assertions remain unchanged. The crash matrix now
+captures its initial failure before cleanup into the bounded failure ring.
+
+Both handoff regressions pass with the fix and fail at the intended status
+assertion against the old acquisition plus hooks. A third control keeps custody
+through the full deadline, requires refusal/preservation, then succeeds after
+release. The full shared run passes 111 tests with 34 Darwin skips across six
+files; background is 66 applicable passes and the separate crash matrix passes
+30/30. Native retention/publication/clock/policy pass 8/9/1/2 respectively, and
+release cargo check passes. Default-parallel recovery repeats the open fixture
+lease failure (24/25); the same pinned binary passes serially (25/25). Both
+receipts remain. A missing sibling CLI and a duplicated `node` launch were setup
+errors, retained alongside their corrected passing runs.
+
+Ref-check has zero errors and zero unchecked references. The evidence archive
+verifies 23 snapshots and 990 private files before removing this report's
+unpacked copies.
+
+The maintenance and Mac incident tickets remain open for the next operator soak;
+the parallel recovery issue stays separately open. All work remained on eb1000
+in lane-em, with no push or publication.
+
+[Round-10 evidence, source identities, controls and mini soak command](reports/20261008-em-interrupted-publication-custody/REPORT.md).
 ## 2026-10-07 — DK: dev clock and stale sessions explain themselves
 
 Calibration #31 d-01/d-04 now have product diagnostics. Dev startup and doctor
@@ -90923,3 +91349,50 @@ schema, and against the farm's 0.4.14 binary where the answers differed:
 
 Incidentally confirmed: a job body with a bare `insert` is refused as "job tick
 has an empty body" at the job line (cluster 6, S-JOBBODY), not at the write.
+## 2026-10-08 — EM round 11: merge main and protect failed-run removal
+
+Merged main `376fb2912e` into `b9088428d0` as `b7de0a0e8c`. The merge message
+records all three conflict resolutions: FL's checked commands/128 MiB process
+listing and identity-bound async dispatch coexist with EM's bounded capture and
+unchanged drain check; LLP 3000.030 keeps EM and FS revisions; every JOURNAL line
+from both parents survives. Frozen install and SDK dependency check (`deps-ok`)
+pass, and native/SDK builds pass. FS's preparation completion timestamp and
+last-close process isolation remain intact, including its closure of the prior
+parallel recovery fixture ticket.
+
+Round-10's Mac soak passed the publication-custody crash case every time. Its
+single 99/100 run instead lost the intended marker error to `ENOTEMPTY` while
+removing an unpublished run. The supplied archive lacks that case's rotated-out
+cleanup snapshot, so no exact historical PID is established. Real observer and
+shell-repair writers both reproduce the error under deterministic barriers:
+creating `run.lock`/`export.lock` between unlink and rmdir defeats the wrapper's
+still-open lease inode. Readiness now opens existing paths only; the wrapper
+retains custody/journal during bulk removal and uses initialization custody for
+final shell removal. Repair rechecks a stale discovery under the same lock
+before its lease helper can recreate files or parents. Publication-attempted
+namespace recovery, background policy, evidence pins/slots, work budgets and
+90-second drain remain unchanged. No deletion error is ignored. Overlapping
+export failures enter the bounded failure evidence ring before cleanup.
+
+All three new regressions pass 30 loaded repetitions each on CPUs 94–95, with
+four owned and reaped busy loops. Restoring old behaviors makes two real
+ENOTEMPTY controls and one directory-recreation control fail. The full background
+file passes 70 with 34 Darwin skips; separate crash matrix 30/30, wakeup 22/22,
+diagnostics 6/6, FL helpers and FS worker tests pass. The 16-file shared run had
+383 passes, 35 skips and one preparation receipt-mode setup failure from my
+runner's inherited private umask; preserving the ordinary test umask yields
+15/15 in that unchanged file. Native witness units initially hit the existing
+Linux /proc inspection ticket (78/79), then pass 79/79; integration passes 32/32.
+Both failures and their rechecks are retained. Release check and ref-check pass.
+
+[Report, controls, command receipts and macOS soak instructions](reports/20261008-em-export-run-removal/REPORT.md).
+Both original maintenance tickets remain open for the next operator soak, now
+expecting 104/104 background cases. Work stayed on eb1000; no push or publication.
+
+## 2026-10-08 — EM round 12: correct the round-11 crash-matrix count
+
+The round-11 entry above incorrectly reports the separate crash matrix as
+30/30. The correct result is **26/26**, including the expired-dispatch control.
+The retained [raw log](reports/20261008-em-export-run-removal/crash-matrix.log.gz)
+and Astra's independent rerun contain the same 26 cases, with zero failures.
+The round-11 report is corrected; the original JOURNAL entry remains intact.

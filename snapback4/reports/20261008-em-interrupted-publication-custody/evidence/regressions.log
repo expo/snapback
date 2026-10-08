@@ -1,0 +1,17 @@
+{"holder":"ready-pending-export","stalled":false,"wrapperExited":1074933,"holderIdentity":{"pid":1074993,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","15896304"]},"publisherIdentity":{"pid":1075051,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","15896330"]}}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/regression-snapshots/maintenance-cb65a433eb364227/snapshot-1791435281488103155-afe5c1ab-cleanup-cleanup
+✔ interrupted publication recovers through ready-pending-export custody (1478.671218ms)
+{"holder":"ready-pending-export","stalled":true,"wrapperExited":1075263,"holderIdentity":{"pid":1075500,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","15896451"]},"publisherIdentity":{"pid":1075584,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","15896478"]}}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/regression-snapshots/maintenance-cb65a433eb364227/snapshot-1791435288404038991-f811d1e9-cleanup-cleanup
+✔ interrupted publication preserves a persistently held export lease (6914.926523ms)
+{"holder":"reconcile-pending-export","stalled":false,"wrapperExited":1076360,"holderIdentity":{"pid":1076430,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","15897154"]},"publisherIdentity":{"pid":1076487,"start":["2872f48c-7c2c-497e-9df2-baa8588ab8d3\n","15897180"]}}
+maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/regression-snapshots/maintenance-cb65a433eb364227/snapshot-1791435289878799017-f1d0717b-cleanup-cleanup
+✔ interrupted publication recovers through reconcile-pending-export custody (1474.545825ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9935.628271
