@@ -1,0 +1,7 @@
+{
+  "unit": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em-r11-native/debug/deps/snapback4-54c72c0d37cc6d9b",
+  "unitSha256": "bec485b784f5828389f7c99abc9463a9f4e6ad13532c550dda600961ee45cefb",
+  "cli": "/home/ccheever/sb4-intent/lane-em/snapback4/target/em-r11-native/debug/snapback4",
+  "cliSha256": "fcd7f29b14967ee5926e67e849b8b0d87d83017a5122bbf865782d67ab8368b2",
+  "note": "Cargo integration-test build and subsequent full native recheck; JS campaigns use the separately pinned dev CLI"
+}

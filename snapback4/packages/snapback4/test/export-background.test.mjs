@@ -507,9 +507,89 @@ for (const fault of ['marker', 'handoff']) test(`overlapping skipped export cann
       assert.notEqual(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,current.generation);
       assert.deepEqual(f.latest(),current); noOldPass(f);
     }
+  } catch (error) {
+    await maintenanceEvidence(f, 'overlapping-export');
+    throw error;
   } finally {
     f.put('resume-skip','');
     if(skipped?.exitCode===null&&skipped?.signalCode===null)await once(skipped,'exit');
+    await cleanup(f);
+  }
+});
+
+for(const writer of ['observer','repair'])test(`failed export removal cannot race a maintenance writer (${writer})`, async()=>{
+  const f=fixture();let child,exited,repairExit;
+  const root=path.join(f.root,'artifacts/native-smoke');
+  const resume=point=>f.put(`artifacts/native-smoke/maintenance-test-${point}-resume`,'');
+  const barrier=point=>until(()=>read(path.join(root,`maintenance-test-${point}.json`)),`maintenance paused at ${point}`);
+  try {
+    skipMode(f,'off');
+    // Run the actual marker-failure cleanup. Widen rm's real unlink-to-rmdir
+    // window; the injected code never fabricates ENOTEMPTY or another error.
+    f.put('remove-window.cjs',`const fs=require('fs'),path=require('path'),write=fs.writeFileSync,remove=fs.rmSync;
+const wait=p=>{const end=Date.now()+15000;while(!fs.existsSync(p)){if(Date.now()>end)throw Error('removal fixture barrier expired: '+p);Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10)}};
+fs.writeFileSync=function(p,...args){if(String(p).endsWith('.snapback4-publication.json')){write('marker-ready.json',JSON.stringify({dir:path.dirname(path.dirname(p))}));wait('fail-marker');throw Error('injected skipped marker write failure')}return write.call(this,p,...args)};
+fs.rmSync=function(p,...args){if(/native-smoke\\/\\d+-\\d+$/.test(String(p))){for(const name of fs.readdirSync(p))remove(path.join(p,name),{recursive:true,force:true});write('removal-window','');wait('finish-removal');return fs.rmdirSync(p)}return remove.call(this,p,...args)};`);
+    child=spawn(process.execPath,[wrapper],{cwd:f.root,env:{...f.env,NODE_OPTIONS:`--require=${path.join(f.root,'remove-window.cjs')}`},stdio:['ignore','pipe','pipe']});
+    let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);exited=once(child,'close');
+    await until(()=>read(path.join(f.root,'marker-ready.json')),'failed wrapper still holds its private export lease');
+    const dir=read(path.join(f.root,'marker-ready.json')).dir;
+    if(writer==='observer') {
+      f.put('artifacts/native-smoke/maintenance-request.json','{}');
+      const kick=spawnSync(binary,['witness','export-maintenance',root],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:'ready-run-discovered,ready-run-probed'},encoding:'utf8'});
+      assert.equal(kick.status,0,kick.stderr);
+      await barrier('ready-run-discovered');
+    }
+    f.put('fail-marker','');await until(()=>fs.existsSync(path.join(f.root,'removal-window')),'rm unlinked its snapshot but has not called rmdir');
+    assert.deepEqual(fs.readdirSync(dir),[],'the final directory was empty before the probe');
+    if(writer==='observer') {resume('ready-run-discovered');await barrier('ready-run-probed');}
+    else {
+      const repair=spawn(binary,['witness','export-cleanup',root],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:'repair-leased,unused'},stdio:['ignore','ignore','pipe']});
+      let log='',closed=false;repair.stderr.on('data',b=>log+=b);repairExit=once(repair,'close').then(result=>{closed=true;return {result,log};});
+      await until(()=>closed||read(path.join(root,'maintenance-test-repair-leased.json')),'repair deferred or acquired the directory while removal is paused');
+    }
+    const probeFiles=fs.readdirSync(dir);
+    f.put('finish-removal','');const [code]=await exited;
+    console.log(JSON.stringify({writer,removalProbeFiles:probeFiles,code,output}));
+    assert.equal(code,1,output);
+    assert.match(output,/injected skipped marker write failure/);
+    assert.doesNotMatch(output,/ENOTEMPTY/);
+    assert.deepEqual(probeFiles,[],'maintenance must not write into the directory being removed');
+    assert.equal(fs.existsSync(dir),false,'failed attempt is removed, never a keep slot');
+    assert.equal(fs.existsSync(path.join(f.root,'dist')),false,'failure published nothing');
+    resume('ready-run-probed');resume('repair-leased');
+    if(repairExit){const {result,log}=await repairExit;assert.equal(result[0],0,log);}
+    await maintenanceIdle(f);
+  } catch(error) {await maintenanceEvidence(f,'run-removal');throw error;}
+  finally {
+    f.put('fail-marker','');f.put('finish-removal','');resume('ready-run-discovered');resume('ready-run-probed');resume('repair-leased');
+    if(exited)await exited;
+    if(repairExit)await repairExit;
+    await cleanup(f);
+  }
+});
+
+test('shell repair cannot recreate a run removed after its directory discovery', async()=>{
+  const f=fixture();let child,exited;
+  const root=path.join(f.root,'artifacts/native-smoke'),dir=path.join(root,'1-1');
+  try {
+    fs.mkdirSync(dir,{recursive:true});
+    child=spawn(binary,['witness','export-cleanup',root],{cwd:f.root,env:{...f.env,SNAPBACK4_TEST_RETENTION_POINT:'repair-discovered,repair-leased'},stdio:['ignore','pipe','pipe']});
+    let output='',closed=false;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);exited=once(child,'close').then(result=>{closed=true;return result;});
+    await until(()=>read(path.join(root,'maintenance-test-repair-discovered.json')),'worker retained a stale directory discovery');
+    const {acquireExportLease}=await import('../../snapback4-expo/export-ios.mjs');
+    const lease=acquireExportLease(root,binary,true);
+    try {fs.rmSync(dir,{recursive:true});}finally{fs.closeSync(lease);}
+    f.put('artifacts/native-smoke/maintenance-test-repair-discovered-resume','');
+    await until(()=>closed||read(path.join(root,'maintenance-test-repair-leased.json')),'stale repair skipped or recreated its discovery');
+    assert.equal(fs.existsSync(dir),false,'already removed discoveries must not be recreated');
+    assert.equal((await exited)[0],0,output);
+    await maintenanceIdle(f);
+  } catch(error) {await maintenanceEvidence(f,'stale-discovery');throw error;}
+  finally {
+    f.put('artifacts/native-smoke/maintenance-test-repair-discovered-resume','');
+    f.put('artifacts/native-smoke/maintenance-test-repair-leased-resume','');
+    if(exited)await exited;
     await cleanup(f);
   }
 });

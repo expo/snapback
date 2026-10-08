@@ -91224,3 +91224,43 @@ All requested portable Rust cases pass 30 final runs with four test threads, two
 Six requested tickets and the additional receipt ticket are closed. The existing-app driver ticket remains open because its actual case is Darwin-only: 30 Linux fixture controls establish its deterministic running PID, not a Darwin driver qualification. All stress processes were owned and reaped on eb1000; nothing pushed or published. No full Darwin dry-run claim.
 
 [FS report, commands, immutable artifact hashes, controls and ticket dispositions](reports/20261008-fs-witness-worker-flakes/REPORT.md).
+
+## 2026-10-08 — EM round 11: merge main and protect failed-run removal
+
+Merged main `376fb2912e` into `b9088428d0` as `b7de0a0e8c`. The merge message
+records all three conflict resolutions: FL's checked commands/128 MiB process
+listing and identity-bound async dispatch coexist with EM's bounded capture and
+unchanged drain check; LLP 3000.030 keeps EM and FS revisions; every JOURNAL line
+from both parents survives. Frozen install and SDK dependency check (`deps-ok`)
+pass, and native/SDK builds pass. FS's preparation completion timestamp and
+last-close process isolation remain intact, including its closure of the prior
+parallel recovery fixture ticket.
+
+Round-10's Mac soak passed the publication-custody crash case every time. Its
+single 99/100 run instead lost the intended marker error to `ENOTEMPTY` while
+removing an unpublished run. The supplied archive lacks that case's rotated-out
+cleanup snapshot, so no exact historical PID is established. Real observer and
+shell-repair writers both reproduce the error under deterministic barriers:
+creating `run.lock`/`export.lock` between unlink and rmdir defeats the wrapper's
+still-open lease inode. Readiness now opens existing paths only; the wrapper
+retains custody/journal during bulk removal and uses initialization custody for
+final shell removal. Repair rechecks a stale discovery under the same lock
+before its lease helper can recreate files or parents. Publication-attempted
+namespace recovery, background policy, evidence pins/slots, work budgets and
+90-second drain remain unchanged. No deletion error is ignored. Overlapping
+export failures enter the bounded failure evidence ring before cleanup.
+
+All three new regressions pass 30 loaded repetitions each on CPUs 94–95, with
+four owned and reaped busy loops. Restoring old behaviors makes two real
+ENOTEMPTY controls and one directory-recreation control fail. The full background
+file passes 70 with 34 Darwin skips; separate crash matrix 30/30, wakeup 22/22,
+diagnostics 6/6, FL helpers and FS worker tests pass. The 16-file shared run had
+383 passes, 35 skips and one preparation receipt-mode setup failure from my
+runner's inherited private umask; preserving the ordinary test umask yields
+15/15 in that unchanged file. Native witness units initially hit the existing
+Linux /proc inspection ticket (78/79), then pass 79/79; integration passes 32/32.
+Both failures and their rechecks are retained. Release check and ref-check pass.
+
+[Report, controls, command receipts and macOS soak instructions](reports/20261008-em-export-run-removal/REPORT.md).
+Both original maintenance tickets remain open for the next operator soak, now
+expecting 104/104 background cases. Work stayed on eb1000; no push or publication.

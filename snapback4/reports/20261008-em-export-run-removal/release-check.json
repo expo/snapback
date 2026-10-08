@@ -1,0 +1,12 @@
+{
+  "name": "release-check",
+  "command": [
+    "cargo",
+    "check",
+    "--release",
+    "-p",
+    "snapback4"
+  ],
+  "exitCode": 0,
+  "seconds": 4.168132264021551
+}

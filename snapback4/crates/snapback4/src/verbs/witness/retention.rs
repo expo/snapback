@@ -110,12 +110,15 @@ fn ready(root: &Path) -> Result<bool> {
     Ok(true)
 }
 fn ready_run(dir: &Path) -> Result<bool> {
+    checkpoint(dir.parent().unwrap(), "ready-run-discovered");
     for name in ["run.lock", "export.lock"] {
-        let file = match OpenOptions::new().create(true).read(true).write(true).truncate(false).open(dir.join(name)) {
+        // A probe must not create a pathname in a directory being pruned. The
+        // worker takes the authoritative leases after this advisory check.
+        let file = match OpenOptions::new().read(true).write(true).open(dir.join(name)) {
             Ok(file) => file,
-            // A failed initializer may remove its shell after read_dir. Absence
-            // means this discovery is already covered, not a parked I/O failure.
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound && fs::symlink_metadata(dir).is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound) => return Ok(true),
+            // Missing locks (or the entire discovered run) have no holder.
+            // A dangling link is still an error, not an absent lease.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound && fs::symlink_metadata(dir.join(name)).is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound) => continue,
             Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
         };
         if !try_lock(&file)? { return Ok(false); }
@@ -124,6 +127,7 @@ fn ready_run(dir: &Path) -> Result<bool> {
             checkpoint(dir.parent().unwrap(), "ready-pending-export");
         }
     }
+    checkpoint(dir.parent().unwrap(), "ready-run-probed");
     let journal = recovery::read(&dir.join("live.json"));
     Ok(!recovery::alive(&journal["owner"]) && !recovery::alive(&journal["wrapper"]))
 }
@@ -693,6 +697,7 @@ mod tests {
         let discovered = fs::read_dir(&root).unwrap().next().unwrap().unwrap().path();
         let live = preparation::lease(&dir.join("export.lock")).unwrap();
         assert!(!ready_run(&discovered).unwrap(), "an actual lease owner requires passive waiting");
+        assert!(!dir.join("run.lock").exists(), "passive probes never create missing lock files");
         drop(live);
         fs::remove_dir_all(&dir).unwrap();
         assert!(ready_run(&discovered).unwrap(), "a vanished entry is already repaired, not pending on an absent owner");

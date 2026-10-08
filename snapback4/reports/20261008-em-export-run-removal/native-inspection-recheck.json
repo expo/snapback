@@ -1,0 +1,17 @@
+{
+  "name": "native-inspection-recheck",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--bin",
+    "snapback4",
+    "verbs::witness::preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits",
+    "--",
+    "--exact",
+    "--test-threads=1"
+  ],
+  "exitCode": 0,
+  "seconds": 8.364272236009128
+}

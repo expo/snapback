@@ -1,0 +1,171 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "94,95",
+    "node",
+    "--test",
+    "--test-name-pattern=failed export removal|shell repair cannot",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "cpus": "94,95",
+  "loadPids": [
+    2066935,
+    2066936,
+    2066937,
+    2066938
+  ],
+  "reaped": true,
+  "runs": [
+    {
+      "run": 1,
+      "exitCode": 0,
+      "seconds": 3.8380981629888993
+    },
+    {
+      "run": 2,
+      "exitCode": 0,
+      "seconds": 4.135303754010238
+    },
+    {
+      "run": 3,
+      "exitCode": 0,
+      "seconds": 4.156040769012179
+    },
+    {
+      "run": 4,
+      "exitCode": 0,
+      "seconds": 4.072114916983992
+    },
+    {
+      "run": 5,
+      "exitCode": 0,
+      "seconds": 4.017499512003269
+    },
+    {
+      "run": 6,
+      "exitCode": 0,
+      "seconds": 4.253540317993611
+    },
+    {
+      "run": 7,
+      "exitCode": 0,
+      "seconds": 4.164043855998898
+    },
+    {
+      "run": 8,
+      "exitCode": 0,
+      "seconds": 4.225623542995891
+    },
+    {
+      "run": 9,
+      "exitCode": 0,
+      "seconds": 4.162874373985687
+    },
+    {
+      "run": 10,
+      "exitCode": 0,
+      "seconds": 4.186428070999682
+    },
+    {
+      "run": 11,
+      "exitCode": 0,
+      "seconds": 4.241414905001875
+    },
+    {
+      "run": 12,
+      "exitCode": 0,
+      "seconds": 4.338886351994006
+    },
+    {
+      "run": 13,
+      "exitCode": 0,
+      "seconds": 4.306335027999012
+    },
+    {
+      "run": 14,
+      "exitCode": 0,
+      "seconds": 4.168142012989847
+    },
+    {
+      "run": 15,
+      "exitCode": 0,
+      "seconds": 4.080295924009988
+    },
+    {
+      "run": 16,
+      "exitCode": 0,
+      "seconds": 3.8827130449935794
+    },
+    {
+      "run": 17,
+      "exitCode": 0,
+      "seconds": 4.312337277020561
+    },
+    {
+      "run": 18,
+      "exitCode": 0,
+      "seconds": 4.275860189984087
+    },
+    {
+      "run": 19,
+      "exitCode": 0,
+      "seconds": 4.338279303978197
+    },
+    {
+      "run": 20,
+      "exitCode": 0,
+      "seconds": 4.1509080120013095
+    },
+    {
+      "run": 21,
+      "exitCode": 0,
+      "seconds": 4.604629584995564
+    },
+    {
+      "run": 22,
+      "exitCode": 0,
+      "seconds": 4.0426143529766705
+    },
+    {
+      "run": 23,
+      "exitCode": 0,
+      "seconds": 3.973037730989745
+    },
+    {
+      "run": 24,
+      "exitCode": 0,
+      "seconds": 4.238512137992075
+    },
+    {
+      "run": 25,
+      "exitCode": 0,
+      "seconds": 4.243957191007212
+    },
+    {
+      "run": 26,
+      "exitCode": 0,
+      "seconds": 4.131920932006324
+    },
+    {
+      "run": 27,
+      "exitCode": 0,
+      "seconds": 4.220946257992182
+    },
+    {
+      "run": 28,
+      "exitCode": 0,
+      "seconds": 4.060075287998188
+    },
+    {
+      "run": 29,
+      "exitCode": 0,
+      "seconds": 4.278124977980042
+    },
+    {
+      "run": 30,
+      "exitCode": 0,
+      "seconds": 4.150394975004019
+    }
+  ]
+}

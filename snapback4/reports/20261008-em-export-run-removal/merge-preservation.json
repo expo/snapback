@@ -1,0 +1,15 @@
+{
+  "merge": "b7de0a0e8c",
+  "parents": [
+    "b9088428d006024e79850584102f438c9936a134",
+    "376fb2912eb181237263850e15645c3c39061f51"
+  ],
+  "journalParentsPreserved": {
+    "b9088428d0": true,
+    "376fb2912e": true
+  },
+  "drainPredicateAndBoundUnchanged": true,
+  "productionPriorityUnchangedSinceRound10": true,
+  "mainCheckedListingPresent": true,
+  "mainFsProductAndIsolationPreserved": true
+}

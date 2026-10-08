@@ -233,3 +233,28 @@ crash-matrix failures now enter the bounded failure evidence ring before cleanup
 This ticket stays open for the operator's next macOS soak. The historical drain
 incidents are not reclassified as this distinct publication refusal.
 [Round-10 investigation, controls and verification](../snapback4/reports/20261008-em-interrupted-publication-custody/REPORT.md).
+
+## 2026-10-08 — EM round 11: unpublished run removal
+
+Merged main `376fb2912e` as `b7de0a0e8c`, retaining FL's checked commands,
+128 MiB process listing, identity-bound signals and custody waits, plus FS's
+last-close isolation and preparation completion receipts. The round-10 Mac
+soak passed the custody crash case on every run; one distinct marker-failure
+case instead hit `ENOTEMPTY` during private-run removal. Its named cleanup
+snapshot is absent from the supplied archive (only four later cleanups remain).
+The exact historical writer PID is therefore unproven.
+
+Two native writers can recreate lock paths after recursive deletion's file
+enumeration: the readiness probe and ownerless-shell repair. Both now have
+deterministic regressions and old-behavior controls producing real `ENOTEMPTY`.
+Readiness no longer creates files. The wrapper retains custody/journal through
+bulk removal and uses initialization custody for final shell removal; shell
+repair checks for a vanished discovery under that same lock before creating
+leases. A third regression/control covers stale discovery and directory
+recreation. No published evidence, priority, wakeup, retention bound or 90-second
+drain assertion is relaxed. The overlapping-export test retains failures in
+the bounded failure ring before cleanup.
+
+This ticket remains open for macOS qualification; this distinct cleanup race
+does not reclassify every historical drain incident.
+[Round-11 report, retained controls and verification](../snapback4/reports/20261008-em-export-run-removal/REPORT.md).

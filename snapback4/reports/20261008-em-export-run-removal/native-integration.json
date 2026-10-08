@@ -1,0 +1,15 @@
+{
+  "name": "native-integration",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--test",
+    "witness",
+    "--",
+    "--test-threads=4"
+  ],
+  "exitCode": 0,
+  "seconds": 11.90649044001475
+}

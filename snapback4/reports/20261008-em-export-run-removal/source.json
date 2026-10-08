@@ -1,0 +1,16 @@
+{
+  "snapback4/crates/snapback4/src/verbs/witness/retention.rs": "aeac348d8e50658b52d05044012da637044a09d939f0497a2ced5e006013d8b9",
+  "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": "2d869d8a78ddae7c7f5cb35ee0964ec1b29ec41c923d3af7baf2b1d5d3743ebc",
+  "snapback4/crates/snapback4/src/verbs/witness/publication.rs": "0fad4eee17b0d5cfd4f3548edb4c5ce9b5f955ec6add7ea2ad912262603fbb05",
+  "snapback4/crates/snapback4/src/verbs/witness/preparation.rs": "6999e68ede328f5862b5a8d1fc377b0215a6d8ad66771705dff61e857ade9121",
+  "snapback4/crates/snapback4/src/verbs/witness/preparation_deadline.rs": "517eb7d4301cfa686faf42c91e3be81f5c26ec11728f0cca14835f7ac8242567",
+  "snapback4/crates/snapback4/src/verbs/witness/smoke.rs": "3b4e2c6db4985bd5d18ea865a976ac1d5b687172e40e74668a2916d4ffe1530d",
+  "snapback4/crates/snapback4/src/verbs/witness/test_process.rs": "50506a004dbcc5acd405b52509dcd604c74c11a87ddadd2b83b933cac93e8f4c",
+  "snapback4/crates/snapback4/src/verbs/witness/background.rs": "8d60bc576f8e1d8cc1e6e43e440d8eb45332363d83ba048ffd9efff29f9122f3",
+  "snapback4/crates/snapback4/src/verbs/witness/export_policy.rs": "bc9787298d493ac8997a7f75056b1f0710b2d7774c1bf98e27498843d4fc12e3",
+  "snapback4/packages/snapback4-expo/export-ios.mjs": "fb14c3a13809b2c2a7a66e96bd5b438c1102f4cdf1869fb678252a4ac8270c6a",
+  "snapback4/packages/snapback4/test/export-background.test.mjs": "386a41561ccee34a301e3920e49408027e348ef54348e062b8ceaab25d1eb3a8",
+  "snapback4/packages/snapback4/test/export-maintenance-wakeup.test.mjs": "7b99e113b42f320ba63fe34568e06453d4bf9ce212aa014129974dbdf32989c6",
+  "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2",
+  "snapback4/packages/snapback4/test/helpers/maintenance-evidence.py": "0a8e854a888a8bedb1c15a4210bfbe5d4e0a8e98a786c34e421264cd933045c1"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "native-witness",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--bin",
+    "snapback4",
+    "verbs::witness::",
+    "--",
+    "--test-threads=4"
+  ],
+  "exitCode": 101,
+  "seconds": 47.48397954599932
+}

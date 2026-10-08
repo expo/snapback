@@ -138,11 +138,22 @@ export async function main() {
   } finally {
     // After a publication attempt this path may be the displaced last good
     // export. Only the publisher, under its destination lock, may remove it.
-    try { if (created && !publicationAttempted) fs.rmSync(artifacts, { recursive: true, force: true }); }
+    try {
+      if (created && !publicationAttempted) {
+        // Keep custody paths and the live wrapper journal while deleting bulk
+        // output. Other exports never wait for that I/O on initialization.lock.
+        for (const name of fs.readdirSync(artifacts)) {
+          if (!['run.lock', 'export.lock', 'live.json'].includes(name)) fs.rmSync(path.join(artifacts, name), { recursive: true, force: true });
+        }
+        // @ref LLP 3000.030#15 — final removal shares shell-repair custody.
+        // A worker cannot recreate a lease file after rm's final enumeration.
+        initialization ??= acquireExportLease(root, 'snapback4', true);
+        fs.rmSync(artifacts, { recursive: true, force: true });
+      }
+    }
     finally {
       try {
         if (lease !== undefined) fs.closeSync(lease);
-        else if (created) fs.rmSync(artifacts, { recursive: true, force: true });
       } finally { if (initialization !== undefined) fs.closeSync(initialization); }
     }
   }

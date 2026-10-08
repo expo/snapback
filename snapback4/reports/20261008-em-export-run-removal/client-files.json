@@ -1,0 +1,27 @@
+{
+  "name": "client-files",
+  "command": [
+    "node",
+    "scripts/run-client-tests.mjs",
+    "3",
+    "files",
+    "packages/snapback4/test/export-background.test.mjs",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+    "packages/snapback4/test/maintenance-evidence.test.mjs",
+    "packages/snapback4/test/export-publication.test.mjs",
+    "packages/snapback4/test/export-failure.test.mjs",
+    "packages/snapback4/test/export-native.test.mjs",
+    "packages/snapback4/test/export-native-round2.test.mjs",
+    "packages/snapback4/test/test-signals.test.mjs",
+    "packages/snapback4/test/test-processes.test.mjs",
+    "packages/snapback4/test/test-command-group.test.mjs",
+    "packages/snapback4/test/test-file-runner.test.mjs",
+    "packages/snapback4/test/worker-regressions.test.mjs",
+    "packages/snapback4/test/supervised-workers.test.mjs",
+    "packages/snapback4/test/witness.test.mjs",
+    "packages/snapback4/test/witness-preparation.test.mjs",
+    "packages/snapback4/test/witness-acquire.test.mjs"
+  ],
+  "exitCode": 1,
+  "seconds": 401.29948347600293
+}

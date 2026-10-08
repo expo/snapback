@@ -190,3 +190,18 @@ the same native binary. It does not explain or erase the failed candidate run.
 The unchanged FS base `ecba83f39e2f8539ffa08d73949e8e953760f3e7` failed `preparation::tests::recovery_direct_node_drains_late_group_member` once in 30 four-thread witness-module runs. `baseline-witness/026.log.gz` reports `E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_PROCESS: invalid /proc process group`. This is separate from the fork-inherited lease failures reproduced in the same campaign. The refused stat snapshot is still unavailable; no new parser cause is claimed and no process-classification check changed. See the [FS report](../snapback4/reports/20261008-fs-witness-worker-flakes/REPORT.md). This ticket stays open.
 
 FS's final-source loaded witness run also refused `invalid /proc process group` in `recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper` (`final-witness/004.log.gz`). That scenario was isolated from unrelated libtest forks; the raw stat snapshot is still unavailable. This further distinguishes process inspection from the last-close lease assertions.
+
+## 2026-10-08 — EM round 11 integration recurrence
+
+After merging main `376fb2912e`, the four-thread native witness run passed
+78/79 cases and failed
+`preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits`
+with `E_WITNESS_PROCESS: invalid /proc process group` at `preparation.rs:182`.
+The same case passed an isolated rerun. The emitting inspection/parser and
+that preparation test are unchanged by EM; all retention, recovery and
+publication cases passed in the failed aggregate. No refused raw stat bytes
+were retained, so neither the rerun nor this recurrence establishes the
+underlying inspection cause. The classification checks remain unchanged.
+See [EM round 11](../snapback4/reports/20261008-em-export-run-removal/REPORT.md)
+and its retained `native-witness.log.gz` / `native-inspection-recheck.log.gz`.
+This ticket remains open.
