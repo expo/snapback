@@ -496,6 +496,7 @@ card/start/5:remove | eligible
 card/start/5:toggle | eligible
 card/start/5:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/types/1:createProfile | never
+card/wire/1:addExpense | never
 card/writes/1:checkin | never
 card/writes/1:createRoom | eligible
 card/writes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
@@ -526,13 +527,14 @@ card/writes/1:writeForms | postLikes/maintain | "Deny" | read rule
 card/writes/1:writeForms | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/writes/1:writeForms | reactions/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/writes/1:writeForms | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/writes/2:book | never
-card/writes/3:addMember | never
-card/writes/3:createConversation | never
-card/writes/3:send | never
+card/writes/2:confirm | never
+card/writes/3:book | never
 card/writes/4:addMember | never
 card/writes/4:createConversation | never
 card/writes/4:send | never
+card/writes/5:addMember | never
+card/writes/5:createConversation | never
+card/writes/5:send | never
 package/CLIENT-AND-OPERATIONS/1:createProfile | never
 package/README/1:placeAvatar | eligible
 package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
