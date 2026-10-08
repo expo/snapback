@@ -47,8 +47,8 @@ Heap is a logical budget: it charges the encoded size of what a step holds
 (each fetched row's stored image and key, constructed values and bindings),
 the same way on SQLite, Postgres and the device, so a program under a ceiling
 has one outcome on every store. A store's own scratch is not on the meter; a
-separate store guard far above any ceiling refuses a pathological scan with
-E_STORE_MEMORY, never E_BOUND. Streaming aggregates
+separate store guard far above any ceiling protects real memory (below).
+Streaming aggregates
 release each transient row and its key scratch; one cursor allowance remains.
 Inner job domains decode one prepaid row at a time and retain each selected
 row under the heap meter before fetching another. Once decoded, the row's
@@ -77,6 +77,13 @@ Filling `first N` or `last N` is complete, including a composed preview.
 A cursorless page cannot continue; declare `c: cursor ?` and use `after c`
 if the screen pages. Composed fields and pages covering a fitting group cap
 omit `N_NO_CURSOR`.
+
+E_STORE_MEMORY means one store scan needed more physical memory than that
+store's internal guard: 256 MiB per scan on SQLite and Postgres, 64 MiB on the
+web device's memory store. It is not a meter cut and it is not retryable. The
+heap meter charges the same logical bytes on every store and the guard sits
+far above any ceiling, so ordinary reads never reach it. Read a smaller page or
+shorter rows.
 
 ## Operations
 

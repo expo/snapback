@@ -130,9 +130,9 @@ fn thousand_lane_merge_loads_boundaries_once() {
     println!("1000-lane merge probes: server={} device={} server-examined={} device-examined={}", server.metered.rule_probes, read.metered.rule_probes, server.metered.examined, read.metered.examined);
     assert_eq!((server.metered.rule_probes, read.metered.rule_probes), (1001, 0));
     assert!(read.complete); assert_eq!(read.data.as_array().unwrap().len(), 1);
-    // Internal scan decoding visits one candidate at a time; each singleton
-    // lane needs its own empty lookahead, while the boundary namespace stays cached.
-    assert_eq!(counts.lanes.get(), 2001); assert_eq!(counts.legacy.get(), 0); assert_eq!(counts.boundary_loads.get(), 1);
+    // Each singleton lane reads its page in one store scan, as on the server
+    // (LLP 3000.007 §20.24.5), while the boundary namespace stays cached.
+    assert_eq!(counts.lanes.get(), 1001); assert_eq!(counts.legacy.get(), 0); assert_eq!(counts.boundary_loads.get(), 1);
     counts.boundary_loads.set(0); device.store().store.drain();
     let watermark = device.sync_state().unwrap().watermark;
     let empty = stream_at(&mut engine, watermark, 20_000);

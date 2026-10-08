@@ -179,13 +179,12 @@ fn streamed_json_winners_exhaust_the_retained_heap() {
     let mut e = engine(source);
     e.seed(["a", "b"].map(|id| ("witness".into(), object([
         ("id", Value::Id(id.into())), ("payload", object([("big", Value::String("x".repeat(2_500_000)))]))])))).unwrap();
-    let result = e.query("q", Context::new("alice", BTreeMap::new())).unwrap();
-    assert!(!result.complete, "the retained shared JSON payload must be charged: {result:?}");
-    assert_eq!(result.data, Value::Null);
-    assert_eq!(result.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::HeapBytes));
     // Each fold fits alone. The second fold cannot fit while the first
     // winner remains live as the left operand of the equality expression.
-    e.set_ceilings(Ceilings { heap_bytes: 18 << 20, ..Ceilings::default() });
+    // The ceiling sits between one fold's peak (a transient 10 MB row image
+    // plus its 2.5 MB winner) and both folds'; it was the default 16 MiB while
+    // SQLite also charged its own 5 MB preflight copies (LLP 3000.007 §20.24.5).
+    e.set_ceilings(Ceilings { heap_bytes: 14 << 20, ..Ceilings::default() });
     for op in ["low", "high"] {
         let result = e.query(op, Context::new("alice", BTreeMap::new())).unwrap();
         assert!(result.complete, "{op}: {result:?}");

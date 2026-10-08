@@ -87,7 +87,7 @@ fn adaptive_non_uniform_sweep_reads_one_large_candidate_at_a_time() {
 effect notify
 table items:
   owner: principal
-  payload: json <=1000000
+  payload: json <=2000000
   read <- .owner = viewer
   online only
 job sweep():
@@ -99,7 +99,9 @@ job sweep():
         // also exercise K=1, without changing the selector or any ceiling.
         let source = if extra_work { source.replace("    emit notify", "    scratch = item.payload\n    scratch = item.payload\n    emit notify") } else { source.into() };
         let mut engine = memory(&source);
-        load(&mut engine, (0..32).map(|n| ("items", json!({"id":format!("i{n:02}"), "owner":"alice", "payload":"x".repeat(999_000)}))).collect());
+        // 1.5 MB payloads keep K=2/K=1 under the logical heap charge; they were
+        // 999,000 B while SQLite also charged two preflight copies (LLP 3000.007 §20.24.5).
+        load(&mut engine, (0..32).map(|n| ("items", json!({"id":format!("i{n:02}"), "owner":"alice", "payload":"x".repeat(1_500_000)}))).collect());
         let run = engine.run_job("sweep", BTreeMap::new(), 1).unwrap();
         assert_eq!(run.state, JobState::Done, "{run:?}");
         assert_eq!(run.chunk_size, if extra_work { 1 } else { 2 }, "{run:?}");

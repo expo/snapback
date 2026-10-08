@@ -18,7 +18,10 @@ fn complete_or_refused(e: &mut Engine, heap: u64) -> bool {
 
 #[test]
 fn compact_refill_heap_failure_is_an_explicit_refusal() {
-    for (body,witness,heap) in [(4_000,Some(1_045_950),16 << 20),(1_023_557,None,64 << 10)] {
+    // Each ceiling lies inside the window where the ordinary read completes and
+    // the compact refill cannot: 16,768,717 B and 48 KiB. They were 16 MiB
+    // and 64 KiB while SQLite also charged its 8 KiB column reserve (LLP 3000.007 §20.24.5).
+    for (body,witness,heap) in [(4_000,Some(1_045_950),16_768_717),(1_023_557,None,48 << 10)] {
         let mut e=tiny_payload_engine(body,witness);
         e.set_ceilings(Ceilings {heap_bytes:heap,..Ceilings::default()});
         let old=e.query("control",cx("cof",None)).unwrap();
@@ -98,7 +101,10 @@ fn cursor_delivery_boundaries_never_return_null() {
 
 #[test]
 fn stored_megabyte_payload_overflow_refuses_after_internal_emission() {
-    for size in [1_900_000,2_000_000,2_200_000] {
+    // Sizes past the logical heap threshold at the default 16 MiB; they were
+    // 1.9-2.2 MB while SQLite also charged two preflight payload copies
+    // (LLP 3000.007 §20.24.5). 18,216,630 is 2.6 MB's last refusing ceiling.
+    for size in [2_600_000,2_700_000,3_000_000] {
         let b=snapback4_lang::compile(&[("schema.q".into(),SOURCE.replace("  expire at .until\n", "").replace("text <=20000", &format!("text <={size}")))]);
         assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
         let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
@@ -108,8 +114,8 @@ fn stored_megabyte_payload_overflow_refuses_after_internal_emission() {
                 ("payload",Value::String("p".repeat(size))),("at",Value::Int(1)),("tombstone",Value::Bool(false)),("until",Value::Null)])),
         ],100).unwrap();
         assert!(!complete_or_refused(&mut e,16 << 20));
-        if size==1_900_000 {
-            assert!(!complete_or_refused(&mut e,17_125_185));
+        if size==2_600_000 {
+            assert!(!complete_or_refused(&mut e,18_216_630));
             delivery_sweep(&mut e,&["hit"]);
         }
     }
@@ -159,8 +165,9 @@ fn adopted_default_prepay_is_replaced_by_the_retained_row_charge() {
     assert_eq!(ids(&new.data),["hit"]);
     assert_eq!(new.data,old.data);
     assert_eq!(new.data.as_array().unwrap()[0].field("payload").unwrap().as_str().unwrap().len(),1_000_000);
-    assert_eq!(new.metered.heap_bytes,3_025_073,"exact retained compact ownership");
-    assert_eq!(old.metered.heap_bytes,3_034_639,"exact retained control ownership");
+    // Both were 8-9 KB higher while SQLite's column reserve and preflight copies stayed on the meter (LLP 3000.007 §20.24.5).
+    assert_eq!(new.metered.heap_bytes,3_016_535,"exact retained compact ownership");
+    assert_eq!(old.metered.heap_bytes,3_025_663,"exact retained control ownership");
     eprintln!("3,600,000-byte heap: compact={}, control={}",new.metered.heap_bytes,old.metered.heap_bytes);
     assert!(!complete_or_refused(&mut e,64 << 10));
 }
@@ -282,3 +289,5 @@ fn public_witness_materialization_uses_actual_stored_fields_and_active_ceiling()
     assert!(!complete_or_refused(&mut witness_engine(None,1_500_000,true),1_200_000));
     assert!(!complete_or_refused(&mut witness_engine(None,1_500_000,false),64 << 10));
 }
+
+

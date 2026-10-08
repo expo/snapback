@@ -202,6 +202,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_STEP_PARKED", &["Supply a `reconcile` callback to `ctx.step`", "there is no resume command for parked work in this slice"]),
     ("E_STEP_RESULT", &["External work may already have succeeded", "reconcile with the provider's stable key before replacement", "does not authorize an automatic repeat of the external request"]),
     ("E_STEP_UNKNOWN", &["Use `await ctx.step('mail', input, send)`", "Keep settlement under the same invocation and name"]),
+    ("E_STORE_MEMORY", &["It is not a meter cut and it is not retryable", "Read a smaller page or shorter rows"]),
     ("E_STORE_BUSY", &["mint over loopback with its private store proof", "restore access to the named server and proof, or stop it, mint offline, then restart", "After a lost mint reply, an unused session may remain until expiry", "Other offline writers admit no work", "stop the named host (the message includes its address), run the command once, then restart it"]),
     ("E_STORE", &["release an unintended competing writer or repair disk access, then retry the same request", "Keep an uncertain mutation's original ID"]),
     ("E_STORE_REPLACED", &["Close it and create a new client, reconciling old intents before submitting new writes", "after retiring its pending intents"]),

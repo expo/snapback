@@ -60,7 +60,9 @@ job sweep():
   for item in items:
     emit notify { item: item.id }
 "#);
-    load(&mut engine, (0..2).map(|i| ("items", json!({"id":format!("i{i}"), "body":"x".repeat(1_500_000)}))).collect());
+    // Two 2.5 MB rows cannot share a chunk under the logical heap charge; the
+    // rows were 1.5 MB while SQLite also charged two preflight copies (LLP 3000.007 §20.24.5).
+    load(&mut engine, (0..2).map(|i| ("items", json!({"id":format!("i{i}"), "body":"x".repeat(2_500_000)}))).collect());
     let run = engine.run_job("sweep", BTreeMap::new(), 1).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
     assert_eq!(run.chunk_size, 1);
