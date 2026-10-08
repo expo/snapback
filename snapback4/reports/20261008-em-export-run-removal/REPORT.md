@@ -141,7 +141,7 @@ files, verified before archiving).
 | Check | Result |
 | --- | --- |
 | Full export-background file | **70 passed, 34 Darwin skips**; 104 cases |
-| Separate crash matrix, including expired-dispatch control | **30 passed** |
+| Separate crash matrix, including expired-dispatch control | **26 passed** |
 | Wakeup / sleep / deadline / publication ordering | **22 passed** |
 | Bounded diagnostics / FIFO / stale-PID controls | **6 passed** |
 | Export publication / failure / native / native-round2 | **6 / 2 / 9 / 3 passed**, one native Darwin skip |

@@ -91264,3 +91264,11 @@ Both failures and their rechecks are retained. Release check and ref-check pass.
 [Report, controls, command receipts and macOS soak instructions](reports/20261008-em-export-run-removal/REPORT.md).
 Both original maintenance tickets remain open for the next operator soak, now
 expecting 104/104 background cases. Work stayed on eb1000; no push or publication.
+
+## 2026-10-08 — EM round 12: correct the round-11 crash-matrix count
+
+The round-11 entry above incorrectly reports the separate crash matrix as
+30/30. The correct result is **26/26**, including the expired-dispatch control.
+The retained [raw log](reports/20261008-em-export-run-removal/crash-matrix.log.gz)
+and Astra's independent rerun contain the same 26 cases, with zero failures.
+The round-11 report is corrected; the original JOURNAL entry remains intact.
