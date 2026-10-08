@@ -1,0 +1,70 @@
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:454:51
+    |
+454 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.14 (/home/ccheever/sb4-intent/lane-sn/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 2.31s
+     Running tests/column_commit.rs (target/debug/deps/column_commit-ecaff411ffdbd5c6)
+
+running 1 test
+test largest_composed_column_commit_at_the_row_ceiling_fits_and_next_attempt_rolls_back ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests/timeline.rs (target/debug/deps/timeline-a02429b580b0fe2b)
+
+running 23 tests
+test admission::timeline_read_shape_and_transition_classification ... ok
+test review::timeline_namespace_is_atomic_across_every_declaration_kind ... ok
+test round2::every_generated_name_is_reserved_against_every_user_declaration_kind ... ok
+test admission::admission_refuses_every_unsupported_bridge_shape ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [posts=1]; 1 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic feed adoption: view feed: 1 source rows, 1 events, 0 follows; 1 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [reposts=1]; 1 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test admission::removal_flag_is_one_way_and_app_rules_still_apply ... ok
+test lifecycle::sqlite_activation_refusals_leave_reopened_file_unchanged ... ok
+test lifecycle::legacy_timeline_store_refuses_before_open_or_adoption ... ok
+test review::mapped_write_does_not_leave_authority_for_a_later_owned_write ... ok
+test review::another_viewers_inbox_never_discloses ... ok
+test review::owned_ids_fit_maximum_id_principal_and_timeline_name ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [follows=1]; 1 row projections, 1 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test review::background_refusal_rolls_back_chunk_and_parks_work ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [follows=3]; 3 row projections, 3 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 0 stored rows and 6 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test review::unchanged_semantics_refresh_followed_index_without_reactivation ... ok
+snapback4: atomic adoption: estimated write work up to 0.01 s on a host like measured eb1000 (not a host/load SLO); 0.01 s subtotal excludes row-view visits and is not a floor; source rows [profiles=1000]; 1000 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test lifecycle::sqlite_activation_of_1000_profiles_survives_reopen ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [profiles=1]; 1 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [reposts=1]; 1 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test review::structural_checks_still_run_inside_transition_authority ... ok
+test review::original_removal_with_missing_event_still_hides_private_copies ... ok
+test review::reinserting_removed_original_while_tombstone_exists_refuses ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [follows=1]; 1 row projections, 1 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic feed adoption: view feed: 1 source rows, 0 events, 1 follows; 0 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test lifecycle::activation_adopts_retained_sources_but_refuses_orphan_reposts ... ok
+snapback4: atomic adoption: estimated write work up to 0.01 s on a host like measured eb1000 (not a host/load SLO); 0.01 s subtotal excludes row-view visits and is not a floor; source rows [profiles=1000]; 1000 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+snapback4: atomic adoption: estimated write work up to 0.01 s on a host like measured eb1000 (not a host/load SLO); 0.01 s subtotal excludes row-view visits and is not a floor; source rows [profiles=1001]; 1001 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test lifecycle::activation_does_not_register_or_bound_existing_profiles ... ok
+test round2::serialized_timeline_sets_cannot_weaken_ownership ... ok
+test round2::later_program_owned_writes_refuse_identically_on_digest_hit_and_miss ... ok
+test review::unfollow_hides_then_cleans_more_than_the_old_copy_cap ... ok
+test admission::all_owned_tables_refuse_principal_and_system_program_writes ... ok
+snapback4: atomic adoption: unestimated write pause for activation cleanup/rewrite; source rows []; 0 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 166 stored rows and 772 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test lifecycle::durable_history_survives_adoption_reopen_and_trusted_restore ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.82s

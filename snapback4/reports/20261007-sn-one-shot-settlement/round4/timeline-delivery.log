@@ -1,0 +1,36 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-device v0.4.14 (/home/ccheever/sb4-intent/lane-sn/snapback4/crates/snapback4-device)
+warning: `tiny_http` (lib) generated 1 warning
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:454:51
+    |
+454 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.14 (/home/ccheever/sb4-intent/lane-sn/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 23.10s
+     Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-f858a4d3b7cc727b)
+
+running 1 test
+test follow_preview_and_delivery_have_bounded_bytes_and_private_partitions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-2cb2428bc83fc777)
+
+running 1 test
+test historical_commit_uses_later_images ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s

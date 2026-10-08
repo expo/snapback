@@ -1,3 +1,4 @@
+import { QueryChanges, validateDependencies, type Changes, type QueryDependencies } from "./query-dependencies.ts";
 import { registerPendingIntents, pendingIntent } from "./pending-items.ts";
 import { readyRead } from "./read-existence.ts";
 import { settledQuery, terminalQueryRefusal } from "./query-settlement.ts";
@@ -44,6 +45,8 @@ export interface MockClient extends Client {
 }
 
 export interface MockOptions {
+  /** Declared handler effects for settlement tests; omitted handlers are opaque. */
+  readonly dependencies?: Readonly<Record<string, QueryDependencies>>;
   readonly viewer: Principal | null;
   /** Per-table life in milliseconds, mirroring the Quarry declarations. */
   readonly ephemeral?: Readonly<Record<string, number>>;
@@ -67,6 +70,8 @@ export function createMockClient(options: MockOptions): MockClient {
   let viewer = options.viewer;
   let seq = 0;
   let version = 0;
+  const queryChanges = new QueryChanges();
+  const queries = new AbortController();
   let closed = false;
   const unavailable = (): Refusal | undefined => link === "signed-out"
     ? { code: "E_AUTH", family: "auth", message: "sign in to read" }
@@ -89,10 +94,10 @@ export function createMockClient(options: MockOptions): MockClient {
   };
   const queue: { id: string; touched: readonly string[]; table: string; resolve: (w: Write) => void }[] = [];
   const delay = options.commitDelayMs ?? 30;
-  const bump = () => { version += 1; for (const l of listeners) l(); };
+  const bump = (tables?: Changes) => { queryChanges.change(tables); version += 1; for (const l of listeners) l(); };
   const isRefusal = (v: unknown): v is Refusal => typeof v === "object" && v !== null && "code" in v && "family" in v;
 
-  const signals = mockSignals(options, tables, () => viewer, () => link, mockId, bump);
+  const signals = mockSignals(options, tables, () => viewer, () => link, mockId, () => bump());
 
   const evaluate = <A, R>(op: Query<A, R>, args: A): Read<R> => {
     signals.sweep();
@@ -137,12 +142,17 @@ export function createMockClient(options: MockOptions): MockClient {
     },
     tables,
     query: settledQuery(async (op, args) => {
-      const revision = version;
+      const revision = version, unchanged = queryChanges.capture(), inputs = validateDependencies(options.dependencies?.[op.name])?.reads;
       const read = evaluate(op, args);
-      return () => revision !== version ? undefined : "loading" in read && link === "offline"
-        ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
+      // Every admitted mock handler has already applied its complete prediction.
+      // As on a complete device answer, pending custody adds no barrier.
+      return () => {
+        if (revision !== version && !(inputs && unchanged(inputs))) return;
+        return "loading" in read && link === "offline"
+          ? { denied: { code: "E_OFFLINE", family: "link", message: "the read needs the server", retryable: true } } : read;
+      };
     }, () => terminalQueryRefusal({ scope: null, store: null, closed: closed ? unavailable() : null,
-      session: link === "signed-out" ? unavailable() : null, changes: null, partition: null, inherited: null })),
+      session: link === "signed-out" ? unavailable() : null, changes: null, partition: null, inherited: null }), queries.signal),
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       let seen = -1;
       let snapshot: Read<R> = { loading: true };
@@ -171,7 +181,9 @@ export function createMockClient(options: MockOptions): MockClient {
         }
         const table = op.name.split(".")[0] ?? "";
         for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
-        bump();
+        const writes = validateDependencies(options.dependencies?.[op.name])?.writes;
+        const touched = writes;
+        bump(touched);
         history.remember({ state: "pending", id });
         pending.set(id, { id, op: op.name, args: JSON.parse(JSON.stringify(snapshot)),
           state: link === "offline" ? "queued" : "sent", predicted: outcome.map(id => `${table}/${id}`) });
@@ -185,7 +197,7 @@ export function createMockClient(options: MockOptions): MockClient {
         }
         return await new Promise<Write<R>>((resolve) => {
           const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
-          setTimeout(() => { settleOne(entry); bump(); }, delay);
+          setTimeout(() => { settleOne(entry); bump(touched); }, delay);
           const wait = mutationWaitSeconds(mutateOptions?.waitSeconds);
           if (wait === 0) resolve({ state: "pending", id });
           else if (wait !== undefined) { const timer = setTimeout(() => resolve({ state: "pending", id }), wait * 1_000);
@@ -218,7 +230,7 @@ export function createMockClient(options: MockOptions): MockClient {
     async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
     async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
     async signOut() { client.setLink("signed-out"); await client.close(); },
-    async close() { closed = true; pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
+    async close() { closed = true; queries.abort(); pending.clear(); pendingEvents.notify(); pendingEvents.clear(); signals.close(); listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;
       if (next === "online") for (const [id, entry] of pending) pending.set(id, { ...entry, state: "sent" });

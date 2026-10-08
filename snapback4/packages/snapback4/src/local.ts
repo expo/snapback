@@ -1,5 +1,8 @@
+import { LocalNetwork } from "./local-network.ts";
+import { intervalChanges, type Changes, type Footprint } from "./query-dependencies.ts";
+import { QueryCustody } from "./query-custody.ts";
+import { notifyFollowing } from "./following-transport.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
-import { bindFollowing, notifyFollowing } from "./following-transport.ts";
 import { refuseReadDevice, validateReadOptions, refreshDeviceSession as rotateSession } from "./read-only.ts";
 import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
@@ -33,25 +36,25 @@ import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-re
 import type { Queued, StoreCapture, LocalResult } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 import { evaluateLocal } from "./local-query.ts";
-import { FollowingIntents } from "./local-following.ts";
+import { FollowingIntents, FollowingHistory } from "./local-following.ts";
 import { answerIdentity } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, retainedWatch, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, publishedApplyCut, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, retainedWatch, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, publishedApplyCut, applyChanges, localApplyChanges, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { registerLocalPendingIntents, localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
 import { episodeDeadline } from "./read-episode.ts";
-import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
+import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { deliverAcknowledgedReceipt, resolveClosingWrites, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
+import { deliverAcknowledgedReceipt, publicWrite, resolveClosingWrites, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts"; export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
-import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
+import { type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -141,14 +144,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const aborter = new AbortController();
   const downloads = assetQueue();
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
-  let stopSuspend: (() => void) | undefined;
+  let stopSuspend: (() => void) | undefined, stopClock: (() => void) | undefined;
   let sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined, flushRecovered: (() => void) | undefined;
   let followingIntents!: FollowingIntents;
-  let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined, deliveryQueue: ReturnType<typeof localDelivery> | undefined, deliveryWitness = false;
   try {
   const queued = () => answers.readQueued(() => readQueued(call, mutationIds, history, settling), watches.values());
+  const queryCustody = new QueryCustody(() => backend, queued, pending.subscribe, () => unavailable() ?? changesStopped ?? partitionDenied, () => ordinarySending ? network.acquire() : network.once(), () => link === "offline");
   holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
   attachAdmissionAuthority(core, options);
   history = new WriteHistory({
@@ -173,16 +176,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   await media.open();
   const installNative = nativeInstaller(() => ({ backend, generation, link, closed }), next => { backend = next; }, call, doFetch, base, requestCredentials);
   let nativeReady = await installNative();
-  let networkTail: Promise<unknown> = Promise.resolve();
-  let networkWork = 0;
-  function network<T>(body: () => Promise<T>): Promise<T> {
-    networkWork++;
-    const result = networkTail.then(body);
-    const release = () => { networkWork--; deliveryQueue?.available(); };
-    void result.then(release, release);
-    networkTail = result.catch(() => {});
-    return result;
-  }
+  const network = new LocalNetwork(syncRound, () => partitionDenied?.code === "E_STORE_RESTORE", () => deliveryQueue?.available());
   let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1, seq = 0;
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
@@ -193,7 +187,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
   const completeWrite = (write: Exclude<Write, { state: "pending" }>) => {
-    settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
+    write = publicWrite(write); settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
   };
   const answers = new LocalReads();
   followingIntents = new FollowingIntents(() => backend, queued, tables => { const delivery: (() => void)[] = []; invalidateAnswers(delivery, "admit", tables); for (const notify of delivery) notify(); }, principal);
@@ -264,11 +258,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     };
     if (delivery) delivery.push(deliver); else deliver();
   }
-  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number) {
+  function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[], preserved?: unknown, publishedCut?: number, oneShotTables: Changes | null | undefined = touched, external?: Footprint) {
     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
     const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup || retainedWatch(backend!, watch)) || (touched.length > 0
       && evidenceTouches(watch, touched)));
-    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved, publishedCut));
+    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched, preserved, publishedCut, oneShotTables, external));
     // Warm applies return every invalidated owner for sync's resumption set; cold acquisition remains progressive.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
     return affected;
@@ -294,7 +288,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   async function call(request: Record<string, unknown>, committedTables?: { tables: Set<string>; unknown: boolean; resumed: Set<Watch> }, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
-    const endAdmission = request.op === "admit" ? answers.admitting(() => watches.values()) : undefined;
+    const entry = request.entry as { id: string; op: string } | undefined;
+    if (request.op === "admit" && entry) queryCustody.admitted(entry.id, entry.op);
+    const writeTables = queryCustody.effects(entry?.id ?? String(request.id));
+    const endAdmission = request.op === "admit" ? answers.admitting(() => watches.values(), writeTables) : undefined;
     let observed = false;
     const delivery: (() => void)[] = [];
     const deliver = () => { for (const notify of delivery.splice(0)) notify(); };
@@ -302,11 +299,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (observed) return;
       observed = true;
       terminalCommit?.(result);
+      if (request.op === "queued" && Array.isArray(result.ok)) queryCustody.recovered(result.ok as Queued[]);
+      if (request.op === "settle" && !result.denied) queryCustody.settled(String(request.id));
       if (!result.denied && request.op === "apply" && (result.ok as { published?: boolean })?.published === true) answers.published(Number((request.page as { watermark?: number }).watermark));
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched, (result as { preserved?: unknown }).preserved,
-        request.op === "apply" ? publishedApplyCut(request.page as Record<string, unknown>, (result.ok as { published?: boolean })?.published) : undefined)) committedTables?.resumed.add(watch);
+      const touched = (result.ok as { touched?: string[] } | undefined)?.touched;
+      const cut = request.op === "apply" ? publishedApplyCut(request.page as Record<string, unknown>, (result.ok as { published?: boolean })?.published) : undefined;
+      const external = request.op === "apply" ? applyChanges(request.page as Record<string, unknown>, cut) : undefined;
+      const writeEffects = request.op !== "settle" || (result as { settlement_unchanged?: unknown }).settlement_unchanged === true ? writeTables : undefined;
+      const queryTables = ["admit", "settle"].includes(String(request.op)) ? writeEffects ?? null : cut === undefined ? null : answers.predictions?.length === 0 && external ? localApplyChanges(request.page as Record<string, unknown>, external, touched) ?? null : touched ?? null;
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), touched, (result as { preserved?: unknown }).preserved, cut, queryTables, external)) committedTables?.resumed.add(watch);
       if (!result.denied && request.op === "apply") {
         delivery.push(answers.withdrawScopes(watches.values(), request.page as Parameters<LocalReads["withdrawScopes"]>[1], (result.ok as { published?: boolean })?.published !== false, link === "offline" ? offline() : undefined));
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
@@ -335,9 +338,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     finally { endAdmission?.(); active.delete(work); deliver(); }
   }
-  let transportFailure: Refusal | undefined;
+  let transportFailure: Refusal | undefined, authRefusal: Refusal | undefined;
   const offline = (): Refusal => transportFailure ?? transportRefusal();
-  let authRefusal: Refusal | undefined;
   const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
   setLink = (next: Link) => {
     if (closed || (sessionDead && next !== "signed-out")) return;
@@ -356,18 +358,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       deliver();
       for (const watch of watches.values()) notify(watch);
     }
-    if (next === "signed-out") pending.notify();
+    pending.notify();
     ephemeral.linkChanged();
     for (const listener of linkListeners) listener(next);
     if (next === "online") { deliveryQueue?.reconnect(); void flush(); }
     for (const watch of watches.values()) void scheduleRead(watch);
   };
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
-  let refreshing: Promise<SignIn> | null = null;
-  let rotatingSession: Promise<SignIn> | null = null;
+  let refreshing: Promise<SignIn> | null = null, rotatingSession: Promise<SignIn> | null = null;
   let retireRotation: ((result: SignIn) => void) | undefined;
-  let persistingSession: Promise<void> | undefined;
-  let endingSession: Promise<void> | undefined;
+  let persistingSession: Promise<void> | undefined, endingSession: Promise<void> | undefined;
   const signedOut = (): SignIn => ({ ok: false, why: authRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
   let stopRefresh!: () => void;
   const refreshStopped = new Promise<SignIn>(resolve => { stopRefresh = () => resolve(signedOut()); });
@@ -379,8 +379,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const notifySession = !sessionDead;
     const work = Promise.resolve().then(async () => {
       try {
-        // A store write already in progress must finish before deletion. A
-        // still-pending network refresh has no permission to start a write.
+        // Finish an in-progress store write before deletion; a pending refresh cannot start another.
         try { await persistingSession; } catch {}
         await forgetSession(base, sessions);
         await media?.clear();
@@ -449,8 +448,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     retireRotation = retire;
     void rotation.then(refreshed => { if (closed) retire(refreshed); }).catch(() => {});
     const work = (async (): Promise<SignIn> => {
-      // Sign-out stops adoption, but lets a committed rotation return its
-      // successor for best-effort family revocation, even after close.
+      // Sign-out stops adoption; a committed rotation still returns its successor for family revocation.
       const refreshed = await Promise.race([rotation, refreshStopped]);
       if (sessionDead) return signedOut();
       if (closed) { retire(refreshed); return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } }; }
@@ -481,13 +479,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!closed) {
         for (const listener of [...sessionListeners]) listener(session);
         setLink("online");
-        // A successful rotation makes the replacement bearer authoritative.
-        // Let an older sync drain, then run one round at this credential
-        // revision before reporting refresh completion.
-        const priorSync = syncing;
+        // Rotation makes the replacement bearer authoritative. Drain older sync,
+        // then sync this credential revision before reporting completion.
+        const priorSync = network.current;
         if (priorSync) try { await priorSync; } catch {}
         if (!closed && !sessionDead && credentialRevision === refreshedRevision) {
-          try { await syncOnce(); } catch {}
+          try { await network.once(); } catch {}
           if (!closed && !sessionDead && credentialRevision === refreshedRevision && link === "online") {
             for (const watch of watches.values()) void scheduleRead(watch);
           }
@@ -559,19 +556,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!denied.retryable && partitionDenied?.code !== "E_STORE_RESTORE") {
       if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
       answers.refuse(watches.values(), denied); partitionDenied = denied;
-      if (denied.code === "E_STORE_RESTORE") pending.notify();
+      pending.notify();
       for (const watch of watches.values()) void scheduleRead(watch);
     }
-  }
-  let syncing: Promise<boolean> | null = null;
-  const syncAfterCall = explicitSync(() => syncing, syncOnce, () => syncOnce(true));
-  function syncOnce(reserve = false): Promise<boolean> {
-    if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
-    if (syncing && !reserve) return syncing;
-    const result = network(() => { syncing = result; return syncRound(); });
-    if (!reserve) syncing = result;
-    void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
-    return result;
   }
   async function syncRound(): Promise<boolean> {
     caughtUp = false;
@@ -641,6 +628,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           await refusePartition(denied, pageRevision);
           return false;
         }
+        // @ref LLP 3000.023#11 — record the POST outcome before identity/schema adoption can rebind its outbox.
+        if (ordinarySending && (generationChanged || Number(page.generation ?? generation) !== generation || page.store_id !== requestedStore || backendRequired)) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
         let adoptionCapture: Record<string, string | null> | undefined;
@@ -800,7 +789,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       } else if (response.status !== 200 || json.ok !== true) setLink("offline");
     } catch (error) { transportFailure = transportRefusal(error); setLink("offline"); }
   }
-  const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network(probe); });
+  const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network.run(probe); });
   async function waitForChange(): Promise<boolean> {
     if (link !== "online") {
       await new Promise((r) => setTimeout(r, 1000));
@@ -821,14 +810,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (json.denied?.code === "E_AUTH" && !json.denied.retryable) return false;
         if (await pauseRefusal(response, json.denied, aborter.signal)) return false;
         if (refusal(json.denied) && !closed && changeIncarnation === incarnation && request.revision === credentialRevision) {
-          changesStopped = json.denied!; answers.refuse(watches.values(), changesStopped); return false; }
+          changesStopped = json.denied!; pending.notify(); answers.refuse(watches.values(), changesStopped); return false; }
         throw new Error(`changes: HTTP ${response.status}`);
       }
       if (closed || changeIncarnation !== incarnation || request.revision !== credentialRevision) return false;
       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
-      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq);
+      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq, json.store_id === storeIdentity && json.generation === generation ? intervalChanges(json.changes, seq, json.seq) : undefined);
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
@@ -857,7 +846,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (caughtUp && !await waitForChange()) continue;
         let ok = false;
         try {
-          ok = await syncOnce();
+          ok = await network.once();
         } catch {
           if (closed) break;
         }
@@ -870,11 +859,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal): Promise<LocalResult<R>> {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view(); const owner = watch ?? backgroundWatch, changeVersion = owner?.changeVersion;
-    const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
+    const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!network.current && !acquired, generation);
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = { current: () => !owner || owner.changeVersion === changeVersion,
-      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner), inputsCurrent: answers.inputsCurrent(owner) } : {}),
+      retainedCurrent: answers.retainedCurrent(), ...(owner ? { serverCurrent: answers.serverCurrent(owner), inputsCurrent: answers.inputsCurrent(owner) } : signal ? { ...answers.oneShotCurrent(backend!, op.name) } : {}),
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
@@ -940,7 +929,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     });
   }
   function rerunTables(tables: Set<string>) { rerunLocalTables(watches.values(), tables, scheduleRead); }
-  function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); }); }
+  function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!network.current && !acquired, () => { void refreshPresence(watch); }); }
   async function refreshPresence(watch: Watch) {
     if (closed || sessionDead || watches.get(watch.key) !== watch) return;
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
@@ -1053,8 +1042,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let retryAfterMs = 0, retryOverload = false;
   let flushing: Promise<void> | null = null;
   let exitDone: Promise<void> | undefined;
-  let ordinarySending: string | undefined;
-  let flushAgain = false;
+  let ordinarySending: string | undefined, flushAgain = false;
   function flush(): Promise<void> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
     if (flushing) {
@@ -1084,7 +1072,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     retryMs = Math.min(5000, retryMs * 2);
   }
   async function flushOnce(acquire = true) {
-    const syncUnobserved = (force = false) => syncSettledWrites(queued, syncOnce, () => caughtUp, acquire && !closed, force);
+    const syncUnobserved = (force = false) => syncSettledWrites(queued, network.once, () => caughtUp, acquire && !closed, force);
     await exitDone;
     if (closed || !sendingAllowed) return;
     if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch { reconcileNeeded = true; retryFlush(); } }
@@ -1095,12 +1083,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (success != null) {
         try { await deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite); } catch { retryFlush(); continue; }
         // @ref LLP 3000.019#3.3 — proven-success recovery/observation cannot gate the tail.
-        if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued().catch(() => { retryFlush(); return undefined; }))?.every(e => successSequence(e) != null)) await syncOnce();
+        if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued().catch(() => { retryFlush(); return undefined; }))?.every(e => successSequence(e) != null)) await network.once();
         continue;
       }
       let ownsSettlement = false;
       try {
-        const result = await network(async () => {
+        const result = await network.run(async () => {
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
           const current = (await queued()).find(current => current.id === entry.id);
@@ -1127,7 +1115,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
                 try {
                   await settleReceipt(history, receiptCall, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
-                    : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined);
+                    : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding);
                 } catch { return { ...response, persistencePending: true }; }
               }
             }
@@ -1179,26 +1167,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch { return false; } // Failed validation or persistence cannot authorize exit transport.
   }
   let stopHost: void | (() => void);
-  // A history page is server-only, but mutation admission starts synchronously.
-  // Keep this fence separate from the device inbox's existing prediction path.
-  const historyCalls = new Set<{inputs: Set<string> | null}>();
-  const historyInputs = (op: { name: string; following: { declaration: string } }) => {
-    const program = backend?.programs.find(p => p.name === op.name);
-    if (!backend || !program) return null;
-    const inputs = operationTables(program, backend.schema);
-    const timeline = backend.schema.timelines?.find(t => t.name === op.following.declaration);
-    if (timeline) for (const source of [timeline.posts[0], timeline.reposts[0], timeline.edges?.[0]]) if (source) inputs.add(source);
-    return inputs;
-  };
-  const historyCallPending = (inputs: ReadonlySet<string>) => [...historyCalls].some(({inputs: tables}) => !tables || [...tables].some(t => inputs.has(t)));
-  const historyWrite = <T>(operation: string, run: () => Promise<T>): Promise<T> => {
-    const program = backend?.programs.find(p => p.name === operation);
-    const inputs = backend && program ? operationTables(program,backend.schema) : null;
-    const ticket={inputs}; historyCalls.add(ticket); notifyFollowing(client);
-    const release = () => { historyCalls.delete(ticket); notifyFollowing(client); };
-    try { const work=run(); void work.then(release,release); return work; }
-    catch (error) { release(); throw error; }
-  };
+  const followingHistory = new FollowingHistory(() => backend, () => notifyFollowing(client));
   const client: LocalClient = {
     residency: () => readResidency(call, unavailable),
     now: clock.issuedDeviceNow,
@@ -1208,9 +1177,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     query: settledQuery(async (op, args, signal) => {
       const result = await runLocal(op, args, undefined, false, undefined, signal);
-      const writes = "data" in result.read ? await queued() : []; checkRead(signal); return () => {
+      const waiting = !("denied" in result.read) && !("loading" in result.read && link === "offline") && await queryCustody.blocked(op.name, result); checkRead(signal); return () => {
+        if (waiting) return link === "offline" ? { denied: offline() } : { wait: (signal: AbortSignal) => queryCustody.wait(op.name, result, signal) };
         if (answers.blocked(result) !== undefined || "data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) { answers.serverAnswers.forget(`${op.name}:${JSON.stringify(args)}`); return; }
-        if ("data" in result.read && writes.some(w => w.observed_seq == null && (!w.predictable || result.served || result.localWakeup))) return;
         if (publishLocal(result, () => true)) return "loading" in result.read && (link === "offline" || result.heldUnavailable) ? { denied: link === "offline" ? offline() : heldQueryRefusal() } : result.read;
       };
     }, () => terminalQueryRefusal({ scope: null, store: null, closed: closed ? unavailable() : null, session: sessionDead ? unavailable() : null, changes: changesStopped, partition: partitionDenied, inherited: null }), aborter.signal),
@@ -1235,7 +1204,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (!mutationIds.knows(id)) emitLocalFailure(failed);
         return failedAdmission<R>(id, unavailableWhy);
       }
-      return historyWrite(op.name, () => followingIntents.track(op.name, () => mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
+      return followingHistory.track(op.name, () => followingIntents.track(op.name, () => mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
         const waiting = !identified || identification.size > 0;
         const identity = waiting ? localAdmissionIdentity(backend, generation) : undefined;
         const submit = (release = () => {}): Promise<Write<R>> => {
@@ -1377,7 +1346,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return () => sessionListeners.delete(listener);
     },
     async sync() {
-      if (!closed && !sessionDead) await syncAfterCall();
+      if (!closed && !sessionDead) await network.afterCall();
     },
     refreshSession: refreshCurrent,
     async logoutAll() {
@@ -1433,7 +1402,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // Cancel network waits; drain delivered responses through local settlement.
       identification.close();
       closing = (async () => {
-        await Promise.allSettled([following, syncing, flushing, persistingSession, endingSession, ...active]);
+        await Promise.allSettled([following, network.current, network.active, flushing, persistingSession, endingSession, ...active]);
         await resolveClosingWrites(queued, history, settled);
         await deliveryStopped;
         await media?.close();
@@ -1452,7 +1421,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   deliveryQueue = localDelivery({ offline: () => setLink("offline"), viewer: principal, url: base, fetch: doFetch, call, backend: () => backend,
     collect: core[deliveryCommit]?.bind(core), current: () => !closed && !sessionDead && !partitionDenied,
-    ready: () => !closed && !sessionDead && !partitionDenied && !rotating && link === "online" && deliveryWitness && networkWork === 0 && !flushing,
+    ready: () => !closed && !sessionDead && !partitionDenied && !rotating && link === "online" && deliveryWitness && !network.busy && !flushing,
     credentials: requestCredentials, refresh: () => refreshing, capture: captureStore, witness: witnessRestore, restored: () => partitionDenied?.code === "E_STORE_RESTORE",
     replaced: () => { observeIncarnation(undefined, true); deliveryQueue?.fence(true); }, auth: refusedSession,
     onRefused: options.onDeliveryRefused, now: clock.issuedDeviceNow });
@@ -1496,7 +1465,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (replayAllowed) listenForExit();
     // Install same-head exit retry before slow delivery/snapshots can consume the exit opportunity.
     if (replayAllowed && link === "online") await flushOnce(false);
-    if (link === "online") await syncOnce();
+    if (link === "online") await network.once();
     if (deliveryQueue?.enabled && link === "online" && !deliveryWitness) await probe();
     deliveryQueue?.available();
     follow();
@@ -1504,22 +1473,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     scheduleRefresh();
   };
   registerLocalPendingIntents(client, queued, history, identification, holds, () => unavailable() || partitionDenied ? undefined : `${viewer}:${storeIdentity}`, () => acquired, () => `${credentialRevision}:${incarnation}`);
-  bindFollowing(client, async (op, args, body, signal) => {
-    const revision = credentialRevision, epoch = incarnation, inputsCurrent = answers.inputsCurrent();
-    const program = backend?.programs.find(p => p.name === op.name);
-    if (!backend || !program || program.native) return;
-    const tables = historyInputs(op)!;
-    const blocked = async () => !!unavailable() || !!partitionDenied || link !== "online" || !!refreshing
-      || historyCallPending(tables) || pendingRead(tables) || await followingIntents.pending(tables);
-    if (await blocked()) return;
-    const result = await post(`/following/${op.name}`, { ...body, args }, undefined, undefined, false, undefined, undefined, signal);
-    if (await blocked() || revision !== credentialRevision || epoch !== incarnation || !inputsCurrent(tables) || !result.ok || result.obsoleteAuth) return;
-    return { ...result.json, __followingCurrent: () => revision === credentialRevision && epoch === incarnation && inputsCurrent(tables) && !unavailable() && !partitionDenied && link === "online" && !historyCallPending(tables) && !pendingRead(tables) };
-  }, op => {
-    const program = backend?.programs.find(p => p.name === op.name);
-    if (!backend || !program) return true;
-    const tables = historyInputs(op)!;
-    return historyCallPending(tables) || !!unavailable() || !!partitionDenied || link !== "online" || pendingRead(tables) || followingIntents.blocked(tables);
+  followingHistory.bind(client, {
+    current: () => { const revision = credentialRevision, epoch = incarnation; return () => revision === credentialRevision && epoch === incarnation; },
+    inputsCurrent: () => answers.inputsCurrent(), unavailable: () => !!unavailable() || !!partitionDenied || link !== "online",
+    refreshing: () => !!refreshing, pending: pendingRead, intents: followingIntents,
+    send: (op, args, body, signal) => post(`/following/${op.name}`, { ...body, args }, undefined, undefined, false, undefined, undefined, signal),
   });
   progress.bind(client); readWork.bind(client, watches);
   bindWatchPeek(client, watches, unavailable);

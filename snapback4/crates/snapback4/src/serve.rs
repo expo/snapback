@@ -759,6 +759,9 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     let mut response = Response::from_data(bytes.0).with_status_code(status);
     if let Some(shared) = shared {
         for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
+        // @ref LLP 3000.023#11 — discover compiler dependency summaries without probing older servers.
+        response.add_header(Header::from_bytes("X-Snapback-Settlement", "1").unwrap());
+        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement").unwrap());
     }
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());

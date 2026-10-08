@@ -100,8 +100,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     } else {principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) })};
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
-        Ok(((seq,store_id,tables,preserved),generation,ephemeral))=>{
-            let mut reply=json!({"seq":seq,"tables":tables,"preserved":preserved,"generation":generation,"store_id":store_id});
+        Ok(((seq,store_id,tables,preserved,changes),generation,ephemeral))=>{
+            let mut reply=json!({"seq":seq,"tables":tables,"preserved":preserved,"changes":changes,"generation":generation,"store_id":store_id});
             if wants_ephemeral {reply["ephemeral"]=json!(ephemeral);}
             response.finish(200,reply);
         }
@@ -110,7 +110,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
 }
 
 /// The notification's head, identity and invalidations share one read snapshot.
-fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>), snapback4_core::error::RuntimeError> {
+fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>, Json), snapback4_core::error::RuntimeError> {
     use rusqlite::OptionalExtension;
     let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
     let schema = engine.schema().clone();
@@ -125,8 +125,9 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64
     tables.sort();
     tables.dedup();
     let preserved = snapback4_core::revocation::preserved_between(tx.conn(), &schema, since, head);
+    let changes = settlement_changes(tx.conn(), &schema, since, head);
     tx.rollback()?;
-    Ok((head, store_id, tables, preserved))
+    Ok((head, store_id, tables, preserved, changes))
 }
 
 struct PollResponse<'a> {
@@ -192,6 +193,27 @@ impl Drop for PollResponse<'_> {
 #[cfg(test)]
 mod column_tests {
     #[test]
+    fn settlement_intervals_project_private_counts_and_keep_public_fields() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        assert!(bound.diagnostics.is_empty());
+        let mut engine = snapback4_core::Engine::memory(bound.schema, []).unwrap();
+        let maintain = engine.schema().maintains.iter().find(|m| m.private.as_ref().is_some_and(|o| o.column == "likeCount")).unwrap();
+        let private = maintain.target.clone();
+        let after = engine.seq().unwrap();
+        let tx = engine.store_mut().transaction().unwrap();
+        tx.record_commit(after + 1, 1000, "like", "alice", "mutation", &["posts".into()], 1).unwrap();
+        let proof = serde_json::json!({"unknown":false,"tables":{
+            private: {"deleted":false,"population":true,"columns":[]},
+            "posts": {"deleted":false,"population":false,"columns":["at"]}
+        }});
+        tx.conn().execute("INSERT OR REPLACE INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", rusqlite::params![(after + 1) as i64, proof.to_string()]).unwrap();
+        tx.commit().unwrap();
+        let changes = super::settlement_changes(engine.store().conn(), engine.schema(), after, after + 1);
+        assert_eq!(changes, serde_json::json!({"after":after,"through":after+1,"writes":{"posts":["at","likeCount"]}}));
+        assert!(!changes.to_string().contains("$column"));
+        assert!(super::settlement_changes(engine.store().conn(), engine.schema(), after, after + 2).is_null(), "a gap never certifies fields");
+    }
+    #[test]
     fn saturated_changes_uses_the_public_table_enumeration() {
         let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
@@ -211,7 +233,7 @@ mod column_tests {
         let tx=engine.store_mut().transaction().unwrap();
         for seq in from + 2..=from + 501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
         tx.commit().unwrap();
-        let (seq,_,tables,_)=super::check(&mut engine,from).unwrap();
+        let (seq,_,tables,_,_)=super::check(&mut engine,from).unwrap();
         assert_eq!(seq,from + 501);
         assert_eq!(tables,["likes","posts"]);
     }
@@ -225,4 +247,23 @@ pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&sn
             _ => Vec::new(),
         }, _ => Vec::new(),
     }
+}
+
+// @ref LLP 3000.023#11 — certify the whole interval, including server-only inputs.
+pub(super) fn settlement_changes(conn: &rusqlite::Connection, schema: &snapback4_core::Schema, after: u64, through: u64) -> Json {
+    let Some(f) = snapback4_core::revocation::footprint_between(conn, after, through).filter(|f| !f.unknown) else { return Json::Null; };
+    let mut public = snapback4_core::revocation::Footprint::default();
+    for (name, c) in f.tables {
+        if schema.visible(&name) {
+            let target = public.tables.entry(name).or_default();
+            target.deleted |= c.deleted; target.population |= c.population; target.columns.extend(c.columns);
+        }
+        else if let Some(owner) = schema.maintains.iter().filter(|m| m.target == name).find_map(|m| m.private.as_ref()) {
+            // Private aggregate state changes its public owner field, never leaks its formula/table.
+            public.tables.entry(owner.table.clone()).or_default().columns.insert(owner.column.clone());
+        } else { return Json::Null; }
+    }
+    let writes: serde_json::Map<String, Json> = public.tables.into_iter().map(|(name, c)|
+        (name, if c.population || c.deleted { Json::Null } else { json!(c.columns) })).collect();
+    json!({"after":after,"through":through,"writes":writes})
 }

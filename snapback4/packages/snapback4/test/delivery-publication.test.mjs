@@ -20,8 +20,8 @@ table messages:
   insert <- allow
 query fallback():
   return messages first 20 by .id
-mutation add():
-  insert messages {room: 'c', ordinal: 41, text: 'delivered image'}
+mutation add(ordinal: int):
+  insert messages {room: 'c', ordinal, text: 'delivered image'}
 `;
 async function fixture(t){
  const {url}=await server(t,'',source);
@@ -47,9 +47,9 @@ async function fixture(t){
  }});t.after(async()=>{saveGate?.resolve();readGate?.resolve();writeGate?.resolve();await client.close();});
  await client.sync();
  // Insert after activation, into an online-only table. Only fallback can collect it.
- await fetch(`${url}/m/add`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify({id:'00000000000000000000000001',args:{}})});
+ await fetch(`${url}/m/add`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify({id:'00000000000000000000000001',args:{ordinal:41}})});
  await client.sync();
- return {client,memory,saved,reports,get queries(){return queryCount;},get writesHeld(){return writesHeld;},holdWrite(){return writeGate=gate();},offlineOnce(){offlineOnce=true;},holdSave(){return saveGate=gate();},holdRead(){return readGate=gate();},fail(){failSave=true;},onQuery(fn){onQuery=fn;},
+ return {client,memory,saved,reports,async change(){await fetch(`${url}/m/add`,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:JSON.stringify({id:'00000000000000000000000002',args:{ordinal:42}})});await client.sync();},get queries(){return queryCount;},get writesHeld(){return writesHeld;},holdWrite(){return writeGate=gate();},offlineOnce(){offlineOnce=true;},holdSave(){return saveGate=gate();},holdRead(){return readGate=gate();},fail(){failSave=true;},onQuery(fn){onQuery=fn;},
   debt(){return [...memory.stores.values()].flatMap(store=>[...store.values()]).filter(c=>c.s==='m'&&c.k.startsWith('device:delivery:')&&c.v).flatMap(c=>Object.values(JSON.parse(c.v).groups));}};
 }
 test('real local fallback accepts before supplementary debt becomes durable',async t=>{
@@ -111,7 +111,7 @@ for(const change of ['credential','expiry','commit'])test(`a held collection wri
  let ending;
  if(change==='credential')ending=h.client.signOut();
  if(change==='expiry')await delay(200);
- if(change==='commit')await h.client.sync();
+ if(change==='commit')await h.change();
  hold.resolve();await ending;await delay(30);
  assert.deepEqual(h.debt(),[]);assert.deepEqual(h.reports,[]);
 });
@@ -121,4 +121,11 @@ for(const change of ['credential','expiry'])test(`a host save held after its CAS
  const answer=await h.client.query(op,{});assert.equal(answer.data[0].ordinal,41);await until(()=>h.saved.length);
  let ending;if(change==='credential')ending=h.client.signOut();else await delay(200);
  hold.resolve();await ending;await delay(30);assert.deepEqual(h.debt(),[]);assert.deepEqual(h.reports,[]);
+});
+
+test('an empty same-cut sync preserves accepted one-shot delivery debt', async t => {
+ const h=await fixture(t),hold=h.holdWrite();
+ assert.equal((await h.client.query(op,{})).data[0].ordinal,41);await until(()=>h.writesHeld);
+ await h.client.sync();hold.resolve();await until(()=>h.debt().length);
+ assert.deepEqual(h.debt().map(g=>g.owed),[[[41,41]]]);
 });

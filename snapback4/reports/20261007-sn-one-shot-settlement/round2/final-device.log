@@ -1,0 +1,38 @@
+✔ wasm: observation before the held POST reply preserves its own sent outcome (704.894409ms)
+✔ wasm: observation before the held POST reply preserves its own failed outcome (206.401343ms)
+✔ process: observation before the held POST reply preserves its own sent outcome (296.20699ms)
+✔ process: observation before the held POST reply preserves its own failed outcome (253.917575ms)
+✔ app-wasm: observation before the held POST reply preserves its own sent outcome (241.58693ms)
+✔ app-wasm: observation before the held POST reply preserves its own failed outcome (226.691601ms)
+✔ app-process: observation before the held POST reply preserves its own sent outcome (306.556055ms)
+✔ app-process: observation before the held POST reply preserves its own failed outcome (260.196147ms)
+✔ wasm: a new send invalidates an overlap page captured before its receipt (239.424168ms)
+✔ process: a new send invalidates an overlap page captured before its receipt (293.67165ms)
+✔ app-wasm: a new send invalidates an overlap page captured before its receipt (245.109071ms)
+✔ app-process: a new send invalidates an overlap page captured before its receipt (326.20478ms)
+✔ wasm: custody wait wakes promptly when the link becomes offline (148.581658ms)
+✔ process: custody wait wakes promptly when the link becomes offline (201.261689ms)
+✔ app-wasm: custody wait wakes promptly when the link becomes offline (267.595179ms)
+✔ app-process: custody wait wakes promptly when the link becomes offline (441.875871ms)
+✔ online: custody wait wakes promptly when the link becomes offline (287.01439ms)
+✔ app-online: custody wait wakes promptly when the link becomes offline (177.844525ms)
+✔ wasm: store adoption during overlap preserves the old POST outcome (533.656829ms)
+✔ wasm: generation adoption during overlap preserves the old POST outcome (691.098058ms)
+✔ process: store adoption during overlap preserves the old POST outcome (372.67972ms)
+✔ process: generation adoption during overlap preserves the old POST outcome (677.437058ms)
+✔ app-wasm: store adoption during overlap preserves the old POST outcome (295.465389ms)
+✔ app-wasm: generation adoption during overlap preserves the old POST outcome (620.470751ms)
+✔ app-process: store adoption during overlap preserves the old POST outcome (434.459744ms)
+✔ app-process: generation adoption during overlap preserves the old POST outcome (647.182544ms)
+✔ wasm: adopted receipt keeps its dispatch store through late settlement (175.36643ms)
+✔ process: adopted receipt keeps its dispatch store through late settlement (220.486398ms)
+✔ wasm budget accepts a recorded limit and refuses missing, malformed or nonnumeric limits (158.121478ms)
+✔ both shipped scripts use the budget helper; dirty measurements are explicit (2286.935229ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9967.46817

@@ -1,0 +1,41 @@
+{"tier":"online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+✔ online: unrelated commits do not exhaust a server aggregate (191.363841ms)
+{"tier":"wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm: unrelated commits do not exhaust a server aggregate (603.715874ms)
+{"tier":"process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process: unrelated commits do not exhaust a server aggregate (255.077895ms)
+{"tier":"app-online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+✔ app-online: unrelated commits do not exhaust a server aggregate (166.210584ms)
+{"tier":"app-wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ app-wasm: unrelated commits do not exhaust a server aggregate (229.21884ms)
+{"tier":"app-process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ app-process: unrelated commits do not exhaust a server aggregate (257.935518ms)
+✔ wasm: field-disjoint server commits use fields evidence (194.085741ms)
+✔ wasm: field-disjoint server commits use unknown evidence (412.040305ms)
+✔ wasm: field-disjoint server commits use gap evidence (409.437784ms)
+✔ process: field-disjoint server commits use fields evidence (278.730882ms)
+✔ process: field-disjoint server commits use unknown evidence (534.009768ms)
+✔ process: field-disjoint server commits use gap evidence (441.331335ms)
+✔ app-wasm: field-disjoint server commits use fields evidence (214.365603ms)
+✔ app-wasm: field-disjoint server commits use unknown evidence (409.907558ms)
+✔ app-wasm: field-disjoint server commits use gap evidence (430.077665ms)
+✔ app-process: field-disjoint server commits use fields evidence (246.172675ms)
+✔ app-process: field-disjoint server commits use unknown evidence (492.826591ms)
+✔ app-process: field-disjoint server commits use gap evidence (474.852456ms)
+{"tier":"wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ wasm: sync covering a relevant online-only commit fences the old answer (237.296969ms)
+{"tier":"process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ process: sync covering a relevant online-only commit fences the old answer (286.526599ms)
+{"tier":"app-wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ app-wasm: sync covering a relevant online-only commit fences the old answer (223.64894ms)
+{"tier":"app-process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ app-process: sync covering a relevant online-only commit fences the old answer (291.804601ms)
+✔ compiler summaries include inlined helpers and both branches (151.975465ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7618.645017

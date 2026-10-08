@@ -1,0 +1,112 @@
+{"tier":"wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ wasm: sync covering a relevant online-only commit fences the old answer (653.630628ms)
+{"tier":"process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ process: sync covering a relevant online-only commit fences the old answer (290.593244ms)
+{"tier":"app-wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ app-wasm: sync covering a relevant online-only commit fences the old answer (225.244261ms)
+{"tier":"app-process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ app-process: sync covering a relevant online-only commit fences the old answer (269.153925ms)
+{"done":true,"pending":[{"id":"mmuynlyxr-1","op":"edit","args":{},"state":"sent","predicted":[]}]}
+✖ mock: malformed query footprint stays unknown (106.239402ms)
+✔ compiler summaries include inlined helpers and both branches (161.977549ms)
+{"oldGeneration":1,"newGeneration":2,"oldWrites":{"profiles":null},"newWrites":{"messages":null}}
+{"doneBeforeWrite":false,"schemaReads":2,"checks":4,"pending":[{"id":"01M4C68FV526JWX8YZBDHZNV19","op":"rename","args":{"name":"changed by v2"},"state":"sent","predicted":[]}]}
+{"read":{"data":{"at":1,"body":"changed by v2","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":790,"indexEntries":0,"outputBytes":102,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}}
+✔ discovery of a new generation fences a prior facade candidate and its old write summary (711.734772ms)
+{"tier":"wasm","adopt":false,"earlier":{"id":"01M4C68FVV5BSP192Y9BCW4KPW","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C68FW6PK91YBD01VMZME11","replayed":true,"seq":3,"state":"sent"}}
+✔ wasm: observation overlapping a committed POST preserves its outcome; adopt=false (668.793199ms)
+{"tier":"wasm","adopt":true,"earlier":{"id":"01M4C68G3D678WFEY8M5YMFNVQ","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C68G3ET6A11B5832G16N4F","replayed":true,"seq":3,"state":"sent"}}
+✔ wasm: observation overlapping a committed POST preserves its outcome; adopt=true (600.589065ms)
+{"tier":"process","adopt":false,"earlier":{"id":"01M4C68GPS1ZD8P8QVZ9ZBVRQ1","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C68GPWS8C4KDMA8PSF84S2","replayed":true,"seq":3,"state":"sent"}}
+✔ process: observation overlapping a committed POST preserves its outcome; adopt=false (246.243821ms)
+{"tier":"process","adopt":true,"earlier":{"id":"01M4C68GYCPP899WY59JEFB703","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C68GYENM038FZSTXC65YW4","replayed":true,"seq":3,"state":"sent"}}
+✔ process: observation overlapping a committed POST preserves its outcome; adopt=true (599.249347ms)
+✔ online: gap receipt cannot hide a relevant commit (195.975495ms)
+✔ online: replay receipt cannot hide a relevant commit (187.583574ms)
+✔ online: dependent receipt cannot hide a relevant commit (181.972482ms)
+✔ app-online: gap receipt cannot hide a relevant commit (195.769015ms)
+✔ app-online: replay receipt cannot hide a relevant commit (188.659237ms)
+✔ app-online: dependent receipt cannot hide a relevant commit (184.792651ms)
+{"tier":"wasm","replacementRead":{"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C68JN0JZQ85K09XB8NZNFE","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+✖ wasm: store replacement during observation does not rewrite the held POST outcome (249.320503ms)
+{"tier":"process","replacementRead":{"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C68JXV502D9KZ5XKYYN3PJ","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+✖ process: store replacement during observation does not rewrite the held POST outcome (298.732906ms)
+{"tier":"online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+✔ online: unrelated commits do not exhaust a server aggregate (192.178222ms)
+{"tier":"wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm: unrelated commits do not exhaust a server aggregate (599.327174ms)
+{"tier":"process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ process: unrelated commits do not exhaust a server aggregate (283.271168ms)
+{"tier":"app-online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+✔ app-online: unrelated commits do not exhaust a server aggregate (180.972934ms)
+{"tier":"app-wasm","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ app-wasm: unrelated commits do not exhaust a server aggregate (192.523739ms)
+{"tier":"app-process","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ app-process: unrelated commits do not exhaust a server aggregate (253.077736ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 22
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3959.090168
+
+✖ failing tests:
+
+test at ../../../../../tmp/sn-round2-reproductions/adversarial.test.mjs:24:1
+✖ mock: malformed query footprint stays unknown (106.239402ms)
+  AssertionError [ERR_ASSERTION]: malformed summary must not authorize publication
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/adversarial.test.mjs:35:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:68:41
+✖ wasm: store replacement during observation does not rewrite the held POST outcome (249.320503ms)
+  AssertionError [ERR_ASSERTION]: {"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+  + actual - expected
+
+  + 'old-first'
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:95:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'old-first',
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:68:41
+✖ process: store replacement during observation does not rewrite the held POST outcome (298.732906ms)
+  AssertionError [ERR_ASSERTION]: {"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+  + actual - expected
+
+  + 'old-first'
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:95:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'old-first',
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,3776 @@
+-- client file start: packages/snapback4/test/client-seams.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/client-lifecycle.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/following-routing.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/following-history.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/following-own-writes.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/following-unfollow.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: Following online: three unpaced bursts are complete and ordered at own settlement
+ok 1 - Following online: three unpaced bursts are complete and ordered at own settlement
+  ---
+  duration_ms: 1047.398373
+  type: 'test'
+  ...
+# {"tier":"online","trial":1,"count":25,"own":25,"burstMs":123.210252,"immediateFollowerCount":6,"firstReadMs":24.530734999999993,"followerAllMs":193.93566000000004}
+# {"tier":"online","trial":2,"count":25,"own":25,"burstMs":126.454635,"immediateFollowerCount":23,"firstReadMs":57.67711700000007,"followerAllMs":105.26042200000006}
+# {"tier":"online","trial":3,"count":25,"own":25,"burstMs":138.66826500000002,"immediateFollowerCount":11,"firstReadMs":81.39495399999998,"followerAllMs":144.90668799999992}
+# Subtest: Following online: each settled own write is visible before the next write
+ok 2 - Following online: each settled own write is visible before the next write
+  ---
+  duration_ms: 429.957964
+  type: 'test'
+  ...
+# Subtest: Following process: three unpaced bursts are complete and ordered at own settlement
+ok 3 - Following process: three unpaced bursts are complete and ordered at own settlement
+  ---
+  duration_ms: 3119.031004
+  type: 'test'
+  ...
+# {"tier":"process","trial":1,"count":25,"own":25,"burstMs":927.7209290000001,"immediateFollowerCount":25,"firstReadMs":22.399289999999837,"followerAllMs":46.47909900000013}
+# {"tier":"process","trial":2,"count":25,"own":25,"burstMs":874.4197520000002,"immediateFollowerCount":25,"firstReadMs":31.37546599999996,"followerAllMs":68.26026199999978}
+# {"tier":"process","trial":3,"count":25,"own":25,"burstMs":755.8887449999997,"immediateFollowerCount":25,"firstReadMs":75.39701200000036,"followerAllMs":154.5700539999998}
+# Subtest: Following process: each settled own write is visible before the next write
+ok 4 - Following process: each settled own write is visible before the next write
+  ---
+  duration_ms: 1359.522306
+  type: 'test'
+  ...
+# Subtest: Following wasm: three unpaced bursts are complete and ordered at own settlement
+ok 5 - Following wasm: three unpaced bursts are complete and ordered at own settlement
+  ---
+  duration_ms: 2397.341227
+  type: 'test'
+  ...
+# {"tier":"wasm","trial":1,"count":25,"own":25,"burstMs":420.49526799999967,"immediateFollowerCount":24,"firstReadMs":9.814532999999756,"followerAllMs":32.72048300000006}
+# {"tier":"wasm","trial":2,"count":25,"own":25,"burstMs":544.9368049999994,"immediateFollowerCount":24,"firstReadMs":15.269632000000456,"followerAllMs":47.78242300000056}
+# {"tier":"wasm","trial":3,"count":25,"own":25,"burstMs":504.1371500000005,"immediateFollowerCount":24,"firstReadMs":18.270770999999513,"followerAllMs":64.76344099999915}
+# Subtest: Following wasm: each settled own write is visible before the next write
+ok 6 - Following wasm: each settled own write is visible before the next write
+  ---
+  duration_ms: 670.482248
+  type: 'test'
+  ...
+# Subtest: Following process: mounted home publishes every settled own write newest first
+ok 7 - Following process: mounted home publishes every settled own write newest first
+  ---
+  duration_ms: 1418.267834
+  type: 'test'
+  ...
+# Subtest: Following wasm: mounted home publishes every settled own write newest first
+ok 8 - Following wasm: mounted home publishes every settled own write newest first
+  ---
+  duration_ms: 794.241981
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11378.974644
+-- process inspection: {"snapshots":3,"unrelatedRows":3780}
+-- client file ok: packages/snapback4/test/following-own-writes.test.mjs (11664 ms)
+-- client file start: packages/snapback4/test/prediction-routing.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: Following unfollow/repost repeats in one wasm session
+ok 1 - Following unfollow/repost repeats in one wasm session
+  ---
+  duration_ms: 5556.681252
+  type: 'test'
+  ...
+# Subtest: Following unfollow/repost repeats in one native session
+ok 2 - Following unfollow/repost repeats in one native session
+  ---
+  duration_ms: 8232.773506
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13927.227991
+-- process inspection: {"snapshots":3,"unrelatedRows":3774}
+-- client file ok: packages/snapback4/test/following-unfollow.test.mjs (14221 ms)
+-- client file start: packages/snapback4/test/maintained-columns.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: Following becomes withheld on composed re-observation: server
+ok 1 - Following becomes withheld on composed re-observation: server
+  ---
+  duration_ms: 1021.171236
+  type: 'test'
+  ...
+# Subtest: Following becomes withheld on composed re-observation: offline
+ok 2 - Following becomes withheld on composed re-observation: offline
+  ---
+  duration_ms: 1003.939823
+  type: 'test'
+  ...
+# Subtest: Following becomes withheld on composed re-observation: pending
+ok 3 - Following becomes withheld on composed re-observation: pending
+  ---
+  duration_ms: 30060.404652
+  type: 'test'
+  ...
+# Subtest: Following becomes withheld on composed re-observation: transport recovered
+ok 4 - Following becomes withheld on composed re-observation: transport recovered
+  ---
+  duration_ms: 1002.402144
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33193.070344
+-- process inspection: {"snapshots":3,"unrelatedRows":3793}
+-- client file ok: packages/snapback4/test/following-routing.test.mjs (33468 ms)
+-- client file start: packages/snapback4/test/app-receipts.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: known online commit survives failed receipt saves and same-id restart recovery
+ok 1 - known online commit survives failed receipt saves and same-id restart recovery
+  ---
+  duration_ms: 199.493251
+  type: 'test'
+  ...
+# Subtest: known online refusal survives failed receipt saves and same-id restart recovery
+ok 2 - known online refusal survives failed receipt saves and same-id restart recovery
+  ---
+  duration_ms: 170.379064
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 488.82271
+-- process inspection: {"snapshots":3,"unrelatedRows":3814}
+-- client file ok: packages/snapback4/test/app-receipts.test.mjs (763 ms)
+-- client file start: packages/snapback4/test/app-local-receipts.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:3753422) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: online reconnect requires the authenticated GET /probe contract
+ok 1 - online reconnect requires the authenticated GET /probe contract
+  ---
+  duration_ms: 6308.048258
+  type: 'test'
+  ...
+# Subtest: online pending writes emit their terminal outcome exactly once
+ok 2 - online pending writes emit their terminal outcome exactly once
+  ---
+  duration_ms: 556.440421
+  type: 'test'
+  ...
+# Subtest: online auth refusal settles writes that were queued behind the refused request
+ok 3 - online auth refusal settles writes that were queued behind the refused request
+  ---
+  duration_ms: 3.352326
+  type: 'test'
+  ...
+# Subtest: local pending writes emit once with the kept device identity
+ok 4 - local pending writes emit once with the kept device identity
+  ---
+  duration_ms: 76.577321
+  type: 'test'
+  ...
+# Subtest: local pending writes emit once with their original binding ahead of a newer device identity
+ok 5 - local pending writes emit once with their original binding ahead of a newer device identity
+  ---
+  duration_ms: 63.500938
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# Subtest: local reconnect requires the authenticated GET /probe contract
+ok 6 - local reconnect requires the authenticated GET /probe contract
+  ---
+  duration_ms: 5028.596207
+  type: 'test'
+  ...
+# Subtest: local startup releases a device when initialization after the protocol probe fails
+ok 7 - local startup releases a device when initialization after the protocol probe fails
+  ---
+  duration_ms: 2.726117
+  type: 'test'
+  ...
+# Subtest: local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal
+ok 8 - local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal
+  ---
+  duration_ms: 19.375957
+  type: 'test'
+  ...
+# Subtest: local observations skip idle polls and rerun after a committed page
+ok 9 - local observations skip idle polls and rerun after a committed page
+  ---
+  duration_ms: 40.142049
+  type: 'test'
+  ...
+# Subtest: local generation adoption reruns observations whose dependencies changed
+ok 10 - local generation adoption reruns observations whose dependencies changed
+  ---
+  duration_ms: 37.476794
+  type: 'test'
+  ...
+# Subtest: closing a pending watch prevents its response from scheduling expiry or rerunning dirty work
+ok 11 - closing a pending watch prevents its response from scheduling expiry or rerunning dirty work
+  ---
+  duration_ms: 53.965002
+  type: 'test'
+  ...
+# Subtest: local auth invalidation notifies viewer listeners before session deletion can fail
+ok 12 - local auth invalidation notifies viewer listeners before session deletion can fail
+  ---
+  duration_ms: 2.112376
+  type: 'test'
+  ...
+# Subtest: local observations rerun when the device-reported visible lifetime expires
+ok 13 - local observations rerun when the device-reported visible lifetime expires
+  ---
+  duration_ms: 223.995715
+  type: 'test'
+  ...
+# Subtest: a refused device adopt keeps the previous backend active in JavaScript
+ok 14 - a refused device adopt keeps the previous backend active in JavaScript
+  ---
+  duration_ms: 14.873037
+  type: 'test'
+  ...
+# Subtest: a failed native replacement falls back without a stale local answer and is retried
+ok 15 - a failed native replacement falls back without a stale local answer and is retried
+  ---
+  duration_ms: 6.827125
+  type: 'test'
+  ...
+# Subtest: every local prediction invalidates observations, including unrelated tables
+ok 16 - every local prediction invalidates observations, including unrelated tables
+  ---
+  duration_ms: 22.355955
+  type: 'test'
+  ...
+# Subtest: online watches retain their changes watermark; bare tokens clear on refusal
+ok 17 - online watches retain their changes watermark; bare tokens clear on refusal
+  ---
+  duration_ms: 276.477242
+  type: 'test'
+  ...
+# Subtest: wasm: pending metadata survives repeated profile/vote updates and offline replay
+ok 18 - wasm: pending metadata survives repeated profile/vote updates and offline replay
+  ---
+  duration_ms: 2842.185596
+  type: 'test'
+  ...
+# Subtest: wasm: no-op and nosync writes retire when the partition stream is empty
+ok 19 - wasm: no-op and nosync writes retire when the partition stream is empty
+  ---
+  duration_ms: 228.877632
+  type: 'test'
+  ...
+# Subtest: wasm: a write already sending when a snapshot starts is correlated after catch-up
+ok 20 - wasm: a write already sending when a snapshot starts is correlated after catch-up
+  ---
+  duration_ms: 297.806198
+  type: 'test'
+  ...
+# Subtest: wasm: a sync started before admission finishes before that write can be sent
+ok 21 - wasm: a sync started before admission finishes before that write can be sent
+  ---
+  duration_ms: 230.298493
+  type: 'test'
+  ...
+# Subtest: wasm: sync before a delayed write reply does not apply an increment twice
+ok 22 - wasm: sync before a delayed write reply does not apply an increment twice
+  ---
+  duration_ms: 284.968061
+  type: 'test'
+  ...
+# Subtest: wasm: sync before a lost write reply does not apply an increment twice
+ok 23 - wasm: sync before a lost write reply does not apply an increment twice
+  ---
+  duration_ms: 1286.562376
+  type: 'test'
+  ...
+# Subtest: wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server
+ok 24 - wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server
+  ---
+  duration_ms: 1470.670252
+  type: 'test'
+  ...
+# Subtest: wasm: population growth cannot mint new IDs during prediction replay
+ok 25 - wasm: population growth cannot mint new IDs during prediction replay
+  ---
+  duration_ms: 1256.255961
+  type: 'test'
+  ...
+# Subtest: wasm: retry without observers, online-only routing and denied-watch recovery
+ok 26 - wasm: retry without observers, online-only routing and denied-watch recovery
+  ---
+  duration_ms: 683.377107
+  type: 'test'
+  ...
+# Subtest: wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction
+ok 27 - wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction
+  ---
+  duration_ms: 258.363146
+  type: 'test'
+  ...
+# Subtest: wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction
+ok 28 - wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction
+  ---
+  duration_ms: 238.85531
+  type: 'test'
+  ...
+# Subtest: native: pending metadata survives repeated profile/vote updates and offline replay
+ok 29 - native: pending metadata survives repeated profile/vote updates and offline replay
+  ---
+  duration_ms: 2464.185434
+  type: 'test'
+  ...
+# Subtest: native: no-op and nosync writes retire when the partition stream is empty
+ok 30 - native: no-op and nosync writes retire when the partition stream is empty
+  ---
+  duration_ms: 275.857062
+  type: 'test'
+  ...
+# Subtest: native: a write already sending when a snapshot starts is correlated after catch-up
+ok 31 - native: a write already sending when a snapshot starts is correlated after catch-up
+  ---
+  duration_ms: 394.287347
+  type: 'test'
+  ...
+# Subtest: native: another client sending after sync capture cannot publish an uncorrelated page
+ok 32 - native: another client sending after sync capture cannot publish an uncorrelated page
+  ---
+  duration_ms: 1218.743725
+  type: 'test'
+  ...
+# Subtest: native: a sync started before admission finishes before that write can be sent
+ok 33 - native: a sync started before admission finishes before that write can be sent
+  ---
+  duration_ms: 289.646895
+  type: 'test'
+  ...
+# Subtest: native: sync before a delayed write reply does not apply an increment twice
+ok 34 - native: sync before a delayed write reply does not apply an increment twice
+  ---
+  duration_ms: 340.316276
+  type: 'test'
+  ...
+# Subtest: native: sync before a lost write reply does not apply an increment twice
+ok 35 - native: sync before a lost write reply does not apply an increment twice
+  ---
+  duration_ms: 1357.367652
+  type: 'test'
+  ...
+# Subtest: native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server
+ok 36 - native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server
+  ---
+  duration_ms: 1997.054511
+  type: 'test'
+  ...
+# Subtest: native: population growth cannot mint new IDs during prediction replay
+ok 37 - native: population growth cannot mint new IDs during prediction replay
+  ---
+  duration_ms: 1309.593841
+  type: 'test'
+  ...
+# Subtest: native: retry without observers, online-only routing and denied-watch recovery
+ok 38 - native: retry without observers, online-only routing and denied-watch recovery
+  ---
+  duration_ms: 1025.506011
+  type: 'test'
+  ...
+# Subtest: native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction
+ok 39 - native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction
+  ---
+  duration_ms: 312.996159
+  type: 'test'
+  ...
+# Subtest: native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction
+ok 40 - native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction
+  ---
+  duration_ms: 320.548431
+  type: 'test'
+  ...
+# Subtest: close cancels online write callers without aborting committed delivery
+ok 41 - close cancels online write callers without aborting committed delivery
+  ---
+  duration_ms: 178.603725
+  type: 'test'
+  ...
+# Subtest: device process failures reject opening and pending calls instead of leaving close waiting
+ok 42 - device process failures reject opening and pending calls instead of leaving close waiting
+  ---
+  duration_ms: 47.883004
+  type: 'test'
+  ...
+# Subtest: device compatibility rejects old and malformed protocols before online or offline startup
+ok 43 - device compatibility rejects old and malformed protocols before online or offline startup
+  ---
+  duration_ms: 63.498614
+  type: 'test'
+  ...
+# Subtest: device compatibility closes the core and preserves operational startup errors
+ok 44 - device compatibility closes the core and preserves operational startup errors
+  ---
+  duration_ms: 0.717796
+  type: 'test'
+  ...
+# Subtest: device compatibility accepts the current core online and on an offline reopen
+ok 45 - device compatibility accepts the current core online and on an offline reopen
+  ---
+  duration_ms: 1228.491156
+  type: 'test'
+  ...
+# Subtest: online serialization failures retain the minted id without scheduling network retries
+ok 46 - online serialization failures retain the minted id without scheduling network retries
+  ---
+  duration_ms: 1.551977
+  type: 'test'
+  ...
+# Subtest: wasm: close waits for an applying acknowledgment and aborts sync
+ok 47 - wasm: close waits for an applying acknowledgment and aborts sync
+  ---
+  duration_ms: 263.444444
+  type: 'test'
+  ...
+# Subtest: native: close waits for an applying acknowledgment and aborts sync
+ok 48 - native: close waits for an applying acknowledgment and aborts sync
+  ---
+  duration_ms: 314.556178
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: cursorless
+ok 49 - W13b fallback boundary: cursorless
+  ---
+  duration_ms: 1003.139178
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: meter
+ok 50 - W13b fallback boundary: meter
+  ---
+  duration_ms: 1003.423325
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: words
+ok 51 - W13b fallback boundary: words
+  ---
+  duration_ms: 1001.699059
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: missing fact
+ok 52 - W13b fallback boundary: missing fact
+  ---
+  duration_ms: 1003.261071
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: presence
+ok 53 - W13b fallback boundary: presence
+  ---
+  duration_ms: 1002.628082
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: offline missing fact
+ok 54 - W13b fallback boundary: offline missing fact
+  ---
+  duration_ms: 1002.049595
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: held
+ok 55 - W13b fallback boundary: held
+  ---
+  duration_ms: 1003.492839
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: retained
+ok 56 - W13b fallback boundary: retained
+  ---
+  duration_ms: 1001.969164
+  type: 'test'
+  ...
+# Subtest: W13b fallback boundary: pending predictable write
+ok 57 - W13b fallback boundary: pending predictable write
+  ---
+  duration_ms: 1003.304796
+  type: 'test'
+  ...
+1..57
+# tests 57
+# suites 0
+# pass 57
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44371.298372
+-- process inspection: {"snapshots":3,"unrelatedRows":3781}
+-- client file ok: packages/snapback4/test/client-lifecycle.test.mjs (44657 ms)
+-- client file start: packages/snapback4/test/delivery-publication.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: wasm: known sent survives keep_write failure; close=false
+ok 1 - wasm: known sent survives keep_write failure; close=false
+  ---
+  duration_ms: 1603.307733
+  type: 'test'
+  ...
+# Subtest: wasm: known sent survives keep_write failure; close=true
+ok 2 - wasm: known sent survives keep_write failure; close=true
+  ---
+  duration_ms: 1101.456902
+  type: 'test'
+  ...
+# Subtest: wasm: known failed survives keep_write failure; close=false
+ok 3 - wasm: known failed survives keep_write failure; close=false
+  ---
+  duration_ms: 1118.297849
+  type: 'test'
+  ...
+# Subtest: wasm: known failed survives keep_write failure; close=true
+ok 4 - wasm: known failed survives keep_write failure; close=true
+  ---
+  duration_ms: 1096.10601
+  type: 'test'
+  ...
+# Subtest: native: known sent survives keep_write failure; close=false
+ok 5 - native: known sent survives keep_write failure; close=false
+  ---
+  duration_ms: 2240.715614
+  type: 'test'
+  ...
+# Subtest: native: known sent survives keep_write failure; close=true
+ok 6 - native: known sent survives keep_write failure; close=true
+  ---
+  duration_ms: 1243.559745
+  type: 'test'
+  ...
+# Subtest: native: known failed survives keep_write failure; close=false
+ok 7 - native: known failed survives keep_write failure; close=false
+  ---
+  duration_ms: 1258.701806
+  type: 'test'
+  ...
+# Subtest: native: known failed survives keep_write failure; close=true
+ok 8 - native: known failed survives keep_write failure; close=true
+  ---
+  duration_ms: 1255.191593
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11066.221311
+-- process inspection: {"snapshots":3,"unrelatedRows":3778}
+-- client file ok: packages/snapback4/test/app-local-receipts.test.mjs (11343 ms)
+-- client file start: packages/snapback4/test/delivery-clients.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: maintained columns: sqlite watches use server values across interrupted sync and reopen (one write)
+ok 1 - maintained columns: sqlite watches use server values across interrupted sync and reopen (one write)
+  ---
+  duration_ms: 7292.728326
+  type: 'test'
+  ...
+# Subtest: maintained columns: sqlite watches use server values across interrupted sync and reopen (queued tail)
+ok 2 - maintained columns: sqlite watches use server values across interrupted sync and reopen (queued tail)
+  ---
+  duration_ms: 8363.121615
+  type: 'test'
+  ...
+# Subtest: maintained columns: web watches use server values across interrupted sync and reopen (one write)
+ok 3 - maintained columns: web watches use server values across interrupted sync and reopen (one write)
+  ---
+  duration_ms: 7733.283234
+  type: 'test'
+  ...
+# Subtest: maintained columns: web watches use server values across interrupted sync and reopen (queued tail)
+ok 4 - maintained columns: web watches use server values across interrupted sync and reopen (queued tail)
+  ---
+  duration_ms: 8327.884997
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31848.594444
+-- process inspection: {"snapshots":3,"unrelatedRows":3780}
+-- client file ok: packages/snapback4/test/maintained-columns.test.mjs (32135 ms)
+-- client file start: packages/snapback4/test/sync-generation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online home-screen manifest sends exact positions without an application mutate
+ok 1 - online home-screen manifest sends exact positions without an application mutate
+  ---
+  duration_ms: 268.593963
+  type: 'test'
+  ...
+# Subtest: online calls judge out-of-order heads against their own dispatch floors
+ok 2 - online calls judge out-of-order heads against their own dispatch floors
+  ---
+  duration_ms: 22.216866
+  type: 'test'
+  ...
+# Subtest: local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore
+ok 3 - local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore
+  ---
+  duration_ms: 291.169427
+  type: 'test'
+  ...
+# Subtest: online sign-out clears the viewer immediately while giving an active report its bounded drain
+ok 4 - online sign-out clears the viewer immediately while giving an active report its bounded drain
+  ---
+  duration_ms: 277.585162
+  type: 'test'
+  ...
+# Subtest: an unrelated generation preserves an online range refusal
+ok 5 - an unrelated generation preserves an online range refusal
+  ---
+  duration_ms: 588.311438
+  type: 'test'
+  ...
+# Subtest: online query below the publication floor accepts no manifest
+ok 6 - online query below the publication floor accepts no manifest
+  ---
+  duration_ms: 478.368717
+  type: 'test'
+  ...
+# Subtest: online E_OFFLINE reaches the existing probe and reconnects the same attempt
+ok 7 - online E_OFFLINE reaches the existing probe and reconnects the same attempt
+  ---
+  duration_ms: 506.868984
+  type: 'test'
+  ...
+# Subtest: online one-shot acceptance belongs to its final returned answer
+ok 8 - online one-shot acceptance belongs to its final returned answer
+  ---
+  duration_ms: 1.959838
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND why once until the next start
+ok 9 - online adapter parks E_BOUND why once until the next start
+  ---
+  duration_ms: 6.889959
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND denied once until the next start
+ok 10 - online adapter parks E_BOUND denied once until the next start
+  ---
+  duration_ms: 7.171011
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND headless once until the next start
+ok 11 - online adapter parks E_BOUND headless once until the next start
+  ---
+  duration_ms: 4.073898
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND why once until the next start
+ok 12 - local adapter parks E_BOUND why once until the next start
+  ---
+  duration_ms: 6.993564
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND denied once until the next start
+ok 13 - local adapter parks E_BOUND denied once until the next start
+  ---
+  duration_ms: 5.575509
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND headless once until the next start
+ok 14 - local adapter parks E_BOUND headless once until the next start
+  ---
+  duration_ms: 7.524541
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3276.921352
+-- process inspection: {"snapshots":3,"unrelatedRows":3781}
+-- client file ok: packages/snapback4/test/delivery-clients.test.mjs (3546 ms)
+-- client file start: packages/snapback4/test/sync-overflow.test.mjs; stall bound 2710000 ms
+TAP version 13
+# Subtest: real local fallback accepts before supplementary debt becomes durable
+ok 1 - real local fallback accepts before supplementary debt becomes durable
+  ---
+  duration_ms: 592.924083
+  type: 'test'
+  ...
+# Subtest: a delayed local save never delays query acceptance
+ok 2 - a delayed local save never delays query acceptance
+  ---
+  duration_ms: 1190.646971
+  type: 'test'
+  ...
+# Subtest: a failed manifest save leaves the successful local fallback answer intact
+ok 3 - a failed manifest save leaves the successful local fallback answer intact
+  ---
+  duration_ms: 175.648023
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when commit changes before acceptance
+ok 4 - local fallback rejects its manifest when commit changes before acceptance
+  ---
+  duration_ms: 212.008613
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when credential changes before acceptance
+ok 5 - local fallback rejects its manifest when credential changes before acceptance
+  ---
+  duration_ms: 164.12635
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when expiry changes before acceptance
+ok 6 - local fallback rejects its manifest when expiry changes before acceptance
+  ---
+  duration_ms: 352.631809
+  type: 'test'
+  ...
+# Subtest: a query below its local restore floor creates no delivery debt
+ok 7 - a query below its local restore floor creates no delivery debt
+  ---
+  duration_ms: 1176.887413
+  type: 'test'
+  ...
+# Subtest: a watch publishes before a delayed save, and expiry cannot resurrect that answer
+ok 8 - a watch publishes before a delayed save, and expiry cannot resurrect that answer
+  ---
+  duration_ms: 377.995323
+  type: 'test'
+  ...
+# Subtest: local E_OFFLINE reconnects through the existing link path and retains its attempt id
+ok 9 - local E_OFFLINE reconnects through the existing link path and retains its attempt id
+  ---
+  duration_ms: 2169.765486
+  type: 'test'
+  ...
+# Subtest: a credential change during save withdraws an already accepted watch without republishing it
+ok 10 - a credential change during save withdraws an already accepted watch without republishing it
+  ---
+  duration_ms: 161.817599
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after credential
+ok 11 - a held collection write after query acceptance omits debt after credential
+  ---
+  duration_ms: 165.182594
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after expiry
+ok 12 - a held collection write after query acceptance omits debt after expiry
+  ---
+  duration_ms: 372.404962
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after commit
+ok 13 - a held collection write after query acceptance omits debt after commit
+  ---
+  duration_ms: 190.939838
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after credential
+ok 14 - a host save held after its CAS check writes nothing after credential
+  ---
+  duration_ms: 166.319108
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after expiry
+ok 15 - a host save held after its CAS check writes nothing after expiry
+  ---
+  duration_ms: 369.647598
+  type: 'test'
+  ...
+# Subtest: an empty same-cut sync preserves accepted one-shot delivery debt
+ok 16 - an empty same-cut sync preserves accepted one-shot delivery debt
+  ---
+  duration_ms: 183.033455
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8186.493163
+-- process inspection: {"snapshots":3,"unrelatedRows":3777}
+-- client file ok: packages/snapback4/test/delivery-publication.test.mjs (8459 ms)
+-- client file start: packages/snapback4/test/observation-publication.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: a decoded newer whole reply publishes through repeated notifications and published applies
+ok 1 - a decoded newer whole reply publishes through repeated notifications and published applies
+  ---
+  duration_ms: 5.317422
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses older cut
+ok 2 - whole server progress refuses older cut
+  ---
+  duration_ms: 0.495533
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses missing cut
+ok 3 - whole server progress refuses missing cut
+  ---
+  duration_ms: 0.290796
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses invalid cut
+ok 4 - whole server progress refuses invalid cut
+  ---
+  duration_ms: 0.239379
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses unsequenced change
+ok 5 - whole server progress refuses unsequenced change
+  ---
+  duration_ms: 0.225718
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses admission
+ok 6 - whole server progress refuses admission
+  ---
+  duration_ms: 0.286399
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses settlement
+ok 7 - whole server progress refuses settlement
+  ---
+  duration_ms: 0.223285
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses store replacement
+ok 8 - whole server progress refuses store replacement
+  ---
+  duration_ms: 0.387381
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses staged apply
+ok 9 - whole server progress refuses staged apply
+  ---
+  duration_ms: 0.343385
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses unknown images
+ok 10 - whole server progress refuses unknown images
+  ---
+  duration_ms: 0.343555
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses newer images
+ok 11 - whole server progress refuses newer images
+  ---
+  duration_ms: 0.609424
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses scope loss
+ok 12 - whole server progress refuses scope loss
+  ---
+  duration_ms: 0.437186
+  type: 'test'
+  ...
+# Subtest: whole server progress refuses prediction
+ok 13 - whole server progress refuses prediction
+  ---
+  duration_ms: 0.376775
+  type: 'test'
+  ...
+# Subtest: server proof never qualifies retained dependency
+ok 14 - server proof never qualifies retained dependency
+  ---
+  duration_ms: 0.275683
+  type: 'test'
+  ...
+# Subtest: server proof never qualifies retained component
+ok 15 - server proof never qualifies retained component
+  ---
+  duration_ms: 0.18667
+  type: 'test'
+  ...
+# Subtest: server proof never qualifies retained rows
+ok 16 - server proof never qualifies retained rows
+  ---
+  duration_ms: 0.160371
+  type: 'test'
+  ...
+# Subtest: server proof never qualifies local reobservation
+ok 17 - server proof never qualifies local reobservation
+  ---
+  duration_ms: 0.16019
+  type: 'test'
+  ...
+# Subtest: image publication metadata must certify the whole apply
+ok 18 - image publication metadata must certify the whole apply
+  ---
+  duration_ms: 0.097166
+  type: 'test'
+  ...
+# Subtest: publication proof expires at a hard boundary even after evaluation has finished
+ok 19 - publication proof expires at a hard boundary even after evaluation has finished
+  ---
+  duration_ms: 0.781441
+  type: 'test'
+  ...
+# Subtest: a published apply with existing predictions keeps its hard boundary
+ok 20 - a published apply with existing predictions keeps its hard boundary
+  ---
+  duration_ms: 0.201773
+  type: 'test'
+  ...
+# Subtest: disjoint evidence preserves the actual local evaluation (retained: false)
+ok 21 - disjoint evidence preserves the actual local evaluation (retained: false)
+  ---
+  duration_ms: 0.377155
+  type: 'test'
+  ...
+# Subtest: disjoint evidence preserves the actual local evaluation (retained: true)
+ok 22 - disjoint evidence preserves the actual local evaluation (retained: true)
+  ---
+  duration_ms: 0.183295
+  type: 'test'
+  ...
+# Subtest: unchanged-input proof refuses unknown notification
+ok 23 - unchanged-input proof refuses unknown notification
+  ---
+  duration_ms: 0.195413
+  type: 'test'
+  ...
+# Subtest: unchanged-input proof refuses unknown apply
+ok 24 - unchanged-input proof refuses unknown apply
+  ---
+  duration_ms: 0.099459
+  type: 'test'
+  ...
+# Subtest: unchanged-input proof refuses authorization input
+ok 25 - unchanged-input proof refuses authorization input
+  ---
+  duration_ms: 0.095353
+  type: 'test'
+  ...
+# Subtest: unchanged-input proof refuses native
+ok 26 - unchanged-input proof refuses native
+  ---
+  duration_ms: 0.083855
+  type: 'test'
+  ...
+# Subtest: unchanged-input proof refuses staged apply
+ok 27 - unchanged-input proof refuses staged apply
+  ---
+  duration_ms: 0.132929
+  type: 'test'
+  ...
+# Subtest: unchanged-input proof refuses admission
+ok 28 - unchanged-input proof refuses admission
+  ---
+  duration_ms: 0.101512
+  type: 'test'
+  ...
+# Subtest: a disjoint replica footprint cannot certify an older external answer (composed: false)
+ok 29 - a disjoint replica footprint cannot certify an older external answer (composed: false)
+  ---
+  duration_ms: 0.229554
+  type: 'test'
+  ...
+# Subtest: a disjoint replica footprint cannot certify an older external answer (composed: true)
+ok 30 - a disjoint replica footprint cannot certify an older external answer (composed: true)
+  ---
+  duration_ms: 0.299138
+  type: 'test'
+  ...
+# Subtest: independent unchanged inputs and a covering external cut permit progress (composed: false)
+ok 31 - independent unchanged inputs and a covering external cut permit progress (composed: false)
+  ---
+  duration_ms: 0.365578
+  type: 'test'
+  ...
+# Subtest: independent unchanged inputs and a covering external cut permit progress (composed: true)
+ok 32 - independent unchanged inputs and a covering external cut permit progress (composed: true)
+  ---
+  duration_ms: 0.274071
+  type: 'test'
+  ...
+# Subtest: a composed reply needs unchanged local inputs even when its server cut covers the change
+ok 33 - a composed reply needs unchanged local inputs even when its server cut covers the change
+  ---
+  duration_ms: 0.191518
+  type: 'test'
+  ...
+# Subtest: remembered recovery cannot use a disjoint replica footprint to renew external authority
+ok 34 - remembered recovery cannot use a disjoint replica footprint to renew external authority
+  ---
+  duration_ms: 1.109444
+  type: 'test'
+  ...
+# Subtest: retained positive route rejects watermark-only catch-up after routing
+ok 35 - retained positive route rejects watermark-only catch-up after routing
+  ---
+  duration_ms: 0.288233
+  type: 'test'
+  ...
+# Subtest: retained empty route rejects watermark-only catch-up after routing
+ok 36 - retained empty route rejects watermark-only catch-up after routing
+  ---
+  duration_ms: 0.160752
+  type: 'test'
+  ...
+# Subtest: retained structured route rejects watermark-only catch-up after routing
+ok 37 - retained structured route rejects watermark-only catch-up after routing
+  ---
+  duration_ms: 0.157847
+  type: 'test'
+  ...
+# Subtest: queued known prediction fences non-empty local publication
+ok 38 - queued known prediction fences non-empty local publication
+  ---
+  duration_ms: 0.224496
+  type: 'test'
+  ...
+# Subtest: queued opaque prediction fences non-empty local publication
+ok 39 - queued opaque prediction fences non-empty local publication
+  ---
+  duration_ms: 0.10699
+  type: 'test'
+  ...
+# Subtest: retained routing proof spans caller delivery and coalesces equal watermarks
+ok 40 - retained routing proof spans caller delivery and coalesces equal watermarks
+  ---
+  duration_ms: 0.23377
+  type: 'test'
+  ...
+# Subtest: unchanged queued predictions coalesce but a second prediction to the same table fences
+ok 41 - unchanged queued predictions coalesce but a second prediction to the same table fences
+  ---
+  duration_ms: 0.211978
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences publication after disjoint notification
+ok 42 - overtaken known queue fences publication after disjoint notification
+  ---
+  duration_ms: 0.284466
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences expiry retry after disjoint notification
+ok 43 - overtaken known queue fences expiry retry after disjoint notification
+  ---
+  duration_ms: 0.145608
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences caller delivery after disjoint notification
+ok 44 - overtaken known queue fences caller delivery after disjoint notification
+  ---
+  duration_ms: 0.110485
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences publication after disjoint notification
+ok 45 - overtaken opaque queue fences publication after disjoint notification
+  ---
+  duration_ms: 0.082314
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences expiry retry after disjoint notification
+ok 46 - overtaken opaque queue fences expiry retry after disjoint notification
+  ---
+  duration_ms: 0.096575
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences caller delivery after disjoint notification
+ok 47 - overtaken opaque queue fences caller delivery after disjoint notification
+  ---
+  duration_ms: 0.078718
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences publication after disjoint commit
+ok 48 - overtaken known queue fences publication after disjoint commit
+  ---
+  duration_ms: 0.080701
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences expiry retry after disjoint commit
+ok 49 - overtaken known queue fences expiry retry after disjoint commit
+  ---
+  duration_ms: 0.09321
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences caller delivery after disjoint commit
+ok 50 - overtaken known queue fences caller delivery after disjoint commit
+  ---
+  duration_ms: 0.099038
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences publication after disjoint commit
+ok 51 - overtaken opaque queue fences publication after disjoint commit
+  ---
+  duration_ms: 0.10697
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences expiry retry after disjoint commit
+ok 52 - overtaken opaque queue fences expiry retry after disjoint commit
+  ---
+  duration_ms: 0.099049
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences caller delivery after disjoint commit
+ok 53 - overtaken opaque queue fences caller delivery after disjoint commit
+  ---
+  duration_ms: 0.077235
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences publication after disjoint applied
+ok 54 - overtaken known queue fences publication after disjoint applied
+  ---
+  duration_ms: 0.074152
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences expiry retry after disjoint applied
+ok 55 - overtaken known queue fences expiry retry after disjoint applied
+  ---
+  duration_ms: 0.078307
+  type: 'test'
+  ...
+# Subtest: overtaken known queue fences caller delivery after disjoint applied
+ok 56 - overtaken known queue fences caller delivery after disjoint applied
+  ---
+  duration_ms: 0.111527
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences publication after disjoint applied
+ok 57 - overtaken opaque queue fences publication after disjoint applied
+  ---
+  duration_ms: 0.074832
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences expiry retry after disjoint applied
+ok 58 - overtaken opaque queue fences expiry retry after disjoint applied
+  ---
+  duration_ms: 0.154161
+  type: 'test'
+  ...
+# Subtest: overtaken opaque queue fences caller delivery after disjoint applied
+ok 59 - overtaken opaque queue fences caller delivery after disjoint applied
+  ---
+  duration_ms: 0.082944
+  type: 'test'
+  ...
+# Subtest: overtaken queue discovery coalesces without overwriting current prediction state
+ok 60 - overtaken queue discovery coalesces without overwriting current prediction state
+  ---
+  duration_ms: 0.288984
+  type: 'test'
+  ...
+# Subtest: unaccounted watch versions cannot borrow later cut evidence (local: false)
+ok 61 - unaccounted watch versions cannot borrow later cut evidence (local: false)
+  ---
+  duration_ms: 0.218968
+  type: 'test'
+  ...
+# Subtest: unaccounted watch versions cannot borrow later cut evidence (local: true)
+ok 62 - unaccounted watch versions cannot borrow later cut evidence (local: true)
+  ---
+  duration_ms: 0.088052
+  type: 'test'
+  ...
+1..62
+# tests 62
+# suites 0
+# pass 62
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 95.569843
+-- process inspection: {"snapshots":3,"unrelatedRows":3778}
+-- client file ok: packages/snapback4/test/observation-publication.test.mjs (365 ms)
+-- client file start: packages/snapback4/test/observation-publication-live.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: process: publish a matching reply despite sync before every response
+ok 1 - process: publish a matching reply despite sync before every response
+  ---
+  duration_ms: 185.529507
+  type: 'test'
+  ...
+# Subtest: wasm: publish a matching reply despite sync before every response
+ok 2 - wasm: publish a matching reply despite sync before every response
+  ---
+  duration_ms: 510.682921
+  type: 'test'
+  ...
+# Subtest: process: known prediction discovered after disjoint notification fences local publication
+ok 3 - process: known prediction discovered after disjoint notification fences local publication
+  ---
+  duration_ms: 207.780274
+  type: 'test'
+  ...
+# Subtest: process: opaque prediction discovered after disjoint notification fences local publication
+ok 4 - process: opaque prediction discovered after disjoint notification fences local publication
+  ---
+  duration_ms: 201.022474
+  type: 'test'
+  ...
+# Subtest: process: known prediction discovered after disjoint commit fences local publication
+ok 5 - process: known prediction discovered after disjoint commit fences local publication
+  ---
+  duration_ms: 203.701028
+  type: 'test'
+  ...
+# Subtest: process: opaque prediction discovered after disjoint commit fences local publication
+ok 6 - process: opaque prediction discovered after disjoint commit fences local publication
+  ---
+  duration_ms: 208.515126
+  type: 'test'
+  ...
+# Subtest: process: known prediction discovered after disjoint applied fences local publication
+ok 7 - process: known prediction discovered after disjoint applied fences local publication
+  ---
+  duration_ms: 206.783009
+  type: 'test'
+  ...
+# Subtest: process: opaque prediction discovered after disjoint applied fences local publication
+ok 8 - process: opaque prediction discovered after disjoint applied fences local publication
+  ---
+  duration_ms: 204.383812
+  type: 'test'
+  ...
+# Subtest: wasm: known prediction discovered after disjoint notification fences local publication
+ok 9 - wasm: known prediction discovered after disjoint notification fences local publication
+  ---
+  duration_ms: 75.141408
+  type: 'test'
+  ...
+# Subtest: wasm: opaque prediction discovered after disjoint notification fences local publication
+ok 10 - wasm: opaque prediction discovered after disjoint notification fences local publication
+  ---
+  duration_ms: 69.280662
+  type: 'test'
+  ...
+# Subtest: wasm: known prediction discovered after disjoint commit fences local publication
+ok 11 - wasm: known prediction discovered after disjoint commit fences local publication
+  ---
+  duration_ms: 79.571981
+  type: 'test'
+  ...
+# Subtest: wasm: opaque prediction discovered after disjoint commit fences local publication
+ok 12 - wasm: opaque prediction discovered after disjoint commit fences local publication
+  ---
+  duration_ms: 65.15028
+  type: 'test'
+  ...
+# Subtest: wasm: known prediction discovered after disjoint applied fences local publication
+ok 13 - wasm: known prediction discovered after disjoint applied fences local publication
+  ---
+  duration_ms: 73.029382
+  type: 'test'
+  ...
+# Subtest: wasm: opaque prediction discovered after disjoint applied fences local publication
+ok 14 - wasm: opaque prediction discovered after disjoint applied fences local publication
+  ---
+  duration_ms: 66.540804
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2507.493691
+-- process inspection: {"snapshots":3,"unrelatedRows":3778}
+-- client file ok: packages/snapback4/test/observation-publication-live.test.mjs (2781 ms)
+-- client file start: packages/snapback4/test/read-only-custody-races.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: the legacy refusal constant matches the published 0.2.32 capture
+ok 1 - the legacy refusal constant matches the published 0.2.32 capture
+  ---
+  duration_ms: 2.456924
+  type: 'test'
+  ...
+# Subtest: wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 2 - wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 971.294638
+  type: 'test'
+  ...
+# Subtest: process: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 3 - process: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 539.915936
+  type: 'test'
+  ...
+# Subtest: legacy fallback returns the distinct successful retry and latches only its origin and transport
+ok 4 - legacy fallback returns the distinct successful retry and latches only its origin and transport
+  ---
+  duration_ms: 3.665795
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on same E_INPUT
+ok 5 - legacy fallback does not latch on same E_INPUT
+  ---
+  duration_ms: 0.941331
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on throw
+ok 6 - legacy fallback does not latch on throw
+  ---
+  duration_ms: 1.492177
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 503
+ok 7 - legacy fallback does not latch on 503
+  ---
+  duration_ms: 0.663264
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 429
+ok 8 - legacy fallback does not latch on 429
+  ---
+  duration_ms: 0.558888
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 401
+ok 9 - legacy fallback does not latch on 401
+  ---
+  duration_ms: 0.514872
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 408
+ok 10 - legacy fallback does not latch on 408
+  ---
+  duration_ms: 0.591436
+  type: 'test'
+  ...
+# Subtest: legacy fallback captures each overlapping attempt and waits for successful retry before latching
+ok 11 - legacy fallback captures each overlapping attempt and waits for successful retry before latching
+  ---
+  duration_ms: 4.447808
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores other refusals and never retries an attempt without generation
+ok 12 - legacy fallback ignores other refusals and never retries an attempt without generation
+  ---
+  duration_ms: 2.011766
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+ok 13 - legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+  ---
+  duration_ms: 237.624285
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+ok 14 - legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.746958
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+ok 15 - legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 0.912979
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+ok 16 - legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.045497
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+ok 17 - legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.802423
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+ok 18 - legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.72081
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+ok 19 - legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.752898
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+ok 20 - legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.695913
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+ok 21 - legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.672438
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+ok 22 - legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.890395
+  type: 'test'
+  ...
+# Subtest: new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract
+ok 23 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+  ---
+  duration_ms: 0.113991
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from deferred stream
+ok 24 - wasm: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 290.419823
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from staged snapshot
+ok 25 - wasm: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 290.490188
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from deferred stream
+ok 26 - process: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 301.162017
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from staged snapshot
+ok 27 - process: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 316.771889
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide deferred stream evidence identically
+ok 28 - wasm: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 594.909699
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide deferred stream evidence identically
+ok 29 - wasm: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 515.570098
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves deferred stream evidence until a headed retry
+ok 30 - wasm: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 448.451396
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 31 - wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 588.535584
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 32 - wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 509.853017
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 33 - wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 446.147303
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide deferred stream evidence identically
+ok 34 - process: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 585.586363
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide deferred stream evidence identically
+ok 35 - process: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 588.911257
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves deferred stream evidence until a headed retry
+ok 36 - process: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 506.809554
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 37 - process: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 588.099289
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 38 - process: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 592.314169
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 39 - process: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 488.644462
+  type: 'test'
+  ...
+# Subtest: wasm: invalid early heads are retryable and never reach observation or adoption
+ok 40 - wasm: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 165.274571
+  type: 'test'
+  ...
+# Subtest: process: invalid early heads are retryable and never reach observation or adoption
+ok 41 - process: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 197.883407
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 40
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 9967.071628
+-- process inspection: {"snapshots":3,"unrelatedRows":3771}
+-- client file ok: packages/snapback4/test/sync-generation.test.mjs (10241 ms)
+-- client file start: packages/snapback4/test/wasm-budget.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: fence notifies a subscribed rendered value on logout
+ok 1 - fence notifies a subscribed rendered value on logout
+  ---
+  duration_ms: 32.022226
+  type: 'test'
+  ...
+# Subtest: fence notifies a subscribed rendered value on peer switch
+ok 2 - fence notifies a subscribed rendered value on peer switch
+  ---
+  duration_ms: 18.396119
+  type: 'test'
+  ...
+# Subtest: fence notifies a subscribed rendered value on close
+ok 3 - fence notifies a subscribed rendered value on close
+  ---
+  duration_ms: 12.02042
+  type: 'test'
+  ...
+# Subtest: fence notifies a subscribed rendered value on replacement
+ok 4 - fence notifies a subscribed rendered value on replacement
+  ---
+  duration_ms: 12.643765
+  type: 'test'
+  ...
+# Subtest: a peer logout fences a login already waiting for its response
+ok 5 - a peer logout fences a login already waiting for its response
+  ---
+  duration_ms: 4.956711
+  type: 'test'
+  ...
+# Subtest: a fenced handle cannot signOut a replacement account
+ok 6 - a fenced handle cannot signOut a replacement account
+  ---
+  duration_ms: 5.551443
+  type: 'test'
+  ...
+# Subtest: a fenced handle cannot close a replacement account
+ok 7 - a fenced handle cannot close a replacement account
+  ---
+  duration_ms: 3.947989
+  type: 'test'
+  ...
+# Subtest: peer logout while login credential verification is held
+ok 8 - peer logout while login credential verification is held
+  ---
+  duration_ms: 8.421575
+  type: 'test'
+  ...
+# Subtest: peer logout while guest credential verification is held
+ok 9 - peer logout while guest credential verification is held
+  ---
+  duration_ms: 5.991352
+  type: 'test'
+  ...
+# Subtest: old signOut during replacement verification cannot cancel the opener
+ok 10 - old signOut during replacement verification cannot cancel the opener
+  ---
+  duration_ms: 5.326084
+  type: 'test'
+  ...
+# Subtest: old close during replacement verification cannot cancel the opener
+ok 11 - old close during replacement verification cannot cancel the opener
+  ---
+  duration_ms: 4.333566
+  type: 'test'
+  ...
+# Subtest: peer refresh refuses during held probe on restart
+ok 12 - peer refresh refuses during held probe on restart
+  ---
+  duration_ms: 3.356732
+  type: 'test'
+  ...
+# Subtest: peer refresh refuses during held storage on restart
+ok 13 - peer refresh refuses during held storage on restart
+  ---
+  duration_ms: 7.885512
+  type: 'test'
+  ...
+# Subtest: retirement rechecks custody after its held verification probe
+ok 14 - retirement rechecks custody after its held verification probe
+  ---
+  duration_ms: 22.529245
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 254.313304
+-- process inspection: {"snapshots":3,"unrelatedRows":3775}
+-- client file ok: packages/snapback4/test/read-only-custody-races.test.mjs (526 ms)
+TAP version 13
+# Subtest: wasm budget accepts a recorded limit and refuses missing, malformed or nonnumeric limits
+ok 1 - wasm budget accepts a recorded limit and refuses missing, malformed or nonnumeric limits
+  ---
+  duration_ms: 163.781713
+  type: 'test'
+  ...
+# Subtest: both shipped scripts use the budget helper; dirty measurements are explicit
+ok 2 - both shipped scripts use the budget helper; dirty measurements are explicit
+  ---
+  duration_ms: 2226.610264
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2451.396453
+-- process inspection: {"snapshots":3,"unrelatedRows":3754}
+-- client file ok: packages/snapback4/test/wasm-budget.test.mjs (2724 ms)
+TAP version 13
+# (node:3753435) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Following sparse online history crosses the 1,000-copy window and every page is an oracle prefix
+ok 1 - Following sparse online history crosses the 1,000-copy window and every page is an oracle prefix
+  ---
+  duration_ms: 18869.315034
+  type: 'test'
+  ...
+# Subtest: Following a roster larger than one request prepares without publishing an unordered prefix
+ok 2 - Following a roster larger than one request prepares without publishing an unordered prefix
+  ---
+  duration_ms: 2934.615461
+  type: 'test'
+  ...
+# Subtest: Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs
+ok 3 - Following wasm: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs
+  ---
+  duration_ms: 2453.5843
+  type: 'test'
+  ...
+# Subtest: Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs
+ok 4 - Following native: offline inbox, live prepend, own-edge withdrawal, replay, expiry and two tabs
+  ---
+  duration_ms: 2305.362573
+  type: 'test'
+  ...
+# Subtest: Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer
+ok 5 - Following retries a lost committed response with the same token and keeps new-follow deliveries in the live layer
+  ---
+  duration_ms: 26393.911734
+  type: 'test'
+  ...
+# Subtest: Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer
+ok 6 - Following serve binds authenticated viewers, refuses unsupported input and rejects a revoked bearer
+  ---
+  duration_ms: 191.352446
+  type: 'test'
+  ...
+# Subtest: a delayed unit cannot publish an author withdrawn before mounted authorization
+ok 7 - a delayed unit cannot publish an author withdrawn before mounted authorization
+  ---
+  duration_ms: 308.878295
+  type: 'test'
+  ...
+# Subtest: Following shaped HTTP and SDK measurements
+ok 8 - Following shaped HTTP and SDK measurements # SKIP
+  ---
+  duration_ms: 0.069685
+  type: 'test'
+  ...
+# Subtest: Following wasm routes history past source floors online and keeps pending own posts ahead of it
+ok 9 - Following wasm routes history past source floors online and keeps pending own posts ahead of it
+  ---
+  duration_ms: 510.119856
+  type: 'test'
+  ...
+# Subtest: Following native routes history past source floors online and keeps pending own posts ahead of it
+ok 10 - Following native routes history past source floors online and keeps pending own posts ahead of it
+  ---
+  duration_ms: 509.570804
+  type: 'test'
+  ...
+# Subtest: Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read
+ok 11 - Following refuses read sessions before custody, while an ordinary inbox remains a matchRead read
+  ---
+  duration_ms: 1324.701627
+  type: 'test'
+  ...
+# Subtest: wide cards continue authorization and live shaping within request allowances
+ok 12 - wide cards continue authorization and live shaping within request allowances
+  ---
+  duration_ms: 2324.914047
+  type: 'test'
+  ...
+# Subtest: live cards remain authorized and mounted after the inbox window rolls
+ok 13 - live cards remain authorized and mounted after the inbox window rolls
+  ---
+  duration_ms: 895.277586
+  type: 'test'
+  ...
+# Subtest: explicit refresh includes backdated post-bound births in the next exact session
+ok 14 - explicit refresh includes backdated post-bound births in the next exact session
+  ---
+  duration_ms: 435.523956
+  type: 'test'
+  ...
+# Subtest: cross-operation cancellation cannot evict an opening or its pinned page
+ok 15 - cross-operation cancellation cannot evict an opening or its pinned page
+  ---
+  duration_ms: 295.710495
+  type: 'test'
+  ...
+# Subtest: one card can reauthorize more fields than a single witness permits
+ok 16 - one card can reauthorize more fields than a single witness permits
+  ---
+  duration_ms: 1455.893203
+  type: 'test'
+  ...
+# Subtest: witness fragments include query arguments at and beyond the 64 KiB envelope boundary
+ok 17 - witness fragments include query arguments at and beyond the 64 KiB envelope boundary
+  ---
+  duration_ms: 685.695531
+  type: 'test'
+  ...
+# Subtest: Following and the online app online arm preserve independent fences through rotation
+ok 18 - Following and the online app online arm preserve independent fences through rotation
+  ---
+  duration_ms: 214.985145
+  type: 'test'
+  ...
+# Subtest: Following and the wasm app online arm preserve independent fences through rotation
+ok 19 - Following and the wasm app online arm preserve independent fences through rotation
+  ---
+  duration_ms: 215.680628
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 62488.32422
+-- process inspection: {"snapshots":3,"unrelatedRows":3751}
+-- client file ok: packages/snapback4/test/following-history.test.mjs (62760 ms)
+TAP version 13
+# Subtest: W7c dev exposes meters by default and explicitly for a real account
+ok 1 - W7c dev exposes meters by default and explicitly for a real account
+  ---
+  duration_ms: 614.850667
+  type: 'test'
+  ...
+# meter={"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":195,"probes":0,"rowsWritten":0,"steps":5}
+# Subtest: W7c serve ignores meters by default and explicitly for a real account
+ok 2 - W7c serve ignores meters by default and explicitly for a real account
+  ---
+  duration_ms: 452.23449
+  type: 'test'
+  ...
+# Subtest: W6d online: caller id retries share pending writes and retained receipts
+ok 3 - W6d online: caller id retries share pending writes and retained receipts
+  ---
+  duration_ms: 431.479546
+  type: 'test'
+  ...
+# tier=online posts=1 applied=1 terminal_events=1
+# Subtest: W6d online: malformed caller ids fail locally
+ok 4 - W6d online: malformed caller ids fail locally
+  ---
+  duration_ms: 166.38693
+  type: 'test'
+  ...
+# Subtest: W6d online: input key order is immaterial and an evicted receipt never readmits on the same client
+ok 5 - W6d online: input key order is immaterial and an evicted receipt never readmits on the same client
+  ---
+  duration_ms: 955.720143
+  type: 'test'
+  ...
+# tier=online retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+# Subtest: W6d online: two client POSTs with the caller id apply once after a lost reply
+ok 6 - W6d online: two client POSTs with the caller id apply once after a lost reply
+  ---
+  duration_ms: 543.364849
+  type: 'test'
+  ...
+# tier=online retry_posts=2 applied=1 historical_results=0
+# Subtest: W6d web: caller id retries share pending writes and retained receipts
+ok 7 - W6d web: caller id retries share pending writes and retained receipts
+  ---
+  duration_ms: 675.032499
+  type: 'test'
+  ...
+# tier=web posts=1 applied=1 terminal_events=1
+# Subtest: W6d web: malformed caller ids fail locally
+ok 8 - W6d web: malformed caller ids fail locally
+  ---
+  duration_ms: 214.298186
+  type: 'test'
+  ...
+# Subtest: W6d web: input key order is immaterial and an evicted receipt never readmits on the same client
+ok 9 - W6d web: input key order is immaterial and an evicted receipt never readmits on the same client
+  ---
+  duration_ms: 2478.485485
+  type: 'test'
+  ...
+# tier=web retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+# Subtest: W6d web: two client POSTs with the caller id apply once after a lost reply
+ok 10 - W6d web: two client POSTs with the caller id apply once after a lost reply
+  ---
+  duration_ms: 1319.920867
+  type: 'test'
+  ...
+# tier=web retry_posts=2 applied=1 historical_results=0
+# Subtest: W6d web: one client POST recovers the caller id from sync after a lost reply
+ok 11 - W6d web: one client POST recovers the caller id from sync after a lost reply
+  ---
+  duration_ms: 367.284626
+  type: 'test'
+  ...
+# tier=web recovery_posts=1 applied=1 terminal_events=1 replayed=true
+# Subtest: W6d web: reopen deduplicates the queued caller id before prediction
+ok 12 - W6d web: reopen deduplicates the queued caller id before prediction
+  ---
+  duration_ms: 1149.355432
+  type: 'test'
+  ...
+# tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+# Subtest: W6d native: caller id retries share pending writes and retained receipts
+ok 13 - W6d native: caller id retries share pending writes and retained receipts
+  ---
+  duration_ms: 282.113853
+  type: 'test'
+  ...
+# tier=native posts=1 applied=1 terminal_events=1
+# Subtest: W6d native: malformed caller ids fail locally
+ok 14 - W6d native: malformed caller ids fail locally
+  ---
+  duration_ms: 258.27913
+  type: 'test'
+  ...
+# Subtest: W6d native: input key order is immaterial and an evicted receipt never readmits on the same client
+ok 15 - W6d native: input key order is immaterial and an evicted receipt never readmits on the same client
+  ---
+  duration_ms: 6926.814488
+  type: 'test'
+  ...
+# tier=native retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+# Subtest: W6d native: two client POSTs with the caller id apply once after a lost reply
+ok 16 - W6d native: two client POSTs with the caller id apply once after a lost reply
+  ---
+  duration_ms: 1383.492639
+  type: 'test'
+  ...
+# tier=native retry_posts=2 applied=1 historical_results=0
+# Subtest: W6d native: one client POST recovers the caller id from sync after a lost reply
+ok 17 - W6d native: one client POST recovers the caller id from sync after a lost reply
+  ---
+  duration_ms: 434.377689
+  type: 'test'
+  ...
+# tier=native recovery_posts=1 applied=1 terminal_events=1 replayed=true
+# Subtest: W6d native: reopen deduplicates the queued caller id before prediction
+ok 18 - W6d native: reopen deduplicates the queued caller id before prediction
+  ---
+  duration_ms: 1194.704035
+  type: 'test'
+  ...
+# tier=native reopened_queued=1 predictions=1 posts=1 applied=1
+# Subtest: W6b password character minimum and byte maximum through HTTP
+ok 19 - W6b password character minimum and byte maximum through HTTP
+  ---
+  duration_ms: 2910.846938
+  type: 'test'
+  ...
+# HTTP: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+# Subtest: W6b password character minimum and byte maximum through client
+ok 20 - W6b password character minimum and byte maximum through client
+  ---
+  duration_ms: 2947.286826
+  type: 'test'
+  ...
+# client: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+# Subtest: W6b identity forms advertise and enforce the guest choice
+ok 21 - W6b identity forms advertise and enforce the guest choice
+  ---
+  duration_ms: 937.08867
+  type: 'test'
+  ...
+# Subtest: sent results reach online, process-device and queued-write callers
+ok 22 - sent results reach online, process-device and queued-write callers
+  ---
+  duration_ms: 1169.852569
+  type: 'test'
+  ...
+# Subtest: online: immediate lost first acknowledgement preserves the same-id replay receipt
+ok 23 - online: immediate lost first acknowledgement preserves the same-id replay receipt
+  ---
+  duration_ms: 558.616732
+  type: 'test'
+  ...
+# wire={"head":3,"id":"01M4C7H6S24NF7W99HS96TP2NB","replayed":true,"seq":3,"state":"sent","store_id":"5e89ffa962ac0ce526b03e49e213c48b"}; client={"state":"sent","id":"01M4C7H6S24NF7W99HS96TP2NB","seq":3,"replayed":true}; result key=false
+# Subtest: online: queued lost first acknowledgement preserves the same-id replay receipt
+ok 24 - online: queued lost first acknowledgement preserves the same-id replay receipt
+  ---
+  duration_ms: 1046.644711
+  type: 'test'
+  ...
+# wire={"head":3,"id":"01M4C7H7AACEZBVD6QNHNXG9ET","replayed":true,"seq":3,"state":"sent","store_id":"7cf295c8e682b10e34b4da0161f14201"}; client={"state":"sent","id":"01M4C7H7AACEZBVD6QNHNXG9ET","seq":3,"replayed":true}; result key=false
+# Subtest: process-device: immediate lost first acknowledgement preserves the same-id replay receipt
+ok 25 - process-device: immediate lost first acknowledgement preserves the same-id replay receipt
+  ---
+  duration_ms: 1370.314541
+  type: 'test'
+  ...
+# wire={"head":3,"id":"01M4C7H8E1TAP0Q50JQM5A63ZN","replayed":true,"seq":3,"state":"sent","store_id":"c0fec08fd736119ac02240bf2c7bd273"}; client={"state":"sent","id":"01M4C7H8E1TAP0Q50JQM5A63ZN","seq":3,"replayed":true}; result key=false
+# Subtest: process-device: queued lost first acknowledgement preserves the same-id replay receipt
+ok 26 - process-device: queued lost first acknowledgement preserves the same-id replay receipt
+  ---
+  duration_ms: 1262.301713
+  type: 'test'
+  ...
+# wire={"head":3,"id":"01M4C7H9RH6HK0TWW3P80JMJ67","replayed":true,"seq":3,"state":"sent","store_id":"11789cace2408d45ad6e24d151923c2e"}; client={"state":"sent","id":"01M4C7H9RH6HK0TWW3P80JMJ67","seq":3,"replayed":true}; result key=false
+# Subtest: write types require replay narrowing through mutate, onWrite and useMutation
+ok 27 - write types require replay narrowing through mutate, onWrite and useMutation
+  ---
+  duration_ms: 677.529861
+  type: 'test'
+  ...
+# Subtest: createApp forwards asset retention (viewed, 68 bytes) through a real offline reopen
+ok 28 - createApp forwards asset retention (viewed, 68 bytes) through a real offline reopen
+  ---
+  duration_ms: 1298.110336
+  type: 'test'
+  ...
+# Subtest: createApp forwards asset retention (viewed, 67 bytes) through a real offline reopen
+ok 29 - createApp forwards asset retention (viewed, 67 bytes) through a real offline reopen
+  ---
+  duration_ms: 272.58064
+  type: 'test'
+  ...
+# Subtest: createApp forwards asset retention (none, 68 bytes) through a real offline reopen
+ok 30 - createApp forwards asset retention (none, 68 bytes) through a real offline reopen
+  ---
+  duration_ms: 274.786707
+  type: 'test'
+  ...
+# Subtest: createApp forwards local waitSeconds while retaining app-owned identity
+ok 31 - createApp forwards local waitSeconds while retaining app-owned identity
+  ---
+  duration_ms: 319.68076
+  type: 'test'
+  ...
+# Subtest: online createApp ignores settings that apply only with a device
+ok 32 - online createApp ignores settings that apply only with a device
+  ---
+  duration_ms: 198.294204
+  type: 'test'
+  ...
+# Subtest: ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes
+ok 33 - ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes
+  ---
+  duration_ms: 1355.297027
+  type: 'test'
+  ...
+# media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+# Subtest: dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits
+ok 34 - dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits
+  ---
+  duration_ms: 738.902538
+  type: 'test'
+  ...
+# identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 554 ms
+# Subtest: id-only video predicts after offline reopen and its ordinary bytes are retained
+ok 35 - id-only video predicts after offline reopen and its ordinary bytes are retained
+  ---
+  duration_ms: 2232.798005
+  type: 'test'
+  ...
+# video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+# Subtest: W7r1 hidden versus absent non-uniform reads under dev
+ok 36 - W7r1 hidden versus absent non-uniform reads under dev
+  ---
+  duration_ms: 237.95446
+  type: 'test'
+  ...
+# absent={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2} hidden={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2}
+# Subtest: W7r1 hidden versus absent non-uniform reads under serve
+ok 37 - W7r1 hidden versus absent non-uniform reads under serve
+  ---
+  duration_ms: 152.072079
+  type: 'test'
+  ...
+# Subtest: W8R1a dev withholds hidden population cuts
+ok 38 - W8R1a dev withholds hidden population cuts
+  ---
+  duration_ms: 2404.386511
+  type: 'test'
+  ...
+# hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+# Subtest: W8R1a serve withholds hidden population cuts
+ok 39 - W8R1a serve withholds hidden population cuts
+  ---
+  duration_ms: 2343.069608
+  type: 'test'
+  ...
+# hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+# Subtest: W8R1a online server-run observations keep explicit withdrawal during a replacing fetch
+ok 40 - W8R1a online server-run observations keep explicit withdrawal during a replacing fetch
+  ---
+  duration_ms: 1490.088539
+  type: 'test'
+  ...
+# Subtest: W8R1a native server-run observations keep explicit withdrawal during a replacing fetch
+ok 41 - W8R1a native server-run observations keep explicit withdrawal during a replacing fetch
+  ---
+  duration_ms: 1678.214709
+  type: 'test'
+  ...
+# Subtest: W8R1a web server-run observations keep explicit withdrawal during a replacing fetch
+ok 42 - W8R1a web server-run observations keep explicit withdrawal during a replacing fetch
+  ---
+  duration_ms: 1531.121523
+  type: 'test'
+  ...
+# Subtest: W8a online uniform words continue while nonuniform words and meter cuts remain bounded
+ok 43 - W8a online uniform words continue while nonuniform words and meter cuts remain bounded
+  ---
+  duration_ms: 1605.168961
+  type: 'test'
+  ...
+# Subtest: W8a native uniform words continue while nonuniform words and meter cuts remain bounded
+ok 44 - W8a native uniform words continue while nonuniform words and meter cuts remain bounded
+  ---
+  duration_ms: 2505.334475
+  type: 'test'
+  ...
+# Subtest: W8a web uniform words continue while nonuniform words and meter cuts remain bounded
+ok 45 - W8a web uniform words continue while nonuniform words and meter cuts remain bounded
+  ---
+  duration_ms: 2106.483987
+  type: 'test'
+  ...
+# Subtest: W8a dev refuses held queries with a rewrite
+ok 46 - W8a dev refuses held queries with a rewrite
+  ---
+  duration_ms: 166.576554
+  type: 'test'
+  ...
+# Subtest: W8a serve refuses held queries with a rewrite
+ok 47 - W8a serve refuses held queries with a rewrite
+  ---
+  duration_ms: 73.024454
+  type: 'test'
+  ...
+# Subtest: W8a native held horizon stays local online, including observe
+ok 48 - W8a native held horizon stays local online, including observe
+  ---
+  duration_ms: 242.671151
+  type: 'test'
+  ...
+# Subtest: W8a web held horizon stays local online, including observe
+ok 49 - W8a web held horizon stays local online, including observe
+  ---
+  duration_ms: 180.821849
+  type: 'test'
+  ...
+# Subtest: W13b native cursorless read stays local online
+ok 50 - W13b native cursorless read stays local online
+  ---
+  duration_ms: 243.259372
+  type: 'test'
+  ...
+# native cursorless: rows=1 complete=true /q/=0
+# Subtest: W13b native meter read stays local online
+ok 51 - W13b native meter read stays local online
+  ---
+  duration_ms: 2410.115496
+  type: 'test'
+  ...
+# native meter: rows=0 complete=false /q/=0
+# Subtest: W13b native horizon and presence use server knowledge only online
+ok 52 - W13b native horizon and presence use server knowledge only online
+  ---
+  duration_ms: 232.886752
+  type: 'test'
+  ...
+# Subtest: W13b web cursorless read stays local online
+ok 53 - W13b web cursorless read stays local online
+  ---
+  duration_ms: 182.326835
+  type: 'test'
+  ...
+# web cursorless: rows=1 complete=true /q/=0
+# Subtest: W13b web meter read stays local online
+ok 54 - W13b web meter read stays local online
+  ---
+  duration_ms: 1943.130404
+  type: 'test'
+  ...
+# web meter: rows=0 complete=false /q/=0
+# Subtest: W13b web horizon and presence use server knowledge only online
+ok 55 - W13b web horizon and presence use server knowledge only online
+  ---
+  duration_ms: 197.79198
+  type: 'test'
+  ...
+# Subtest: W13b dev logs a measured cut
+ok 56 - W13b dev logs a measured cut
+  ---
+  duration_ms: 2342.772428
+  type: 'test'
+  ...
+# snapback4 dev: read filtered (guest:01M4C7J7GN1ZRRVWFASWBEEXVE) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered
+# snapback4 dev: read filtered (dev:alice) cut by examined rows at programs.filtered.0; examined=8193 index_entries=0 rule_probes=0 steps=32772 heap_bytes=98310 output_bytes=12 rows_written=0; snapback4 why filtered; suppressed 5 repeated read cuts
+# Subtest: W13b serve hides a measured cut
+ok 57 - W13b serve hides a measured cut
+  ---
+  duration_ms: 2213.49372
+  type: 'test'
+  ...
+# Subtest: CCP admission boundary: native
+ok 58 - CCP admission boundary: native
+  ---
+  duration_ms: 5310.67058
+  type: 'test'
+  ...
+# native: waitSeconds=0 returned pending in 5.650 ms
+# native: default returned pending in 4002.397 ms
+# native: waitSeconds=1.9 returned pending in 1004.026 ms
+# Subtest: CCP admission boundary: web
+ok 59 - CCP admission boundary: web
+  ---
+  duration_ms: 5242.444566
+  type: 'test'
+  ...
+# web: waitSeconds=0 returned pending in 3.278 ms
+# web: default returned pending in 4000.689 ms
+# web: waitSeconds=1.9 returned pending in 1001.220 ms
+# Subtest: CCP admission boundary: online
+ok 60 - CCP admission boundary: online
+  ---
+  duration_ms: 1384.186221
+  type: 'test'
+  ...
+# online: waitSeconds=0 returned pending in 1.497 ms
+# online: default waited for release, returned sent in 161.274 ms
+# online: waitSeconds=1.9 returned pending in 1000.669 ms
+# Subtest: CCP admission boundary: app-online
+ok 61 - CCP admission boundary: app-online
+  ---
+  duration_ms: 1404.732503
+  type: 'test'
+  ...
+# app-online: waitSeconds=0 returned pending in 3.745 ms
+# app-online: default waited for release, returned sent in 160.940 ms
+# app-online: waitSeconds=1.9 returned pending in 1000.535 ms
+# Subtest: CCP zero-wait native admit reject fails before dispatch
+ok 62 - CCP zero-wait native admit reject fails before dispatch
+  ---
+  duration_ms: 264.632804
+  type: 'test'
+  ...
+# native reject: 1 admission, 0 dispatches, outcome=failed
+# Subtest: CCP zero-wait native admit deny fails before dispatch
+ok 63 - CCP zero-wait native admit deny fails before dispatch
+  ---
+  duration_ms: 238.461359
+  type: 'test'
+  ...
+# native deny: 1 admission, 0 dispatches, outcome=failed
+# Subtest: CCP zero-wait web admit reject fails before dispatch
+ok 64 - CCP zero-wait web admit reject fails before dispatch
+  ---
+  duration_ms: 198.955664
+  type: 'test'
+  ...
+# web reject: 1 admission, 0 dispatches, outcome=failed
+# Subtest: CCP zero-wait web admit deny fails before dispatch
+ok 65 - CCP zero-wait web admit deny fails before dispatch
+  ---
+  duration_ms: 191.884964
+  type: 'test'
+  ...
+# web deny: 1 admission, 0 dispatches, outcome=failed
+1..65
+# tests 65
+# suites 0
+# pass 65
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 80303.78703
+-- process inspection: {"snapshots":3,"unrelatedRows":3736}
+-- client file ok: packages/snapback4/test/client-seams.test.mjs (80580 ms)
+TAP version 13
+# Subtest: integration: device observations use the issued clock; server deadlines use the estimate
+ok 1 - integration: device observations use the issued clock; server deadlines use the estimate
+  ---
+  duration_ms: 6.136039
+  type: 'test'
+  ...
+# Subtest: integration: retained read-through fallback obeys the common router (publish)
+ok 2 - integration: retained read-through fallback obeys the common router (publish)
+  ---
+  duration_ms: 0.923214
+  type: 'test'
+  ...
+# Subtest: integration: retained read-through fallback obeys the common router (prediction)
+ok 3 - integration: retained read-through fallback obeys the common router (prediction)
+  ---
+  duration_ms: 0.458328
+  type: 'test'
+  ...
+# Subtest: integration: retained read-through fallback obeys the common router (issued expiry)
+ok 4 - integration: retained read-through fallback obeys the common router (issued expiry)
+  ---
+  duration_ms: 0.318137
+  type: 'test'
+  ...
+# Subtest: integration: retained read-through fallback obeys the common router (server expiry)
+ok 5 - integration: retained read-through fallback obeys the common router (server expiry)
+  ---
+  duration_ms: 0.338657
+  type: 'test'
+  ...
+# Subtest: rule 2: known complete branch wins (native=false, held=false)
+ok 6 - rule 2: known complete branch wins (native=false, held=false)
+  ---
+  duration_ms: 0.234211
+  type: 'test'
+  ...
+# Subtest: rule 2: known complete branch wins (native=false, held=true)
+ok 7 - rule 2: known complete branch wins (native=false, held=true)
+  ---
+  duration_ms: 0.138688
+  type: 'test'
+  ...
+# Subtest: rule 2: known complete branch wins (native=true, held=false)
+ok 8 - rule 2: known complete branch wins (native=true, held=false)
+  ---
+  duration_ms: 0.136975
+  type: 'test'
+  ...
+# Subtest: rule 2: known complete branch wins (native=true, held=true)
+ok 9 - rule 2: known complete branch wins (native=true, held=true)
+  ---
+  duration_ms: 0.183145
+  type: 'test'
+  ...
+# Subtest: rule 3: engine-withheld offline
+ok 10 - rule 3: engine-withheld offline
+  ---
+  duration_ms: 0.302884
+  type: 'test'
+  ...
+# Subtest: rule 3: engine-withheld prediction
+ok 11 - rule 3: engine-withheld prediction
+  ---
+  duration_ms: 0.159279
+  type: 'test'
+  ...
+# Subtest: rule 3: engine-withheld held
+ok 12 - rule 3: engine-withheld held
+  ---
+  duration_ms: 0.303115
+  type: 'test'
+  ...
+# Subtest: rule 3: engine-withheld server
+ok 13 - rule 3: engine-withheld server
+  ---
+  duration_ms: 0.257646
+  type: 'test'
+  ...
+# Subtest: rule 3: engine-withheld transport failure
+ok 14 - rule 3: engine-withheld transport failure
+  ---
+  duration_ms: 0.194572
+  type: 'test'
+  ...
+# Subtest: rule 4: available unknown Following offline
+ok 15 - rule 4: available unknown Following offline
+  ---
+  duration_ms: 0.202864
+  type: 'test'
+  ...
+# Subtest: rule 4: available unknown Following prediction
+ok 16 - rule 4: available unknown Following prediction
+  ---
+  duration_ms: 0.129054
+  type: 'test'
+  ...
+# Subtest: rule 4: available unknown Following held
+ok 17 - rule 4: available unknown Following held
+  ---
+  duration_ms: 0.117847
+  type: 'test'
+  ...
+# Subtest: rule 4: available unknown Following server
+ok 18 - rule 4: available unknown Following server
+  ---
+  duration_ms: 0.181803
+  type: 'test'
+  ...
+# Subtest: rule 4: available unknown Following transport failure
+ok 19 - rule 4: available unknown Following transport failure
+  ---
+  duration_ms: 0.176725
+  type: 'test'
+  ...
+# Subtest: rule 4: unknown conditions retain static possible reads, including slash IDs
+ok 20 - rule 4: unknown conditions retain static possible reads, including slash IDs
+  ---
+  duration_ms: 0.221772
+  type: 'test'
+  ...
+# Subtest: rules 2/3: an unrelated profile read runs before considering a pending post
+ok 21 - rules 2/3: an unrelated profile read runs before considering a pending post
+  ---
+  duration_ms: 0.331356
+  type: 'test'
+  ...
+# Subtest: rule 3: known meter prefixes stay partial without fallback
+ok 22 - rule 3: known meter prefixes stay partial without fallback
+  ---
+  duration_ms: 0.222393
+  type: 'test'
+  ...
+# Subtest: rule 5: prediction arriving at delivery keeps withholding
+ok 23 - rule 5: prediction arriving at delivery keeps withholding
+  ---
+  duration_ms: 0.308723
+  type: 'test'
+  ...
+# Subtest: rule 5: prediction arriving at publication keeps withholding
+ok 24 - rule 5: prediction arriving at publication keeps withholding
+  ---
+  duration_ms: 0.265288
+  type: 'test'
+  ...
+# Subtest: rule 5: prediction arriving at delivery keeps local data
+ok 25 - rule 5: prediction arriving at delivery keeps local data
+  ---
+  duration_ms: 0.154272
+  type: 'test'
+  ...
+# Subtest: rule 5: prediction arriving at publication keeps local data
+ok 26 - rule 5: prediction arriving at publication keeps local data
+  ---
+  duration_ms: 0.15373
+  type: 'test'
+  ...
+# Subtest: rules 3/4: remembered pages cannot replace withholding
+ok 27 - rules 3/4: remembered pages cannot replace withholding
+  ---
+  duration_ms: 0.387191
+  type: 'test'
+  ...
+# Subtest: rules 3/4: remembered pages cannot replace local data
+ok 28 - rules 3/4: remembered pages cannot replace local data
+  ---
+  duration_ms: 0.269764
+  type: 'test'
+  ...
+# Subtest: rule 5: a native program stays opaque after local execution
+ok 29 - rule 5: a native program stays opaque after local execution
+  ---
+  duration_ms: 2.080089
+  type: 'test'
+  ...
+# Subtest: rule 5: observed entries and predictable no-ops release the fence
+ok 30 - rule 5: observed entries and predictable no-ops release the fence
+  ---
+  duration_ms: 0.280891
+  type: 'test'
+  ...
+# Subtest: rule 3: device preflight E_PREDICT cannot certify local coverage
+ok 31 - rule 3: device preflight E_PREDICT cannot certify local coverage
+  ---
+  duration_ms: 0.236395
+  type: 'test'
+  ...
+# Subtest: rule 3: device preflight E_NATIVE cannot certify local coverage
+ok 32 - rule 3: device preflight E_NATIVE cannot certify local coverage
+  ---
+  duration_ms: 0.156775
+  type: 'test'
+  ...
+# Subtest: rule 1: router itself refuses E_AUTH during delivery
+ok 33 - rule 1: router itself refuses E_AUTH during delivery
+  ---
+  duration_ms: 0.292268
+  type: 'test'
+  ...
+# Subtest: rule 1: router itself refuses E_CLOSED during delivery
+ok 34 - rule 1: router itself refuses E_CLOSED during delivery
+  ---
+  duration_ms: 0.123015
+  type: 'test'
+  ...
+# Subtest: rule 1: router itself refuses E_AUTH during publication
+ok 35 - rule 1: router itself refuses E_AUTH during publication
+  ---
+  duration_ms: 0.145078
+  type: 'test'
+  ...
+# Subtest: rule 1: router itself refuses E_CLOSED during publication
+ok 36 - rule 1: router itself refuses E_CLOSED during publication
+  ---
+  duration_ms: 0.124356
+  type: 'test'
+  ...
+# Subtest: native client reset with an unobserved prediction
+ok 37 - native client reset with an unobserved prediction
+  ---
+  duration_ms: 30060.228559
+  type: 'test'
+  ...
+# Subtest: native client reset with an unobserved prediction held
+ok 38 - native client reset with an unobserved prediction held
+  ---
+  duration_ms: 30040.255882
+  type: 'test'
+  ...
+# Subtest: native client install failure with an unobserved prediction
+ok 39 - native client install failure with an unobserved prediction
+  ---
+  duration_ms: 30054.653946
+  type: 'test'
+  ...
+# Subtest: native client install failure with an unobserved prediction held
+ok 40 - native client install failure with an unobserved prediction held
+  ---
+  duration_ms: 30052.623064
+  type: 'test'
+  ...
+# Subtest: rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=false)
+ok 41 - rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=false)
+  ---
+  duration_ms: 0.353009
+  type: 'test'
+  ...
+# Subtest: rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=true)
+ok 42 - rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=true)
+  ---
+  duration_ms: 0.094592
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder null recovers memory, never speculative data
+ok 43 - rules 4/5: unknown placeholder null recovers memory, never speculative data
+  ---
+  duration_ms: 0.496264
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder [] recovers memory, never speculative data
+ok 44 - rules 4/5: unknown placeholder [] recovers memory, never speculative data
+  ---
+  duration_ms: 0.662844
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder true recovers memory, never speculative data
+ok 45 - rules 4/5: unknown placeholder true recovers memory, never speculative data
+  ---
+  duration_ms: 0.207872
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder false recovers memory, never speculative data
+ok 46 - rules 4/5: unknown placeholder false recovers memory, never speculative data
+  ---
+  duration_ms: 0.215143
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder 0 recovers memory, never speculative data
+ok 47 - rules 4/5: unknown placeholder 0 recovers memory, never speculative data
+  ---
+  duration_ms: 0.201422
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder {"online":true} recovers memory, never speculative data
+ok 48 - rules 4/5: unknown placeholder {"online":true} recovers memory, never speculative data
+  ---
+  duration_ms: 0.174712
+  type: 'test'
+  ...
+# Subtest: rules 4/5: unknown placeholder [null] recovers memory, never speculative data
+ok 49 - rules 4/5: unknown placeholder [null] recovers memory, never speculative data
+  ---
+  duration_ms: 0.170966
+  type: 'test'
+  ...
+# Subtest: rule 5: remembered answer rechecks prediction during recovery
+ok 50 - rule 5: remembered answer rechecks prediction during recovery
+  ---
+  duration_ms: 0.22634
+  type: 'test'
+  ...
+# Subtest: rule 5: remembered answer rechecks sign-out during recovery
+ok 51 - rule 5: remembered answer rechecks sign-out during recovery
+  ---
+  duration_ms: 0.465938
+  type: 'test'
+  ...
+# Subtest: rule 5: remembered answer rechecks close during recovery
+ok 52 - rule 5: remembered answer rechecks close during recovery
+  ---
+  duration_ms: 0.134052
+  type: 'test'
+  ...
+# Subtest: rule 5: remembered answer rechecks prediction during publication
+ok 53 - rule 5: remembered answer rechecks prediction during publication
+  ---
+  duration_ms: 0.107892
+  type: 'test'
+  ...
+# Subtest: rule 5: remembered answer rechecks sign-out during publication
+ok 54 - rule 5: remembered answer rechecks sign-out during publication
+  ---
+  duration_ms: 0.11358
+  type: 'test'
+  ...
+# Subtest: rule 5: remembered answer rechecks close during publication
+ok 55 - rule 5: remembered answer rechecks close during publication
+  ---
+  duration_ms: 0.135734
+  type: 'test'
+  ...
+# Subtest: rule 4: local freshness is decided at publication (transport failure=false)
+ok 56 - rule 4: local freshness is decided at publication (transport failure=false)
+  ---
+  duration_ms: 0.170045
+  type: 'test'
+  ...
+# Subtest: rule 4: local freshness is decided at publication (transport failure=true)
+ok 57 - rule 4: local freshness is decided at publication (transport failure=true)
+  ---
+  duration_ms: 0.105668
+  type: 'test'
+  ...
+# Subtest: rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (false)
+ok 58 - rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (false)
+  ---
+  duration_ms: 0.256104
+  type: 'test'
+  ...
+# Subtest: rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (true)
+ok 59 - rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (true)
+  ---
+  duration_ms: 0.108954
+  type: 'test'
+  ...
+# Subtest: rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (false)
+ok 60 - rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (false)
+  ---
+  duration_ms: 0.100451
+  type: 'test'
+  ...
+# Subtest: rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (true)
+ok 61 - rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (true)
+  ---
+  duration_ms: 0.107952
+  type: 'test'
+  ...
+# Subtest: rule 5: composed {"loading":true} survives unless fenced (false)
+ok 62 - rule 5: composed {"loading":true} survives unless fenced (false)
+  ---
+  duration_ms: 0.089244
+  type: 'test'
+  ...
+# Subtest: rule 5: composed {"loading":true} survives unless fenced (true)
+ok 63 - rule 5: composed {"loading":true} survives unless fenced (true)
+  ---
+  duration_ms: 0.101332
+  type: 'test'
+  ...
+# Subtest: rule 5: authoritative {"loading":true} retires earlier memory
+ok 64 - rule 5: authoritative {"loading":true} retires earlier memory
+  ---
+  duration_ms: 0.241271
+  type: 'test'
+  ...
+# Subtest: rule 5: authoritative {"denied":{"code":"NO","family":"application","message":"no"}} retires earlier memory
+ok 65 - rule 5: authoritative {"denied":{"code":"NO","family":"application","message":"no"}} retires earlier memory
+  ---
+  duration_ms: 0.412829
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown [] stays partial without an id (provenance={})
+ok 66 - rule 4: non-speculative unknown [] stays partial without an id (provenance={})
+  ---
+  duration_ms: 0.167932
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown 0 stays partial without an id (provenance={})
+ok 67 - rule 4: non-speculative unknown 0 stays partial without an id (provenance={})
+  ---
+  duration_ms: 0.081933
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown null stays partial without an id (provenance={})
+ok 68 - rule 4: non-speculative unknown null stays partial without an id (provenance={})
+  ---
+  duration_ms: 0.085438
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={})
+ok 69 - rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={})
+  ---
+  duration_ms: 0.072158
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown [] stays partial without an id (provenance={"speculative":false})
+ok 70 - rule 4: non-speculative unknown [] stays partial without an id (provenance={"speculative":false})
+  ---
+  duration_ms: 0.08715
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown 0 stays partial without an id (provenance={"speculative":false})
+ok 71 - rule 4: non-speculative unknown 0 stays partial without an id (provenance={"speculative":false})
+  ---
+  duration_ms: 0.070486
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown null stays partial without an id (provenance={"speculative":false})
+ok 72 - rule 4: non-speculative unknown null stays partial without an id (provenance={"speculative":false})
+  ---
+  duration_ms: 0.084507
+  type: 'test'
+  ...
+# Subtest: rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={"speculative":false})
+ok 73 - rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={"speculative":false})
+  ---
+  duration_ms: 0.263155
+  type: 'test'
+  ...
+# Subtest: rule 4: retained [] composition survives offline/transport failure=false
+ok 74 - rule 4: retained [] composition survives offline/transport failure=false
+  ---
+  duration_ms: 0.200991
+  type: 'test'
+  ...
+# Subtest: rule 4: retained [] composition survives offline/transport failure=true
+ok 75 - rule 4: retained [] composition survives offline/transport failure=true
+  ---
+  duration_ms: 0.137757
+  type: 'test'
+  ...
+# Subtest: rule 4: retained 0 composition survives offline/transport failure=false
+ok 76 - rule 4: retained 0 composition survives offline/transport failure=false
+  ---
+  duration_ms: 0.078087
+  type: 'test'
+  ...
+# Subtest: rule 4: retained 0 composition survives offline/transport failure=true
+ok 77 - rule 4: retained 0 composition survives offline/transport failure=true
+  ---
+  duration_ms: 0.080701
+  type: 'test'
+  ...
+# Subtest: rule 4: speculative values with engine held=false, fenced=false
+ok 78 - rule 4: speculative values with engine held=false, fenced=false
+  ---
+  duration_ms: 0.168563
+  type: 'test'
+  ...
+# Subtest: rule 4: speculative values with engine held=false, fenced=true
+ok 79 - rule 4: speculative values with engine held=false, fenced=true
+  ---
+  duration_ms: 0.105058
+  type: 'test'
+  ...
+# Subtest: rule 4: speculative values with engine held=true, fenced=false
+ok 80 - rule 4: speculative values with engine held=true, fenced=false
+  ---
+  duration_ms: 0.437486
+  type: 'test'
+  ...
+# Subtest: rule 4: speculative values with engine held=true, fenced=true
+ok 81 - rule 4: speculative values with engine held=true, fenced=true
+  ---
+  duration_ms: 0.117226
+  type: 'test'
+  ...
+# Subtest: rule 4: online partial freshness requires caughtUp=false, identityChecked=false
+ok 82 - rule 4: online partial freshness requires caughtUp=false, identityChecked=false
+  ---
+  duration_ms: 0.132479
+  type: 'test'
+  ...
+# Subtest: rule 4: online partial freshness requires caughtUp=false, identityChecked=true
+ok 83 - rule 4: online partial freshness requires caughtUp=false, identityChecked=true
+  ---
+  duration_ms: 0.058758
+  type: 'test'
+  ...
+# Subtest: rule 4: online partial freshness requires caughtUp=true, identityChecked=false
+ok 84 - rule 4: online partial freshness requires caughtUp=true, identityChecked=false
+  ---
+  duration_ms: 0.053009
+  type: 'test'
+  ...
+# Subtest: rule 4: online partial freshness requires caughtUp=true, identityChecked=true
+ok 85 - rule 4: online partial freshness requires caughtUp=true, identityChecked=true
+  ---
+  duration_ms: 0.048823
+  type: 'test'
+  ...
+# Subtest: rules 4/5: remembered since is the original observation time
+ok 86 - rules 4/5: remembered since is the original observation time
+  ---
+  duration_ms: 0.452188
+  type: 'test'
+  ...
+# Subtest: rule 5: memory expires at recovery, with no expired answer or repeated deadline
+ok 87 - rule 5: memory expires at recovery, with no expired answer or repeated deadline
+  ---
+  duration_ms: 0.402344
+  type: 'test'
+  ...
+# Subtest: rule 5: memory expires at publication, with no expired answer or repeated deadline
+ok 88 - rule 5: memory expires at publication, with no expired answer or repeated deadline
+  ---
+  duration_ms: 0.263445
+  type: 'test'
+  ...
+# Subtest: rule 5: expiry does not replace authoritative {"denied":{"code":"E_BOUND","family":"bound","message":"ceiling"}}
+ok 89 - rule 5: expiry does not replace authoritative {"denied":{"code":"E_BOUND","family":"bound","message":"ceiling"}}
+  ---
+  duration_ms: 0.175323
+  type: 'test'
+  ...
+# Subtest: rule 5: expiry does not replace authoritative {"loading":true}
+ok 90 - rule 5: expiry does not replace authoritative {"loading":true}
+  ---
+  duration_ms: 0.096234
+  type: 'test'
+  ...
+# Subtest: rule 4: speculative refusal is a placeholder (fenced=false)
+ok 91 - rule 4: speculative refusal is a placeholder (fenced=false)
+  ---
+  duration_ms: 0.194441
+  type: 'test'
+  ...
+# Subtest: rule 4: speculative refusal is a placeholder (fenced=true)
+ok 92 - rule 4: speculative refusal is a placeholder (fenced=true)
+  ---
+  duration_ms: 0.110546
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=false)
+ok 93 - rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=false)
+  ---
+  duration_ms: 0.16667
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=true)
+ok 94 - rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=true)
+  ---
+  duration_ms: 0.115173
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=false)
+ok 95 - rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=false)
+  ---
+  duration_ms: 0.071927
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=true)
+ok 96 - rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=true)
+  ---
+  duration_ms: 0.062604
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[], fenced=false, failed=false)
+ok 97 - rule 4: retained composition beside speculative null (left=[], fenced=false, failed=false)
+  ---
+  duration_ms: 0.057426
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[], fenced=false, failed=true)
+ok 98 - rule 4: retained composition beside speculative null (left=[], fenced=false, failed=true)
+  ---
+  duration_ms: 0.070005
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[], fenced=true, failed=false)
+ok 99 - rule 4: retained composition beside speculative null (left=[], fenced=true, failed=false)
+  ---
+  duration_ms: 0.067711
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=[], fenced=true, failed=true)
+ok 100 - rule 4: retained composition beside speculative null (left=[], fenced=true, failed=true)
+  ---
+  duration_ms: 0.060711
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=0, fenced=false, failed=false)
+ok 101 - rule 4: retained composition beside speculative null (left=0, fenced=false, failed=false)
+  ---
+  duration_ms: 0.056765
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=0, fenced=false, failed=true)
+ok 102 - rule 4: retained composition beside speculative null (left=0, fenced=false, failed=true)
+  ---
+  duration_ms: 0.082795
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=0, fenced=true, failed=false)
+ok 103 - rule 4: retained composition beside speculative null (left=0, fenced=true, failed=false)
+  ---
+  duration_ms: 0.066991
+  type: 'test'
+  ...
+# Subtest: rule 4: retained composition beside speculative null (left=0, fenced=true, failed=true)
+ok 104 - rule 4: retained composition beside speculative null (left=0, fenced=true, failed=true)
+  ---
+  duration_ms: 0.056855
+  type: 'test'
+  ...
+# Subtest: rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=false)
+ok 105 - rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=false)
+  ---
+  duration_ms: 0.378006
+  type: 'test'
+  ...
+# Subtest: rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=true)
+ok 106 - rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=true)
+  ---
+  duration_ms: 0.168162
+  type: 'test'
+  ...
+# Subtest: rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=false)
+ok 107 - rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=false)
+  ---
+  duration_ms: 0.14664
+  type: 'test'
+  ...
+# Subtest: rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=true)
+ok 108 - rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=true)
+  ---
+  duration_ms: 0.118458
+  type: 'test'
+  ...
+# Subtest: rules 4/5: a withheld local retry keeps its future deadline (speculative)
+ok 109 - rules 4/5: a withheld local retry keeps its future deadline (speculative)
+  ---
+  duration_ms: 0.249774
+  type: 'test'
+  ...
+# Subtest: rules 4/5: a withheld local retry keeps its future deadline (unavailable)
+ok 110 - rules 4/5: a withheld local retry keeps its future deadline (unavailable)
+  ---
+  duration_ms: 0.135063
+  type: 'test'
+  ...
+# Subtest: rule 5: a second expired local reply stops and dirties its watch (data, false)
+ok 111 - rule 5: a second expired local reply stops and dirties its watch (data, false)
+  ---
+  duration_ms: 0.675673
+  type: 'test'
+  ...
+# Subtest: rule 5: a second expired local reply stops and dirties its watch (data, true)
+ok 112 - rule 5: a second expired local reply stops and dirties its watch (data, true)
+  ---
+  duration_ms: 0.108983
+  type: 'test'
+  ...
+# Subtest: rule 5: a second expired local reply stops and dirties its watch (speculative, false)
+ok 113 - rule 5: a second expired local reply stops and dirties its watch (speculative, false)
+  ---
+  duration_ms: 0.105899
+  type: 'test'
+  ...
+# Subtest: rule 5: a second expired local reply stops and dirties its watch (speculative, true)
+ok 114 - rule 5: a second expired local reply stops and dirties its watch (speculative, true)
+  ---
+  duration_ms: 0.10065
+  type: 'test'
+  ...
+# Subtest: rule 5: a second expired local reply stops and dirties its watch (unavailable, false)
+ok 115 - rule 5: a second expired local reply stops and dirties its watch (unavailable, false)
+  ---
+  duration_ms: 0.097727
+  type: 'test'
+  ...
+# Subtest: rule 5: a second expired local reply stops and dirties its watch (unavailable, true)
+ok 116 - rule 5: a second expired local reply stops and dirties its watch (unavailable, true)
+  ---
+  duration_ms: 0.095614
+  type: 'test'
+  ...
+# Subtest: rules 1/5: sign-out during local expiry retry still fences publication
+ok 117 - rules 1/5: sign-out during local expiry retry still fences publication
+  ---
+  duration_ms: 0.225208
+  type: 'test'
+  ...
+# Subtest: rules 1/5: close during local expiry retry still fences publication
+ok 118 - rules 1/5: close during local expiry retry still fences publication
+  ---
+  duration_ms: 0.095574
+  type: 'test'
+  ...
+# Subtest: rules 1/5: incarnation during local expiry retry still fences publication
+ok 119 - rules 1/5: incarnation during local expiry retry still fences publication
+  ---
+  duration_ms: 0.094562
+  type: 'test'
+  ...
+# Subtest: rule 5: delayed server data expires during transport
+ok 120 - rule 5: delayed server data expires during transport
+  ---
+  duration_ms: 0.278056
+  type: 'test'
+  ...
+# Subtest: rule 5: delayed server data expires during publication
+ok 121 - rule 5: delayed server data expires during publication
+  ---
+  duration_ms: 0.129254
+  type: 'test'
+  ...
+# Subtest: rule 5: delayed composed data expires during transport
+ok 122 - rule 5: delayed composed data expires during transport
+  ---
+  duration_ms: 0.249654
+  type: 'test'
+  ...
+# Subtest: rule 5: delayed composed data expires during publication
+ok 123 - rule 5: delayed composed data expires during publication
+  ---
+  duration_ms: 0.146068
+  type: 'test'
+  ...
+# Subtest: rule 5: an initial expired server answer schedules only a live watch (watch=false)
+ok 124 - rule 5: an initial expired server answer schedules only a live watch (watch=false)
+  ---
+  duration_ms: 0.170416
+  type: 'test'
+  ...
+# Subtest: rule 5: an initial expired server answer schedules only a live watch (watch=true)
+ok 125 - rule 5: an initial expired server answer schedules only a live watch (watch=true)
+  ---
+  duration_ms: 0.148242
+  type: 'test'
+  ...
+# Subtest: rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=false)
+ok 126 - rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=false)
+  ---
+  duration_ms: 0.299158
+  type: 'test'
+  ...
+# Subtest: rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=true)
+ok 127 - rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=true)
+  ---
+  duration_ms: 0.153841
+  type: 'test'
+  ...
+# Subtest: rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=false)
+ok 128 - rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=false)
+  ---
+  duration_ms: 0.1334
+  type: 'test'
+  ...
+# Subtest: rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=true)
+ok 129 - rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=true)
+  ---
+  duration_ms: 0.125167
+  type: 'test'
+  ...
+# Subtest: rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=false)
+ok 130 - rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=false)
+  ---
+  duration_ms: 0.221902
+  type: 'test'
+  ...
+# Subtest: rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=true)
+ok 131 - rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=true)
+  ---
+  duration_ms: 0.121813
+  type: 'test'
+  ...
+# Subtest: rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=false)
+ok 132 - rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=false)
+  ---
+  duration_ms: 0.131016
+  type: 'test'
+  ...
+# Subtest: rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=true)
+ok 133 - rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=true)
+  ---
+  duration_ms: 0.13996
+  type: 'test'
+  ...
+# Subtest: rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=false)
+ok 134 - rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=false)
+  ---
+  duration_ms: 0.11989
+  type: 'test'
+  ...
+# Subtest: rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=true)
+ok 135 - rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=true)
+  ---
+  duration_ms: 0.116314
+  type: 'test'
+  ...
+# Subtest: rules 3/4: expiry retry respects offline
+ok 136 - rules 3/4: expiry retry respects offline
+  ---
+  duration_ms: 0.190036
+  type: 'test'
+  ...
+# Subtest: rules 3/4: expiry retry respects prediction
+ok 137 - rules 3/4: expiry retry respects prediction
+  ---
+  duration_ms: 0.102804
+  type: 'test'
+  ...
+# Subtest: rules 3/4: expiry retry respects held
+ok 138 - rules 3/4: expiry retry respects held
+  ---
+  duration_ms: 0.090896
+  type: 'test'
+  ...
+# Subtest: rules 3/4: expiry retry respects transport failure
+ok 139 - rules 3/4: expiry retry respects transport failure
+  ---
+  duration_ms: 0.136254
+  type: 'test'
+  ...
+# Subtest: rules 4/5: expiry retry composes retained rows with its server answer
+ok 140 - rules 4/5: expiry retry composes retained rows with its server answer
+  ---
+  duration_ms: 0.718717
+  type: 'test'
+  ...
+# Subtest: rule 5: expiry fallback rechecks predictions at final publication (speculative=false)
+ok 141 - rule 5: expiry fallback rechecks predictions at final publication (speculative=false)
+  ---
+  duration_ms: 0.248973
+  type: 'test'
+  ...
+# Subtest: rule 5: expiry fallback rechecks predictions at final publication (speculative=true)
+ok 142 - rule 5: expiry fallback rechecks predictions at final publication (speculative=true)
+  ---
+  duration_ms: 0.157876
+  type: 'test'
+  ...
+# Subtest: rule 5: an expired retry server answer dirties the watch without retiring valid memory
+ok 143 - rule 5: an expired retry server answer dirties the watch without retiring valid memory
+  ---
+  duration_ms: 0.240741
+  type: 'test'
+  ...
+# Subtest: integration: expiry retry composes read-through provenance with separate clocks (publish)
+ok 144 - integration: expiry retry composes read-through provenance with separate clocks (publish)
+  ---
+  duration_ms: 0.358838
+  type: 'test'
+  ...
+# Subtest: integration: expiry retry composes read-through provenance with separate clocks (issued expiry)
+ok 145 - integration: expiry retry composes read-through provenance with separate clocks (issued expiry)
+  ---
+  duration_ms: 0.165207
+  type: 'test'
+  ...
+# Subtest: integration: expiry retry composes read-through provenance with separate clocks (server expiry)
+ok 146 - integration: expiry retry composes read-through provenance with separate clocks (server expiry)
+  ---
+  duration_ms: 0.160811
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=false)
+ok 147 - rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=false)
+  ---
+  duration_ms: 0.23383
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=true)
+ok 148 - rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=true)
+  ---
+  duration_ms: 0.114332
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=false)
+ok 149 - rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=false)
+  ---
+  duration_ms: 0.111457
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=true)
+ok 150 - rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=true)
+  ---
+  duration_ms: 0.107461
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=false)
+ok 151 - rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=false)
+  ---
+  duration_ms: 0.121823
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=true)
+ok 152 - rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=true)
+  ---
+  duration_ms: 0.123926
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=false)
+ok 153 - rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=false)
+  ---
+  duration_ms: 0.138338
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=true)
+ok 154 - rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=true)
+  ---
+  duration_ms: 0.103916
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=false)
+ok 155 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=false)
+  ---
+  duration_ms: 0.149014
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=true)
+ok 156 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=true)
+  ---
+  duration_ms: 0.159359
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=false)
+ok 157 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=false)
+  ---
+  duration_ms: 0.129143
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=true)
+ok 158 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=true)
+  ---
+  duration_ms: 0.117967
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=false)
+ok 159 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=false)
+  ---
+  duration_ms: 0.109865
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=true)
+ok 160 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=true)
+  ---
+  duration_ms: 0.458096
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=false)
+ok 161 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=false)
+  ---
+  duration_ms: 0.122995
+  type: 'test'
+  ...
+# Subtest: rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=true)
+ok 162 - rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=true)
+  ---
+  duration_ms: 0.111577
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=false)
+ok 163 - rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=false)
+  ---
+  duration_ms: 0.250716
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=true)
+ok 164 - rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=true)
+  ---
+  duration_ms: 0.103185
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=false)
+ok 165 - rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=false)
+  ---
+  duration_ms: 0.087531
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=true)
+ok 166 - rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=true)
+  ---
+  duration_ms: 0.073631
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=false)
+ok 167 - rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=false)
+  ---
+  duration_ms: 0.566339
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=true)
+ok 168 - rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=true)
+  ---
+  duration_ms: 0.098318
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=false)
+ok 169 - rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=false)
+  ---
+  duration_ms: 0.092839
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=true)
+ok 170 - rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=true)
+  ---
+  duration_ms: 0.087821
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=false)
+ok 171 - rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=false)
+  ---
+  duration_ms: 0.144026
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=true)
+ok 172 - rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=true)
+  ---
+  duration_ms: 0.105478
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=false)
+ok 173 - rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=false)
+  ---
+  duration_ms: 0.081282
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=true)
+ok 174 - rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=true)
+  ---
+  duration_ms: 0.07327
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=false)
+ok 175 - rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=false)
+  ---
+  duration_ms: 0.095764
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=true)
+ok 176 - rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=true)
+  ---
+  duration_ms: 0.092609
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=false)
+ok 177 - rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=false)
+  ---
+  duration_ms: 0.094502
+  type: 'test'
+  ...
+# Subtest: rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=true)
+ok 178 - rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=true)
+  ---
+  duration_ms: 0.101221
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=false)
+ok 179 - rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=false)
+  ---
+  duration_ms: 0.257105
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=true)
+ok 180 - rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=true)
+  ---
+  duration_ms: 0.091908
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=false)
+ok 181 - rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=false)
+  ---
+  duration_ms: 0.078067
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=true)
+ok 182 - rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=true)
+  ---
+  duration_ms: 0.070596
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=false)
+ok 183 - rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=false)
+  ---
+  duration_ms: 0.078878
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=true)
+ok 184 - rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=true)
+  ---
+  duration_ms: 0.079569
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=false)
+ok 185 - rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=false)
+  ---
+  duration_ms: 0.095583
+  type: 'test'
+  ...
+# Subtest: rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=true)
+ok 186 - rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=true)
+  ---
+  duration_ms: 0.086319
+  type: 'test'
+  ...
+# Subtest: composed delivery omits coordinates from replaced server rows (rows=false)
+ok 187 - composed delivery omits coordinates from replaced server rows (rows=false)
+  ---
+  duration_ms: 0.321752
+  type: 'test'
+  ...
+# Subtest: composed delivery omits coordinates from replaced server rows (rows=true)
+ok 188 - composed delivery omits coordinates from replaced server rows (rows=true)
+  ---
+  duration_ms: 0.135814
+  type: 'test'
+  ...
+# Subtest: retaining fallback keeps A while the second local composition read waits: keep=undefined
+ok 189 - retaining fallback keeps A while the second local composition read waits: keep=undefined
+  ---
+  duration_ms: 0.694732
+  type: 'test'
+  ...
+# Subtest: retaining fallback keeps A while the second local composition read waits: keep=true
+ok 190 - retaining fallback keeps A while the second local composition read waits: keep=true
+  ---
+  duration_ms: 0.19297
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=null server=null
+ok 191 - composed value deadlines rows=false device=null server=null
+  ---
+  duration_ms: 0.230185
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=null server=200
+ok 192 - composed value deadlines rows=false device=null server=200
+  ---
+  duration_ms: 0.108734
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=null server=400
+ok 193 - composed value deadlines rows=false device=null server=400
+  ---
+  duration_ms: 0.118488
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=null server=NaN
+ok 194 - composed value deadlines rows=false device=null server=NaN
+  ---
+  duration_ms: 0.096205
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=100 server=null
+ok 195 - composed value deadlines rows=false device=100 server=null
+  ---
+  duration_ms: 0.545118
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=100 server=200
+ok 196 - composed value deadlines rows=false device=100 server=200
+  ---
+  duration_ms: 0.154042
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=100 server=400
+ok 197 - composed value deadlines rows=false device=100 server=400
+  ---
+  duration_ms: 0.099719
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=100 server=NaN
+ok 198 - composed value deadlines rows=false device=100 server=NaN
+  ---
+  duration_ms: 0.089254
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=300 server=null
+ok 199 - composed value deadlines rows=false device=300 server=null
+  ---
+  duration_ms: 0.107201
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=300 server=200
+ok 200 - composed value deadlines rows=false device=300 server=200
+  ---
+  duration_ms: 0.155423
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=300 server=400
+ok 201 - composed value deadlines rows=false device=300 server=400
+  ---
+  duration_ms: 0.10056
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=300 server=NaN
+ok 202 - composed value deadlines rows=false device=300 server=NaN
+  ---
+  duration_ms: 0.095683
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=NaN server=null
+ok 203 - composed value deadlines rows=false device=NaN server=null
+  ---
+  duration_ms: 0.086069
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=NaN server=200
+ok 204 - composed value deadlines rows=false device=NaN server=200
+  ---
+  duration_ms: 0.077035
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=NaN server=400
+ok 205 - composed value deadlines rows=false device=NaN server=400
+  ---
+  duration_ms: 0.075834
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=false device=NaN server=NaN
+ok 206 - composed value deadlines rows=false device=NaN server=NaN
+  ---
+  duration_ms: 0.076204
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=null server=null
+ok 207 - composed value deadlines rows=true device=null server=null
+  ---
+  duration_ms: 0.135813
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=null server=200
+ok 208 - composed value deadlines rows=true device=null server=200
+  ---
+  duration_ms: 0.12033
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=null server=400
+ok 209 - composed value deadlines rows=true device=null server=400
+  ---
+  duration_ms: 0.096044
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=null server=NaN
+ok 210 - composed value deadlines rows=true device=null server=NaN
+  ---
+  duration_ms: 0.101862
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=100 server=null
+ok 211 - composed value deadlines rows=true device=100 server=null
+  ---
+  duration_ms: 0.099529
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=100 server=200
+ok 212 - composed value deadlines rows=true device=100 server=200
+  ---
+  duration_ms: 0.086279
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=100 server=400
+ok 213 - composed value deadlines rows=true device=100 server=400
+  ---
+  duration_ms: 0.084848
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=100 server=NaN
+ok 214 - composed value deadlines rows=true device=100 server=NaN
+  ---
+  duration_ms: 0.084377
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=300 server=null
+ok 215 - composed value deadlines rows=true device=300 server=null
+  ---
+  duration_ms: 0.084747
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=300 server=200
+ok 216 - composed value deadlines rows=true device=300 server=200
+  ---
+  duration_ms: 0.085348
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=300 server=400
+ok 217 - composed value deadlines rows=true device=300 server=400
+  ---
+  duration_ms: 0.097576
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=300 server=NaN
+ok 218 - composed value deadlines rows=true device=300 server=NaN
+  ---
+  duration_ms: 0.087822
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=NaN server=null
+ok 219 - composed value deadlines rows=true device=NaN server=null
+  ---
+  duration_ms: 0.083716
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=NaN server=200
+ok 220 - composed value deadlines rows=true device=NaN server=200
+  ---
+  duration_ms: 0.115944
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=NaN server=400
+ok 221 - composed value deadlines rows=true device=NaN server=400
+  ---
+  duration_ms: 0.609784
+  type: 'test'
+  ...
+# Subtest: composed value deadlines rows=true device=NaN server=NaN
+ok 222 - composed value deadlines rows=true device=NaN server=NaN
+  ---
+  duration_ms: 0.131267
+  type: 'test'
+  ...
+# Subtest: composition keeps the earliest value deadline per authority; unknown dominates
+ok 223 - composition keeps the earliest value deadline per authority; unknown dominates
+  ---
+  duration_ms: 0.367011
+  type: 'test'
+  ...
+1..223
+# tests 223
+# suites 0
+# pass 223
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 120407.308983
+-- process inspection: {"snapshots":3,"unrelatedRows":3707}
+-- client file ok: packages/snapback4/test/prediction-routing.test.mjs (120691 ms)
+TAP version 13
+# Subtest: oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+    # Subtest: snapshot overflow preserves generation and store identity
+    ok 1 - snapshot overflow preserves generation and store identity
+      ---
+      duration_ms: 472.151456
+      type: 'test'
+      ...
+    # Subtest: stream overflow preserves generation and store identity
+    ok 2 - stream overflow preserves generation and store identity
+      ---
+      duration_ms: 629.686726
+      type: 'test'
+      ...
+    # Subtest: limit 1 instructs a snapshot only for an indivisible stream page
+    ok 3 - limit 1 instructs a snapshot only for an indivisible stream page
+      ---
+      duration_ms: 622.286942
+      type: 'test'
+      ...
+    # Subtest: wasm reacquires an indivisible commit by snapshot at the same generation
+    ok 4 - wasm reacquires an indivisible commit by snapshot at the same generation
+      ---
+      duration_ms: 12606.687642
+      type: 'test'
+      ...
+    # Subtest: process reacquires an indivisible commit by snapshot at the same generation
+    ok 5 - process reacquires an indivisible commit by snapshot at the same generation
+      ---
+      duration_ms: 15273.817241
+      type: 'test'
+      ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+    # Subtest: wasm a wedged device discovers generation before shrinking the oversized page
+    ok 6 - wasm a wedged device discovers generation before shrinking the oversized page
+      ---
+      duration_ms: 4675.103333
+      type: 'test'
+      ...
+    # Subtest: process a wedged device discovers generation before shrinking the oversized page
+    ok 7 - process a wedged device discovers generation before shrinking the oversized page
+      ---
+      duration_ms: 5789.466494
+      type: 'test'
+      ...
+    1..7
+ok 1 - oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ---
+  duration_ms: 66843.124495
+  type: 'test'
+  ...
+# current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+# wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+# process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+# Subtest: an oversized reply from a replacement store is observed before shrinking even at the same generation
+    # Subtest: wasm replaces the old store before shrinking
+    ok 1 - wasm replaces the old store before shrinking
+      ---
+      duration_ms: 5660.274683
+      type: 'test'
+      ...
+    # Subtest: process replaces the old store before shrinking
+    ok 2 - process replaces the old store before shrinking
+      ---
+      duration_ms: 6759.426088
+      type: 'test'
+      ...
+    1..2
+ok 2 - an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ---
+  duration_ms: 14531.0094
+  type: 'test'
+  ...
+# Subtest: wasm a new replica recovers its oversized first commit
+ok 3 - wasm a new replica recovers its oversized first commit
+  ---
+  duration_ms: 7137.869204
+  type: 'test'
+  ...
+# {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+# Subtest: process a new replica recovers its oversized first commit
+ok 4 - process a new replica recovers its oversized first commit
+  ---
+  duration_ms: 8329.320686
+  type: 'test'
+  ...
+# {"tier":"process","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+# Subtest: wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+ok 5 - wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+  ---
+  duration_ms: 14608.192384
+  type: 'test'
+  ...
+# Subtest: process an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+ok 6 - process an oversized first commit arriving during zero-head snapshot catch-up restarts inline
+  ---
+  duration_ms: 17390.665657
+  type: 'test'
+  ...
+# Subtest: wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+ok 7 - wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+  ---
+  duration_ms: 39614.260446
+  type: 'test'
+  ...
+# Subtest: process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+ok 8 - process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon
+  ---
+  duration_ms: 41519.321115
+  type: 'test'
+  ...
+# Subtest: wasm: many ordinary commits recover by halving without snapshot
+ok 9 - wasm: many ordinary commits recover by halving without snapshot
+  ---
+  duration_ms: 9609.222321
+  type: 'test'
+  ...
+# Subtest: process: many ordinary commits recover by halving without snapshot
+ok 10 - process: many ordinary commits recover by halving without snapshot
+  ---
+  duration_ms: 10509.39875
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# Subtest: wasm a snapshot continuation overflow keeps its cursor and terminates at limit one
+ok 11 - wasm a snapshot continuation overflow keeps its cursor and terminates at limit one
+  ---
+  duration_ms: 192.973763
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+# Subtest: process a snapshot continuation overflow keeps its cursor and terminates at limit one
+ok 12 - process a snapshot continuation overflow keeps its cursor and terminates at limit one
+  ---
+  duration_ms: 255.498496
+  type: 'test'
+  ...
+# Subtest: wasm bare refusals retain held rows beyond the horizon and allow a later sync retry
+ok 13 - wasm bare refusals retain held rows beyond the horizon and allow a later sync retry
+  ---
+  duration_ms: 184.685879
+  type: 'test'
+  ...
+# Subtest: process bare refusals retain held rows beyond the horizon and allow a later sync retry
+ok 14 - process bare refusals retain held rows beyond the horizon and allow a later sync retry
+  ---
+  duration_ms: 253.537506
+  type: 'test'
+  ...
+1..14
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 231168.176669
+-- process inspection: {"snapshots":3,"unrelatedRows":3709}
+-- client file ok: packages/snapback4/test/sync-overflow.test.mjs (231449 ms)
+-- client files: 18/18; failed 0; tests {"tests":578,"pass":576,"fail":0,"cancelled":0,"skipped":2,"todo":0}

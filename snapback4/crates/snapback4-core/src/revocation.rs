@@ -173,24 +173,27 @@ fn asset(kind: &ColumnType) -> bool {
 /// Classify a complete interval. Legacy, pruned and over-limit intervals widen.
 #[cfg(feature = "sqlite")]
 pub fn preserved_between(conn: &rusqlite::Connection, schema: &Schema, after: u64, through: u64) -> Vec<String> {
-    if after == through { return Footprint::default().preserved(schema); }
-    fn read(conn: &rusqlite::Connection, after: u64, through: u64) -> Option<Footprint> {
-        if through < after { return None; }
-        let mut statement = conn.prepare("SELECT c.seq, e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>?1 AND c.seq<=?2 ORDER BY c.seq LIMIT 501").ok()?;
-        let rows = statement.query_map(rusqlite::params![after as i64, through as i64], |r| Ok((r.get::<_,i64>(0)? as u64, r.get::<_,Option<String>>(1)?))).ok()?;
-        let mut footprint = Footprint::default();
-        let mut previous = after;
-        for (count, row) in rows.enumerate() {
-            let (seq, json) = row.ok()?;
-            if count >= 500 || seq != previous + 1 { return None; }
-            let json = json?;
-            if json.len() > 262144 { return None; }
-            footprint.merge(&crate::json_codec::from_text::<Footprint>(&json).ok()?);
-            previous = seq;
-        }
-        (previous == through).then_some(footprint)
+    footprint_between(conn, after, through).map_or_else(Vec::new, |f| f.preserved(schema))
+}
+
+/// Complete bounded transaction evidence; gaps and legacy stores certify nothing.
+#[cfg(feature = "sqlite")]
+pub fn footprint_between(conn: &rusqlite::Connection, after: u64, through: u64) -> Option<Footprint> {
+    if after == through { return Some(Footprint::default()); }
+    if through < after { return None; }
+    let mut statement = conn.prepare("SELECT c.seq, e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>?1 AND c.seq<=?2 ORDER BY c.seq LIMIT 501").ok()?;
+    let rows = statement.query_map(rusqlite::params![after as i64, through as i64], |r| Ok((r.get::<_,i64>(0)? as u64, r.get::<_,Option<String>>(1)?))).ok()?;
+    let mut footprint = Footprint::default();
+    let mut previous = after;
+    for (count, row) in rows.enumerate() {
+        let (seq, json) = row.ok()?;
+        if count >= 500 || seq != previous + 1 { return None; }
+        let json = json?;
+        if json.len() > 262144 { return None; }
+        footprint.merge(&crate::json_codec::from_text::<Footprint>(&json).ok()?);
+        previous = seq;
     }
-    read(conn,after,through).map_or_else(Vec::new, |f| f.preserved(schema))
+    (previous == through).then_some(footprint)
 }
 
 #[cfg(test)]

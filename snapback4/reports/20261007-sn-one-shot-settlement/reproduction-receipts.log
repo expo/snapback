@@ -1,0 +1,134 @@
+✖ online: history settles while receipt watermark writes stay unobserved (366.676657ms)
+✖ wasm: history settles while receipt watermark writes stay unobserved (822.329337ms)
+✖ process: history settles while receipt watermark writes stay unobserved (415.482296ms)
+✖ app-online: history settles while receipt watermark writes stay unobserved (326.264889ms)
+✖ app-wasm: history settles while receipt watermark writes stay unobserved (405.732621ms)
+✖ app-process: history settles while receipt watermark writes stay unobserved (467.532318ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2976.280591
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:50:27
+✖ online: history settles while receipt watermark writes stay unobserved (366.676657ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'hello'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:67:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'hello',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:50:27
+✖ wasm: history settles while receipt watermark writes stay unobserved (822.329337ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'hello'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:67:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'hello',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:50:27
+✖ process: history settles while receipt watermark writes stay unobserved (415.482296ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'hello'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:67:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'hello',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:50:27
+✖ app-online: history settles while receipt watermark writes stay unobserved (326.264889ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'hello'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:67:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'hello',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:50:27
+✖ app-wasm: history settles while receipt watermark writes stay unobserved (405.732621ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'hello'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:67:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'hello',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:50:27
+✖ app-process: history settles while receipt watermark writes stay unobserved (467.532318ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+
+  + undefined
+  - 'hello'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-sn/snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs:67:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'hello',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

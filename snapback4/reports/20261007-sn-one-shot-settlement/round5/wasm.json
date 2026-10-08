@@ -1,0 +1,9 @@
+{
+  "raw": 2135891,
+  "gzip": 645680,
+  "budget": 646180,
+  "headroom": 500,
+  "sha256": "6c8e6b709c9c7b8b8d5b6df82486e4276cfb44f3809e8c77a82607bc84bdacb4",
+  "host": "eb1000 Linux",
+  "macos_measured": false
+}

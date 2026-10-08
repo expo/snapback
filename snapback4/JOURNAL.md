@@ -89929,6 +89929,130 @@ PostgreSQL is untouched. The ticket's final resolution and the
 record the contract correction, review dispositions and logs. No other lane,
 worktree or host was used; nothing pushed.
 
+## 2026-10-07 — SN: one-shots settle across unrelated writes
+
+Implemented LLP 3000.023 §11's dependency-scoped custody barrier across local,
+online, app facades and mock. Compiler summaries include authorization,
+receipt-owned fields, derived counts/views, search and inherited inputs/effects.
+Unknown facts remain blocking. Dependent writes wait for observation or failure
+on events within one 30-second timer; unrelated writes and known disjoint
+commits no longer consume the four publication rounds. Complete pending
+predictions remain available through observations, but cannot satisfy a
+dependent one-shot. The client guide and retry explanation reflect this.
+
+Reproduced the original barrier before changing it: 12 aggregate/commit and six
+receipt-history failures across the six arms. Mixed-queue regressions also
+caught observation sync waiting behind an unrelated send, including when the
+query began after the dependent acknowledgement. Observation sync now overlaps
+that held send while syncs remain serialized and mutation FIFO, device capture
+fences, explicit-sync freshness, rotation and close remain intact. The final
+extraction brings `local.ts` from 1,537 to 1,498 lines.
+
+The calibration evidence supports the receipt diagnosis but needs a distinction:
+its Trending query sorts by maintained `likeCount`, so likes must precede its
+answer; independent reactions need not. External builder evidence was cited in
+place, never copied into the repository. The [SN report](reports/20261007-sn-one-shot-settlement/REPORT.md)
+contains the contract, retained reproductions, negative controls, validation
+commands and results. The clean lifecycle selection passed 317 tests (one
+measurement skip); discovery/online compatibility passed 121; affected clients
+passed 535 (one unavailable legacy binary); compiler/guide checks passed 156;
+server checks passed 190 (four documented ignores). Typecheck/build and the
+reference audit pass. Final custody/terminal/deadline/explicit-sync rechecks
+passed 166 tests.
+
+No core/device/wasm source or budget changed. Fresh Linux bootstrap measured
+2,135,336 raw / 645,448 gzip bytes under the inherited 645,607 budget (159 bytes
+headroom); this is not a claim of the requested 500-byte margin for a future
+wasm change or of macOS qualification. Both wasm-budget tests pass. Work stayed
+in lane-sn on the assigned host. Nothing pushed or published.
+
+## 2026-10-07 — SN round 1: preserve predicted one-shots and order adoption
+
+Corrected round 0's stronger custody barrier per the author's ruling. A complete
+predicted device answer again settles online and offline; dependency intersection
+filters the old `!predictable || served || localWakeup` predicate. The mock's
+complete predictions follow the same exception. Restored the five test files
+that round 0 changed from one-shots to observations, including the offline
+admitted-value model. Online custody still waits on events, but a known-offline
+link refuses E_OFFLINE promptly and wakes existing waits. Only an actual pending
+gate parks a loading candidate; interruption/expiry still causes a bounded retry.
+
+The requested overlap qualification found a real hole in round 0's argument:
+store replacement could stamp a held POST's late success with the new identity,
+leaving a phantom dependency. Same-store acquisition still overlaps, under the
+existing captured send-revision, pending declaration and publication fences.
+Identity/schema adoption now defers until the ordinary POST records its outcome,
+then retries in FIFO order. Regressions cover its own success/refusal, receipt
+lookup during observation, stale pages overtaken by a later send, real store
+replacement and generation deployment on both device hosts and app facades.
+Offline wakeups also cover both online arms.
+
+LLP 3000.023 §11, the client card and E_QUERY_RETRY state the corrected guarantee:
+every relevant admitted write is observed/failed or included in a complete
+predicted device answer. The [round-1 report](reports/20261007-sn-one-shot-settlement/round1/REPORT.md)
+records the retained prediction and store-overlap reproductions, the precise
+fences, and final affected-scope validation. The one-shot fixture now supplies
+idle change-stream heartbeats so an intended 30-second online test does not
+silently become an offline test after the four-second transport watchdog.
+
+No engine/device/wasm source, budget or contract.ts change. `local.ts` is 1,499
+lines; custody policy stays in its extracted helper. Work stayed in lane-sn on
+the assigned host; nothing pushed or published. Round 0's independent review
+remains separate from this corrective round.
+
+Final validation: 330 one-shot/settlement tests, 419 affected-client tests (one
+unavailable historical-binary skip), and 118 compiler/guide tests passed. Build,
+typecheck and ref-check passed (10,547 references, zero errors/unchecked).
+
+## 2026-10-08 — SN round 2: bind publication facts and narrow completing commits
+
+Addressed both round-0 reviews on round-1 tip c6217f0eda, preserving the compiler
+summary design and the complete-prediction exception. The reviewers' original
+25 tests were run first: 17 passed, 8 failed. Five failures were outstanding
+product bugs; three asserted the pre-round-1 prediction barrier. The unchanged
+scripts now pass 22, and permanent adaptations cover the three intended hazards
+without strengthening the barrier. The report records every result and adaptation.
+
+Online final publication and custody waits now bind installed facts, store and
+highest discovered generation, including final facade approval and late discovery.
+Receipt history carries the dispatch store through persistence, adoption and
+recovery. Device settlement retires foreign-store custody without losing the
+original success or stamping its sequence into the replacement. Public Write
+shape stays unchanged. Round 1's FIFO identity/schema adoption guard remains.
+
+Completing commits retain compiler field sets. Complete authoritative sync/change
+intervals reuse the existing bounded recorder; private maintained targets project
+to public owner columns, with unmapped private changes unknown. Local input and
+server cut proofs stay independent; composed/retained answers still require their
+local coverage. Five completing receipt commits against history and unrelated
+aggregate commits settle in one round across all six tiers. Unknown/gapped
+intervals, relevant commits and malformed mock summaries retain their barriers.
+Empty same-cut sync preserves delivery debt, with a real-commit withdrawal control.
+The broader suite caught and fixed private-name exposure and a public receipt
+shape regression before commit. Its prediction-replay test now controls the
+query deadline before the independently parked change-stream watchdog.
+
+Validation: 368 settlement tests; 576 affected-client tests with two documented
+opt-in/unavailable-artifact skips; 205 custody tests; 56 supporting client tests;
+118 compiler/guide tests; 191 serve tests with four existing ignores; three core
+revocation and thirteen device receipt/authority tests. Final discovery, wasm and
+reference checks are recorded in the [round-2 report](reports/20261007-sn-one-shot-settlement/round2/REPORT.md).
+
+Locked Linux wasm: 2,135,614 raw / 645,498 gzip bytes, +278/+50 against round 1.
+The budget is 645,998: 500 bytes of headroom as requested for macOS's observed
+up-to-435-byte difference. The 391-byte cap increase includes restoring 341 bytes
+of missing platform allowance. No macOS measurement or interpreter ceiling
+change. local.ts stays under 1,500 lines. All work stayed in the assigned lane-sn
+worktree on eb1000; nothing pushed or published.
+
+Round-2 final checks: discovery/adoption/fencing passed 20 tests; the final wasm
+rebuild matched the recorded bytes and passed 30 overlap/budget tests. The final
+commit-evidence file also retains the reviewers' four relevant external-commit
+controls and compiler branch/helper closure case. Ref-check passed 531 documents
+and 10,553 references with zero errors or unchecked references. Two frozen
+change-wire expectations now include the additive interval certificate. The
+client batch's skips are specifically the optional Following shaped measurement
+and the unavailable historical 0.2.32 binary.
 ## 2026-10-07 — FL: publication dry-run flakes retain their assertions
 
 The developer-evidence test compared an absent point before the fixture's
@@ -90365,3 +90489,120 @@ The two 2,000-seed controls and the subsequent time-bounded million-case request
 are being completed; final counters, diagnoses and command summaries belong in
 `~/projects/snapback-difftest-lane/report-b.md`, Continuation 1. This amends the
 same day's slice entry at the author's explicit request.
+
+## 2026-10-08 — SN round 3: merge FL and DK before review
+
+Merged fetched origin/main `07f4c495ea` (DK retained session reasons), including
+FL `2797247960` (test-process custody and dry-run fixes), into SN round 2
+`5aa91a4ab3`. Resolved client.ts/local.ts import conflicts by retaining both
+SN dependency/network/custody imports and DK's refusal binding. Local Following
+binding remains in SN's network helper. Automatic merges preserve DK's terminal
+causes through raw clients, app custody and online arms alongside SN's event
+waits, generation/store proofs, field-level fences and dispatch-store receipts.
+The JOURNAL conflict preserves both parent histories byte-for-byte; no entry was
+rewritten or dropped. Related declarations keep local.ts at 1,498 lines; every
+changed source file remains below 1,500 lines. No contract or design change.
+
+After resolution, frozen Bun installation and the supplied SDK checker passed
+(`deps-ok`); native, wasm and client builds and TypeScript typecheck passed.
+The final Linux wasm is byte-identical to round 2: 2,135,614 raw / 645,498 gzip
+bytes. The unchanged 645,998-byte cap retains exactly 500 bytes above Linux,
+including the requested allowance for macOS's observed up-to-435-byte difference.
+No macOS build or measurement is claimed.
+
+Merged validation: 373 one-shot/dependency/settlement tests; 576 affected-client
+tests with the same two opt-in/unavailable-artifact skips; 205 custody tests;
+33 DK reason tests plus 92 app/restoration tests; 69 FL process-custody tests;
+118 compiler/guide tests; 194 serve tests with four existing ignores. The full
+app-session model passed 52 tests, including 5,000 seeded sequences per tier.
+Original round-0 scripts again returned 22 passes and the same three assertions
+superseded by round 1's complete-prediction exception; corrected permanent
+regressions passed. No failing assertion is counted as a pass. Commands, logs,
+reference validation and conflict details are in the
+[round-3 report](reports/20261007-sn-one-shot-settlement/round3/REPORT.md).
+Work stayed on eb1000 in the assigned lane-sn worktree; nothing pushed or published.
+
+
+## 2026-10-08 — SN round 4: deliberate capability-free backend pin refresh
+
+Regenerated the exact capability-free `/schema` fixture from the real compiler
+and current server on eb1000, dropping only its trailing random store_id. The
+pin grows from 2,950 to 3,100 bytes: exactly three additive settlement summaries.
+Deleting only those summary members reproduces the old pin byte-for-byte.
+The length assertion stays exact; its adjacent comment records why the pin
+changed and the author's Apartment mini evidence that published 0.2.33 native
+and WASM install/adopt/query/reopen passed before the old pin failed.
+
+The stored-schema comparison against the real 0.2.33 encoding is unchanged,
+including its two allowed diagnostic substitutions. The real Linux server's
+stored generation schema still equals the unchanged 1,359-byte golden file.
+Current native SQLite and WASM persistence both contain the same 2,389-byte
+typed backend with no settlement summary, including adoption and WASM reopen.
+A new compiler regression compares the full backend pin and original typed
+schema/Program encoding; it first reproduced the stale pin failure. LLP
+3000.023 §11 and Revised now state the additive envelope's byte change and
+one-time backend fetch/adoption on server upgrade, with no stored schema,
+interpreter IR, capability or storage migration change.
+
+The full language suite also exposed four test-only StreamReply constructors
+missed when SN round 2 added optional commit evidence. Added the neutral null
+changes field to Clique, derived-maintenance, column-commit and timeline-delivery
+helpers; its existing omission rule preserves their wire bytes and assertions.
+No runtime/device/wasm implementation or budget changed. Linux verification,
+regeneration commands and exact digests are in the
+[round-4 report](reports/20261007-sn-one-shot-settlement/round4/REPORT.md).
+The author will rerun the complete Darwin fence; no new macOS run is claimed.
+Work stayed in lane-sn on eb1000; nothing pushed or published.
+
+Round-4 final validation: the full language package passed 1,541 tests with
+13 existing ignores, including six settlement tests and 113 guide checks.
+Core schema-capability tests passed eight; affected native transport fixtures
+passed 26. The JS fixture/witness run passed four and explicitly skipped seven
+Darwin-only cases. Ref-check passed 531 documents and 10,562 references with
+zero errors or unchecked references. The exact old stored-schema assertion
+remains unchanged for the author's mini rerun.
+
+## 2026-10-08 — SN round 5: whole-settlement replay fence and discovery E_AUTH
+
+Reproduced Astra's two round-3 P1s on the round-4 tip before edits: both device
+hosts published the pre-rollback message after another prediction's replay had
+changed it, and raw online plus its facade discarded a real current-session
+E_AUTH from settlement discovery. The existing two parked-custody auth controls
+already passed. The external reviewer scripts remain unchanged except for their
+checkout import prefix; portable regressions retain both publication races.
+
+Local settlement no longer trusts the settled operation's static footprint by
+itself. The device emits transient settlement_unchanged=true only when its
+transaction restored/replayed no prediction rows and the existing bounded
+recorder proves no net row changes through delivery publication. Any prediction
+activity, changed row, recorder overflow/rollback or absent/malformed evidence
+widens the commit to unknown. Equal final rows alone do not certify unchanged
+provisional-read metadata. This preserves field narrowing for ordinary unrelated
+non-predicting settlements without guessing the contents of a racing outbox.
+The existing compiler summaries, event wait, complete-prediction exception and
+prompt offline refusal remain unchanged. The new tests cover both hosts at the
+facade's final continuation, old/malformed markers, and certificate non-reuse on
+a failed device call. The published-reply comparison allows only this precise
+successful-settlement metadata addition; its payload and backend/storage pins
+stay exact.
+
+Online discovery now routes refusals through the existing credential-revision
+handler before considering optional metadata. Current E_AUTH ends credentials
+and retains DK's exact reason; obsolete failures during or after rotation do not
+end the replacement. Successful facts from an old credential revision cannot
+install either. Raw online/facade regressions cover all these orderings. LLP
+3000.023 §11 and Revised state both fixes; the client card and E_QUERY_RETRY
+meaning remain unchanged.
+
+Reinstalled frozen dependencies (deps-ok) and rebuilt native, locked wasm and
+SDK; TypeScript checks passed. Linux wasm is 2,135,891 B raw / 645,680 B gzip,
++277 raw / +182 gzip versus round 3. Raise the cap by 182 B to 646,180 B to retain
+500 B of headroom over Linux (the author reports macOS up to +435 B). No macOS
+measurement, storage/schema/IR migration or interpreter resource ceiling change.
+local.ts remains below 1,500 lines at 1,499; client.ts has 1,341 lines.
+
+Commands, test outcomes, inherited skips, and the three original round-0
+assertions superseded by round 1 are recorded in the
+[round-5 report](reports/20261007-sn-one-shot-settlement/round5/REPORT.md).
+Work stayed in lane-sn on eb1000; nothing pushed or published. Grok's round-3
+review remains with the author for the next round; no verdict is inferred here.

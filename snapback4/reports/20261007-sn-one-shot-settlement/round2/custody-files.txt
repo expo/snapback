@@ -1,0 +1,12 @@
+packages/snapback4/test/online-store-order.test.mjs
+packages/snapback4/test/online-store-terminal.test.mjs
+packages/snapback4/test/online-terminal-entrypoints.test.mjs
+packages/snapback4/test/app-store-replacement.test.mjs
+packages/snapback4/test/store-reset-review.test.mjs
+packages/snapback4/test/store-reset-reconnect.test.mjs
+packages/snapback4/test/store-reset.test.mjs
+packages/snapback4/test/app-local-session.test.mjs
+packages/snapback4/test/app-local-outcomes.test.mjs
+packages/snapback4/test/raw-read-deadlines.test.mjs
+packages/snapback4/test/legacy-receipts.test.mjs
+packages/snapback4/test/read-only-peer-rotation.test.mjs

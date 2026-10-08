@@ -1,0 +1,21 @@
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:454:51
+    |
+454 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.14 (/home/ccheever/sb4-intent/lane-sn/snapback4/crates/snapback4-lang)
+error[E0063]: missing field `changes` in initializer of `StreamReply`
+  --> crates/snapback4-lang/tests/clique_03/transport.rs:31:25
+   |
+31 |     serde_json::to_vec(&StreamReply { preserved: Default::default(), now, sent: Default::default(),
+   |                         ^^^^^^^^^^^ missing `changes`
+
+For more information about this error, try `rustc --explain E0063`.
+error: could not compile `snapback4-lang` (test "clique_03") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

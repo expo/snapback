@@ -103,24 +103,24 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved) }))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
                 }
                 Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.stream_at(&principal, from, limit, now).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved) }))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.stream_at(&principal, from, limit, now).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
                 }
             }
         };
         match outcome {
-            Ok(SyncOutcome::Page((page, (acknowledged, committed_above), preserved))) => {
+            Ok(SyncOutcome::Page((page, (acknowledged, committed_above), preserved, changes))) => {
                 let mut overflow = json!({ "generation": generation, "store_id": store_id, "watermark": page.watermark });
                 // Whole commits cannot be split by lowering the stream limit.
                 // A snapshot pages their current rows individually instead.
                 if limit == 1 { overflow["snapshot"] = json!(true); }
                 respond_with_sync(request, 200, StreamReply {
-                    preserved,
+                    preserved, changes,
                     sent: acknowledged.iter().chain(committed_above.iter()).map(|(id, seq)| (id.clone(), *seq)).collect(),
                     images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                     joined: page.joined, more: page.more, now, snapshot: false, watermark: page.watermark,

@@ -1,0 +1,23 @@
+-- client file start: reports/20261007-sn-one-shot-settlement/round4/fixture-witness.mjs; stall bound 900000 ms
+TAP version 13
+# (node:328222) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: real compiler pin and unchanged stored schema/device IR on Linux
+ok 1 - real compiler pin and unchanged stored schema/device IR on Linux
+  ---
+  duration_ms: 161.439515
+  type: 'test'
+  ...
+# {"priorBytes":2950,"bytes":3100,"delta":150,"sha256":"c32d97550b9e16c302baca23a461a11411cd99d436ea8bdd2b8a4eee51748e7a","storedSchemaBytes":1359,"storedSchemaSha256":"3332755018a4eee39994e3e431051a39dc54fcfd0d7af5e37e9c671418f19745","nativeAndWasmStoredBackendBytes":2389,"nativeAndWasmStoredBackendSha256":"eb27bfdce483dab7266d3d91032bba98ea8023c06bd159aa8fd067f3e0267c48","onlySettlementChanged":true,"storedSchemaUnchanged":true,"summariesPersisted":false}
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 224.624587
+-- process inspection: {"snapshots":3,"unrelatedRows":3463}
+-- client file ok: reports/20261007-sn-one-shot-settlement/round4/fixture-witness.mjs (486 ms)
+-- client files: 1/1; failed 0; tests {"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0}

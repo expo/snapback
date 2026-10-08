@@ -1,0 +1,201 @@
+{"tier":"wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ wasm: sync covering a relevant online-only commit fences the old answer (664.316172ms)
+{"tier":"process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ process: sync covering a relevant online-only commit fences the old answer (254.177538ms)
+{"tier":"app-wasm","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ app-wasm: sync covering a relevant online-only commit fences the old answer (237.33489ms)
+{"tier":"app-process","read":{"data":{"id":"bob","name":"After"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"rounds":2}
+✔ app-process: sync covering a relevant online-only commit fences the old answer (259.491334ms)
+{"done":true,"pending":[{"id":"mmuymzq95-1","op":"edit","args":{},"state":"sent","predicted":[]}]}
+✖ mock: malformed query footprint stays unknown (109.590152ms)
+✔ compiler summaries include inlined helpers and both branches (152.337053ms)
+{"oldGeneration":1,"newGeneration":2,"oldWrites":{"profiles":null},"newWrites":{"messages":null}}
+{"doneBeforeWrite":true,"schemaReads":2,"checks":2,"pending":[{"id":"01M4C58TF3HEHMNE4C9SE09SE9","op":"rename","args":{"name":"changed by v2"},"state":"sent","predicted":[]}]}
+{"read":{"data":{"at":1,"body":"image-1","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":778,"indexEntries":0,"outputBytes":96,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}}
+✖ discovery of a new generation fences a prior facade candidate and its old write summary (579.920407ms)
+{"tier":"wasm","adopt":false,"earlier":{"id":"01M4C58TGYW990WGDCV66HAKDK","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C58TH9W58MXT2M0VCWHFCY","replayed":true,"seq":3,"state":"sent"}}
+✔ wasm: observation overlapping a committed POST preserves its outcome; adopt=false (666.210972ms)
+{"tier":"wasm","adopt":true,"earlier":{"id":"01M4C58TQJ4D26NDDAW0TN627E","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C58TQK9K2YFKM8EGFKRYGM","replayed":true,"seq":3,"state":"sent"}}
+✔ wasm: observation overlapping a committed POST preserves its outcome; adopt=true (578.195051ms)
+{"tier":"process","adopt":false,"earlier":{"id":"01M4C58VAWZGRNSQF2SGPEFW9M","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C58VAYQGVPSW1M004F9CNE","replayed":true,"seq":3,"state":"sent"}}
+✔ process: observation overlapping a committed POST preserves its outcome; adopt=false (251.873805ms)
+{"tier":"process","adopt":true,"earlier":{"id":"01M4C58VJVEA7X1ZXEBKZAZVHA","replayed":true,"seq":2,"state":"sent"},"later":{"id":"01M4C58VJXW34K1WR7RCYH2D0R","replayed":true,"seq":3,"state":"sent"}}
+✔ process: observation overlapping a committed POST preserves its outcome; adopt=true (624.386215ms)
+✔ online: gap receipt cannot hide a relevant commit (187.980695ms)
+✔ online: replay receipt cannot hide a relevant commit (185.823451ms)
+✔ online: dependent receipt cannot hide a relevant commit (183.669472ms)
+✔ app-online: gap receipt cannot hide a relevant commit (193.11418ms)
+✔ app-online: replay receipt cannot hide a relevant commit (192.018377ms)
+✔ app-online: dependent receipt cannot hide a relevant commit (184.058275ms)
+{"tier":"wasm","replacementRead":{"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C58XA7T8SA7QRR6XCC34AZ","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+✖ wasm: store replacement during observation does not rewrite the held POST outcome (257.021482ms)
+{"tier":"process","replacementRead":{"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"oldPostOutcome":{"state":"sent","id":"01M4C58XK0M7Z1KHSVK4RZB8C8","seq":3,"result":{"id":"bob","name":"old-tail"}}}
+✖ process: store replacement during observation does not rewrite the held POST outcome (309.414562ms)
+{"tier":"online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+✔ online: unrelated commits do not exhaust a server aggregate (192.284676ms)
+{"tier":"wasm","rounds":4,"read":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}}
+✖ wasm: unrelated commits do not exhaust a server aggregate (802.392396ms)
+{"tier":"process","rounds":4,"read":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}}
+✖ process: unrelated commits do not exhaust a server aggregate (501.291538ms)
+{"tier":"app-online","rounds":1,"read":{"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}}
+✔ app-online: unrelated commits do not exhaust a server aggregate (169.39213ms)
+{"tier":"app-wasm","rounds":4,"read":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}}
+✖ app-wasm: unrelated commits do not exhaust a server aggregate (456.590488ms)
+{"tier":"app-process","rounds":4,"read":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}}
+✖ app-process: unrelated commits do not exhaust a server aggregate (531.079542ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 17
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3966.328056
+
+✖ failing tests:
+
+test at ../../../../../tmp/sn-round2-reproductions/adversarial.test.mjs:24:1
+✖ mock: malformed query footprint stays unknown (109.590152ms)
+  AssertionError [ERR_ASSERTION]: malformed summary must not authorize publication
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/adversarial.test.mjs:35:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/generation.test.mjs:10:1
+✖ discovery of a new generation fences a prior facade candidate and its old write summary (579.920407ms)
+  AssertionError [ERR_ASSERTION]: a newly relevant admitted write must block the old candidate
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/generation.test.mjs:56:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:68:41
+✖ wasm: store replacement during observation does not rewrite the held POST outcome (257.021482ms)
+  AssertionError [ERR_ASSERTION]: {"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+  + actual - expected
+
+  + 'old-first'
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:95:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'old-first',
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:68:41
+✖ process: store replacement during observation does not rewrite the held POST outcome (309.414562ms)
+  AssertionError [ERR_ASSERTION]: {"data":{"at":1,"body":"old-first","id":"item","pending":true,"room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+  + actual - expected
+
+  + 'old-first'
+  - 'image-1'
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/overlap-and-cuts.test.mjs:95:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'old-first',
+    expected: 'image-1',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:8:92
+✖ wasm: unrelated commits do not exhaust a server aggregate (802.392396ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:19:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:8:92
+✖ process: unrelated commits do not exhaust a server aggregate (501.291538ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:19:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:8:92
+✖ app-wasm: unrelated commits do not exhaust a server aggregate (456.590488ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:19:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:8:92
+✖ app-process: unrelated commits do not exhaust a server aggregate (531.079542ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four publication races or 30 seconds, including dependent writes not covered by a complete device prediction; retry the query"}}
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///tmp/sn-round2-reproductions/unrelated-server-commits.test.mjs:19:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

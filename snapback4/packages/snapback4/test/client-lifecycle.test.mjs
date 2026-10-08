@@ -1130,7 +1130,12 @@ for (const tier of ["wasm", "native"]) {
     assert.equal((await f.server.mutate(mutation("addSource"), {})).state, "sent");
     syncRelease.resolve();
     await syncing;
-    const rebased = await client.query(query("copied"), {});
+    // This deliberately held write cannot settle. Advance the one-shot deadline
+    // before the independently parked change stream's transport watchdog fires.
+    const originalTimeout = globalThis.setTimeout;
+    const queryTimer = t.mock.method(globalThis, "setTimeout", (fn, ms, ...args) => originalTimeout(fn, ms === 30_000 ? 1000 : ms, ...args));
+    let rebased;
+    try { rebased = await client.query(query("copied"), {}); } finally { queryTimer.mock.restore(); }
     assert.deepEqual(deviceRefusals, [], "withdrawing an expanded replay still commits the authoritative stream transaction");
     assert.equal(rebased.denied?.code, "E_QUERY_RETRY", "withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of");
     sendRelease.resolve();
