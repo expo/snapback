@@ -1,0 +1,3 @@
+{"control":"default-buffer","status":1,"expectedFailure":true,"groupDrained":true}
+{"control":"silent-truncation","status":1,"expectedFailure":true,"groupDrained":true}
+{"control":"failed-status-ignored","status":1,"expectedFailure":true,"groupDrained":true}

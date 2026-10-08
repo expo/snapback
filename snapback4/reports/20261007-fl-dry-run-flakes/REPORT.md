@@ -1,5 +1,11 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-10 complete process listings:** [round 10](round-10/REPORT.md) gives
+the retention coalescing assertion a checked 128 MiB full-command listing,
+requires successful `ps` completion and preserves every matching row. It adds
+a large-table regression, overflow/truncation controls and a complete audit of
+round 8's synchronous calls.
+
 **Round-9 asynchronous capture:** [round 9](round-9/REPORT.md) fixes round 8's
 blocking initial-identity wait. Capture yields, owned timeout cleanup remains
 active, and fault dispatch awaits fresh exact identity. It includes persistent

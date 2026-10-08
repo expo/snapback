@@ -675,6 +675,54 @@ async function maintenanceIdle(f, allowParked = false) {
     throw error;
   }
 }
+function retentionProcesses(root, env = process.env) {
+  // Full commands, unlike the runner's short metadata rows, can be kilobytes
+  // each. 128 MiB fits 32,768 rows averaging 4 KiB (20,000 with headroom).
+  // -ww prevents ps itself clipping commands to a display width. checkedSpawnSync
+  // refuses ENOBUFS; a partial table must never prove custody.
+  const result = spawnSync('ps', ['-axww', '-o', 'pid=,command='], {
+    encoding: 'utf8', env, maxBuffer: 128 * 1024 * 1024,
+    timeout: fixtureWorkMs, killSignal: 'SIGKILL',
+  });
+  assert.equal(result.status, 0, `complete process listing required: ${result.stderr}`);
+  return result.stdout.split('\n').filter(line => line.includes(root) && /export-maintain|export-retain-worker|retention-group/.test(line));
+}
+
+test('retention process listing reads a large complete table and refuses partial output', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-process-listing-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const rows = [
+    ` 10001 snapback4 witness export-maintain ${root}`,
+    ` 10002 snapback4 witness export-retain-worker ${root}`,
+    ` 10003 snapback4 witness retention-group ${root}`,
+  ];
+  const unrelated = ' 20000 another-command ' + 'x'.repeat(128) + '\n';
+  // One match before the old limit, two after it. Silently truncating would
+  // incorrectly claim there is only one observer; the exact rows must survive.
+  const table = rows[0] + '\n' + unrelated.repeat(20000) + rows.slice(1).join('\n') + '\n';
+  assert.ok(Buffer.byteLength(table) > 1024 * 1024);
+  fs.writeFileSync(path.join(root, 'table'), table);
+  fs.writeFileSync(path.join(root, 'ps'), `#!${process.execPath}
+const fs = require('node:fs'), path = require('node:path');
+fs.writeFileSync(path.join(__dirname, 'args'), JSON.stringify(process.argv.slice(2)));
+fs.writeFileSync(1, fs.readFileSync(path.join(__dirname, 'table')));
+if (process.env.PS_MODE === 'overflow') {
+  const chunk = Buffer.alloc(1024 * 1024, 'x');
+  for (let i = 0; i < 129; i++) fs.writeSync(1, chunk);
+}
+if (process.env.PS_MODE === 'failed') {
+  fs.writeFileSync(2, 'fixture ps failed after partial output');
+  process.exitCode = 1;
+}
+`, { mode: 0o755 });
+  const env = { ...process.env, PATH: root + ':' + process.env.PATH, PS_MODE: 'complete' };
+  assert.deepEqual(retentionProcesses(root, env), rows);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, 'args'))), ['-axww', '-o', 'pid=,command=']);
+  assert.throws(() => retentionProcesses(root, { ...env, PS_MODE: 'failed' }), /complete process listing required: fixture ps failed/);
+  assert.throws(() => retentionProcesses(root, { ...env, PS_MODE: 'overflow' }), error =>
+    error.cause?.code === 'ENOBUFS' && /TEST_FIXTURE_COMMAND_FAILED: ps/.test(error.message));
+});
+
 for(const mode of ['off','non-macOS']) test(`held retention lock coalesces 28 skipped exports into one pending observer (${mode})`,{timeout:120000},async()=>{
   const f=fixture(); let holder, exited;
   try {
@@ -688,7 +736,7 @@ for(const mode of ['off','non-macOS']) test(`held retention lock coalesces 28 sk
       const started=Date.now(), result=f.invoke(`queued skip ${i}`);timings.push(Date.now()-started);
       assert.equal(result.status,0,result.stdout+result.stderr);
       assert.equal(read(path.join(root,'maintenance-request.json')).state,'pending');
-      const rows=spawnSync('ps',['-axo','pid=,command='],{encoding:'utf8'}).stdout.split('\n').filter(line=>line.includes(root)&&/export-maintain|export-retain-worker|retention-group/.test(line));
+      const rows=retentionProcesses(root);
       maximum=Math.max(maximum,rows.length);
       assert.equal(rows.length,1,`only the pending observer exists while retention is locked: ${rows}`);
       observers.add(read(path.join(root,'maintenance-next.json')).process.pid);

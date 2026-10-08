@@ -1,0 +1,101 @@
+{
+  "files": [
+    {
+      "file": "packages/snapback4/test/export-native.test.mjs",
+      "milliseconds": 5232,
+      "tests": 10,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1
+    },
+    {
+      "file": "packages/snapback4/test/export-failure.test.mjs",
+      "milliseconds": 7729,
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-native-round2.test.mjs",
+      "milliseconds": 5221,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-publication.test.mjs",
+      "milliseconds": 2831,
+      "tests": 6,
+      "pass": 6,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-processes.test.mjs",
+      "milliseconds": 31665,
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-file-runner.test.mjs",
+      "milliseconds": 46882,
+      "tests": 42,
+      "pass": 42,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-command-group.test.mjs",
+      "milliseconds": 12884,
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/schema-capability-refusals.test.mjs",
+      "milliseconds": 1135,
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/test-signals.test.mjs",
+      "milliseconds": 38875,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/snapback4/test/export-background.test.mjs",
+      "milliseconds": 375189,
+      "tests": 96,
+      "pass": 64,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 32
+    }
+  ],
+  "totals": {
+    "tests": 238,
+    "pass": 205,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 33
+  }
+}

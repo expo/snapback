@@ -90296,3 +90296,37 @@ remain unresolved; this is no macOS soak or full-publication claim. Work stayed
 on eb1000 in this worktree; nothing pushed.
 
 [Round-9 correction, API audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-9/REPORT.md).
+
+## 2026-10-08 — FL round 10: count the complete retention process table
+
+The user's macOS r9 soak exposed the default 1 MiB capture limit on the
+coalescing test's full-command ps listing. Round 8 correctly made ENOBUFS
+visible; older code could silently count the truncated table. Both coalescing
+variants now share a 128 MiB listing (32,768 rows averaging 4 KiB; 20,000 with
+headroom), request wide commands, and require successful completion before
+filtering. Overflow still fails explicitly. The original 28-export, one
+observer, no-custodian and full/compressed retention assertions are unchanged.
+
+The new regression puts one matching worker before 20,000 unrelated rows and
+two after them, beyond 1 MiB. It requires all three exact rows and refuses
+both nonzero ps completion and real overflow beyond 128 MiB. Private-copy
+controls fail when the default buffer returns, when truncated output is
+accepted, or when a failed ps status is ignored. All control groups drain.
+
+Every synchronous subprocess call in round 8's eight test files and four
+helper/runner modules was audited, including generated fixture source. The
+other full-table shims already use explicit 16 MiB metadata buffers. Remaining
+calls return fixed fixture data, selected-PID state, small diagnostics, or
+inherit streams. No further host-scaled default-buffer exposure was found.
+Product code and shared asynchronous capture/watchdogs are unchanged. No new
+recorded-PID dispatch is introduced; its previously documented inspection-to-
+syscall race remains, with group/handle custody preferred for owned processes.
+
+The ten affected/surrounding files pass 205 tests with 33 Darwin skips and no
+failures or leaks; export-background contributes 64 passes and 32 skips.
+The focused regression and three expected-failure controls pass, deps-ok is
+confirmed, and ref-check reports zero errors. Source and binary stay fixed
+during verification. Work stays on eb1000; nothing pushed, no Darwin or full
+publication qualification claimed. Earlier round-8 open tickets stay open.
+
+[Round-10 buffer sizing, complete call audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-10/REPORT.md).
