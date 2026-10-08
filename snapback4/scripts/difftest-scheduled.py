@@ -74,12 +74,25 @@ def clean_fast_forward(checkout):
     return tickets.git(checkout, 'rev-parse', 'HEAD').stdout.strip()
 
 
-def validate_report(path, cases, stores=False):
+DEVICE_STORES = ['sqlite', 'memory']
+
+
+def validate_report(path, cases, stores=False, devices=False):
     report = json.loads(path.read_text())
     if report['cases'] != cases or report['generated'] != cases or report['compiled'] != cases:
         raise RuntimeError(f'incomplete campaign: {path}')
     if report['generator_errors'] or report['binder_refused_unexpected'] or report['runtime_refused_unexpected']:
         raise RuntimeError(f'campaign setup or unexpected refusal: {path}')
+    if devices:
+        # Every case is one read or one write per device store (LLP 3000.035 §5.1 oracle 4).
+        for store in DEVICE_STORES:
+            counts = {phase: report['by_oracle'].get(f'device-{store}-{phase}', {}) for phase in ['read', 'write', 'cut']}
+            if counts['read'].get('attempted', 0) + counts['write'].get('attempted', 0) < cases:
+                raise RuntimeError(f'missing oracle work: device-{store}')
+            for phase in ['read', 'cut']:
+                if counts[phase].get('passed', 0) + counts[phase].get('disagreeing', 0) == 0:
+                    raise RuntimeError(f'no supported work: device-{store}-{phase}')
+        return sum(c['disagreeing'] for c in report['by_oracle'].values())
     for name in (['store-postgres-on', 'store-postgres-off'] if stores else ['repeat', 'meter']):
         counts = report['by_oracle'].get(name, {})
         if counts.get('attempted', 0) < cases:
@@ -173,13 +186,13 @@ def main():
         started = time.monotonic()
         if args.cases is None:
             calibration_started = time.monotonic()
-            for command, directory in [('run', 'calibration-sqlite'), ('run-stores', 'calibration-stores')]:
+            for command, directory in [('run', 'calibration-sqlite'), ('run-stores', 'calibration-stores'), ('run-devices', 'calibration-devices')]:
                 output = destination / directory
                 status = run([binary, command, '--seed', seed, '--cases', 256, '--workers', args.workers, '--out', output],
                              cwd=workspace, env=env, log=destination / f'{directory}.log', supervise=True)
                 if status not in (0, 1):
                     raise RuntimeError(f'{command}: calibration failed with status {status}')
-                count = validate_report(output / 'report.json', 256, command == 'run-stores')
+                count = validate_report(output / 'report.json', 256, command == 'run-stores', command == 'run-devices')
                 if bool(status) != bool(count):
                     raise RuntimeError('calibration exit status disagrees with report')
             calibration_seconds = time.monotonic() - calibration_started
@@ -194,19 +207,25 @@ def main():
             atomic_json(destination / 'run.json', report)
         disagreements = 0
         store_unsupported = 0
-        for command, directory in [('run', 'sqlite'), ('run-stores', 'stores')]:
+        device_unsupported = 0
+        for command, directory in [('run', 'sqlite'), ('run-stores', 'stores'), ('run-devices', 'devices')]:
             output = destination / directory
             status = run([binary, command, '--seed', seed, '--cases', args.cases, '--workers', args.workers, '--out', output],
                          cwd=workspace, env=env, log=destination / f'{directory}.log', supervise=True)
             if status not in (0, 1):
                 raise RuntimeError(f'{command} failed with status {status}; no completed run')
-            count = validate_report(output / 'report.json', args.cases, directory == 'stores')
+            count = validate_report(output / 'report.json', args.cases, directory == 'stores', directory == 'devices')
             if bool(status) != bool(count):
                 raise RuntimeError(f'{command}: exit status disagrees with report')
             disagreements += count
             if directory == 'stores':
                 counts=json.loads((output / 'report.json').read_text())['by_oracle']
                 store_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
+            if directory == 'devices':
+                # Online-only reads and unpredictable writes are the device's named
+                # reasons, expected in every run: recorded, never a pass, not a failure.
+                counts=json.loads((output / 'report.json').read_text())['by_oracle']
+                device_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
         report['seconds'] = time.monotonic() - started
         report['cases_per_hour'] = args.cases * 3600 / report['seconds']
         # Stable replay inherits the private cluster only for this scoped call.
@@ -218,6 +237,7 @@ def main():
             tickets.publish(checkout, paths)
         report['disagreements'] = disagreements
         report['store_unsupported'] = store_unsupported
+        report['device_unsupported'] = device_unsupported
         # Stop before advancing the seed: a failed cleanup is a failed run.
         if cluster is not None:
             must(['pg_ctl', '-D', cluster / 'data', '-m', 'fast', '-w', 'stop'], log=destination / 'pg-stop.log', timeout=120)

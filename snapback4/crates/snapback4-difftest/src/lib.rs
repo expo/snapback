@@ -4,6 +4,8 @@
 pub mod ast;
 pub mod campaign;
 pub mod coverage;
+pub mod device_writes;
+pub mod devices;
 pub mod execute;
 pub mod generate;
 pub mod meter;

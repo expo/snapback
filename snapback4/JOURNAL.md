@@ -91508,3 +91508,55 @@ reported from the host flag; a restored dev policy without the flag is not
 distinguished. New clock test plus UTC/resume unit tests; `--test clock`
 24/24, `--test check`/`replay` pass. One unrelated witness-preparation unit
 test failed once under parallel load and passes alone.
+
+## 2026-10-08 — Quarry differential testing, slice C: the server against the device
+
+LLP 3000.035 §5.1 oracle 4 is in `snapback4-difftest` (`src/devices.rs`,
+`src/device_writes.rs`, `run-devices`). Each case runs on a server engine and on
+two devices, the native SQLite store at a file path and the memory store. Both
+devices come up the way the client brings them up. The backend is the
+`/schema` reply as JSON text. Then one `local.ts::syncRound`: `sync_state`, `/sync`
+snapshot pages built as `serve_sync.rs` builds them, `observe_store`, `apply`
+through `call_text`, catch-up stream. Nothing is written into a device store
+directly.
+
+The device's published answers are compared on the whole outcome record:
+`complete` with `unknown` false, and known refusals. The only exceptions are
+the device's `seq` (always 0) and the server-only delivery manifest. Other reads
+are counted by reason, and in this generator every one is `online-only-*`.
+Writes go through `admit`. A device refusal must equal the server's. A
+predicted row must equal the committed one, less its `pending` marker. After
+`settle` and a sync round, the device must answer as the server does.
+
+The device has no ceiling input. Low ceilings reach it only through `call`'s
+`spent` ledger, which this run used. No shipped crate changed.
+
+100,000 cases in 875 s with 8 workers on a loaded M-series Mac (load 90–120):
+
+- 58,499 reads compared per store with zero disagreements; at the default
+  ceilings all seven meter fields agree.
+- 757,317 low-ceiling positions per store: 16,920 SQLite-device disagreements
+  and 29,632 memory-device disagreements, all heap or step accounting.
+- 2,282 writes compared per store, with 56 disagreeing; 2,967 convergences, all
+  passing.
+
+The heap findings are the device half of the 2026-10-08 heap ruling. The device
+interpreter reads a non-uniform-rule table through a per-candidate ~18 KB
+decoder reservation, so both stores show it. The memory store prices scans
+without SQLite's page scratch. In both, the final charge agrees and the peak
+does not. Their nine signatures route to the open heap ticket.
+
+The write finding is new: a device predicts an insert whose caller-supplied id
+belongs to a row outside its partition, and the server refuses it `E_RULE`
+(`issues/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`).
+
+Three planted device faults were each caught, then reverted with the shipped
+crates verified clean:
+
+- memory scan ties reversed: 32 read disagreements;
+- a complete page's last row dropped: 120 per store;
+- predicted writes refused: 25 per store.
+
+The memory store is exercised natively, with the core's `sqlite` feature on,
+not as the wasm artifact. The nightly runner adds `run-devices` to its
+calibration and campaign.

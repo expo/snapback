@@ -34,7 +34,11 @@ def extract(ticket, destination):
 
 def render(artifact, source, commit, date, run_id, name, verified):
     finding = artifact['finding']
-    command = f"python3 snapback4/scripts/difftest-tickets.py extract {shlex.quote('issues/' + name)} /tmp/quarry-replay\ncd snapback4\ncargo run --release -p snapback4-difftest --features postgres -- replay /tmp/quarry-replay"
+    device = 'Device' in finding['oracle']
+    features = '' if device else ' --features postgres'
+    command = f"python3 snapback4/scripts/difftest-tickets.py extract {shlex.quote('issues/' + name)} /tmp/quarry-replay\ncd snapback4\ncargo run --release -p snapback4-difftest{features} -- replay /tmp/quarry-replay"
+    setup = ('The server-against-device oracle needs no database: it runs the engine on\nSQLite and the device on its native SQLite and memory stores.' if device else
+             'Start an isolated Postgres evaluation cluster and export\n`SNAPBACK4_EVAL_POSTGRES` (see `snapback4/scripts/test-postgres.sh`), then:')
     replay_status = 'The shrunk case reproduced the signature twice.' if verified else 'Ticket-format preview only: replay has not been verified.'
     return f'''# Quarry differential test: {finding['signature']}
 
@@ -59,8 +63,7 @@ defect or underspecified point. No engine or binder change was made by the runne
 
 ## Replay
 
-Start an isolated Postgres evaluation cluster and export
-`SNAPBACK4_EVAL_POSTGRES` (see `snapback4/scripts/test-postgres.sh`), then:
+{setup}
 
 ```sh
 {command}
@@ -89,7 +92,7 @@ this ticket to `issues/closed/`.
 def artifacts(run):
     # Only merged campaign artifacts, never worker copies of the same signature.
     result = {}
-    for campaign in [Path(run), Path(run) / 'sqlite', Path(run) / 'stores']:
+    for campaign in [Path(run), Path(run) / 'sqlite', Path(run) / 'stores', Path(run) / 'devices']:
         for path in sorted(campaign.glob('*/case.json')):
             if path.parent.name.startswith('worker-'):
                 continue

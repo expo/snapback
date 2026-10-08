@@ -5,7 +5,7 @@
 **Urgency:** 3
 **Ease:** 3
 **Confidence:** 5
-**Systems:** Snapback 4, engine meter, SQLite store, Postgres store
+**Systems:** Snapback 4, engine meter, SQLite store, Postgres store, device stores
 **Date:** 2026-10-07
 **Related:** LLP 3000.035 §5.1 (found by the store oracle), LLP 3000.009 §11.1 (every outcome field identical across stores)
 
@@ -96,9 +96,41 @@ first, to find out whether the device store accounts heap a third way, so
 the fix is made once. The fix lane must first confirm the store-specific
 charging the harness lane identified.
 
-**Done when** the six signatures above stop reproducing, the pinned set in
+**Done when** the six signatures above and the nine device signatures stop reproducing, the pinned set in
 `snapback4-difftest/tests/stores.rs` is updated to match, and a scheduled
 store run reports no heap or step signatures.
+
+## The device (slice C, 2026-10-08)
+
+Slice C confirms the device charges heap a third and a fourth way. The server
+against device oracle (`snapback4-difftest run-devices`) compared 100,000 cases.
+At the default ceilings every compared read agreed on all seven meter fields,
+including `heap_bytes`. At low ceilings, set on the device through `call`'s
+`spent` ledger, 16,920 of 757,317 SQLite-device positions (2.2%) and 29,632
+memory-device positions (3.9%) disagreed. The final charge agrees; the
+transient peak that decides a cut does not, and the public meter does not show
+it.
+
+- **Device interpreter, both stores.** `engine/authorized_point.rs::scan_authorized`
+  takes the store's `scan_metered` only when `!self.device ||
+  rules.read.is_uniformly_readable()`. A device read of a table with a
+  non-uniform read rule (`.owner = viewer`) fetches each candidate inside
+  `Runner::reserved_scratch`, which charges
+  `disclosed::decode_reservation(table) + rule_scratch` (about 18 KB for the
+  generated table) and releases it.
+- **Memory store.** `snapback4-device/src/memory.rs::scan_metered` charges
+  `word_heap` sizes only: no `2 × page_size` column scratch
+  (`HeapSite::SqliteColumns`) and no per-row payload copies, which the
+  SQLite store charges.
+
+The sharpest shape: `max(items where .bucket = bucket and .owner = viewer,
+.score)` over an empty table at a ceiling of 8,579. The server completes it with
+`heap_bytes: 7`. Both devices cut it (`loading`), having reserved 18,839 bytes.
+On the memory side, a public point read of one row at 8,286 completes on the
+memory device (252) and is cut on SQLite (8,422). The shrunk cases and their
+diagnoses are under `snapback4/crates/snapback4-difftest/cases/found/device-*`.
+The fix must charge the same encoded sizes on these paths too. The signatures
+below route to this ticket.
 
 ## Scheduled-run signatures
 
@@ -118,5 +150,14 @@ and does not file a new ticket for each one.
 **Failure signature:** `store-postgres-off--steps-metered--value`  
 **Failure signature:** `store-postgres-off--heap-bytes-result--bool`  
 **Failure signature:** `store-postgres-off--heap-bytes-result--E_BOUND`  
+**Failure signature:** `device-sqlite--heap-bytes-data--loading`  
+**Failure signature:** `device-sqlite--heap-bytes-metered-examined--loading`  
+**Failure signature:** `device-sqlite--heap-bytes-metered-heap-bytes--loading`  
+**Failure signature:** `device-sqlite--steps-metered-heap-bytes--loading`  
+**Failure signature:** `device-memory--heap-bytes-data--data`  
+**Failure signature:** `device-memory--heap-bytes-data--loading`  
+**Failure signature:** `device-memory--heap-bytes-metered-examined--loading`  
+**Failure signature:** `device-memory--heap-bytes-metered-heap-bytes--loading`  
+**Failure signature:** `device-memory--steps-metered-heap-bytes--loading`  
 
 Recurrences:

@@ -106,6 +106,42 @@ class ScheduledTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'no supported work'):
             runner.validate_report(path, 10, True)
 
+    def test_device_campaign_requires_reads_and_cut_work_on_both_stores(self):
+        path = self.root / 'devices-report.json'
+        def oracle(attempted, passed=0, disagreeing=0):
+            return {'attempted': attempted, 'passed': passed, 'disagreeing': disagreeing, 'unsupported': {'online-only-unavailable': attempted - passed - disagreeing}}
+        report = {'cases': 10, 'generated': 10, 'compiled': 10, 'generator_errors': {}, 'binder_refused_unexpected': 0,
+                  'runtime_refused_unexpected': {}, 'by_oracle': {}}
+        for store in ['sqlite', 'memory']:
+            report['by_oracle'][f'device-{store}-read'] = oracle(8, 5)
+            report['by_oracle'][f'device-{store}-write'] = oracle(2)
+            report['by_oracle'][f'device-{store}-cut'] = oracle(40, 39, 1)
+        path.write_text(json.dumps(report))
+        self.assertEqual(runner.validate_report(path, 10, devices=True), 2)
+        report['by_oracle']['device-memory-write'] = oracle(1)
+        path.write_text(json.dumps(report))
+        with self.assertRaisesRegex(RuntimeError, 'missing oracle work: device-memory'):
+            runner.validate_report(path, 10, devices=True)
+        report['by_oracle']['device-memory-write'] = oracle(2)
+        report['by_oracle']['device-sqlite-read'] = oracle(8)
+        path.write_text(json.dumps(report))
+        with self.assertRaisesRegex(RuntimeError, 'no supported work: device-sqlite-read'):
+            runner.validate_report(path, 10, devices=True)
+
+    def test_device_findings_are_filed_with_a_database_free_replay(self):
+        found = self.run / 'devices' / 'device-sqlite--data--data'
+        found.mkdir(parents=True)
+        artifact = dict(self.artifact)
+        artifact['finding'] = dict(self.artifact['finding'], signature='device-sqlite--data--data',
+                                   oracle={'Device': {'store': 'sqlite', 'phase': 'read', 'ceiling': 0}})
+        (found / 'case.json').write_text(json.dumps(artifact))
+        (found / 'case.q').write_text((self.found / 'case.q').read_text())
+        tickets_by_signature = {p.read_text().split('**Failure signature:** `')[1].split('`')[0]: p for p in self.file()}
+        text = tickets_by_signature['device-sqlite--data--data'].read_text()
+        self.assertIn('-p snapback4-difftest -- replay', text)
+        self.assertNotIn('SNAPBACK4_EVAL_POSTGRES', text)
+        self.assertIn('--features postgres', tickets_by_signature[self.signature].read_text())
+
     def test_atomic_seed_state(self):
         path = self.root / 'next-seed.json'
         runner.atomic_json(path, {'version': 1, 'next_seed': 1_000_000})
@@ -162,9 +198,10 @@ class ScheduledTests(unittest.TestCase):
                     (pg/'data/postmaster.pid').write_text('fixture')
                 if command[0]=='pg_ctl' and command[-1]=='stop':
                     (pg/'data/postmaster.pid').unlink()
-                if len(command)>1 and command[1] in ['run','run-stores']:
+                if len(command)>1 and command[1] in ['run','run-stores','run-devices']:
                     output=Path(command[command.index('--out')+1]); output.mkdir()
-                    names=['repeat','meter'] if command[1]=='run' else ['store-postgres-on','store-postgres-off']
+                    names={'run':['repeat','meter'],'run-stores':['store-postgres-on','store-postgres-off'],
+                           'run-devices':[f'device-{s}-{p}' for s in ['sqlite','memory'] for p in ['read','cut']]}[command[1]]
                     (output/'report.json').write_text(json.dumps({'cases':int(command[command.index('--cases')+1]),'generated':int(command[command.index('--cases')+1]),'compiled':int(command[command.index('--cases')+1]),
                         'generator_errors':{},'binder_refused_unexpected':0,'runtime_refused_unexpected':{},
                         'by_oracle':{n:{'attempted':int(command[command.index('--cases')+1]),'passed':int(command[command.index('--cases')+1]),'disagreeing':0} for n in names}}))
@@ -197,6 +234,9 @@ class ScheduledTests(unittest.TestCase):
                         self.assertIn(setting,' '.join(start))
             report=json.loads(next((state/'runs').glob('*/run.json')).read_text())
             self.assertEqual(report['status'],'failed' if fail_start else 'completed')
+            if not fail_start:
+                self.assertTrue(any(len(c)>1 and c[1]=='run-devices' for c in calls))
+                self.assertEqual(report['device_unsupported'],0)
 
     def test_owned_worker_group_is_stopped_on_timeout(self):
         with self.assertRaises(subprocess.TimeoutExpired):

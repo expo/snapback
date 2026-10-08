@@ -21,6 +21,8 @@ cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance co
 cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and replay (opt-in, no database by default)
 cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --workers 6 --out /tmp/quarry-difftest
 cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
+cargo run --release -p snapback4-difftest -- run-devices --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-devices   # server against both device stores; no database
+cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/device-sqlite--heap-bytes-data--loading
 # Store tests require SNAPBACK4_EVAL_POSTGRES pointing to a private evaluation cluster.
 cargo test -p snapback4-difftest --features postgres  # fails if the cluster is absent
 cargo run --release -p snapback4-difftest --features postgres -- run-stores --seed 0 --cases 1000000 --workers 8 --seconds 10800 --out /tmp/quarry-stores
@@ -58,7 +60,7 @@ log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
 `snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
 world hosting the engine and a replica device), `snapback4-difftest` (seeded
 Quarry source generator, rewrite and meter oracles, optional Postgres store
-oracles with prefetch on/off, structural shrinking and replay; not published or linked by shipped crates), `snapback4-device` (the
+oracles with prefetch on/off, the server-against-device oracle on both device stores, structural shrinking and replay; not published or linked by shipped crates), `snapback4-device` (the
 interpreter over a `DeviceStore`: the core's SQLite under the native
 module for Expo and Exact2 hosts, memory under wasm on the web; one
 dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is
@@ -204,11 +206,29 @@ runner rejects incomplete reports; its own `--hours` option instead chooses a
 case count from a 256-case calibration of both campaigns, with 20% headroom and
 a million-case cap. This is a sizing estimate, not a hard deadline.
 
+Quarry device testing (`src/devices.rs`, `src/device_writes.rs`, LLP 3000.035
+§5.1 oracle 4): each case runs on a server engine and on a device of each store
+(native SQLite at a file path, and memory), both brought up through the client's
+own path: the `/schema` backend as JSON text, then `local.ts::syncRound` (capture
+`sync_state`, `/sync` snapshot pages built as `serve_sync.rs` builds them,
+`observe_store`, `apply` through `call_text`, catch-up stream). Never seed a
+device store directly. Reads the device publishes without the server (`complete`
+with `unknown` false, or a known refusal) compare the whole outcome record
+except `seq` (and server-only `delivery`); every other read counts under a named
+reason (`online-only-*`). Low ceilings reach the device only through `call`'s
+`spent` ledger (`default - n`), compared at the server's boundary positions.
+Writes go through `admit`: a device refusal must equal the server's, a
+predicted row must equal the committed one (less its `pending` marker), and
+after `settle` plus a sync round the device must answer `observe` as the server
+does. `run-devices` accepts `--seconds`. Known findings are retained under
+`cases/found/device-*` with a `DIAGNOSIS.md`; `tests/devices.rs` replays them
+and `tests/smoke.rs` pins the fixed-seed signature set.
+
 Quarry scheduled testing: prepare a separate clean clone whose current branch
 can fast-forward to `origin/main`. The runner fetches/fast-forwards it and starts
 its own socket-only evaluation cluster with `fsync=off`,
 `synchronous_commit=off`, `full_page_writes=off`, `shared_buffers=1GB`, and
-`max_connections=200`. It runs the SQLite and store campaigns on the selected
+`max_connections=200`. It runs the SQLite, store and device campaigns on the selected
 seed window, replays shrunk findings twice, and files/appends open `issues/*.md`
 tickets. Only ticket changes are committed/pushed, with three fetch/rebase
 retries. State and reports live outside Git under `--state-dir`; seeds advance

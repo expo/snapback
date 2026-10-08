@@ -16,7 +16,7 @@ fn main() {
 fn command() -> Result<bool, String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("run" | "run-stores") => {
+        Some("run" | "run-stores" | "run-devices") => {
             let mut seed = 0;
             let mut workers = 1;
             let mut cases = 1;
@@ -36,7 +36,7 @@ fn command() -> Result<bool, String> {
                 i += 2;
             }
             if cases == 0 {return Err("--cases must be positive".into());}
-            let report = campaign::parallel_mode_bounded(seed, cases, workers, &out.ok_or("--out is required")?, &std::env::current_exe().map_err(|e|e.to_string())?, args[0]=="run-stores", seconds)?;
+            let report = campaign::parallel_command(seed, cases, workers, &out.ok_or("--out is required")?, &std::env::current_exe().map_err(|e|e.to_string())?, &args[0], seconds)?;
             println!("{}", serde_json::to_string_pretty(&report).unwrap());
             Ok(report.failed())
         }
@@ -55,7 +55,7 @@ fn command() -> Result<bool, String> {
             }
         },
         _ => Err(
-            "usage: snapback4-difftest run|run-stores --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores only)] | replay <dir>"
+            "usage: snapback4-difftest run|run-stores|run-devices --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores and devices)] | replay <dir>"
                 .into(),
         ),
     }

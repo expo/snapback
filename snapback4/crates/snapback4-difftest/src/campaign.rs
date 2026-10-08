@@ -289,21 +289,37 @@ pub fn parallel_mode_bounded(
     stores: bool,
     seconds: Option<f64>,
 ) -> Result<Report, String> {
-    if seconds.is_some() && !stores {
-        return Err("--seconds currently applies only to run-stores".into());
+    parallel_command(seed, cases, workers, out, executable, if stores { "run-stores" } else { "run" }, seconds)
+}
+
+/// `verb` is `run`, `run-stores` or `run-devices`; each worker runs it.
+pub fn parallel_command(
+    seed: u64,
+    cases: u64,
+    workers: usize,
+    out: &Path,
+    executable: &Path,
+    verb: &str,
+    seconds: Option<f64>,
+) -> Result<Report, String> {
+    if seconds.is_some() && verb == "run" {
+        return Err("--seconds applies only to run-stores and run-devices".into());
     }
     if workers == 1 {
-        if stores {
-            #[cfg(feature = "postgres")]
-            {
-                return crate::stores::run_bounded(seed, cases, out, seconds);
+        match verb {
+            "run-stores" => {
+                #[cfg(feature = "postgres")]
+                {
+                    return crate::stores::run_bounded(seed, cases, out, seconds);
+                }
+                #[cfg(not(feature = "postgres"))]
+                {
+                    return Err("run-stores requires --features postgres".into());
+                }
             }
-            #[cfg(not(feature = "postgres"))]
-            {
-                return Err("run-stores requires --features postgres".into());
-            }
+            "run-devices" => return crate::devices::run_bounded(seed, cases, out, seconds),
+            _ => return run(seed, cases, out),
         }
-        return run(seed, cases, out);
     }
     if workers == 0 || workers > 64 {
         return Err("--workers must be in 1..=64".into());
@@ -337,7 +353,7 @@ pub fn parallel_mode_bounded(
         let mut command = std::process::Command::new(executable);
         command
             .args([
-                if stores { "run-stores" } else { "run" },
+                verb,
                 "--seed",
                 &start.to_string(),
                 "--cases",

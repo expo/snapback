@@ -1,4 +1,5 @@
-//! Small fixed-seed campaign plus regression tests for the harness's oracles.
+//! Small fixed-seed campaigns (engine oracles and the server-against-device
+//! oracle) plus regression tests for the harness's oracles.
 use serde_json::json;
 use snapback4_difftest::{
     ast::*,
@@ -130,4 +131,50 @@ fn parallel_workers_preserve_seed_counts() {
     two.as_object_mut().unwrap().remove("seconds");
     assert_eq!(one, two);
     std::fs::remove_dir_all(root).unwrap();
+}
+
+/// Heap and step accounting differs between the server and the device
+/// (`cases/found/device-*`, the heap-accounting ticket). Keep these visible:
+/// a new or missing signature needs diagnosis.
+const DEVICE_KNOWN: [&str; 8] = [
+    "device-memory--heap-bytes-data--loading",
+    "device-memory--heap-bytes-metered-examined--loading",
+    "device-memory--heap-bytes-metered-heap-bytes--loading",
+    "device-memory--steps-metered-heap-bytes--loading",
+    "device-sqlite--heap-bytes-data--loading",
+    "device-sqlite--heap-bytes-metered-examined--loading",
+    "device-sqlite--heap-bytes-metered-heap-bytes--loading",
+    "device-sqlite--steps-metered-heap-bytes--loading",
+];
+
+#[test]
+fn device_oracle_fixed_seeds_on_both_device_stores() {
+    use snapback4_difftest::devices;
+    let mut report = Report::default();
+    let mut files = devices::Files::new().unwrap();
+    for seed in 0..40 {
+        devices::check(&generate(seed), &mut report, &mut files, |_| {}).unwrap();
+    }
+    // A predicted insert, its settlement and convergence on both stores.
+    let mut insert = generate(0);
+    insert.program.body = Body::Write(Write::Insert, Expr::Int(1));
+    insert.program.tables[0].rule = Rule::Allow;
+    insert.program.tables[0].residency = Residency::Public;
+    insert.args["key"] = json!("fresh-id");
+    devices::check(&insert, &mut report, &mut files, |_| {}).unwrap();
+    assert!(report.generator_errors.is_empty(), "{report:#?}");
+    let signatures: std::collections::BTreeSet<_> = report.by_oracle.values().flat_map(|c| c.signatures.keys().cloned()).collect();
+    assert_eq!(signatures, DEVICE_KNOWN.iter().map(|s| s.to_string()).collect(), "new or missing signatures need diagnosis");
+    for store in devices::STORES {
+        let read = &report.by_oracle[&format!("device-{store}-read")];
+        assert!(read.passed >= 20 && read.disagreeing == 0, "{report:#?}");
+        // Only residency withholds a read in this corpus; never a pass.
+        assert!(read.unsupported.keys().all(|k| k.starts_with("online-only-")), "{report:#?}");
+        assert!(report.by_oracle[&format!("device-{store}-cut")].passed > 200, "{report:#?}");
+        // The corpus writes are online only; the planted insert predicts.
+        assert_eq!(report.by_oracle[&format!("device-{store}-write")].passed, 1, "{report:#?}");
+        assert_eq!(report.by_oracle[&format!("device-{store}-converge")].passed, 2, "{report:#?}");
+        assert_eq!(report.store_stats[&format!("device-{store}-write-insert-predicted")], 1);
+        assert!(report.store_stats[&format!("device-{store}-snapshot-pages")] > 40);
+    }
 }
