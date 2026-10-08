@@ -41,7 +41,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 Refusals: restore/Edit/Dismiss. Predictions: “Sending…”.
 Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite`: “Saving…” during submission, “Checking…” while `restoring`; afterward undefined means unknown. Never auto-resend. Dismiss after lookup. New attempts: new ids; replay omits historical results. Web/Expo starters journal this.
 
-`usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md).
+`usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md); non-JS hosts: “The device reply”.
 
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
@@ -57,7 +57,7 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 
 `null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
 Route on `present`/`absent`; follow `useAuth().state`. Reset drafts on account/backend change. Retention grants no authority.
-Revalidation retains until replacement. Deletes, policy changes and unknown/older evidence start a nonrenewable one-second bound; inserts, non-policy updates and plain revalidation retain through failures. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Scope loss withdraws dependent groups; older replicas await publication. `keep: true`: 30-second subscriber-free linger; `keep: false`: immediate withdrawal. Keys, deadlines, sign-out, credentials/store/schema/generation changes withdraw immediately.
+Deletes, policy changes and unknown/older evidence start a nonrenewable one-second bound; inserts, non-policy updates and plain revalidation retain through failures. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Scope loss withdraws dependent groups; older replicas await publication. `keep: true`: 30-second subscriber-free linger; `keep: false`: immediate withdrawal. Keys, deadlines, sign-out, credentials/store/schema/generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
 `app.online` / `useOnline()` (AppProvider): server query/observe, ephemeral mutate, act. No bearer/lifecycle; rotation fences/drains. Read-only shares its client. Durable writes: app.mutate. `guide social`: snapshots/typing/quotes/bounded screens.
@@ -80,7 +80,7 @@ Every milestone: `npm run export:ios`; proof in the background: `witness status 
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions; separate retained history/live decorations.
 
 ## One-view photos
-Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open once; recycling/refetch preserves handles. Unmount/account change revokes late responses too. Close on `absent`/denied/tombstone/changed-asset/deadline; deadlines run through loading.
+Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open once; recycling/refetch preserves handles. Unmount/account change revokes late responses. Close on `absent`/denied/tombstone/changed-asset/deadline; deadlines run through loading.
 
 ```tsx
 import { useEffect, useRef, useState } from "react";

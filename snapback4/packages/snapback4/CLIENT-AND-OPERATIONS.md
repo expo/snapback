@@ -2962,6 +2962,97 @@ The client probes the device first and refuses with `E_DEVICE_VERSION`
 when the device predates it: reloading JavaScript does not update a
 native module; rebuild the development build.
 
+### The device reply
+
+<!-- @ref LLP 3000.036#5 — the device reply is a host contract; the routing rule is the JS client's. -->
+`snapback4/client` turns every device `query` into a `Read`. A host that calls
+the module itself (`sb4_call`, `processDevice`, or the wasm device without the
+client; Exact2's first-party client is one) must make the same decisions. The
+device answers from the rows it holds plus its own predictions, and some
+answers are not its to give. The reply says which; a host that renders `data`
+without reading it shows `[]` or `0` where the server has rows.
+
+The request is `{ "op": "query", "name", "viewer", "args", "now" }`, with `now`
+the host's issued time in Unix milliseconds. A top-level `{ "denied": Refusal }`
+means the call was refused before evaluation (`E_GENERATION` for a stale
+backend, `E_INPUT`, a store failure): repair it, or ask the server. Otherwise
+the reply is `{ "ok": { .. } }`:
+
+| field | meaning |
+| --- | --- |
+| `data` | The value over the rows this device holds, including its own predicted rows. Absent when `loading` is true. |
+| `loading: true` | The device cannot produce a value within its coverage (for example a `count` over a table synced with a horizon). |
+| `complete` | `true`: the whole answer to what the query read. `false`: more may exist (a meter or word cut, a horizon, missing coverage). |
+| `cut`, `next` | As on `POST /q`: `"meter"`, `"words"` or null; the cursor to pass back for the next page, or null. |
+| `unknown` | The answer depends on facts only the server has: an `online only` table or view, `connected[p]`, rows past a sync horizon, a partition not yet acquired. |
+| `speculative` | Sent only when true. The value, or the refusal, is a placeholder computed as if the missing rows did not exist: `[]`, `0`, `null` or a `NOT_FOUND`-style refusal. It is never an answer. |
+| `retained` | The answer reads history this device keeps after leaving a group (`retain delivered-history`); the server no longer serves it, so the answer is the device's even when `unknown`. `retainedRows` marks such rows in a page. |
+| `components` | For an object whose fields are separate reads, each field's own `{ complete, unknown, retained, speculative }`. |
+| `denied` | The program refused. With `unknown: false` the refusal is authoritative; with `unknown: true` it may come from rows the device does not hold. |
+| `pending: true` (on a row) | A row this device predicted from a queued write. Server answers never carry it; the row loses it once sync applies the commit. |
+| `tables`, `scopes` | What the evaluation read: evaluate again when sync or a local write touches them. |
+| `watermark` | The device's applied sync position at evaluation. |
+| `nextExpiry`, `decorationExpiry` | The earliest future instant (issued time) at which something the answer read expires: evaluate again then, offline too. |
+
+**Whose answer.** The client's rule, for every reply:
+
+- **The device's** when `unknown` is false or `retained` is true. Render `data`
+  or the refusal. Here `complete: false` means partial, not "ask the server":
+  show "Results may be incomplete", never "no matches".
+- **The server's** when `unknown` is true and `retained` is false. Online, send
+  `POST /q/<op>` with the same arguments ("The wire", §5) and render its reply.
+  Until it lands, and offline, non-speculative `data` is a usable partial (the
+  page rows the device holds, a lower-bound count): show it as partial.
+  Speculative `data`, a speculative refusal and `loading` are not: show
+  loading, or offline the last server answer kept for the same operation and
+  arguments, labelled with its age, or unavailable (`E_OFFLINE`).
+- `E_PREDICT` or `E_NATIVE` with `unknown: true` means evaluation never began
+  (the partition is not acquired, or the native module is missing): ask the
+  server.
+- From `GET /schema`: a query with `schema.operations.<op>.held` never asks the
+  server: render the device's reply, or loading. One with `ephemeralReads`
+  always does. `runs: "server"` marks a query with a server-only read site, which a
+  host may send straight to the server.
+
+Verified with one row in an `online only` table and four rows in a table synced
+`last 2`:
+
+| read | device reply | `POST /q/<op>` |
+| --- | --- | --- |
+| page of the `online only` table | `data: []`, `unknown`, `speculative` | the row |
+| `online only` count view | `data: 0`, `unknown`, `speculative` | `4` |
+| point read of a row past the horizon | `data: null`, `unknown`, `speculative` | the row |
+| page ordered against the horizon | the two held rows, `complete: false`, `unknown` | all four |
+| `count` over the horizon table | `loading: true`, `unknown` | `4` |
+| `require exists` on a row past the horizon | `denied` (the authored code), `unknown`, `speculative` | the row |
+| `require` on an argument | `denied` (the authored code), `unknown: false` | the same refusal |
+| the viewer's own predicted insert | the row with `pending: true`, `complete: true` | absent until the write commits |
+
+**The prediction fence is the host's.** The device's answer includes queued
+writes; the server's does not until they commit, so a server answer can erase
+an optimistic row. Check the outbox (`queued`) before sending `POST /q/<op>` and
+again when its reply arrives. Hold the server answer back while a write is
+being admitted, while an unconfirmed (`observed_seq` null) predictable entry
+has no `predicted` keys, or while the tables of any unconfirmed entry's
+`predicted` keys (`table/id`) intersect the read's tables. The read's tables
+are the reply's `tables` when it is complete and known, else every table the
+operation can read. A host that cannot compute that set may hold back while
+anything is queued. Meanwhile show the device's answer, or loading if it is
+speculative, and ask again once sync observes the write. The device cannot
+apply this fence: a write can begin while the server read is in flight.
+
+**Kept server answers.** Keep each server answer by operation and arguments
+for offline recovery, ordered by its `seq` so an older reply never replaces a
+newer one. Drop it at its `nextExpiry` (server time), and on a viewer, session,
+store or backend-generation change. A device answer is current only while the
+link is online, sync is caught up and the store identity is checked; otherwise
+label it with the last sync time. When a reply mixes retained and
+server-needing parts (`components`, `retainedRows`), the client asks the server
+and keeps the retained parts from the device, waiting until the device's
+`watermark` reaches the server reply's `seq` before the server page may replace
+history. A host that does not compose them should render the device's answer
+as partial.
+
 ### Proving it on an iOS simulator
 
 `snapback4 witness ios` drives an installed Release app on macOS. It builds

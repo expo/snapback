@@ -91774,3 +91774,31 @@ the client-side scaling (`Math.round(dollars * 100)`, Python's
 `json.dumps(10.0)` writing `10.0`). `guide types`, where E_INPUT's `guide`
 pointer lands, says in one sentence that there are no floats and points to
 `guide wire`.
+
+## 2026-10-08 — App-farm lane S2, item 1: the device reply as a host contract
+
+LLP 3000.036 §5 A. Exact2's client inferred the device protocol from
+behaviour and rendered placeholders (`data: []`, `0`) as answers for a day of
+builds. `CLIENT-AND-OPERATIONS.md` §7 now has "The device reply", written from
+`snapback4-device/src/call.rs` and `local-query.ts`/`local-reads.ts` and checked
+against the debug build of `d3eee62f47` through `snapback4 device` over a real
+`/sync` snapshot, beside `POST /q` under `dev`. Observed: an `online only` table
+page `[]` and count view `0`, a point read past a `last 2` horizon `null`, and
+a `require exists` past it `denied`, each `unknown` and `speculative`; a page
+ordered against the horizon gives its two held rows, `unknown` but not
+speculative; a `count` over the horizon table is `loading`; an argument
+`require` refuses with `unknown: false`; an own predicted insert is
+`pending: true` in a `complete` answer; an object over two reads carries
+per-field `components`; a partition not yet acquired answers `E_PREDICT` with
+`unknown`; a stale page is a top-level `denied` `E_GENERATION`.
+
+The section states the routing rule, the prediction fence (which the device
+cannot apply), kept server answers and retained composition. The C header,
+`guide wire` and `guide client` point to it; the client card stays at its
+1,200-word ceiling by dropping a sentence its next sentence restates
+("Revalidation retains until replacement") and one "too". No wire change.
+
+Adding compiled mutations to `guide writes` and `guide wire` (items 3 and 4)
+changed the device crate's authoring census (`tests/readauth/census.txt`):
+two new `never` entries and renumbered writes blocks. That baseline landed as
+`883bc1217b`; the census was red on `main` between `22f78603fc` and it.

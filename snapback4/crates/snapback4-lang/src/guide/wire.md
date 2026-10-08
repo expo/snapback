@@ -37,6 +37,10 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
   generation, store_id}` when a commit lands or after `wait` seconds: re-query
   what reads those tables, then poll again from the new `seq`. `/sync` is the
   device replication protocol; use the client rather than reimplementing it.
+- A host that runs the device itself (the native module or the wasm device
+  without `snapback4/client`) must route each device `query` reply: some say
+  "ask the server" (`unknown` without `retained`) and carry a placeholder
+  `data`. "The device reply" in CLIENT-AND-OPERATIONS.md §7 is that contract.
 
 ## Numbers, money and decimals
 
