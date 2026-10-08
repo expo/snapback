@@ -10,3 +10,12 @@ pub mod meter;
 pub mod oracle;
 pub mod shrink;
 pub mod sites;
+
+#[cfg(feature = "postgres")]
+pub mod stores;
+
+#[cfg(feature = "postgres")]
+mod store_database;
+
+#[cfg(feature = "postgres")]
+mod pg_diagnostics;

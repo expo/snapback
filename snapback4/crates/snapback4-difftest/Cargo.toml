@@ -5,11 +5,16 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+default = []
+postgres = ["snapback4-core/postgres", "dep:postgres"]
+
 [dependencies]
 snapback4-core = { path = "../snapback4-core" }
 snapback4-lang = { path = "../snapback4-lang" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+postgres = { version = "0.19.14", optional = true }
 
 [[test]]
 name = "smoke"

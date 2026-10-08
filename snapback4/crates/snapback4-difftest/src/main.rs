@@ -16,11 +16,12 @@ fn main() {
 fn command() -> Result<bool, String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("run") => {
+        Some("run" | "run-stores") => {
             let mut seed = 0;
             let mut workers = 1;
             let mut cases = 1;
             let mut out = None;
+            let mut seconds = None;
             let mut i = 1;
             while i < args.len() {
                 let value = args.get(i + 1).ok_or("missing option value")?;
@@ -28,13 +29,14 @@ fn command() -> Result<bool, String> {
                     "--seed" => seed = value.parse().map_err(|_| "invalid seed")?,
                     "--workers" => workers = value.parse().map_err(|_| "invalid workers")?,
                     "--cases" => cases = value.parse().map_err(|_| "invalid cases")?,
+                    "--seconds" => { let n: f64 = value.parse().map_err(|_| "invalid seconds")?; if !n.is_finite() || n <= 0.0 { return Err("--seconds must be finite and positive".into()); } seconds = Some(n); },
                     "--out" => out = Some(PathBuf::from(value)),
                     _ => return Err(format!("unknown option {}", args[i])),
                 };
                 i += 2;
             }
             if cases == 0 {return Err("--cases must be positive".into());}
-            let report = campaign::parallel(seed, cases, workers, &out.ok_or("--out is required")?, &std::env::current_exe().map_err(|e|e.to_string())?)?;
+            let report = campaign::parallel_mode_bounded(seed, cases, workers, &out.ok_or("--out is required")?, &std::env::current_exe().map_err(|e|e.to_string())?, args[0]=="run-stores", seconds)?;
             println!("{}", serde_json::to_string_pretty(&report).unwrap());
             Ok(report.failed())
         }
@@ -53,7 +55,7 @@ fn command() -> Result<bool, String> {
             }
         },
         _ => Err(
-            "usage: snapback4-difftest run --seed <u64> --cases <n> --out <dir> [--workers <n>] | replay <dir>"
+            "usage: snapback4-difftest run|run-stores --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores only)] | replay <dir>"
                 .into(),
         ),
     }

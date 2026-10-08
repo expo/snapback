@@ -948,6 +948,7 @@ dependencies = [
 name = "snapback4-difftest"
 version = "0.4.14"
 dependencies = [
+ "postgres",
  "serde",
  "serde_json",
  "snapback4-core",

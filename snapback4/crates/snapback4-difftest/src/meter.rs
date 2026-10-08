@@ -7,7 +7,7 @@ use crate::{
     oracle::{self, Oracle, Verdict},
 };
 use serde_json::{Value as Json, json};
-use snapback4_core::{Ceilings, Engine};
+use snapback4_core::Ceilings;
 use std::collections::BTreeSet;
 
 pub fn array(out: &Outcome) -> Option<Vec<Json>> {
@@ -15,7 +15,7 @@ pub fn array(out: &Outcome) -> Option<Vec<Json>> {
 }
 
 pub fn drain(
-    engine: &mut Engine,
+    engine: &mut impl execute::Executor,
     case: &Case,
     first: &Outcome,
 ) -> Result<(Vec<Json>, Vec<Outcome>), String> {
@@ -44,7 +44,7 @@ pub fn drain(
 
 pub fn check(
     case: &Case,
-    engine: &mut Engine,
+    engine: &mut impl execute::Executor,
     baseline: &Outcome,
     dimension: &str,
     n: u64,

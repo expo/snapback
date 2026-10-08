@@ -90304,3 +90304,64 @@ sequences per tier; 92 restoration/account-custody regressions also passed.
 The SDK selection passed 231 tests with one optional 0.4.13 downgrade test
 skipped because that verified binary was not supplied. Ref-check passed 531 LLP
 documents and 10,540 references with zero errors/unchecked.
+
+## 2026-10-07 — DT-B: store oracle and scheduled runner (Continuation 1)
+
+Extended the opt-in Quarry generator with exact SQLite/Postgres comparisons,
+with prefetch on and off. Both modes receive the same generated source, typed
+inputs, seed rows, clock, IDs and ceilings. Public meter boundaries include
+mutation aborts and their post-write observations; cursor continuations retain
+and compare every public outcome. No store-specific outcome fields are omitted.
+
+Continuation 1 replaces a schema per mutation attempt with one physical schema
+per worker, including during shrinking. It restores all persisted tables and
+bookkeeping with DELETE and saved row images, installs the next compiled fixture,
+and opens the ordinary Postgres engine. This preserves physical table files.
+Mutation attempts restore the seeded snapshot and reopen the engine. An opt-in
+fresh-schema mode verifies identical serialized outcomes across reads, mutations,
+ceilings and both prefetch settings. SQLite snapshots use temporary change
+tracking triggers to restore only tables actually changed by the prior attempt;
+committed-write/reset equivalence also passes. Engine code is unchanged.
+
+Every discovered mutation position is compared twice on SQLite. Postgres checks
+up to eight seeded positions per dimension, always including first/last, plus the
+original case budget. Reads retain the full public-boundary sweep. Counters state
+selected and skipped positions. The local diagnostic observer copies unchanged
+Postgres wire traffic and retains SQLSTATE, message, detail, server fields and
+SQL statement before the query API discards the driver source. A raised server
+error tests the full diagnostics. Setup/admin errors retain their source chains.
+
+The final 2,000-case release pilot on the provided non-durable Mac cluster took
+193.258 s with eight workers (37,256 cases/hour); its slowest case took 16.048 s.
+The preceding pilot took 217.600 s (33,088 cases/hour, slowest 16.824 s).
+The supplied before measurement was 7,890 s for a requested 200 cases with two
+failed workers. The throughput aim is 100,000 cases/hour and is not yet met.
+The remaining long mutation cases enumerate byte allowances where the public
+refusal exposes no next charge; they are counted, not silently skipped.
+
+The old cluster assertion assumed no disagreements. Low-budget heap scratch
+accounting differs across stores, affecting meters, cuts, returned data and
+mutation refusals/commits. These remain reported disagreements, with shrunk
+artifacts and ticket text; the regression now requires its eight diagnosed
+signatures rather than turning them into passes. The required cargo build,
+default difftest tests and Postgres-feature tests pass; the warm cluster target
+finishes in 18.68 s. Prefetch transfer counts in the random pilot are zero: the
+current generator emits no per-row related-key lookup in a page loop and
+therefore receives no prefetch marks. The focused probe adds an eight-row
+projection with eight distinct related lookup keys.
+
+The scheduled runner sizes its default three-hour window from a 256-case
+calibration of both campaigns with 20% headroom. Its private cluster uses
+fsync=off, synchronous_commit=off, full_page_writes=off, shared_buffers=1GB and
+max_connections=200. A dry run can explicitly use an operator-owned external
+cluster and never starts/stops it. The eight Python tests cover these settings,
+calibration, external ownership, failures and seed rotation. The real 32-case
+dry run completed against a scratch clone and the provided cluster, produced
+stable ticket previews, and advanced only its dry-run seed state. No schedule
+was installed and nothing was pushed. Scratch-clone commits serve local
+qualification only; nothing is committed in this worktree.
+
+The two 2,000-seed controls and the subsequent time-bounded million-case request
+are being completed; final counters, diagnoses and command summaries belong in
+`~/projects/snapback-difftest-lane/report-b.md`, Continuation 1. This amends the
+same day's slice entry at the author's explicit request.

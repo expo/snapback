@@ -26,6 +26,14 @@ pub struct Report {
     pub pages_with_resumable_cut: u64,
     pub runtime_refusals: BTreeMap<String, u64>,
     pub runtime_refused_unexpected: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub store_stats: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub slowest_case_seconds: f64,
+    #[serde(default)]
+    pub slowest_case_seed: Option<u64>,
+    #[serde(default)]
+    pub time_limited_workers: u64,
     pub seconds: f64,
     pub seed: u64,
     pub cases: u64,
@@ -260,7 +268,41 @@ pub fn parallel(
     out: &Path,
     executable: &Path,
 ) -> Result<Report, String> {
+    parallel_mode(seed, cases, workers, out, executable, false)
+}
+pub fn parallel_mode(
+    seed: u64,
+    cases: u64,
+    workers: usize,
+    out: &Path,
+    executable: &Path,
+    stores: bool,
+) -> Result<Report, String> {
+    parallel_mode_bounded(seed, cases, workers, out, executable, stores, None)
+}
+pub fn parallel_mode_bounded(
+    seed: u64,
+    cases: u64,
+    workers: usize,
+    out: &Path,
+    executable: &Path,
+    stores: bool,
+    seconds: Option<f64>,
+) -> Result<Report, String> {
+    if seconds.is_some() && !stores {
+        return Err("--seconds currently applies only to run-stores".into());
+    }
     if workers == 1 {
+        if stores {
+            #[cfg(feature = "postgres")]
+            {
+                return crate::stores::run_bounded(seed, cases, out, seconds);
+            }
+            #[cfg(not(feature = "postgres"))]
+            {
+                return Err("run-stores requires --features postgres".into());
+            }
+        }
         return run(seed, cases, out);
     }
     if workers == 0 || workers > 64 {
@@ -292,16 +334,21 @@ pub fn parallel(
         offset += n;
         let log = std::fs::File::create(out.join(format!("worker-{i}.log")))
             .map_err(|e| e.to_string())?;
-        let child = std::process::Command::new(executable)
+        let mut command = std::process::Command::new(executable);
+        command
             .args([
-                "run",
+                if stores { "run-stores" } else { "run" },
                 "--seed",
                 &start.to_string(),
                 "--cases",
                 &n.to_string(),
                 "--out",
             ])
-            .arg(&path)
+            .arg(&path);
+        if let Some(seconds) = seconds {
+            command.args(["--seconds", &seconds.to_string()]);
+        }
+        let child = command
             .stdout(log.try_clone().map_err(|e| e.to_string())?)
             .stderr(log)
             .spawn()
@@ -328,6 +375,7 @@ pub fn parallel(
         }
     }
     let mut combined = json!({});
+    let mut slowest = (0.0, None);
     let mut artifacts: BTreeMap<String, shrink::Artifact> = BTreeMap::new();
     for mut job in jobs {
         let status = job
@@ -338,7 +386,11 @@ pub fn parallel(
             .map_err(|e| e.to_string())?;
         job.child.take();
         if !matches!(status.code(), Some(0 | 1)) {
-            return Err(format!("campaign worker failed: {status}"));
+            let detail = std::fs::read_to_string(job.path.join("report.json")).unwrap_or_default();
+            return Err(format!(
+                "campaign worker failed: {status}; path={}; report={detail}",
+                job.path.display()
+            ));
         }
         let path = &job.path;
         let report: Report = serde_json::from_slice(
@@ -348,8 +400,17 @@ pub fn parallel(
         if status.success() == report.failed() {
             return Err("worker exit status disagrees with its report".into());
         }
+        if report.slowest_case_seconds > slowest.0 {
+            slowest = (report.slowest_case_seconds, report.slowest_case_seed);
+        }
         let mut value = serde_json::to_value(&report).unwrap();
-        for key in ["seed", "cases", "seconds"] {
+        for key in [
+            "seed",
+            "cases",
+            "seconds",
+            "slowest_case_seconds",
+            "slowest_case_seed",
+        ] {
             value.as_object_mut().unwrap().remove(key);
         }
         add(&mut combined, value);
@@ -375,6 +436,8 @@ pub fn parallel(
     for (signature, a) in artifacts {
         shrink::save(&out.join(signature), &a)?;
     }
+    combined["slowest_case_seconds"] = json!(slowest.0);
+    combined["slowest_case_seed"] = json!(slowest.1);
     combined["seed"] = json!(seed);
     combined["cases"] = json!(cases);
     combined["seconds"] = json!(started.elapsed().as_secs_f64());

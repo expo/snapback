@@ -100,17 +100,38 @@ impl Rewrite {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Oracle {
     Repeat,
+    StoreSqliteRepeat {
+        dimension: Option<String>,
+        ceiling: u64,
+    },
+    Store {
+        prefetch: bool,
+        dimension: Option<String>,
+        ceiling: u64,
+    },
     Rewrite(Rewrite),
-    Meter { dimension: String, ceiling: u64 },
+    Meter {
+        dimension: String,
+        ceiling: u64,
+    },
 }
 impl Oracle {
     pub fn name(&self) -> String {
         match self {
             Self::Repeat => "repeat".into(),
+            Self::StoreSqliteRepeat { .. } => "store-sqlite-mutation-repeat".into(),
+            Self::Store { prefetch, .. } => {
+                format!("store-postgres-{}", if *prefetch { "on" } else { "off" })
+            }
             Self::Rewrite(r) => format!("rewrite-{}", r.name()),
             Self::Meter { .. } => "meter".into(),
         }
     }
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StoreTrace {
+    pub left: Vec<Outcome>,
+    pub right: Vec<Outcome>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Finding {
@@ -120,6 +141,8 @@ pub struct Finding {
     pub left: Outcome,
     pub right: Outcome,
     pub continuation: Vec<Outcome>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub store_trace: Option<StoreTrace>,
 }
 #[derive(Clone, Debug)]
 pub enum Verdict {
@@ -186,6 +209,7 @@ pub fn disagreement(
         left,
         right,
         continuation,
+        store_trace: None,
     })
 }
 pub fn field(a: &Outcome, b: &Outcome, omit_meter: bool) -> Option<String> {
@@ -263,6 +287,16 @@ pub fn ceiling(dimension: &str, n: u64) -> Ceilings {
 pub fn reproduce(case: &Case, source: &str, oracle: &Oracle) -> Result<Verdict, String> {
     match oracle {
         Oracle::Repeat => repeat(case, source).map(|v| v.0),
+        Oracle::Store { .. } | Oracle::StoreSqliteRepeat { .. } => {
+            #[cfg(feature = "postgres")]
+            {
+                crate::stores::reproduce(case, source, oracle)
+            }
+            #[cfg(not(feature = "postgres"))]
+            {
+                Err("store replay requires --features postgres and SNAPBACK4_EVAL_POSTGRES".into())
+            }
+        }
         Oracle::Rewrite(r) => rewrite(case, r, source).map(|v| v.0),
         Oracle::Meter {
             dimension,

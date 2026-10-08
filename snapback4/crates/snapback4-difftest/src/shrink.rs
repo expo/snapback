@@ -90,15 +90,20 @@ fn smaller(case: &Case) -> Vec<Case> {
     }
     out
 }
-pub fn shrink(mut case: Case, mut finding: Finding) -> Artifact {
+pub fn shrink(case: Case, finding: Finding) -> Artifact {
+    shrink_with(case, finding, oracle::reproduce)
+}
+pub fn shrink_with(
+    mut case: Case,
+    mut finding: Finding,
+    mut reproduce: impl FnMut(&Case, &str, &oracle::Oracle) -> Result<Verdict, String>,
+) -> Artifact {
     let mut attempts = 0;
     loop {
         let mut reduced = None;
         for c in smaller(&case) {
             attempts += 1;
-            if let Ok(Verdict::Disagree(f)) =
-                oracle::reproduce(&c, &c.program.source(), &finding.oracle)
-            {
+            if let Ok(Verdict::Disagree(f)) = reproduce(&c, &c.program.source(), &finding.oracle) {
                 if f.signature == finding.signature {
                     reduced = Some((c, f));
                     break;
