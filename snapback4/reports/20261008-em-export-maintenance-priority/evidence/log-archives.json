@@ -1,0 +1,58 @@
+[
+  {
+    "source": "clock-unit.log",
+    "archive": "clock-unit.log.gz",
+    "bytes": 204,
+    "sha256": "e44a0ad84fd042abc747e25613e4f6f8aba407644ec31cd91a5e5cb460499170",
+    "archiveSha256": "3befe0f2e33fd2725ac4230d54485a890c8c20ce1b2bffb6c13ac043f54d7f4f"
+  },
+  {
+    "source": "native-policy.log",
+    "archive": "native-policy.log.gz",
+    "bytes": 1647,
+    "sha256": "aa83d7e880d7fdc18c4492cfcc6d6b0446e441f381f7df0b11515e152cc5d33d",
+    "archiveSha256": "9cd78235813320f31279ef36bc114a52b2862150c60cfb28a90d18de17731d0e"
+  },
+  {
+    "source": "policy-negative-release.diff",
+    "archive": "policy-negative-release.diff.gz",
+    "bytes": 1008,
+    "sha256": "77ebf0744bd3b89ee7c81d2762b7a685a9f1cc3e84744b50b42e32322413c380",
+    "archiveSha256": "3b38fc90683fdbf699b6f4639ba457ff3f7c9ea720b5441124802d43daab9536"
+  },
+  {
+    "source": "policy-negative-release.log",
+    "archive": "policy-negative-release.log.gz",
+    "bytes": 1873,
+    "sha256": "c678e27ba40a992cab539f4eb8d708fcdcdaa0b3b0a45f2d727b8140dc4a5c2f",
+    "archiveSha256": "e5e6496409c812318bc89defd4d2a99d71e9e5a279dfb6bcad3f5e2ae865d893"
+  },
+  {
+    "source": "policy-no.log",
+    "archive": "policy-no.log.gz",
+    "bytes": 310,
+    "sha256": "5c04689ff64eff6242202b68b12e2f624edb311a9ffd005afcb1a3437335bd50",
+    "archiveSha256": "2250efc2de6ddf5f26006f2bde1c78fd8174b8627f7077daca1c1e403f63b183"
+  },
+  {
+    "source": "policy-yes.log",
+    "archive": "policy-yes.log.gz",
+    "bytes": 310,
+    "sha256": "6406f01559df398688d111fd85bf88569d65039dbaa828769f97ec07e63410e7",
+    "archiveSha256": "3e29a8e603e8df9ef033e41d276537e8f618b09c72a0e95acec711c42f74aaaa"
+  },
+  {
+    "source": "recovery.log",
+    "archive": "recovery.log.gz",
+    "bytes": 3854,
+    "sha256": "58b4f6456d9f3e0cd6feed351d4ec8dd080f7f2be71b5027c2e9e7955c1e27dd",
+    "archiveSha256": "de9db6232643c65c9c7e09cb11e60cac062e62b887d8c298fa54feaa24d86142"
+  },
+  {
+    "source": "retention.log",
+    "archive": "retention.log.gz",
+    "bytes": 1007,
+    "sha256": "32045c2c31bae97f203ef99d03642efc21d578e6e0d1c4741e0e07cfa28c9a47",
+    "archiveSha256": "1e763395789591c8eff7bf2b8177ef914fd44ce339eeb041a68261fd0a1a7cb8"
+  }
+]

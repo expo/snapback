@@ -1,0 +1,268 @@
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427870477000000-f45c8367-cleanup-cleanup
+✔ export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export (8249.336041ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427878221070000-5928919c-cleanup-cleanup
+✔ new publication supersedes blocked smoke; only one driver enters the tool at a time (7742.022041ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427886148165000-329dc99b-cleanup-cleanup
+✔ SIGKILL of background driver cleans its peer/tools without another export (7926.858917ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427893478738000-326f69bb-cleanup-cleanup
+✔ SIGKILL of background worker cleans its peer/tools without another export (7332.8685ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427902643742000-f892994d-cleanup-cleanup
+✔ SIGTERM of background worker cleans its peer/tools without another export (9163.346958ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427911921188000-74900eeb-cleanup-cleanup
+✔ SIGHUP of background worker cleans its peer/tools without another export (9277.527167ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427917039067000-48af8dbe-cleanup-cleanup
+✔ interrupting a status observer leaves the detached proof running (5113.927791ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427922064025000-31bad0cd-cleanup-cleanup
+✔ background product failure stays loud without changing export success (5025.38ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427928191364000-eeff711f-cleanup-cleanup
+✔ failed evidence pruning does not rewrite a completed native outcome (6132.577917ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427935702805000-1df6604c-cleanup-cleanup
+✔ driver death during auto-create-buffered-timeout deletes only its recorded simulator (7507.869417ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427942681963000-67a07fe3-cleanup-cleanup
+✔ driver death during auto-create-race deletes only its recorded simulator (6980.993667ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427950385239000-d2041568-cleanup-cleanup
+✔ worker death during auto-create-race deletes only its recorded simulator (7701.716ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427955527954000-305f5ea6-cleanup-cleanup
+✔ an explicit opt-out supersedes an in-flight proof and reports the new export as skipped (5144.750291ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427957556501000-fad2f093-cleanup-cleanup
+✔ failed latest handoff cannot report an older pass (export one) (2025.153542ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427959701563000-d8db22aa-cleanup-cleanup
+✔ failed latest handoff cannot report an older pass (changed export) (2143.215375ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427962062742000-ae8997e9-cleanup-cleanup
+✔ failed export-skipped handoff cannot report an older pass (off, equal bytes) (2365.333792ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427964545815000-efcbb712-cleanup-cleanup
+✔ failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes) (2479.777209ms)
+retention before SIGTERM: complete custody drained in 333 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427971475772000-23ca9f17-cleanup-cleanup
+✔ blocked retention has bounded custody: before SIGTERM (6941.645875ms)
+retention before SIGKILL: complete custody drained in 294 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427978982115000-5a0c4d6a-cleanup-cleanup
+✔ blocked retention has bounded custody: before SIGKILL (7505.54325ms)
+retention before supersede: complete custody drained in 588 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791427986088142000-4b9fec87-cleanup-cleanup
+✔ blocked retention has bounded custody: before supersede (7102.310416ms)
+retention before deadline: complete custody drained in 29777 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428025573857000-548c6d2e-cleanup-cleanup
+✔ blocked retention has bounded custody: before deadline (39489.76775ms)
+retention after SIGTERM: complete custody drained in 1996 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428042017452000-13e65772-cleanup-cleanup
+✔ blocked retention has bounded custody: after SIGTERM (16443.417667ms)
+retention after SIGKILL: complete custody drained in 180 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428050958287000-83bec58c-cleanup-cleanup
+✔ blocked retention has bounded custody: after SIGKILL (8937.726333ms)
+retention after supersede: complete custody drained in 558 ms; newer proof started
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428059862493000-fda2b1fc-cleanup-cleanup
+✔ blocked retention has bounded custody: after supersede (8903.621125ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428065578199000-a2a8e465-cleanup-cleanup
+✔ overlapping skipped export cannot inherit a concurrent publication's proof (marker failure) (5709.871042ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428072443102000-da4b1739-cleanup-cleanup
+✔ overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure) (6867.760375ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428074613577000-2a697fff-cleanup-cleanup
+✔ first opt-out publishes a complete skipped handoff (2164.664917ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428079509247000-eff4400b-cleanup-cleanup
+✔ request timestamp begins at publication commit, not private marker creation (4898.656375ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428080088122000-ba4daa98-cleanup-cleanup
+✔ direct export-retain has bounded custody and the inner worker rejects manual use (575.735791ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428089175216000-c7f46899-cleanup-cleanup
+✔ SIGKILL overlap defers a still-held retention lock and starts the next proof (9097.24475ms)
+{"mode":"off","exports":28,"full":5,"compressed":20,"returnMs":[307,271,268,283,277,265,276,302,336,276,269,279,278,278,286,284,279,285,288,273,312,276,297,287,278,309,309,290]}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428100746463000-5780dac4-cleanup-cleanup
+✔ repeated skipped exports retain five full plus twenty compressed runs (off) (11582.418333ms)
+{"mode":"non-macOS","exports":28,"full":5,"compressed":20,"returnMs":[317,273,272,281,276,287,280,277,282,278,298,282,338,295,282,282,315,307,292,297,285,264,279,270,271,297,275,268]}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428111344813000-7528ff0c-cleanup-cleanup
+✔ repeated skipped exports retain five full plus twenty compressed runs (non-macOS) (10601.095625ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428123126044000-efd8c493-cleanup-cleanup
+✔ skipped maintenance never blocks publication and drains under SIGTERM (off) (11776.351875ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428129945318000-f507781a-cleanup-cleanup
+✔ skipped maintenance never blocks publication and drains under SIGKILL (non-macOS) (6831.037667ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428164968953000-f017df56-cleanup-cleanup
+✔ skipped maintenance never blocks publication and drains under deadline (off) (35024.44ms)
+{"mode":"off","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[423,357,329,328,314,338,349,371,368,385,398,421,398,337,380,345,339,353,358,346,373,402,423,403,444,426,459,435]}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428208130846000-e926fb1c-cleanup-cleanup
+✔ held retention lock coalesces 28 skipped exports into one pending observer (off) (43186.199ms)
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428318052862000-2de450ff-failure-drain-timeout
+maintenance evidence (cleanup): capture skipped or exceeded its bound
+✖ held retention lock coalesces 28 skipped exports into one pending observer (non-macOS) (110100.580541ms)
+maintenance evidence (test-guard): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428318273979000-d8f2375c-failure-test-guard
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428323059837000-c7063b07-cleanup-cleanup
+✔ first-started last-published generation remains full evidence (off) (4784.272292ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428327741615000-0e2860ef-cleanup-cleanup
+✔ first-started last-published generation remains full evidence (non-macOS) (4679.461666ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428335667387000-c338c96e-cleanup-cleanup
+✔ first-started last-published generation remains full evidence (background) (7930.829958ms)
+{"mode":"off","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428345066567000-a369fb12-cleanup-cleanup
+✔ failed handoffs with held wrapper leases retain deferred maintenance (off) (9402.363375ms)
+{"mode":"non-macOS","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428355043494000-13717701-cleanup-cleanup
+✔ failed handoffs with held wrapper leases retain deferred maintenance (non-macOS) (9978.551417ms)
+{"mode":"background","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428365379851000-95683424-cleanup-cleanup
+✔ failed handoffs with held wrapper leases retain deferred maintenance (background) (10329.647584ms)
+{"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428374864431000-c142d3ca-cleanup-cleanup
+✔ a held exclusive publication lock pauses one observer without starting retention workers (9511.932125ms)
+{"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428384369513000-0934c922-cleanup-cleanup
+✔ a held shared publication lock pauses one observer without starting retention workers (9484.691208ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428391858768000-2a4333e9-cleanup-cleanup
+✔ failed maintenance retains a parked request and a later export retries it (7482.054125ms)
+{"interruptedPublication":"before","workerStarts":1,"repairMs":3224,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428406456816000-44a3d71b-cleanup-cleanup
+✔ retention repairs an ownerless publication before exchange without worker respawn (14608.692125ms)
+{"interruptedPublication":"after","workerStarts":1,"repairMs":4146,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428421822384000-f9ba8ab4-cleanup-cleanup
+✔ retention repairs an ownerless publication after exchange without worker respawn (15364.012625ms)
+{"ownerlessRepair":"off","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428434573338000-ae7dd662-cleanup-cleanup
+✔ failed export lease removes its shell and retention repairs legacy ownerless runs (off) (12752.776042ms)
+{"ownerlessRepair":"non-macOS","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428445734134000-30be64e0-cleanup-cleanup
+✔ failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS) (11155.448458ms)
+{"ownerlessRepair":"background","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428457730868000-cd92b7d0-cleanup-cleanup
+✔ failed export lease removes its shell and retention repairs legacy ownerless runs (background) (12024.90625ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428471538590000-9856d96f-cleanup-cleanup
+✔ a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true) (13785.795792ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428488179267000-c04d9d82-cleanup-cleanup
+✔ a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false) (16646.903ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428502125301000-3b9ac534-cleanup-cleanup
+✔ retention cannot remove a run between directory creation and export lease acquisition (13939.197709ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428509714907000-02328b1e-cleanup-cleanup
+✔ export initialization refuses a live stuck initializer within five seconds (7564.600208ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428516393064000-21370922-cleanup-cleanup
+✔ SIGKILL of the sole maintenance custodian restores retention without another export (6695.060958ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428521756373000-14d6810a-cleanup-cleanup
+✔ SIGKILL of the sole maintenance observer restores retention without another export (5367.54625ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428535142744000-c3050565-cleanup-cleanup
+✔ failed Expo exports and dead wrapper journals never occupy keep slots (off) (13395.593458ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428548558052000-74fb5f20-cleanup-cleanup
+✔ failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS) (13406.625084ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428567370619000-98dd8744-cleanup-cleanup
+✔ failed Expo exports and dead wrapper journals never occupy keep slots (background) (18817.854042ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428580489073000-d38327a1-cleanup-cleanup
+✔ repeated raced retention-lock deferrals stay pending and restore the bound after release (13113.728084ms)
+{"point":"publication-committed","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":3334,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428597177086000-ee0a2e5c-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (off, next Expo succeeds) (16689.968959ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428634461326000-b621d328-cleanup-cleanup
+✔ expired checkpoint refuses signal after 22-second dispatch delay (37283.459417ms)
+{"point":"publication-committed","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":1879,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428649293889000-26fa5687-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (off, next Expo fails) (14838.072ms)
+{"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":2968,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428666553552000-187f940b-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds) (17255.416333ms)
+{"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":2022,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428682025821000-80302fc1-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (non-macOS, next Expo fails) (15474.345667ms)
+{"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":4616,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428700040875000-24b21acb-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (background, next Expo succeeds) (18031.538375ms)
+{"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1892,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428713933554000-418346ea-cleanup-cleanup
+✔ maintenance crash matrix: publication-committed (background, next Expo fails) (13873.4005ms)
+{"point":"publication-handoff","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":3010,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428728141551000-b833397e-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (off, next Expo succeeds) (14208.868ms)
+{"point":"publication-handoff","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":1874,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428742444433000-40ba9413-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (off, next Expo fails) (14301.768042ms)
+{"point":"publication-handoff","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":4000,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428761293649000-ad7c0c37-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds) (18850.863708ms)
+{"point":"publication-handoff","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":1627,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428774713601000-e843f183-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (non-macOS, next Expo fails) (13415.567167ms)
+{"point":"publication-handoff","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":4554,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428790509618000-99360831-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (background, next Expo succeeds) (15801.755875ms)
+{"point":"publication-handoff","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1662,"full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428804734071000-67d2ee95-cleanup-cleanup
+✔ maintenance crash matrix: publication-handoff (background, next Expo fails) (14222.676459ms)
+{"point":"request-created","recovery":"next export","restoredMs":1883,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428807187850000-5b79dbe0-cleanup-cleanup
+✔ maintenance crash matrix: request-created (next export) (2446.324375ms)
+{"point":"request-prepared","recovery":"next export","restoredMs":2825,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428810643535000-1a05b46b-cleanup-cleanup
+✔ maintenance crash matrix: request-prepared (next export) (3456.404583ms)
+{"point":"request-committed","recovery":"next export","restoredMs":4035,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428815250600000-a47752b3-cleanup-cleanup
+✔ maintenance crash matrix: request-committed (next export) (4603.441125ms)
+{"point":"claim-renamed","recovery":"peer","restoredMs":3476,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428819387606000-2843a63b-cleanup-cleanup
+✔ maintenance crash matrix: claim-renamed (peer) (4155.464042ms)
+{"point":"claim-recorded","recovery":"peer","restoredMs":1924,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428822117922000-744de347-cleanup-cleanup
+✔ maintenance crash matrix: claim-recorded (peer) (2715.917792ms)
+{"point":"scan-starting","recovery":"peer","restoredMs":2325,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428825042469000-0071c9fa-cleanup-cleanup
+✔ maintenance crash matrix: scan-starting (peer) (2928.26575ms)
+{"point":"compress-before","recovery":"next export","restoredMs":5220,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428831253409000-d4fd55d6-cleanup-cleanup
+✔ maintenance crash matrix: compress-before (next export) (6206.684292ms)
+{"point":"compress-committed","recovery":"next export","restoredMs":4943,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428837117191000-f26238ea-cleanup-cleanup
+✔ maintenance crash matrix: compress-committed (next export) (5868.881125ms)
+{"point":"delete-before","recovery":"next export","restoredMs":2831,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428841359770000-80bc3ba9-cleanup-cleanup
+✔ maintenance crash matrix: delete-before (next export) (4238.422416ms)
+{"point":"delete-after","recovery":"next export","restoredMs":4379,"full":5,"compressed":20,"attempt":3}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428847145303000-476a177e-cleanup-cleanup
+✔ maintenance crash matrix: delete-after (next export) (5789.220417ms)
+{"point":"scan-complete","recovery":"peer","restoredMs":1858,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428850711770000-21921246-cleanup-cleanup
+✔ maintenance crash matrix: scan-complete (peer) (3564.038875ms)
+{"point":"done-before","recovery":"peer","restoredMs":1758,"full":5,"compressed":20,"attempt":2}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428854581084000-5970aaac-cleanup-cleanup
+✔ maintenance crash matrix: done-before (peer) (3865.913417ms)
+{"point":"done-after","recovery":"already complete","restoredMs":567,"full":5,"compressed":20,"attempt":1}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428857083197000-8b00a21e-cleanup-cleanup
+✔ maintenance crash matrix: done-after (already complete) (2504.864583ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428860064395000-f5c3639f-cleanup-cleanup
+✔ a custodian killed after claiming an empty legacy request resumes without a later export (2977.414375ms)
+{"point":"handoff-pending","victim":"observer","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428862927408000-7304e358-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-pending kills observer (2863.5305ms)
+{"point":"handoff-pending","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428865910020000-2b3e730d-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-pending kills custodian (2981.262417ms)
+{"point":"handoff-busy","victim":"observer","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428869611034000-c2cae128-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-busy kills observer (3704.452958ms)
+{"point":"handoff-busy","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428872640096000-626cd2ee-cleanup-cleanup
+✔ maintenance handoff crash matrix: handoff-busy kills custodian (3029.081542ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428874994552000-2c3923ac-cleanup-cleanup
+✔ next export repairs parked maintenance even when Expo fails (off) (2351.100834ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428877491501000-f7e84a96-cleanup-cleanup
+✔ next export repairs parked maintenance even when Expo fails (non-macOS) (2506.513334ms)
+maintenance evidence (cleanup): /tmp/sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791428880664144000-5a4a3b99-cleanup-cleanup
+✔ next export repairs parked maintenance even when Expo fails (background) (3170.955334ms)
+ℹ tests 95
+ℹ suites 0
+ℹ pass 94
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1019081.549667
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-background.test.mjs:659:40
+✖ held retention lock coalesces 28 skipped exports into one pending observer (non-macOS) (110100.580541ms)
+  AssertionError [ERR_ASSERTION]: coalesced maintenance queue drained
+      at until (file:///private/tmp/sb4-em-mac/snapback4/packages/snapback4/test/export-background.test.mjs:26:12)
+      at async observedMaintenance (file:///private/tmp/sb4-em-mac/snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs:64:9)
+      at async maintenanceIdle (file:///private/tmp/sb4-em-mac/snapback4/packages/snapback4/test/export-background.test.mjs:655:3)
+      at async TestContext.<anonymous> (file:///private/tmp/sb4-em-mac/snapback4/packages/snapback4/test/export-background.test.mjs:682:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

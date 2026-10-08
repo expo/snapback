@@ -185,10 +185,7 @@ fn kick_with(root: &Path, mut intent: Observation, fresh: bool) -> Result<Value>
         // Select the latest valid intent while holding the lease, before spawn.
         adopt_later(root, &mut intent);
         let log = OpenOptions::new().create(true).append(true).open(root.join("maintenance.log")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-        #[cfg(target_os = "macos")]
-        let mut command = { let mut c = Command::new("/usr/sbin/taskpolicy"); c.args(["-b", "-c", "background"]).arg(background::executable()); c };
-        #[cfg(not(target_os = "macos"))]
-        let mut command = Command::new(background::executable());
+        let mut command = background::export_command();
         command.args(["witness", "export-maintain"]).arg(root).arg(intent.expires.to_string()).env(AWAKE_ENV, intent.awake.to_string()).stdin(Stdio::piped())
             .stdout(log.try_clone().map_err(|e| error("E_WITNESS_ARTIFACT", e))?).stderr(log);
         let mut child = background::spawn_owned(command, &queued, None, true)?;
@@ -545,7 +542,7 @@ pub(super) fn checkpoint(root: &Path, point: &'static str) {
             } else { ("maintenance-test-point.json".into(), "maintenance-test-resume".into()) };
             let path = root.join(marker);
             if let Ok(mut file) = OpenOptions::new().create_new(true).write(true).open(&path) {
-                let _ = write!(file, "{}", json!({ "point": point, "process": recovery::identity(std::process::id()) }));
+                let _ = write!(file, "{}", json!({ "point": point, "process": recovery::identity(std::process::id()), "darwinBackground": background::own_policy() }));
                 let started = Instant::now();
                 while !root.join(resume.as_str()).exists() && started.elapsed() < Duration::from_secs(20) { sleep(Duration::from_millis(20)); }
             }

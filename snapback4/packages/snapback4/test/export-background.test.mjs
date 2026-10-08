@@ -27,7 +27,7 @@ async function until(check, label, timeout = 30000, signal) {
   }
 }
 const read = p => { try { return JSON.parse(fs.readFileSync(p)); } catch { return null; } };
-function fixture() {
+function fixture({ normalPriority = true } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sb4-background-')));
   const put = (p, text, mode) => { p = path.join(root, p); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text, mode ? { mode } : {}); };
   put('package.json', '{}'); put('snapback/schema.q', '');
@@ -51,6 +51,11 @@ if(args.join(' ')==='simctl list runtimes --json') {
   put('bin/package.json', '{"type":"module"}');
   const env = { ...process.env, SNAPBACK4_BIN: binary, PATH: path.join(root, 'bin') + ':' + process.env.PATH,
     SNAPBACK4_SMOKE_DEVICE_PREFIX: 'sb4-nz-test-', XDG_STATE_HOME: path.join(root, 'state') };
+  // Debug-only seam: queue/custody assertions must not depend on Darwin's
+  // discretionary background I/O scheduling. The production-policy case below
+  // explicitly removes it, including any value inherited from the test runner.
+  if (normalPriority) env.SNAPBACK4_TEST_EXPORT_NORMAL_PRIORITY = '1';
+  else delete env.SNAPBACK4_TEST_EXPORT_NORMAL_PRIORITY;
   delete env.SNAPBACK4_NATIVE_SMOKE;
   const maintainers = [];
   const invoke = (bytes = 'export one') => {
@@ -89,6 +94,26 @@ async function cleanup(f) {
   f.stopMaintenanceWatch();
   fs.rmSync(f.root, { recursive: true, force: true });
 }
+
+for (const normalPriority of [false,true]) test(`Darwin export launch policy: ${normalPriority?'normal fixture':'production background'}`, {skip:process.platform!=='darwin',timeout:120000}, async()=>{
+  const f=fixture({normalPriority});
+  try {
+    f.env.SNAPBACK4_TEST_RETENTION_POINT='observer-wakeup';
+    f.put('continue','');
+    const run=f.invoke();assert.equal(run.status,0,run.stdout+run.stderr);
+    const root=path.join(f.root,'artifacts/native-smoke'),dir=f.latest().artifacts;
+    const point=path.join(root,'maintenance-test-point.json');
+    // A small policy probe, with no history to compress. The background path
+    // retains its discretionary scheduling; existing semantic waits below do
+    // not receive this probe's startup allowance.
+    await until(()=>read(point)?.point==='observer-wakeup' && read(path.join(dir,'worker.json')) && read(path.join(dir,'driver.json')),
+      'observer, proof custodian and driver recorded their own policy',90000);
+    const expected=normalPriority?0:1;
+    assert.equal(read(point).darwinBackground,expected,'maintenance observer policy');
+    assert.equal(read(path.join(dir,'worker.json')).darwinBackground,expected,'proof custodian policy');
+    assert.equal(read(path.join(dir,'driver.json')).darwinBackground,expected,'proof driver inherited policy');
+  } finally {f.put('artifacts/native-smoke/maintenance-test-resume','');await cleanup(f);}
+});
 
 test('export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export', { skip: process.platform !== 'darwin' }, async () => {
   const f = fixture();

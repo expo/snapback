@@ -1,0 +1,39 @@
+{
+  "maintenanceIdle": {
+    "unchanged": true,
+    "sha256": "fe10443ca4548d89b074d7e6029e55229e6e14b27e021368a0d66058c80f2710"
+  },
+  "postDriverWait": {
+    "unchanged": true,
+    "source": "await until(()=>!alive(read(path.join(early,'worker.json'))?.process?.pid),'background proof and post-driver retention finished');"
+  },
+  "snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs": {
+    "unchanged": true,
+    "sha256": "e95d2537341196d0f4f05c85c477ae5f370f10054895a5088ee17a6dae968fc2"
+  },
+  "snapback4/packages/snapback4/test/helpers/fixture-signals.mjs": {
+    "unchanged": true,
+    "sha256": "e708a18995c1c852c575dda60279f16758b8043b5ad220bf0c858e6e3a7f03ca"
+  },
+  "snapback4/scripts/test-signals.mjs": {
+    "unchanged": true,
+    "sha256": "e65c5d90f319c41d5ebfe0f97c581eadeef3b03cced8128efbb69da19250cd14"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/retention_trace.rs": {
+    "unchanged": true,
+    "sha256": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/process_group.rs": {
+    "unchanged": true,
+    "sha256": "918e1f0d859dc26275b9af988b39eaee7d4ad5ec03925be086dd39832ed3ef77"
+  },
+  "nativeWork": {
+    "unchanged": true,
+    "sha256": "08ddc12651edd88f0abb5fed0ea276c3565862aa51ce6dd37290c2872bd08755"
+  },
+  "queueConsumption": {
+    "unchanged": true,
+    "sha256": "262e2070eaf8bf2f705bc41e50a9839ac8deff1bd822024b98ad32943cd718fd"
+  },
+  "sourceBase": "e408e479293011d07f3091df4f20eccc28855ef7"
+}

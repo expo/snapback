@@ -187,3 +187,29 @@ under the existing caps, records the initial post-driver timeout before cleanup,
 and covers small injected clock drift with the unchanged tolerance. Product
 code, the drain predicate and its 90-second guard remain unchanged. This ticket
 stays open pending further macOS evidence; no historical cause is claimed.
+
+## 2026-10-08 — EM round 9: macOS deadline parking and fixture priority (still open)
+
+The six-run soak of `e408e47929` passed wakeup 22/22 and five background runs
+95/95; run 6 was 94/95. Its retained drain-timeout snapshot shows a delivered
+wakeup, a claimed scan, 39 compression commits, then the explicit 30-second
+work deadline and a parked claim. Cleanup completed at 30.936 s; no queue
+lease was leaked. The drain check correctly refused the remaining parked work.
+
+Darwin's `taskpolicy -b -c background` reaches the observer/scan and proof
+worker/driver, then their retention supervisor, worker and gzip descendants.
+The 15.782-second initial gap and slow compression are consistent with CPU/I/O
+throttling; the archive does not contain kernel throttle counters. Production
+priority, parking and next-export recovery stay unchanged. Automatic progress
+continuation would need a reliable progress receipt and retry/cleanup semantics;
+lossy diagnostic events cannot authorize another work budget.
+
+A debug-only, exact-value fixture override now skips the two launch sites'
+background policy; semantic assertions, fault dispatch and both wait bounds
+stay unchanged. Separate Darwin tests require policy 1 with the override
+removed and policy 0 with it set. Linux validates command selection and release
+inertness; the operator will run the real Mac policy probes and soak. This
+snapshot does not attribute every earlier timeout. Keep this ticket open until
+that qualification, along with the other maintenance/incident tickets.
+
+[Round-9 evidence, implementation, controls and exact mini commands](../snapback4/reports/20261008-em-export-maintenance-priority/REPORT.md).

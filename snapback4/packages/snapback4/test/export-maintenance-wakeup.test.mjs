@@ -19,7 +19,7 @@ function fixture() {
   const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'sb4-em-wakeup-')));
   const native=path.join(root,'artifacts/native-smoke');fs.mkdirSync(native,{recursive:true});
   const children=[];
-  const f={root,native,children,env:{...process.env,SNAPBACK4_DEBUG_RETENTION:'1'}};
+  const f={root,native,children,env:{...process.env,SNAPBACK4_DEBUG_RETENTION:'1',SNAPBACK4_TEST_EXPORT_NORMAL_PRIORITY:'1'}};
   f.file=n=>path.join(native,n);
   f.mark=(n,value='')=>fs.writeFileSync(f.file(n),value);
   f.start=(program,args,points='')=>{

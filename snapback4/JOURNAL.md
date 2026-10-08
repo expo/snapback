@@ -90538,3 +90538,45 @@ the new incident ticket and the prior intermittent recovery ticket stay open.
 All work remained on eb1000 in lane-em; nothing pushed or published.
 
 [Round-8 analysis, diagnostic repair, tests and exact macOS archive](reports/20261008-em-export-maintenance-macos/REPORT.md).
+
+## 2026-10-08 — EM round 9: separate Darwin background policy from queue semantics
+
+The operator's six-run soak of `e408e47929` passed wakeup 22/22 and five
+background runs 95/95; run 6 was 94/95. The improved capture identifies the
+drain failure: the observer consumed the wakeup, the scan claimed work, its
+worker reached the first compression 15.782 seconds after launch, and 39
+compression commits preceded the explicit 30-second deadline at 30.271 seconds.
+Native cleanup finished at 30.936 seconds. The claim parked durably and the
+observer exited; the unchanged drain check correctly refused the parked work.
+
+Both Darwin launch sites apply `taskpolicy -b -c background`. The observer,
+scan, retention supervisor/worker and gzip inherit background CPU/I/O policy,
+as do the proof custodian, driver and pre/post-driver retention. These delays
+fit discretionary throttling; the snapshot has no kernel throttle counters.
+It does not identify the exact wait in the less complete round-7 capture.
+Production priority and failure parking remain unchanged. A separate fresh
+pending request can continue; otherwise the next export resumes deferred work.
+Automatic progress continuation needs authoritative progress and retry/cleanup
+semantics; lossy traces cannot authorize repeated work budgets, so it is deferred.
+
+A shared launch selector now has a private, exact-value, debug-only fixture
+override. Semantic fixtures inherit normal runner priority while release builds
+ignore the variable. The owned simulator-app setter stays unchanged. Two Darwin
+tests assert the observer, proof custodian and driver's actual self-policy:
+background with the override removed and normal with it enabled. The existing
+90-second drain and 30-second post-driver waits, identity dispatch, sleep,
+deadline and wakeup semantics are unchanged.
+
+Linux passes 100 tests with 34 Darwin skips across background, wakeup/sleep/
+deadline/publication, diagnostics and FL signal helpers. Native retention is
+8/8, parallel recovery 25/25, clock 1/1 and policy 2/2. Release cargo check
+passes. The policy module passes with debug assertions both enabled and disabled;
+removing the release gates makes its negative control fail. Held-lease and
+missing-observer stalls still fail the original 90-second assertion and clean
+up. Ref-check has zero errors. The archive verifies 12 snapshots and 454 private
+files. Darwin policy and the normal-priority soak await the operator; all three
+maintenance/incident
+tickets remain open. All work stayed on eb1000 in lane-em, without push or
+publication.
+
+[Round-9 finding, controls, source references and exact mini soak commands](reports/20261008-em-export-maintenance-priority/REPORT.md).
