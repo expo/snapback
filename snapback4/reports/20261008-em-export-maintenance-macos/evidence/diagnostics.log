@@ -1,0 +1,30 @@
+maintenance evidence (probe): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420776906670181-c4bfed05-failure-probe
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420776953121282-ffdd1fdf-failure-drain-timeout
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420776997587267-1d68bffb-failure-drain-timeout
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777042548314-f6b2c63c-failure-drain-timeout
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777088302120-ceb9b5e0-failure-drain-timeout
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777134120402-33b8fa80-failure-drain-timeout
+maintenance evidence (drain-timeout): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777179098365-1afed461-failure-drain-timeout
+maintenance evidence (cleanup): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777223589247-1042885d-cleanup-cleanup
+maintenance evidence (cleanup): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777269474480-44a6708c-cleanup-cleanup
+maintenance evidence (cleanup): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777313245643-5b154e97-cleanup-cleanup
+maintenance evidence (cleanup): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777357804327-627c2580-cleanup-cleanup
+maintenance evidence (cleanup): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777404010571-6fabcbca-cleanup-cleanup
+maintenance evidence (cleanup): /tmp/sb4-em-evidence-3cgTwU/maintenance-cb65a433eb364227/snapshot-1791420777449426640-95441974-cleanup-cleanup
+✔ maintenance snapshots bound tails, files, inventory, bytes and retained history (677.196237ms)
+maintenance evidence (probe): /tmp/sb4-em-processes-XHkHC6/maintenance-cb65a433eb364227/snapshot-1791420777556354346-8da25913-failure-probe
+✔ maintenance capture refuses stale birth, unrelated commands and foreign groups; arguments stay private (63.760227ms)
+maintenance evidence (probe): /tmp/sb4-em-custody-qPlzcF/maintenance-cb65a433eb364227/snapshot-1791420777608995136-85c43a3f-failure-probe
+✔ bounded snapshots retain concurrent retention custody and the current proof before history (65.252835ms)
+✔ a FIFO trace sink cannot delay an observer deadline, lease release or the test drain wait (1578.437261ms)
+maintenance evidence (drain-timeout): capture skipped or exceeded its bound
+✔ a stuck collector leaves the event loop running and preserves the original drain error (2004.648054ms)
+✔ partial write errors cannot recover snapshot byte or file budget (87.896218ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4538.795658

@@ -1,0 +1,56 @@
+TAP version 13
+# maintenance evidence (drain-timeout): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-macos/evidence/negative-current/snapshots/maintenance-cb65a433eb364227/snapshot-1791421252014803734-46af2583-failure-drain-timeout
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-macos/evidence/negative-current/snapshots/maintenance-cb65a433eb364227/snapshot-1791421252509699712-88d2725f-cleanup-cleanup
+# Subtest: EM injected stall: held lease
+not ok 1 - EM injected stall: held lease
+  ---
+  duration_ms: 90849.435298
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:1233:54'
+  failureType: 'testCodeFailure'
+  error: 'coalesced maintenance queue drained'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:26:12)
+    async observedMaintenance (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs:64:9)
+    async maintenanceIdle (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:655:3)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:1246:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# maintenance evidence (drain-timeout): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-macos/evidence/negative-current/snapshots/maintenance-cb65a433eb364227/snapshot-1791421342892569189-8828b72a-failure-drain-timeout
+# maintenance evidence (cleanup): /home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-macos/evidence/negative-current/snapshots/maintenance-cb65a433eb364227/snapshot-1791421343945672461-ccf58dcb-cleanup-cleanup
+# Subtest: EM injected stall: missing observer
+not ok 2 - EM injected stall: missing observer
+  ---
+  duration_ms: 91436.883294
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:1233:54'
+  failureType: 'testCodeFailure'
+  error: 'coalesced maintenance queue drained'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:26:12)
+    async observedMaintenance (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs:64:9)
+    async maintenanceIdle (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:655:3)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-em/snapback4/packages/snapback4/test/.em-maintenance-negative-2601125.test.mjs:1246:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 182361.227151

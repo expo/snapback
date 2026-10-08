@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # @ref LLP 3000.030#15 — bounded snapshots survive cleanup without granting custody.
 """Bounded, private snapshots. This disposable process owns no maintenance leases."""
-import fcntl, json, os, pathlib, re, shutil, stat, sys, time, uuid
+import fcntl, itertools, json, os, pathlib, re, shutil, stat, sys, time, uuid
 from maintenance_processes import capture
 
 LIMITS=dict(bytes=1024*1024, fileBytes=16*1024, files=64, inventory=256, depth=4,
             failures=4, cleanups=4, seconds=1.25)
 PRIORITY=['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json',
-          'maintenance-next.json','maintenance-wakeup.json','maintenance-active.json','maintenance-result.json',
+          'maintenance-next.json','maintenance-wakeup.json','maintenance-wakeup-reading.json','maintenance-active.json','maintenance-result.json',
           'maintenance-done.json','maintenance.log','retention-trace.jsonl',
-          'maintenance-next.lock','maintenance.lock','retention.lock']
+          'maintenance-next.lock','maintenance.lock','retention.lock','latest.json']
+CUSTODY=['retention-group.json','retention-status.json','retention-stderr.log','retention-stdout.log',
+         'worker.json','driver.json','launch.json','live.json','background.log']
 
 def private_dir(p):
     p.mkdir(mode=0o700,parents=True,exist_ok=True)
@@ -62,9 +64,9 @@ def snapshot(args):
                 for v in value.values():identities(v,depth+1)
             elif isinstance(value,list):
                 for v in value[:24]:identities(v,depth+1)
-        seen=set();dirs=[]
+        seen=set();current=None
         def visit(file,depth):
-            nonlocal copied,attempted,visited
+            nonlocal copied,attempted,visited,current
             if time.monotonic()>deadline:truncated.add('time');return False
             if visited>=LIMITS['inventory'] or len(inventory)>=LIMITS['inventory']:truncated.add('inventory');return False
             visited+=1
@@ -75,12 +77,11 @@ def snapshot(args):
             try:
                 s=file.lstat();row=dict(path=relative,size=s.st_size,inode=s.st_ino,mtimeNs=s.st_mtime_ns,mode=s.st_mode);inventory.append(row)
                 if stat.S_ISDIR(s.st_mode):
-                    if depth<LIMITS['depth']:dirs.append((file,depth+1))
-                    else:row['omitted']='depth'
+                    if depth>=LIMITS['depth']:row['omitted']='depth'
                     return True
                 if not stat.S_ISREG(s.st_mode):row['omitted']='nonregular';return True
                 if not re.search(r'\.(json|jsonl|log|lock|tmp)$',file.name):return True
-                if attempted>=LIMITS['files']:row['omitted']='file-count';return True
+                if attempted>=LIMITS['files']:row['omitted']='file-count';truncated.add('file-count');return True
                 fd=os.open(file,os.O_RDONLY|os.O_NONBLOCK|os.O_NOFOLLOW)
                 try:
                     actual=os.fstat(fd)
@@ -92,7 +93,11 @@ def snapshot(args):
                     row['omittedPrefixBytes']=offset
                     data=f'[truncated: omitted {offset} prefix bytes]\n'.encode()+data
                 elif file.name.endswith('.json'):
-                    try:identities(json.loads(data))
+                    try:
+                        value=json.loads(data);identities(value)
+                        if relative=='latest.json' and isinstance(value,dict) and isinstance(value.get('artifacts'),str):
+                            candidate=pathlib.Path(value['artifacts'])
+                            if candidate.parent==root and re.fullmatch(r'\d+-\d+',candidate.name):current=candidate.name
                     except (ValueError,UnicodeDecodeError):pass
                 attempted+=1
                 if write('files/'+relative,data,reserve=512*1024):copied+=1;row['capturedBytes']=len(data)
@@ -102,15 +107,29 @@ def snapshot(args):
             return True
         for name in PRIORITY:
             if (root/name).exists():visit(root/name,0)
-        dirs.append((root,0))
-        while dirs and time.monotonic()<=deadline and visited<LIMITS['inventory'] and len(inventory)<LIMITS['inventory']:
-            directory,depth=dirs.pop()
+        # Retention custody and the current proof precede historical receipts.
+        # The Mac timeout exhausted 64 copies on history before either live
+        # retention group's journal/stderr. Sorting only a bounded discovery
+        # batch preserves every original byte, file, inventory and time cap.
+        def order(entry):
+            work=re.fullmatch(r'\.retention-\d+-(\d+)',entry.name)
+            if work:return (0,-int(work[1]),entry.name)
+            if entry.name==current:return (1,0,entry.name)
+            if entry.name in CUSTODY:return (2,CUSTODY.index(entry.name),entry.name)
+            return (3,0,entry.name)
+        def walk(directory,depth):
+            remaining=min(LIMITS['inventory']-visited,LIMITS['inventory']-len(inventory))
+            if time.monotonic()>deadline or remaining<=0:truncated.add('inventory-or-time');return
             try:
                 with os.scandir(directory) as entries:
-                    for entry in entries:
-                        if not visit(pathlib.Path(entry.path),depth):break
+                    batch=list(itertools.islice(entries,remaining))
+                    if next(entries,None) is not None:truncated.add('inventory-or-time')
+                for entry in sorted(batch,key=order):
+                    if not visit(pathlib.Path(entry.path),depth):break
+                    if depth<LIMITS['depth'] and entry.is_dir(follow_symlinks=False):walk(pathlib.Path(entry.path),depth+1)
             except OSError:pass
-        if dirs or visited>=LIMITS['inventory'] or len(inventory)>=LIMITS['inventory']:truncated.add('inventory-or-time')
+        walk(root,0)
+        if visited>=LIMITS['inventory'] or len(inventory)>=LIMITS['inventory']:truncated.add('inventory-or-time')
         process=capture(args['root'],records,deadline)
         write('processes.json',json.dumps(process,separators=(',',':')).encode())
         # Test timing stays in bounded memory until capture; no fixture-side I/O.

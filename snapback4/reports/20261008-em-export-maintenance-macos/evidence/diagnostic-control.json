@@ -1,0 +1,12 @@
+{
+  "source": "affcd4919b",
+  "collectorSha256": "945bafcff0d4d710def5ea2e7074968a67a771b8601b56807f6c380bc58aef57",
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=bounded snapshots retain concurrent retention custody",
+    "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/diagnostic-control-yyhusvdx/maintenance-evidence.test.mjs"
+  ],
+  "exitCode": 1,
+  "expected": "missing current worker or retention group journal under the unchanged 64-file cap"
+}

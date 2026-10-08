@@ -203,6 +203,25 @@ test('maintenance sleep: no fresh producer stops, a post-sleep export can recove
   } finally {await f.finish();}
 });
 
+test('maintenance sleep: sampling drift through retry and successor start stays within the existing tolerance',{timeout:120000},async()=>{
+  const f=sleepFixture(),baseline=14959559;
+  try {
+    f.setClock(baseline);
+    const {observer,lease}=await pausedGuard(f,'expiry','observer-guard-failed,kick-locked');
+    const producer=f.producer('kick-notified,unused');await f.barrier('kick-notified');
+    const wake=read(f.file('maintenance-wakeup.json'));assert.equal(wake.awake,baseline);
+    f.setClock(baseline+1);f.resume('kick-notified');
+    assert.equal((await producer.exit)[0],0,producer.stderr);
+    f.setClock(baseline+20);f.resume('observer-guard-failed');await f.barrier('kick-locked');
+    f.setClock(baseline+1000);lease.child.stdin.end();await lease.exit;f.resume('kick-locked');
+    assert.equal((await observer.exit)[0],1,observer.stderr);assert.match(observer.stderr,/60-minute deadline/);
+    await f.drain();assert.ok(read(f.file('maintenance-done.json')));
+    const next=read(f.file('maintenance-next.json'));
+    assert.equal(next.awake,baseline,'tolerance does not resample the accepted intent');
+    assert.equal(next.expiresAt,wake.expiresAt);
+  } finally {await f.finish();}
+});
+
 const trace=f=>{try{return fs.readFileSync(f.file('retention-trace.jsonl'),'utf8').trim().split('\n').map(JSON.parse);}catch{return [];}};
 function leasedObserver(f,expires,points) {
   const observer=f.start('python3',['-c',"import os,fcntl,sys; f=open(sys.argv[1]+'/maintenance-next.lock','a'); fcntl.flock(f,fcntl.LOCK_EX); os.dup2(f.fileno(),3); os.set_inheritable(3,True); os.execve(sys.argv[2],[sys.argv[2],'witness','export-maintain',sys.argv[1],sys.argv[3]],os.environ)",f.native,binary,String(expires)],points);

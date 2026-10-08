@@ -1,0 +1,437 @@
+{
+  "archiveSha256": "d113e693190930ffdc47597f8d9d7a5a88fe432430b7cef23d3001040ca400c6",
+  "snapshot": "sb4-em-evidence/maintenance-cfef6bd701aa7c2f/snapshot-1791419664460053000-4757c24f-failure-test-guard/",
+  "at": 1791419664.493813,
+  "limits": {
+    "bytes": 1048576,
+    "fileBytes": 16384,
+    "files": 64,
+    "inventory": 256,
+    "depth": 4,
+    "failures": 4,
+    "cleanups": 4,
+    "seconds": 1.25
+  },
+  "capturedFiles": 64,
+  "entriesVisited": 156,
+  "processes": {
+    "processes": [
+      {
+        "pid": 5642,
+        "parent": 1,
+        "group": 5642,
+        "state": "2",
+        "start": [
+          1791419555,
+          314769
+        ],
+        "program": "snapback4",
+        "fds": [],
+        "fdsUnavailable": "Darwin descriptor collection omitted",
+        "arguments": [
+          "witness",
+          "export-maintain",
+          "<fixture>"
+        ]
+      },
+      {
+        "pid": 7363,
+        "parent": 5642,
+        "group": 5642,
+        "state": "2",
+        "start": [
+          1791419584,
+          266150
+        ],
+        "program": "snapback4",
+        "fds": [],
+        "fdsUnavailable": "Darwin descriptor collection omitted",
+        "arguments": [
+          "witness",
+          "export-maintain-scan",
+          "<fixture>"
+        ]
+      }
+    ],
+    "rejected": [
+      {
+        "pid": 5736,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 5783,
+        "reason": "birth-or-command-mismatch"
+      },
+      {
+        "pid": 5947,
+        "reason": "birth-or-command-mismatch"
+      }
+    ],
+    "truncated": [],
+    "limits": {
+      "processes": 24,
+      "descriptorsPerProcess": 16
+    }
+  },
+  "testDrain": [
+    {
+      "at": 1791419614243,
+      "pid": 63944,
+      "step": "test-drain-start",
+      "detail": {
+        "allowParked": true,
+        "elapsedMs": 0.005332999979145825
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "at": 1791419579959,
+      "detail": null,
+      "pid": 7198,
+      "step": "work-start"
+    },
+    {
+      "at": 1791419580068,
+      "detail": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-E06i68/artifacts/native-smoke/.retention-7198-1791419579959",
+      "pid": 7198,
+      "step": "worker-launched"
+    },
+    {
+      "at": 1791419580075,
+      "detail": null,
+      "pid": 7201,
+      "step": "request-created"
+    },
+    {
+      "at": 1791419580089,
+      "detail": null,
+      "pid": 7201,
+      "step": "request-prepared"
+    },
+    {
+      "at": 1791419580090,
+      "detail": null,
+      "pid": 7201,
+      "step": "request-committed"
+    },
+    {
+      "at": 1791419580117,
+      "detail": {
+        "elapsedMs": 158,
+        "error": null
+      },
+      "pid": 7198,
+      "step": "work-ended"
+    },
+    {
+      "at": 1791419580188,
+      "detail": {
+        "elapsedMs": 229
+      },
+      "pid": 7198,
+      "step": "cleanup-ended"
+    },
+    {
+      "at": 1791419580188,
+      "detail": null,
+      "pid": 7198,
+      "step": "kick-notifying"
+    },
+    {
+      "at": 1791419580189,
+      "detail": null,
+      "pid": 7198,
+      "step": "wakeup-publishing"
+    },
+    {
+      "at": 1791419580196,
+      "detail": null,
+      "pid": 7198,
+      "step": "kick-notified"
+    },
+    {
+      "at": 1791419580197,
+      "detail": null,
+      "pid": 7198,
+      "step": "kick-coalesced"
+    },
+    {
+      "at": 1791419580429,
+      "detail": {
+        "awake": 14959559,
+        "expiresAt": 1791423180188
+      },
+      "pid": 5642,
+      "step": "observer-intent-adopted"
+    },
+    {
+      "at": 1791419580429,
+      "detail": null,
+      "pid": 5642,
+      "step": "wakeup-taking"
+    },
+    {
+      "at": 1791419580429,
+      "detail": null,
+      "pid": 5642,
+      "step": "wakeup-consumed"
+    },
+    {
+      "at": 1791419584185,
+      "detail": null,
+      "pid": 6004,
+      "step": "work-start"
+    },
+    {
+      "at": 1791419584271,
+      "detail": 7363,
+      "pid": 5642,
+      "step": "scan-launched"
+    },
+    {
+      "at": 1791419584279,
+      "detail": null,
+      "pid": 7363,
+      "step": "claim-renamed"
+    },
+    {
+      "at": 1791419584299,
+      "detail": null,
+      "pid": 7363,
+      "step": "claim-recorded"
+    },
+    {
+      "at": 1791419584301,
+      "detail": null,
+      "pid": 7363,
+      "step": "scan-starting"
+    },
+    {
+      "at": 1791419584324,
+      "detail": null,
+      "pid": 7363,
+      "step": "work-start"
+    },
+    {
+      "at": 1791419584505,
+      "detail": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-E06i68/artifacts/native-smoke/.retention-6004-1791419584185",
+      "pid": 6004,
+      "step": "worker-launched"
+    },
+    {
+      "at": 1791419584680,
+      "detail": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-E06i68/artifacts/native-smoke/.retention-7363-1791419584324",
+      "pid": 7363,
+      "step": "worker-launched"
+    },
+    {
+      "at": 1791419584734,
+      "detail": null,
+      "pid": 7412,
+      "step": "compress-before"
+    }
+  ],
+  "traceSilenceSeconds": 79.75981307029724,
+  "queue": {
+    "maintenance-next.json": {
+      "at": 1791419555317,
+      "awake": 14959559,
+      "expiresAt": 1791423155314,
+      "process": {
+        "pid": 5642,
+        "start": [
+          1791419555,
+          314769
+        ]
+      },
+      "state": "pending"
+    },
+    "maintenance-active.json": {
+      "at": 1791419584301,
+      "attempt": 1,
+      "process": {
+        "pid": 7363,
+        "start": [
+          1791419584,
+          266150
+        ]
+      },
+      "state": "scanning"
+    },
+    "maintenance-claimed.json": {
+      "attempts": 1,
+      "state": "claimed"
+    }
+  },
+  "omittedCustody": [
+    {
+      "path": "1791419554794-5500/live.json",
+      "size": 87,
+      "inode": 180703472,
+      "mtimeNs": 1791419583653622557,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/worker.json",
+      "size": 91,
+      "inode": 180654754,
+      "mtimeNs": 1791419558066078642,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/driver.json",
+      "size": 92,
+      "inode": 180656561,
+      "mtimeNs": 1791419560243652796,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/background.log",
+      "size": 1255,
+      "inode": 180654742,
+      "mtimeNs": 1791419584185454064,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/launch.json",
+      "size": 70,
+      "inode": 180654743,
+      "mtimeNs": 1791419558044840380,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/publication.json",
+      "size": 1178,
+      "inode": 180654732,
+      "mtimeNs": 1791419558024741447,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/export.lock",
+      "size": 0,
+      "inode": 180652412,
+      "mtimeNs": 1791419554883339483,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/finished.json",
+      "size": 62,
+      "inode": 180704937,
+      "mtimeNs": 1791419584566691869,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/driver-result.json",
+      "size": 854,
+      "inode": 180703487,
+      "mtimeNs": 1791419583683165208,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/smoke-ios-run.json",
+      "size": 625,
+      "inode": 180702682,
+      "mtimeNs": 1791419583397074168,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/export/assetmap.json",
+      "size": 2,
+      "inode": 180652430,
+      "mtimeNs": 1791419554965875915,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/export/metadata.json",
+      "size": 48,
+      "inode": 180652429,
+      "mtimeNs": 1791419554965789373,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": "1791419554794-5500/export/.snapback4-publication.json",
+      "size": 195,
+      "inode": 180654700,
+      "mtimeNs": 1791419557956626051,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-7363-1791419584324/retention-stdout.log",
+      "size": 0,
+      "inode": 180704749,
+      "mtimeNs": 1791419584325081888,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-7363-1791419584324/retention-group.json",
+      "size": 287,
+      "inode": 180704862,
+      "mtimeNs": 1791419584393045326,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-7363-1791419584324/retention-stderr.log",
+      "size": 76,
+      "inode": 180704750,
+      "mtimeNs": 1791419584719364690,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-7363-1791419584324/retention-group.reap.lock",
+      "size": 0,
+      "inode": 180704860,
+      "mtimeNs": 1791419584386463723,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-6004-1791419584185/retention-stdout.log",
+      "size": 0,
+      "inode": 180704256,
+      "mtimeNs": 1791419584195417614,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-6004-1791419584185/retention-group.json",
+      "size": 287,
+      "inode": 180704485,
+      "mtimeNs": 1791419584261586684,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-6004-1791419584185/retention-stderr.log",
+      "size": 157,
+      "inode": 180704257,
+      "mtimeNs": 1791419584578810620,
+      "mode": 33188,
+      "omitted": "file-count"
+    },
+    {
+      "path": ".retention-6004-1791419584185/retention-group.reap.lock",
+      "size": 0,
+      "inode": 180704454,
+      "mtimeNs": 1791419584256346701,
+      "mode": 33188,
+      "omitted": "file-count"
+    }
+  ]
+}

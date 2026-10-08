@@ -1,0 +1,9 @@
+{
+  "expectedExit": 1,
+  "actualExit": 1,
+  "elapsed": 182.41583950599306,
+  "snapshots": [
+    "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-macos/evidence/negative-current/snapshots/maintenance-cb65a433eb364227/snapshot-1791421342892569189-8828b72a-failure-drain-timeout",
+    "/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-export-maintenance-macos/evidence/negative-current/snapshots/maintenance-cb65a433eb364227/snapshot-1791421252014803734-46af2583-failure-drain-timeout"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "python3",
+    "reports/20261008-em-export-maintenance-macos/stalls.py",
+    "--binary",
+    "target/em/binaries/da8d88838c98b49f1a417415587b07c8c52938fbc68955e19ef729af1ee551b3/snapback4"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-08T00:59:21.431832+00:00",
+  "elapsedSeconds": 182.55900331100565,
+  "exitCode": 0
+}

@@ -709,7 +709,9 @@ for(const mode of ['off','non-macOS','background']) test(`first-started last-pub
       const sweep=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(sweep.status,0,sweep.stderr);
       assert.ok(fs.existsSync(path.join(early,'request.json')),'current pending proof remains full');
       f.put('continue','');assert.equal(f.status('--wait').status,2);
-      await until(()=>!alive(read(path.join(early,'worker.json'))?.process?.pid),'background proof and post-driver retention finished');
+      try {
+        await until(()=>!alive(read(path.join(early,'worker.json'))?.process?.pid),'background proof and post-driver retention finished');
+      } catch(error) {await maintenanceEvidence(f,'post-driver-timeout');throw error;}
     }
     await maintenanceIdle(f);
     const sweep=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(sweep.status,0,sweep.stderr);

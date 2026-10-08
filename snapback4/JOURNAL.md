@@ -90492,3 +90492,49 @@ archive verified 38 snapshots and 877 private files. All work stayed on
 eb1000 in lane-em, with no push or publication.
 
 [Round-7 implementation, controls and evidence](reports/20261008-em-export-maintenance-publication/REPORT.md).
+
+## 2026-10-08 — EM round 8: retain the missing macOS custody evidence
+
+Both round-7 reviews are READY. The operator's macOS soak of `affcd4919b`
+passed wakeup 21/21 and background run 1 at 95/95; run 2 was 93/95. The
+unchecked whole-table `ps` observer-count failure belongs to FL round 10.
+The other failure was the 30-second post-driver worker wait, before the
+90-second maintenance drain. Its later snapshot shows the wakeup adopted and
+consumed, a live observer and a claimed active scan. It does not show pending
+work with absent observation, as the earlier EM wakeup controls did.
+
+The trace ends at a retention worker's `compress-before` (not an identified
+gzip PID), 79.760 seconds before the snapshot. By then the test had spent about
+50 seconds in its `finally` cleanup. The 64-file cap omitted both retention
+group journals/stderr and the current worker journal/background log. No initial
+failure snapshot or same-fixture final cleanup snapshot survived in the supplied
+archive. Missing trace events cannot establish which syscall or custody phase
+was delayed. The wakeup writer lock is not acquired by observers/scans; its
+empty file is not evidence of a held lock. The real sleep predicate already
+tolerates differences up to 1,000 ms. Native compression/custody paths predate
+EM, but source equality does not prove the incident predates scheduling changes.
+The product cause remains unknown and has a separate open macOS incident ticket.
+
+The bounded collector now prioritizes retention work directories and current
+proof custody before historical receipts. It retains the wakeup receipt too and
+summarizes file-count omissions. Existing byte/file/inventory/time limits,
+private permissions, history rings and process identity admission remain.
+A new regression loses the current worker journal under the old collector and
+retains both groups plus current custody under the fix. The existing post-driver
+wait now captures its original failure before cleanup and rethrows the same
+error. Neither its bound nor maintenanceIdle's predicate/90-second guard changes.
+Injected clock samples at the retained baseline plus 1/20/1,000 ms drain across
+retry and successor start without resampling; the existing 2,000 ms cases stop.
+No product source, retention policy or FL fault dispatch changed.
+
+Linux passes 100 tests with 32 Darwin skips: background 63/63 applicable,
+wakeup/sleep/deadline/publication 22/22, diagnostics 6/6, FL signals 9/9.
+Native retention passes 8/8, parallel recovery 25/25, clock unit 1/1, and
+ref-check has zero errors. Held-lease and missing-observer controls both fail
+the original 90-second assertion and subsequently clean up. The archive verifies
+12 snapshots and 454 private files. The Darwin-only initial-failure capture is
+loaded/skipped here and awaits macOS exercise. Both original maintenance tickets,
+the new incident ticket and the prior intermittent recovery ticket stay open.
+All work remained on eb1000 in lane-em; nothing pushed or published.
+
+[Round-8 analysis, diagnostic repair, tests and exact macOS archive](reports/20261008-em-export-maintenance-macos/REPORT.md).

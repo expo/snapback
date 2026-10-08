@@ -1,0 +1,22 @@
+{
+  "recovery.log": {
+    "bytes": 3854,
+    "sha256": "02a04438df3658f62506789d51e11e62cd1c1b22b0f7577493be08a8a742953f",
+    "compressed": "recovery.log.gz"
+  },
+  "retention.log": {
+    "bytes": 1007,
+    "sha256": "fbb6d996581fe1ef52305c8a9a7ce1e3d82f824dc3290286b7e888b0ebcc8e24",
+    "compressed": "retention.log.gz"
+  },
+  "sleep-clock-unit.log": {
+    "bytes": 204,
+    "sha256": "db853cee2db1a1c733ae6c0cb41e47156fc2baa93d79487f9a3d9627d9089674",
+    "compressed": "sleep-clock-unit.log.gz"
+  },
+  "sb4-em-mac-export-2.log": {
+    "bytes": 29220,
+    "sha256": "ca86993d3b59230f2613868fcce915148a4a55cb855d4a264f244839653d1f88",
+    "compressed": "sb4-em-mac-export-2.log.gz"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/home/ccheever/sb4-intent/lane-em/snapback4/target/em/unit-binaries/b59dcb53f433d86861315de449200bdd2cbeb09fb3e70e624fd1c4e2151d5870/deps/snapback4-54c72c0d37cc6d9b",
+    "recovery"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-08T00:54:22.302427+00:00",
+  "elapsedSeconds": 2.0480030570179224,
+  "exitCode": 0
+}

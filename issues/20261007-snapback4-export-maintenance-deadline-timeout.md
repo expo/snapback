@@ -164,3 +164,20 @@ The operator reports the round-4 macOS soak passed: wakeup 6/6 and six backgroun
 runs at 95/95, with no drain timeouts. Those results are recorded as supplied;
 this lane did not access the mini or rerun them. They qualify neither the later
 rounds nor the cause of the historical failures. This ticket remains open.
+
+## 2026-10-08 — EM round 8 macOS soak evidence (still open)
+
+The supplied `affcd4919b` soak passed wakeup 21/21 and background run 1 at
+95/95; run 2 was 93/95. The unchecked process-table listing is assigned to FL
+round 10. The other failure was the separate 30-second post-driver wait, before
+`maintenanceIdle`: its later snapshot has a live observer and claimed scan,
+with the fresh wakeup already adopted/consumed. Missing custody logs prevent
+attributing the subsequent wait to compression, native cleanup, host delay or
+clock behavior. Unchanged native paths do not prove the incident is pre-existing.
+
+[The separate macOS incident](20261008-snapback4-macos-post-driver-retention-wait.md)
+retains the exact snapshot and evidence limits. Round 8 fixes capture selection
+under the existing caps, records the initial post-driver timeout before cleanup,
+and covers small injected clock drift with the unchanged tolerance. Product
+code, the drain predicate and its 90-second guard remain unchanged. This ticket
+stays open pending further macOS evidence; no historical cause is claimed.

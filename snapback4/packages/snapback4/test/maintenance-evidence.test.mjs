@@ -88,6 +88,37 @@ test('maintenance capture refuses stale birth, unrelated commands and foreign gr
   }
 });
 
+test('bounded snapshots retain concurrent retention custody and the current proof before history',{timeout:10000},async()=>{
+  const f=fixture(),base=fs.mkdtempSync(path.join(os.tmpdir(),'sb4-em-custody-'));
+  const saved=process.env.SNAPBACK4_MAINTENANCE_EVIDENCE;process.env.SNAPBACK4_MAINTENANCE_EVIDENCE=base;
+  try {
+    const current='1-1',put=(dir,name,data)=>{
+      fs.mkdirSync(path.join(f.native,dir),{recursive:true});
+      fs.writeFileSync(path.join(f.native,dir,name),data);
+    };
+    // More history than the file cap, including files that would precede the
+    // custody journal in directory iteration order. The current pin is oldest.
+    for(let i=1;i<=12;i++)for(let j=0;j<12;j++)put(`${i}-${i}`,`history-${j}.json`,'{}');
+    fs.writeFileSync(path.join(f.native,'latest.json'),JSON.stringify({artifacts:path.join(f.native,current)}));
+    const expected=new Map([[`${current}/worker.json`,'{"process":null}'],[`${current}/background.log`,'post-driver retention\n']]);
+    for(const dir of ['.retention-6004-100','.retention-7363-200']) {
+      expected.set(`${dir}/retention-group.json`,'{"group":null,"guardian":null}');
+      expected.set(`${dir}/retention-stderr.log`,'worker diagnostic\n');
+      expected.set(`${dir}/retention-status.json`,'{"status":1}');
+    }
+    for(const [file,bytes] of expected)put(path.dirname(file),path.basename(file),bytes);
+    const out=await maintenanceEvidence(f,'probe');assert.ok(out);
+    for(const [file,bytes] of expected)assert.equal(fs.readFileSync(path.join(out,'files',file),'utf8'),bytes,file);
+    const meta=read(path.join(out,'snapshot.json'));
+    assert.equal(meta.capturedFiles,64);assert.ok(meta.truncated.includes('file-count'));
+    assert.ok(meta.files.length<=256);assert.ok(meta.entriesVisited<=256);
+    assert.ok(tree(out).reduce((sum,p)=>sum+fs.statSync(p).size,0)<=1024*1024);
+  } finally {
+    if(saved===undefined)delete process.env.SNAPBACK4_MAINTENANCE_EVIDENCE;else process.env.SNAPBACK4_MAINTENANCE_EVIDENCE=saved;
+    fs.rmSync(f.root,{recursive:true,force:true});fs.rmSync(base,{recursive:true,force:true});
+  }
+});
+
 test('a FIFO trace sink cannot delay an observer deadline, lease release or the test drain wait',{timeout:15000},async()=>{
   const f=fixture();let holder,observer,heldExit,observerExit;
   try {
