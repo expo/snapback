@@ -1,0 +1,200 @@
+{
+  "command": [
+    "node",
+    "reports/20261008-pg-proc-group-inspection/export-handoff.mjs"
+  ],
+  "cpus": "88-91",
+  "load_pids": [
+    537010,
+    537011,
+    537012,
+    537013,
+    537014,
+    537015,
+    537016,
+    537017
+  ],
+  "load_reaped": true,
+  "results": [
+    {
+      "round": 1,
+      "status": 1,
+      "seconds": 2.679,
+      "refusal": false
+    },
+    {
+      "round": 2,
+      "status": 1,
+      "seconds": 2.947,
+      "refusal": false
+    },
+    {
+      "round": 3,
+      "status": 1,
+      "seconds": 2.399,
+      "refusal": false
+    },
+    {
+      "round": 4,
+      "status": 1,
+      "seconds": 2.74,
+      "refusal": false
+    },
+    {
+      "round": 5,
+      "status": 1,
+      "seconds": 2.946,
+      "refusal": false
+    },
+    {
+      "round": 6,
+      "status": 1,
+      "seconds": 2.591,
+      "refusal": false
+    },
+    {
+      "round": 7,
+      "status": 1,
+      "seconds": 2.856,
+      "refusal": false
+    },
+    {
+      "round": 8,
+      "status": 1,
+      "seconds": 2.135,
+      "refusal": false
+    },
+    {
+      "round": 9,
+      "status": 1,
+      "seconds": 2.811,
+      "refusal": false
+    },
+    {
+      "round": 10,
+      "status": 1,
+      "seconds": 3.071,
+      "refusal": false
+    },
+    {
+      "round": 11,
+      "status": 1,
+      "seconds": 3.183,
+      "refusal": false
+    },
+    {
+      "round": 12,
+      "status": 1,
+      "seconds": 2.929,
+      "refusal": false
+    },
+    {
+      "round": 13,
+      "status": 1,
+      "seconds": 2.834,
+      "refusal": false
+    },
+    {
+      "round": 14,
+      "status": 1,
+      "seconds": 2.675,
+      "refusal": false
+    },
+    {
+      "round": 15,
+      "status": 1,
+      "seconds": 2.539,
+      "refusal": false
+    },
+    {
+      "round": 16,
+      "status": 1,
+      "seconds": 2.521,
+      "refusal": false
+    },
+    {
+      "round": 17,
+      "status": 1,
+      "seconds": 2.589,
+      "refusal": false
+    },
+    {
+      "round": 18,
+      "status": 1,
+      "seconds": 2.459,
+      "refusal": false
+    },
+    {
+      "round": 19,
+      "status": 1,
+      "seconds": 2.486,
+      "refusal": false
+    },
+    {
+      "round": 20,
+      "status": 1,
+      "seconds": 2.744,
+      "refusal": false
+    },
+    {
+      "round": 21,
+      "status": 1,
+      "seconds": 2.332,
+      "refusal": false
+    },
+    {
+      "round": 22,
+      "status": 1,
+      "seconds": 2.718,
+      "refusal": false
+    },
+    {
+      "round": 23,
+      "status": 1,
+      "seconds": 2.522,
+      "refusal": false
+    },
+    {
+      "round": 24,
+      "status": 1,
+      "seconds": 2.958,
+      "refusal": false
+    },
+    {
+      "round": 25,
+      "status": 1,
+      "seconds": 2.639,
+      "refusal": false
+    },
+    {
+      "round": 26,
+      "status": 1,
+      "seconds": 2.629,
+      "refusal": false
+    },
+    {
+      "round": 27,
+      "status": 1,
+      "seconds": 3.228,
+      "refusal": false
+    },
+    {
+      "round": 28,
+      "status": 1,
+      "seconds": 2.193,
+      "refusal": false
+    },
+    {
+      "round": 29,
+      "status": 1,
+      "seconds": 2.785,
+      "refusal": false
+    },
+    {
+      "round": 30,
+      "status": 1,
+      "seconds": 3.151,
+      "refusal": false
+    }
+  ]
+}

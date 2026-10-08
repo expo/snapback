@@ -1,0 +1,105 @@
+   Compiling generic-array v0.14.7
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling cpufeatures v0.2.17
+   Compiling libm v0.2.16
+   Compiling cfg-if v1.0.4
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.189
+   Compiling foldhash v0.2.0
+   Compiling bitflags v2.13.2
+   Compiling zmij v1.0.23
+   Compiling wasmparser v0.228.0
+   Compiling wasmi_ir v2.0.0
+   Compiling hashbrown v0.17.1
+   Compiling libsqlite3-sys v0.38.2
+   Compiling rand_core v0.6.4
+   Compiling wasmi_core v2.0.0
+   Compiling tinyvec_macros v0.1.1
+   Compiling base64ct v1.8.3
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling serde_json v1.0.151
+   Compiling password-hash v0.5.0
+   Compiling blake2 v0.10.6
+   Compiling serde v1.0.229
+   Compiling tinyvec v1.13.2
+   Compiling wasmi v2.0.0
+   Compiling getrandom v0.3.4
+   Compiling thiserror v2.0.20
+   Compiling hashlink v0.12.2
+   Compiling smallvec v1.16.1
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling memchr v2.8.3
+   Compiling wasmi_collections v2.0.0
+   Compiling spin v0.9.9
+   Compiling itoa v1.0.18
+   Compiling unicode-normalization v0.1.25
+   Compiling argon2 v0.5.3
+   Compiling sha2 v0.10.9
+   Compiling inout v0.1.4
+   Compiling zeroize v1.9.0
+   Compiling cipher v0.4.4
+   Compiling universal-hash v0.5.1
+   Compiling opaque-debug v0.3.1
+   Compiling poly1305 v0.8.0
+   Compiling chacha20 v0.9.1
+   Compiling aead v0.5.2
+   Compiling ascii v1.1.0
+   Compiling httpdate v1.0.3
+   Compiling chunked_transfer v1.5.0
+   Compiling log v0.4.34
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-pg/snapback4/vendor/tiny_http)
+   Compiling chacha20poly1305 v0.10.1
+   Compiling hmac v0.12.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.15 (/home/ccheever/sb4-intent/lane-pg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.15 (/home/ccheever/sb4-intent/lane-pg/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.15 (/home/ccheever/sb4-intent/lane-pg/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:455:51
+    |
+455 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.15 (/home/ccheever/sb4-intent/lane-pg/snapback4/crates/snapback4)
+warning: function `now` is never used
+ --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:7:8
+  |
+7 | pub fn now() -> u128 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() }
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `SCENE_REPAIR` is never used
+  --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:13:11
+   |
+13 | pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoScene...
+   |           ^^^^^^^^^^^^
+
+warning: function `app_pid` is never used
+   --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:169:8
+    |
+169 | pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    |        ^^^^^^^
+
+warning: `snapback4` (test "witness") generated 3 warnings
+    Finished `test` profile [optimized] target(s) in 1m 15s
+  Executable unittests src/main.rs (target/debug/deps/snapback4-19b4b0de3b5a3951)
+  Executable tests/witness.rs (target/debug/deps/witness-32db8330963f5d7e)

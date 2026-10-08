@@ -1,0 +1,201 @@
+{
+  "command": [
+    "target/debug/deps/snapback4-19b4b0de3b5a3951",
+    "verbs::witness::",
+    "--test-threads=4"
+  ],
+  "cpus": "88-91",
+  "load_pids": [
+    58067,
+    58069,
+    58071,
+    58072,
+    58073,
+    58074,
+    58075,
+    58076
+  ],
+  "load_reaped": true,
+  "results": [
+    {
+      "round": 1,
+      "status": 0,
+      "seconds": 15.537,
+      "refusal": false
+    },
+    {
+      "round": 2,
+      "status": 0,
+      "seconds": 19.362,
+      "refusal": false
+    },
+    {
+      "round": 3,
+      "status": 0,
+      "seconds": 15.89,
+      "refusal": false
+    },
+    {
+      "round": 4,
+      "status": 0,
+      "seconds": 15.093,
+      "refusal": false
+    },
+    {
+      "round": 5,
+      "status": 0,
+      "seconds": 21.74,
+      "refusal": false
+    },
+    {
+      "round": 6,
+      "status": 0,
+      "seconds": 23.062,
+      "refusal": false
+    },
+    {
+      "round": 7,
+      "status": 0,
+      "seconds": 22.546,
+      "refusal": false
+    },
+    {
+      "round": 8,
+      "status": 0,
+      "seconds": 19.682,
+      "refusal": false
+    },
+    {
+      "round": 9,
+      "status": 0,
+      "seconds": 15.955,
+      "refusal": false
+    },
+    {
+      "round": 10,
+      "status": 0,
+      "seconds": 15.733,
+      "refusal": false
+    },
+    {
+      "round": 11,
+      "status": 0,
+      "seconds": 16.013,
+      "refusal": false
+    },
+    {
+      "round": 12,
+      "status": 0,
+      "seconds": 15.901,
+      "refusal": false
+    },
+    {
+      "round": 13,
+      "status": 0,
+      "seconds": 14.9,
+      "refusal": false
+    },
+    {
+      "round": 14,
+      "status": 0,
+      "seconds": 15.401,
+      "refusal": false
+    },
+    {
+      "round": 15,
+      "status": 0,
+      "seconds": 15.501,
+      "refusal": false
+    },
+    {
+      "round": 16,
+      "status": 0,
+      "seconds": 15.52,
+      "refusal": false
+    },
+    {
+      "round": 17,
+      "status": 0,
+      "seconds": 14.858,
+      "refusal": false
+    },
+    {
+      "round": 18,
+      "status": 0,
+      "seconds": 15.447,
+      "refusal": false
+    },
+    {
+      "round": 19,
+      "status": 0,
+      "seconds": 15.371,
+      "refusal": false
+    },
+    {
+      "round": 20,
+      "status": 0,
+      "seconds": 15.604,
+      "refusal": false
+    },
+    {
+      "round": 21,
+      "status": 0,
+      "seconds": 16.712,
+      "refusal": false
+    },
+    {
+      "round": 22,
+      "status": 0,
+      "seconds": 23.926,
+      "refusal": false
+    },
+    {
+      "round": 23,
+      "status": 0,
+      "seconds": 23.385,
+      "refusal": false
+    },
+    {
+      "round": 24,
+      "status": 0,
+      "seconds": 24.65,
+      "refusal": false
+    },
+    {
+      "round": 25,
+      "status": 0,
+      "seconds": 23.933,
+      "refusal": false
+    },
+    {
+      "round": 26,
+      "status": 0,
+      "seconds": 23.882,
+      "refusal": false
+    },
+    {
+      "round": 27,
+      "status": 0,
+      "seconds": 24.571,
+      "refusal": false
+    },
+    {
+      "round": 28,
+      "status": 0,
+      "seconds": 22.924,
+      "refusal": false
+    },
+    {
+      "round": 29,
+      "status": 0,
+      "seconds": 23.432,
+      "refusal": false
+    },
+    {
+      "round": 30,
+      "status": 0,
+      "seconds": 23.553,
+      "refusal": false
+    }
+  ]
+}

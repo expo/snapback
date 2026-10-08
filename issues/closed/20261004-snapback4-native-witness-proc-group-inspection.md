@@ -1,6 +1,6 @@
 # Snapback 4 native witness intermittently refuses a proc process-group snapshot
 
-Status: Open
+Status: Closed
 Date: 2026-10-04
 Scope: Snapback 4 native witness / Linux process inspection
 Related: LLP 3000.030; LLP 3000#publication-suite-under-contention
@@ -29,7 +29,7 @@ also passed. These controls do not reproduce the failure on baseline and do
 not erase the first suite failure. They support investigating the unchanged
 witness path separately, rather than attributing this diagnostic to LU.
 
-The [LU round-2 report](../snapback4/reports/20261003-lu-live-update-latency/REPORT.md#round-2--wide-replay-fan-out-under-contention)
+The [LU round-2 report](../../snapback4/reports/20261003-lu-live-update-latency/REPORT.md#round-2--wide-replay-fan-out-under-contention)
 retains the failure excerpt, control records, final-suite disposition and raw
 log hashes. The original large suite log is ignored at
 `snapback4/target/lu-r2/full-suite.log` on eb1000.
@@ -38,7 +38,7 @@ Next: retain the exact non-environment stat snapshot and PID/liveness evidence
 at the first native inspection refusal, then identify whether this is malformed
 live metadata or a disappearing process. Preserve fail-closed ownership and
 group-drain checks. The earlier
-[QF JavaScript inspection ticket](closed/20261003-snapback4-malformed-proc-stat-during-stress.md)
+[QF JavaScript inspection ticket](20261003-snapback4-malformed-proc-stat-during-stress.md)
 addresses a separate parser and is not a resolution for this native path.
 
 ## FH recurrence, 2026-10-07
@@ -55,7 +55,7 @@ unclassified; this record does not infer an ownership leak or a kernel race.
 The exact test passes on its first isolated rerun (1.33 s). The complete CLI
 unit target also passes: 318 passed, zero failed, four ignored in 79.50 s.
 These results and the complete suite disposition are recorded in the
-[FH round-1 report](../snapback4/reports/20261006-fh-following-history/round-1/REPORT.md).
+[FH round-1 report](../../snapback4/reports/20261006-fh-following-history/round-1/REPORT.md).
 Raw logs `full-suite-resumed.log`, `witness-sigint-rerun.log` and
 `cli-target-rerun.log` live beside that report. A passing rerun does not erase
 the suite failure or close this issue. No inspection check is weakened by FH.
@@ -71,7 +71,7 @@ the failed stat snapshot is still unavailable, so its cause remains unclassified
 
 The exact test passes its first isolated rerun (1.00 s), and the complete CLI
 unit target passes all 318 tests with four ignores (37.23 s). The
-[FH round-2 report](../snapback4/reports/20261006-fh-following-history/round-2/REPORT.md)
+[FH round-2 report](../../snapback4/reports/20261006-fh-following-history/round-2/REPORT.md)
 retains the full-suite failure and both rerun logs. No ownership inspection or
 group-drain check was relaxed. This recurrence does not close the issue.
 ## 2026-10-06 — RO Round 3 recurrence
@@ -92,7 +92,7 @@ cause. No rejected stat snapshot was retained, and no separate baseline binary
 was run in this round. Ownership checks were not changed.
 
 Evidence is retained under
-[`reports/20261006-ro-read-only/evidence/`](../snapback4/reports/20261006-ro-read-only/evidence/):
+[`reports/20261006-ro-read-only/evidence/`](../../snapback4/reports/20261006-ro-read-only/evidence/):
 `round3-full-suite.log.gz`, `round3-witness-rerun.log.gz` and
 `round3-cli-rerun.log.gz`. See that report's Round 3 section for the complete
 run's final disposition.
@@ -114,7 +114,7 @@ snapshot was retained and no separate baseline binary was run in this round.
 Ownership and process-group checks remain unchanged.
 
 Evidence: `round5-full-suite.log.gz` and `round5-cli-rerun.log.gz` under the
-[RO report evidence](../snapback4/reports/20261006-ro-read-only/evidence/).
+[RO report evidence](../../snapback4/reports/20261006-ro-read-only/evidence/).
 
 
 ## 2026-10-07 — EM round 3: parked export maintenance with retained state
@@ -128,7 +128,7 @@ Native work itself returned successfully in 142 ms, but its group cleanup
 refused and left the `.retention-*` journal directory. The scan then recorded
 the error and handed off with the claim parked, as designed for a known failure.
 
-The [EM round-3 report](../snapback4/reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
+The [EM round-3 report](../../snapback4/reports/20261007-em-export-maintenance-drain/round3/REPORT.md)
 links the complete TAP and bounded failure snapshot. It retains queue/result
 journals, trace timestamps and verified fixture-process observations. The
 rejected `/proc` row itself is still unavailable: no claim is made about its
@@ -156,7 +156,7 @@ snapshot was retained; the cause is still unknown. The failed fixture's recorded
 runtime-resolution and preparation keepers/guardians were absent on inspection.
 No ownership checks were relaxed and no other process was signalled.
 
-Evidence: [FL round-2 report](../snapback4/reports/20261007-fl-dry-run-flakes/round-2/REPORT.md),
+Evidence: [FL round-2 report](../../snapback4/reports/20261007-fl-dry-run-flakes/round-2/REPORT.md),
 with `witness-unit.log`, `witness-focused-rerun.log`, `witness-unit-rerun.log` and
 `failed-unit-process-check.json` in its evidence directory. This ticket stays open.
 
@@ -174,12 +174,12 @@ the failing assertion is unchanged.
 
 The failed native stat bytes were not retained, so this occurrence adds no
 root-cause conclusion. Two earlier maintenance-drain failures in the frozen
-load replay are [recorded separately](20261008-snapback4-maintenance-drain-fl-load.md);
+load replay are [recorded separately](../20261008-snapback4-maintenance-drain-fl-load.md);
 similar scheduling conditions do not establish a shared cause. No ownership
 or process-group classification check has been relaxed.
 
-Evidence: [complete candidate run](../snapback4/reports/20261007-fl-dry-run-flakes/round-8/evidence/background-diagnostics-final.log),
-with the [round-8 report](../snapback4/reports/20261007-fl-dry-run-flakes/round-8/REPORT.md)
+Evidence: [complete candidate run](../../snapback4/reports/20261007-fl-dry-run-flakes/round-8/evidence/background-diagnostics-final.log),
+with the [round-8 report](../../snapback4/reports/20261007-fl-dry-run-flakes/round-8/REPORT.md)
 recording the final-source checks separately. This ticket remains open.
 
 The final canonical background-file rerun passed 63 tests with 32 skips, using
@@ -187,7 +187,7 @@ the same native binary. It does not explain or erase the failed candidate run.
 
 ## 2026-10-08 — FS loaded witness recurrence
 
-The unchanged FS base `ecba83f39e2f8539ffa08d73949e8e953760f3e7` failed `preparation::tests::recovery_direct_node_drains_late_group_member` once in 30 four-thread witness-module runs. `baseline-witness/026.log.gz` reports `E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_PROCESS: invalid /proc process group`. This is separate from the fork-inherited lease failures reproduced in the same campaign. The refused stat snapshot is still unavailable; no new parser cause is claimed and no process-classification check changed. See the [FS report](../snapback4/reports/20261008-fs-witness-worker-flakes/REPORT.md). This ticket stays open.
+The unchanged FS base `ecba83f39e2f8539ffa08d73949e8e953760f3e7` failed `preparation::tests::recovery_direct_node_drains_late_group_member` once in 30 four-thread witness-module runs. `baseline-witness/026.log.gz` reports `E_WITNESS_ARTIFACT: evidence retention failed: witness: evidence cleanup deferred: E_WITNESS_PROCESS: invalid /proc process group`. This is separate from the fork-inherited lease failures reproduced in the same campaign. The refused stat snapshot is still unavailable; no new parser cause is claimed and no process-classification check changed. See the [FS report](../../snapback4/reports/20261008-fs-witness-worker-flakes/REPORT.md). This ticket stays open.
 
 FS's final-source loaded witness run also refused `invalid /proc process group` in `recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper` (`final-witness/004.log.gz`). That scenario was isolated from unrelated libtest forks; the raw stat snapshot is still unavailable. This further distinguishes process inspection from the last-close lease assertions.
 
@@ -202,6 +202,37 @@ that preparation test are unchanged by EM; all retention, recovery and
 publication cases passed in the failed aggregate. No refused raw stat bytes
 were retained, so neither the rerun nor this recurrence establishes the
 underlying inspection cause. The classification checks remain unchanged.
-See [EM round 11](../snapback4/reports/20261008-em-export-run-removal/REPORT.md)
+See [EM round 11](../../snapback4/reports/20261008-em-export-run-removal/REPORT.md)
 and its retained `native-witness.log.gz` / `native-inspection-recheck.log.gz`.
 This ticket remains open.
+
+
+## PG resolution, 2026-10-08
+
+Closed after retaining a real native refusal on eb1000. Instrumentation-only
+witness run 9 rejected PID 4095072's complete 139-byte stat: state X, PPID 0,
+PGID/session -1, start tick 17057038. The immediate getpgid probe returned
+ESRCH (3) and the stat reread returned ENOENT (2). There was no surviving PID,
+zombie or birth to compare afterwards. The parser already split after the
+last `)`; the captured row's comm was `pg plain`. This is a reaping race,
+not comm splitting, a partial read or a permission failure in this capture.
+Earlier unretained snapshots cannot be retroactively classified.
+
+A rejected readable row now checks the directory PID with getpgid once.
+Only ESRCH treats it as gone. A live or uninspectable process still refuses,
+including one whose fresh group differs, with bounded exact rejected bytes,
+parser reason and immediate state/birth diagnostics. All leader birth,
+reaping-lock, guardian, whole-group drain and two-empty-snapshot checks remain.
+
+Under the same taskset/busy-loop/process-churn recipe, all 30 complete witness
+runs pass (84 tests each, 2,520 total) and all 30 repetitions of the reported
+export publication-handoff/off/next-Expo-fails case pass, without inspection
+refusal. The new controls retain refusals for malformed live metadata and a
+live foreign group without matching leader custody. Witness integration
+passes 32 tests; the complete export-background file passes 70 with 34 Darwin
+skips. No Darwin qualification is claimed. A different baseline assertion with
+missing captured stderr has its own open follow-up; it is not erased here.
+
+[Report and all command receipts](../../snapback4/reports/20261008-pg-proc-group-inspection/REPORT.md),
+[exact rejected stat](../../snapback4/reports/20261008-pg-proc-group-inspection/first-refusal.stat),
+and [PID/liveness evidence](../../snapback4/reports/20261008-pg-proc-group-inspection/first-refusal.json).

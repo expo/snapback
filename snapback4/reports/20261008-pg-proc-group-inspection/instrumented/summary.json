@@ -1,0 +1,75 @@
+{
+  "command": [
+    "target/debug/deps/snapback4-19b4b0de3b5a3951",
+    "verbs::witness::",
+    "--test-threads=4"
+  ],
+  "cpus": "88-91",
+  "load_pids": [
+    3241187,
+    3241188,
+    3241189,
+    3241190,
+    3241191,
+    3241192,
+    3241193,
+    3241194
+  ],
+  "load_reaped": true,
+  "results": [
+    {
+      "round": 1,
+      "status": 0,
+      "seconds": 15.166,
+      "refusal": false
+    },
+    {
+      "round": 2,
+      "status": 0,
+      "seconds": 15.068,
+      "refusal": false
+    },
+    {
+      "round": 3,
+      "status": 0,
+      "seconds": 14.513,
+      "refusal": false
+    },
+    {
+      "round": 4,
+      "status": 0,
+      "seconds": 15.175,
+      "refusal": false
+    },
+    {
+      "round": 5,
+      "status": 0,
+      "seconds": 15.027,
+      "refusal": false
+    },
+    {
+      "round": 6,
+      "status": 0,
+      "seconds": 15.039,
+      "refusal": false
+    },
+    {
+      "round": 7,
+      "status": 0,
+      "seconds": 14.977,
+      "refusal": false
+    },
+    {
+      "round": 8,
+      "status": 101,
+      "seconds": 15.188,
+      "refusal": false
+    },
+    {
+      "round": 9,
+      "status": 101,
+      "seconds": 14.851,
+      "refusal": true
+    }
+  ]
+}
