@@ -1,3 +1,4 @@
+import { parkedChanges } from '../../../../packages/snapback4/test/helpers/sync-control.mjs';
 import { createLocalClient } from '../../../../packages/snapback4/dist/local.js';
 import { webDevice } from '../../../../packages/snapback4/dist/web.js';
 const q = { kind: 'query', name: 'cards' };
@@ -22,7 +23,7 @@ window.openClient = async ({ url, worker }) => {
   } }, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (offline) throw Error('offline');
-    if (path === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+    if (path === '/changes') return parkedChanges(init.signal);
     const held = gates;
     if (path.startsWith('/m/') && held) { held.request.resolve(); await held.send.promise; }
     if (path === '/sync' && held) { held.sync.resolve(); await held.apply.promise; }
@@ -41,6 +42,7 @@ window.release = () => { gates?.send.resolve(); gates?.apply.resolve(); gates = 
 window.snapshot = () => watch.getSnapshot();
 window.pending = () => client.pendingWrites();
 window.query = () => client.query(q, { c: null });
+window.beginQuery = () => { window.direct = undefined; window.reading = window.query().then(read => { window.direct = read; return read; }); window.stateReading = window.disjoint(); };
 window.disjoint = () => client.query({ kind: 'query', name: 'postState' }, { postId: 'first' });
 window.sync = () => client.sync();
 window.offline = async () => { offline = true; await client.sync(); };

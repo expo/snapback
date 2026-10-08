@@ -424,7 +424,9 @@ query remoteProfile():
     assert.equal(partial.data.rows[0].post.id, "own-profile"); assert.equal(partial.data.rows[0].pending, true);
     assert.equal(partial.complete, false); assert.equal(Object.hasOwn(bob.observed.at(-1), "speculative"), false);
     const profile = await bob.client.query(query("remoteProfile"), {});
-    assert.equal(profile.denied?.code, "E_QUERY_RETRY", "one-shot custody conservatively waits for admitted writes before remote data");
+    // LLP 3000.023 §11: post cannot affect remoteProfiles; the served answer settles.
+    assert.deepEqual(profile.data, { id: "old", name: "remote" });
+    assert.equal(profile.complete, true);
     assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
     bob.offline = true; await bob.client.sync();
     const offline = await bob.client.query(query("withProfile"), {});

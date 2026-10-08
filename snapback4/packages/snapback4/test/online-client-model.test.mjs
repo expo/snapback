@@ -12,6 +12,9 @@ for (const boundary of ['replacement', 'revocation']) test(`model scheduled repl
   { op: 'release', pick: 1 }, { op: 'release' },
 ], 'client'));
 
+test('SN replay seed 563: loading candidates spend rounds even with pending custody', () => execute(generate(563), 'client'));
+test('SN replay seed 2718: a commit after custody wait still spends a publication round', () => execute(generate(2718), 'app'));
+
 test('expanded model replay seed 1615: a poll awaiting refresh stops at terminal refusal', () => execute(generate(1615, 32, round10Operations), 'client'));
 
 test('expanded model replay seed 16: overlapping callers keep paused durable intent pending', () => execute(generate(16, 32, round12Operations), 'app'));

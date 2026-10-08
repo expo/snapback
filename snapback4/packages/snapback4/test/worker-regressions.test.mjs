@@ -498,7 +498,7 @@ test('new declarations retry failed admission after Node is repaired without ano
   chmodSync(wrapper, 0o700);
   const s = await f.start([], {SNAPBACK_NODE:wrapper}, true);
   writeFileSync(join(f.dir, 'snapback/workers/push.mjs'), idle);
-  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes('worker needs Node 24') && line.includes('declaration will retry')));
+  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes(`worker ${join(f.dir, 'snapback/workers/push.mjs')} needs Node 24`) && line.includes(`${wrapper} reports v23.0.0`) && line.includes('declaration will retry')));
   assert.match(s.log, /declaration will retry/, 'the edit must reach pending admission on a serving host');
   const adoptions = s.log.match(/schema adopted as generation/g)?.length ?? 0;
   rmSync(join(f.dir, 'bad-node'));

@@ -91396,3 +91396,46 @@ The round-11 entry above incorrectly reports the separate crash matrix as
 The retained [raw log](reports/20261008-em-export-run-removal/crash-matrix.log.gz)
 and Astra's independent rerun contain the same 26 cases, with zero failures.
 The round-11 report is corrected; the original JOURNAL entry remains intact.
+
+## 2026-10-08 — SN round 6: qualification attribution and bounded custody wakeups
+
+Merged main through EM (`1dd87edd57`), then frozen-installed dependencies and
+checked the SDK links (`deps-ok`) before building, all on eb1000. Ran each of
+the seven qualification files at pre-SN `07f4c495ea` (261 pass), SN landing
+`a474980715` (238 pass, 23 fail), and merged main (237 pass, 24 fail). Two SN
+product regressions account for the model and transport-diagnostic failures;
+21 failures encode the former global barrier or await a dependent query before
+releasing its held write. The remaining worker retry assertion mismatches the
+richer diagnostic from `ab74765288`, not FS; the model failure is not DK's.
+
+Loading replies spend publication rounds even with pending custody. The shared
+loop rechecks the same candidate after an event wait; an intervening invalidation
+spends the four-round bound before reevaluation. Local custody refreshes its
+predicate; the facade repeats asynchronous authority approval after the wait.
+Optional online schema discovery runs only for data, retaining a failed query's
+original transport diagnosis and the existing credential rules for discovery
+refusals. Both failing model seeds and a facade wakeup with unchanged rows are
+permanent regressions. No sync-overlap, receipt, store, compiler-summary or
+engine behavior changed.
+
+Following keeps dependent one-shots in flight while releasing POST/apply gates;
+its original sent and mounted-answer checks pass 24/24 even on unchanged SN
+product with only the corrected fixtures. Offline/disjoint/empty-sync expectations
+follow the already accepted LLP 3000.023 §11; relevant and unknown sync controls
+still refetch on both hosts. The worker test now checks both executable paths,
+the rejected version and retry marker. All delivery sites and fault recipes are
+retained; four continuation awaits are explicitly classified. No tests were
+deleted or work counts reduced. Updated §11, the client card and refusal guide.
+
+Complete `bash scripts/test.sh`: **`== 0 failure(s) in 2773 s`**, exit 0. Rust's
+316 test binaries/1,029 executions and doctests pass; guide 113/113. Client pool
+356/356 files: 7,032 pass, 54 skipped; serial models 81/81 with full counts.
+One-shot/dependency/publication regressions pass 378/378; the seven originally
+failing files pass 267/267 including added controls. Wasm is 645,605 B gzip
+against the unchanged 646,180 B cap: 575 B headroom, above the requested 500 B
+macOS allowance; no macOS run claimed. `local.ts` is 1,499 lines. Reference and
+whitespace checks pass. The report retains interrupted qualification attempts,
+historical builds and causal controls separately from the final passing suite.
+
+[Round-6 report and complete logs](reports/20261007-sn-one-shot-settlement/round6/REPORT.md).
+No push or publication.

@@ -52,11 +52,16 @@ for (const worker of [false, true]) for (const name of ['follow', 'unfollow']) t
     const pending = await keeper.evaluate(() => window.pending());
     assert.ok(pending.some(entry => entry.id === write.id));
     assert.ok(honest(await keeper.evaluate(() => window.snapshot())), `${name}: custody must invalidate the mounted answer before transport`);
-    assert.ok(honest(await keeper.evaluate(() => window.query())));
-    assert.equal((await keeper.evaluate(() => window.disjoint())).denied?.code, 'E_QUERY_RETRY');
+    await keeper.evaluate(() => window.beginQuery());
+    assert.equal(await keeper.evaluate(() => window.direct), undefined);
     await keeper.evaluate(() => window.send()); await keeper.evaluate(() => window.atSync());
     assert.ok(honest(await keeper.evaluate(() => window.snapshot())), `${name}: receipt is not observation`);
+    assert.equal(await keeper.evaluate(() => window.direct), undefined, 'one-shot also waits for observation');
     await keeper.evaluate(() => window.apply()); await keeper.evaluate(n => window.ready(n), newCount);
+    const read = await keeper.evaluate(() => window.reading);
+    assert.equal(read.data?.length, newCount); assert.equal(read.complete, true);
+    const state = await keeper.evaluate(() => window.stateReading);
+    assert.deepEqual(state.data, { liked: false, reposted: false }); assert.equal(state.complete, true);
     for (const read of await keeper.evaluate(() => window.publications)) assert.ok(honest(read) || read.data?.length === newCount, `${name}: ${JSON.stringify(read)}`);
     await keeper.evaluate(() => window.release()); await donor.close();
   }

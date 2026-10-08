@@ -1,7 +1,10 @@
 # Lane SN: one-shot settlement
 
-**Latest: [Round 5](round5/REPORT.md).** Fence complete prediction replay and
-retain current-session discovery refusals. [Round 4](round4/REPORT.md) refreshed the exact capability-free backend
+**Latest: [Round 6](round6/REPORT.md).** Attribute the seven qualification files,
+retain the publication-race bound after custody waits, skip discovery for failed
+queries, and reconcile fixtures with the accepted contract.
+[Round 5](round5/REPORT.md) fenced complete prediction replay and
+retained current-session discovery refusals. [Round 4](round4/REPORT.md) refreshed the exact capability-free backend
 pin for the additive settlement envelope and verified unchanged schema/IR/storage on
 Linux. [Round 3](round3/REPORT.md) merged FL and DK while preserving both lanes. [Round 2](round2/REPORT.md)
 added generation/store fences, field-level evidence and dispatch-bound recovery. [Round 1](round1/REPORT.md) restored complete predicted one-shots

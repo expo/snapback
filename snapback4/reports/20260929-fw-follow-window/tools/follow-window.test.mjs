@@ -1,3 +1,4 @@
+import { parkedChanges } from '../../../packages/snapback4/test/helpers/sync-control.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -35,7 +36,7 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false]) f
     const bob = await createLocalClient({ url, persona: 'bob', device: device('bob'), fetch: async (input, init) => {
       const path = new URL(input).pathname;
       // Owned write and stream releases control when Bob learns the change.
-      if (path === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+      if (path === '/changes') return parkedChanges(init.signal);
       if (path.startsWith('/m/') && gates) { gates.request.resolve(); await gates.send.promise; }
       if (path === '/sync' && gates) { gates.sync.resolve(); await gates.apply.promise; }
       return fetch(input, init);
@@ -61,22 +62,33 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false]) f
       assert.ok(honest(watch.getSnapshot()), 'the call turn marks its mounted answer');
       await gates.request.promise;
       stage('admitted');
-      assert.ok(honest(await bob.query(q, { c: null })), `${op}: queued direct answer is honest`);
+      // LLP 3000.023 §11: the dependent one-shot waits for observation.
+      // Keep it in flight while releasing the POST, within the write's caller budget.
+      let direct;
+      const reading = bob.query(q, { c: null }).then(read => { direct = read; return read; });
       assert.ok(honest(watch.getSnapshot()), `${op}: mounted answer is honest before server execution`);
       assert.equal((await bob.pendingWrites()).length, 1);
-      assert.equal((await bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' })).denied?.code, 'E_QUERY_RETRY', 'one-shot waits for its admitted nonpredictable write');
+      // Following's compiler summary includes repost maintenance, which also
+      // intersects postState. Its unchanged observation is not disjoint proof.
+      const stateRead = bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' });
+      assert.equal(direct, undefined, 'the dependent read cannot publish before execution');
       assert.equal(disjoint.getSnapshot().complete, true, 'disjoint observations retain completeness');
       gates.send.resolve();
       await gates.sync.promise; // HTTP settlement was durably saved; rows have not applied.
       stage('settled');
       assert.equal((await bob.pendingWrites()).length, 0, 'settlement is not row publication');
-      assert.ok(honest(await bob.query(q, { c: null })), `${op}: sent but unobserved answer is honest`);
+      assert.equal(direct, undefined, `${op}: the dependent read cannot publish before apply`);
       assert.ok(honest(watch.getSnapshot()), `${op}: mounted answer stays honest before apply`);
       gates.apply.resolve();
       assert.equal((await write).state, waitSeconds === 0 ? 'pending' : 'sent');
       assert.equal((await terminal.promise).state, 'sent'); stopWrite();
       stage('applied');
       const count = op === 'follow' ? 4 : 0;
+      const settledRead = await reading;
+      assert.equal(settledRead.data?.length, count, 'the one-shot includes the observed follow/unfollow');
+      const state = await stateRead;
+      assert.deepEqual(state.data, { liked: false, reposted: false });
+      assert.equal(state.complete, true);
       const final = await answer(watch, r => r.data?.length === count && r.complete && r.fresh && !r.revalidating);
       stage('published');
       assert.equal(final.fresh, true);

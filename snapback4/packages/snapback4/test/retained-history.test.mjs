@@ -115,10 +115,12 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "RH held leave", "RH stalled leave", "RH empty catch-up", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ local branch", "MQ local branch watch", "MQ local page", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: hangBudget(126) }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "RH held leave", "RH stalled leave", "RH empty catch-up", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "R2 unknown sync during reply", "R2 relevant sync during reply", "MQ authoritative bound", "MQ speculative component", "MQ speculative events", "MQ expiry local left", "MQ expiry local watch left", "MQ local permit", "MQ local permit watch", "MQ local branch", "MQ local branch watch", "MQ local page", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: hangBudget(126) }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
+  const syncDuringReply = scenario.startsWith("R2 ") && scenario.endsWith("sync during reply");
+  let unknownSync = false;
   let fixtureSource = expiring ? source.replace("  body: text <=40\n  unique", "  body: text <=40\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiresAt: expiresAt\n  unique").replace("insert messages {room, at, body}", "insert messages {room, at, body, expiresAt: now + 3600000}") : source;
   const permitCase = scenario.startsWith("MQ local permit");
   const branchCase = scenario.startsWith("MQ local branch"), pageCase = scenario === "MQ local page";
@@ -292,7 +294,7 @@ query wordBoth():
       // invalidate the held query after the fixture has claimed isolation.
       if ((branchCase || pageCase) && path === "/changes") return parked(init.signal);
       if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
-      if (scenario === "R2 sync during reply" && path === "/q/both") querySince = syncedAt;
+      if (syncDuringReply && path === "/q/both") querySince = syncedAt;
       if (path === "/q/history") requests.push(JSON.parse(init.body).args.room);
       if (holdWrites && path.startsWith("/m/")) {
         if (eventCase) return Response.json({ denied: { code: "E_BUSY", family: "transport", message: "held for prediction", retryable: true } });
@@ -317,6 +319,10 @@ query wordBoth():
         }
       }
       if (intercept && path === `/q/${delayedName}`) await intercept(init);
+      if (unknownSync && path === "/sync") {
+        const json = await response.json(); delete json.changes;
+        return Response.json(json, { status: response.status, headers: response.headers });
+      }
       return response;
     },
     device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (holdLeave && request.op === "apply" && (scenario === "RH empty catch-up" || request.page.events?.some(event => event.kind === "scope"))) { heldLeave = true; await leaveGate; } if (request.op === "set_meta" && request.key === "syncedAt:wall:1") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); if (interceptDevice) await interceptDevice(request, reply); return reply; } }; } },
@@ -771,7 +777,7 @@ query wordBoth():
     if (scenario === "MQ held change") assert.equal((await client.query(both, {})).data.held[0].body, "new");
     return;
   }
-  if (scenario === "R2 sync during reply") {
+  if (syncDuringReply) {
     let release, entered;
     const waiting = new Promise(resolve => { entered = resolve; });
     const gate = new Promise(resolve => { release = resolve; releaseReply = resolve; });
@@ -782,16 +788,26 @@ query wordBoth():
     const before = querySince;
     assert.ok(Number.isInteger(before) && before > 0);
     await until(() => Date.now() > before, "clock must advance before the next sync");
+    unknownSync = scenario.includes("unknown");
+    const relevant = scenario.includes("relevant");
+    if (unknownSync) assert.equal((await post("/seed", [{ table: "current", row: { id: "unrelated", room: "held", body: "new cut" } }])).seeded, 1);
+    if (relevant) assert.equal((await post("/m/send", { args: { room: "held", at: 99, body: "after candidate" } })).state, "sent");
     await client.sync();
     const after = Number((await core.call({ op: "meta", key: "syncedAt:wall:1" })).ok);
     assert.ok(after > before, "a later sync completed while the server reply was delayed");
     release();
     const result = await pending;
-    assert.deepEqual(result.data, { left: expected("left", 1), held: expected("held", 0) });
+    assert.deepEqual(result.data.left, expected("left", 1));
+    if (relevant) {
+      assert.equal(result.data.held[0].body, "after candidate");
+      assert.deepEqual(result.data.held.slice(1), expected("held", 0));
+    } else assert.deepEqual(result.data.held, expected("held", 0));
     assert.equal(result.fresh, false);
     assert.equal(result.complete, false);
-    assert.equal(result.since, querySince, "composed since belongs to the replacement request after the commit fence");
-    assert.ok(querySince >= after, "the sync commit discards and refetches the earlier HTTP response");
+    assert.equal(result.since, querySince, "composed since belongs to the accepted request");
+    // LLP 3000.023 §11: an authoritative empty interval preserves this proof.
+    if (unknownSync || relevant) assert.ok(querySince >= after, "unknown or relevant sync still discards and refetches the earlier HTTP response");
+    else assert.equal(querySince, before, "the proven empty sync preserves the earlier HTTP response and its age");
     return;
   }
   if (scenario === "R2 mixed result") {

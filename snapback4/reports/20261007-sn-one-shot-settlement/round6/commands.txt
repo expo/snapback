@@ -1,0 +1,37 @@
+# Main worktree, repository root. No push.
+git fetch origin && git merge origin/main
+# Fast-forward 18773fa06a -> 1dd87edd57
+cd snapback4
+bun install --frozen-lockfile
+bash ~/sb4-intent/check-sdk-deps.sh
+# deps-ok
+
+# Historical snapshots: each task-owned detached worktree, independent build/SDK.
+# git worktree add --detach ~/sb4-intent/sn-r6-pre 07f4c495ea
+# git worktree add --detach ~/sb4-intent/sn-r6-landed a474980715
+# In each snapback4 workspace: frozen install + check-sdk-deps, then
+export CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+cargo build --workspace --quiet
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+node scripts/run-client-tests.mjs 7 files packages/snapback4/test/follow-window.test.mjs packages/snapback4/test/bounded-following.test.mjs packages/snapback4/test/retained-history.test.mjs packages/snapback4/test/page-ready.test.mjs packages/snapback4/test/online-client-model.test.mjs packages/snapback4/test/per-row-liveness.test.mjs packages/snapback4/test/worker-regressions.test.mjs
+
+# Main worktree, affected verification after edits.
+bun run --cwd packages/snapback4 typecheck
+bun run --cwd packages/snapback4 build
+node scripts/run-client-tests.mjs 8 files packages/snapback4/test/one-shot*.test.mjs packages/snapback4/test/query-dependencies.test.mjs packages/snapback4/test/query-publication-session.test.mjs
+node --test --test-name-pattern='R2 .*sync during reply' packages/snapback4/test/retained-history.test.mjs
+node --test --test-name-pattern='a speculative profile withholds' packages/snapback4/test/bounded-following.test.mjs
+node --test --test-name-pattern='facade authority is checked again' packages/snapback4/test/one-shot-discovery-auth.test.mjs
+# Expected failure control: disables only the newly required post-wait approval.
+node --import ./reports/20261007-sn-one-shot-settlement/round6/no-facade-recheck.mjs --test --test-name-pattern='facade authority is checked again' packages/snapback4/test/one-shot-discovery-auth.test.mjs
+
+# Final prechecks and complete qualification: 16 Cargo jobs, other inputs unchanged.
+export CARGO_BUILD_JOBS=16
+cargo test -p snapback4-lang --test guide
+node scripts/run-client-tests.mjs 1 files packages/snapback4/test/delivery-fault-matrix.test.mjs
+node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs packages/snapback4/test/online-client-model.test.mjs
+# Default file pool and full-count serial model stage.
+bash scripts/test.sh
+cd ..
+./ref-check
