@@ -121,7 +121,7 @@ fn exact_growth_and_query_token_cap_are_charged_before_growth() {
     assert_eq!(meter.used.heap_bytes, accounting::text(&input) + 8 * 8 + accounting::slots::<String>(1 + 2 + 4 + 8));
     let mut meter = meter::Meter::new(meter::Ceilings { heap_bytes: 1, ..Default::default() }, meter::Cut::Cap);
     let (_, allocated) = measured(|| assert!(physical(&mut meter, |meter,_| {
-        let mut guard = accounting::StoreGuard::open(meter, "test", u64::MAX);
+        let mut guard = accounting::StoreGuard::open(meter, u64::MAX);
         accounting::scan_entry(meter, &mut guard, 0, 0, "null", b"long-key")
     }).is_err()));
     assert_eq!(allocated, 0, "the failing allowance precedes key/vector allocation");

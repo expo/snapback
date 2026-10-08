@@ -253,9 +253,12 @@ pub fn scan_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut Stor
     let (row, key) = (stored_row_bytes(json), allocation(key.len()));
     meter.heap(row)?;
     meter.heap(key)?;
-    let additional = meter.grow::<(Value, Vec<u8>)>(len, capacity)?;
-    guard.reserve(meter, row + key + if additional == 0 { 0 } else { slots::<(Value, Vec<u8>)>(len + additional) })?;
-    Ok(additional)
+    // G<(Value,Vec<u8>)>: the whole replacement allocation, before growth.
+    let next = if len < capacity { 0 } else { capacity.saturating_mul(2).max(1) };
+    let slot = slots::<(Value, Vec<u8>)>(next);
+    meter.heap(slot)?;
+    guard.reserve(meter, row + key + slot)?;
+    Ok(next.saturating_sub(len))
 }
 
 /// The physical memory a store spends on one scan beyond its public charge:
@@ -264,17 +267,17 @@ pub fn scan_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut Stor
 /// past its store's limit, set far above any ceiling, it refuses with
 /// E_STORE_MEMORY. Its limit counts the logical entry charges too, so an
 /// engine meter with unbounded ceilings is still guarded.
-pub struct StoreGuard { store: &'static str, start: u64, limit: u64 }
+pub struct StoreGuard { start: u64, limit: u64 }
 impl StoreGuard {
-    pub fn open(meter: &crate::engine::InternalMeter<'_>, store: &'static str, limit: u64) -> Self {
+    pub fn open(meter: &crate::engine::InternalMeter<'_>, limit: u64) -> Self {
         #[cfg(test)]
         let limit = TEST_GUARD.with(|test| test.get().unwrap_or(limit));
-        Self { store, start: meter.guarded(), limit }
+        Self { start: meter.guarded(), limit }
     }
     pub fn reserve(&mut self, meter: &mut crate::engine::InternalMeter<'_>, bytes: u64) -> Result<(), RuntimeError> {
         let used = meter.add_scratch(bytes).saturating_sub(self.start);
         if used <= self.limit { return Ok(()); }
-        Err(RuntimeError::Structural { code: "E_STORE_MEMORY", message: format!("one {} scan needs more than its {} byte memory guard; read a smaller page", self.store, self.limit) })
+        Err(RuntimeError::Structural { code: "E_STORE_MEMORY", message: String::from("a store scan exceeded its memory guard (256 MiB on SQLite and Postgres, 64 MiB on the memory store); read a smaller page") })
     }
     /// The encoded range copies a native store makes for its statement.
     pub fn range(&mut self, meter: &mut crate::engine::InternalMeter<'_>, copies: u64, prefix: &[Value], bounds: &Bounds) -> Result<(), RuntimeError> {

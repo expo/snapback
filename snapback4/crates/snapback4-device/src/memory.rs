@@ -614,10 +614,10 @@ impl Rows for MemoryTx<'_> {
         use snapback4_core::rows::word_heap;
         // @ref LLP 3000.007#20.24.5 — the server's logical charge; this store's temporary names and keys are guarded.
         word_heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
-        let mut guard = word_heap::StoreGuard::open(meter, "memory", SCAN_MEMORY_GUARD);
-        guard.reserve(meter, 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+        // Its own scratch (the copied index name and range endpoints) is
+        // bounded by the label and key limits; the guard holds the entries.
+        let mut guard = word_heap::StoreGuard::open(meter, SCAN_MEMORY_GUARD);
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
-        guard.reserve(meter, word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
         let state = self.store.state.borrow();
         let Some(index) = state.entries.get(&ti) else { return Ok(Vec::new()) };

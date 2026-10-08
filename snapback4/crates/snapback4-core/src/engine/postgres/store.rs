@@ -341,7 +341,7 @@ impl Rows for Tx<'_> {
         use crate::rows::word_heap as heap;
         // @ref LLP 3000.007#20.24.5 — the public charge is the shared logical one; the driver's batch is guarded.
         heap::scan_open(meter, table, name, prefix, bounds, scope)?;
-        let mut guard = heap::StoreGuard::open(meter, "Postgres", SCAN_MEMORY_GUARD);
+        let mut guard = heap::StoreGuard::open(meter, SCAN_MEMORY_GUARD);
         // Queries use repeatable-read; serialized writes hold the head lock.
         // The same bounded range cannot grow between this size preflight and
         // its fetch. Reserve network/decoder scratch before the driver owns it.

@@ -378,7 +378,7 @@ impl Rows for MemoryRows {
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         // @ref LLP 3000.007#20.24.5 — the stores' logical charge, priced on each row's canonical image.
         word_heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
-        let mut guard = word_heap::StoreGuard::open(meter, "memory", 64 << 20);
+        let mut guard = word_heap::StoreGuard::open(meter, 64 << 20);
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         let ti = format!("{table}.{index_name}");
         let entries = self.entries.borrow();

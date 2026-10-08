@@ -1047,7 +1047,7 @@ impl crate::rows::Rows for Tx<'_> {
         use crate::rows::word_heap as heap;
         // @ref LLP 3000.007#20.24.5 — the public charge is the shared logical one; SQLite's own scratch is guarded.
         heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
-        let mut guard = heap::StoreGuard::open(meter, "SQLite", SCAN_MEMORY_GUARD);
+        let mut guard = heap::StoreGuard::open(meter, SCAN_MEMORY_GUARD);
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
