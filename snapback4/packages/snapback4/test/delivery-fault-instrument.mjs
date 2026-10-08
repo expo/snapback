@@ -10,13 +10,13 @@ export const packageRoot = fileURLToPath(new URL('../', import.meta.url));
 // between the idle check and evaluation. The timer case needs a failed sync
 // input; it therefore uses the same barrier at follow's preceding sync await.
 export const sharedAwaits = new Map([
-  ['local.ts:follow:syncOnce()#1', 'sync'],
-  ['local.ts:flushOnce:syncOnce()#1', 'sync'],
+  ['local.ts:follow:network.once()#1', 'sync'],
+  ['local.ts:flushOnce:network.once()#1', 'sync'],
   ['local-receipts.ts:syncSettledWrites:sync()#1', 'sync'],
   ['local.ts:syncRound:installNative(aborter.signal)#1', 'native'],
   ['local-query.ts:route:env.installNative(env.signal)#1', 'native'],
 ]);
-export const followSync = 'local.ts:follow:syncOnce()#1';
+export const followSync = 'local.ts:follow:network.once()#1';
 export const followRetry = 'local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1';
 export const scope = {
   'local.ts': ['flush', 'flushOnce', 'call', 'captureStore', 'refreshAcquired', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit', 'read', 'lookup', 'save'],
@@ -78,7 +78,7 @@ export function instrument(destination) {
   for (const [file] of Object.entries(scope)) {
     const sites = census().filter(site => site.file === file);
     let source = readFileSync(join(packageRoot, 'src', file), 'utf8');
-    if (file === 'local.ts') source = source.replace('  return client;\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return syncing; }, flush, flushOnce, syncOnce, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false, retention = false) { nativeReady = false; if(retention) backend = {...backend, schema: {...backend.schema, tables: {...backend.schema.tables, messages: {...backend.schema.tables.messages, leave: "delivered-history"}}}}; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return client;\n  } catch (error)');
+    if (file === 'local.ts') source = source.replace('  return client;\n  } catch (error)', '  globalThis.__rgClient = { get syncing() { return network.current; }, flush, flushOnce, syncOnce: network.once, probe, sendPost, installNative, nativeFixture() { backend = {...backend, programs: [...backend.programs, {native: true}]}; }, setOffline() { setLink("offline"); }, replayOnOpen, call, history, media, clock, listenForExit, waitForChange, captureStore, get retryMs() { return retryMs; }, get retry() { return retry; }, setReconcile() { reconcileNeeded = true; }, allowSending() { sendingAllowed = true; }, setExit(p) { exitDone = p; }, queryFixture(plan, native = false, missing = false, retention = false) { nativeReady = false; if(retention) backend = {...backend, schema: {...backend.schema, tables: {...backend.schema.tables, messages: {...backend.schema.tables.messages, leave: "delivered-history"}}}}; backend = {...backend, schema: {...backend.schema, operations: {...backend.schema.operations, matrixQuery: plan ? {search: plan} : {}}}, programs: [...backend.programs.filter(p => p.name !== "matrixQuery"), ...(missing ? [] : [{name: "matrixQuery", kind: "Query", args: {}, body: [{Return: {Literal: {String: "matrix"}}}], native}])]}; }, setCaughtUp(v) { caughtUp = v; }, setIdentity(v) { identityChecked = v; } };\n  return client;\n  } catch (error)');
     if (file === 'local-native.ts') source = source.replace('  return installNative;', '  globalThis.__rgNativePending = () => nativeInstall?.promise;\n  return installNative;');
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
     const byStart = new Map(sites.map(site => [site.start, site]));
@@ -282,3 +282,13 @@ export function awaitBoundary() {
 // admission fence only notifies readers and observes the original promise's
 // settlement: it adds no persistence or delivery site and preserves browser
 // refusal fields. Following/app-online-arm tests cover the composed lifetime.
+
+// FT: SN moved FIFO/sync coordination to LocalNetwork. The same classified
+// follow/flush/receipt awaits still own transport and host I/O. Its sole new
+// await joins the active round before an explicit reservation; joined-follow
+// controls exercise both rejection and transport-false outcomes. SN query
+// custody/dependency/settlement waits only observe existing outbox state and
+// cannot dispatch or settle mutations. The six changed delivery expressions
+// preserve their recipes; receipt settlement now passes the dispatch store.
+// Current client/following/mock changes are query-only; session-refusal adds
+// no await. Retain the complete boundary seal and all 162 delivery sites.

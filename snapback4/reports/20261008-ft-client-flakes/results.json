@@ -1,0 +1,513 @@
+{
+  "baseline": {
+    "web-admission-review.test.mjs": {
+      "runs": 5,
+      "passed_files": 0,
+      "failed_files": 5,
+      "counts": {
+        "tests": 5,
+        "pass": 0,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 562,
+      "max_ms": 877,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "typing-expiry.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 6126,
+      "max_ms": 8539,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "react.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 350,
+        "pass": 350,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 6882,
+      "max_ms": 10036,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "residency.test.mjs": {
+      "runs": 5,
+      "passed_files": 4,
+      "failed_files": 1,
+      "counts": {
+        "tests": 50,
+        "pass": 49,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 9585,
+      "max_ms": 130485,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "delivery-fault-matrix.test.mjs": {
+      "runs": 5,
+      "passed_files": 0,
+      "failed_files": 5,
+      "counts": {
+        "tests": 10,
+        "pass": 0,
+        "fail": 10,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 4166,
+      "max_ms": 7115,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "local-e2e.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 15046,
+      "max_ms": 16087,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "app-global.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 14858,
+      "max_ms": 19456,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "web-start.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 90,
+        "pass": 90,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 11490,
+      "max_ms": 13781,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "store-reset-reconnect.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 60,
+        "pass": 60,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 22093,
+      "max_ms": 23600,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "web-session-authority.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 95,
+        "pass": 95,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 25772,
+      "max_ms": 30384,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "server-clock-wire.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 50,
+        "pass": 50,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 42909,
+      "max_ms": 45046,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "acquisition.test.mjs": {
+      "runs": 5,
+      "passed_files": 0,
+      "failed_files": 5,
+      "counts": {
+        "tests": 235,
+        "pass": 180,
+        "fail": 55,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 170385,
+      "max_ms": 178897,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "mixed-evidence-oracle.test.mjs": {
+      "runs": 5,
+      "passed_files": 5,
+      "failed_files": 0,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 552315,
+      "max_ms": 818661,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "emission-barrier": {
+    "acquisition.test.mjs": {
+      "runs": 30,
+      "passed_files": 30,
+      "failed_files": 0,
+      "counts": {
+        "tests": 60,
+        "pass": 60,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 15641,
+      "max_ms": 24059,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "receipt-barrier": {
+    "acquisition.test.mjs": {
+      "runs": 30,
+      "passed_files": 0,
+      "failed_files": 30,
+      "counts": {
+        "tests": 60,
+        "pass": 0,
+        "fail": 60,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 9911,
+      "max_ms": 16956,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "repaired-consumers": {
+    "web-admission-review.test.mjs": {
+      "runs": 30,
+      "passed_files": 30,
+      "failed_files": 0,
+      "counts": {
+        "tests": 300,
+        "pass": 300,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 35701,
+      "max_ms": 53643,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "acquisition.test.mjs": {
+      "runs": 30,
+      "passed_files": 30,
+      "failed_files": 0,
+      "counts": {
+        "tests": 390,
+        "pass": 390,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 69355,
+      "max_ms": 88050,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "repaired-matrix": {
+    "delivery-fault-matrix.test.mjs": {
+      "runs": 30,
+      "passed_files": 30,
+      "failed_files": 0,
+      "counts": {
+        "tests": 330,
+        "pass": 330,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 20846,
+      "max_ms": 51975,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "residency-diagnostics": {
+    "residency.test.mjs": {
+      "runs": 20,
+      "passed_files": 18,
+      "failed_files": 2,
+      "counts": {
+        "tests": 200,
+        "pass": 198,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 10854,
+      "max_ms": 141327,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "residency-fixed": {
+    "residency.test.mjs": {
+      "runs": 30,
+      "passed_files": 30,
+      "failed_files": 0,
+      "counts": {
+        "tests": 300,
+        "pass": 300,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 15830,
+      "max_ms": 28419,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "residency-trace": {
+    ".ft-residency-diagnostic.test.mjs": {
+      "runs": 30,
+      "passed_files": 26,
+      "failed_files": 4,
+      "counts": {
+        "tests": 300,
+        "pass": 296,
+        "fail": 4,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 12835,
+      "max_ms": 143151,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  },
+  "unchanged-confirmation": {
+    "react.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 1750,
+        "pass": 1750,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 11221,
+      "max_ms": 27679,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "local-e2e.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 125,
+        "pass": 125,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 16210,
+      "max_ms": 27889,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "typing-expiry.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 50,
+        "pass": 50,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 7975,
+      "max_ms": 29993,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "store-reset-reconnect.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 300,
+        "pass": 300,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 25106,
+      "max_ms": 34533,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "web-start.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 450,
+        "pass": 450,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 15687,
+      "max_ms": 39122,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "server-clock-wire.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 250,
+        "pass": 250,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 47516,
+      "max_ms": 70365,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "app-global.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 175,
+        "pass": 175,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 20724,
+      "max_ms": 71834,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    },
+    "web-session-authority.test.mjs": {
+      "runs": 25,
+      "passed_files": 25,
+      "failed_files": 0,
+      "counts": {
+        "tests": 475,
+        "pass": 475,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "min_ms": 39552,
+      "max_ms": 93851,
+      "cleanup_acknowledged": true,
+      "runner_errors": []
+    }
+  }
+}

@@ -90731,3 +90731,57 @@ during verification. Work stays on eb1000; nothing pushed, no Darwin or full
 publication qualification claimed. Earlier round-8 open tickets stay open.
 
 [Round-10 buffer sizing, complete call audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-10/REPORT.md).
+
+## 2026-10-08 — FT: client-test preconditions and nine flake dispositions
+
+Worked only in lane-ft on eb1000 from ecba83f39e; frozen dependencies and the
+SDK check pass (deps-ok). Native, locked wasm and SDK were built locally.
+Wasm remains 2,135,891 B raw / 645,680 B gzip; no budget or product source changed.
+
+Recreated offline-watch failure reproduced seven times in 55 original/diagnostic
+runs. The snapshot was loading: a server query displayed a2 before the seed's
+sync publication cleared remembered answers. The mounted observation retained
+its image while the new offline watch had no memory. The test now awaits sync
+and a fresh, settled replacement before disconnecting, preserving every
+freshness/data/since/reconnect assertion and adding bounded failure diagnostics.
+A held watermark-2 apply proves the ordering: fixed passes, barrier removal
+fails at the original recreated predicate. The full fixed file passes 30 loaded
+runs and a final complete rerun. The older freshness-downgrade signature was
+not reproduced and remains open separately.
+
+W5R2a now admits with zero caller wait and waits for terminal onWrite plus
+matching durable receipt state. Its queued-state, eviction and exactly-once
+checks remain. An intermediate receipt-only candidate was too early and failed
+all 30 two-host runs at the second emission count; those reds are retained.
+The final event/receipt wait passes 30 repetitions on each host. A six-second
+response delay fails the old default four-second wait and passes the final
+case; withholding terminal events still fails its unchanged state guard.
+Eleven neighbouring acquisition assertions now expect SN's specified prompt
+E_OFFLINE instead of the superseded E_QUERY_RETRY. Final complete acquisition:
+47/47.
+
+SN also left private test instrumentation naming removed syncOnce/syncing
+locals. Browser admission now observes network.once without changing its
+scheduling or promise identity; the delivery matrix uses network.current/once
+and current semantic site IDs. All 162 delivery recipes/classifications remain,
+with the boundary audit recorded. Full matrix 339/339 and admission 55/55;
+30 repeated follow/retry runs pass 330 cases, and 30 focused admission runs pass
+300. Removing the shared-operation drain reproduces the original zero-injection
+assertion. The existing session-revocation and React storage-listener repairs
+also pass 30 full-file repetitions each and detecting negative controls.
+
+Five tickets close, including the resurrected React duplicate. Four stay open
+with measured evidence: direct fixture ECONNRESET, historical freshness downgrade,
+Darwin browser-close stalls and the mixed-oracle timeout. The three transport
+files and typing/session-authority/web-start each pass 30 full-file runs. Five
+complete mixed-oracle runs pass all 1,500 process and 1,500 wasm histories, with
+all three schedules per history and the existing guards. Successful Linux runs
+do not identify those original failures or establish Darwin qualification.
+
+Campaigns use the ordinary keeper runner, eight client slots and eight busy
+loops per campaign confined to CPUs 64–71; campaigns overlap within this
+worktree. All 72 load loops are reaped, every keeper acknowledges cleanup,
+and no runner inspection/leak error occurs. Ref-check passes with zero errors.
+No test or assertion was deleted and no hang guard was raised. No push or
+publication. Commands, source hashes, all baseline/intermediate failures,
+controls and exact counts: [FT report](reports/20261008-ft-client-flakes/REPORT.md).

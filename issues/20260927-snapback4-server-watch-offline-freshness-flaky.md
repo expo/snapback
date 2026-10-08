@@ -49,3 +49,20 @@ no root cause or product fix is claimed here.
 GS's final full result is `== 1 failure(s) in 1585 s`, exit 1. One unchanged
 focused post-suite probe passes 1/1 (180.598508 ms test / 267.290277 ms process).
 This supports the recorded intermittence but establishes no fix or root cause.
+
+
+## FT investigation — 2026-10-08
+
+Still open for the historical freshness-downgrade signature. FT reproduced a
+different failure in this same case: the recreated watch lost remembered data
+after sync publication. The mounted watch did downgrade freshness in every
+observed failing run. That reproduced race is repaired and closed in
+[the recreated-watch ticket](closed/20261007-snapback4-recreated-offline-watch-timeout.md).
+The test now awaits sync and a fresh settled server answer before disconnecting;
+the original downgrade, data, since and reconnect assertions remain, with
+snapshot/link/device/transport diagnostics on both offline waits. The complete
+fixed file passes 30 loaded runs. This removes an invalid precondition but does
+not establish why the older 8-second downgrade predicate failed. No product
+change, timeout increase or historical-cause claim.
+
+[FT commands, retained evidence and final counts](../snapback4/reports/20261008-ft-client-flakes/REPORT.md).

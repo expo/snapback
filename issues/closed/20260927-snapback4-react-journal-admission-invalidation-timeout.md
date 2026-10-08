@@ -1,6 +1,6 @@
 # Snapback 4: cross-tab journal admission invalidation intermittently times out
 
-Status: Open
+Status: Closed
 Date: 2026-09-27
 Scope: `snapback4/packages/snapback4/test/react.test.mjs`, browser online custody
 Observed by: lane QE round 2, implementation head `55e8c29af`
@@ -48,7 +48,7 @@ during admission, retaining the admission and hook assertions.
 
 Evidence in the lane checkout: `snapback4/target/lane-qe-r2/full-suite.log`,
 `full-suite.exit`, `react-isolated.log`, `react-isolated.exit`. Durable summary:
-[`ROUND2.md`](../snapback4/reports/20260927-qe-quarry-ergonomics/ROUND2.md).
+[`ROUND2.md`](../../snapback4/reports/20260927-qe-quarry-ergonomics/ROUND2.md).
 
 ## Resolution — 2026-09-27, lane FX
 
@@ -97,3 +97,13 @@ Control failures are deliberate. Final logs: `react-old-final-*.log`,
 `react-final-*.log`, their JSON summaries, and `online-pending.log` in
 `snapback4/target/lane-fx-evidence/`. Full-suite result and qualifications:
 [FX report](../../snapback4/reports/20260927-fx-flakes/REPORT.md).
+
+
+## FT verification — 2026-10-08
+
+The open working-set copy duplicated this resolved ticket. FX's product fix
+`61b75b5387` and its forced broadcast-before-storage-visibility browser
+regression remain present. FT removes the duplicate open copy, retains this
+resolution, repeats the full current React file under confined CPU load and
+runs the storage-listener-removal negative control again. Exact counts,
+failures and logs: [FT report](../../snapback4/reports/20261008-ft-client-flakes/REPORT.md).

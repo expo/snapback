@@ -70,7 +70,7 @@ query connections(p: principal):
 mutation add(text: text <=100):
   return insert audit { text, at: now }
 `;
-async function until(check, message) { return awaitState(check, message); }
+async function until(check, message, options) { return awaitState(check, message, options); }
 function project(t) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-residency-"));
   mkdirSync(join(directory, "snapback"));
@@ -103,6 +103,8 @@ async function fixture(t, watchSources = false, tier = "native") {
     { table: "notes", row: { id: "n2", text: "local two", at: 2, owner: "dev:alice" } },
   ]);
   let offline = false, requests = 0;
+  const trace = [];
+  const record = (kind, detail) => { trace.push({ at: performance.now(), kind, ...detail }); if (trace.length > 200) trace.shift(); };
   const deviceReads = [], deviceAnswers = [];
   let queryGate = null;
   const persistence = memoryPersistence();
@@ -110,12 +112,32 @@ async function fixture(t, watchSources = false, tier = "native") {
     const data = join(directory, "device"); mkdirSync(data, { recursive: true });
     const opener = tier === "wasm" ? webDevice({ persist: persistence, wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) }) : processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
     const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
-      fetch: async (input, init) => { requests++; if (offline) throw new TypeError("test link down"); return fetch(input, init); },
-      device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "query") { deviceReads.push(request.name); if (queryGate) await queryGate; } const answer = await core.call(request); if (request.op === "query") deviceAnswers.push({ name: request.name, ...answer.ok }); return answer; } }; } },
+      fetch: async (input, init) => {
+        const id = ++requests, path = new URL(input).pathname;
+        record("request", { id, path, offline });
+        if (offline) throw new TypeError("test link down");
+        const response = await fetch(input, init);
+        record("response", { id, path, offline });
+        return response;
+      },
+      device: { open: async (...args) => {
+        const core = await opener.open(...args);
+        return { close: () => core.close(), call: async (request) => {
+          if (request.op === "query") { deviceReads.push(request.name); if (queryGate) await queryGate; }
+          const answer = await core.call(request);
+          if (["apply", "observe_store", "query"].includes(request.op)) record(request.op, {
+            name: request.name, watermark: request.page?.watermark ?? answer.ok?.watermark,
+            published: answer.ok?.published, touched: answer.ok?.touched, data: answer.ok?.data,
+          });
+          if (request.op === "query") deviceAnswers.push({ name: request.name, ...answer.ok });
+          return answer;
+        } };
+      } },
     });
+    client.onLink(link => record("link", { link }));
     clients.push(client); return client;
   };
-  return { url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers, gateQueries: gate => { queryGate = gate; } };
+  return { trace: () => trace, url, directory, log: () => log, seed, open, offline: (value) => { offline = value; }, requests: () => requests, deviceReads, deviceAnswers, gateQueries: gate => { queryGate = gate; } };
 }
 
 test("server-class watches run locally first and recover remembered server data offline", { timeout: hangBudget(12) }, async (t) => {
@@ -126,16 +148,23 @@ test("server-class watches run locally first and recover remembered server data 
   assert.equal(backend.schema.operations.audits.runs, "server");
   assert.equal(backend.programs.find((p) => p.name === "add").predicts, "never");
   let watch = client.observe(query("audits"), { c: null });
+  const diagnostics = () => JSON.stringify({ snapshot: watch.getSnapshot(), link: client.link(), trace: f.trace() });
   await until(() => watch.getSnapshot().data?.[0]?.id === "a1", "initial server answer missing");
   await f.seed([{ table: "audit", row: { id: "a2", text: "commit touched only the server table", at: 2 } }]);
   await until(() => watch.getSnapshot().data?.[0]?.id === "a2", "online-only commit did not rerun watch");
+  // @ref LLP 3000.023#10 — a sync publication retires remembered server answers.
+  // Seeing a2 can precede the seed's sync apply. Drain that round, then require
+  // its replacement answer before testing offline memory on a new watch.
+  await client.sync();
+  await until(() => watch.getSnapshot().data?.[0]?.id === "a2" && watch.getSnapshot().fresh === true && !watch.getSnapshot().revalidating,
+    "server answer settled after sync", { diagnostics });
   f.offline(true); await client.sync();
-  await until(() => watch.getSnapshot().fresh === false, "offline watch downgrades the remembered answer");
+  await until(() => watch.getSnapshot().fresh === false, "offline watch downgrades the remembered answer", { diagnostics });
   assert.equal(watch.getSnapshot().data[0].id, "a2");
   assert.ok(watch.getSnapshot().since > 0);
   watch.close();
   watch = client.observe(query("audits"), { c: null });
-  await awaitState(() => watch.getSnapshot().data?.[0]?.id === "a2" && watch.getSnapshot().fresh === false, "recreated watch recovers the server answer");
+  await awaitState(() => watch.getSnapshot().data?.[0]?.id === "a2" && watch.getSnapshot().fresh === false, "recreated watch recovers the server answer", { diagnostics });
   assert.equal(watch.getSnapshot().data[0].id, "a2", "recreated watch recovers the last server answer");
   assert.equal(watch.getSnapshot().fresh, false);
   assert.ok(f.deviceReads.includes("audits"), "static server classes must run locally first");
