@@ -1,6 +1,6 @@
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
-import { custodyReads } from './helpers/custody-read.mjs';
+import { custodyReads, releaseCustody } from './helpers/custody-read.mjs';
 // @ref LLP 3000.016#5 — the real wasm and native clients never publish a missing card or advance past it.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -165,7 +165,7 @@ query conditionalEventsHeld():
     assert.deepEqual(branch.data, []);
     assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.ok(branch.tables.includes("posts"));
     assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
-    bob.holdWrites = false;
+    await releaseCustody(heldReads, () => { bob.holdWrites = false; });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "source prediction was not observed");
     assert.equal((await heldReads[0].promise).data.id, "p3");
     for (const read of heldReads.slice(1)) assert.ok((await read.promise).data.some(row => row.postId === "own-event"));
@@ -202,7 +202,7 @@ query filteredEvents():
     assert.deepEqual(scan.data, []); assert.equal(scan.unknown, true); assert.equal(scan.speculative, true);
     assert.equal("held" in scan, false, "query-wide held provenance has been removed");
     assert.equal(bob.queries.length, before, "the prediction fence prevents a server replacement");
-    bob.holdWrites = false;
+    await releaseCustody([held], () => { bob.holdWrites = false; });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "filtered prediction was not observed");
     assert.ok((await held.promise).data.some(row => row.postId === "own-filtered"));
     assert.ok((await bob.client.query(query("filteredEvents"), {})).data.some(row => row.postId === "own-filtered"));
@@ -281,7 +281,7 @@ query speculativePage():
         assert.equal(bob.queries.length, before, "neither a server nor remembered answer can pass the fence");
       }));
     }
-    bob.holdWrites = false;
+    await releaseCustody(heldReads.map(({ read }) => read), () => { bob.holdWrites = false; });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "guarded predictions were not observed");
     for (const { name, read } of heldReads) {
       const answer = await read.promise;
@@ -344,12 +344,12 @@ query conditionalHelper(c: cursor ?):
       if (offline) assert.equal((await original.promise).denied?.code, "E_OFFLINE", "an unknown branch cannot publish a placeholder or replace a prediction");
       else { await original.withheld(); heldReads.push(original); }
     }
-    bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
+    bob.offline = false; await bob.client.sync();
+    await releaseCustody(heldReads, () => { bob.holdSync = true; bob.holdWrites = false; });
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");
     const acknowledged = bob.read(query("conditionalHelper"), input);
     await acknowledged.withheld("conditional helper before apply");
-    heldReads.forEach(read => read.pending("original conditional read before apply"));
-    bob.holdSync = false; f.releaseSync();
+    await releaseCustody([...heldReads, acknowledged], () => { bob.holdSync = false; f.releaseSync(); });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "conditional prediction not observed");
     for (const read of [...heldReads.slice(0, 2), acknowledged]) assert.ok((await read.promise).data.some(row => row.post === "own/conditional"));
     assert.equal((await heldReads[2].promise).data.id, "own/conditional");
@@ -469,8 +469,7 @@ query remoteProfile():
     assert.deepEqual(profile.data, { id: "old", name: "remote" });
     assert.equal(profile.complete, true);
     assert.equal(bob.queries.at(-1).path, "/q/remoteProfile", "unrelated profiles are not fenced by a pending post");
-    answer.pending();
-    bob.holdWrites = false;
+    await releaseCustody([answer], () => { bob.holdWrites = false; });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "profile prediction was not observed");
     const final = await answer.promise;
     assert.equal(final.data.profile.id, "old");
@@ -556,7 +555,7 @@ query composed(c: cursor ?):
     const held = bob.read(op, input);
     await held.withheld();
     assert.equal(bob.queries.length, before);
-    bob.holdWrites = false;
+    await releaseCustody([held], () => { bob.holdWrites = false; });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "composed prediction not observed");
     const answer = await bob.client.query(op, input);
     assert.ok(answer.data.rows.some(row => row.post.id === "own-composed"));
@@ -614,14 +613,14 @@ query composed(c: cursor ?):
     const held = bob.read(query("wide"), { c: null });
     await held.withheld("wide before execution");
     assert.equal(bob.queries.length, before, "no fallback can drop the predicted row");
-    bob.holdSync = true; bob.holdWrites = false;
+    await releaseCustody([held], () => { bob.holdSync = true; bob.holdWrites = false; });
     // Let the outbox acknowledge, while retaining its actual sync response.
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(entry => entry.sent_seq != null && entry.observed_seq == null), "write was not acknowledged before observation");
     assert.equal(bob.client.link(), "online");
     const acknowledged = bob.read(query("wide"), { c: null });
-    await acknowledged.withheld("wide before apply"); held.pending("original wide before apply");
+    await acknowledged.withheld("wide before apply");
     assert.equal(bob.queries.length, before);
-    bob.holdSync = false; f.releaseSync();
+    await releaseCustody([held, acknowledged], () => { bob.holdSync = false; f.releaseSync(); });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "write was not observed");
     const answer = await bob.client.query(query("wide"), { c: null });
     assert.ok(answer.data.some(row => row.post.id === "own"));
@@ -681,12 +680,12 @@ query composed(c: cursor ?):
     const held = bob.read(op, input);
     await held.withheld("repost cards before execution");
     assert.equal(bob.queries.length, before);
-    bob.holdSync = true; bob.holdWrites = false;
+    await releaseCustody([held], () => { bob.holdSync = true; bob.holdWrites = false; });
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "prediction not acknowledged");
     const acknowledged = bob.read(op, input);
-    await acknowledged.withheld("repost cards before apply"); held.pending("original repost cards before apply");
+    await acknowledged.withheld("repost cards before apply");
     assert.equal(bob.queries.length, before);
-    bob.holdSync = false; f.releaseSync();
+    await releaseCustody([held, acknowledged], () => { bob.holdSync = false; f.releaseSync(); });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "prediction not observed");
     assert.ok((await bob.client.query(op, input)).data.some(row => row.post === "own"));
     for (const read of [held, acknowledged]) assert.ok((await read.promise).data.some(row => row.post === "own"));
@@ -704,7 +703,7 @@ query composed(c: cursor ?):
     bob.holdQueries = false; f.releaseSync();
     await result.withheld("the response predating admission cannot replace a prediction");
     assert.equal((await bob.client.query(query("wideMetadata"), {})).data[0].post, "racing");
-    bob.holdWrites = false;
+    await releaseCustody([result], () => { bob.holdWrites = false; });
     await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "racing prediction not observed");
     const final = await result.promise;
     assert.ok(final.data.some(row => row.post.id === "racing"));
@@ -769,12 +768,12 @@ query cut(c: cursor ?):
     const held = alice.read(query("crossing"), input);
     await held.withheld("inbox before execution");
     assert.equal(alice.queries.length, sent);
-    alice.holdSync = true; alice.holdWrites = false;
+    await releaseCustody([held], () => { alice.holdSync = true; alice.holdWrites = false; });
     await until(async () => (await alice.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "inbox prediction not acknowledged");
     const acknowledged = alice.read(query("crossing"), input);
-    await acknowledged.withheld("inbox before apply"); held.pending("original inbox before apply");
+    await acknowledged.withheld("inbox before apply");
     assert.equal(alice.queries.length, sent);
-    alice.holdSync = false; f.releaseSync();
+    await releaseCustody([held, acknowledged], () => { alice.holdSync = false; f.releaseSync(); });
     await until(async () => { await alice.client.sync(); return (await alice.core.call({ op: "queued" })).ok.length === 0; }, "inbox prediction not observed");
     assert.equal((await alice.client.query(query("crossing"), input)).data.length, 201);
     for (const read of [held, acknowledged]) assert.deepEqual((await read.promise).data, (await f.request("/q/crossing", "alice", input)).data);
@@ -783,7 +782,7 @@ query cut(c: cursor ?):
     assert.ok((await alice.core.call({ op: "queued" })).ok.every(e => e.predictable === false));
     const nonpredictable = alice.read(query("crossing"), input);
     await nonpredictable.withheld("a one-shot cannot acknowledge an unobserved nonpredictable intent");
-    alice.holdWrites = false;
+    await releaseCustody([nonpredictable], () => { alice.holdWrites = false; });
     await until(async () => { await alice.client.sync(); return (await alice.core.call({ op: "queued" })).ok.length === 0; }, "nonpredictable intent not observed");
     assert.deepEqual((await nonpredictable.promise).data, (await f.request("/q/crossing", "alice", input)).data);
   });
@@ -829,12 +828,12 @@ query native_held(postId: posts, c: text <=2000 ?) held: native
   const held = bob.read(op, input);
   await held.withheld("native cards before execution");
   assert.equal(bob.queries.length, before, "server data cannot replace an unobserved native prediction");
-  bob.holdSync = true; bob.holdWrites = false;
+  await releaseCustody([held], () => { bob.holdSync = true; bob.holdWrites = false; });
   await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "native prediction not acknowledged");
   const acknowledged = bob.read(op, input);
-  await acknowledged.withheld("native cards before apply"); held.pending("original native cards before apply");
+  await acknowledged.withheld("native cards before apply");
   assert.equal(bob.queries.length, before);
-  bob.holdSync = false; f.releaseSync();
+  await releaseCustody([held, acknowledged], () => { bob.holdSync = false; f.releaseSync(); });
   await until(async () => { await bob.client.sync(); return (await bob.core.call({ op: "queued" })).ok.length === 0; }, "native prediction not observed");
   for (const read of [held, acknowledged]) assert.deepEqual((await read.promise).data, (await f.request("/q/native_cards", "bob", input)).data);
   const observed = await bob.client.query(op, { ...input, c: null });

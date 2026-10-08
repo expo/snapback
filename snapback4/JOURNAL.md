@@ -91744,3 +91744,40 @@ reset/guest/expiry deadline controls and the complete file audit. Tests, their
 helper and evidence only; no product change, push, publication or Darwin claim.
 
 [Report, per-test timings, mutation controls and logs](reports/20261008-bt-bounded-following-time/REPORT.md).
+
+## 2026-10-08 — BT round 1: check custody at actual gate release
+
+Astra's round-0 P2 reproduced locally: ownedEvent and homePage could enter the
+real wait and publish their earlier answer while held, yet the converted tests
+passed on both tiers. Wait entry alone left a temporal coverage gap. The shared
+release helper now gives queued promise continuations an event-loop checkpoint
+while the hold remains active, checks every tracked read together, and opens
+the gate synchronously with no await after the check. Every converted POST
+release uses it. The five before-apply scenarios check both original and fresh
+reads again; lifecycle checks begin-send and actual POST execution separately.
+Final answers, offline/refusal/provenance/request/cursor/prediction assertions
+and both genuine 30-second exhaustion controls are unchanged. All 682 explicit
+assert calls and existing hangBudget declarations in the four files match
+round 0 exactly. No product change.
+
+Three full runs pass 534/534 integration-test executions. Bounded-following
+runs in 314.037, 314.334 and 314.208 seconds (median 314.208); retained-history's
+median is 68.763 seconds, following-routing 4.137, lifecycle 42.930. The original
+bounded baseline was 1,219.176 seconds: 904.968 seconds saved (74.2%).
+All 378 one-shot/dependency/publication regressions pass (354 top-level plus 24
+nested; this corrects the earlier journal's top-level-only count). Seventeen
+new helper controls pass three times, covering delayed fulfillment/rejection,
+grouped siblings and distinct POST/apply phases. Both real deadline controls
+pass on all three runs with the original E_QUERY_RETRY assertion.
+
+The 43 prior admission/receipt/sibling bypasses still fail. Astra's delayed
+cached-answer mutant is now a permanent control: four POST cases and two
+before-apply cases fail at the actual release boundary. All 49 are the expected
+unsettled assertion, not a hang. An exploratory wide apply selection had no
+cached answer and did not mutate; that rejected control is retained in the
+report and replaced by the active conditionalHelper selection. Disabled
+loaders pass the four full files. Native, wasm and 128 SDK artifact hashes are
+unchanged. Dependency preflight prints deps-ok; ref-check and whitespace checks
+pass. Work stayed on eb1000; no push, publication or local Darwin claim.
+
+[Round-1 report, per-test timings, permanent controls and raw evidence](reports/20261008-bt-bounded-following-time/round1/REPORT.md).

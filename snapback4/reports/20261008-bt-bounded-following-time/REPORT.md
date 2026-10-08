@@ -1,5 +1,12 @@
 # BT — bounded Following time without weaker custody checks
 
+**Round-1 correction:** Astra found that round 0's wait-entry assertion could
+miss publication later in the hold, including an unchanged answer. The timings
+and narrower bypass results below remain historical measurements; they did
+not establish continuous withholding. [Round 1](round1/REPORT.md) adds checks
+at the actual POST/apply release boundaries and permanent delayed-publication
+controls, with fresh qualification and timings.
+
 The change replaces unnecessary deadline waits with checks on the exact
 in-flight one-shot, then releases the held write/sync and checks that call's
 final answer. Two genuine 30-second exhaustion controls remain in
@@ -133,7 +140,7 @@ refusals are not converted into custody waits.
 | --- | --- | --- |
 | Fresh unchanged baselines | All four files pass: 39 / 78 / 4 / 57 | Before logs in [timings.json](timings.json) |
 | Complete changed files, three runs each | **3 × 178 passes**, zero failures, cancellations or skips | [All per-test timings](TIMINGS.md), [queued commands/exits](rerun-exits.json) |
-| One-shot, dependency and publication/session regressions | **354/354 pass** | [Log](one-shot-regressions.tap.gz) |
+| One-shot, dependency and publication/session regressions | **378/378 pass** (354 top-level + 24 nested; count corrected in round 1) | [Log](one-shot-regressions.tap.gz) |
 | Custody bypasses | **43 expected assertion failures**, zero unexpected passes | [Mutation results](mutation-results.json) |
 | Unchanged reset/guest audit controls | **5/5 pass** | [Log](audit-reset-routing.tap.gz) |
 | `./ref-check` and `git diff --check` | Pass | [Reference log](ref-check.log.gz) |

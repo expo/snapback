@@ -69,7 +69,7 @@ bytes untouched):
 
 Additional qualification:
   node --test --test-concurrency=4 --test-reporter=tap packages/snapback4/test/one-shot*.test.mjs packages/snapback4/test/query-dependencies.test.mjs packages/snapback4/test/query-publication-session.test.mjs
-  -> one-shot-regressions.tap (354 tests)
+  -> one-shot-regressions.tap (354 top-level + 24 nested = 378 total; count corrected in round 1)
   node --test --test-concurrency=1 --test-reporter=tap --test-name-pattern='changes observation drops freshness|native client .*unobserved prediction' packages/snapback4/test/{store-reset-review,prediction-routing}.test.mjs
   -> audit-reset-routing.tap (5 unchanged controls; 151.086 s)
 

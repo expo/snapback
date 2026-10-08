@@ -1,0 +1,29 @@
+{
+  "label": "delayed-apply-conditionalHelper",
+  "command": [
+    "node",
+    "--import",
+    "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+    "--test",
+    "--test-concurrency=1",
+    "--test-reporter=tap",
+    "--test-name-pattern=unknown conditions",
+    "packages/snapback4/test/bounded-following.test.mjs"
+  ],
+  "env": {
+    "BT_LATE_STAGE": "apply",
+    "BT_LATE_QUERY": "conditionalHelper"
+  },
+  "exit": 1,
+  "elapsed_s": 19.304142528999364,
+  "summary": {
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "expected_tests": 2,
+  "valid": true,
+  "supersedes": "delayed-apply-wide (no cached answer, so inactive mutation)"
+}

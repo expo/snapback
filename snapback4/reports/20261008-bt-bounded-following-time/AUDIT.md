@@ -1,5 +1,10 @@
 # BT scope and assertion audit
 
+Round-0 record. Its wait-entry observation left a temporal coverage gap found
+by Astra; the original/fresh calls also need checking at actual gate release.
+See the [round-1 correction and controls](round1/REPORT.md). The file census and
+non-temporal assertion audit below are unchanged.
+
 Base: `6b8ff187bbb1f6eb231db4105d1727580d95d0aa` on
 `sb4-intent/bt-bounded-following-time`. All work uses this worktree on eb1000
 (the OS hostname is `expose-builder-pixel`). No fleet dispatch, other worktree

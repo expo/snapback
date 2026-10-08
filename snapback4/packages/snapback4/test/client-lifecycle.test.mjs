@@ -1,6 +1,6 @@
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
-import { custodyReads } from './helpers/custody-read.mjs';
+import { custodyReads, releaseCustody } from './helpers/custody-read.mjs';
 // Real clients, real authored programs, and owned server/device processes.
 // The transport gates only control ordering or inject a transient link failure.
 import test from "node:test";
@@ -1134,10 +1134,10 @@ for (const tier of ["wasm", "native"]) {
     const rebased = custodyReads(t)(client, query("copied"), {});
     await rebased.withheld("withdrawn prediction leaves an admitted write that a one-shot cannot answer ahead of");
     assert.deepEqual(deviceRefusals, [], "withdrawing an expanded replay still commits the authoritative stream transaction");
-    sendRelease.resolve();
+    await releaseCustody([rebased], () => sendRelease.resolve());
     await entered.promise;
     assert.deepEqual(postedIds, [originalId], "the in-flight request retains exactly the admitted IDs");
-    release.resolve();
+    await releaseCustody([rebased], () => release.resolve());
     assert.equal((await write).state, "sent");
     assert.equal((await rebased.promise).data.length, 2, "the held one-shot includes both authoritative rows");
     await until(async () => (await client.query(query("copied"), {})).data?.length === 2, "authority provides both final rows");

@@ -1,6 +1,6 @@
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
-import { custodyReads } from './helpers/custody-read.mjs';
+import { custodyReads, releaseCustody } from './helpers/custody-read.mjs';
 // Retained history on the real server and both real device hosts.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -552,8 +552,7 @@ query wordBoth():
         assert.equal(raw.loading, undefined, "the engine's available placeholder must still be withheld by rule 4");
       }
     }
-    heldReads.forEach(({ read }) => read.pending());
-    holdWrites = false;
+    await releaseCustody(heldReads.map(({ read }) => read), () => { holdWrites = false; });
     await until(async () => { await client.sync(); return (await core.call({ op: "queued" })).ok.length === 0; }, "speculative event predictions observed");
     for (const { name, read } of heldReads) {
       const answer = await read.promise;

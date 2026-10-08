@@ -2,6 +2,17 @@ import assert from 'node:assert/strict';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { QueryCustody } from '../../dist/query-custody.js';
 
+// Check at the actual gate opening, not just at wait entry. An event-loop
+// checkpoint lets queued publication/settlement continuations finish while
+// custody is still held. Check every sibling and release synchronously in the
+// same continuation so no publication can slip between the check and release.
+// Call again before apply, including both original and newly started reads.
+export async function releaseCustody(reads, release) {
+  await new Promise(resolve => setImmediate(resolve));
+  for (const read of reads) read.pending();
+  release();
+}
+
 // @ref LLP 3000.023#11 — observe entry into the real event wait without
 // replacing its predicate, promise, wakeup or 30-second deadline.
 export function custodyReads(t) {

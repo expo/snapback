@@ -1,0 +1,651 @@
+{
+  "driver_exit": 1,
+  "reason": "The initial driver loaded the inactive wide mutation selection; corrected conditionalHelper control rerun separately.",
+  "attempts": [
+    {
+      "label": "bypass-admission",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=owned-event fallback|rejected owned|unrelated held reads|unknown conditions|speculative profile|composed reads withhold|predicted post fences|online-only repost cards|response racing prediction|inbox floors|native query module|MQ speculative events|population growth|re-observation: pending",
+        "packages/snapback4/test/bounded-following.test.mjs",
+        "packages/snapback4/test/retained-history.test.mjs",
+        "packages/snapback4/test/following-routing.test.mjs",
+        "packages/snapback4/test/client-lifecycle.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "admission"
+      },
+      "exit": 1,
+      "elapsed_s": 128.09045147098368,
+      "summary": {
+        "tests": 26,
+        "pass": 0,
+        "fail": 26,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 26,
+      "valid": true
+    },
+    {
+      "label": "one-shot-regressions",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=4",
+        "--test-reporter=tap",
+        "packages/snapback4/test/one-shot.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+        "packages/snapback4/test/one-shot-dependencies.test.mjs",
+        "packages/snapback4/test/one-shot-discovery-auth.test.mjs",
+        "packages/snapback4/test/one-shot-generation.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-prediction-replay.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/one-shot-review-races.test.mjs",
+        "packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+        "packages/snapback4/test/query-dependencies.test.mjs",
+        "packages/snapback4/test/query-publication-session.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 146.97736852799426,
+      "summary": {
+        "tests": 378,
+        "pass": 378,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 378,
+      "valid": true
+    },
+    {
+      "label": "helper-regressions-1",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/custody-read.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 0.10200098899076693,
+      "summary": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 17,
+      "valid": true
+    },
+    {
+      "label": "helper-regressions-2",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/custody-read.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 0.10027044601156376,
+      "summary": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 17,
+      "valid": true
+    },
+    {
+      "label": "helper-regressions-3",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/custody-read.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 0.10449166200123727,
+      "summary": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 17,
+      "valid": true
+    },
+    {
+      "label": "bypass-receipt",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=unknown conditions|predicted post fences|online-only repost cards|inbox floors|native query module",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "receipt"
+      },
+      "exit": 1,
+      "elapsed_s": 84.06791354599409,
+      "summary": {
+        "tests": 9,
+        "pass": 0,
+        "fail": 9,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 9,
+      "valid": true
+    },
+    {
+      "label": "bypass-conditionalEventsHeld",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=owned-event fallback",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "admission",
+        "BT_BYPASS_QUERY": "conditionalEventsHeld"
+      },
+      "exit": 1,
+      "elapsed_s": 9.515364863007562,
+      "summary": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": true
+    },
+    {
+      "label": "bypass-speculativePage",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=unrelated held reads",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "admission",
+        "BT_BYPASS_QUERY": "speculativePage"
+      },
+      "exit": 1,
+      "elapsed_s": 17.630023667996284,
+      "summary": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": true
+    },
+    {
+      "label": "bypass-conditionalOriginal",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=unknown conditions",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "admission",
+        "BT_BYPASS_QUERY": "conditionalOriginal"
+      },
+      "exit": 1,
+      "elapsed_s": 9.561114865005948,
+      "summary": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": true
+    },
+    {
+      "label": "bypass-homePage",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=MQ speculative events",
+        "packages/snapback4/test/retained-history.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "admission",
+        "BT_BYPASS_QUERY": "homePage"
+      },
+      "exit": 1,
+      "elapsed_s": 17.717700985987904,
+      "summary": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": true
+    },
+    {
+      "label": "delayed-post-ownedEvent",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=owned-event fallback",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_LATE_STAGE": "post",
+        "BT_LATE_QUERY": "ownedEvent"
+      },
+      "exit": 1,
+      "elapsed_s": 9.179374281986384,
+      "summary": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": true
+    },
+    {
+      "label": "delayed-post-homePage",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=MQ speculative events",
+        "packages/snapback4/test/retained-history.test.mjs"
+      ],
+      "env": {
+        "BT_LATE_STAGE": "post",
+        "BT_LATE_QUERY": "homePage"
+      },
+      "exit": 1,
+      "elapsed_s": 17.307979515986517,
+      "summary": {
+        "tests": 2,
+        "pass": 0,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": true
+    },
+    {
+      "label": "delayed-apply-wide",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "--test-name-pattern=predicted post fences",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_LATE_STAGE": "apply",
+        "BT_LATE_QUERY": "wide"
+      },
+      "exit": 0,
+      "elapsed_s": 16.85740209100186,
+      "summary": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 2,
+      "valid": false
+    },
+    {
+      "label": "bounded-following-after-1",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "disabled",
+        "BT_LATE_STAGE": "disabled"
+      },
+      "exit": 0,
+      "elapsed_s": 314.06955499202013,
+      "summary": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 39,
+      "valid": true
+    },
+    {
+      "label": "retained-history-after-1",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/retained-history.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "disabled",
+        "BT_LATE_STAGE": "disabled"
+      },
+      "exit": 0,
+      "elapsed_s": 68.79722575601772,
+      "summary": {
+        "tests": 78,
+        "pass": 78,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 78,
+      "valid": true
+    },
+    {
+      "label": "following-routing-after-1",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/following-routing.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "disabled",
+        "BT_LATE_STAGE": "disabled"
+      },
+      "exit": 0,
+      "elapsed_s": 4.1717009599960875,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 4,
+      "valid": true
+    },
+    {
+      "label": "client-lifecycle-after-1",
+      "command": [
+        "node",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/custody-bypass.mjs",
+        "--import",
+        "./reports/20261008-bt-bounded-following-time/round1/late-publication.mjs",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/client-lifecycle.test.mjs"
+      ],
+      "env": {
+        "BT_BYPASS_STAGE": "disabled",
+        "BT_LATE_STAGE": "disabled"
+      },
+      "exit": 0,
+      "elapsed_s": 42.926013277989114,
+      "summary": {
+        "tests": 57,
+        "pass": 57,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 57,
+      "valid": true
+    },
+    {
+      "label": "bounded-following-after-2",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 314.3672389439889,
+      "summary": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 39,
+      "valid": true
+    },
+    {
+      "label": "retained-history-after-2",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/retained-history.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 68.79231064399937,
+      "summary": {
+        "tests": 78,
+        "pass": 78,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 78,
+      "valid": true
+    },
+    {
+      "label": "following-routing-after-2",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/following-routing.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 4.171283199015306,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 4,
+      "valid": true
+    },
+    {
+      "label": "client-lifecycle-after-2",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/client-lifecycle.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 43.07520198498969,
+      "summary": {
+        "tests": 57,
+        "pass": 57,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 57,
+      "valid": true
+    },
+    {
+      "label": "bounded-following-after-3",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/bounded-following.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 314.24236587798805,
+      "summary": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 39,
+      "valid": true
+    },
+    {
+      "label": "retained-history-after-3",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/retained-history.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 68.84005953298765,
+      "summary": {
+        "tests": 78,
+        "pass": 78,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 78,
+      "valid": true
+    },
+    {
+      "label": "following-routing-after-3",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/following-routing.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 4.173593154002447,
+      "summary": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 4,
+      "valid": true
+    },
+    {
+      "label": "client-lifecycle-after-3",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=tap",
+        "packages/snapback4/test/client-lifecycle.test.mjs"
+      ],
+      "env": {},
+      "exit": 0,
+      "elapsed_s": 42.96432219399139,
+      "summary": {
+        "tests": 57,
+        "pass": 57,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "expected_tests": 57,
+      "valid": true
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 // integration and native guest execution are covered in bounded-following.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { custodyReads } from './helpers/custody-read.mjs';
+import { custodyReads, releaseCustody } from './helpers/custody-read.mjs';
 import { createLocalClient } from "../dist/local.js";
 
 for (const scenario of ["server", "offline", "pending", "transport recovered"]) {
@@ -83,7 +83,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
     assert.equal(observations, ["pending", "transport recovered"].includes(scenario) ? 3 : 2);
     assert.deepEqual(requests, Array.from({ length: scenario === "transport recovered" ? 2 : 1 }, () => ({ args: input })));
     if (scenario === "pending") {
-      pending = false; released = true;
+      await releaseCustody([read], () => { pending = false; released = true; });
       await client.sync();
       assert.deepEqual((await read.promise).data, { kept: ["local"], current: ["observed"] });
       assert.equal(requests.length, 1, "the released local answer needs no second server request");
