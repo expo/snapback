@@ -99,3 +99,24 @@ charging the harness lane identified.
 **Done when** the six signatures above stop reproducing, the pinned set in
 `snapback4-difftest/tests/stores.rs` is updated to match, and a scheduled
 store run reports no heap or step signatures.
+
+## Scheduled-run signatures
+
+The nightly runner (`snapback4/scripts/difftest-scheduled.sh`, LLP 3000.035
+§5.1) matches open tickets by these exact lines. It appends recurrences here
+and does not file a new ticket for each one.
+
+**Failure signature:** `store-postgres-on--heap-bytes-metered--value`  
+**Failure signature:** `store-postgres-on--heap-bytes-data--value`  
+**Failure signature:** `store-postgres-on--heap-bytes-why--NOT_FOUND`  
+**Failure signature:** `store-postgres-on--steps-metered--value`  
+**Failure signature:** `store-postgres-on--heap-bytes-result--bool`  
+**Failure signature:** `store-postgres-on--heap-bytes-result--E_BOUND`  
+**Failure signature:** `store-postgres-off--heap-bytes-metered--value`  
+**Failure signature:** `store-postgres-off--heap-bytes-data--value`  
+**Failure signature:** `store-postgres-off--heap-bytes-why--NOT_FOUND`  
+**Failure signature:** `store-postgres-off--steps-metered--value`  
+**Failure signature:** `store-postgres-off--heap-bytes-result--bool`  
+**Failure signature:** `store-postgres-off--heap-bytes-result--E_BOUND`  
+
+Recurrences:
