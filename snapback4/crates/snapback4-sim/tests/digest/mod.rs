@@ -16,7 +16,13 @@ fn bound(source: &str) -> snapback4_lang::Bound {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     // @ref LLP 3000.019#3.1 — the legacy recipe counts explicit ascending pages over an ordinal window; that remains runnable but now carries order advice.
     let advised: Vec<_> = b.programs.iter().filter(|p| matches!(p.program.name.as_str(), "inbox" | "ordinalInbox")).collect();
-    assert_eq!(b.notes.len(), advised.len(), "{:?}", b.notes);
+    // The `forge` mutation writes `digestMarkers` (`insert <- deny`) on purpose to
+    // prove forgery is refused; `check` notes that write as unreachable (LLP 3000.036 §3 C).
+    let forged = b.programs.iter().filter(|p| p.program.name == "forge").count();
+    let denied: Vec<_> = b.notes.iter().filter(|note| note.code == "N_WRITE_DENIED").collect();
+    assert_eq!(denied.len(), forged, "{:?}", b.notes);
+    assert!(denied.iter().all(|note| note.message.starts_with("digestMarkers has ") && note.message.contains("in `forge`")), "{:?}", b.notes);
+    assert_eq!(b.notes.len(), advised.len() + forged, "{:?}", b.notes);
     for program in advised {
         assert!(b.notes.iter().any(|note| note.code == "N_SYNC_ORDER"
             && note.message.starts_with(&format!("query {} ", program.program.name))), "{:?}", b.notes);

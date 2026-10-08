@@ -77,3 +77,16 @@ fn admitted_writes_jobs_and_owned_field_patches_are_not_noted() {
     assert!(!broken.diagnostics.is_empty());
     assert!(broken.notes.iter().all(|note| note.code != "N_WRITE_DENIED"), "{:?}", broken.notes);
 }
+
+// Receipt operations are generated, and outside `schema.q` their names are
+// module-qualified (`guide.chatDelivered`): still exempt (0.4.17 qualification).
+#[test]
+fn generated_receipt_operations_are_exempt_in_any_module() {
+    let card = snapback4_lang::guide::card("maintains").unwrap();
+    let example = snapback4_lang::guide::quarry(card).into_iter().find(|block| block.contains("receipts chat")).expect("the Clique unread example");
+    for file in ["schema.q", "guide.q"] {
+        let bound = compile(&[(file.into(), example.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{file}: {:?}", bound.diagnostics);
+        assert!(bound.notes.iter().all(|note| note.code != "N_WRITE_DENIED"), "{file}: {:?}", bound.notes);
+    }
+}

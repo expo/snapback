@@ -92114,3 +92114,30 @@ Round 2, NOT READY, three findings in the trace printer, folded:
 
 Round 3: READY.
 
+
+## 2026-10-08 — S1 fix-forward: generated receipt operations are exempt from `N_WRITE_DENIED` in every module
+
+The 0.4.17 Linux qualification stopped on two Rust targets from `N_WRITE_DENIED`
+(ticket `…-main-rust-regressions-in-0417-qualification`). The S1 landing ran
+the affected tests and not the complete `scripts/test.sh`; that run would
+have caught both.
+
+- `snapback4-device::unread_range` (`guide_memory`, `guide_sqlite`) compiles
+  the `maintains` card's Clique unread example as `guide.q`. The receipt
+  exemption compared the binder's bare program name (`chatDelivered`) with
+  the family's module-qualified operation (`guide.chatDelivered`), so it
+  only held in `schema.q`. It now matches qualified or bare names (receipt
+  expansion already refuses an authored declaration with a generated name in
+  any module), and it also exempts any write located at a `receipts` clause
+  site, the site every generated statement carries. A lang regression
+  compiles the example as both `schema.q` and `guide.q`.
+- `snapback4-sim` digest: the legacy fixture's `forge` mutation inserts into
+  `digestMarkers` (`insert <- deny`) on purpose, to prove forgery is refused.
+  The note is correct there. The shared `bound()` helper now expects exactly
+  one `N_WRITE_DENIED` on `forge` when the source declares it, and none
+  otherwise, beside its `N_SYNC_ORDER` advice. The runtime refusal assertions
+  are unchanged.
+
+Quick blind GPT-6 Astra look (high): READY. The name match cannot exempt an
+authored mutation, the clause-site match is exact, and the test change is
+sound.

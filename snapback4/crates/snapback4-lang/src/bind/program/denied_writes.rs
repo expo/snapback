@@ -8,8 +8,12 @@ use crate::ast::{Effect, RuleDecl};
 impl Binder<'_> {
     pub(super) fn note_denied_write(&mut self, info: &TableInfo, op: &WriteOp, fields: &[ObjectField], site: &Site) {
         if self.caller_kind != ProgramKind::Mutation { return; }
-        // Compiler-owned receipt operations write engine-owned progress.
-        if self.schema.receipts.iter().any(|family| [&family.delivered, &family.seen, &family.compact].contains(&&self.name)) { return; }
+        // Compiler-owned receipt operations write engine-owned progress. Their
+        // names are module-qualified (`guide.chatDelivered` outside schema.q),
+        // and every generated write is located at its `receipts` clause.
+        let generated = |op: &String| *op == self.name || op.rsplit_once('.').is_some_and(|(_, name)| name == self.name);
+        if self.schema.receipts.iter().any(|family| [&family.delivered, &family.seen, &family.compact].into_iter().any(generated))
+            || self.catalog.documents.iter().flat_map(|doc| &doc.tables).any(|table| table.receipts.as_ref().is_some_and(|clause| clause.site == *site)) { return; }
         let table = &info.decl.name;
         // A patch of only `written by` fields is judged by field authority, not
         // the update rule, unless the rule names a transition (old, next).
