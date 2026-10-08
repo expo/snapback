@@ -100,3 +100,39 @@ for(const facade of [false,true]) test(`DK cause wakes an already parked depende
  assert.equal(trigger.denied?.code,'E_AUTH');assert.deepEqual(read.denied,trigger.denied);
  assert.equal(client.link(),'signed-out');
 });
+
+// A failed dependent write can leave the candidate's store cut unchanged. The
+// facade must still repeat its asynchronous session-store approval after waiting.
+test('facade authority is checked again after custody wakes without changing rows', async t => {
+ const f = await server(t, undefined, source.replace("  public 'review fixture'", "  public 'review fixture'\n  insert <- false") + "\nmutation touch(): server\n  insert notes {body:'refused'}\n");
+ const issued = await guest(f.url); assert.equal(issued.ok, true);
+ const gate = Promise.withResolvers(), approved = Promise.withResolvers();
+ let allowed = true, checking = false, approvals = 0, queries = 0;
+ const raw = createClient({url:f.url, session:issued.session, fetch:async(url,init)=>{
+  const path = new URL(url).pathname;
+  if(path === '/changes') return parkedChanges(init.signal);
+  if(path === '/m/touch') await gate.promise;
+  if(path === '/q/list') queries++;
+  return fetch(url,init);
+ }});
+ t.after(async()=>{gate.resolve();await raw.close();});
+ const why = {code:'E_SCOPE',family:'client',message:'shared session authority ended'};
+ const guarded = guardClient(raw, async()=>{
+  if(checking && ++approvals === 2) approved.resolve();
+  return allowed;
+ },()=>true,()=>why).client;
+ const op = {kind:'query',name:'list'};
+ assert.deepEqual((await guarded.query(op,{})).data, []);
+ const write = await raw.mutate({kind:'mutation',name:'touch'},{},{waitSeconds:0});
+ assert.equal(write.state,'pending');
+ checking = true; queries = 0;
+ let done = false;
+ const reading = guarded.query(op,{}).then(read=>{done=true;return read;});
+ await approved.promise; await delay(20); assert.equal(done,false);
+ allowed = false; gate.resolve();
+ assert.deepEqual((await reading).denied, why);
+ assert.ok(approvals >= 3, 'wait completion repeats asynchronous authority approval');
+ assert.equal(queries,1,'no new evaluation was needed to observe the facade refusal');
+ assert.equal(raw.link(),'online','only the facade authority ended');
+ assert.equal((await raw.write(write.id)).state,'failed');
+});

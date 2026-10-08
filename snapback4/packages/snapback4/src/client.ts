@@ -1075,7 +1075,7 @@ export function createClient(options: ClientOptions): Client {
         const candidate = await runQuery(op, args, false, signal);
         // Discover through ordinary traffic. Old servers/adapters need no new
         // request and retain the unknown barrier. Bind facts to the reply generation.
-        if (settlementAdvertised && (!queryBackend || queryBackend.generation !== candidate.generation)) {
+        if ("data" in candidate.read && settlementAdvertised && (!queryBackend || queryBackend.generation !== candidate.generation)) {
           try {
             const discoveryFloor = minimumReadSeq, discoveryRevision = credentialRevision;
             const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal });
@@ -1111,8 +1111,10 @@ export function createClient(options: ClientOptions): Client {
       return () => {
         if (link === "offline") return { denied: offline() };
         if (!factsCurrent()) return;
-        if (!("denied" in result.read) && blocks()) return { wait: (signal: AbortSignal) => waitForQueryWrites(blocks, pendingEvents.subscribe, signal) };
         if (result.deadlineWithdrawn?.() || !currentRead(result)) return;
+        // Only custody may waive a publication round. Loading or obsolete
+        // candidates still spend the existing bound, even with pending writes.
+        if ("data" in result.read && blocks()) return { wait: (signal: AbortSignal) => waitForQueryWrites(blocks, pendingEvents.subscribe, signal) };
         acceptDelivery(result, result.read);
         return result.read;
       };

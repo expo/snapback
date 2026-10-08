@@ -160,9 +160,10 @@ table rows:
 query remote(id: rows):
   return rows[id]
 `);
-  let held = false, cancelled = false, failed = false;
+  let held = false, cancelled = false, failed = false, failedDiscoveries = 0;
   const options = { url, persona: 'alice', fetch: async (input, init) => {
     const path = new URL(input).pathname;
+    if (failed && path === '/schema') failedDiscoveries++;
     if (path === '/changes' || (failed && !path.startsWith('/q/'))) return parked(init.signal);
     if (path.startsWith('/q/')) {
       const { id } = JSON.parse(init.body).args;
@@ -193,7 +194,10 @@ query remote(id: rows):
   if (client.sync) await client.sync(); else await client.query({ kind: 'query', name: 'remote' }, { id: 'warm' });
   const watch = client.observe({ kind: 'query', name: 'remote' }, { id: 'held' }); watch.subscribe(() => {});
   t.after(() => watch.close()); await until(() => held, 'cancellable request dispatched');
-  await client.query({ kind: 'query', name: 'remote' }, { id: 'failure' });
+  const failure = await client.query({ kind: 'query', name: 'remote' }, { id: 'failure' });
+  assert.equal(failure.denied?.code, 'E_OFFLINE');
+  assert.match(failure.denied.message, /ECONNREFUSED/);
+  assert.equal(failedDiscoveries, 0, 'optional dependency discovery cannot delay a failed query');
   const diagnostic = () => client.act({ kind: 'action', name: 'offlineDiagnostic' }, {});
   const before = await diagnostic();
   assert.equal(before.denied?.code, 'E_OFFLINE');

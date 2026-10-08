@@ -93,11 +93,12 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const denied = await refusal();
       if (denied) return () => ({ denied });
       const publish = await queryAttempt(raw, op, args, signal);
-      const after = await refusal();
+      let after = await refusal();
       return () => {
         if (after) return { denied: after };
         const read = publish();
-        return queryWaiting(read) ? read : read && approveDelivery(read) ? read : undefined;
+        return queryWaiting(read) ? { wait: async (signal: AbortSignal) => { await read.wait(signal); after = await refusal(); } }
+          : read && approveDelivery(read) ? read : undefined;
       };
     }, () => terminalQueryRefusal({ scope: valid() ? null : why(), store: null, closed: null,
       session: null, changes: null, partition: null, inherited: queryRefusal(raw) }), queries.signal),

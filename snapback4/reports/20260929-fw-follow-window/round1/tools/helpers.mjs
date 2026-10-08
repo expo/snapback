@@ -1,3 +1,4 @@
+import { parkedChanges } from '../../../../packages/snapback4/test/helpers/sync-control.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,7 +26,7 @@ export function transport() {
     async fetch(input, init) {
       const path = new URL(input).pathname;
       if (offline) throw new TypeError('offline');
-      if (path === '/changes') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
+      if (path === '/changes') return parkedChanges(init.signal);
       const held = gates;
       if (path.startsWith('/m/') && held) { held.request.resolve(); await held.send.promise; }
       if (path === '/sync' && held) { held.sync.resolve(); await held.apply.promise; }

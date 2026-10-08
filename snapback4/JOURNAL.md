@@ -91615,3 +91615,100 @@ format: tagged scalars and the bound program as JSON. It also gives the
 field-by-field comparison rule. `next` is compared for presence and through
 continuation, never by bytes. Cut positions are not compared, because the
 model's only meter is an abstract count of visible candidates.
+## 2026-10-08 — SN round 6: qualification attribution and bounded custody wakeups
+
+Merged main through EM (`1dd87edd57`), then frozen-installed dependencies and
+checked the SDK links (`deps-ok`) before building, all on eb1000. Ran each of
+the seven qualification files at pre-SN `07f4c495ea` (261 pass), SN landing
+`a474980715` (238 pass, 23 fail), and merged main (237 pass, 24 fail). Two SN
+product regressions account for the model and transport-diagnostic failures;
+21 failures encode the former global barrier or await a dependent query before
+releasing its held write. The remaining worker retry assertion mismatches the
+richer diagnostic from `ab74765288`, not FS; the model failure is not DK's.
+
+Loading replies spend publication rounds even with pending custody. The shared
+loop rechecks the same candidate after an event wait; an intervening invalidation
+spends the four-round bound before reevaluation. Local custody refreshes its
+predicate; the facade repeats asynchronous authority approval after the wait.
+Optional online schema discovery runs only for data, retaining a failed query's
+original transport diagnosis and the existing credential rules for discovery
+refusals. Both failing model seeds and a facade wakeup with unchanged rows are
+permanent regressions. No sync-overlap, receipt, store, compiler-summary or
+engine behavior changed.
+
+Following keeps dependent one-shots in flight while releasing POST/apply gates;
+its original sent and mounted-answer checks pass 24/24 even on unchanged SN
+product with only the corrected fixtures. Offline/disjoint/empty-sync expectations
+follow the already accepted LLP 3000.023 §11; relevant and unknown sync controls
+still refetch on both hosts. The worker test now checks both executable paths,
+the rejected version and retry marker. All delivery sites and fault recipes are
+retained; four continuation awaits are explicitly classified. No tests were
+deleted or work counts reduced. Updated §11, the client card and refusal guide.
+
+Complete `bash scripts/test.sh`: **`== 0 failure(s) in 2773 s`**, exit 0. Rust's
+316 test binaries/1,029 executions and doctests pass; guide 113/113. Client pool
+356/356 files: 7,032 pass, 54 skipped; serial models 81/81 with full counts.
+One-shot/dependency/publication regressions pass 378/378; the seven originally
+failing files pass 267/267 including added controls. Wasm is 645,605 B gzip
+against the unchanged 646,180 B cap: 575 B headroom, above the requested 500 B
+macOS allowance; no macOS run claimed. `local.ts` is 1,499 lines. Reference and
+whitespace checks pass. The report retains interrupted qualification attempts,
+historical builds and causal controls separately from the final passing suite.
+
+[Round-6 report and complete logs](reports/20261007-sn-one-shot-settlement/round6/REPORT.md).
+No push or publication.
+
+## 2026-10-08 — SN round 7: canonical worker-path expectations
+
+Corrected the worker retry test's expected worker filename to use the physical
+fixture root. The `SNAPBACK_NODE` wrapper remains exactly as supplied, matching
+`project::node()` and the diagnostic formatter on both platforms. The worker,
+wrapper, rejected version, retry marker, repair/start and no-extra-adoption
+assertions all remain. A Linux symlinked `TMPDIR` reproduces the macOS failure
+on unchanged round-6 code: the original test exhausts its 122,000 ms guard while
+the diagnostic prints a canonical worker path and the supplied wrapper path.
+
+The audit of round-6 test/tool files found one more raw/canonical comparison:
+the fresh-store ledger exclusion. Canonicalizing its expected `.snapback4`
+prefix prevents that negative assertion from passing on spelling alone. Other
+worker cwd, project and module checks already normalize their expected paths;
+filesystem accesses and HTTP-path assertions do not need this change.
+
+The complete worker-regressions file passes 77/77 with normal temporary paths
+and 77/77 with symlinked temporary paths. All timeout bounds and assertions are
+retained. No production or settlement behavior changed, and no new macOS run is
+claimed. Work stayed on eb1000; no push or publication.
+
+[Round-7 report, failed control, path audit and passing logs](reports/20261007-sn-one-shot-settlement/round7/REPORT.md).
+
+## 2026-10-08 — SN round 8: restore Following withholding coverage
+
+Restored explicit unsettled checks for both Following's `cards` and `postState`
+one-shots in all eight Node variants and all four Chromium adoption variants.
+The fixtures await entry into the real custody wait or a premature result before
+checking either read. After receipt persistence, a fresh pair independently
+exercises the before-apply boundary; both original and fresh reads must remain
+unsettled. All original final-result, write-terminal and mounted-publication
+assertions remain. The transparent wait observer changes no SDK decision.
+
+Astra's original bypass now fails all eight Node variants before POST execution;
+the equivalent browser mutation fails all four variants. A receipt-only bypass
+passes admission checks but fails all twelve variants before apply. Both loaders
+pass with their mutations disabled. These controls close the gap where unchanged
+`postState` data could hide an early complete publication.
+
+Three groups of held bounded-following reads now run concurrently while their
+fixture state stays unchanged. All 219 assertion sites, all timeout declarations,
+and all refusal, offline, transport, held-sync and post-observation controls are
+retained. Raw evidence is matched to the query among its new evaluations. The
+file passes 39/39 in 1,210.456 seconds against the retained round-6 baseline of
+1,690.504 seconds: eight minutes (28.4%) saved on Linux. No hold is released early.
+
+The seven requested files pass 267/267, the final bounded-following rerun passes
+39/39, and the one-shot/dependency/publication batch passes 378/378. Ref-check and
+whitespace checks pass. This round changes tests, fixtures and report evidence
+only; the requested condition therefore does not require another complete suite.
+The settlement contract, SDK, compiler, device and wasm budget are unchanged.
+Work stayed on eb1000; no push or publication.
+
+[Round-8 report, timings, mutation controls and logs](reports/20261007-sn-one-shot-settlement/round8/REPORT.md).

@@ -1,0 +1,3 @@
+bounded-following.test.mjs: 219 assertion sites before and after; 20 test declarations (39 generated tests); identical 20 timeout declarations.
+All expected values, messages, custody holds/releases, online/offline phases, server-failure controls and post-observation checks retained.
+Only three groups of held reads per device tier overlap. Raw-device evidence is selected by operation name and restricted to evaluations since that query started.

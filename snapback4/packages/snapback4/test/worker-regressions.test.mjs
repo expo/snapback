@@ -498,7 +498,9 @@ test('new declarations retry failed admission after Node is repaired without ano
   chmodSync(wrapper, 0o700);
   const s = await f.start([], {SNAPBACK_NODE:wrapper}, true);
   writeFileSync(join(f.dir, 'snapback/workers/push.mjs'), idle);
-  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes('worker needs Node 24') && line.includes('declaration will retry')));
+  // Worker discovery uses the physical project root; SNAPBACK_NODE keeps its supplied spelling.
+  const expectedWorker = join(realpathSync(f.dir), 'snapback/workers/push.mjs');
+  await until(() => s.log.split('\n').slice(0, -1).some(line => line.includes(`worker ${expectedWorker} needs Node 24`) && line.includes(`${wrapper} reports v23.0.0`) && line.includes('declaration will retry')));
   assert.match(s.log, /declaration will retry/, 'the edit must reach pending admission on a serving host');
   const adoptions = s.log.match(/schema adopted as generation/g)?.length ?? 0;
   rmSync(join(f.dir, 'bad-node'));
@@ -641,7 +643,7 @@ effects:{notify:(_payload,meta)=>{appendFileSync('actions',JSON.stringify({id:me
   }
   assert.equal(new Set(ids).size, 1, 'control: distinct stores reused the same effect id');
   assert.equal(new Set(paths).size, 4, 'ledger namespace belongs to actual store identity');
-  assert.ok(paths.slice(0, 2).every(p => !p.startsWith(join(f.dir, '.snapback4'))));
+  assert.ok(paths.slice(0, 2).every(p => !p.startsWith(join(realpathSync(f.dir), '.snapback4'))));
 });
 
 for (const death of ['worker', 'SIGTERM', 'SIGKILL']) test(`${death} stops worker descendants`, { timeout: hangBudget(6) }, async t => {

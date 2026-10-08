@@ -1177,8 +1177,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     query: settledQuery(async (op, args, signal) => {
       const result = await runLocal(op, args, undefined, false, undefined, signal);
-      const waiting = !("denied" in result.read) && !("loading" in result.read && link === "offline") && await queryCustody.blocked(op.name, result); checkRead(signal); return () => {
-        if (waiting) return link === "offline" ? { denied: offline() } : { wait: (signal: AbortSignal) => queryCustody.wait(op.name, result, signal) };
+      let waiting = !("denied" in result.read) && !("loading" in result.read && link === "offline") && await queryCustody.blocked(op.name, result); checkRead(signal); return () => {
+        if (waiting) return link === "offline" ? { denied: offline() } : { wait: async (signal: AbortSignal) => { await queryCustody.wait(op.name, result, signal); waiting = await queryCustody.blocked(op.name, result); } };
         if (answers.blocked(result) !== undefined || "data" in result.read && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.serverExpiry)) { answers.serverAnswers.forget(`${op.name}:${JSON.stringify(args)}`); return; }
         if (publishLocal(result, () => true)) return "loading" in result.read && (link === "offline" || result.heldUnavailable) ? { denied: link === "offline" ? offline() : heldQueryRefusal() } : result.read;
       };

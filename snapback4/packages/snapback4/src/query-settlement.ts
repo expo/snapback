@@ -89,8 +89,14 @@ export function settledQuery(run: Attempt, unavailable: Unavailable, lifetime?: 
           const publish = await duringRead(attempt(op, args, signal), signal);
           checkRead(signal);
           // No await separates final publication from resolving this promise.
-          const read = publish();
-          if (queryWaiting(read)) { await duringRead(read.wait(signal), signal); continue; }
+          let read = publish();
+          while (queryWaiting(read)) {
+            await duringRead(read.wait(signal), signal);
+            checkRead(signal);
+            // Waiting itself spends no round. Recheck this candidate: a
+            // concurrent commit or scope change still consumes its race bound.
+            read = publish();
+          }
           if (read && !("loading" in read)) return read;
           round++;
           if (round < QUERY_ROUNDS) await duringRead(new Promise<void>(resolve => {

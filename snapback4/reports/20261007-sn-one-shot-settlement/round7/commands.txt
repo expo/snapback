@@ -1,0 +1,18 @@
+# In snapback4/, base 5e3b114e8d, eb1000. Existing built product unchanged.
+# Reproduce before editing; run full files after applying the round-7 test fix.
+SN_R7_TEMP=$(mktemp -d /tmp/sn-r7-paths-XXXXXX)
+mkdir "$SN_R7_TEMP/real"
+ln -s "$SN_R7_TEMP/real" "$SN_R7_TEMP/alias"
+
+TMPDIR="$SN_R7_TEMP/alias" node --input-type=module <<'JS'
+import {runFile} from './scripts/run-client-tests.mjs';
+const result = await runFile('packages/snapback4/test/worker-regressions.test.mjs', {nodeArgs:['--test-name-pattern=^new declarations retry failed admission']});
+console.log(JSON.stringify({passed:result.passed,counts:result.counts}));
+process.exitCode = result.passed ? 0 : 1;
+JS
+# Expected pre-edit failure: TEST_HANG at 122000 ms.
+
+node scripts/run-client-tests.mjs 1 files packages/snapback4/test/worker-regressions.test.mjs
+TMPDIR="$SN_R7_TEMP/alias" node scripts/run-client-tests.mjs 1 files packages/snapback4/test/worker-regressions.test.mjs
+cd ..
+./ref-check

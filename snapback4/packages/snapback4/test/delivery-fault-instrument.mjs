@@ -292,3 +292,15 @@ export function awaitBoundary() {
 // preserve their recipes; receipt settlement now passes the dispatch store.
 // Current client/following/mock changes are query-only; session-refusal adds
 // no await. Retain the complete boundary seal and all 162 delivery sites.
+
+// SN round 6 (LLP 3000.023 §11): local query now explicitly awaits the same
+// QueryCustody.wait, then rereads its blocked predicate before reusing the
+// candidate. That predicate reads the existing queued()/readQueued boundary;
+// successful-receipt acquisition still uses the classified syncRound sites.
+// The facade awaits the raw wait and repeats its existing refusal()/check()
+// authority read. These four continuation awaits add no admission, dispatch,
+// receipt persistence or delivery acknowledgement. Failure withholds/refuses
+// this query; it cannot revoke an already committed mutation outcome. Keep
+// all 162 delivery sites and recipes unchanged. one-shot-bounds and the full
+// online model cover race/deadline exhaustion; one-shot-discovery-auth's
+// unchanged-row wakeup control proves the repeated asynchronous approval.

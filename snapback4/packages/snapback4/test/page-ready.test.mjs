@@ -94,7 +94,8 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   history.subscribe(() => snapshots.push(history.getSnapshot()));
   listRead(await app.client.query(query("history"), { chat }));
   const partial = await app.client.query(query("history"), { chat });
-  assert.equal(partial.denied?.code, "E_QUERY_RETRY", "one-shot waits for the admitted nonpredictable startDM before answering");
+  // LLP 3000.023 §11: a known-offline custody blocker refuses promptly.
+  assert.equal(partial.denied?.code, "E_OFFLINE", "the unobserved startDM cannot settle while sync is offline");
   const observation = replies.findLast(row => row.name === "history").reply.ok;
   assert.equal(observation.unknown, true); assert.equal(Object.hasOwn(observation, "speculative"), false);
   assert.deepEqual(observation.data, [], "the shared evaluator still yields the non-speculative partial device value");
@@ -121,7 +122,8 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   const raw = replies.filter(row => row.name === "inbox").at(-1).reply;
   t.diagnostic(`unavailable inbox device reply: ${JSON.stringify(raw)}`);
   listRead(local); // Before the fix: { data: null, complete: false, ... }.
-  assert.equal(local.denied?.code, "E_QUERY_RETRY", "one-shot cannot settle a server total ahead of the admitted profile write");
+  assert.equal(local.data?.[0]?.unread, 3, "the server total settles across an unrelated profile write (LLP 3000.023 §11)");
+  assert.equal(local.complete, true);
   await until(() => inbox.getSnapshot().data?.[0]?.unread === 3, "observation still receives the server total");
   assert.equal(app.client.link(), "online");
   assert.ok(requests.filter(path => path === "/q/inbox").length > before, "unavailable predictions do not block server fallback");

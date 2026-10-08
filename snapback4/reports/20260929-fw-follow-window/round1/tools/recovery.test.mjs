@@ -19,14 +19,19 @@ for (const tier of ['wasm', 'process']) {
         if (process.env.FW_TRACE) console.error('requested', watch.getSnapshot());
         const direct = await bob.query(q, { c: null });
         if (process.env.FW_TRACE) console.error('direct', direct);
-        if (name === 'like') assert.equal(direct.denied?.code, 'E_QUERY_RETRY', 'one-shot waits for the nonpredictable like');
-        else assert.equal(direct.complete, true, `${name}: complete predicted device read settles`);
+        assert.equal(direct.complete, true, `${name}: the complete prediction or like-disjoint answer settles`);
+        assert.equal(direct.data.length, count);
         await answer(watch, r => complete(r, count));
         assert.equal(watch.getSnapshot().revalidating, undefined, `${name}: settled local read is unmarked while transport is held`);
-        const state = await bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' });
-        if (name === 'like') assert.equal(state.denied?.code, 'E_QUERY_RETRY');
-        else assert.equal(state.complete, true);
+        let state;
+        const stateRead = bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' }).then(read => { state = read; return read; });
+        if (name !== 'like') assert.equal((await stateRead).complete, true);
+        else {
+          await bob.pendingWrites();
+          assert.equal(state, undefined, 'the like-dependent read waits for observation');
+        }
         wire.release(); assert.equal((await write).state, 'sent'); await bob.sync();
+        assert.equal((await stateRead).data.liked, name !== 'post');
         await answer(watch, r => complete(r, count));
       }
     });
@@ -38,10 +43,14 @@ for (const tier of ['wasm', 'process']) {
       const gates = wire.hold();
       const write = bob.mutate({ kind: 'mutation', name: 'follow' }, { actor: 'dev:alice' });
       await gates.request.promise;
-      assert.ok(honest(watch.getSnapshot())); assert.ok(honest(await bob.query(q, { c: null })));
+      assert.ok(honest(watch.getSnapshot()));
+      let direct;
+      const reading = bob.query(q, { c: null }).then(read => { direct = read; return read; });
       gates.send.resolve(); await gates.sync.promise;
+      assert.equal(direct, undefined, 'even an empty answer waits for dependent custody');
       assert.ok(honest(watch.getSnapshot())); gates.apply.resolve();
       assert.equal((await write).state, 'sent');
+      assert.deepEqual((await reading).data, []); assert.equal(direct.complete, true);
       await answer(watch, r => complete(r, 0));
     });
   });
@@ -57,8 +66,10 @@ for (const tier of ['wasm', 'process']) {
       assert.equal((await bob.pendingWrites()).length, 2);
       assert.ok(honest(watch.getSnapshot()));
       gates.send.resolve(); await gates.sync.promise;
-      assert.ok(honest(watch.getSnapshot())); assert.ok(honest(await bob.query(q, { c: null })));
+      assert.ok(honest(watch.getSnapshot()));
+      const reading = bob.query(q, { c: null });
       gates.apply.resolve();
+      assert.deepEqual((await reading).data, []);
       await answer(watch, r => complete(r, 0));
       assert.equal((await bob.write(unfollow.id)).state, 'sent');
       for (const r of publications) assert.ok(honest(r) || r.data?.length === 0, JSON.stringify(r));
@@ -135,8 +146,10 @@ test('wasm: restoring a committed edge after a lost save reply invalidates Follo
   await causal(t, async () => {
     const sync = bob.sync(); gates.apply.resolve();
     await gates.request.promise;
-    assert.ok(honest(await bob.query(q, { c: null })));
+    const reading = bob.query(q, { c: null });
     gates.send.resolve(); await sync;
+    const read = await reading;
+    assert.equal(read.data?.length, 1); assert.equal(read.complete, true);
     await answer(watch, r => complete(r, 1));
     assert.equal((await bob.write('restored-edge')).state, 'sent');
   });
