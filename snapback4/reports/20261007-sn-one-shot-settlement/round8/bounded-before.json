@@ -1,0 +1,14 @@
+{
+  "source": "../round6/full-suite.log.gz",
+  "base": "5e3b114e8d",
+  "unchanged_through": "71f0bd35ef",
+  "seconds": {
+    "event slots wasm: owned-event fallback waits for the source prediction": 128.553070066,
+    "bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages": 128.184730715,
+    "bounded Following wasm: unknown conditions preserve static and helper dependencies": 124.22544994900001,
+    "event slots native: owned-event fallback waits for the source prediction": 128.117445868,
+    "bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages": 128.143040104,
+    "bounded Following native: unknown conditions preserve static and helper dependencies": 124.260750857,
+    "file_seconds": 1690.504
+  }
+}

@@ -1,0 +1,39 @@
+Host: eb1000 (expose-builder-pixel)
+Checkout: /home/ccheever/sb4-intent/lane-sn
+Base: 71f0bd35ef
+Node: v24.13.1
+All Node commands below run from snapback4/ with the existing qualified build.
+No dependency, runtime, compiler, device or build input changed.
+
+node scripts/run-client-tests.mjs 2 files reports/20260929-fw-follow-window/tools/follow-window.test.mjs reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs
+  -> following-focused.log (intermediate: an extra new Node completeness assertion
+     was inappropriate for its bounded four-row fixture; removed before final tests;
+     every original assertion remains, with fresh reads checking the same row count)
+node scripts/run-client-tests.mjs 1 files reports/20260929-fw-follow-window/tools/follow-window.test.mjs
+  -> following-node.log
+
+node --import /home/ccheever/sb4-intent/reviews/sn-r6.astra.evidence/early-post-state.mjs --test reports/20260929-fw-follow-window/tools/follow-window.test.mjs
+  -> astra-bypass.log (expected exit 1: 8 assertion failures)
+SN_ENABLE_EARLY_STATE=0 node --import /home/ccheever/sb4-intent/reviews/sn-r6.astra.evidence/early-post-state.mjs --test reports/20260929-fw-follow-window/tools/follow-window.test.mjs
+  -> astra-bypass-disabled.log (exit 0)
+SN_BYPASS_STAGE=post node --import ./reports/20261007-sn-one-shot-settlement/round8/custody-bypass.mjs --test --test-reporter=tap reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs
+  -> browser-post-bypass.log (expected exit 1: 4 assertion failures)
+SN_BYPASS_STAGE=receipt node --import ./reports/20261007-sn-one-shot-settlement/round8/custody-bypass.mjs --test --test-reporter=tap reports/20260929-fw-follow-window/tools/follow-window.test.mjs reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs
+  -> receipt-bypass.log (expected exit 1: 12 assertion failures)
+SN_BYPASS_STAGE=disabled node --import ./reports/20261007-sn-one-shot-settlement/round8/custody-bypass.mjs --test --test-reporter=tap reports/20260929-fw-follow-window/tools/follow-window.test.mjs reports/20260929-fw-follow-window/round1/tools/adoption.test.mjs
+  -> custody-bypass-disabled.log (exit 0)
+
+node scripts/run-client-tests.mjs 7 files packages/snapback4/test/follow-window.test.mjs packages/snapback4/test/bounded-following.test.mjs packages/snapback4/test/retained-history.test.mjs packages/snapback4/test/page-ready.test.mjs packages/snapback4/test/online-client-model.test.mjs packages/snapback4/test/per-row-liveness.test.mjs packages/snapback4/test/worker-regressions.test.mjs
+  -> seven-files.log
+node scripts/run-client-tests.mjs 1 files packages/snapback4/test/bounded-following.test.mjs
+  -> bounded-following-final.log (rerun after narrowing raw-device evidence to
+     evaluations since each read started; other six files unchanged)
+node scripts/run-client-tests.mjs 8 files packages/snapback4/test/one-shot*.test.mjs packages/snapback4/test/query-dependencies.test.mjs packages/snapback4/test/query-publication-session.test.mjs
+  -> one-shot-dependencies-publication.log
+
+From the repository root:
+./ref-check
+git diff --check
+
+No complete scripts/test.sh rerun: the authorized delta is confined to test
+files/fixtures and their report/evidence; the runtime is unchanged.

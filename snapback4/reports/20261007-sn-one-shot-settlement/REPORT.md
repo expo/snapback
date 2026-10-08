@@ -1,6 +1,9 @@
 # Lane SN: one-shot settlement
 
-**Latest: [Round 7](round7/REPORT.md).** Match canonical worker and ledger paths
+**Latest: [Round 8](round8/REPORT.md).** Restore explicit Following one-shot
+withholding checks before POST execution and before apply, with mutation controls;
+overlap independent bounded-following reads while preserving their deadlines.
+[Round 7](round7/REPORT.md) matches canonical worker and ledger paths
 in test expectations, preserving the wrapper's supplied spelling and all assertions.
 [Round 6](round6/REPORT.md) attributed the seven qualification files,
 retained the publication-race bound after custody waits, skipped discovery for failed

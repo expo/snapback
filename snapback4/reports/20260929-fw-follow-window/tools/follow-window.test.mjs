@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fetch } from 'undici';
 import { createLocalClient } from '../../../packages/snapback4/dist/local.js';
+import { QueryCustody } from '../../../packages/snapback4/dist/query-custody.js';
 import { webDevice, memoryPersistence } from '../../../packages/snapback4/dist/web.js';
 import { processDevice } from '../../../packages/snapback4/dist/native.js';
 import { server, binary } from '../../../packages/snapback4/test/helpers/app-server.mjs';
@@ -26,6 +27,13 @@ async function causalTurns(t, run) {
 }
 for (const tier of ['wasm', 'process']) for (const keep of [undefined, false]) for (const waitSeconds of [undefined, 0]) {
   test(`${tier} keep=${keep} wait=${waitSeconds}: own follow/unfollow stay honest across admission, settlement and apply`, { timeout: 30000 }, async t => {
+    const waits = new Map(), wait = QueryCustody.prototype.wait;
+    t.mock.method(QueryCustody.prototype, 'wait', function(name, ...args) {
+      const waiting = wait.call(this, name, ...args);
+      waits.get(name)?.resolve();
+      return waiting;
+    });
+    const waitingFor = name => { const reached = latch(); waits.set(name, reached); return reached.promise; };
     const { url, dir } = await server(t, '', fixture);
     const device = name => tier === 'process' ? processDevice({ binary, dir: join(dir, name) }) : webDevice({ wasm: readFileSync(new URL('../../../packages/snapback4/src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() });
     const alice = await createLocalClient({ url, persona: 'alice', device: device('alice') });
@@ -64,20 +72,35 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false]) f
       stage('admitted');
       // LLP 3000.023 §11: the dependent one-shot waits for observation.
       // Keep it in flight while releasing the POST, within the write's caller budget.
-      let direct;
+      const cardsWaiting = waitingFor('cards'), stateWaiting = waitingFor('postState');
+      let direct, directState;
       const reading = bob.query(q, { c: null }).then(read => { direct = read; return read; });
       assert.ok(honest(watch.getSnapshot()), `${op}: mounted answer is honest before server execution`);
       assert.equal((await bob.pendingWrites()).length, 1);
       // Following's compiler summary includes repost maintenance, which also
       // intersects postState. Its unchanged observation is not disjoint proof.
       const stateRead = bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' });
+      stateRead.then(read => { directState = read; });
+      // Await actual custody inspection or a premature result, not merely the
+      // query call turn. Neither wait hook changes the SDK's wait or its wakeup.
+      await Promise.all([Promise.race([cardsWaiting, reading]), Promise.race([stateWaiting, stateRead])]);
       assert.equal(direct, undefined, 'the dependent read cannot publish before execution');
+      assert.equal(directState, undefined, 'postState cannot publish before execution');
       assert.equal(disjoint.getSnapshot().complete, true, 'disjoint observations retain completeness');
       gates.send.resolve();
       await gates.sync.promise; // HTTP settlement was durably saved; rows have not applied.
       stage('settled');
       assert.equal((await bob.pendingWrites()).length, 0, 'settlement is not row publication');
+      // Fresh reads independently exercise acknowledged-but-unobserved custody.
+      const appliedCardsWaiting = waitingFor('cards'), appliedStateWaiting = waitingFor('postState');
+      let appliedDirect, appliedState;
+      const appliedReading = bob.query(q, { c: null }).then(read => { appliedDirect = read; return read; });
+      const appliedStateRead = bob.query({ kind: 'query', name: 'postState' }, { postId: 'first' }).then(read => { appliedState = read; return read; });
+      await Promise.all([Promise.race([appliedCardsWaiting, appliedReading]), Promise.race([appliedStateWaiting, appliedStateRead])]);
       assert.equal(direct, undefined, `${op}: the dependent read cannot publish before apply`);
+      assert.equal(directState, undefined, `${op}: postState cannot publish before apply`);
+      assert.equal(appliedDirect, undefined, `${op}: a new dependent read cannot publish before apply`);
+      assert.equal(appliedState, undefined, `${op}: a new postState read cannot publish before apply`);
       assert.ok(honest(watch.getSnapshot()), `${op}: mounted answer stays honest before apply`);
       gates.apply.resolve();
       assert.equal((await write).state, waitSeconds === 0 ? 'pending' : 'sent');
@@ -89,6 +112,9 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false]) f
       const state = await stateRead;
       assert.deepEqual(state.data, { liked: false, reposted: false });
       assert.equal(state.complete, true);
+      const appliedRead = await appliedReading, appliedPostState = await appliedStateRead;
+      assert.equal(appliedRead.data?.length, count);
+      assert.deepEqual(appliedPostState.data, { liked: false, reposted: false }); assert.equal(appliedPostState.complete, true);
       const final = await answer(watch, r => r.data?.length === count && r.complete && r.fresh && !r.revalidating);
       stage('published');
       assert.equal(final.fresh, true);

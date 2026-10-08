@@ -91462,3 +91462,35 @@ retained. No production or settlement behavior changed, and no new macOS run is
 claimed. Work stayed on eb1000; no push or publication.
 
 [Round-7 report, failed control, path audit and passing logs](reports/20261007-sn-one-shot-settlement/round7/REPORT.md).
+
+## 2026-10-08 — SN round 8: restore Following withholding coverage
+
+Restored explicit unsettled checks for both Following's `cards` and `postState`
+one-shots in all eight Node variants and all four Chromium adoption variants.
+The fixtures await entry into the real custody wait or a premature result before
+checking either read. After receipt persistence, a fresh pair independently
+exercises the before-apply boundary; both original and fresh reads must remain
+unsettled. All original final-result, write-terminal and mounted-publication
+assertions remain. The transparent wait observer changes no SDK decision.
+
+Astra's original bypass now fails all eight Node variants before POST execution;
+the equivalent browser mutation fails all four variants. A receipt-only bypass
+passes admission checks but fails all twelve variants before apply. Both loaders
+pass with their mutations disabled. These controls close the gap where unchanged
+`postState` data could hide an early complete publication.
+
+Three groups of held bounded-following reads now run concurrently while their
+fixture state stays unchanged. All 219 assertion sites, all timeout declarations,
+and all refusal, offline, transport, held-sync and post-observation controls are
+retained. Raw evidence is matched to the query among its new evaluations. The
+file passes 39/39 in 1,210.456 seconds against the retained round-6 baseline of
+1,690.504 seconds: eight minutes (28.4%) saved on Linux. No hold is released early.
+
+The seven requested files pass 267/267, the final bounded-following rerun passes
+39/39, and the one-shot/dependency/publication batch passes 378/378. Ref-check and
+whitespace checks pass. This round changes tests, fixtures and report evidence
+only; the requested condition therefore does not require another complete suite.
+The settlement contract, SDK, compiler, device and wasm budget are unchanged.
+Work stayed on eb1000; no push or publication.
+
+[Round-8 report, timings, mutation controls and logs](reports/20261007-sn-one-shot-settlement/round8/REPORT.md).

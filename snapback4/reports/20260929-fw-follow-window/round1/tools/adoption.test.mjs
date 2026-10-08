@@ -53,15 +53,20 @@ for (const worker of [false, true]) for (const name of ['follow', 'unfollow']) t
     assert.ok(pending.some(entry => entry.id === write.id));
     assert.ok(honest(await keeper.evaluate(() => window.snapshot())), `${name}: custody must invalidate the mounted answer before transport`);
     await keeper.evaluate(() => window.beginQuery());
-    assert.equal(await keeper.evaluate(() => window.direct), undefined);
+    assert.deepEqual(await keeper.evaluate(() => window.readStatus()), [{ cards: false, postState: false }], 'both dependent reads wait before POST execution');
     await keeper.evaluate(() => window.send()); await keeper.evaluate(() => window.atSync());
     assert.ok(honest(await keeper.evaluate(() => window.snapshot())), `${name}: receipt is not observation`);
-    assert.equal(await keeper.evaluate(() => window.direct), undefined, 'one-shot also waits for observation');
+    await keeper.evaluate(() => window.beginQuery()); // Independently exercise receipt custody with fresh reads.
+    assert.deepEqual(await keeper.evaluate(() => window.readStatus()), [{ cards: false, postState: false }, { cards: false, postState: false }], 'both original and new dependent reads wait before apply');
     await keeper.evaluate(() => window.apply()); await keeper.evaluate(n => window.ready(n), newCount);
     const read = await keeper.evaluate(() => window.reading);
     assert.equal(read.data?.length, newCount); assert.equal(read.complete, true);
     const state = await keeper.evaluate(() => window.stateReading);
     assert.deepEqual(state.data, { liked: false, reposted: false }); assert.equal(state.complete, true);
+    for (const pair of await keeper.evaluate(() => window.readResults())) {
+      assert.equal(pair.cards.data?.length, newCount); assert.equal(pair.cards.complete, true);
+      assert.deepEqual(pair.postState.data, { liked: false, reposted: false }); assert.equal(pair.postState.complete, true);
+    }
     for (const read of await keeper.evaluate(() => window.publications)) assert.ok(honest(read) || read.data?.length === newCount, `${name}: ${JSON.stringify(read)}`);
     await keeper.evaluate(() => window.release()); await donor.close();
   }

@@ -153,11 +153,17 @@ query conditionalEventsHeld():
     assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("posts/"))));
     assert.ok(queued.every(q => q.predicted.every(row => !row.startsWith("feedPosts/"))), "partial events have no predicted owned row");
     const before = bob.queries.length;
-    assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
-    assert.equal((await bob.client.query(query("ownedEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
-    assert.equal((await bob.client.query(query("conditionalEvents"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
-    assert.equal((await bob.client.query(query("conditionalEventsHeld"), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unrelated held post cannot validate the speculative branch");
-    const branch = bob.observed.at(-1);
+    // These reads share unchanged held custody; each keeps its real deadline.
+    const observedAt = bob.observed.length;
+    const heldReads = await Promise.all([
+      bob.client.query(query("ownedEvent"), input), bob.client.query(query("ownedEvents"), {}),
+      bob.client.query(query("conditionalEvents"), {}), bob.client.query(query("conditionalEventsHeld"), {}),
+    ]);
+    assert.equal(heldReads[0].denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal(heldReads[1].denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal(heldReads[2].denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
+    assert.equal(heldReads[3].denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unrelated held post cannot validate the speculative branch");
+    const branch = bob.observed.slice(observedAt).findLast(read => read.request.name === "conditionalEventsHeld");
     assert.deepEqual(branch.data, []);
     assert.equal(branch.unknown, true); assert.equal(branch.speculative, true); assert.ok(branch.tables.includes("posts"));
     assert.equal(bob.queries.length, before, "executed and possible event reads depend on the predicted source slot");
@@ -248,10 +254,10 @@ query speculativePage():
     for (const table of ["posts", "notes"]) assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith(table + "/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
-      for (const name of ["guarded", "conditionalEvents", "filteredEvents", "speculativePage"]) {
-        const before = bob.queries.length;
+      await Promise.all(["guarded", "conditionalEvents", "filteredEvents", "speculativePage"].map(async name => {
+        const before = bob.queries.length, observedAt = bob.observed.length;
         assert.equal((await bob.client.query(query(name), {})).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", name);
-        const raw = bob.observed.at(-1);
+        const raw = bob.observed.slice(observedAt).findLast(read => read.request.name === name);
         assert.equal(raw.unknown, true); assert.equal(raw.speculative, true);
         if (name === "guarded") assert.equal(raw.denied.code, "NOT_FOUND");
         else if (name === "speculativePage") {
@@ -266,7 +272,7 @@ query speculativePage():
           assert.equal(raw.loading, true); assert.equal("data" in raw, false);
         } else assert.deepEqual(raw.data, []);
         assert.equal(bob.queries.length, before, "neither a server nor remembered answer can pass the fence");
-      }
+      }));
     }
   });
 
@@ -306,16 +312,17 @@ query conditionalHelper(c: cursor ?):
     assert.ok(entries.some(e => e.predictable && e.observed_seq == null && e.predicted.some(row => row.startsWith("feedFeed/"))));
     for (const offline of [false, true]) {
       bob.offline = offline; await bob.client.sync();
-      assert.equal((await bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unknown branch cannot publish a placeholder or replace a prediction");
-      for (const name of ["conditionalFeed", "conditionalHelper"]) {
-        const before = bob.queries.length;
+      const original = bob.client.query(query("conditionalOriginal"), { postId: "own/conditional" });
+      await Promise.all(["conditionalFeed", "conditionalHelper"].map(async name => {
+        const before = bob.queries.length, observedAt = bob.observed.length;
         const read = await bob.client.query(query(name), input);
         assert.equal(read.denied?.code, offline ? "E_OFFLINE" : "E_QUERY_RETRY");
-        const raw = bob.observed.at(-1);
+        const raw = bob.observed.slice(observedAt).findLast(read => read.request.name === name);
         assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
         assert.deepEqual(raw.tables, ["switches"]);
         assert.equal(bob.queries.length, before, "unknown branches cannot authorize a server replacement");
-      }
+      }));
+      assert.equal((await original).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY", "an unknown branch cannot publish a placeholder or replace a prediction");
     }
     bob.offline = false; await bob.client.sync(); bob.holdSync = true; bob.holdWrites = false;
     await until(async () => (await bob.core.call({ op: "queued" })).ok.some(e => e.sent_seq != null && e.observed_seq == null), "conditional prediction not acknowledged");

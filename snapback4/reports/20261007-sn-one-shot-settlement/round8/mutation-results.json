@@ -1,0 +1,14 @@
+{
+  "astra-bypass.log": {
+    "expected_failures": 8,
+    "assertion": "postState cannot publish before execution"
+  },
+  "browser-post-bypass.log": {
+    "expected_failures": 4,
+    "assertion": "both dependent reads wait before POST execution"
+  },
+  "receipt-bypass.log": {
+    "expected_failures": 12,
+    "assertion": "before apply"
+  }
+}
