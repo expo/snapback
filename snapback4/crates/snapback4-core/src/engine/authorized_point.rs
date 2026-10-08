@@ -100,12 +100,22 @@ impl<'r> Runner<'r> {
         // Trusted selected heads may use the same actual-size adapter. It
         // decodes a full transient image; the streaming consumer retains only
         // its ordering key. Selection remains useful in the private decoder.
-        if (self.context.is_system() || trusted && !table.is_expiring() && (!self.device || table.rules.read.is_uniformly_readable())) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
+        if (self.context.is_system() || trusted && !table.is_expiring()) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
             let rows = if metered {
                 self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
                 self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?
             } else { self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,bounds,dir,limit))? };
-            return Ok(rows.into_iter().map(|(row,key)|(Some(AuthorizedRow { projection:self.disclosed_row(table,row),authority:RowAuthorization(()),expiry:Default::default() }),key)).collect());
+            // @ref LLP 3000.007#20.24.3 — a device prices the server's image with the server's charge. Its
+            // own prediction rows still meet a non-uniform rule, as internal work outside the caller's heap.
+            let check = self.device && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
+            let mut out = Vec::with_capacity(rows.len());
+            for (row, key) in rows {
+                let row = if check && self.is_provisional(name, &row)? {
+                    self.internal_verdict(|runner, scope| runner.candidate_verdict(scope, name, index, prefix, row, true))?
+                } else { Some(AuthorizedRow { projection:self.disclosed_row(table,row),authority:RowAuthorization(()),expiry:Default::default() }) };
+                out.push((row, key));
+            }
+            return Ok(out);
         }
         let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
         if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>, Vec<u8>)>(limit))?; }
@@ -117,21 +127,10 @@ impl<'r> Runner<'r> {
                 let selected = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?;
                 #[cfg(feature = "server-search")]
                 let selected = if let Some(fields) = fields { runner.tx.scan_selected(scope,name,index,prefix,&cursor,dir,fields)? } else { runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)? };
-                let Some((mut row,key)) = selected.into_iter().next() else { return Ok(None); };
+                let Some((row,key)) = selected.into_iter().next() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
-                crate::schema::materialize_optional_fields(&mut row,table);
-                let provisional = runner.is_provisional(name,&row)?;
-                let needs_rule = !runner.context.is_system() && (!trusted || provisional);
-                if needs_rule && !runner.device_work_active && !scope.admit_probes(super::rules::rule_probes(&table.rules.read)) {
-                    // @ref LLP 3000.020#3.2 — unresolved authority is unknown, not an absent contribution.
-                    if runner.device { runner.unknown_fact(name, index, prefix, "source rule admission"); }
-                    return Ok(Some((None,key)));
-                }
-                let row = if trusted && !provisional && runner.schema.maintain_for(name).is_some_and(|m| m.parent_key.is_some()) {
-                    Some(runner.authorized_synthetic(table, row))
-                } else { runner.authorize_image(name,row)? };
-                Ok(Some((row,key)))
+                Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted)?,key)))
             })?;
             let Some((row,key)) = candidate else { break; };
             // Only this sealed surviving projection can be priced on the caller ledger.
@@ -142,6 +141,24 @@ impl<'r> Runner<'r> {
             out.push((row,key));
         }
         Ok(out)
+    }
+
+    /// One fetched candidate's expiry, rule and field verdict, inside an
+    /// internal scope. Unadmitted rule work is an unknown fact on a device.
+    fn candidate_verdict(&mut self, scope: &super::authorized_scan::Authorization, name: &str, index: &str, prefix: &[Value], mut row: Value, trusted: bool) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
+        let table = &self.schema.tables[name];
+        crate::schema::materialize_optional_fields(&mut row,table);
+        let provisional = self.is_provisional(name,&row)?;
+        let needs_rule = !self.context.is_system() && (!trusted || provisional);
+        if needs_rule && !self.device_work_active && !scope.admit_probes(super::rules::rule_probes(&table.rules.read)) {
+            // @ref LLP 3000.020#3.2 — unresolved authority is unknown, not an absent contribution.
+            if self.device { self.unknown_fact(name, index, prefix, "source rule admission"); }
+            return Ok(None);
+        }
+        if trusted && !provisional && self.schema.maintain_for(name).is_some_and(|m| m.parent_key.is_some()) {
+            return Ok(Some(self.authorized_synthetic(table, row)));
+        }
+        self.authorize_image(name,row)
     }
 
     /// Cold certification has already admitted the member and entire source

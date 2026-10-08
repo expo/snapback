@@ -112,12 +112,15 @@ pub struct Meter {
     site: String,
     #[cfg(feature = "sqlite")]
     heap_once: u8,
+    /// Physical store scratch reserved through store guards; never public,
+    /// never restored (word_heap::StoreGuard, LLP 3000.007 §20.24.3).
+    pub(crate) scratch: u64,
 }
 
 impl Meter {
     pub fn new(ceilings: Ceilings, cut: Cut) -> Self {
         Self { heap_peak: 0, ceilings, used: Metered::default(), cut, capped_at: None, site: String::new(),
-            #[cfg(feature = "sqlite")] heap_once: 0 }
+            #[cfg(feature = "sqlite")] heap_once: 0, scratch: 0 }
     }
 
     /// Resume prepaid coordinator work on the same device read allowance.

@@ -376,18 +376,21 @@ impl Rows for MemoryRows {
         Ok((if dir == Dir::Asc { range.next() } else { range.next_back() }).and_then(|((_,key),_)| key::decode(key)))
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        word_heap::range(prefix, bounds, scope).charge(meter,scope)?;
-        meter.heap(2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+        // @ref LLP 3000.007#20.24.3 — the stores' logical charge, priced on each row's canonical image.
+        word_heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
+        let mut guard = word_heap::StoreGuard::open(meter, "memory", 64 << 20);
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
-        meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
         let entries = self.entries.borrow();
         let rows = self.rows.borrow();
         let within = entries.range((ti.clone(), lo)..(ti, hi));
         let mut out = Vec::new();
         let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
-            meter.heap(word_heap::text(table) + word_heap::text(id))?;
-            if let Some(row) = rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key, scope)?; }
+            if let Some(row) = rows.get(&(table.to_owned(), id.clone())) {
+                let additional = word_heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), &crate::value::canonical_json(row), key)?;
+                if additional != 0 { out.reserve_exact(additional); }
+                out.push((row.clone(), key.clone()));
+            }
             Ok(())
         };
         match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }

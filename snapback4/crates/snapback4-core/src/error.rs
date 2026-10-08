@@ -210,7 +210,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
             #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
-            Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
+            Self::Structural { code: "E_STORE_RESTORE" | "E_STORE_MEMORY", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::AuthorizationBudget { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
@@ -331,6 +331,7 @@ impl RuntimeError {
             }
             Self::Structural { code: "E_QUARRY_EPHEMERAL", .. } => { refusal.guide = Some("ephemeral".into()); }
             Self::Structural { code: "E_SHAPE_EXCEEDS_METER", .. } => refusal.guide = Some("reads".into()),
+            Self::Structural { code: "E_STORE_MEMORY", .. } => refusal.guide = Some("bounds".into()),
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", message } => {
                 refusal.message = message.clone();
                 refusal.guide = Some("writes".into());

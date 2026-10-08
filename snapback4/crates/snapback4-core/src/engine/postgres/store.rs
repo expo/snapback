@@ -14,10 +14,14 @@ use std::{
     collections::BTreeMap,
 };
 
-// Shared with the adapter-contract unit test: exercise the actual preflight factor.
-pub(super) fn payload_heap(bytes: u64, limit: usize, scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
-    crate::value::InternalPrice::from_storage(bytes.saturating_mul(256) + crate::rows::word_heap::vec_growth::<(Value, Vec<u8>)>(limit),scope)
-}
+/// One Postgres scan's physical memory guard (word_heap::StoreGuard): sixteen
+/// times the default 16 MiB heap ceiling, the same as SQLite's.
+pub const SCAN_MEMORY_GUARD: u64 = 256 << 20;
+/// Network and decoder buffers the driver holds for one statement.
+const DRIVER_SCRATCH: u64 = 4096;
+/// Each fetched row's driver image beyond its payload: the Row, its column
+/// ranges and the result-vector slot.
+const ROW_SCRATCH: u64 = 256;
 
 // @ref LLP 3000.033#1.3 — additive on create and reopen; old full authority stays readable.
 pub(super) const READ_SESSIONS_DDL: &str = "
@@ -335,20 +339,37 @@ impl Rows for Tx<'_> {
 
     fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
+        // @ref LLP 3000.007#20.24.3 — the public charge is the shared logical one; the driver's batch is guarded.
+        heap::scan_open(meter, table, name, prefix, bounds, scope)?;
+        let mut guard = heap::StoreGuard::open(meter, "Postgres", SCAN_MEMORY_GUARD);
         // Queries use repeatable-read; serialized writes hold the head lock.
-        // The same bounded range cannot grow between this scalar size preflight
-        // and its fetch. Reserve network/decoder scratch before the driver owns it.
-        heap::range(prefix, bounds, scope).charge(meter,scope)?;
-        heap::range(prefix, bounds, scope).charge(meter,scope)?;
-        meter.heap(4096)?;
+        // The same bounded range cannot grow between this size preflight and
+        // its fetch. Reserve network/decoder scratch before the driver owns it.
+        guard.range(meter, 2, prefix, bounds)?;
+        guard.reserve(meter, DRIVER_SCRATCH)?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
-        let sql = match dir {
-            Dir::Asc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5) AS picked",
-            Dir::Desc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5) AS picked",
+        let sizes = match dir {
+            Dir::Asc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+            Dir::Desc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
         };
-        let bytes = self.query(sql, &[&table, &name, &lo, &hi, &(limit.min(i64::MAX as usize) as i64)])?[0].get::<_, i64>(0) as u64;
-        payload_heap(bytes, limit, scope).charge(meter,scope)?;
-        self.scan(table, name, prefix, bounds, dir, limit)
+        let mut preflight = heap::Preflight::new();
+        for row in self.query(sizes, &[&table, &name, &lo, &hi, &(limit.min(i64::MAX as usize) as i64)])? {
+            if !preflight.entry(meter, &mut guard, row.get::<_, i64>(0) as u64, row.get::<_, i64>(1) as u64, ROW_SCRATCH)? { break; }
+        }
+        if preflight.entries == 0 { return Ok(Vec::new()); }
+        let sql = match dir {
+            Dir::Asc => "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
+            Dir::Desc => "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
+        };
+        let mut out = Vec::new();
+        for row in self.query(sql, &[&table, &name, &lo, &hi, &(preflight.entries as i64)])? {
+            let (data, key) = (row.get::<_, &str>(0), row.get::<_, &[u8]>(1));
+            let additional = heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), data, key)?;
+            if additional != 0 { out.reserve_exact(additional); }
+            out.push((decode(data)?, key.to_vec()));
+        }
+        preflight.check()?;
+        Ok(out)
     }
 
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {

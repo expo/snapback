@@ -22,7 +22,6 @@ impl Key {
         (Rc::new(one.into_boxed_slice()), Rc::new(two.into_boxed_slice()))
     }
     fn suffix(&self) -> &[u8] { self.tail.as_ref().map_or(&[], |tail| tail.as_ref().as_ref()) }
-    pub fn len(&self) -> usize { self.head.len() + self.suffix().len() }
     pub fn bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(self.head.len() + self.suffix().len());
         bytes.extend_from_slice(&self.head); bytes.extend_from_slice(self.suffix()); bytes

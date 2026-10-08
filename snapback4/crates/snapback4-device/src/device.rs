@@ -316,11 +316,10 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
         self.tx.index_head(table,index,prefix,bounds,dir)
     }
     fn scan_metered(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        // @ref LLP 3000.007#20.24.3 — the store charged the server's logical image; dropping a
+        // prediction marker edits that already-priced image in place, never a public charge.
         let mut rows = self.tx.scan_metered(table, index, prefix, bounds, dir, limit, scope, meter)?;
-        for (row, _) in &mut rows {
-            self.schema.tables[table].project_fields(row.clone(),None).charge_copy_internal(meter,scope)?;
-            *row = predictions::without_pending(std::mem::replace(row, Value::Null));
-        }
+        for (row, _) in &mut rows { *row = predictions::without_pending(std::mem::replace(row, Value::Null)); }
         Ok(rows)
     }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {

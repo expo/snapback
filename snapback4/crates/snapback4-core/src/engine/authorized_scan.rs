@@ -210,6 +210,19 @@ impl Runner<'_> {
         result
     }
 
+    /// Work on rows the caller has already priced, with no further caller
+    /// heap: unlike prepaid_scan it neither admits an allowance nor stops at
+    /// an earlier cut, since the rows are already in the caller's result.
+    pub(super) fn internal_verdict<T>(&mut self, work: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        if self.device_work_active { return work(self, &Authorization::internal()); }
+        let scope = Authorization { probes: Cell::new(0), remaining_probes: self.meter.ceilings.rule_probes.saturating_sub(self.meter.used.rule_probes) };
+        let state = self.enter_prepaid(false);
+        let result = work(self, &scope);
+        self.leave_prepaid(state, result.as_ref().err());
+        if scope.probes.get() > 0 { self.read_charge(MeterKind::RuleProbes, scope.probes.get())?; }
+        result
+    }
+
     // Kept out of the generic closure wrapper: every protected access shares
     // the same scope transition instead of instantiating its restoration code.
     #[inline(never)]
@@ -353,11 +366,11 @@ impl InternalMeter<'_> {
     }
     pub fn examined_room(&self, rows: usize) -> bool { self.0.room(MeterKind::Examined, rows as u64) }
     pub(crate) fn room(&self, kind: MeterKind, amount: u64) -> bool { self.0.room(kind, amount) }
+    pub(crate) fn guarded(&self) -> u64 { self.0.scratch }
+    pub(crate) fn add_scratch(&mut self, bytes: u64) -> u64 { self.0.scratch = self.0.scratch.saturating_add(bytes); self.0.scratch }
     pub(crate) fn grow<T>(&mut self, len: usize, capacity: usize) -> Result<usize, RuntimeError> {
         crate::rows::word_heap::grow::<T>(self.0, len, capacity)
     }
-    #[cfg(feature = "sqlite")]
-    pub(crate) fn once(&mut self, site: crate::meter::HeapSite, bytes: u64) -> Result<(), RuntimeError> { self.0.once(site, bytes) }
 }
 impl InternalLedger {
     pub(crate) fn with_meter<T>(meter: &mut crate::meter::Meter, work: impl FnOnce(&mut InternalMeter<'_>, &Authorization) -> T) -> T {

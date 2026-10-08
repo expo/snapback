@@ -995,6 +995,11 @@ mod tests {
     }
 }
 
+/// One SQLite scan's physical memory guard (word_heap::StoreGuard): sixteen
+/// times the default 16 MiB heap ceiling. A scan within any ordinary ceiling
+/// reserves at most about twice its public charge plus two pages.
+pub const SCAN_MEMORY_GUARD: u64 = 256 << 20;
+
 impl crate::rows::Rows for Tx<'_> {
     fn change_footprint(&self) -> crate::revocation::Footprint { self.changes.borrow().footprint() }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
@@ -1040,69 +1045,62 @@ impl crate::rows::Rows for Tx<'_> {
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
-        heap::range(prefix, bounds, scope).charge(meter,scope)?;
-        meter.heap(heap::allocation(table.len() + index_name.len() + 1))?;
+        // @ref LLP 3000.007#20.24.3 — the public charge is the shared logical one; SQLite's own scratch is guarded.
+        heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
+        let mut guard = heap::StoreGuard::open(meter, "SQLite", SCAN_MEMORY_GUARD);
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
         // @ref LLP 3000.007#20.24.1 — stream preflight allowances before stepping to the next row.
-        // Per-execution statement storage and the page cache are shared images outside this payload ledger, as for every store scan; engine/word_heap/tests.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
+        // Per-execution statement storage and the page cache are shared images outside this ledger, as for every store scan; engine/word_heap/tests.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
         // Within one preflight execution the first row's resident copy (one
-        // page_size buffer per column, two registers) precedes its charge;
-        // every later row's copy follows the previous row's charge. Across
-        // executions the reserve prepays the first execution's first copy once
-        // per read; later executions' first copies are charged immediately after,
-        // bounded by the same constant. No other priced payload is copied before its allowance.
-        // BYTELENARG / LENGTHARG never read overflow payloads. The payload
-        // statement uses the granted allowances; Rust borrows its JSON.
-        meter.once(crate::meter::HeapSite::SqliteColumns, 2 * self.page_size)?;
+        // page_size buffer per column, two registers) precedes its guard
+        // reservation; every later row's copy follows the previous row's.
+        // The guard prepays that first copy. BYTELENARG / LENGTHARG never read
+        // overflow payloads; Rust borrows the payload statement's JSON.
+        guard.reserve(meter, 2 * self.page_size)?;
         if limit == 1 && dir == Dir::Asc
             && let Some(head) = self.activation_head(t, ti, &lo, &hi)? {
             let Some((data, key)) = head else { return Ok(Vec::new()); };
-            // Keep every ordinary per-row allowance, including both SQLite
-            // payload copies, decoder scratch, vector growth and key storage.
-            meter.heap(((data.len() + key.len()) as u64).saturating_mul(2).saturating_add(64))?;
-            heap::stored_row(&data, scope).charge(meter, scope)?;
-            meter.heap(heap::allocation(key.len()))?;
-            meter.grow::<(Value, Vec<u8>)>(0, 0)?;
-            return Ok(vec![(serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, key)]);
+            let mut preflight = heap::Preflight::new();
+            preflight.entry(meter, &mut guard, data.len() as u64, key.len() as u64, 64)?;
+            let additional = heap::scan_entry(meter, &mut guard, 0, 0, &data, &key)?;
+            let mut out = Vec::with_capacity(additional);
+            out.push((serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, key));
+            return Ok(out);
         }
         let sizes = match dir {
-            Dir::Asc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
-            Dir::Desc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
+            Dir::Asc => "SELECT octet_length(r.data), length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
+            Dir::Desc => "SELECT octet_length(r.data), length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
         };
-        let mut found = false;
+        let mut preflight = heap::Preflight::new();
         {
             let mut statement = self.tx.prepare_cached(sizes)?;
             let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
+            // Refusal drops/resets this statement without stepping again.
             while let Some(row) = rows.next()? {
-                let bytes = row.get::<_, i64>(0)? as u64;
                 // Two payload copies and two allocation headers/alignment per row.
-                // Refusal drops/resets this statement without stepping again.
-                // Database pages and cached VM/statement storage remain shared images.
-                meter.heap(bytes.saturating_mul(2).saturating_add(64))?;
-                found = true;
+                if !preflight.entry(meter, &mut guard, row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u64, 64)? { break; }
             }
         }
         // The preflight and payload read share this transaction's snapshot.
         // An empty preflight already proves the result; avoid seeking the same
-        // absent range again. Keep the reservation and all preflight charges.
+        // absent range again.
         // @ref LLP 3000.007#20.24.1 — empty preflights need no payload statement.
-        if !found { return Ok(Vec::new()); }
+        if preflight.entries == 0 { return Ok(Vec::new()); }
         let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
-        let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
+        let mut rows = statement.query(params![t, ti, lo, hi, preflight.entries as i64])?;
         let mut out = Vec::new();
         while let Some(row) = rows.next()? {
             // SQLite lends these bytes; no JSON String, Value or key Vec exists
             // until this allowance succeeds. Nominal IDs have no schema max.
             let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
             let key = row.get_ref(1)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
-            heap::stored_row(data,scope).charge(meter, scope)?;
-            meter.heap(heap::allocation(key.len()))?;
-            let additional = meter.grow::<(Value, Vec<u8>)>(out.len(), out.capacity())?;
+            let additional = heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), data, key)?;
             if additional != 0 { out.reserve_exact(additional); }
             out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));
         }
+        preflight.check()?;
         Ok(out)
     }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {

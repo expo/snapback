@@ -124,6 +124,10 @@ fn parse_row_key(key: &str) -> Result<(String, String), RuntimeError> {
     snapback4_core::json_codec::from_text(key).map_err(|e| RuntimeError::Store(format!("a kept row key does not parse: {e}")))
 }
 
+/// One memory scan's guard (word_heap::StoreGuard): four times the default
+/// 16 MiB heap ceiling, for a wasm heap that cannot grow without bound.
+const SCAN_MEMORY_GUARD: u64 = 64 << 20;
+
 fn stored<T: Serialize + ?Sized>(value: &T) -> String {
     snapback4_core::json_codec::to_text(value).expect("a stored value")
 }
@@ -608,26 +612,24 @@ impl Rows for MemoryTx<'_> {
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use snapback4_core::rows::word_heap;
-        word_heap::range(prefix, bounds, scope).charge(meter,scope)?;
-        meter.heap(2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+        // @ref LLP 3000.007#20.24.3 — the server's logical charge; this store's temporary names and keys are guarded.
+        word_heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
+        let mut guard = word_heap::StoreGuard::open(meter, "memory", SCAN_MEMORY_GUARD);
+        guard.reserve(meter, 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
         let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
-        meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
+        guard.reserve(meter, word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
         let ti = format!("{table}.{index_name}");
         let state = self.store.state.borrow();
         let Some(index) = state.entries.get(&ti) else { return Ok(Vec::new()) };
         let within = index.range(Key::plain(&lo)..Key::plain(&hi));
         let mut out = Vec::new();
         let mut pick = |(key, id): (&Key, &Rc<str>)| -> Result<(), RuntimeError> {
-            meter.heap(word_heap::text(table) + word_heap::text(id))?;
+            guard.reserve(meter, word_heap::text(table) + word_heap::text(id))?;
             if let Some(row) = state.rows.get(&(table.to_owned(), id.to_string())) {
-                word_heap::stored_row(row, scope).charge(meter, scope)?;
-                meter.heap(word_heap::allocation(key.len()))?;
-                if out.len() == out.capacity() {
-                    let next = out.capacity().saturating_mul(2).max(1);
-                    meter.heap(word_heap::slots::<(Value, Vec<u8>)>(next))?;
-                    out.reserve_exact(next - out.len());
-                }
-                out.push((parsed("row", row)?, key.bytes()));
+                let key = key.bytes();
+                let additional = word_heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), row, &key)?;
+                if additional != 0 { out.reserve_exact(additional); }
+                out.push((parsed("row", row)?, key));
             }
             Ok(())
         };

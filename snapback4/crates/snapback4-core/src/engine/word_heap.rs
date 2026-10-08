@@ -190,6 +190,9 @@ fn encoded(v: &Value) -> usize {
     }
 }
 pub fn range(prefix: &[Value], b: &Bounds, scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
+    crate::value::InternalPrice::from_storage(range_bytes(prefix, b), scope)
+}
+fn range_bytes(prefix: &[Value], b: &Bounds) -> u64 {
     let base = prefix.iter().map(encoded).sum::<usize>();
     let mut bytes = 4 * allocation(base.max(prefix.len() * 12)) + 4 * allocation(base + 1);
     if let Some(word) = &b.word { bytes += 8 * allocation(base + 2 * word.len() + 2); }
@@ -199,7 +202,7 @@ pub fn range(prefix: &[Value], b: &Bounds, scope: &crate::engine::Authorization)
     for vs in [&b.after, &b.at_or_after, &b.before].into_iter().flatten() {
         bytes += 2 * values(prefix) + 2 * values(vs) + 8 * allocation(base + vs.iter().map(encoded).sum::<usize>() + 1);
     }
-    crate::value::InternalPrice::from_storage(bytes, scope)
+    bytes
 }
 
 /// Bound SQLite's typed row decoder without allocating a JSON tree. Quoted
@@ -209,7 +212,10 @@ pub fn range(prefix: &[Value], b: &Bounds, scope: &crate::engine::Authorization)
 /// growth at 4x slots with a four-slot minimum. Enum tags are borrowed by
 /// serde; only Row/Map tags introduce B-tree roots. After removing enum-tag
 /// colons, actual map fields bound splits. This is a bound, not RSS.
-pub fn stored_row(json: &str, _scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
+pub fn stored_row(json: &str, scope: &crate::engine::Authorization) -> crate::value::InternalPrice {
+    crate::value::InternalPrice::from_storage(stored_row_bytes(json), scope)
+}
+fn stored_row_bytes(json: &str) -> u64 {
     let (mut quoted, mut escaped) = (false, false);
     let (mut objects, mut tags, mut arrays, mut fields, mut commas) = (0, 0, 0, 0, 0);
     for (i, b) in json.bytes().enumerate() {
@@ -221,19 +227,75 @@ pub fn stored_row(json: &str, _scope: &crate::engine::Authorization) -> crate::v
     // actual fields every map fits one root; above that, two nodes per five
     // fields also cover internal splits and minimum non-root occupancy.
     let fields = fields - (tags - objects);
-    crate::value::InternalPrice::from_storage(4 * allocation(json.len()) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
-        + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1), _scope)
+    4 * allocation(json.len()) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
+        + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1)
 }
 
-/// Copy a memory-store row handle/key into a precharged result vector. Row/Map
-/// images share their Arc; payloads of a non-row Value are priced recursively.
-pub fn memory_result(meter: &mut crate::engine::InternalMeter<'_>, out: &mut Vec<(Value, Vec<u8>)>, row: &Value, key: &[u8], _scope: &crate::engine::Authorization) -> Result<(), RuntimeError> {
-    meter.heap(value(row) + allocation(key.len()))?;
-    let additional = meter.grow::<(Value, Vec<u8>)>(out.len(), out.capacity())?;
-    if additional != 0 { out.reserve_exact(additional); }
-    out.push((row.clone(), key.to_vec()));
-    Ok(())
+// @ref LLP 3000.007#20.24.3 — one logical scan charge on every store; physical scratch is the store's guard.
+/// The public charge for opening a store scan, the same on every store and
+/// on the device: the encoded range and the copied table/index name. No
+/// store adds its own scratch to the caller's meter (ruling 2026-10-08).
+pub fn scan_open(meter: &mut crate::engine::InternalMeter<'_>, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, scope: &crate::engine::Authorization) -> Result<(), RuntimeError> {
+    range(prefix, bounds, scope).charge(meter, scope)?;
+    meter.heap(allocation(table.len() + index.len() + 1))
 }
+
+/// The public charge for one fetched entry, in index order and before its
+/// decode: its canonical stored row image (J), its key and the result slot.
+/// The store's guard holds the same bytes. Returns the result vector's
+/// additional capacity, already charged, for the caller to reserve.
+pub fn scan_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, json: &str, key: &[u8]) -> Result<usize, RuntimeError> {
+    let (row, key) = (stored_row_bytes(json), allocation(key.len()));
+    meter.heap(row)?;
+    meter.heap(key)?;
+    let additional = meter.grow::<(Value, Vec<u8>)>(len, capacity)?;
+    guard.reserve(meter, row + key + if additional == 0 { 0 } else { slots::<(Value, Vec<u8>)>(len + additional) })?;
+    Ok(additional)
+}
+
+/// The physical memory a store spends on one scan beyond its public charge:
+/// native column buffers, size preflights, driver batches, temporary keys.
+/// It never touches the public heap meter and never refuses with E_BOUND;
+/// past its store's limit, set far above any ceiling, it refuses with
+/// E_STORE_MEMORY. Its limit counts the logical entry charges too, so an
+/// engine meter with unbounded ceilings is still guarded.
+pub struct StoreGuard { store: &'static str, start: u64, limit: u64 }
+impl StoreGuard {
+    pub fn open(meter: &crate::engine::InternalMeter<'_>, store: &'static str, limit: u64) -> Self { Self { store, start: meter.guarded(), limit } }
+    pub fn reserve(&mut self, meter: &mut crate::engine::InternalMeter<'_>, bytes: u64) -> Result<(), RuntimeError> {
+        let used = meter.add_scratch(bytes).saturating_sub(self.start);
+        if used <= self.limit { return Ok(()); }
+        Err(RuntimeError::Structural { code: "E_STORE_MEMORY", message: format!("one {} scan needs more than its {} byte memory guard; read a smaller page", self.store, self.limit) })
+    }
+    /// The encoded range copies a native store makes for its statement.
+    pub fn range(&mut self, meter: &mut crate::engine::InternalMeter<'_>, copies: u64, prefix: &[Value], bounds: &Bounds) -> Result<(), RuntimeError> {
+        self.reserve(meter, copies.saturating_mul(range_bytes(prefix, bounds)))
+    }
+}
+
+/// A native store's size preflight, read in index order before the payload
+/// statement copies any row: reserve each entry's physical copies (two payload
+/// copies plus the store's per-row overhead) on the guard, and stop at the first entry the
+/// public meter must refuse. Every entry's public charge is at least four
+/// bytes per stored JSON byte plus its key, so the payload statement need not
+/// fetch past that entry; the cut lands there or earlier, as on every store.
+pub struct Preflight { floor: u64, pub entries: usize, pub stopped: bool }
+impl Preflight {
+    pub fn new() -> Self { Self { floor: 0, entries: 0, stopped: false } }
+    pub fn entry(&mut self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, json: u64, key: u64, overhead: u64) -> Result<bool, RuntimeError> {
+        guard.reserve(meter, json.saturating_add(key).saturating_mul(2).saturating_add(overhead))?;
+        self.entries += 1;
+        self.floor = self.floor.saturating_add(4 * allocation(json as usize) + allocation(key as usize));
+        self.stopped = !meter.room(crate::error::MeterKind::HeapBytes, self.floor);
+        Ok(!self.stopped)
+    }
+    /// The payload loop ended without a cut although the floor proved one.
+    pub fn check(&self) -> Result<(), RuntimeError> {
+        if self.stopped { return Err(RuntimeError::Store("a store preflight stopped before a public heap cut".into())); }
+        Ok(())
+    }
+}
+impl Default for Preflight { fn default() -> Self { Self::new() } }
 
 pub fn cursor_decode(token: &str) -> u64 {
     // JSON DOM + typed decode + canonical re-encode, bounded before any parse.
