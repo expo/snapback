@@ -91464,3 +91464,28 @@ retained and excluded before building the ordinary artifacts and running the
 successful campaign. No M5 or publication claim; nothing pushed.
 
 [PG report and retained first refusal](reports/20261008-pg-proc-group-inspection/REPORT.md).
+
+## 2026-10-08 — Farm round 2: `guide totals` and "a job body is a sweep"
+
+Round-2 clusters 6 (`sum`/aggregate forms undiscoverable, 7 builds) and 7 (job
+body must be a sweep, 6 Muse builds). New card `guide totals`
+(`crates/snapback4-lang/src/guide/totals.md`; aliases sum, sums, count,
+counts, total, aggregate, rollup, counters-aggregates; `aggregates` still
+resolves to maintains, which a test pins). It states the two spellings that
+do not mix (operation `count(t where …)` / `sum(t where …, .col)` versus view
+`sum t of .col by .key`), a job writing per-period totals, choosing a view
+versus an inline total, day-bucket point reads for rolling windows, the meter
+and device `loading` behaviour, and the three misspellings with what `check`
+prints today (`E_QUARRY_UNKNOWN: unknown shape of`, `… unknown shape where`,
+`… unknown name cents`). Those diagnostics are poor; teaching the binder to
+recognize the view spelling inside an operation is a lead-session follow-up.
+Every example was run in a scratch app before it went in the card.
+
+`guide jobs` now says at the top (lead and first paragraph after the example)
+that a job body is one top-level table sweep, that mutable columns are
+tested with `if` inside it, and that bare writes, a `range` loop, or only a
+paged `for … first N` are refused as "empty body" (all three reproduced).
+The word budget on the language card is at its edge: listing `totals` cost a
+word, repaid by dropping the dash on the Cards line (fact fixture updated).
+The CLIENT-AND-OPERATIONS guide line now says "prints cards" to keep its list
+inside the 400-character window the keyword test reads.

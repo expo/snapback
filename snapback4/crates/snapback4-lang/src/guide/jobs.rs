@@ -3,8 +3,9 @@
 // @ref LLP 3000.013#5 — streamed totals, adaptive sweeps and lifetime emission keys.
 pub(super) const CARD: &str = r##"# Jobs and schedules: the server's own work, on its own clock
 
-Jobs do background work on the server, with progress committed as they go.
-Schedules start them at boundaries of the server's clock.
+Jobs do background work on the server: a job body is a sweep, one top-level
+`for row in table` loop whose progress commits as it goes. Schedules start
+them at boundaries of the server's clock.
 
 ```quarry
 table invites:
@@ -23,6 +24,15 @@ job remind(periodStart: time, periodEnd: time):
       update invites[i.id] { reminded: true }
 schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
 ```
+
+**A job body is a sweep.** Put every write inside one top-level loop over a
+table: `for i in invites:` (every row, in id order) or `for i in invites where
+.sentAt >= periodStart by .sentAt:` (bounded by an id or immutable column).
+Test mutable columns (`reminded`, `status`, `done`) with `if` inside the loop,
+as above; a sweep whose `where` or `by` uses a mutable column is refused,
+because a write could move its cursor. A job with no top-level table sweep (bare writes, a
+`range` loop, or only a paged `for … first N`) is refused as `job <name> has
+an empty body`.
 
 A top-level `for p in recipients:` is an adaptive sweep. The engine chooses
 the iterations per transaction, retries a meter-refused chunk at a smaller size,

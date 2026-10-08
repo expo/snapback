@@ -64,7 +64,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -85,6 +85,8 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
+    ("aggregate", "totals"), ("sum", "totals"), ("sums", "totals"), ("count", "totals"), ("counts", "totals"),
+    ("total", "totals"), ("rollup", "totals"), ("counters-aggregates", "totals"),
     ("replay", "personas"), ("replay adapter", "personas"), ("seed", "personas"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
@@ -166,6 +168,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "sequences" => include_str!("guide/sequences.md"),
         "indexes" => indexes::CARD,
         "maintains" => include_str!("guide/maintains.md"),
+        "totals" => include_str!("guide/totals.md"),
         "offline-interactions" => include_str!("guide/offline_interactions.md"),
         "rules" => include_str!("guide/rules.md"),
         "sync" => sync::CARD,
