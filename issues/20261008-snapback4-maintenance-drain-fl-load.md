@@ -48,7 +48,7 @@ process identity observations before cleanup on a drain failure. The diagnostic
 control preserves the original assertion and captures a live owned observer;
 the drain predicate and its 90-second bound remain unchanged. A separate later
 background run hit the existing native `/proc` inspection diagnostic tracked
-in [its own ticket](20261004-snapback4-native-witness-proc-group-inspection.md).
+in [its own ticket](closed/20261004-snapback4-native-witness-proc-group-inspection.md).
 That is not evidence that it caused either drain failure here.
 
 Next: use the snapshot on the next failure to determine whether

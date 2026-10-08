@@ -91396,3 +91396,41 @@ The round-11 entry above incorrectly reports the separate crash matrix as
 The retained [raw log](reports/20261008-em-export-run-removal/crash-matrix.log.gz)
 and Astra's independent rerun contain the same 26 cases, with zero failures.
 The round-11 report is corrected; the original JOURNAL entry remains intact.
+
+
+## 2026-10-08 — PG: retain and fix the native Linux stat exit race
+
+The native `/proc` refusal is reproduced and its ticket closed. Instrumented
+baseline witness run 9 captured a complete 139-byte stat for PID 4095072:
+X, PPID 0, PGID/session -1, start 17057038. The immediate getpgid returned
+ESRCH and stat reread ENOENT; no PID/birth survived. Linux can emit the unset
+PGID while reaping. The parser already used the final `)` and byte fields;
+spaces/parentheses/non-UTF-8 comm were not this incident's cause. The older
+unretained snapshots remain unclassified individually.
+
+A rejected readable row now gets one fresh directory-PID getpgid probe. Only
+ESRCH means gone; live/unknown ownership, including a different fresh group,
+still refuses. Refusals retain bounded exact stat bytes, reason, PID and
+immediate state/birth evidence, without cmdline or environment. Group custody,
+leader birth, reaping lock, guardian checks, deadlines and two empty snapshots
+are unchanged. New controls keep malformed live metadata and a real foreign
+living group refusing, and replay the exact captured row with absent/live/error
+probes. All work stayed on eb1000; no other lane process was signalled.
+
+Thirty four-thread witness runs on CPUs 88–91 with six owned busy loops and
+two short-lived-process churners pass 84/84 each (2,520 passes). Thirty loaded
+repetitions of the publication-handoff/off/next-Expo-fails case also pass.
+Some campaigns overlap on those CPUs, increasing contention. No inspection
+refusal recurs. Witness integration passes 32/32; complete export-background
+passes 70 with 34 Darwin skips. All load children are reaped. Frozen install,
+SDK dependency check (deps-ok), wasm budget, SDK build and ref-check pass.
+The source and native executable digests remain unchanged through final tests.
+
+Baseline run 8 separately misses the post-driver fixture's expected compression
+error text while its child exits successfully; captured stderr was not printed.
+That unknown outcome is retained in its own open ticket, not erased by reruns.
+The first export soak lacked generated SDK dist files; its setup failures are
+retained and excluded before building the ordinary artifacts and running the
+successful campaign. No M5 or publication claim; nothing pushed.
+
+[PG report and retained first refusal](reports/20261008-pg-proc-group-inspection/REPORT.md).

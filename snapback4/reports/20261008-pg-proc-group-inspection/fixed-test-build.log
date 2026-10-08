@@ -1,0 +1,46 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-device v0.4.15 (/home/ccheever/sb4-intent/lane-pg/snapback4/crates/snapback4-device)
+warning: `tiny_http` (lib) generated 1 warning
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:455:51
+    |
+455 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.15 (/home/ccheever/sb4-intent/lane-pg/snapback4/crates/snapback4)
+warning: function `now` is never used
+ --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:7:8
+  |
+7 | pub fn now() -> u128 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() }
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `SCENE_REPAIR` is never used
+  --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:13:11
+   |
+13 | pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoScene...
+   |           ^^^^^^^^^^^^
+
+warning: function `app_pid` is never used
+   --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:169:8
+    |
+169 | pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    |        ^^^^^^^
+
+warning: `snapback4` (test "witness") generated 3 warnings
+    Finished `test` profile [optimized] target(s) in 9.64s
+  Executable unittests src/main.rs (target/debug/deps/snapback4-19b4b0de3b5a3951)
+  Executable tests/witness.rs (target/debug/deps/witness-32db8330963f5d7e)

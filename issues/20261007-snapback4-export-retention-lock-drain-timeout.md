@@ -100,7 +100,7 @@ A loaded EM round-3 repetition also produced this drain assertion with a
 **parked cleanup error**, `E_WITNESS_PROCESS: invalid /proc process group`.
 The retained result/trace shows native work finished after 142 ms, cleanup
 refused, and the claim parked before the observer exited. This recurrence is
-linked to the existing [native inspection ticket](20261004-snapback4-native-witness-proc-group-inspection.md).
+linked to the existing [native inspection ticket](closed/20261004-snapback4-native-witness-proc-group-inspection.md).
 It is retained as a failure, not a successful soak or proof of either wakeup
 race in the historical runs. Native ownership checks and the refusal to treat
 parked maintenance as drained remain intact.

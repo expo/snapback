@@ -154,16 +154,18 @@ pub(super) fn members(group: u32) -> Result<Vec<Value>> {
         for entry in fs::read_dir("/proc").map_err(|e| error("E_WITNESS_PROCESS", e))? {
             let entry = entry.map_err(|e| error("E_WITNESS_PROCESS", e))?;
             let Some(pid) = entry.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue; };
-            let member = linux_member(pid, group, &boot, fs::read(entry.path().join("stat")), || {
-                let pgid = unsafe { libc::getpgid(pid as i32) };
-                if pgid < 0 { Err(std::io::Error::last_os_error()) } else { Ok(pgid as u32) }
-            })?;
+            let member = linux_member(pid, group, &boot, fs::read(entry.path().join("stat")), || linux_group(pid))?;
             if let Some(member) = member { live.push(member); }
         }
         Ok(live)
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     { Err(error("E_WITNESS_PROCESS", "process group inspection is unsupported")) }
+}
+#[cfg(target_os = "linux")]
+fn linux_group(pid: u32) -> std::io::Result<u32> {
+    let pgid = unsafe { libc::getpgid(pid as i32) };
+    if pgid < 0 { Err(std::io::Error::last_os_error()) } else { Ok(pgid as u32) }
 }
 #[cfg(target_os = "linux")]
 fn linux_member(pid: u32, group: u32, boot: &str, stat: std::io::Result<Vec<u8>>, get_group: impl FnOnce() -> std::io::Result<u32>) -> Result<Option<Value>> {
@@ -180,21 +182,64 @@ fn linux_member(pid: u32, group: u32, boot: &str, stat: std::io::Result<Vec<u8>>
             }
         }
     };
-    let fields = linux_stat_fields(&bytes).unwrap_or_default();
+    match linux_stat_member(pid, group, boot, &bytes) {
+        Ok(member) => Ok(member),
+        Err(reason) => {
+            // @ref LLP 3000.030#15 — a proc read can overlap reaping and
+            // contain the kernel's unset PGID (-1). Only a fresh ESRCH for
+            // the directory PID proves it gone; X/Z, a different group or
+            // unreadable metadata never excuses a live unknown process.
+            let current = get_group();
+            if current.as_ref().is_err_and(|e| e.raw_os_error() == Some(libc::ESRCH)) { return Ok(None); }
+            Err(linux_stat_refusal(pid, group, &bytes, reason, &current))
+        }
+    }
+}
+#[cfg(target_os = "linux")]
+fn linux_stat_member(pid: u32, group: u32, boot: &str, bytes: &[u8]) -> std::result::Result<Option<Value>, &'static str> {
+    let fields = linux_stat_fields(bytes).unwrap_or_default();
     let pgid = fields.get(2).and_then(|s| std::str::from_utf8(s).ok())
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
         .and_then(|s| s.parse::<u32>().ok()).filter(|pgid| *pgid <= i32::MAX as u32)
-        .ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process group"))?;
+        .ok_or("invalid /proc process group")?;
     // Once the row unambiguously names another group, none of its other
     // fields can fail this inspection. Decode/validate member details below.
     if pgid != group { return Ok(None); }
     let state = fields[0];
     if state.len() != 1 || !state[0].is_ascii_alphabetic() {
-        return Err(error("E_WITNESS_PROCESS", "invalid /proc process state"));
+        return Err("invalid /proc process state");
     }
-    let start = linux_start(&fields).ok_or_else(|| error("E_WITNESS_PROCESS", "invalid /proc process birth"))?;
+    let start = linux_start(&fields).ok_or("invalid /proc process birth")?;
     if state == b"Z" { return Ok(None); }
     Ok(Some(json!({ "pid": pid, "start": [boot, start] })))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_stat_refusal(pid: u32, group: u32, bytes: &[u8], reason: &str, current: &std::io::Result<u32>) -> String {
+    // Retain only parser input, never cmdline/environment. Hex is lossless for
+    // arbitrary comm bytes; bound both snapshots and explicitly mark truncation.
+    fn snapshot(bytes: &[u8]) -> Value {
+        json!({ "hex": bytes.iter().take(4096).map(|b| format!("{b:02x}")).collect::<String>(),
+            "length": bytes.len(), "truncated": bytes.len() > 4096 })
+    }
+    let pgid = current.as_ref().ok().copied();
+    let errno = current.as_ref().err().and_then(|e| e.raw_os_error());
+    let after = match fs::read(format!("/proc/{pid}/stat")) {
+        Ok(raw) => {
+            let fields = linux_stat_fields(&raw).unwrap_or_default();
+            let start = linux_start(&fields);
+            let before = linux_stat_fields(bytes).unwrap_or_default();
+            json!({ "stat": snapshot(&raw), "state": fields.first().filter(|s| s.len() == 1).map(|s| String::from_utf8_lossy(s)),
+                "zombie": fields.first().map(|s| *s == b"Z"), "start": start,
+                "sameBirth": start.zip(linux_start(&before)).map(|(a, b)| a == b) })
+        }
+        Err(e) => json!({ "readErrno": e.raw_os_error(), "readError": e.to_string() }),
+    };
+    let detail = json!({ "pid": pid, "group": group, "reason": reason, "stat": snapshot(bytes),
+        "after": { "pgid": pgid, "getpgidErrno": errno,
+            "exists": if errno == Some(libc::ESRCH) { Some(false) } else if pgid.is_some() { Some(true) } else { None },
+            "reread": after } });
+    error("E_WITNESS_PROCESS", format!("{reason}; procEvidence={detail}"))
 }
 
 #[cfg(all(test, target_os = "linux"))]
@@ -211,7 +256,7 @@ mod linux_tests {
         bytes
     }
     fn inspect(bytes: Vec<u8>) -> Result<Option<Value>> {
-        linux_member(42, 123, "boot", Ok(bytes), || panic!("a readable stat must supply its own group"))
+        linux_member(42, 123, "boot", Ok(bytes), || Ok(123))
     }
 
     #[test]
@@ -252,6 +297,85 @@ mod linux_tests {
         for bytes in [b"42 no closing comm".as_slice(), b"42 (name) S 1", b"42 (name) S 1 \xff", b"42 (name) S 1 -1", b"42 (name) S 1 2147483648"] {
             assert!(inspect(bytes.to_vec()).unwrap_err().contains("invalid /proc process group"));
         }
+    }
+
+    #[test]
+    fn captured_exit_snapshot_requires_a_fresh_esrch() {
+        // Exact first rejection from the loaded PG campaign. It is a complete
+        // kernel row, not split comm/UTF-8 damage: X, PPID 0, PGID/session -1.
+        let bytes = include_bytes!("../../../tests/fixtures/proc-exited.stat");
+        assert_eq!(linux_stat_member(4095072, 4092886, "boot", bytes), Err("invalid /proc process group"));
+        assert!(linux_member(4095072, 4092886, "boot", Ok(bytes.to_vec()),
+            || Err(std::io::Error::from_raw_os_error(libc::ESRCH))).unwrap().is_none());
+        for pgid in [0, 123, 4092886] {
+            assert!(linux_member(4095072, 4092886, "boot", Ok(bytes.to_vec()), || Ok(pgid)).is_err());
+        }
+        for errno in [libc::EACCES, libc::EPERM, libc::EIO] {
+            assert!(linux_member(4095072, 4092886, "boot", Ok(bytes.to_vec()),
+                || Err(std::io::Error::from_raw_os_error(errno))).is_err());
+        }
+    }
+
+    #[test]
+    fn rejected_metadata_rechecks_exit_but_never_excuses_a_live_unknown_process() {
+        let mut child = Owned::spawn(Command::new("sleep").arg("60").process_group(0)).unwrap();
+        let pid = child.0.id();
+        let raw = fs::read(format!("/proc/{pid}/stat")).unwrap();
+        let end = raw.iter().rposition(|b| *b == b')').unwrap();
+        let mut fields = linux_stat_fields(&raw).unwrap();
+        fields[2] = b"-1";
+        let bad_group = [raw[..=end].to_vec(), b" ".to_vec(), fields.join(&b' ')].concat();
+        for bytes in [&bad_group, &b"genuinely malformed stat with no closing delimiter".to_vec()] {
+            let refusal = linux_member(pid, pid, "boot", Ok(bytes.clone()), || linux_group(pid)).unwrap_err();
+            let evidence: Value = serde_json::from_str(refusal.split_once("procEvidence=").unwrap().1).unwrap();
+            assert_eq!(evidence["pid"], pid);
+            assert_eq!(evidence["reason"], "invalid /proc process group");
+            assert_eq!(evidence["stat"]["length"], bytes.len());
+            assert_eq!(evidence["stat"]["hex"], bytes.iter().map(|b| format!("{b:02x}")).collect::<String>());
+            assert_eq!(evidence["after"]["exists"], true);
+            assert_eq!(evidence["after"]["reread"]["zombie"], false);
+            if bytes == &bad_group { assert_eq!(evidence["after"]["reread"]["sameBirth"], true); }
+            assert!(child.status().unwrap().is_none(), "refusal must spare the live process");
+        }
+        // The same rejected bytes with exit/reaping between read and probe.
+        assert!(linux_member(pid, pid, "boot", Ok(bad_group), || {
+            child.0.kill().unwrap(); child.0.wait().unwrap(); linux_group(pid)
+        }).unwrap().is_none());
+    }
+
+    #[test]
+    fn live_foreign_group_and_member_refuse_recovery_without_birth_custody() {
+        let mut foreign = Owned::spawn(Command::new("sleep").arg("60").process_group(0)).unwrap();
+        let mut member = Owned::spawn(Command::new("sleep").arg("60").process_group(foreign.0.id() as i32)).unwrap();
+        let record = json!({ "group": foreign.0.id(), "leader": identity(std::process::id()).unwrap() });
+        let refusal = stop_group(&record).unwrap_err();
+        assert!(refusal.contains("no matching birth record"), "{refusal}");
+        assert!(foreign.status().unwrap().is_none());
+        assert!(member.status().unwrap().is_none());
+        member.0.kill().unwrap(); member.0.wait().unwrap();
+        foreign.0.kill().unwrap(); foreign.0.wait().unwrap();
+    }
+
+    #[test]
+    fn malformed_state_and_birth_still_refuse_unless_the_pid_is_gone() {
+        for bytes in [row(123, b"bad-state", b"987"), row(123, b"S", b"bad-birth"), row(123, b"Z", b"bad-birth")] {
+            assert!(linux_member(42, 123, "boot", Ok(bytes.clone()), || Ok(123)).is_err());
+            assert!(linux_member(42, 123, "boot", Ok(bytes),
+                || Err(std::io::Error::from_raw_os_error(libc::ESRCH))).unwrap().is_none());
+        }
+        // A valid row still needs no second syscall, including arbitrary comm.
+        assert!(linux_member(42, 123, "boot", Ok(row(123, b"S", b"987")), || panic!("valid row")).unwrap().is_some());
+    }
+
+    #[test]
+    fn refusal_detail_is_bounded_and_marks_truncation() {
+        let bytes = vec![b'!'; 100_000];
+        let refusal = linux_member(42, 123, "boot", Ok(bytes), || Ok(123)).unwrap_err();
+        let evidence: Value = serde_json::from_str(refusal.split_once("procEvidence=").unwrap().1).unwrap();
+        assert_eq!(evidence["stat"]["hex"].as_str().unwrap().len(), 8192);
+        assert_eq!(evidence["stat"]["length"], 100_000);
+        assert_eq!(evidence["stat"]["truncated"], true);
+        assert!(refusal.len() < 18_000);
     }
 
     #[test]
