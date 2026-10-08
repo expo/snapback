@@ -184,6 +184,9 @@ E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database
 private store proof. Its E_STORE_BUSY means that path is unavailable: restore
 access to the named server and proof, or stop it, mint offline, then restart.
 After a lost mint reply, an unused session may remain until expiry.
+`run` beside a responsive dev is forwarded over its wire as the persona, so it
+refuses only with `--now`, a non-persona principal, a `serve` or stopped host;
+that refusal prints the equivalent curl to run beside dev.
 Other offline writers admit no work: stop the named host (the message includes
 its address), run the command once, then restart it; for another CLI, wait for
 it to finish. The presence of an old lock file alone does not refuse work.

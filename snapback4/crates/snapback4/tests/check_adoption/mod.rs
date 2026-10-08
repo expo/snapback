@@ -125,8 +125,10 @@ fn w8c_doctor_names_live_generation_mismatch_even_when_source_matches_store() {
     let p = Project::new(); p.source(ADOPTION_SOURCE);
     let host = AdoptionHost::start(&p, false);
     p.source(&ADOPTION_SOURCE.replace("return 1", "return 2"));
+    // `run` beside the host asks it over the wire: the host's generation answers, and nothing adopts the edit.
     let run = p.run(&["run", "version", "--json"]);
-    assert!(!run.status.success()); assert!(String::from_utf8_lossy(&run.stderr).contains("E_STORE_BUSY"));
+    assert!(run.status.success(), "{run:?}"); assert!(String::from_utf8_lossy(&run.stderr).contains("forwarding to POST /q/version"));
+    assert_eq!(serde_json::from_slice::<Value>(&run.stdout).unwrap()["data"], 1);
     let bound = snapback4_lang::compile(&[("schema.q".into(), ADOPTION_SOURCE.replace("return 1", "return 2"))]);
     Engine::new(Store::open(&p.store()).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(host.query()["denied"]["code"], "E_GENERATION");
@@ -162,8 +164,10 @@ fn w8c_watching_host_reopens_after_external_adoption_while_cli_refuses() {
     });
     barrier.execute_batch("COMMIT").unwrap();
     p.source(&ADOPTION_SOURCE.replace("return 1", "return 2"));
+    // A stopped host does not answer its status probe: run refuses rather than wait or open a second writer.
     let run = p.run(&["run", "version", "--json"]);
-    assert!(!run.status.success()); assert!(String::from_utf8_lossy(&run.stderr).contains("E_STORE_BUSY"));
+    let error = String::from_utf8_lossy(&run.stderr);
+    assert!(!run.status.success()); assert!(error.contains("E_STORE_BUSY") && error.contains("did not answer GET /dev/status"), "{error}");
     let bound = snapback4_lang::compile(&[("schema.q".into(), ADOPTION_SOURCE.replace("return 1", "return 2"))]);
     Engine::new(Store::open(&p.store()).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     unsafe { assert_eq!(libc::kill(host.child.id() as i32, libc::SIGCONT), 0); }

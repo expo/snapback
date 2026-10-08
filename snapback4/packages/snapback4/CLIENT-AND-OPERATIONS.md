@@ -2425,7 +2425,8 @@ step.
 - **`snapback4 dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules]
   [--clock-offset +25h]`** serves `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
   save (the watcher polls every 400 ms; a save with problems keeps the previous generation serving and prints
-  the diagnostics); the store lives in `.snapback4/store.sqlite` and persists across runs, and `--fresh`
+  the diagnostics; `--no-watch` never re-adopts, says so at startup, and names a changed `snapback/` when a
+  request reaches an operation or argument the running schema lacks; restart to serve the edit); the store lives in `.snapback4/store.sqlite` and persists across runs, and `--fresh`
   (alias `--memory`) starts an empty private temporary WAL store, removed on orderly exit. Each launch
   starts from nothing; an unclean exit can leave its private temporary directory for OS cleanup.
   During schema adoption, query and sync snapshot reads use the previous committed backend;
@@ -2485,7 +2486,9 @@ step.
   `serve` refuses every clock control with
   `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
   loopback-only dev endpoint, `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the
-  recipe.
+  recipe. `POST /dev/jobs/<job>` with `{"args":{..}}` queues one run of any job as the system on the dev clock,
+  behind earlier queued runs, and answers its run (`state` `done` or `parked`) once it finishes; `serve` refuses
+  it with `E_AUTH`.
 - **Adoption health.** A refused dev adoption stays visible in `doctor` and its reason repeats on the first
   failing job or sweep. Writer-lock and generation failures retry without another save, including reopening
   after a CLI adoption. Identical background store and generation failures are then suppressed while that
@@ -2496,7 +2499,11 @@ step.
   corrected save. A stopped host's deferred deadlines use wall time.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t", "row": { "id": "..", .. } }, ..]`, writes
   the rows as the system principal in one commit (rules bypassed; validation, constraints, aggregates and sync
-  apply) and answers `{ "seeded": N }`. For recorded-action replay that must not emit notifications, run
+  apply) and answers `{ "seeded": N }`. Seed is an upsert by `id`, so every row names its own and rerunning a
+  seed updates those rows instead of duplicating them; a row without one refuses `E_FIELD` with its index. Use
+  26-character Crockford base32 ids (digits and capital letters except I, L, O, U), such as
+  `0000000000000000000000SEED`; in JavaScript `idFrom("seed:alice")` from `snapback4/client` derives the same valid
+  id from a label every time. For recorded-action replay that must not emit notifications, run
   `snapback4 dev --replay`: new effects are never delivered and schedules are held. `guide replay` explains
   the restart and explicit-job behaviour.
 - **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--now <milliseconds|+duration>]
@@ -2504,10 +2511,15 @@ step.
   `dev:` prefix and other principal ids are used verbatim) and prints the result, the meter and, for a
   mutation, the partition events; a job runs whole as the system (`--as` is ignored) and prints its run.
   Before opening SQLite, it takes the store's lifetime lock: the sidecar file `<database>-owner` beside the
-  store (never the database file itself, whose locks belong to SQLite). A live dev/serve host or another CLI writer
-  refuses `E_STORE_BUSY` with the store site and server address. Stop the host, run once, then restart it.
-  The same rule covers `token`, `test` without a fixture, `deploy` and `rollback`; HTTP `/seed` already
-  runs through the dev host. Native devices (process clients and embedded C-ABI hosts) share compatible
+  store (never the database file itself, whose locks belong to SQLite). While a responsive `snapback4 dev`
+  owns the store, `run` instead forwards over that host's loopback wire, on its dev clock and adopted schema:
+  a query to `POST /q/<op>` and a mutation to `POST /m/<op>` with the `x-snapback-persona` header for the same
+  principal, a job to `POST /dev/jobs/<job>`. It says so on stderr and prints the same shape (a forwarded
+  mutation has no events or meter). `--now`, a non-persona principal, a `serve` host and a stopped host are not
+  forwarded: those refuse `E_STORE_BUSY` with the store site, the server address and the equivalent `curl`
+  command. Another CLI writer refuses the same way; stop it or the host, run once, then restart.
+  `token` asks a live host to mint; `test` without a fixture, `deploy` and `rollback` refuse while it runs;
+  HTTP `/seed` already runs through the dev host. Native devices (process clients and embedded C-ABI hosts) share compatible
   ownership with each other, but refuse a backend owner before initialization and exclude backend writers
   until their SQLite stores close. Exclusion holds while `<database>-owner` is left in place: deleting or
   replacing it while a process runs ends exclusion (that process keeps running), so leave it alone.
@@ -2666,8 +2678,8 @@ tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry th
 null. `POST /m/<op>` with `{ "id", "args", "newIds" }` answers `{ state: "sent", id, seq, result }` on fresh
 success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "failed", id, why, current? }`
 (a client-minted `id` makes the write apply at most once). A replay adds `replayed: true` and omits both
-`result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused over the
-wire (`E_OP`). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
+`result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused at
+`/m/<job>` (`E_OP`); in dev, `POST /dev/jobs/<job>` runs one (§5). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
 `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged snapshot: `{ snapshot: true,
 events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged, sent? }`. Continue
 with `after: next`; `limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs, each 1–128 UTF-8

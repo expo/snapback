@@ -287,8 +287,10 @@ A busy probe at a moved store's old path creates no empty database.
 A live host causes E_STORE_BUSY before offline work, naming its address when available.
 `token` instead asks the live host over loopback with its private store proof
 (guide services). If unavailable, restore access or stop the host, run token
-offline, then restart it. For other writers, stop the host, run the command once,
-then restart it. Another CLI writer also refuses; wait for it.
+offline, then restart it. `run` beside a responsive dev forwards to it as the
+persona (POST /q, /m or /dev/jobs) on its clock; `--now`, other principals and
+`serve` refuse with the equivalent curl. For other writers, stop the host, run
+the command once, then restart it. Another CLI writer also refuses; wait for it.
 The HTTP /seed development door already runs through the host. `check`, `data`,
 `sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time

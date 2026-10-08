@@ -24,6 +24,7 @@ mod test_fixture;
 mod adoption;
 mod latency;
 mod run_admission;
+mod run_forward;
 
 pub struct Options {
     pub positionals: Vec<String>,
@@ -551,6 +552,12 @@ pub fn run(options: &Options) -> i32 {
     };
     let _owner = match crate::store_owner::command(&project.store_path()) {
         Ok(owner) => owner,
+        // @ref LLP 3000.019#3.4 — beside a live dev host, run goes through that server rather than open a second writer.
+        Err(error) if error.starts_with("E_STORE_BUSY ") => {
+            let call = run_forward::Call { op, kind: program.kind, args: &args_json, r#as: options.flags.get("as").map(String::as_str),
+                personas: &bound.personas, pinned_now: options.flags.contains_key("now"), json: options.json };
+            return run_forward::forward(&project.store_path(), &error, &call).unwrap_or_else(|text| { eprintln!("{text}"); 2 });
+        }
         Err(error) => { eprintln!("{error}"); return 2; }
     };
     let mut engine = match run_admission::open(&project, &_owner, &bound, &source, op, now) {

@@ -34,12 +34,12 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h] [--trace-empty]
-                                      --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save; --fresh/--memory: a store in memory that dies with this process
+                                      --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
   deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
   serve <dir> [--port N] [--bind IP] [--worker <path>]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
-  run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
+  run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values

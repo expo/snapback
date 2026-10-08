@@ -45,6 +45,8 @@ use maintenance::maintain;
 
 #[path = "serve_adoption.rs"]
 mod adoption;
+#[path = "serve_dev_doors.rs"]
+mod dev_doors;
 use adoption::watch_sources;
 
 #[cfg(test)]
@@ -368,6 +370,10 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     if dev { snapback4_core::diagnostic!("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."); }
     if replay { snapback4_core::diagnostic!("snapback4 dev: replay on — new effects suppressed; schedules held"); }
     let mut background = Vec::new();
+    if let Mode::Dev { watch: false, .. } = mode {
+        dev_doors::pin(&shared.project, source_stamp);
+        snapback4_core::diagnostic!("snapback4 dev: --no-watch — schema edits are not re-adopted; restart dev (or drop --no-watch) to serve a changed snapback/");
+    }
     if let Mode::Dev { watch: true, verbose, .. } = mode {
         let shared = shared.clone();
         let project = Project { root: project.root.clone() };
@@ -1005,6 +1011,7 @@ fn handle(mut request: Request, shared: &Shared) {
     };
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
+        (Method::Post, path) if path.starts_with("/dev/jobs/") => maintenance::run_job(request, shared, &path["/dev/jobs/".len()..], &body),
         (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
         (Method::Post, "/actions/claim-set") => actions::claim_set(request, shared, &body),
@@ -1158,7 +1165,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     return;
                 }
-                operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
+                operation_refusal(request, shared, 404, dev_doors::stale(shared, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")));
                 return;
             };
             let mut args = BTreeMap::new();
@@ -1175,7 +1182,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             }
                         },
                         None => {
-                            operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs"));
+                            operation_refusal(request, shared, 400, dev_doors::stale(shared, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")));
                             return;
                         }
                     }
@@ -1322,7 +1329,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
                 if kind == ProgramKind::Job {
-                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs"));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does (in dev also POST /dev/jobs/{op} with {{\"args\":{{..}}}}); no client call can")).guide("jobs"));
                     return;
                 }
                 let id = payload.get("id").and_then(Json::as_str).map(str::to_owned);
@@ -1420,46 +1427,7 @@ fn handle(mut request: Request, shared: &Shared) {
         | (Method::Post, "/auth/narrow") | (Method::Post, "/auth/logout") | (Method::Post, "/auth/refresh") | (Method::Post, "/auth/logout-all") => {
             crate::auth::handle(request, shared, &path, &body);
         }
-        (Method::Post, "/seed") => {
-            if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
-                respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
-                return;
-            }
-            let rows: Vec<Json> = match serde_json::from_str(&body) {
-                Ok(Json::Array(rows)) => rows,
-                _ => {
-                    respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")) }));
-                    return;
-                }
-            };
-            let schema = lock(&shared.bound).schema.clone();
-            let mut typed = Vec::new();
-            for entry in &rows {
-                let (Some(table), Some(row)) = (entry.get("table").and_then(Json::as_str), entry.get("row")) else {
-                    respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "each seed entry is {table, row}")) }));
-                    return;
-                };
-                let Some(definition) = schema.table(table) else {
-                    respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("unknown table {table}"))) }));
-                    return;
-                };
-                match wire::row_from_json(definition, row) {
-                    Ok(value) => typed.push((table.to_owned(), value)),
-                    Err(why) => {
-                        respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("{table}: {why}"))) }));
-                        return;
-                    }
-                }
-            }
-            let outcome = lock(&shared.engine).seed_at(typed, shared.now());
-            match outcome {
-                Ok(count) => {
-                    shared.durable_committed(&lock(&shared.engine));
-                    respond_timed(request, shared, 200, json!({ "seeded": count }));
-                }
-                Err(error) => respond_timed(request, shared, 200, json!({ "denied": refusal_json(&error.refusal()) })),
-            }
-        }
+        (Method::Post, "/seed") => dev_doors::seed(request, shared, &body),
         _ => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
     }
 }

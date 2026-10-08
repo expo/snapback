@@ -166,7 +166,7 @@ fn competing_cli_refuses_before_admission_then_can_retry_after_owner_exit() {
 }
 
 #[test]
-fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
+fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit() {
     for watch in [false, true] {
         let p = Project::new(); p.initialize();
         let args = if watch { vec!["dev", "--port", "0"] } else { vec!["dev", "--port", "0", "--no-watch"] };
@@ -174,15 +174,30 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
         wait(|| host.logs().split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains("snapback4 dev: http://")));
         let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
         let generation = p.generation();
-        for args in [vec!["run", "backfill"], vec!["run", "put"], vec!["run", "rows"], vec!["test"]] {
-            let before = Instant::now();
+        // `run` goes through the live host's wire as the persona; nothing opens a second writer.
+        for (args, route) in [(vec!["run", "backfill", "--json"], "/dev/jobs/backfill"), (vec!["run", "put", "--as", "dev:bob", "--json"], "/m/put as x-snapback-persona: bob"), (vec!["run", "rows", "--json"], "/q/rows as x-snapback-persona: alice")] {
             let out = p.run(&args);
-            let error = String::from_utf8(out.stderr).unwrap();
-            assert!(!out.status.success(), "{args:?}");
-            assert!(error.contains("E_STORE_BUSY") && error.contains(&address) && error.contains("store.sqlite") && error.contains("rerun"), "{error}");
-            assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
+            let error = String::from_utf8_lossy(&out.stderr);
+            assert!(out.status.success(), "{args:?}: {out:?}");
+            assert!(error.contains(&format!("live under snapback4 dev at {address}; forwarding to POST {route}")), "{error}");
+            let reply: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+            match args[1] {
+                "backfill" => assert_eq!(reply["state"], "done", "{reply}"),
+                "put" => { assert_eq!(reply["state"], "sent", "{reply}"); assert_eq!(reply["result"]["owner"], "dev:bob", "{reply}"); }
+                _ => assert_eq!(reply["data"].as_array().unwrap().len(), 2, "{reply}"),
+            }
         }
-        assert_eq!(p.jobs(), 0); assert_eq!(p.generation(), generation);
+        // A local clock pin cannot be forwarded; the refusal names the runnable alternative.
+        let pinned = p.run(&["run", "rows", "--now", "+1h"]);
+        let error = String::from_utf8_lossy(&pinned.stderr);
+        assert!(!pinned.status.success() && error.contains("E_STORE_BUSY") && error.contains(&format!("curl -s -X POST {address}/q/rows -H 'x-snapback-persona: alice'")), "{error}");
+        let before = Instant::now();
+        let out = p.run(&["test"]);
+        let error = String::from_utf8(out.stderr).unwrap();
+        assert!(!out.status.success());
+        assert!(error.contains("E_STORE_BUSY") && error.contains(&address) && error.contains("store.sqlite") && error.contains("rerun"), "{error}");
+        assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
+        assert_eq!(p.jobs(), 1); assert_eq!(p.generation(), generation);
         let minted = p.run(&["token", "--service", "any"]);
         assert!(minted.status.success(), "{minted:?}");
         // The dev inspector still understands the lock's first-line legacy port.
@@ -190,13 +205,14 @@ fn live_dev_refuses_offline_writers_with_its_address_and_releases_on_exit() {
         let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
         let inspected = p.run(&["data", "items", "--json"]);
         assert!(inspected.status.success(), "{inspected:?}");
-        let row: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
-        assert_eq!(row["n"], 0);
+        let rows: Vec<serde_json::Value> = String::from_utf8_lossy(&inspected.stdout).lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+        assert_eq!(rows.len(), 2); assert_eq!(rows[0]["n"], 1, "the forwarded backfill ran on the live host");
         conn.execute_batch("ROLLBACK").unwrap();
         drop(host);
         // The leftover lock file and address alone must never refuse work.
         let out = p.run(&["run", "backfill", "--json"]);
-        assert!(out.status.success(), "{out:?}"); assert_eq!(p.jobs(), 1);
+        assert!(out.status.success(), "{out:?}"); assert_eq!(p.jobs(), 2);
+        assert!(!String::from_utf8_lossy(&out.stderr).contains("forwarding"), "{out:?}");
     }
 }
 
@@ -403,3 +419,37 @@ fn unavailable_cli_body_remains_incomplete_for_exit_zero_consumers() {
 #[cfg(unix)]
 #[path = "run_admission/identity.rs"]
 mod identity;
+
+fn post(address: &str, path: &str, body: &str) -> serde_json::Value {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(address.trim_start_matches("http://")).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
+    write!(stream, "POST {path} HTTP/1.0\r\nHost: localhost\r\nx-snapback-persona: alice\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+    let mut reply = String::new(); stream.read_to_string(&mut reply).unwrap();
+    serde_json::from_str(reply.split_once("\r\n\r\n").unwrap().1).unwrap()
+}
+
+#[test]
+fn no_watch_names_an_unadopted_edit_and_seed_names_the_id_form() {
+    let p = Project::new(); p.initialize();
+    let host = Running::start(&p, "host", &["dev", "--port", "0", "--no-watch"]);
+    wait(|| host.logs().split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains("snapback4 dev: http://")));
+    assert!(host.logs().contains("--no-watch — schema edits are not re-adopted"), "{}", host.logs());
+    let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
+    // Before any edit an unknown operation is only unknown.
+    let unknown = post(&address, "/q/later", "{}");
+    assert_eq!(unknown["denied"]["code"], "E_OP"); assert!(!unknown["denied"]["message"].as_str().unwrap().contains("--no-watch"), "{unknown}");
+    p.source(&format!("{SOURCE}query later():\n  return 7\n"));
+    let stale = post(&address, "/q/later", "{}");
+    assert!(stale["denied"]["message"].as_str().unwrap().contains("--no-watch and snapback/ changed on disk"), "{stale}");
+    assert!(stale["denied"]["rewrite"].as_str().unwrap().contains("restart `snapback4 dev`"), "{stale}");
+    // The forwarded run prints the same refusal.
+    let run = p.run(&["run", "later"]);
+    assert!(!run.status.success()); assert!(String::from_utf8_lossy(&run.stdout).contains("--no-watch"), "{run:?}");
+    let seed = post(&address, "/seed", r#"[{"table":"items","row":{"owner":"dev:alice","active":true,"n":3}}]"#);
+    assert_eq!(seed["denied"]["code"], "E_FIELD", "{seed}");
+    assert!(seed["denied"]["message"].as_str().unwrap().contains("seed row 0 (items) has no string id"), "{seed}");
+    assert!(seed["denied"]["rewrite"].as_str().unwrap().contains("26-character"), "{seed}");
+    let seeded = post(&address, "/seed", r#"[{"table":"items","row":{"id":"0000000000000000000000SEED","owner":"dev:alice","active":true,"n":3}}]"#);
+    assert_eq!(seeded["seeded"], 1, "{seeded}");
+}

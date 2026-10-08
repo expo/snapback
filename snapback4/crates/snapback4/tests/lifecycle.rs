@@ -515,8 +515,10 @@ fn sqlite_replay_survives_counter_split_and_an_offline_cli_backfill() {
     });
     fs::write(schema, repost_after()).unwrap();
     host.until(|h| h.log().contains("schema adopted as generation 2"));
-    let refused = dir.run(&["run", "backfillRepostEdges", "--json"]);
-    assert!(!refused.status.success()); assert!(String::from_utf8_lossy(&refused.stderr).contains("E_STORE_BUSY"));
+    // Beside the live host, run goes through its wire; the job runs on the host's adopted generation.
+    let forwarded = dir.run(&["run", "backfillRepostEdges", "--json"]);
+    assert!(forwarded.status.success(), "{forwarded:?}"); assert!(String::from_utf8_lossy(&forwarded.stderr).contains("forwarding to POST /dev/jobs/backfillRepostEdges"));
+    assert_eq!(serde_json::from_slice::<Value>(&forwarded.stdout).unwrap()["state"], "done");
     replay.join().unwrap();
     host.signal(libc::SIGTERM);
     let job = dir.run(&["run", "backfillRepostEdges", "--json"]);

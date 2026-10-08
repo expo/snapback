@@ -90798,3 +90798,51 @@ All requested portable Rust cases pass 30 final runs with four test threads, two
 Six requested tickets and the additional receipt ticket are closed. The existing-app driver ticket remains open because its actual case is Darwin-only: 30 Linux fixture controls establish its deterministic running PID, not a Darwin driver qualification. All stress processes were owned and reaped on eb1000; nothing pushed or published. No full Darwin dry-run claim.
 
 [FS report, commands, immutable artifact hashes, controls and ticket dispositions](reports/20261008-fs-witness-worker-flakes/REPORT.md).
+
+## 2026-10-08 — App farm round 1: `run` beside a live dev, `--no-watch` staleness, `/seed` ids
+
+The app-farm round-1 synthesis (`~/appfarm/synthesis/round-01.md` §2.1; ~270
+builds on 0.4.13/0.4.14) ranked "live dev store blocks the CLI" first among
+Snapback 4 clusters: 27 builds (GPT 5, Muse 22), 41 diaries. Builders ran
+`run <op> --as <persona>` or `run <job>` beside `snapback4 dev`, got
+`E_STORE_BUSY`, then stopped the server or rediscovered the wire
+(dependency-freshness-score-0868, castle-credentials-0334,
+seed-lineage-swap-0927, weed-front-0518). LLP 3000.019 §3.4 always allowed
+running "the work through that server"; `run` now does, periphery only:
+
+- When the store's owner answers `GET /dev/status` (a responsive dev host),
+  a query goes to `POST /q/<op>` and a mutation to `POST /m/<op>` with the
+  `x-snapback-persona` header for the principal a local run would use
+  (default alice; a declared persona or `dev:<name>`), on the host's dev clock
+  and adopted schema. Stdout keeps the local shape; a forwarded mutation has no
+  events/meter. Stderr says it forwarded.
+- Jobs go to a new dev-only `POST /dev/jobs/<job>` (`serve_maintenance.rs`): it
+  enqueues one run as the system and drives chunks through `engine_work` until
+  done or parked, behind earlier queued runs; `serve` refuses with `E_AUTH`.
+  `/m/<job>`'s `E_OP` now names it.
+- `--now`, a non-persona principal, an action, `serve` and a stopped host are
+  not forwarded; those refusals keep `E_STORE_BUSY` and append the equivalent
+  copy-pasteable `curl`. The status probe has a 3 s bound, so a SIGSTOPped host
+  refuses instead of hanging (check_adoption's stopped-host case).
+- `--no-watch` (seed-lineage-swap-0927 and weed-front-0518 lost 3 and 15+ min
+  to "E_OP unknown operation" from a pinned schema): startup prints that edits
+  are not re-adopted, and an unknown operation, job or argument refusal adds
+  that `snapback/` changed on disk since adoption with a restart rewrite. Cost:
+  one stamp of the source tree, on those refusal paths only.
+- `/seed` (9 builds, archive-names-0724 lost 5 min to a bare
+  `E_FIELD: missing field id`): the handler moved to `serve_dev_doors.rs` and a
+  row without a string id now refuses `E_FIELD` naming the row index and table,
+  why seed needs ids (it is an upsert by id: reruns update, never duplicate),
+  the 26-character Crockford form with a valid example, and `idFrom`. Minting
+  was rejected: it would make a rerun seed duplicate rows silently.
+
+Core, store, rules and `contract.ts` are untouched. Tests: run_admission's
+live-dev case now asserts forwarding of a job, a mutation as `dev:bob` and a
+query, plus the `--now` curl refusal; a new case covers the `--no-watch`
+startup line and stale refusals (also through forwarded `run`) and the seed id
+refusal; check_adoption and lifecycle cases that expected `run` to refuse now
+expect forwarding (or the stopped-host refusal); unit tests pin persona
+mapping, the curl form and the seed example's validity. `cargo test -p
+snapback4` passes except `stalled_resolver_sigint_is_bounded_journalled_and_drained`,
+which fails only under the full parallel load and passes alone (unchanged
+witness code). Guide, `--help` and CLIENT-AND-OPERATIONS §5 describe it.

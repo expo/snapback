@@ -384,6 +384,60 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     }
 }
 
+/// `POST /dev/jobs/<job>` with `{"args":{..}}`: queue one run of a job as the
+/// system on the dev clock and drive chunks until it is done or parked. This is
+/// what `snapback4 run <job>` forwards to while dev owns the store.
+pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str) {
+    use snapback4_core::{JobState, error::Refusal, ir::ProgramKind, wire};
+    if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "running a job on request is a development door; a deployed job runs from its schedule").guide("jobs"))})); }
+    let refuse = |request, status, refusal: Refusal| respond(request, status, json!({"denied":refusal_json(&refusal.guide("jobs"))}));
+    let payload: serde_json::Value = match serde_json::from_str(if body.trim().is_empty() { "{}" } else { body }) {
+        Ok(payload) => payload,
+        Err(error) => return refuse(request, 400, Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}; send {{\"args\":{{..}}}}"))),
+    };
+    let program = lock(&shared.bound).programs.iter().find(|p| p.program.name == name).map(|p| p.program.clone());
+    let program = match program {
+        Some(program) if program.kind == ProgramKind::Job => program,
+        Some(other) => return refuse(request, 404, Refusal::new("E_OP", "op", format!("{name} is a {}, not a job; queries are POST /q/<op>, mutations POST /m/<op>", other.kind.word()))),
+        None => return respond(request, 404, json!({"denied":refusal_json(&super::dev_doors::stale(shared, Refusal::new("E_OP", "op", format!("unknown job {name}")).guide("jobs")))})),
+    };
+    let mut args = std::collections::BTreeMap::new();
+    if let Some(fields) = payload.get("args").and_then(serde_json::Value::as_object) {
+        for (field, value) in fields {
+            let Some(kind) = program.args.get(field) else { return refuse(request, 400, Refusal::new("E_INPUT", "input", format!("{name} takes no argument {field}"))); };
+            match wire::from_json(kind, value) {
+                Ok(typed) => { args.insert(field.clone(), typed); }
+                Err(why) => return refuse(request, 400, Refusal::new("E_INPUT", "input", format!("argument {field}: {why}"))),
+            }
+        }
+    }
+    let id = match lock(&shared.engine).enqueue_job(name, args, shared.now()) {
+        Ok(id) => id,
+        Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error.refusal())})),
+    };
+    // FIFO: earlier queued runs finish first, as with `run` on a stopped store;
+    // the background tick may run some chunks too, through the same engine.
+    let run = loop {
+        let current = lock(&shared.engine).job(&id);
+        match current {
+            Ok(Some(run)) if matches!(run.state, JobState::Done | JobState::Parked) || crate::lifecycle::stopping() => break run,
+            Ok(Some(_)) => {}
+            Ok(None) => return respond(request, 500, json!({"denied":refusal_json(&RuntimeError::Store(format!("job {id} vanished")).refusal())})),
+            Err(error) => return respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
+        }
+        let (chunk, logs) = engine_work(shared, |engine, budget| (engine.run_job_chunk_for(shared.now(), budget), engine.take_native_logs()));
+        for line in logs { snapback4_core::diagnostic!("snapback4: native {line}"); }
+        match chunk {
+            Ok(Some(chunk)) if chunk.state == JobState::Parked && shared.personas => shared.refusals.job(&chunk),
+            Ok(_) => {}
+            Err(error) => return respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
+        }
+    };
+    snapback4_core::diagnostic!("snapback4: job {} {} on request: {} chunk{}, {} row{} written", run.name, if run.state == JobState::Done { "done" } else { "parked" },
+        run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" });
+    respond(request, 200, json!({ "job": run.name, "id": run.id, "state": run.state, "chunks": run.chunks, "chunkSize": run.chunk_size, "retries": run.retries, "heapPeak": run.heap_peak, "rowsWritten": run.rows_written, "error": run.error }));
+}
+
 pub(super) fn clock_status(request: Request, shared: &Shared) {
     if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&crate::dev_clock::release())})); }
     let result = (|| {
