@@ -235,7 +235,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         _ => LeavePolicy::UntilRevoked,
     };
     let sync = match &decl.sync {
-        Some(sync) => match bind_sync(catalog, info, sync, &rules.read) {
+        Some(sync) => match bind_sync(catalog, info, sync, &rules.read, &read_source(decl, &rules.read)) {
             Ok(sync) => Some(sync),
             Err(diagnostic) => {
                 diagnostics.push(diagnostic);
@@ -297,9 +297,18 @@ fn bind_expire(info: &TableInfo, column: &str, site: &Site) -> Fallible<String> 
     Ok(column.to_owned())
 }
 
-fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleExpr) -> Fallible<Sync> {
+/// The read clause as the author wrote it, for diagnostics.
+fn read_source(decl: &TableDecl, bound: &RuleExpr) -> String {
+    match (&decl.public, decl.rules.iter().find(|rule| rule.effect == Effect::Read)) {
+        (Some((reason, _)), _) => format!("public {}", crate::print::quote(reason)),
+        (None, Some(rule)) => format!("read <- {}", crate::print::with_source(&rule.value, &|_| None)),
+        (None, None) => format!("read <- {}", bound.quarry()),
+    }
+}
+
+fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleExpr, source: &str) -> Fallible<Sync> {
     let audience = match &sync.audience {
-        SyncAudience::Inferred { principal } => infer_audience(catalog, sync, rule, principal.as_deref())?,
+        SyncAudience::Inferred { principal } => infer_audience(catalog, info, sync, rule, source, principal.as_deref())?,
         SyncAudience::Public => Audience::Public,
         SyncAudience::Column(column) => {
             match info.columns.get(column) {
@@ -336,9 +345,9 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
         }
     };
     let principal = match &audience { Audience::Target { principal, .. } => Some(principal.as_str()), _ => None };
-    let implied = infer_audience(catalog, sync, rule, principal)?;
+    let implied = infer_audience(catalog, info, sync, rule, source, principal)?;
     if audience != implied {
-        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()),
+        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{source}`"),
             super::through::sync_repair(catalog, info).unwrap_or_else(|| "sync  -- infer the audience from the read rule".into())));
     }
     let horizon = match &sync.horizon {
@@ -355,8 +364,8 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
 }
 
 // @ref LLP 3000.007#6.6 — omitted audiences invert exactly the same three read rules.
-fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Option<&str>) -> Fallible<Audience> {
-    let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{}`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rule.quarry()), "use one invertible read rule, or remove sync (online only)");
+fn infer_audience(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleExpr, source: &str, named: Option<&str>) -> Fallible<Audience> {
+    let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{source}`: a synced table's read rule must be exactly `public`, `.column = viewer` or `exists target[.columns, viewer]`, so each device holds every row its viewer may read and no other; do not make private rows public to get past this"), audience_split(&info.decl.name, rule));
     match rule.device_audience_rule().as_ref() {
         RuleExpr::Public { .. } | RuleExpr::Allow if named.is_none() => Ok(Audience::Public),
         RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) if named.is_none() => Ok(Audience::Column(column.clone())),
@@ -374,6 +383,28 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
         }
         _ => Err(refusal()),
     }
+}
+
+/// The paved splits that keep every reader (LLP 3000.036 §1 A).
+fn audience_split(table: &str, rule: &RuleExpr) -> String {
+    fn viewer(rule: &RuleExpr) -> bool {
+        let term = |term: &RuleTerm| matches!(term, RuleTerm::Viewer);
+        match rule {
+            RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => false,
+            RuleExpr::Eq(l, r) | RuleExpr::Ne(l, r) | RuleExpr::Compare(_, l, r) => term(l) || term(r),
+            RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(viewer),
+            RuleExpr::Not(inner) => viewer(inner),
+            RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, t)| t)).any(term),
+        }
+    }
+    let audience = rule.device_audience_rule();
+    let online = "; or replace the sync line with `online only` and keep this rule";
+    let disjuncts = audience.disjuncts();
+    if disjuncts.len() > 1 && disjuncts.iter().any(|disjunct| !viewer(disjunct)) {
+        let private = disjuncts.iter().find(|disjunct| viewer(disjunct)).map_or_else(|| ".owner = viewer".to_owned(), |disjunct| disjunct.quarry());
+        return format!("keep shared and private rows in two tables: the shared rows in a `public '..'` table with its own sync, the rest in a table read and synced by `{private}`, moving a row when it becomes shared (guide sync){online}");
+    }
+    format!("give each reader a row in a membership table synced to its members, and read through it: `table {table}Readers:` with `item: {table}`, `reader: principal`, `unique item, reader`, `read <- .reader = viewer`, `sync`; then here `read <- exists {table}Readers[.id, viewer]` and `sync to {table}Readers[.id] by .reader` (guide sync){online}")
 }
 
 /// Bind a rule expression over a table's focal row.
@@ -807,6 +838,27 @@ table messages:
         assert!(refused.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_SYNC" && diagnostic.guide == "sync" && diagnostic.message.contains("needs required group keys") && diagnostic.rewrite.contains("remove `?`")), "{:?}", refused.diagnostics);
         let accepted = crate::compile(&[("schema.q".into(), source.replace("room: id ?", "room: id"))]);
         assert!(accepted.diagnostics.is_empty(), "{:?}", accepted.diagnostics);
+    }
+
+    // LLP 3000.036 §1 A: the rule in source form, the paved split, and no "make it public".
+    #[test]
+    fn e_sync_quotes_the_source_rule_and_names_the_split() {
+        let sync = |rule: &str, sync: &str| {
+            let source = format!("table claims:\n  claimant: principal\n  postedBy: principal\n  approved: bool\n  read <- {rule}\n  insert <- .postedBy = viewer\n  {sync}\n");
+            let bound = crate::compile(&[("schema.q".into(), source)]);
+            bound.diagnostics.into_iter().find(|d| d.code == "E_SYNC").expect("E_SYNC")
+        };
+        let two = sync(".claimant = viewer or .postedBy = viewer", "sync to .claimant");
+        assert!(two.message.contains("`read <- .claimant = viewer or .postedBy = viewer`"), "{}", two.message);
+        assert!(two.message.contains("do not make private rows public"), "{}", two.message);
+        assert!(two.rewrite.contains("`table claimsReaders:`") && two.rewrite.contains("`sync to claimsReaders[.id] by .reader`") && two.rewrite.contains("`online only`"), "{}", two.rewrite);
+        let shared = sync(".approved or .postedBy = viewer", "sync");
+        assert!(shared.message.contains("`read <- .approved or .postedBy = viewer`") && !shared.message.contains("Bool"), "{}", shared.message);
+        assert!(shared.rewrite.contains("`public '..'` table") && shared.rewrite.contains("`.postedBy = viewer`"), "{}", shared.rewrite);
+        // The split the rewrite names compiles.
+        let split = "table claims:\n  claimant: principal\n  postedBy: principal\n  read <- exists claimsReaders[.id, viewer]\n  insert <- .postedBy = viewer\n  sync to claimsReaders[.id] by .reader\ntable claimsReaders:\n  item: claims\n  reader: principal\n  unique item, reader\n  read <- .reader = viewer\n  insert <- deny\n  sync\n";
+        let bound = crate::compile(&[("schema.q".into(), split.into())]);
+        assert!(bound.diagnostics.iter().all(|d| !d.code.starts_with("E_")), "{:?}", bound.diagnostics);
     }
 }
 

@@ -18,3 +18,14 @@ fn target_sync_group_keys_are_required_in_raw_schemas() {
         assert!(issues.iter().any(|issue| issue.path == "tables.messages.sync" && issue.message.contains("needs required group keys")), "{issues:?}");
     }
 }
+
+// LLP 3000.036 §1 A: diagnostics print rule literals as Quarry, not tagged JSON.
+#[test]
+fn rule_literals_print_as_quarry() {
+    let rule = RuleExpr::Or(vec![
+        RuleExpr::Eq(RuleTerm::Field("approved".into()), RuleTerm::Literal(Value::Bool(true))),
+        RuleExpr::Ne(RuleTerm::Field("rank".into()), RuleTerm::Literal(Value::Int(3))),
+        RuleExpr::Ne(RuleTerm::Field("closedAt".into()), RuleTerm::Literal(Value::Null)),
+    ]);
+    assert_eq!(rule.quarry(), ".approved = true or .rank != 3 or .closedAt != null");
+}

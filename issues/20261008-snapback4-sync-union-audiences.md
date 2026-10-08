@@ -69,3 +69,13 @@ for, recorded here for the lead session's decision.
   and add an "owner or role" recipe to `guide sync`.
 - Decide on union audiences (a second `sync` line per table = union of
   partitions) with this evidence.
+
+## 2026-10-08 — the diagnostic half landed (lane S1, LLP 3000.036 §1 A)
+
+`E_SYNC` now quotes the read clause from source (no `{"Bool":true}`), says
+not to make private rows public to get past it, and names the split for the
+shape (a `<table>Readers` membership table synced to its members, or a public
+table plus an owner-synced one) or `online only`. The design half (§1 B1, an
+explicit exact-disjunct `sync to`) is still open for the lead session, so this
+ticket stays open.
+

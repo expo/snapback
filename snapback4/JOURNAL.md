@@ -91991,3 +91991,27 @@ MINOR: the shared-read test now waits for every poll to reach its wait. The
 reviewer found no FairMutex handoff, lock-order or permit/share accounting
 defect.
 
+## 2026-10-08 — S1: `E_SYNC` quotes the rule as written and names the split (LLP 3000.036 §1 A)
+
+App-farm lane S1, under Charlie's 2026-10-08 authorization for
+message/diagnostic-only changes in `snapback4-lang`/`snapback4-core`.
+About 48 farm builds met an OR-shaped read rule under `sync`; five made
+private rows public to get past it. The refusal printed the rule's bound IR
+(`.approved = {"Bool":true} or .author = viewer`) and offered only "one
+invertible read rule, or online only".
+
+Now the message quotes the read clause from source (`read <- .approved or
+.author = viewer`), states the three admitted forms and why (a device holds
+every row its viewer may read and no other), and says not to make private rows
+public to get past it. The rewrite names the paved split for the shape: two
+readers (`.claimant = viewer or .postedBy = viewer`) get a
+`<table>Readers` membership table synced to its members, with the exact
+`read <- exists claimsReaders[.id, viewer]` / `sync to claimsReaders[.id] by
+.reader` lines (a test compiles that split); public-or-owner rules get two
+tables and a move on sharing. Both end with `online only`. `guide sync`
+carries the same two recipes in its E_SYNC paragraph (no new card lines).
+
+`RuleExpr::quarry()` now prints bool, int and null literals as Quarry
+(`true`, `3`, `null`), so `check`'s other sync issues, `why <table>` and the
+search rewrite no longer show tagged JSON. No acceptance change: the same
+programs are refused, with a different message.

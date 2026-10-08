@@ -512,7 +512,7 @@ audience. For example, `read <- .ownerId = viewer` cannot pair with
 match the read rule's membership probe, declare its unique group/principal
 key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
-column or index; do not make private rows public just to enable sync.
+column or index; do not make private rows public just to enable sync. A rule with two readers (`.claimant = viewer or .postedBy = viewer`) splits into a membership table synced to its members, as `participants` and `threads` above; a public-or-owner rule (`.approved or .author = viewer`) splits into a public table and an owner-synced one, moving a row when it is shared. Either way, `online only` keeps the rule as written without offline.
 Mismatched read-through audiences also get E_SYNC, with the schema-specific
 `read through .ref` / `sync` repair.
 

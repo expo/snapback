@@ -388,7 +388,7 @@ fn service_read_grants_preserve_the_device_audience_snapshot_and_stream_bytes() 
     }
     let invalid = plain.replace("read <- exists memberships[.conversationId, viewer]", "read <- exists memberships[.conversationId, viewer] or viewer = 'dev:pusher'");
     let bound = snapback4_lang::compile(&[("schema.q".into(), invalid)]);
-    assert!(bound.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.rewrite == "use one invertible read rule, or remove sync (online only)"));
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.rewrite.contains("membership table synced to its members") && d.rewrite.contains("`online only`") && d.message.contains("do not make private rows public")));
     for (rule, explicit) in [("public", "sync public"), (".principal = viewer", "sync to .principal")] {
         for sync in ["sync", explicit] {
             for extra in ["viewer = 'service:a'", "'service:a' = viewer or viewer = 'service:b'"] {

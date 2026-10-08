@@ -713,6 +713,7 @@ impl RuleExpr {
                 RuleTerm::Viewer => "viewer".to_owned(),
                 RuleTerm::Literal(Value::String(s)) => format!("'{s}'"),
                 RuleTerm::Literal(Value::Id(s)) => format!("'{s}'"),
+                RuleTerm::Literal(Value::Bool(b)) => b.to_string(), RuleTerm::Literal(Value::Int(n)) => n.to_string(), RuleTerm::Literal(Value::Null) => "null".to_owned(), // Quarry, never `{"Bool":true}`
                 RuleTerm::Literal(v) => crate::value::canonical_json(v),
             }
         }
