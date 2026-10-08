@@ -1155,10 +1155,61 @@ for(const point of ['publication-committed','publication-handoff'])for(const mod
     assert.ok(fs.existsSync(path.join(current,'export')),'committed generation survives recovery');
     if(failNext)assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation);
     console.log(JSON.stringify({point,mode,nextExpo:failNext?'failed':'passed',recovery:'next export inventory',restoredMs:Date.now()-start,full:5,compressed:20}));
-  } finally {
+  } catch(error) {await maintenanceEvidence(f,'publication-crash-matrix');throw error;}
+  finally {
     f.put('artifacts/native-smoke/maintenance-test-resume','');
     if(wrapperExit)await wrapperExit;
     if(held){held.child.stdin.end();await held.exited;}
+    await cleanup(f);
+  }
+});
+// A dead wrapper's export lease may now belong to maintenance. Pause each
+// actual holder, then force the next publisher to contend before releasing it.
+for(const holder of ['ready-pending-export','reconcile-pending-export'])for(const stalled of (holder==='ready-pending-export'?[false,true]:[false]))test(stalled?'interrupted publication preserves a persistently held export lease':`interrupted publication recovers through ${holder} custody`,{timeout:120000},async()=>{
+  const f=fixture();let firstExit,nextExit;
+  const root=path.join(f.root,'artifacts/native-smoke');
+  const resume=point=>f.put(`artifacts/native-smoke/maintenance-test-${point}-resume`,'');
+  try {
+    skipMode(f,'off');f.put('continue','');
+    f.env.SNAPBACK4_TEST_RETENTION_POINT='publication-committed';
+    const first=spawn(process.execPath,[wrapper],{cwd:f.root,env:f.env,stdio:'ignore'});firstExit=once(first,'exit');
+    await until(()=>read(path.join(root,'maintenance-test-point.json'))?.point==='publication-committed','first publication committed');
+    const stopped=read(path.join(root,'maintenance-test-point.json'));
+    const pending=read(path.join(root,'publication-pending.json'));
+    const previous=path.dirname(pending.source);
+    const generation=read(path.join(f.root,'dist/.snapback4-publication.json')).generation;
+    signalFixture(f,stopped.process,'SIGKILL');await firstExit;
+    assert.equal(alive(first.pid),false,'the Node wrapper has exited before contention');
+    f.env.SNAPBACK4_TEST_RETENTION_POINT=holder+',publication-recovery-busy';
+    const producer=spawnSync(binary,['witness','export-maintenance',root],{cwd:f.root,env:f.env,encoding:'utf8',timeout:10000});
+    assert.equal(producer.status,0,producer.stdout+producer.stderr);
+    await until(()=>read(path.join(root,`maintenance-test-${holder}.json`))?.point===holder,'maintenance holds the interrupted export lease');
+    const next=spawn(process.execPath,[wrapper],{cwd:f.root,env:f.env,stdio:['ignore','pipe','pipe']});nextExit=once(next,'exit');
+    let output='';for(const stream of [next.stdout,next.stderr])stream.on('data',b=>{output=(output+b).slice(-16384);});
+    await until(()=>read(path.join(root,'maintenance-test-publication-recovery-busy.json'))?.point==='publication-recovery-busy','next publisher encountered that custody');
+    assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation,'visible committed generation stays intact during contention');
+    console.log(JSON.stringify({holder,stalled,wrapperExited:first.pid,holderIdentity:read(path.join(root,`maintenance-test-${holder}.json`)).process,publisherIdentity:read(path.join(root,'maintenance-test-publication-recovery-busy.json')).process}));
+    if(stalled) {
+      resume('publication-recovery-busy');
+      assert.equal((await nextExit)[0],1,output);
+      assert.match(output,/interrupted publication still has export custody after 5 seconds; preserved/);
+      assert.ok(alive(read(path.join(root,`maintenance-test-${holder}.json`)).process.pid),'the same paused holder outlives the refusal');
+      assert.deepEqual(read(path.join(root,'publication-pending.json')),pending,'timeout preserves the exact recovery intent');
+      assert.equal(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation,'timeout leaves the committed namespace intact');
+      resume(holder);await maintenanceIdle(f);
+      const retry=f.invoke('retry after persistent custody');assert.equal(retry.status,0,retry.stdout+retry.stderr);
+    } else {
+      resume(holder);resume('publication-recovery-busy');
+      assert.equal((await nextExit)[0],0,output);
+    }
+    assert.notEqual(read(path.join(f.root,'dist/.snapback4-publication.json')).generation,generation);
+    assert.ok(read(path.join(f.latest().artifacts,'publication.json')),'next export verified its own publication');
+    await maintenanceIdle(f);
+    assert.ok(fs.existsSync(path.join(previous,'export')),'interrupted committed evidence survives recovery');
+  } catch(error) {await maintenanceEvidence(f,'publication-recovery-failure');throw error;}
+  finally {
+    f.put('artifacts/native-smoke/maintenance-test-resume','');resume(holder);resume('publication-recovery-busy');
+    if(firstExit)await firstExit;if(nextExit)await nextExit;
     await cleanup(f);
   }
 });

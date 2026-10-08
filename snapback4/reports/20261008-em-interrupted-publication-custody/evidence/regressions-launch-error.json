@@ -1,0 +1,16 @@
+{
+  "command": [
+    "env",
+    "SNAPBACK4_EXPORT_TEST_BINARY=/home/ccheever/sb4-intent/lane-em/snapback4/target/em/binaries/c1d3e15c9494de44769aaa9ba372ca3ce78e993694f2b1a8c55b7e504ddd473d/snapback4",
+    "SNAPBACK4_MAINTENANCE_EVIDENCE=/home/ccheever/sb4-intent/lane-em/snapback4/reports/20261008-em-interrupted-publication-custody/evidence/regression-snapshots",
+    "node",
+    "node",
+    "--test",
+    "--test-name-pattern=interrupted publication",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "cwd": "/home/ccheever/sb4-intent/lane-em/snapback4",
+  "started": "2026-10-08T04:54:13.561135+00:00",
+  "elapsedSeconds": 0.020718565996503457,
+  "exitCode": 1
+}

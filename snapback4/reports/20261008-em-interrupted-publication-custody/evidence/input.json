@@ -1,0 +1,28 @@
+{
+  "archiveSha256": "c75ce7dafde1125498cd21db144b4296e3c816228df5a23adbcba721b3203e12",
+  "snapshots": [
+    {
+      "path": "sb4-em9-soak/background-4-snapshots/maintenance-19c8e1f8df376c58/snapshot-1791433430215095000-920aa52d-cleanup-cleanup/snapshot.json",
+      "root": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-JH0IKt/artifacts/native-smoke",
+      "at": 1791433430.225764
+    },
+    {
+      "path": "sb4-em9-soak/background-4-snapshots/maintenance-19c8e1f8df376c58/snapshot-1791433431328542000-28d96764-cleanup-cleanup/snapshot.json",
+      "root": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-dUNIOT/artifacts/native-smoke",
+      "at": 1791433431.3388538
+    },
+    {
+      "path": "sb4-em9-soak/background-4-snapshots/maintenance-19c8e1f8df376c58/snapshot-1791433429107963000-53b43c60-cleanup-cleanup/snapshot.json",
+      "root": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-YIcGGT/artifacts/native-smoke",
+      "at": 1791433429.119235
+    },
+    {
+      "path": "sb4-em9-soak/background-4-snapshots/maintenance-19c8e1f8df376c58/snapshot-1791433427513706000-62eda73c-cleanup-cleanup/snapshot.json",
+      "root": "/private/var/folders/ds/mp610mds27b7mnn2k0w6d4rw0000gn/T/sb4-background-gXPeSp/artifacts/native-smoke",
+      "at": 1791433427.526583
+    }
+  ],
+  "failedFixture": "sb4-background-6gxLP0",
+  "failedSnapshotMentionedInLog": "snapshot-1791433322238689000-a7cd4b70-cleanup-cleanup",
+  "failedSnapshotPresent": false
+}

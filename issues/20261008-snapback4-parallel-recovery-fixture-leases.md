@@ -38,3 +38,12 @@ assertions (23/25), and the fixed unit harness plus sibling CLI passed serially
 [round-7 report](../snapback4/reports/20261008-em-export-maintenance-publication/REPORT.md).
 Recovery source and assertions remain unchanged. The producer-publication fix
 does not claim to resolve this separate issue; it remains open.
+
+EM round 10, 2026-10-08: the unchanged default-parallel recovery file again
+reports `ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence`
+at `recovery.rs:683`, `E_WITNESS_ARTIFACT: retention lock busy` (24/25).
+The same pinned test executable and sibling CLI pass serially (25/25).
+The recovery file is byte-identical to round 9; this round's publication handoff
+change does not execute in that failing fixture (it has no pending transaction).
+[Both receipts](../snapback4/reports/20261008-em-interrupted-publication-custody/REPORT.md)
+are retained. The failure remains open and is not hidden by the serial pass.

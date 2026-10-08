@@ -98,3 +98,29 @@ snapshot does not attribute every earlier timeout. Keep this ticket open until
 that qualification, along with the other maintenance/incident tickets.
 
 [Round-9 evidence, implementation, controls and exact mini commands](../snapback4/reports/20261008-em-export-maintenance-priority/REPORT.md).
+
+## 2026-10-08 — EM round 10: interrupted publication custody (still open)
+
+The operator's round-9 Mac soak passed policy 2/2, wakeup 22/22, diagnostics
+5/1 skipped and five background runs 97/97. The remaining run was 96/97,
+with no drain timeout: the next successful export after a committed-publication
+crash refused a busy export lease. The test already reaps the old Node wrapper;
+the wrapper, CLI shim and publisher are foreground processes, not taskpolicy
+children. Maintenance can reacquire that same lease in its observer probe or
+orphan reconciler. Both orderings reproduce the old status-1/missing-receipt
+failure deterministically on Linux. The supplied archive lacks the failed
+case's cleanup snapshot (only four later cleanups remain), so its exact holder
+PID is unproven; the old error also conflated I/O errors with contention.
+
+Publication recovery now retries only busy export custody for up to five seconds
+under its existing destination lock, acquiring the real kernel lease before
+namespace recovery. Maintenance's reverse destination acquisition stays
+nonblocking. Persistent custody preserves the old intent/generation and refuses;
+other I/O errors refuse immediately. Three new regressions cover both handoffs
+and the persistent holder, with old-code failures retained. Production priority,
+retention policy and the existing assertions/guards stay unchanged. Initial
+crash-matrix failures now enter the bounded failure evidence ring before cleanup.
+
+This ticket stays open for the operator's next macOS soak. The historical drain
+incidents are not reclassified as this distinct publication refusal.
+[Round-10 investigation, controls and verification](../snapback4/reports/20261008-em-interrupted-publication-custody/REPORT.md).

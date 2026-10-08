@@ -119,6 +119,10 @@ fn ready_run(dir: &Path) -> Result<bool> {
             Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
         };
         if !try_lock(&file)? { return Ok(false); }
+        #[cfg(debug_assertions)]
+        if name == "export.lock" && dir.join("publication-pending.json").exists() {
+            checkpoint(dir.parent().unwrap(), "ready-pending-export");
+        }
     }
     let journal = recovery::read(&dir.join("live.json"));
     Ok(!recovery::alive(&journal["owner"]) && !recovery::alive(&journal["wrapper"]))

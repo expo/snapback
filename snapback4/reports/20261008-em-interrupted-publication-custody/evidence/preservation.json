@@ -1,0 +1,34 @@
+{
+  "snapback4/crates/snapback4/src/verbs/witness/background.rs": {
+    "unchanged": true,
+    "sha256": "8d60bc576f8e1d8cc1e6e43e440d8eb45332363d83ba048ffd9efff29f9122f3"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/export_policy.rs": {
+    "unchanged": true,
+    "sha256": "bc9787298d493ac8997a7f75056b1f0710b2d7774c1bf98e27498843d4fc12e3"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/recovery.rs": {
+    "unchanged": true,
+    "sha256": "309c8aa009a91bdde958b20f6243fd2b74a706aebe7b0db8d20af3fe64a06f04"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/retention_trace.rs": {
+    "unchanged": true,
+    "sha256": "f5453fdfb9ade8f2eb9cbb132f980b5c9b67a279dd99f72be0f29e8da064c746"
+  },
+  "snapback4/crates/snapback4/src/verbs/witness/process_group.rs": {
+    "unchanged": true,
+    "sha256": "918e1f0d859dc26275b9af988b39eaee7d4ad5ec03925be086dd39832ed3ef77"
+  },
+  "snapback4/packages/snapback4-expo/export-ios.mjs": {
+    "unchanged": true,
+    "sha256": "80d03cf2f794131605d4b8458510b952c2e11d2420e908f3e855f2303fff33ac"
+  },
+  "maintenanceIdle": {
+    "unchanged": true,
+    "sha256": "fe10443ca4548d89b074d7e6029e55229e6e14b27e021368a0d66058c80f2710"
+  },
+  "postDriverWait": {
+    "unchanged": true,
+    "source": "await until(()=>!alive(read(path.join(early,'worker.json'))?.process?.pid),'background proof and post-driver retention finished');"
+  }
+}

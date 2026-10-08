@@ -150,6 +150,8 @@ pub(super) fn reconcile_orphan(dir: &Path) -> Result<bool> {
     let lock_path = lock_path(target)?;
     // Never wait with the run/export leases held: a publisher may own the
     // destination lock, and an in-process pruning callback can run under it.
+    #[cfg(debug_assertions)]
+    retention::checkpoint(dir.parent().unwrap(), "reconcile-pending-export");
     let Ok(_destination) = preparation::lease(&lock_path) else { return Ok(false); };
     let destination = lock_path.with_file_name("publication-pending.json");
     match fs::read(&destination) {
@@ -194,7 +196,32 @@ fn recover_pending(marker: &Path, target: &Path) -> Result<()> {
     let source = Path::new(pending["source"].as_str().ok_or_else(|| error("E_WITNESS_ARTIFACT", "invalid interrupted publication source"))?);
     if pending["target"].as_str() != target.to_str() || pending["new"].is_null() { return Err(error("E_WITNESS_ARTIFACT", "interrupted publication targets differ; manual recovery required")); }
     let dir = source.parent().ok_or_else(|| error("E_WITNESS_ARTIFACT", "invalid interrupted publication directory"))?;
-    let _custody = preparation::lease(&dir.join("export.lock")).map_err(|_| error("E_WITNESS_PROCESS", format!("interrupted publication still has wrapper custody; preserved {}", source.display())))?;
+    // The wrapper may already be dead: a readiness probe or orphan reconciler
+    // can briefly own this same lease. Keep the destination serialized while
+    // retrying that handoff, not a whole maintenance operation. Reconciliation
+    // only tries the destination lock and yields its export lease when busy;
+    // it never waits for us. Persistent custody still refuses without mutation.
+    // @ref LLP 3000.030#15 — bounded interrupted-publication custody handoff.
+    let custody = OpenOptions::new().create(true).truncate(false).read(true).write(true)
+        .open(dir.join("export.lock")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    let started = Instant::now();
+    let mut observed_busy = false;
+    loop {
+        interrupted()?;
+        if observed_busy && started.elapsed() >= Duration::from_secs(5) {
+            return Err(error("E_WITNESS_PROCESS", format!("interrupted publication still has export custody after 5 seconds; preserved {}", source.display())));
+        }
+        match custody.try_lock() {
+            Ok(()) => break,
+            Err(std::fs::TryLockError::WouldBlock) => {},
+            Err(e) => return Err(error("E_WITNESS_ARTIFACT", e)),
+        }
+        if !observed_busy {
+            observed_busy = true;
+            retention::checkpoint(dir.parent().unwrap(), "publication-recovery-busy");
+        }
+        sleep(Duration::from_millis(20));
+    }
     recover_owned(marker, &pending, source, target)
 }
 // The destination and this run's export leases establish that no publisher can
@@ -295,7 +322,7 @@ pub(super) fn command(args: &[String]) -> i32 {
         })?;
         // publish_then has released the destination lock. Every automatic
         // export requests maintenance, including a failed background handoff.
-        // Work and passive lease probes never delay this command.
+        // Scheduling itself never waits for work or passive lease probes.
         if args.len() == 3 { retention::schedule(dir, &custody); }
         Ok(())
     })())

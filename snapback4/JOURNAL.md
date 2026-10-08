@@ -90580,3 +90580,54 @@ tickets remain open. All work stayed on eb1000 in lane-em, without push or
 publication.
 
 [Round-9 finding, controls, source references and exact mini soak commands](reports/20261008-em-export-maintenance-priority/REPORT.md).
+
+## 2026-10-08 — EM round 10: interrupted publication retries maintenance custody
+
+The operator's round-9 Mac soak passes policy 2/2, wakeup 22/22 and diagnostics
+5/1 skipped. Five background runs pass 97/97; run 4 is 96/97, with no drain
+timeout in any run. The remaining failure is a status-1 publication refusal
+after killing a publisher at verified commit. The test already reaps the old
+Node wrapper. Its wrapper, shim and foreground publisher never use taskpolicy;
+the fixture priority override needs no extension.
+
+The old diagnostic calls every failed export-lease acquisition "wrapper custody",
+but maintenance can own that lease in its readiness probe or orphan reconciler.
+The next export's pre-Expo backstop races its own later publisher: one failed
+lease attempt under the destination lock immediately refuses publication.
+Both real maintenance holders reproduce that failure with deterministic debug
+barriers on Linux. The acquisition code is identical in rounds 4, 7, 8 and 9;
+changed scheduling can expose the pre-existing race. The supplied Mac archive
+contains the log and only four later cleanup snapshots, not the failed fixture's
+snapshot named by the log. Its exact historical holder PID remains unproven.
+
+Publication now retries only busy custody for up to five seconds at 20 ms
+intervals, keeping the destination serialized and requiring the real export
+lease before existing receipt/inode recovery. The reconciler's reverse lock
+probe remains nonblocking. Cancellation, other I/O errors or persistent custody
+refuse without mutating the interrupted intent or committed generation; the
+timeout diagnostic names export custody rather than a presumed wrapper. This
+is an exceptional transaction handoff, not waiting for maintenance completion.
+Production priority, retention budgets, the 90-second drain assertion and all
+existing semantic/fault assertions remain unchanged. The crash matrix now
+captures its initial failure before cleanup into the bounded failure ring.
+
+Both handoff regressions pass with the fix and fail at the intended status
+assertion against the old acquisition plus hooks. A third control keeps custody
+through the full deadline, requires refusal/preservation, then succeeds after
+release. The full shared run passes 111 tests with 34 Darwin skips across six
+files; background is 66 applicable passes and the separate crash matrix passes
+30/30. Native retention/publication/clock/policy pass 8/9/1/2 respectively, and
+release cargo check passes. Default-parallel recovery repeats the open fixture
+lease failure (24/25); the same pinned binary passes serially (25/25). Both
+receipts remain. A missing sibling CLI and a duplicated `node` launch were setup
+errors, retained alongside their corrected passing runs.
+
+Ref-check has zero errors and zero unchecked references. The evidence archive
+verifies 23 snapshots and 990 private files before removing this report's
+unpacked copies.
+
+The maintenance and Mac incident tickets remain open for the next operator soak;
+the parallel recovery issue stays separately open. All work remained on eb1000
+in lane-em, with no push or publication.
+
+[Round-10 evidence, source identities, controls and mini soak command](reports/20261008-em-interrupted-publication-custody/REPORT.md).
