@@ -90884,3 +90884,42 @@ out of `snapback/` to serve without it. Not reproduced here:
 tutor-payroll-export-0298's report that a real Node 24.11.0 still failed
 `check`'s server-toolchain helper (`host[method]` undefined); it needs that
 app's toolchain state and stays with the S-NODE24 evidence.
+
+## 2026-10-08 — App farm round 1: core items reproduced and ticketed
+
+Triage of the round-1 Snapback 4 items that need the core (one owner; no core
+change here). Each was reproduced against main cd2fa88d8b with a minimal
+schema, and against the farm's 0.4.14 binary where the answers differed:
+
+- Positional `t[x]` with a second unique key (18 builds): reproduced on 0.4.14,
+  already fixed on main by 7eba286ddd, which also prints the named rewrite.
+  Closed ticket `issues/closed/20261008-snapback4-positional-key-second-unique-key.md`.
+- E_SYNC on OR-shaped read rules (6 builds, 17 diaries; two apps made private
+  rows public): reproduced; NOT-DOING "Union audiences" covers the limit, and
+  the message also leaks `{"Bool":true}` for a boolean literal.
+  `issues/20261008-snapback4-sync-union-audiences.md`.
+- Online-only reads on the device (4 named builds, 12 diaries mention
+  speculative answers): reproduced through `snapback4 device`: `data: []`/`0`
+  with `unknown: true`. The wrong screen is the Exact2 client's (it ignores
+  `unknown`; the Snapback client goes to the server); the Snapback half is the
+  placeholder `data` and an undocumented device reply.
+  `issues/20261008-snapback4-device-online-only-reads-answer-empty.md`.
+- E_RULE (8 builds): now names table and verb, but not the clause or site, and
+  `check` does not flag writes no caller can pass.
+  `issues/20261008-snapback4-e-rule-names-no-clause.md`.
+- Enum `=` in a job (flashcard-duel-0225): not reproduced on 0.4.14 or main;
+  most likely the duels were still `'open'`. Closed ticket.
+- Dangling reference (order-relay-hooks-0037): reproduced; any string,
+  including `"EXISTS"`, is accepted; `why E_INPUT` claims shape validation.
+  `issues/20261008-snapback4-references-not-checked-for-existence.md`.
+- Broad-first search (3 GPT builds): reproduced with 2,500 rows and a
+  decoration: `Portfolio 2499` → `loading`, 1,974 examined, 16,777,372 heap
+  bytes; heap grows ~8.5 KB per rejected candidate.
+  `issues/20261008-snapback4-search-heap-grows-with-filtered-candidates.md`.
+- Dev clock across restarts (14 builds): reproduced; the startup
+  `N_CLOCK_STORE_AHEAD` warning exists, but a later `clock advance` reports
+  `schedules: 0` with no reason while the saved boundary is ahead (periphery
+  fix proposed, not attempted). `issues/20261008-snapback4-dev-clock-restart-holds-schedules.md`.
+
+Incidentally confirmed: a job body with a bare `insert` is refused as "job tick
+has an empty body" at the job line (cluster 6, S-JOBBODY), not at the write.
