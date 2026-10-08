@@ -6,6 +6,7 @@
 **Ease:** 3
 **Confidence:** 5
 **Systems:** Snapback 4, Quarry rules (write authority), Lean oracle
+**Class:** engine defect (security): unnamed update rule judges only the next image
 **Date:** 2026-10-08
 **Failure signature:** `lean--kind--committed~E_RULE`
 **Detected at:** `ff3eb63cc475d50b37fe5a283d3407c343f3a379`
@@ -241,3 +242,21 @@ query observe(key: id):
 
 When resolved, keep the case as a regression, record the resolution, and move
 this ticket to `issues/closed/`.
+
+## Orchestrator classification (2026-10-08): engine defect, security
+
+This is not an open language question. The rules card says twice (`guide/rules.md`,
+and `why/NOT_FOUND.md`) that "the update rule judges old and next". The
+engine judges an unnamed `update <- R` against the next image only.
+
+A standalone probe against `Engine` confirmed it. With bob's row
+`notes { id: n1, owner: bob }`, `update <- .owner = viewer` and no
+`immutable owner`, alice's `update notes[n1] { owner: viewer, ... }` and her
+`upsert` both commit, and afterwards the row belongs to alice. This holds
+whether the read rule is `allow` or `.owner = viewer`; in the second case
+alice cannot even read the row she takes over. Apps that declare
+`immutable owner` are not exposed.
+
+The fix is to judge an unnamed update rule against both the old and the next
+image, as documented. A fix lane follows. Lean OPEN.md R2 is decided by the
+same documents.
