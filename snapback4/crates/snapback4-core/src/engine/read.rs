@@ -290,7 +290,9 @@ impl<'r> Runner<'r> {
         if effect == Effect::Read && self.trust_synced_read(table) {
             return Ok(true);
         }
+        // @ref LLP 3000.007#8 — item 7(a): an unnamed update rule judges old and next.
         let mut rule = table.rules.for_effect(effect).clone();
+        if effect == Effect::Update && old.is_some() && table.judges_old_image() { rule = rule.old_and_next(); }
         if effect == Effect::Update && let Some(old) = old {
             for (field, authority) in &table.written_by {
                 if !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone())) {

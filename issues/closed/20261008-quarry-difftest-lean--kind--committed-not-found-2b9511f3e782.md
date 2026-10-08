@@ -1,6 +1,6 @@
 # Quarry differential test: lean--kind--committed~NOT_FOUND
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -254,3 +254,34 @@ alice cannot even read the row she takes over. Apps that declare
 The fix is to judge an unnamed update rule against both the old and the next
 image, as documented. A fix lane follows. Lean OPEN.md R2 is decided by the
 same documents.
+
+## Resolution (2026-10-08, lane UR): engine defect fixed (security)
+
+Root cause: `Runner::check_rule` (`snapback4/crates/snapback4-core/src/engine/read.rs`,
+the line `let mut rule = table.rules.for_effect(effect).clone();`) evaluated an
+unnamed update rule as bound, and the binder binds `.col` in an unnamed rule
+to `RuleTerm::Field`, which `rules::term` reads from the **next** image. So
+`update <- .owner = viewer` judged only the merged row; the old row was never
+consulted. Named `update (old, next)` rules were unaffected.
+
+Fix: an unnamed `update <- R` is now judged as `R[old] and R[next]`
+(`snapback4-core/src/schema/update_images.rs`: `RuleExpr::old_and_next`,
+`Table::judges_old_image`), applied in `check_rule` for every update and
+upsert-patch arm. The server's SQLite and Postgres stores and the device's
+prediction all run that one evaluator. Target resolution prepays both images'
+probes (`write_target.rs`). A rule reading only `id` and immutable columns is
+still judged once, since both images agree there. Denial on a readable target
+is `E_RULE`; on an unreadable one it is `NOT_FOUND` with no detail.
+
+Regressions: `snapback4-core/tests/update_rule_images.rs` (update/upsert ×
+`read <- allow`/owner-only refuse and leave bob's row unchanged; the owner
+still writes; a named next-only rule behaves as written; a probe rule judges
+the old group; a device does not predict the takeover) and the Postgres test
+`engine::postgres::tests::update_images`. Both shrunk Lean cases replay as
+agreeing and stay as resolved regressions (`difftest/tests/lean.rs`
+`RESOLVED`). A 20,000-case `run-lean` (seed 0) has no
+`lean--kind--committed~*` signature (main: 24 `~NOT_FOUND`, 3 `~E_RULE`).
+Docs: rules card, `why NOT_FOUND`, LLP 3000.007 §8 item 7(a), LLP 3000.035
+§5.2, `snapback4/lean/OPEN.md` R2 (decided by documents; engine fixed).
+
+This is a security fix and must be published.

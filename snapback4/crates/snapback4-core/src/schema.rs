@@ -17,6 +17,7 @@ pub mod columns;
 pub mod reservations;
 pub mod through;
 mod reference;
+mod update_images;
 pub mod ephemeral;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};

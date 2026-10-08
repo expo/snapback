@@ -318,7 +318,9 @@ fn w4_live_maintain_probe_equalities_ignore_expired_contributions() {
             let mut e = maintain_probe_world(&control, population, true);
             let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
             assert!(matches!(result.state, WriteState::Sent { .. }));
-            assert_eq!(result.metered.rule_probes, 1);
+            // One probe per judged image: `targets.group` is mutable, so the
+            // unnamed update rule probes the old and the next group (LLP 3000.007 §8 item 7(a)).
+            assert_eq!(result.metered.rule_probes, if effect == "update" { 2 } else { 1 });
             if effect == "read" { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(1), .. })); }
             else { assert_eq!(e.store().rows("targets").unwrap()[0].field("amount"), Ok(&Value::Int(1))); }
             observations.push(observed);

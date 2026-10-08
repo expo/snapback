@@ -25,3 +25,16 @@ Store: one row `r0` owned by `bob`. Viewer: `alice`, key `r0`.
 the documents on each side and the security consequence). The engine judges
 an unnamed update rule against the next image only. Only the refusal code of
 the model's side differs, because here the target is readable (OPEN W3).
+
+## Resolution (2026-10-08): engine defect, fixed — kept as a regression
+
+The orchestrator classified this as an engine defect (security), not an open
+question: the rules card and `why NOT_FOUND` say "the update rule judges old
+and next". The engine now judges an unnamed `update <- R` as
+`R[old] and R[next]` (`snapback4-core/src/schema/update_images.rs`, applied in
+`Runner::check_rule`), so it refuses `E_RULE` here, as the model does; `bob`'s
+row is unchanged. `snapback4/lean/OPEN.md` R2 is decided by the documents.
+This case must replay as agreeing (`replay` exits 0); a regression to the
+next-image-only reading makes it fail again. Unit coverage:
+`crates/snapback4-core/tests/update_rule_images.rs` and the Postgres test
+`engine::postgres::tests::update_images`.

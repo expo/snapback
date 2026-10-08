@@ -13,15 +13,15 @@ use snapback4_difftest::{
 use std::collections::BTreeSet;
 
 /// Open signatures, classified in `cases/found/lean--*/DIAGNOSIS.md` (OPEN
-/// C2 and R2). A new one fails the fixed-seed run: diagnose it first.
-const CLASSIFIED: [&str; 4] = [
+/// C2). A new one fails the fixed-seed run: diagnose it first.
+const CLASSIFIED: [&str; 2] = [
     "lean--next--next~no-next",
     "lean--continuation-next--next~no-next",
-    "lean--kind--committed~NOT_FOUND",
-    "lean--kind--committed~E_RULE",
 ];
-/// Resolved findings kept as regressions: each now replays as a pass.
-const RESOLVED: [&str; 1] = ["lean--next--no-next~next"];
+/// Resolved findings kept as regressions: each now replays as a pass. The
+/// `committed~*` pair is OPEN R2, the unnamed update rule judging only the
+/// next image: an engine defect (security), fixed 2026-10-08.
+const RESOLVED: [&str; 3] = ["lean--next--no-next~next", "lean--kind--committed~NOT_FOUND", "lean--kind--committed~E_RULE"];
 
 fn model_built() -> bool {
     let path = lean::oracle_path();

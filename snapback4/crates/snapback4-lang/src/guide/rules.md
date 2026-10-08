@@ -19,7 +19,7 @@ table reactions:
 Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent.
 Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`.
 Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered.
-Insert uses the new image, named updates old/next, delete its pre-delete image; final obligations resolve at transaction end. Read-through capture/lifetimes stay unchanged. Null guards narrow only the same term and image.
+Insert uses the new image; an unnamed `update <- R` must hold for both the row before and the row after the write (pair `update <- .owner = viewer` with `immutable owner`); a named `update (old, next)` judges exactly what it names; delete uses its pre-delete image; final obligations resolve at transaction end. Read-through capture/lifetimes stay unchanged. Null guards narrow only the same term and image.
 Beyond three hops, private/maintained fields and ephemeral targets refuse E_QUARRY_RULE_HOP with concrete mutation `require` checks.
 
 ```quarry

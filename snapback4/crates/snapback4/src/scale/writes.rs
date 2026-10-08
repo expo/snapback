@@ -27,7 +27,7 @@ impl Analysis<'_> {
                 }
             }
         }
-        if matches!(kind, "update" | "upsert") { self.rule(&table.rules.update, &site, times); }
+        if matches!(kind, "update" | "upsert") { self.rule(&table.update_rule_judged(), &site, times); }
         if kind == "delete" { self.rule(&table.rules.delete, &site, times); }
         // Returned write rows may also run the read rule.
         self.rule(&table.rules.read, &site, times);

@@ -49,7 +49,12 @@ fn hidden_unique_and_id_collisions_have_only_a_generic_rule_refusal() {
 
 #[test]
 fn hidden_put_uses_update_authority_and_old_owner_can_deny_it() {
-    for (source, expected) in [(ACCOUNTS.to_owned(), "sent"), (ACCOUNTS.replace("update <- .owner = viewer", "update (old, next) <- old.owner = viewer and next.owner = viewer"), "NOT_FOUND")] {
+    // @ref LLP 3000.007#8 — item 7(a): an unnamed update rule judges old and next, so it is the old owner's guard; only a named next-only rule hands the hidden row to its writer.
+    for (source, expected) in [
+        (ACCOUNTS.replace("update <- .owner = viewer", "update (old, next) <- next.owner = viewer"), "sent"),
+        (ACCOUNTS.to_owned(), "NOT_FOUND"),
+        (ACCOUNTS.replace("update <- .owner = viewer", "update (old, next) <- old.owner = viewer and next.owner = viewer"), "NOT_FOUND"),
+    ] {
         let mut e = engine(&source);
         e.seed([("accounts".into(), object([("id", id("hidden")), ("email", Value::String("secret@example.com".into())), ("owner", id("alice"))]))]).unwrap();
         let result = e.mutate("put", Some("put"), Context::new("bob", args("secret@example.com"))).unwrap();

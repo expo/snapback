@@ -5,6 +5,7 @@ mod caps;
 mod delivery;
 mod expiring_counts;
 mod refusals;
+mod update_images;
 
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {

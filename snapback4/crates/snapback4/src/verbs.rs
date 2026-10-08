@@ -456,9 +456,9 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             }
             match *kind {
                 "insert" | "insert-if-absent" => probe_costs(&table.rules.insert, &mut lines),
-                "update" => probe_costs(&table.rules.update, &mut lines),
+                "update" => probe_costs(&table.update_rule_judged(), &mut lines),
                 "delete" => probe_costs(&table.rules.delete, &mut lines),
-                "upsert" => { probe_costs(&table.rules.insert, &mut lines); probe_costs(&table.rules.update, &mut lines); }
+                "upsert" => { probe_costs(&table.rules.insert, &mut lines); probe_costs(&table.update_rule_judged(), &mut lines); }
                 _ => {}
             }
         }

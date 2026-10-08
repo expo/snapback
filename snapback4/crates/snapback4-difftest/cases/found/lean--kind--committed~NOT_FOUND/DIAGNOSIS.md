@@ -54,3 +54,16 @@ over another principal's row with a blind `update`/`upsert` that sets
 `owner: viewer`. The model's reading refuses it. This needs Charlie's ruling;
 no engine or binder code was changed. The companion signature
 `lean--kind--committed~E_RULE` is the same point on a readable target.
+
+## Resolution (2026-10-08): engine defect, fixed — kept as a regression
+
+The orchestrator classified this as an engine defect (security), not an open
+question: the rules card and `why NOT_FOUND` say "the update rule judges old
+and next". The engine now judges an unnamed `update <- R` as
+`R[old] and R[next]` (`snapback4-core/src/schema/update_images.rs`, applied in
+`Runner::check_rule`), so it refuses `NOT_FOUND` here, as the model does; `bob`'s
+row is unchanged. `snapback4/lean/OPEN.md` R2 is decided by the documents.
+This case must replay as agreeing (`replay` exits 0); a regression to the
+next-image-only reading makes it fail again. Unit coverage:
+`crates/snapback4-core/tests/update_rule_images.rs` and the Postgres test
+`engine::postgres::tests::update_images`.

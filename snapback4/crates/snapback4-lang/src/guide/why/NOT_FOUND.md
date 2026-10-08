@@ -11,6 +11,8 @@ synced group proves absence; otherwise it queues for server resolution.
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
+An unnamed `update <- R` must hold for both the row before and the row after
+the write, so writing `owner: viewer` cannot take over another principal's row.
 
 | Target before the write | Refusal details |
 | --- | --- |

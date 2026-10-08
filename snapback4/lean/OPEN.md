@@ -124,33 +124,32 @@ rule hides?**
   viewer]`) while `access` was `read <- deny`; the engine's probes found the
   hidden rows exactly as the model's do, on reads and on writes.
 
-**R2. Which image does an unnamed `update <- R` judge?**
-- *Documents:* the documents say "the update rule judges old and next". The
-  examples name both images only in the `update (old, next)` form.
+**R2. Which image does an unnamed `update <- R` judge? (confirmed: decided by documents; engine fixed)**
+- *Documents:* the rules card and `why NOT_FOUND` say "the update rule
+  judges old and next"; LLP 3000.007 §8 item 7(a) has the update rule decide
+  "as Postgres applies an `UPDATE` policy", whose `USING` also judges the new
+  row when no `WITH CHECK` is given; `guide from-sql` maps RLS `USING` /
+  `WITH CHECK` to `update <-`. Since 2026-10-08 the rules card and LLP
+  3000.007 §8 item 7(a) also say it outright: an unnamed `update <- R` must
+  hold for the row before and the row after the write.
 - *Model:* the emitter expands `update <- R` to `R[old] and R[next]`.
 - *Reason:* this is the reading that cannot grant more than either other
-  reading. If the engine judges only one image, that difference is a ruling
-  to make, not a bug to fix.
-- *Engine (observed): disagrees; the engine judges the next image only.*
-  Signatures `lean--kind--committed~NOT_FOUND` (69) and
-  `lean--kind--committed~E_RULE` (8). Under `update <- .owner = viewer`,
-  `alice` can `upsert` or `update` `bob`'s row with `owner: viewer` and the
-  engine commits; the model refuses (`NOT_FOUND` on an unreadable target,
-  `E_RULE` on a readable one). With old = viewer and next = another
-  principal, both refuse `E_RULE`. Named rules (`update (old, next) <-
-  old.owner = viewer`, `… next.owner = viewer`, and both) agree in all 374
-  compared writes.
-  - *Documents for the model's reading:* `why NOT_FOUND` ("the update rule
-    judges old and next"); LLP 3000.007 §8 item 7(a) (the update rule decides
-    "as Postgres applies an `UPDATE` policy", whose `USING` also checks the
-    new row when no `WITH CHECK` is given); `guide from-sql` (RLS `USING` /
-    `WITH CHECK` map to `update <-`).
-  - *Documents for the engine's reading:* the rules card's "Insert uses the
-    new image, named updates old/next" names no image for the unnamed form,
-    and the language card pairs `update <- .authorId = viewer` with
-    `immutable authorId`, which makes the readings coincide.
-  - *Consequence:* under the engine's reading an unnamed owner rule without
-    `immutable owner` does not stop a takeover. **Needs a ruling** (security).
+  reading, and the documents above choose it.
+- *Engine (observed, 60,000-case run):* disagreed; the engine judged the next
+  image only. Signatures `lean--kind--committed~NOT_FOUND` (69) and
+  `lean--kind--committed~E_RULE` (8). Under `update <- .owner = viewer`
+  without `immutable owner`, `alice` could `upsert` or `update` `bob`'s row
+  with `owner: viewer` and take it over, even a row she could not read.
+  Named rules (`update (old, next) <- old.owner = viewer`, `… next.owner =
+  viewer`, and both) agreed in all 374 compared writes.
+- *Engine (2026-10-08, after the fix):* agrees. The engine judges an unnamed
+  update rule as `R[old] and R[next]` (`snapback4-core/src/schema/
+  update_images.rs`, applied in `check_rule`, so the server's SQLite and
+  Postgres stores and the device's prediction all judge both images). A rule
+  that reads only `id` and immutable columns is judged once, since both
+  images agree there. Both shrunk cases replay as agreeing and stay as
+  regressions; a 20,000-case `run-lean` (seed 0) shows no
+  `lean--kind--committed~*` signature. This was a security defect.
 
 **R3. How does `!=` treat a null column?**
 - *Model:* `.col != 'x'` is true when `col` is null, because equality is

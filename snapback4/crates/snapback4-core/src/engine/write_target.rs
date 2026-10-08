@@ -47,7 +47,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(in crate::engine) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &crate::value::Supplied, upsert: bool) -> Result<(), RuntimeError> {
         if upsert { self.reserve_capture(table)?; }
-        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
+        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update).saturating_mul(1 + u64::from(table.judges_old_image())))
             .saturating_add(if upsert || table.ephemeral.is_some() { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.

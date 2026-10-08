@@ -92239,3 +92239,58 @@ and W7. Tickets for the four open signatures are in `issues/`.
   `read_authority_inner`) are not where server reads decide. A negative
   control is only meaningful once the planted line is shown to be on the
   path.
+
+## 2026-10-08 — An unnamed update rule judges old and next (security fix; Lean OPEN R2)
+
+The Lean oracle's R2 disagreement was an engine defect, not an open question.
+The rules card and `why NOT_FOUND` say "the update rule judges old and next",
+but the engine judged an unnamed `update <- R` against the next image only.
+`update <- .owner = viewer` without `immutable owner` therefore let any caller
+`update` or `upsert` another principal's row with `owner: viewer` and take
+it, even a row it could not read. **This is a security fix and must be
+published.**
+
+- **Root cause.** The binder binds `.col` in an unnamed rule to
+  `RuleTerm::Field`, which the evaluator reads from the next image, and
+  `Runner::check_rule` evaluated the update rule as bound. Named
+  `update (old, next)` rules were right all along (374 of 374 agreed).
+- **Fix.** `schema/update_images.rs` gives `RuleExpr::old_and_next` (the
+  rule over the old image, then over the next) and `Table::judges_old_image`.
+  `check_rule` applies it to every update and upsert-patch arm, so the
+  server's SQLite and Postgres stores and the device's prediction (one
+  evaluator) all judge both images. Target resolution prepays both images'
+  probes. A rule reading only `id` and immutable columns is still judged
+  once: both images agree there, and the decision is static, so the meter
+  never depends on the row. Refusals follow the table: `E_RULE` on a
+  readable target, `NOT_FOUND` with no detail on an unreadable one.
+- **Analyses kept consistent.** `N_MAINTAIN_DELTA`'s "old-image guard
+  entails the read rule" proof now sees the unnamed rule's old image;
+  `check --cost` and the scale report list the probes the engine prepays.
+  Residency sites, `N_WRITE_DENIED`, field authority and own-key proofs read
+  the same columns and stay sound (both images is strictly narrower).
+- **Tests.** `snapback4-core/tests/update_rule_images.rs` (the four probe
+  variants refuse and leave bob's row unchanged; the owner still writes; a
+  named next-only rule behaves as written; a probe rule judges the old group;
+  a device does not predict the takeover) and the Postgres test
+  `engine::postgres::tests::update_images`. Both fail on the old engine.
+- **Harness.** Both shrunk cases replay as agreeing and are kept as resolved
+  regressions. `run-lean --seed 0 --cases 20,000`: 394 disagreements, all C2
+  (`next--next~no-next` 250, `continuation-next--next~no-next` 144); main
+  had 421, including `committed~NOT_FOUND` 24 and `committed~E_RULE` 3.
+  `run-devices` (5,000) is identical to main (only the known heap-bytes cut
+  signatures); the default `run` (5,000) has no disagreement.
+- **wasm.** 645,374 → 645,929 B gzip (+555; budget 646,180 unchanged). A
+  first spelling with `Cow` and `BTreeSet`s cost +2,747 and went over;
+  folding images in place behind one `dyn FnMut` and scanning constraints
+  directly brought it under.
+- **What was surprising:** the paved form pairs `update <- .authorId =
+  viewer` with `immutable authorId`, where the two readings coincide, so the
+  card examples never showed the gap. A scan found the unpaired owner form in
+  dozens of fixtures, starters, guide cards and reports; no app, starter or
+  card relied on judging the next image only. One test did: the security
+  review's `hidden_put_uses_update_authority_and_old_owner_can_deny_it`
+  (`snapback4-sim/tests/security.rs`) expected bob's blind `upsert` under
+  the unnamed `update <- .owner = viewer` to take alice's hidden account. It
+  now spells that grant as `update (old, next) <- next.owner = viewer`, and
+  the unnamed rule refuses `NOT_FOUND`. `page_admission`'s update variant now
+  prepays two rule probes, one per image, because its `group` is mutable.

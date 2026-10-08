@@ -463,7 +463,9 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
         }
         if target.rules.read == source.rules.read && !fields.contains("id") && fields.iter().all(|field| maintain.bare_key(field)) { continue; }
         // An old-image guard that entails the source read rule does not widen write authority.
-        if implies(&source.rules.insert, &source.rules.read) && implies(&source.rules.delete, &source.rules.read) && implies(&source.rules.update, &old_read(&source.rules.read)) { continue; }
+        // @ref LLP 3000.007#8 — item 7(a): an unnamed update rule judges the old image too.
+        let update = if source.update_transition { source.rules.update.clone() } else { source.rules.update.old_and_next() };
+        if implies(&source.rules.insert, &source.rules.read) && implies(&source.rules.delete, &source.rules.read) && implies(&update, &old_read(&source.rules.read)) { continue; }
         notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{}", maintain.target)), "N_MAINTAIN_DELTA", format!("maintain {} may disclose the delta of a hidden {} row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: {}", maintain.target, maintain.source, maintain.dependencies().into_iter().collect::<Vec<_>>().join(", ")), "treat the view as a declared read channel; restrict its read rule or the source update rule if the delta is private").guide("rules"));
     }
     notes
