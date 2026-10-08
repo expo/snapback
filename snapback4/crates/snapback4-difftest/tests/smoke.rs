@@ -133,19 +133,10 @@ fn parallel_workers_preserve_seed_counts() {
     std::fs::remove_dir_all(root).unwrap();
 }
 
-/// Heap and step accounting differs between the server and the device
-/// (`cases/found/device-*`, the heap-accounting ticket). Keep these visible:
-/// a new or missing signature needs diagnosis.
-const DEVICE_KNOWN: [&str; 8] = [
-    "device-memory--heap-bytes-data--loading",
-    "device-memory--heap-bytes-metered-examined--loading",
-    "device-memory--heap-bytes-metered-heap-bytes--loading",
-    "device-memory--steps-metered-heap-bytes--loading",
-    "device-sqlite--heap-bytes-data--loading",
-    "device-sqlite--heap-bytes-metered-examined--loading",
-    "device-sqlite--heap-bytes-metered-heap-bytes--loading",
-    "device-sqlite--steps-metered-heap-bytes--loading",
-];
+/// Server and device agree on every meter field, heap included, since the
+/// uniform heap charge (the closed heap-accounting ticket). A new signature
+/// needs diagnosis.
+const DEVICE_KNOWN: [&str; 0] = [];
 
 #[test]
 fn device_oracle_fixed_seeds_on_both_device_stores() {

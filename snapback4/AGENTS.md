@@ -22,7 +22,7 @@ cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and repla
 cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --workers 6 --out /tmp/quarry-difftest
 cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
 cargo run --release -p snapback4-difftest -- run-devices --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-devices   # server against both device stores; no database
-cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/device-sqlite--heap-bytes-data--loading
+cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/device-sqlite--write-predicted-refused--admitted
 (cd lean && lake build) && cargo run --release -p snapback4-difftest -- run-lean --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-lean   # the engine against the Lean model (LLP 3000.035 §5.2); ~900 cases/s on 8 workers
 cargo run --release -p snapback4-difftest -- replay 'crates/snapback4-difftest/cases/found/lean--kind--committed~NOT_FOUND'   # needs the model built, or SNAPBACK4_LEAN_ORACLE=<quarry-oracle>
 ./target/debug/snapback4 check --emit-lean schema.q   # one checked file as the Lean model's case JSON; programs outside its fragment listed with a reason
@@ -197,9 +197,9 @@ The present generator does not fill the Postgres prefetch cache: it emits no
 per-row related-key lookup in a page loop, so its reads receive no prefetch marks.
 The focused control in the DT-B report demonstrates that a consumed cached-hit
 fault changes an outcome; the random campaign does not claim this coverage.
-See the [prefetch coverage ticket](../issues/20261007-quarry-store-oracle-prefetch-coverage-gap.md). Store heap accounting also differs at low budgets; those
-remain disagreements and ticket candidates, never normalized into passes.
-The cluster regression asserts its known signatures and refuses new/missing ones.
+See the [prefetch coverage ticket](../issues/20261007-quarry-store-oracle-prefetch-coverage-gap.md). Heap is charged identically on every store and the device (LLP 3000.007
+§20.24.5); any disagreement is a ticket candidate, never normalized into a pass.
+The cluster regression asserts it finds no signature and refuses any new one.
 
 `run-stores --seconds N` stops each worker between cases after N seconds; a case
 and any shrinking already underway finish. `cases` remains the requested count,

@@ -1045,7 +1045,7 @@ impl crate::rows::Rows for Tx<'_> {
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
-        // @ref LLP 3000.007#20.24.3 — the public charge is the shared logical one; SQLite's own scratch is guarded.
+        // @ref LLP 3000.007#20.24.5 — the public charge is the shared logical one; SQLite's own scratch is guarded.
         heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
         let mut guard = heap::StoreGuard::open(meter, "SQLite", SCAN_MEMORY_GUARD);
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };

@@ -90,7 +90,8 @@ fn retained_device_findings_still_reproduce() {
             other => panic!("{name} no longer reproduces ({other:?}): diagnose, update its DIAGNOSIS.md and this test"),
         }
     }
-    assert!(seen >= 9, "{seen}");
+    // The heap-accounting findings were retired with the uniform heap charge.
+    assert!(seen >= 2, "{seen}");
 }
 
 #[test]

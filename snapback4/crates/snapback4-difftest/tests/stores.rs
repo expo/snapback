@@ -24,31 +24,14 @@ fn both_stores_all_public_boundaries_and_write_observations() {
     stores::check(&insert, &mut report, &mut database, |_| {}).unwrap();
     assert!(report.generator_errors.is_empty(), "{report:#?}");
     assert!(report.runtime_refused_unexpected.is_empty(), "{report:#?}");
-    // The exact oracle finds real adapter heap-accounting differences. Keep
-    // those failures visible; this test checks that the harness records them.
-    // Shrunk cases and diagnosis are in the DT-B Continuation 1 report.
-    let signatures: std::collections::BTreeSet<_> = report
+    // Heap is charged identically on both stores (the closed heap-accounting
+    // ticket): the fixed corpus has no store signature. A new one needs diagnosis.
+    let signatures: std::collections::BTreeSet<String> = report
         .by_oracle
         .values()
         .flat_map(|c| c.signatures.keys().cloned())
         .collect();
-    eprintln!("cluster signatures: {signatures:?}");
-    let expected: std::collections::BTreeSet<_> = ["on", "off"]
-        .into_iter()
-        .flat_map(|mode| {
-            [
-                "heap-bytes-data--value",
-                "heap-bytes-metered--value",
-                "heap-bytes-why--NOT_FOUND",
-                "steps-metered--value",
-            ]
-            .map(move |suffix| format!("store-postgres-{mode}--{suffix}"))
-        })
-        .collect();
-    assert_eq!(
-        signatures, expected,
-        "new or missing signatures need diagnosis"
-    );
+    assert!(signatures.is_empty(), "new signatures need diagnosis: {signatures:?}");
     assert_eq!(report.compiled, 33);
     for name in ["store-postgres-on", "store-postgres-off"] {
         assert!(report.by_oracle[name].passed > 32, "{report:#?}");

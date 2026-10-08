@@ -118,11 +118,11 @@ pub fn assert_cut(case: &str, page: &QueryOutcome) {
     assert_eq!((page.complete, page.cut, page.next.as_ref()), (false, Some(ReadCut::Meter), None));
     match case {
         "discovery-index" => { assert_eq!(ids(page).len(), 0); assert_eq!(page.metered.index_entries, 33); }
-        "opening-examined" | "opening-internal-examined" => {
+        "opening-examined" => {
             assert_eq!(ids(page).len(), 10);
-            // Internal candidate admission stops as soon as an earlier lane
-            // cuts; preauthorized server lanes keep their attempted-read count.
-            assert_eq!(page.metered.examined, if case == "opening-internal-examined" { 11 } else { 45 });
+            // Preauthorized lanes keep their attempted-read count, on the
+            // server and on the device alike (LLP 3000.007 §20.24.5).
+            assert_eq!(page.metered.examined, 45);
         }
         "heap" => assert_eq!(page.data, Value::Null),
         _ => panic!("unknown probe"),

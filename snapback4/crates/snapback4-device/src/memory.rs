@@ -612,7 +612,7 @@ impl Rows for MemoryTx<'_> {
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use snapback4_core::rows::word_heap;
-        // @ref LLP 3000.007#20.24.3 — the server's logical charge; this store's temporary names and keys are guarded.
+        // @ref LLP 3000.007#20.24.5 — the server's logical charge; this store's temporary names and keys are guarded.
         word_heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
         let mut guard = word_heap::StoreGuard::open(meter, "memory", SCAN_MEMORY_GUARD);
         guard.reserve(meter, 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
@@ -623,8 +623,8 @@ impl Rows for MemoryTx<'_> {
         let Some(index) = state.entries.get(&ti) else { return Ok(Vec::new()) };
         let within = index.range(Key::plain(&lo)..Key::plain(&hi));
         let mut out = Vec::new();
+        // Each entry's temporary (table, id) lookup key is freed before the next.
         let mut pick = |(key, id): (&Key, &Rc<str>)| -> Result<(), RuntimeError> {
-            guard.reserve(meter, word_heap::text(table) + word_heap::text(id))?;
             if let Some(row) = state.rows.get(&(table.to_owned(), id.to_string())) {
                 let key = key.bytes();
                 let additional = word_heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), row, &key)?;

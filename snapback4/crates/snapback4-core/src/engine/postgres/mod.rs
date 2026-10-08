@@ -12,7 +12,7 @@ mod tail;
 mod through;
 #[cfg(test)]
 mod tests;
-pub use store::WriteMode;
+pub use store::{SCAN_MEMORY_GUARD, WriteMode};
 
 use super::{Context, MutationOutcome, QueryOutcome, WriteState, runner::Runner, validate};
 use crate::{

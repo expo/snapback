@@ -339,7 +339,7 @@ impl Rows for Tx<'_> {
 
     fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         use crate::rows::word_heap as heap;
-        // @ref LLP 3000.007#20.24.3 — the public charge is the shared logical one; the driver's batch is guarded.
+        // @ref LLP 3000.007#20.24.5 — the public charge is the shared logical one; the driver's batch is guarded.
         heap::scan_open(meter, table, name, prefix, bounds, scope)?;
         let mut guard = heap::StoreGuard::open(meter, "Postgres", SCAN_MEMORY_GUARD);
         // Queries use repeatable-read; serialized writes hold the head lock.

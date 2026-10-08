@@ -43,7 +43,12 @@ For one-shots, see `guide client`.
 
 ## Allocation and completeness
 
-Heap is a cumulative allocation and binding budget. Streaming aggregates
+Heap is a logical budget: it charges the encoded size of what a step holds
+(each fetched row's stored image and key, constructed values and bindings),
+the same way on SQLite, Postgres and the device, so a program under a ceiling
+has one outcome on every store. A store's own scratch is not on the meter; a
+separate store guard far above any ceiling refuses a pathological scan with
+E_STORE_MEMORY, never E_BOUND. Streaming aggregates
 release each transient row and its key scratch; one cursor allowance remains.
 Inner job domains decode one prepaid row at a time and retain each selected
 row under the heap meter before fetching another. Once decoded, the row's

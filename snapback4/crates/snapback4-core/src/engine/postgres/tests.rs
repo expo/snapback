@@ -377,7 +377,7 @@ fn sequence_by_is_transactional_shared_and_durable() {
     }
 }
 
-// @ref LLP 3000.007#20.24.3 — every store, Postgres included, charges a public image's logical size.
+// @ref LLP 3000.007#20.24.5 — every store, Postgres included, charges a public image's logical size.
 #[test]
 fn private_scans_ignore_stored_payload_and_public_scans_pay_the_logical_image() {
     use crate::rows::{Bounds, Dir, MemoryRows};

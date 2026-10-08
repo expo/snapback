@@ -105,7 +105,7 @@ impl<'r> Runner<'r> {
                 self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
                 self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?
             } else { self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,bounds,dir,limit))? };
-            // @ref LLP 3000.007#20.24.3 — a device prices the server's image with the server's charge. Its
+            // @ref LLP 3000.007#20.24.5 — a device prices the server's image with the server's charge. Its
             // own prediction rows still meet a non-uniform rule, as internal work outside the caller's heap.
             let check = self.device && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
             let mut out = Vec::with_capacity(rows.len());

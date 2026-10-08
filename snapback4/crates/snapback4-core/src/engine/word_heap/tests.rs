@@ -276,7 +276,7 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
                 assert!(native_per_execution <= PIN, "scan {n}: {native_per_execution} native bytes > {PIN}");
                 assert_eq!(counts.live, 0, "statement reset releases all measured storage after scan {n}");
                 maximum = maximum.max(native_per_execution);
-                // @ref LLP 3000.007#20.24.3 — the column scratch is the store guard's, every scan; the public charge is logical.
+                // @ref LLP 3000.007#20.24.5 — the column scratch is the store guard's, every scan; the public charge is logical.
                 assert_eq!(meter.used.heap_bytes, (n + 1) as u64 * names);
                 assert_eq!(meter.scratch, (n + 1) as u64 * 2 * page_size);
             }
@@ -315,7 +315,7 @@ fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     let prefix = [Value::Int(0)];
     let bounds = Bounds::default();
     let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &prefix, &bounds, Dir::Asc, 22, scope, meter));
-    // @ref LLP 3000.007#20.24.3 — the public charge is each entry's logical image; physical copies are guarded.
+    // @ref LLP 3000.007#20.24.5 — the public charge is each entry's logical image; physical copies are guarded.
     // The preflight stops at the first entry whose four-bytes-per-JSON-byte floor
     // cannot fit, and the payload statement fetches no entry past it.
     let opened = range_price(&prefix, &bounds) + accounting::allocation("messages.byBucket".len());
@@ -367,7 +367,7 @@ fn sqlite_scratch_uses_the_open_connections_actual_page_size() {
         let tx = store.read_transaction().unwrap();
         assert_eq!(tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap(), 8192);
         let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
-        // @ref LLP 3000.007#20.24.3 — an 8 KiB page's 16 KiB column scratch is guarded, never public.
+        // @ref LLP 3000.007#20.24.5 — an 8 KiB page's 16 KiB column scratch is guarded, never public.
         let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 10_000, ..Default::default() }, meter::Cut::Cap);
         assert!(scan(&mut low).unwrap().is_empty());
         assert_eq!(low.scratch, 16_384);
@@ -395,7 +395,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     let initial_preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run);
     let initial_memory = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(MemUsed);
     let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[value::Value::Int(0)], &Bounds::default(), Dir::Asc, 1, scope, meter));
-    // @ref LLP 3000.007#20.24.3 — the column scratch and preflight copy are guarded; the public meter
+    // @ref LLP 3000.007#20.24.5 — the column scratch and preflight copy are guarded; the public meter
     // refuses on the entry's logical image, after the one-entry payload fetch that prices it.
     let mut low = meter::Meter::new(meter::Ceilings { heap_bytes: 500, ..Default::default() }, meter::Cut::Cap);
     let (result, rust_bytes, native_allocated, payload_allocated) = measured_sqlite(json_bytes, || scan(&mut low));
@@ -452,6 +452,73 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     assert_eq!(read_payload, first_payload);
     assert!(read_rust + read_native as u64 <= next_read.used.heap_bytes + next_read.scratch);
     println!("W14A {storage} positive_rows=1 rust_allocated={rust_bytes} first_native={first_native} next_fetch_native={next_native} next_read_native={read_native} cumulative_fetch_native={} first_charge={first} next_fetch_charge={} next_read_charge={}", first_native + next_native, ample.used.heap_bytes - first, next_read.used.heap_bytes);
+}
+
+// @ref LLP 3000.007#20.24.5 — the guard is physical, has its own code, and sits far above every ceiling.
+#[test]
+fn store_guard_refuses_a_pathological_scan_with_its_own_code() {
+    use rows::{Bounds, Dir, Rows};
+    use value::{Value, object};
+    let seed: Vec<(String, Value)> = (0..64).map(|n| ("messages".into(), object([("id", Value::Id(format!("m{n:05}"))),
+        ("bucket", Value::Int(0)), ("body", Value::String("x".repeat(2_000)))]))).collect();
+    let memory = rows::MemoryRows::new();
+    for (table, row) in &seed { memory.put(table, &fixture::schema().tables["messages"], row, None).unwrap(); }
+    let mut engine = fixture::engine(vec![], 0);
+    engine.seed(seed).unwrap();
+    let tx = engine.store_mut().read_transaction().unwrap();
+    accounting::TEST_GUARD.with(|limit| limit.set(Some(64 << 10)));
+    let mut charges = Vec::new();
+    for store in [&tx as &dyn Rows, &memory] {
+        let scan = |meter: &mut meter::Meter| physical(meter, |meter, scope| store.scan_metered("messages", "byBucket", &[Value::Int(0)], &Bounds::default(), Dir::Asc, 64, scope, meter));
+        // Engine work under unbounded ceilings: the meter admits every row; the guard refuses.
+        let mut unbounded = meter::Meter::new(meter::Ceilings::unbounded(), meter::Cut::Abort);
+        let error = scan(&mut unbounded).unwrap_err();
+        assert_eq!((error.code().as_str(), error.family()), ("E_STORE_MEMORY", "store"), "{error}");
+        assert!(error.is_refusal() && error.refusal().guide.as_deref() == Some("bounds") && !error.refusal().retryable);
+        assert!(unbounded.capped_at.is_none());
+        // Within a ceiling the meter cuts with E_BOUND before the guard is reached.
+        let mut ceiling = meter::Meter::new(meter::Ceilings { heap_bytes: 32 << 10, ..Default::default() }, meter::Cut::Abort);
+        assert!(matches!(scan(&mut ceiling), Err(crate::error::RuntimeError::Bound { kind: crate::error::MeterKind::HeapBytes, .. })));
+        assert!(ceiling.scratch < 64 << 10);
+        // The full scan fits a guard above it, with the same public charge on both stores.
+        accounting::TEST_GUARD.with(|limit| limit.set(None));
+        let mut ample = meter::Meter::new(meter::Ceilings::unbounded(), meter::Cut::Abort);
+        assert_eq!(scan(&mut ample).unwrap().len(), 64);
+        charges.push(ample.used.heap_bytes);
+        accounting::TEST_GUARD.with(|limit| limit.set(Some(64 << 10)));
+    }
+    accounting::TEST_GUARD.with(|limit| limit.set(None));
+    assert_eq!(charges[0], charges[1], "one logical charge on both stores");
+}
+
+#[test]
+fn ordinary_ceilings_never_reach_the_store_guards() {
+    use rows::{Bounds, Dir, Rows};
+    use value::{Value, object};
+    // The guard's worst ratio to the public charge is many minimal rows. A
+    // preflight admits entries until their floors (four bytes per stored JSON
+    // byte, at least the smallest row image's) exceed the ceiling; the guard
+    // holds those entries' two payload copies (at most half the floor, plus
+    // keys priced on the meter), the store's per-entry overhead and the public
+    // charge. At the default ceiling the bound stays well inside each limit:
+    // SQLite 64 B/entry, Postgres 256 B/entry plus range copies, memory 0.
+    let ceiling = meter::Ceilings::default().heap_bytes;
+    let smallest = value::canonical_json(&object([("id", Value::Id(String::new()))])).len() as u64;
+    let bound = |overhead: u64, fixed: u64| ceiling * 4 + ceiling / (4 * smallest) * overhead + fixed;
+    assert!(bound(64, 2 * 65_536) <= crate::store::SCAN_MEMORY_GUARD / 2);
+    #[cfg(feature = "postgres")]
+    assert!(bound(256, 4096 + 2 * ceiling) <= crate::engine::postgres::SCAN_MEMORY_GUARD * 3 / 4);
+    assert!(bound(0, 1 << 20) <= (64 << 20) * 3 / 2, "the memory store's own 64 MiB guard: device.rs/memory.rs");
+    let mut engine = fixture::engine(vec![], 0);
+    engine.seed((0..128).map(|n| ("messages".into(), object([("id", Value::Id(format!("{n}"))),
+        ("bucket", Value::Int(0)), ("body", Value::String(String::new()))]))).collect::<Vec<(String, Value)>>()).unwrap();
+    let tx = engine.store_mut().read_transaction().unwrap();
+    let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+    let mut meter = meter::Meter::new(Default::default(), meter::Cut::Cap);
+    let rows = physical(&mut meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[Value::Int(0)], &Bounds::default(), Dir::Asc, 128, scope, meter)).unwrap();
+    assert_eq!(rows.len(), 128);
+    assert!(meter.scratch <= 3 * meter.used.heap_bytes + 64 * 128 + 2 * page_size, "{} {}", meter.scratch, meter.used.heap_bytes);
+    assert!(meter.used.heap_bytes >= 4 * smallest * 128);
 }
 
 fn physical<T>(meter: &mut meter::Meter, work: impl FnOnce(&mut engine::InternalMeter<'_>,&engine::Authorization) -> T) -> T {

@@ -1,8 +1,12 @@
 //! Allocation ledger for uniform, meter-bounded word expansion (LLP 3000.007 §20.24).
-//! This ledger prices interpreter allocations and the store's payload copies:
-//! row images, keys, and registers holding resident payloads. Charges accumulate
-//! allocations, not live RSS. A failed allowance precedes the priced growth,
-//! with the SQLite preflight ordering exception stated below.
+//! This ledger prices interpreter allocations and the logical size of what a
+//! store scan hands the interpreter: each entry's canonical row image and key.
+//! Charges accumulate allocations, not live RSS. A failed allowance precedes
+//! the priced growth. Store scans charge one logical ledger on every store and
+//! on the device (scan_open/scan_entry, ruling 2026-10-08, LLP 3000.007
+//! §20.24.5); a store's own physical scratch (native column buffers, size
+//! preflights, driver batches, temporary keys) is reserved on that store's
+//! StoreGuard, never on the public meter, and refuses with E_STORE_MEMORY.
 //! The storage engine's per-execution statement storage (VdbeCursor/BtCursor,
 //! column-offset arrays, sorters and non-payload registers) and page cache are
 //! shared images outside the ledger, never interpreter heap, for every store
@@ -41,12 +45,12 @@
 //! | Scope verdict temporary prefix row/terms | bounded store scratch | verdict(): collect slots+map nodes+names+owned terms+Arc header | discover_words, before prefix_verdict |
 //! | Device retained verdict and coverage diagnostic | retained interpreter storage | 256*(192+V(scope)+A(table)+A(index)+A(site)) | discover_words, before retained_group/unknown_fact/horizon_coverage |
 //! | Initial discovery bounds.word | retained interpreter storage | A(first term) | discover_words, before clone |
-//! | Store encoded bounds/range endpoints | bounded store scratch | R(prefix,bounds)+copied table/index names | scan_metered, before scan_range and range lookup |
-//! | SQLite native column payload scratch | bounded store scratch | 2*page_size once per read, then 2*(JSON/key byte lengths)+64 per row in the same transaction | stream preflight rows and charge before stepping again: within one execution the first row's resident copy (one page-size buffer per column, two registers) precedes its charge; every later row's copy follows the previous row's charge; across executions the reserve prepays the first execution's first copy once per read and later executions' first copies are charged immediately after, bounded by the same constant; no other priced payload is copied before its allowance; overflow payloads are not read; payload SQL uses the granted allowances; database pages, cached VM and per-execution statement storage are shared images |
-//! | SQLite fetched typed row and key | bounded store scratch | J(borrowed JSON)+A(key bytes)+G<(Value,Vec<u8>)> for each fetched entry | scan_metered, before serde decode/key.to_vec/result reserve |
-//! | Memory fetched key and result slots | bounded store scratch | owned value payload+A(key bytes)+G<(Value,Vec<u8>)> | memory_result, before cloning or reserving |
+//! | Store encoded bounds/range endpoints | bounded store scratch | R(prefix,bounds)+A(table.index name), every store | scan_open, before scan_range and range lookup |
+//! | Every store's fetched row and key | bounded store scratch | J(canonical stored JSON)+A(key bytes)+G<(Value,Vec<u8>)> for each fetched entry, in index order, every store | scan_entry, before decode/key copy/result reserve |
+//! | SQLite native column payload scratch | store guard, not public | 2*page_size per scan, then 2*(JSON/key byte lengths)+64 per preflight row | preflight rows before stepping again; the guard prepays the first row's resident copy; the preflight stops at the first entry whose floor 4*A(JSON)+A(key) the meter cannot admit, and the payload SQL fetches no further; overflow payloads are not read; database pages, cached VM and per-execution statement storage are shared images |
+//! | Memory scan names, range copies | store guard, not public | 2*A(table.index)+A(lo)+A(hi) | scan_metered, before the range lookup |
 //! | Memory row maps; compiled schema/program; SQLite database/cache | shared images | 0 per Arc/borrow; storage engine's existing pages/cache are not interpreter heap | store borrowing; no row-body clone per lane |
-//! | PostgreSQL optional adapter batch | bounded store scratch | 2*R+4096 preflight; 256*SUM(serialized row/key bytes)+vec_growth<(Value,Vec<u8>)>(limit) | scalar preflight then allowance before owning scan result, in same snapshot |
+//! | PostgreSQL optional adapter batch | store guard, not public | 2*R+4096, then 2*(JSON/key bytes)+256 per preflight row | per-row size preflight in the same snapshot, same stop rule as SQLite, before the driver owns the batch |
 //! | Every decoded discovery/refill key component | bounded store scratch | 4*S<Value>(max(components,4))+4*A(max(key bytes,8)) | key_decode allowance before key::decode |
 //! | Retained discovered words and after vector | retained interpreter storage | decoded word already paid; 2*A(word)+S<Value>(1)+G<String> | discover_words, before after clone/vector growth |
 //! | Shared fields/remaining terms | retained interpreter storage | S<WordRead>(1)+2*S<usize>(1), payload moved from discovery | merge_lazy, before Rc::new; every lane clones only Rc |
@@ -73,13 +77,14 @@
 //!
 //! Ordinary range/list lanes keep their previous descriptor allowance in merge_lazy; they are outside this word ledger.
 //!
-//! Public-table preflights retain their existing encoding-sensitive bound.
+//! Public-table scans charge the encoding-sensitive logical image.
 //! Private tables use the declared bound, including the 144-byte identity gate.
 //! The public-store exception is narrow: inspect borrowed stored bytes, charge,
 //! then materialize; an exhausted heap never starts the typed decode/key copy. SQLite borrows
 //! its JSON text instead of first allocating a String. PostgreSQL preflights byte
-//! lengths in its existing repeatable-read/serializable transaction. The measured
-//! heap column describes these allowances; this ledger, not observations, is the bound.
+//! lengths in its existing repeatable-read/serializable transaction. Allocation
+//! probes check that the public charge plus the guard covers every measured
+//! allocation; this ledger, not observations, is the bound.
 use crate::{error::RuntimeError, meter::Meter, rows::Bounds, value::Value};
 use std::mem::size_of;
 
@@ -231,7 +236,7 @@ fn stored_row_bytes(json: &str) -> u64 {
         + if arrays == 0 { 0 } else { 4 * slots::<Value>((arrays * 4 + commas) as usize) } + objects * 2 * slots::<usize>(1)
 }
 
-// @ref LLP 3000.007#20.24.3 — one logical scan charge on every store; physical scratch is the store's guard.
+// @ref LLP 3000.007#20.24.5 — one logical scan charge on every store; physical scratch is the store's guard.
 /// The public charge for opening a store scan, the same on every store and
 /// on the device: the encoded range and the copied table/index name. No
 /// store adds its own scratch to the caller's meter (ruling 2026-10-08).
@@ -261,7 +266,11 @@ pub fn scan_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut Stor
 /// engine meter with unbounded ceilings is still guarded.
 pub struct StoreGuard { store: &'static str, start: u64, limit: u64 }
 impl StoreGuard {
-    pub fn open(meter: &crate::engine::InternalMeter<'_>, store: &'static str, limit: u64) -> Self { Self { store, start: meter.guarded(), limit } }
+    pub fn open(meter: &crate::engine::InternalMeter<'_>, store: &'static str, limit: u64) -> Self {
+        #[cfg(test)]
+        let limit = TEST_GUARD.with(|test| test.get().unwrap_or(limit));
+        Self { store, start: meter.guarded(), limit }
+    }
     pub fn reserve(&mut self, meter: &mut crate::engine::InternalMeter<'_>, bytes: u64) -> Result<(), RuntimeError> {
         let used = meter.add_scratch(bytes).saturating_sub(self.start);
         if used <= self.limit { return Ok(()); }
@@ -272,6 +281,10 @@ impl StoreGuard {
         self.reserve(meter, copies.saturating_mul(range_bytes(prefix, bounds)))
     }
 }
+
+// A test may shrink every guard in its thread to reach it with small rows.
+#[cfg(test)]
+thread_local! { pub(crate) static TEST_GUARD: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) }; }
 
 /// A native store's size preflight, read in index order before the payload
 /// statement copies any row: reserve each entry's physical copies (two payload

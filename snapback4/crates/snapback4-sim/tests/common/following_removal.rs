@@ -167,11 +167,10 @@ pub fn check_heap_cut(host: &str, mut query: impl FnMut(snapback4_core::Ceilings
     let heap_bytes = 20;
     let page = query(snapback4_core::Ceilings { heap_bytes, ..Default::default() });
     assert_eq!(page.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::HeapBytes));
-    // The device's non-public scan reserves before its first candidate. The
-    // server's preauthorized public tombstone lookup admits its logical read
-    // before actual decoder scratch. Both cut before inspecting a tombstone.
-    let expected = if host == "server" { (1, 2) } else { (0, 0) };
-    assert_eq!((page.metered.rule_probes,page.metered.examined),expected);
+    // The preauthorized public tombstone lookup admits its logical read before
+    // its row charge, on the server and on the device alike (LLP 3000.007
+    // §20.24.5). Both cut before inspecting a tombstone.
+    assert_eq!((page.metered.rule_probes,page.metered.examined),(1, 2));
     assert!(page.metered.heap_bytes > heap_bytes);
     assert!(!page.complete);
     assert!(page.next.is_none());

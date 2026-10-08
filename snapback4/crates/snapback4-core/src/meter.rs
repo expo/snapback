@@ -113,7 +113,7 @@ pub struct Meter {
     #[cfg(feature = "sqlite")]
     heap_once: u8,
     /// Physical store scratch reserved through store guards; never public,
-    /// never restored (word_heap::StoreGuard, LLP 3000.007 §20.24.3).
+    /// never restored (word_heap::StoreGuard, LLP 3000.007 §20.24.5).
     pub(crate) scratch: u64,
 }
 

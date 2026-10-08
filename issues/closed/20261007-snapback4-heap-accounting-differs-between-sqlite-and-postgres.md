@@ -1,13 +1,13 @@
 # Snapback 4 heap accounting differs between SQLite and Postgres
 
-**Status:** Open — ruled 2026-10-08: fix the engine (see Ruling)
+**Status:** Closed — fixed 2026-10-08 by lane HU (branch `sb4/heap-uniform`); see Resolution
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
 **Confidence:** 5
 **Systems:** Snapback 4, engine meter, SQLite store, Postgres store, device stores
 **Date:** 2026-10-07
-**Related:** LLP 3000.035 §5.1 (found by the store oracle), LLP 3000.009 §11.1 (every outcome field identical across stores)
+**Related:** LLP 3000.035 §5.1 (found by the store oracle), LLP 3000.009 §11.1 (every outcome field identical across stores), LLP 3000.007 §20.24.5 (the fix)
 
 The Quarry differential harness runs one program on the engine over SQLite
 and over Postgres. At low `heap_bytes` ceilings, the two stores disagree. In
@@ -161,3 +161,55 @@ and does not file a new ticket for each one.
 **Failure signature:** `device-memory--steps-metered-heap-bytes--loading`  
 
 Recurrences:
+
+## Resolution (2026-10-08, lane HU)
+
+Fixed in the engine as ruled; the design is LLP 3000.007 §20.24.5.
+
+**Confirmed mechanisms, each changed.**
+
+- SQLite `store.rs::scan_metered` charged a once-per-read `2 × page_size`
+  column reserve and `2 × (JSON + key) + 64` preflight copies per row.
+- Postgres `engine/postgres/store.rs::scan_metered` charged two range copies,
+  4,096 bytes, `256 ×` the payload and vector growth for the whole limit.
+- The device interpreter (`engine/authorized_point.rs::scan_authorized`)
+  reserved `decode_reservation + rule_scratch` per candidate for trusted reads
+  of non-uniform-rule tables, where the server took the store scan.
+- The memory device store (`snapback4-device/src/memory.rs::scan_metered`)
+  charged doubled names, range endpoint copies and per-entry `(table, id)`
+  keys, and no SQLite scratch. The device scan wrapper
+  (`snapback4-device/src/device.rs`) also charged a projection copy per row,
+  and the core's `MemoryRows` priced rows as shared images (zero).
+
+Point reads, counts, cap counts, writes, maintains and prefetch reach the
+store without a store-specific public charge (they use the same scan, an
+unmetered lookup under a schema-derived reservation, or no heap charge).
+
+**The fix.** Every store opens a scan with `word_heap::scan_open` (encoded range
+and copied name) and charges each fetched entry with `word_heap::scan_entry`
+(canonical stored row image, key, result slot) in index order. Store scratch is
+reserved on a per-scan `word_heap::StoreGuard`, refusing with `E_STORE_MEMORY`
+(family store) past 256 MiB (SQLite, Postgres) or 64 MiB (memory store).
+Native preflights stop at the first entry the public meter must refuse. A device
+takes the server's store path for trusted scans and authorizes only its own
+prediction rows, as internal work.
+
+**Harness, before and after** (seed 0, 20,000 cases each, this Mac):
+
+| Pair | Before | After |
+|---|---|---|
+| SQLite vs Postgres, prefetch off | 13,350 of 312,282 attempts disagree, six heap/step signatures | 0 of 309,513 |
+| SQLite vs Postgres, prefetch on | 13,350 of 312,282 (same six) | 0 of 309,513 |
+| Server vs SQLite device, cut | 3,599 of 152,124, four signatures | 0 of 151,057 |
+| Server vs memory device, cut | 6,197 of 152,124, five signatures | 0 of 151,057 |
+
+Reads and convergence agreed before and after. The SQLite mutation-repeat
+oracle passed all of its checks (15,670,863 after). The remaining device
+signature, `device-*--write-predicted-refused--admitted` (11 per store), is the
+separate prediction ticket, not heap.
+
+**Retired found cases** (no longer reproduce; replay passes): the eight
+`device-{sqlite,memory}--heap-bytes-*` / `--steps-metered-*` cases and
+`store-postgres-off--heap-bytes-result--E_BOUND`. Their diagnoses are in git
+history and summarized above. The pinned sets in
+`snapback4-difftest/tests/stores.rs` and `tests/smoke.rs` are now empty.
