@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 58348,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Online",
+          "effects": [
+            "Allow",
+            "Allow",
+            "Owner",
+            "Owner"
+          ]
+        }
+      ],
+      "body": {
+        "Write": [
+          "Upsert",
+          {
+            "Int": 0
+          }
+        ]
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "flag": true,
+          "id": "r0",
+          "label": "é",
+          "maybe": 9007199254740990,
+          "owner": "bob",
+          "score": 1,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 98477,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 12658,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--kind--committed~E_RULE",
+    "oracle": "Lean",
+    "field": "kind",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1400,
+          "index_entries": 0,
+          "output_bytes": 13,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 14
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "result": {
+          "Bool": true
+        },
+        "seq": 2,
+        "state": "sent",
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_RULE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "bool": true
+            },
+            "kind": "committed",
+            "next": false
+          },
+          "model": {
+            "code": "E_RULE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 111
+}

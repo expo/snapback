@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import shutil
 import signal
 import subprocess
 import sys
@@ -76,13 +77,46 @@ def clean_fast_forward(checkout):
 
 DEVICE_STORES = ['sqlite', 'memory']
 
+# The engine against the Lean model (LLP 3000.035 §5.2) is a required oracle:
+# a host without Lean fails the run, it never skips it as green.
+LEAN_SETUP = ('install elan once for this user (no sudo): curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh '
+              '-sSf | sh -s -- -y --default-toolchain none; see snapback4/AGENTS.md, "The Lean oracle"')
 
-def validate_report(path, cases, stores=False, devices=False):
+
+def find_lake(path):
+    """`lake` on PATH or in ~/.elan/bin (the elan default)."""
+    return shutil.which('lake', path=path)
+
+
+def build_lean_oracle(workspace, env, log):
+    """Build `quarry-oracle` with the toolchain `snapback4/lean/lean-toolchain` pins."""
+    path = os.pathsep.join([str(Path.home() / '.elan' / 'bin'), env.get('PATH', os.defpath)])
+    env = dict(env, PATH=path)
+    lake = find_lake(path)
+    if not lake:
+        raise RuntimeError(f'Lean toolchain missing (no lake on PATH or in ~/.elan/bin): {LEAN_SETUP}')
+    project = workspace / 'lean'
+    must([lake, 'build', 'quarry-oracle'], cwd=project, log=log, env=env, timeout=3600)
+    binary = project / '.lake/build/bin/quarry-oracle'
+    if not binary.is_file():
+        raise RuntimeError(f'lake build left no Lean oracle at {binary}')
+    return binary, dict(env, SNAPBACK4_LEAN_ORACLE=str(binary))
+
+
+def validate_report(path, cases, stores=False, devices=False, lean=False):
     report = json.loads(path.read_text())
     if report['cases'] != cases or report['generated'] != cases or report['compiled'] != cases:
         raise RuntimeError(f'incomplete campaign: {path}')
     if report['generator_errors'] or report['binder_refused_unexpected'] or report['runtime_refused_unexpected']:
         raise RuntimeError(f'campaign setup or unexpected refusal: {path}')
+    if lean:
+        # Every case is one comparison; emitter-unsupported cases are named reasons.
+        counts = report['by_oracle'].get('lean', {})
+        if counts.get('attempted', 0) < cases:
+            raise RuntimeError('missing oracle work: lean')
+        if counts.get('passed', 0) + counts.get('disagreeing', 0) == 0:
+            raise RuntimeError('no supported work: lean')
+        return counts.get('disagreeing', 0)
     if devices:
         # Every case is one read or one write per device store (LLP 3000.035 §5.1 oracle 4).
         for store in DEVICE_STORES:
@@ -177,6 +211,9 @@ def main():
                   log=destination / 'pg-start.log', timeout=120)
             env = dict(os.environ, SNAPBACK4_EVAL_POSTGRES=f'host={cluster} port=55439 user=sb4_eval dbname=postgres')
         workspace = checkout / 'snapback4'
+        lean_binary, env = build_lean_oracle(workspace, env, destination / 'lean-build.log')
+        report['lean_oracle_sha256'] = hashlib.sha256(lean_binary.read_bytes()).hexdigest()
+        report['lean_toolchain'] = (workspace / 'lean/lean-toolchain').read_text().strip()
         must(['cargo', 'build', '--locked', '--release', '-p', 'snapback4-difftest', '--features', 'postgres'],
              cwd=workspace, log=destination / 'build.log', env=env)
         # Cargo may honor a caller's target-dir; ask it instead of guessing.
@@ -186,13 +223,13 @@ def main():
         started = time.monotonic()
         if args.cases is None:
             calibration_started = time.monotonic()
-            for command, directory in [('run', 'calibration-sqlite'), ('run-stores', 'calibration-stores'), ('run-devices', 'calibration-devices')]:
+            for command, directory in [('run', 'calibration-sqlite'), ('run-stores', 'calibration-stores'), ('run-devices', 'calibration-devices'), ('run-lean', 'calibration-lean')]:
                 output = destination / directory
                 status = run([binary, command, '--seed', seed, '--cases', 256, '--workers', args.workers, '--out', output],
                              cwd=workspace, env=env, log=destination / f'{directory}.log', supervise=True)
                 if status not in (0, 1):
                     raise RuntimeError(f'{command}: calibration failed with status {status}')
-                count = validate_report(output / 'report.json', 256, command == 'run-stores', command == 'run-devices')
+                count = validate_report(output / 'report.json', 256, command == 'run-stores', command == 'run-devices', command == 'run-lean')
                 if bool(status) != bool(count):
                     raise RuntimeError('calibration exit status disagrees with report')
             calibration_seconds = time.monotonic() - calibration_started
@@ -208,13 +245,14 @@ def main():
         disagreements = 0
         store_unsupported = 0
         device_unsupported = 0
-        for command, directory in [('run', 'sqlite'), ('run-stores', 'stores'), ('run-devices', 'devices')]:
+        lean_unsupported = 0
+        for command, directory in [('run', 'sqlite'), ('run-stores', 'stores'), ('run-devices', 'devices'), ('run-lean', 'lean')]:
             output = destination / directory
             status = run([binary, command, '--seed', seed, '--cases', args.cases, '--workers', args.workers, '--out', output],
                          cwd=workspace, env=env, log=destination / f'{directory}.log', supervise=True)
             if status not in (0, 1):
                 raise RuntimeError(f'{command} failed with status {status}; no completed run')
-            count = validate_report(output / 'report.json', args.cases, directory == 'stores', directory == 'devices')
+            count = validate_report(output / 'report.json', args.cases, directory == 'stores', directory == 'devices', directory == 'lean')
             if bool(status) != bool(count):
                 raise RuntimeError(f'{command}: exit status disagrees with report')
             disagreements += count
@@ -226,10 +264,16 @@ def main():
                 # reasons, expected in every run: recorded, never a pass, not a failure.
                 counts=json.loads((output / 'report.json').read_text())['by_oracle']
                 device_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
+            if directory == 'lean':
+                # Programs outside the model's fragment are the emitter's named
+                # reasons (LLP 3000.035 §5.2): recorded, never a pass, not a failure.
+                counts=json.loads((output / 'report.json').read_text())['by_oracle']
+                lean_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
         report['seconds'] = time.monotonic() - started
         report['cases_per_hour'] = args.cases * 3600 / report['seconds']
         # Stable replay inherits the private cluster only for this scoped call.
         os.environ['SNAPBACK4_EVAL_POSTGRES'] = env['SNAPBACK4_EVAL_POSTGRES']
+        os.environ['SNAPBACK4_LEAN_ORACLE'] = env['SNAPBACK4_LEAN_ORACLE']
         paths = tickets.file_tickets(checkout, destination, commit, run_id, binary=binary,
                                      output=destination / 'preview' if args.dry_run else None)
         report['tickets'] = [str(p) for p in paths]
@@ -238,6 +282,7 @@ def main():
         report['disagreements'] = disagreements
         report['store_unsupported'] = store_unsupported
         report['device_unsupported'] = device_unsupported
+        report['lean_unsupported'] = lean_unsupported
         # Stop before advancing the seed: a failed cleanup is a failed run.
         if cluster is not None:
             must(['pg_ctl', '-D', cluster / 'data', '-m', 'fast', '-w', 'stop'], log=destination / 'pg-stop.log', timeout=120)

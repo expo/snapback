@@ -2,6 +2,7 @@
 //! the row types, every operation's argument and result types, and the
 //! `api` object the app imports. Built, never committed.
 
+pub mod lean;
 pub mod rust;
 pub use rust::rust;
 mod server;

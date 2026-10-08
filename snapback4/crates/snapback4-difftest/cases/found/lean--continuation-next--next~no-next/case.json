@@ -1,0 +1,296 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 22563,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Online",
+          "effects": [
+            "Owner",
+            "Deny",
+            "NamedOld",
+            "Deny"
+          ]
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "order": [
+        "tag"
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r6",
+          "owner": "bob",
+          "tag": "tag6"
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r8",
+          "owner": "bob",
+          "tag": "tag8"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "key": "missing",
+      "n": null
+    },
+    "clock": 87214,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 16378,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--continuation-next--next~no-next",
+    "oracle": "Lean",
+    "field": "continuation-next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": false,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 1
+                },
+                "id": {
+                  "Id": "r8"
+                },
+                "owner": {
+                  "Id": "bob"
+                },
+                "tag": {
+                  "Id": "tag8"
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 864,
+          "index_entries": 0,
+          "output_bytes": 98,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldFRhZzoyMjE1YjAxYjliM2M0YTVjIiwiQXNjIixbeyJuYW1lIjoidGFnIiwia2luZCI6IklkIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSWQiOiJ0YWc4In0seyJJZCI6InI4In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9XX1d",
+        "seq": 1,
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "complete": false,
+        "data": {
+          "arr": [
+            {
+              "row": [
+                [
+                  "id",
+                  {
+                    "id": "r8"
+                  }
+                ],
+                [
+                  "owner",
+                  {
+                    "id": "bob"
+                  }
+                ],
+                [
+                  "bucket",
+                  {
+                    "int": "1"
+                  }
+                ],
+                [
+                  "tag",
+                  {
+                    "id": "tag8"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "kind": "answer",
+        "next": {
+          "null": null
+        }
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r6"
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "tag": {
+                      "id": "tag6"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r6"
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "tag": {
+                      "id": "tag6"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          }
+        }
+      },
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r8"
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "tag": {
+                      "id": "tag8"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r8"
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "tag": {
+                      "id": "tag8"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 164
+}

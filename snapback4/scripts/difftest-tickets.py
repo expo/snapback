@@ -35,10 +35,15 @@ def extract(ticket, destination):
 def render(artifact, source, commit, date, run_id, name, verified):
     finding = artifact['finding']
     device = 'Device' in finding['oracle']
-    features = '' if device else ' --features postgres'
+    lean = finding['oracle'] == 'Lean'
+    features = '' if device or lean else ' --features postgres'
     command = f"python3 snapback4/scripts/difftest-tickets.py extract {shlex.quote('issues/' + name)} /tmp/quarry-replay\ncd snapback4\ncargo run --release -p snapback4-difftest{features} -- replay /tmp/quarry-replay"
     setup = ('The server-against-device oracle needs no database: it runs the engine on\nSQLite and the device on its native SQLite and memory stores.' if device else
+             'The Lean oracle needs no database, but needs the model built:\n`(cd snapback4/lean && lake build)` (or export `SNAPBACK4_LEAN_ORACLE`), then:' if lean else
              'Start an isolated Postgres evaluation cluster and export\n`SNAPBACK4_EVAL_POSTGRES` (see `snapback4/scripts/test-postgres.sh`), then:')
+    related = 'LLP 3000.035 §5.2' if lean else 'LLP 3000.035 §5.1'
+    triage = ('Diagnosis is pending: classify it as an engine or binder defect, a model\ndefect (only where a document contradicts the model) or an open language\nquestion (`snapback4/lean/OPEN.md`).' if lean else
+              'Diagnosis is pending: inspect for an engine defect, binder defect, harness\ndefect or underspecified point.')
     replay_status = 'The shrunk case reproduced the signature twice.' if verified else 'Ticket-format preview only: replay has not been verified.'
     return f'''# Quarry differential test: {finding['signature']}
 
@@ -52,14 +57,13 @@ def render(artifact, source, commit, date, run_id, name, verified):
 **Failure signature:** `{finding['signature']}`
 **Detected at:** `{commit}`
 **Seed:** `{artifact['case']['seed']}`
-**Related:** LLP 3000.035 §5.1
+**Related:** {related}
 
 ## Observation
 
 The oracle `{json.dumps(finding['oracle'], sort_keys=True)}` disagreed on
 `{finding['field']}`. {replay_status}
-Diagnosis is pending: inspect for an engine defect, binder defect, harness
-defect or underspecified point. No engine or binder change was made by the runner.
+{triage} No engine or binder change was made by the runner.
 
 ## Replay
 
@@ -92,7 +96,7 @@ this ticket to `issues/closed/`.
 def artifacts(run):
     # Only merged campaign artifacts, never worker copies of the same signature.
     result = {}
-    for campaign in [Path(run), Path(run) / 'sqlite', Path(run) / 'stores', Path(run) / 'devices']:
+    for campaign in [Path(run), Path(run) / 'sqlite', Path(run) / 'stores', Path(run) / 'devices', Path(run) / 'lean']:
         for path in sorted(campaign.glob('*/case.json')):
             if path.parent.name.startswith('worker-'):
                 continue

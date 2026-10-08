@@ -1,6 +1,6 @@
 name = "quarry"
 version = "0.1.0"
-defaultTargets = ["Quarry", "quarry-model"]
+defaultTargets = ["Quarry", "quarry-model", "quarry-oracle"]
 
 [[lean_lib]]
 name = "Quarry"
@@ -8,3 +8,7 @@ name = "Quarry"
 [[lean_exe]]
 name = "quarry-model"
 root = "Main"
+
+[[lean_exe]]
+name = "quarry-oracle"
+root = "Oracle"

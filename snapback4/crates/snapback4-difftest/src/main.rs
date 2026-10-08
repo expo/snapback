@@ -16,7 +16,7 @@ fn main() {
 fn command() -> Result<bool, String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
-        Some("run" | "run-stores" | "run-devices") => {
+        Some("run" | "run-stores" | "run-devices" | "run-lean") => {
             let mut seed = 0;
             let mut workers = 1;
             let mut cases = 1;
@@ -59,7 +59,7 @@ fn command() -> Result<bool, String> {
             }
         },
         _ => Err(
-            "usage: snapback4-difftest run|run-stores|run-devices --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores and devices)] | replay <dir>"
+            "usage: snapback4-difftest run|run-stores|run-devices|run-lean --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores, devices and lean)] | replay <dir>"
                 .into(),
         ),
     }

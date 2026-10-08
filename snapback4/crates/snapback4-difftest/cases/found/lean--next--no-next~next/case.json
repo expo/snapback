@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 51,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Bounded",
+          "take": 1,
+          "descending": true,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "order": [
+        "tag"
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r3",
+          "tag": "tag3"
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r4",
+          "tag": "tag4"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 39549,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 15115,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--next--no-next~next",
+    "oracle": "Lean",
+    "field": "next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 0
+                },
+                "id": {
+                  "Id": "r4"
+                },
+                "tag": {
+                  "Id": "tag4"
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 299,
+          "index_entries": 0,
+          "output_bytes": 77,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 3
+        },
+        "seq": 1,
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "complete": true,
+        "data": {
+          "arr": [
+            {
+              "row": [
+                [
+                  "id",
+                  {
+                    "id": "r4"
+                  }
+                ],
+                [
+                  "bucket",
+                  {
+                    "int": "0"
+                  }
+                ],
+                [
+                  "tag",
+                  {
+                    "id": "tag4"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "kind": "answer",
+        "next": {
+          "arr": [
+            {
+              "id": "tag4"
+            },
+            {
+              "id": "r4"
+            }
+          ]
+        }
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": true,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "0"
+                    },
+                    "id": {
+                      "id": "r4"
+                    },
+                    "tag": {
+                      "id": "tag4"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": false
+          },
+          "model": {
+            "code": null,
+            "complete": true,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "0"
+                    },
+                    "id": {
+                      "id": "r4"
+                    },
+                    "tag": {
+                      "id": "tag4"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 146
+}

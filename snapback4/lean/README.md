@@ -21,21 +21,24 @@ makes.
 
 ```sh
 cd snapback4/lean
-./check.sh          # lake build, the no-sorry/axiom audit, then the examples
-lake build          # library + executable (≈15 s cold, <1 s warm)
+./check.sh          # lake build, the no-sorry/axiom audit, the examples, the oracle fixture
+lake build          # library + both executables (≈15 s cold, <1 s warm)
 lake exe quarry-model [--print]   # the hand-written examples; nonzero exit on mismatch
+lake exe quarry-oracle < cases.jsonl   # the harness oracle: one JSON case per line in, one outcome per line out
 ```
 
 The toolchain is pinned in `lean-toolchain` (Lean 4.34.1, through elan).
 There is no Mathlib and no other dependency. The only import outside the
 model is `Lean.Data.Json`, used to print outcomes.
 
-`check.sh` refuses the build in three cases:
+`check.sh` refuses the build in four cases:
 
 - any `sorry`, `admit`, `native_decide` or `axiom` in the sources;
 - a headline theorem (listed in `Audit.lean`) that depends on an axiom
   other than `propext`, `Quot.sound` or `Classical.choice`;
-- an example that disagrees with its expected outcome.
+- an example that disagrees with its expected outcome;
+- `quarry-oracle` answering `fixtures/oracle-smoke.jsonl` differently from
+  `fixtures/oracle-smoke.expected`.
 
 The model is not part of `scripts/test.sh`, because CI hosts do not have
 elan.
@@ -50,7 +53,8 @@ elan.
 | Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and exists. Reads see only a `View` of visible rows. |
 | Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, application codes). |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
-| Examples | `Quarry/Examples.lean` | 30 hand-written programs from the guide cards, each citing the card sentence its expectation comes from. |
+| Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
+| Examples | `Quarry/Examples.lean` | 31 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
@@ -178,38 +182,51 @@ model, `lake build` failed, and the fault was reverted:
   exhaustion (`E_MODEL_FUEL`) and ill-typed states (`E_MODEL_TYPE`) are
   model-only refusals that a checked program cannot reach.
 
-## The case format for the emitter and harness lane (sketch)
+## The Lean oracle: the emitter, the case format and the comparison
 
-The next lane adds two pieces. A Lean emitter in `snapback4-lang` (beside
-`emit/rust.rs`) translates a checked program into the terms of
-`Syntax.lean`, and reports anything outside the fragment as unsupported. A
-`lake exe` reads a case as JSON and prints its `Outcome` as JSON. The
-difftest harness (`crates/snapback4-difftest`) then gains the model as an
-oracle on supported cases. Unsupported cases are counted and never pass.
+The model is an oracle of the Stage 1 harness (LLP 3000.035 §5.2), built on
+2026-10-08:
 
-A case extends the harness's `case.json` with the bound program, because
-the model takes the checked surface program, not source text:
+- **The emitter**, `snapback4_lang::emit::lean`
+  (`crates/snapback4-lang/src/emit/lean.rs`), translates a checked program's
+  *surface* tree (never the binder's IR, so the binder is under test too)
+  into the terms of `Syntax.lean`, with the expansions listed there. Anything
+  outside the core fragment is an `Unsupported` with a stable reason (for
+  example `call-sum`, `now`, `loop`, `table-expiry`, `type-money`), never a
+  partial translation. `snapback4 check --emit-lean <file.q>` prints one
+  file's translation.
+- **The runner**, `quarry-oracle` (`Oracle.lean`), reads one case per line
+  and writes one outcome per line, staying alive across cases (one process
+  per harness worker).
+- **The harness**, `snapback4-difftest run-lean`
+  (`crates/snapback4-difftest/src/lean.rs`), compares the engine (SQLite,
+  default ceilings) with the model on every supported generated case,
+  shrinks each new signature (`lean--{field}--{engine}~{model}`) and replays
+  it. Findings and their diagnoses are in
+  `crates/snapback4-difftest/cases/found/lean--*`.
+
+A case (one line):
 
 ```json
 {
   "version": 1,
-  "seed": 753,
   "schema": { "tables": [ {
     "name": "items",
     "cols": [ { "name": "owner", "nullable": false }, { "name": "maybe", "nullable": true } ],
-    "uniques": [ ["bucket", "label"] ], "uniqueCodes": [ null ],
+    "uniques": [ ["tag"] ], "uniqueCodes": [ null ],
     "read":   { "probe": { "table": "access", "key": [ ["bucket", { "col": ["self", "bucket"] }], ["principal", "viewer"] ] } },
-    "insert": "allow", "update": { "and": [ { "eq": [ { "col": ["old", "owner"] }, "viewer" ] }, { "eq": [ { "col": ["next", "owner"] }, "viewer" ] } ] },
+    "insert": "allow",
+    "update": { "and": [ { "eq": [ { "col": ["old", "owner"] }, "viewer" ] }, { "eq": [ { "col": ["next", "owner"] }, "viewer" ] } ] },
     "delete": "deny" } ] },
   "helpers": [ { "name": "identity", "params": ["x"], "body": { "var": "x" } } ],
   "store": { "items": [ { "id": "r0", "cols": { "owner": { "id": "bob" }, "maybe": { "null": null } } } ] },
   "viewer": "bob",
   "program": { "name": "run", "kind": "query",
-               "params": [ { "name": "key", "optional": false }, { "name": "c", "optional": true } ],
+               "params": [ { "name": "bucket", "optional": false }, { "name": "c", "optional": true } ],
                "body": [ { "ret": { "page": { "table": "items", "pins": [ ["bucket", { "var": "bucket" }] ],
                                               "filter": null, "order": ["label", "score"], "desc": false,
                                               "take": 20, "after": { "var": "c" } } } } ] },
-  "args": { "key": { "id": "r0" }, "c": { "null": null } },
+  "args": { "bucket": { "int": "0" }, "c": { "null": null } },
   "budget": null
 }
 ```
@@ -219,30 +236,38 @@ The format's rules:
 - **Scalars are tagged.** The forms are `{"null":null}`, `{"bool":b}`,
   `{"int":"…"}`, `{"text":"…"}`, `{"id":"…"}` and `{"bytes":"hex"}`. An int
   is a decimal string, so no float is ever involved. The wire's untyped form
-  is not enough, because an id is not a text (OPEN V1).
-- **Rules, expressions and statements** use one key per constructor of
-  `Syntax.lean`, with the constructor's arguments.
-- **The output** is `Outcome.toJson` (`Quarry/Json.lean`), one of:
+  is not enough, because an id is not a text (OPEN V1). Values add
+  `{"arr":[…]}` and `{"row":[[name, value], …]}` (ordered pairs).
+- **Rules, terms, expressions, statements and writes** use one key per
+  constructor of `Syntax.lean`, with the constructor's arguments
+  (`CaseJson.lean` is the decoder). `"viewer"`, `"allow"` and `"deny"` are
+  bare strings.
+- **Store rows** are `{"id":…,"cols":{name: scalar}}`; columns are put in the
+  table's declared order and an absent column is null.
+- **The output** is one of:
   - `{"kind":"answer","data":…,"complete":b,"next":…}`;
   - `{"kind":"unavailable"}`;
   - `{"kind":"refused","code":"…"}`;
-  - `{"kind":"committed","result":…,"store":{…}}`.
+  - `{"kind":"committed","result":…,"store":{…}}` (the store in the input's
+    row form, so a follow-up case can run over it);
+  - `{"kind":"error","error":"…"}` for a line that does not decode. The
+    harness treats it as an emitter defect, never as a verdict.
 
-  Ids and text both print as strings, as on the wire.
+  Every value is tagged. (`Outcome.toJson` in `Json.lean`, used by the
+  examples, still prints ids and text alike, as on the wire.)
 
-How the harness compares against the engine's outcome record (LLP 3000.009
-§11.1):
+How the harness compares against the engine's outcome record:
 
 | Model | Engine field | Rule |
 | --- | --- | --- |
-| `answer.data` | `data` | exact, after the wire's untyping |
+| `kind` | refusal / `unavailable` / data / committed | exact |
+| `refused.code` | `refusal.code` (or a failed write's `why.code`) | exact; sites are not modelled |
+| `answer.data`, `committed.result` | `data`, `result` | exact, both tagged; rows compare as field maps |
 | `answer.complete` | `complete` | exact |
-| `answer.next` | `next` | presence only (OPEN C1); continuation is checked by running each side's own cursor |
-| `unavailable` | `data: null, complete: false, unavailable/loading` | exact |
-| `refused.code` | `refusal.code` | exact; `E_MODEL_*` is always a model or emitter defect |
-| `committed.result`, `store` | write result and the `observe` reread | exact on the touched table |
-| (none) | meter fields, cut sites, `tables`, `nextExpiry` | not compared: out of scope |
+| `answer.next` | `next` | presence only (OPEN C1); then each side continues from its own cursor and the next page is compared, to the end |
+| `committed.store` | the engine's store | through `observe` (a point reread), run on each side's resulting store |
+| (none) | meter fields, cut sites, `tables`, `seq`, expiry | not compared: out of scope |
 
-A budget forces a cut in the model at a chosen count of visible candidates
-examined. The engine's cut positions differ (OPEN M1). With a budget set,
-compare only whether a cut was reported and the continuation property.
+The engine runs at the default ceilings and the model unbounded, so no
+compared case is cut. Comparing cuts (OPEN M1: a cut is reported, and
+continuation reaches the uncut answer, `cut_continuation`) is not yet done.

@@ -292,7 +292,7 @@ pub fn parallel_mode_bounded(
     parallel_command(seed, cases, workers, out, executable, if stores { "run-stores" } else { "run" }, seconds)
 }
 
-/// `verb` is `run`, `run-stores` or `run-devices`; each worker runs it.
+/// `verb` is `run`, `run-stores`, `run-devices` or `run-lean`; each worker runs it.
 pub fn parallel_command(
     seed: u64,
     cases: u64,
@@ -318,6 +318,7 @@ pub fn parallel_command(
                 }
             }
             "run-devices" => return crate::devices::run_bounded(seed, cases, out, seconds),
+            "run-lean" => return crate::lean::run_bounded(seed, cases, out, seconds),
             _ => return run(seed, cases, out),
         }
     }

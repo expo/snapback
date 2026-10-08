@@ -1,0 +1,5 @@
+{"complete":true,"data":{"arr":[{"row":[["id",{"id":"t1"}],["title",{"text":"𐀀a"}],["ownerId",{"id":"alice"}]]}]},"kind":"answer","next":{"arr":[{"id":"t1"}]}}
+{"code":"E_OVERFLOW","kind":"refused"}
+{"code":"NOT_FOUND","kind":"refused"}
+{"kind":"committed","result":{"row":[["id",{"id":"r9"}],["owner",{"id":"alice"}],["score",{"int":"7"}]]},"store":{"items":[{"cols":{"owner":{"id":"alice"},"score":{"int":"7"}},"id":"r9"}]}}
+{"error":"offset 0: expected: null","kind":"error"}

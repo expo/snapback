@@ -176,7 +176,32 @@ fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
     format!("{}.", first.trim_end_matches(':'))
 }
 
+/// `check --emit-lean <file.q>`: one file, checked, as the Lean model's
+/// schema, helpers and programs (`snapback4_lang::emit::lean`).
+// @ref LLP 3000.035#52-stage-2-a-small-lean-core — the emitter's command-line face; the harness calls the library directly
+fn emit_lean(file: &str) -> i32 {
+    let source = match std::fs::read_to_string(file) {
+        Ok(source) => source,
+        Err(error) => { eprintln!("cannot read {file}: {error}"); return 2; }
+    };
+    let name = Path::new(file).file_name().and_then(|n| n.to_str()).unwrap_or(file).to_owned();
+    match snapback4_lang::emit::lean::lean(&[(name, source)]) {
+        Ok(module) => { println!("{}", serde_json::to_string_pretty(&module.to_json()).unwrap()); 0 }
+        Err(snapback4_lang::emit::lean::LeanError::Diagnostics(problems)) => {
+            for problem in problems { eprintln!("{problem}"); }
+            1
+        }
+        Err(snapback4_lang::emit::lean::LeanError::Unsupported(u)) => {
+            eprintln!("outside the Lean model's fragment: {u}");
+            1
+        }
+    }
+}
+
 pub fn check(options: &Options) -> i32 {
+    if let Some(file) = options.flags.get("emit-lean") {
+        return emit_lean(file);
+    }
     let project = project_or_exit();
     let started = Instant::now();
     let mut bound = match fix::checked(if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() }) {

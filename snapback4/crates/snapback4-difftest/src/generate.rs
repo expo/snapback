@@ -73,6 +73,7 @@ pub fn generate(seed: u64) -> Case {
         ],
         rule,
         residency,
+        effects: None,
     };
     let access = Table {
         name: "access".into(),
@@ -87,6 +88,7 @@ pub fn generate(seed: u64) -> Case {
         )],
         rule: Rule::Allow,
         residency: Residency::Public,
+        effects: None,
     };
     let values: [i64; 7] = [
         0,
@@ -192,6 +194,8 @@ pub fn generate(seed: u64) -> Case {
             bind_return: false,
             reverse: false,
             helper: true,
+            order: None,
+            residual: None,
         },
         rows,
         principal: if rng.pick(2) == 0 { "alice" } else { "bob" }.into(),

@@ -8,6 +8,7 @@ pub mod device_writes;
 pub mod devices;
 pub mod execute;
 pub mod generate;
+pub mod lean;
 pub mod meter;
 pub mod oracle;
 pub mod shrink;

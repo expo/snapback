@@ -48,6 +48,24 @@ fn smaller(case: &Case) -> Vec<Case> {
             out.push(c);
         }
     }
+    // Lean variants (`lean.rs`): drop each, back to the base generator.
+    if case.program.order.is_some() {
+        let mut c = case.clone();
+        c.program.order = None;
+        out.push(c);
+    }
+    if case.program.residual.is_some() {
+        let mut c = case.clone();
+        c.program.residual = None;
+        out.push(c);
+    }
+    for i in 0..case.program.tables.len() {
+        if case.program.tables[i].effects.is_some() {
+            let mut c = case.clone();
+            c.program.tables[i].effects = None;
+            out.push(c);
+        }
+    }
     if case.program.helper {
         let mut c = case.clone();
         c.program.helper = false;

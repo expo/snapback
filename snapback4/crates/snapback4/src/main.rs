@@ -32,6 +32,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   init [dir] [--online|--expo|--web]  start a project
   new <dir> --template social       Expo Router social starter (feed, chats, search, profile)
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
+  check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process

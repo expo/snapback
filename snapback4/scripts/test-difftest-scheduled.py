@@ -198,10 +198,19 @@ class ScheduledTests(unittest.TestCase):
                     (pg/'data/postmaster.pid').write_text('fixture')
                 if command[0]=='pg_ctl' and command[-1]=='stop':
                     (pg/'data/postmaster.pid').unlink()
-                if len(command)>1 and command[1] in ['run','run-stores','run-devices']:
+                if command[0].endswith('lake'):
+                    # The Lean oracle's build (`build_lean_oracle`), in snapback4/lean.
+                    self.assertEqual(command[1:], ['build', 'quarry-oracle'])
+                    self.assertTrue(str(kwargs['cwd']).endswith('snapback4/lean'))
+                    oracle = Path(kwargs['cwd']) / '.lake/build/bin/quarry-oracle'
+                    oracle.parent.mkdir(parents=True, exist_ok=True); oracle.write_text('fixture oracle')
+                    return 0
+                if len(command)>1 and command[1] in ['run','run-stores','run-devices','run-lean']:
+                    self.assertTrue(kwargs['env']['SNAPBACK4_LEAN_ORACLE'].endswith('quarry-oracle'))
                     output=Path(command[command.index('--out')+1]); output.mkdir()
                     names={'run':['repeat','meter'],'run-stores':['store-postgres-on','store-postgres-off'],
-                           'run-devices':[f'device-{s}-{p}' for s in ['sqlite','memory'] for p in ['read','cut']]}[command[1]]
+                           'run-devices':[f'device-{s}-{p}' for s in ['sqlite','memory'] for p in ['read','cut']],
+                           'run-lean':['lean']}[command[1]]
                     (output/'report.json').write_text(json.dumps({'cases':int(command[command.index('--cases')+1]),'generated':int(command[command.index('--cases')+1]),'compiled':int(command[command.index('--cases')+1]),
                         'generator_errors':{},'binder_refused_unexpected':0,'runtime_refused_unexpected':{},
                         'by_oracle':{n:{'attempted':int(command[command.index('--cases')+1]),'passed':int(command[command.index('--cases')+1]),'disagreeing':0} for n in names}}))
@@ -213,7 +222,10 @@ class ScheduledTests(unittest.TestCase):
             argv=['runner','--checkout',str(self.repo),'--state-dir',str(state),'--cases','10','--dry-run','--prepared-commit','a'*40]
             if external: argv += ['--external-postgres','host=test-external user=test']
             if calibrate: argv[argv.index('--cases'):argv.index('--cases')+2] = ['--hours','0.01']
+            (self.repo / 'snapback4/lean').mkdir(parents=True, exist_ok=True)
+            (self.repo / 'snapback4/lean/lean-toolchain').write_text('leanprover/lean4:v4.34.1\n')
             with patch.object(sys,'argv',argv), patch.object(runner,'run',side_effect=command), \
+                 patch.object(runner,'find_lake',return_value='/fixture/elan/bin/lake'), \
                  patch.object(runner.tickets,'git',side_effect=git), patch.object(runner.subprocess,'check_output',side_effect=toolchain), \
                  patch.object(runner.tempfile,'mkdtemp',return_value=str(pg)), patch.object(runner.platform,'platform',return_value='fixture-host'), patch.dict(os.environ,{}):
                 status=runner.main()
@@ -236,7 +248,70 @@ class ScheduledTests(unittest.TestCase):
             self.assertEqual(report['status'],'failed' if fail_start else 'completed')
             if not fail_start:
                 self.assertTrue(any(len(c)>1 and c[1]=='run-devices' for c in calls))
+                self.assertTrue(any(len(c)>1 and c[1]=='run-lean' for c in calls))
                 self.assertEqual(report['device_unsupported'],0)
+                self.assertEqual(report['lean_unsupported'],0)
+                self.assertEqual(report['lean_toolchain'],'leanprover/lean4:v4.34.1')
+                # The model is built before any campaign runs.
+                lake=next(i for i,c in enumerate(calls) if c[0].endswith('lake'))
+                self.assertLess(lake,next(i for i,c in enumerate(calls) if len(c)>1 and c[1].startswith('run')))
+
+    def test_a_host_without_lean_fails_the_run_loudly(self):
+        state=self.root / 'state-no-lean'
+        lock=state / 'lock'; lock.mkdir(parents=True)
+        (lock / 'owner.json').write_text(json.dumps({'pid':os.getpid(),'host':runner.platform.node()}))
+        calls=[]
+        def command(command, **kwargs):
+            calls.append(list(map(str,command)))
+            return 0
+        def git(_root,*args,**kwargs):
+            return subprocess.CompletedProcess(args,0,'a'*40 if args==('rev-parse','HEAD') else '', '')
+        argv=['runner','--checkout',str(self.repo),'--state-dir',str(state),'--cases','10','--dry-run',
+              '--external-postgres','host=test-external user=test','--prepared-commit','a'*40]
+        with patch.object(sys,'argv',argv), patch.object(runner,'run',side_effect=command), \
+             patch.object(runner,'find_lake',return_value=None), \
+             patch.object(runner.tickets,'git',side_effect=git), patch.object(runner.subprocess,'check_output',return_value='fixture toolchain'), \
+             patch.object(runner.platform,'platform',return_value='fixture-host'), patch.dict(os.environ,{}):
+            status=runner.main()
+        self.assertEqual(status,2)
+        self.assertFalse(lock.exists())
+        self.assertFalse((state/'next-seed.dry-run.json').exists())
+        report=json.loads(next((state/'runs').glob('*/run.json')).read_text())
+        self.assertEqual(report['status'],'failed')
+        self.assertIn('Lean toolchain missing',report['error'])
+        self.assertIn('elan-init.sh',report['error'])
+        self.assertFalse(any(len(c)>1 and c[1].startswith('run') for c in calls))
+        self.assertFalse(any(c[:2]==['cargo','build'] for c in calls))
+
+    def test_lean_campaign_requires_supported_work(self):
+        path = self.root / 'lean-report.json'
+        report = {'cases': 10, 'generated': 10, 'compiled': 10, 'generator_errors': {}, 'binder_refused_unexpected': 0,
+                  'runtime_refused_unexpected': {}, 'by_oracle': {'lean': {'attempted': 10, 'passed': 7, 'disagreeing': 2,
+                  'unsupported': {'call-sum': 1}}}}
+        path.write_text(json.dumps(report))
+        self.assertEqual(runner.validate_report(path, 10, lean=True), 2)
+        report['by_oracle']['lean'] = {'attempted': 10, 'passed': 0, 'disagreeing': 0, 'unsupported': {'call-sum': 10}}
+        path.write_text(json.dumps(report))
+        with self.assertRaisesRegex(RuntimeError, 'no supported work: lean'):
+            runner.validate_report(path, 10, lean=True)
+        report['by_oracle'] = {}
+        path.write_text(json.dumps(report))
+        with self.assertRaisesRegex(RuntimeError, 'missing oracle work: lean'):
+            runner.validate_report(path, 10, lean=True)
+
+    def test_lean_findings_are_filed_with_a_model_replay(self):
+        found = self.run / 'lean' / 'lean--kind--committed~NOT_FOUND'
+        found.mkdir(parents=True)
+        artifact = dict(self.artifact)
+        artifact['finding'] = dict(self.artifact['finding'], signature='lean--kind--committed~NOT_FOUND', oracle='Lean')
+        (found / 'case.json').write_text(json.dumps(artifact))
+        (found / 'case.q').write_text((self.found / 'case.q').read_text())
+        tickets_by_signature = {p.read_text().split('**Failure signature:** `')[1].split('`')[0]: p for p in self.file()}
+        text = tickets_by_signature['lean--kind--committed~NOT_FOUND'].read_text()
+        self.assertIn('lake build', text)
+        self.assertIn('LLP 3000.035 §5.2', text)
+        self.assertIn('OPEN.md', text)
+        self.assertNotIn('--features postgres', text)
 
     def test_owned_worker_group_is_stopped_on_timeout(self):
         with self.assertRaises(subprocess.TimeoutExpired):

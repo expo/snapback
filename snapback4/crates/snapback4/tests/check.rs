@@ -42,6 +42,21 @@ fn natural_forms_diagnostics_are_authored_in_plain_verbose_and_json() {
 }
 
 #[test]
+fn emit_lean_prints_one_checked_file_as_the_models_case_json() {
+    // LLP 3000.035 §5.2: the library emitter's command-line face.
+    let project = Project::new();
+    project.source("table notes:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery mine(c: cursor ?):\n  return notes where .owner = viewer first 5 by .id after c\nquery clock():\n  return now\n");
+    let output = project.run(&["check", "--emit-lean", "snapback/schema.q"]);
+    assert!(output.status.success(), "{output:?}");
+    let json = parsed(&output);
+    assert_eq!(json["programs"]["mine"]["body"][0]["ret"]["page"]["pins"], json!([["owner", "viewer"]]));
+    assert_eq!(json["unsupported"]["clock"]["reason"], "now");
+    project.source("table notes:\n  read <- nonsense\n");
+    let refused = project.run(&["check", "--emit-lean", "snapback/schema.q"]);
+    assert_eq!(refused.status.code(), Some(1));
+}
+
+#[test]
 fn w10c_check_hides_only_the_redundant_operation_cascade() {
     let p = Project::new();
     p.source("query apiHistory():\n  return messages after null\n");

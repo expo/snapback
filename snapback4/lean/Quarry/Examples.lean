@@ -125,6 +125,12 @@ def examples : List Example := [
               args := [("c", .arr [.s (I "t3")])] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"t4","title":"d","ownerId":"alice"}],"complete":true,"next":null}"# },
+  { name := "page-cursorless-filled"
+    source := "LLP 3000.027 §1: a cursorless top-N answer has no `next`; N_NO_CURSOR: filling first N is complete without next"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := query [.ret (.page "todos" [("ownerId", .viewer)] none [] false 2 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"t1","title":"a","ownerId":"alice"},{"id":"t3","title":"c","ownerId":"alice"}],"complete":true,"next":null}"# },
   { name := "page-cut"
     source := "bounds card: a query past a ceiling returns what it found with complete: false"
     case := { schema := todos, store := todoStore, viewer := alice, program := minePage, budget := some 1 }

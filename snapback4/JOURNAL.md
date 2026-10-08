@@ -92171,3 +92171,71 @@ hidden collision on a secondary unique key under a fresh id is still a
 disagreement. The two retained cases replay as the name. Seeds 0–19,999:
 433 compared writes per store, 422 passed, 11 named, 1,950 not compared
 (1,821 unsynced table, 129 declined), zero write disagreements.
+
+## 2026-10-08 — The Lean oracle: emitter, runner and `run-lean` (LLP 3000.035 §5.2)
+
+Lane LO built the comparison of the engine with the Lean model.
+
+- **Emitter.** `snapback4_lang::emit::lean` translates a checked program's
+  *surface* tree to the model's case JSON (`lean/README.md`). It never reads
+  the binder's IR, so the binder stays under test. The few types it needs
+  come from the declarations the checker accepted: a text literal beside an
+  id is an id, and positional keys choose the unique key whose types accept
+  them. Anything else is a named reason, never a partial translation.
+  `snapback4 check --emit-lean <file.q>` prints one file.
+- **Runner.** `quarry-oracle` (`lean/Oracle.lean`, I/O in
+  `Quarry/CaseJson.lean`): a JSON case per line in, a tagged outcome per line
+  out, one process per worker. `lean/check.sh` now also diffs it against a
+  fixture.
+- **Oracle.** `snapback4-difftest run-lean` compares the following and
+  shrinks to `lean--{field}--{engine}~{model}`:
+  - kind, refusal code, tagged data, `complete` and `next` presence;
+  - each side's own continuation;
+  - a mutation's `observe` reread, run on each side's resulting store.
+
+  `lean::generate` adds Lean-only variants to half the seeds, aimed at
+  `OPEN.md`: per-effect and named update rules, a hidden probe target,
+  nullable and id orders, and residual filters. The generator AST gained
+  three serde-defaulted fields, so older artifacts still load.
+- **Nightly.** `difftest-scheduled.py` builds the oracle with `lake` before
+  any campaign, and fails the run when Lean is missing. It adds calibration
+  and campaign steps for `run-lean`. One-time host setup (elan, no sudo) is
+  in AGENTS.md. Nothing was changed on expo-build-450a.
+
+**Run.** 60,000 cases, 8 workers, release, 62 s:
+
+- 91.0% supported; the unsupported 9.0% are `sum`, `min` and `max`;
+- 53,277 agree and 1,321 disagree, under four signatures.
+
+**Negative controls.** Two planted faults were each caught, then reverted:
+
+- `or` evaluating its right side: 241 in 2,000 cases. It had to be planted
+  in the binder's `or` lowering; the interpreter's short-circuit is never
+  reached.
+- `items`' read rule skipped in `check_rule`: 79 cases under five new
+  signatures in 2,000 (leaked point reads, hidden rows on non-uniform scans,
+  changed write refusals).
+
+**What it found:**
+
+- **R2, open and security-relevant.** The engine judges an unnamed
+  `update <- R` on the next image only. `update <- .owner = viewer` therefore
+  lets a viewer take over another principal's row with a blind
+  `upsert`/`update` that sets `owner: viewer`. The model refuses. Named rules
+  agree.
+- **C2, open.** Non-uniform and residual-filter pages that fill carry `next`
+  with nothing after it.
+- **A model defect, fixed by LLP 3000.027 §1.** A cursorless top-N page has
+  no `next`. This is now OPEN C9, confirmed.
+
+The engine agreed with the model's choices on R1, V2, V3, V5, C1, C8, W1, W3
+and W7. Tickets for the four open signatures are in `issues/`.
+
+- **What felt good:** the model's executable semantics made each
+  disagreement a one-line diagnosis. Tagged values caught nothing new here,
+  but would catch any id/text confusion.
+- **What was surprising:** both planted faults had to move. The interpreter
+  paths I would have guessed (`Binary` short-circuit,
+  `read_authority_inner`) are not where server reads decide. A negative
+  control is only meaningful once the planted line is shown to be on the
+  path.

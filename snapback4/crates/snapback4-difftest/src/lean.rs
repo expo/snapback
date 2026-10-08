@@ -1,0 +1,583 @@
+//! The engine against the Lean model (LLP 3000.035 §5.2).
+//!
+//! **The model side.** Each case's surface program goes through
+//! `snapback4_lang::emit::lean` (the parsed tree, never the binder's IR) to
+//! the model's case JSON, and through `quarry-oracle` (`snapback4/lean`,
+//! `lake build`), one long-lived process per worker that answers one tagged
+//! outcome per line. A case the emitter cannot translate is `Unsupported`
+//! under the emitter's named reason, never a pass.
+//!
+//! **The engine side.** The engine over SQLite (the ordinary in-memory
+//! server store) at `Ceilings::default()`, the ceilings a production server
+//! runs, not the case's stored budget; the model runs unbounded (its meter is
+//! abstract, OPEN M1).
+//!
+//! **Compared fields** (README, "How the harness compares"):
+//!
+//! - `kind`: answer, unavailable, refused, committed;
+//! - `code`: the refusal code (sites are not modelled);
+//! - `data` / `result`: exact, both sides as tagged values, so an id never
+//!   compares equal to a text (OPEN V1); rows compare as field maps;
+//! - `complete`: exact;
+//! - `next`: presence only (OPEN C1). When both carry one, each side
+//!   continues from its own cursor and the next page is compared
+//!   (`continuation-*`), until both are exhausted;
+//! - a mutation then runs `observe` on each side's resulting store
+//!   (`post-*`): the engine's store, and the model's committed store (or the
+//!   original store after a refusal).
+//!
+//! Meter fields, cut sites, `tables`, `seq` and expiry are not compared.
+//!
+//! **Signatures** are `lean--{field}--{engine}~{model}`, each side's stable
+//! class (a refusal code, `unavailable`, `committed`, or the data's shape).
+//! The finding's `left` is the engine's raw record, `right` the model's raw
+//! outcome; the canonical forms compared are its `continuation`.
+// @ref LLP 3000.035#52-stage-2-a-small-lean-core — the Lean model as a further oracle over the Stage 1 generator.
+use crate::{
+    ast::Body,
+    campaign::Report,
+    execute::{self, Outcome},
+    generate::Case,
+    oracle::{Finding, Oracle, Verdict},
+};
+use serde_json::{Map, Value as Json, json};
+use snapback4_core::Ceilings;
+use snapback4_lang::emit::lean::LeanModule;
+use std::{
+    cell::RefCell,
+    collections::BTreeSet,
+    io::{BufRead, BufReader, Write},
+    path::PathBuf,
+    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+};
+
+/// The `quarry-oracle` executable: `SNAPBACK4_LEAN_ORACLE`, else the Lake
+/// build in this checkout.
+pub fn oracle_path() -> PathBuf {
+    match std::env::var_os("SNAPBACK4_LEAN_ORACLE") {
+        Some(p) => PathBuf::from(p),
+        None => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lean/.lake/build/bin/quarry-oracle"),
+    }
+}
+
+/// One `quarry-oracle` process: a JSON case per line in, an outcome per line out.
+pub struct LeanProcess {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+}
+impl LeanProcess {
+    pub fn spawn() -> Result<Self, String> {
+        let path = oracle_path();
+        if !path.is_file() {
+            return Err(format!(
+                "Lean oracle missing: {} (run `cd snapback4/lean && lake build`, or set SNAPBACK4_LEAN_ORACLE)",
+                path.display()
+            ));
+        }
+        let mut child = Command::new(&path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .map_err(|e| format!("Lean oracle {}: {e}", path.display()))?;
+        let stdin = child.stdin.take().unwrap();
+        let stdout = BufReader::new(child.stdout.take().unwrap());
+        Ok(Self { child, stdin, stdout })
+    }
+    pub fn ask(&mut self, case: &Json) -> Result<Json, String> {
+        writeln!(self.stdin, "{case}").map_err(|e| format!("Lean oracle write: {e}"))?;
+        self.stdin.flush().map_err(|e| format!("Lean oracle flush: {e}"))?;
+        let mut line = String::new();
+        let n = self.stdout.read_line(&mut line).map_err(|e| format!("Lean oracle read: {e}"))?;
+        if n == 0 {
+            return Err("Lean oracle exited".into());
+        }
+        let answer: Json = serde_json::from_str(&line).map_err(|e| format!("Lean oracle answer {line:?}: {e}"))?;
+        if answer["kind"] == "error" {
+            // A case the model cannot decode is an emitter defect, never a verdict.
+            return Err(format!("Lean oracle refused the case: {}", answer["error"]));
+        }
+        Ok(answer)
+    }
+}
+impl Drop for LeanProcess {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+thread_local! {
+    static PROCESS: RefCell<Option<LeanProcess>> = const { RefCell::new(None) };
+}
+
+/// Ask this thread's oracle process, starting it on first use and once
+/// more if it has died.
+pub fn ask(case: &Json) -> Result<Json, String> {
+    PROCESS.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(LeanProcess::spawn()?);
+        }
+        match slot.as_mut().unwrap().ask(case) {
+            Err(e) if e == "Lean oracle exited" => {
+                *slot = Some(LeanProcess::spawn()?);
+                slot.as_mut().unwrap().ask(case)
+            }
+            other => other,
+        }
+    })
+}
+
+/// The engine's value as the model's tagged value; rows as field maps.
+pub fn engine_value(v: &snapback4_core::Value) -> Json {
+    use snapback4_core::Value as V;
+    match v {
+        V::Null => json!({"null": null}),
+        V::Bool(b) => json!({"bool": b}),
+        V::Int(n) => json!({"int": n.to_string()}),
+        V::String(s) => json!({"text": s}),
+        V::Id(s) => json!({"id": s}),
+        V::Bytes(b) => json!({"bytes": b.iter().map(|x| format!("{x:02x}")).collect::<String>()}),
+        V::Row(fs) | V::Map(fs) => json!({"row": fs.iter().map(|(k, x)| (k.clone(), engine_value(x))).collect::<Map<_, _>>()}),
+        V::Array(xs) => json!({"arr": xs.iter().map(engine_value).collect::<Vec<_>>()}),
+    }
+}
+
+/// The model's tagged value with rows as field maps (its rows are ordered pairs).
+pub fn model_value(v: &Json) -> Json {
+    if let Some(xs) = v.get("arr").and_then(Json::as_array) {
+        return json!({"arr": xs.iter().map(model_value).collect::<Vec<_>>()});
+    }
+    if let Some(fs) = v.get("row").and_then(Json::as_array) {
+        let mut m = Map::new();
+        for p in fs {
+            m.insert(p[0].as_str().unwrap_or_default().to_owned(), model_value(&p[1]));
+        }
+        return json!({"row": m});
+    }
+    v.clone()
+}
+
+fn shape(v: &Json) -> String {
+    v.as_object().and_then(|o| o.keys().next().cloned()).unwrap_or_else(|| "value".into())
+}
+
+/// One side's comparable record: `kind`, then `code` or `data`/`complete`/`next`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Canon {
+    pub kind: String,
+    pub code: Option<String>,
+    pub data: Option<Json>,
+    pub complete: Option<bool>,
+    pub next: bool,
+}
+impl Canon {
+    /// The side's stable class for a differing `field`: the field's own
+    /// value where it is a flag, else a code, kind or data shape.
+    pub fn class(&self, field: &str) -> String {
+        if field.ends_with("complete") {
+            return if self.complete == Some(true) { "complete" } else { "incomplete" }.into();
+        }
+        if field.ends_with("next") {
+            return if self.next { "next" } else { "no-next" }.into();
+        }
+        match (&self.code, &self.data) {
+            (Some(code), _) => code.clone(),
+            (None, Some(d)) if self.kind == "answer" => shape(d),
+            _ => self.kind.clone(),
+        }
+    }
+    fn json(&self) -> Json {
+        json!({"kind": self.kind, "code": self.code, "data": self.data, "complete": self.complete, "next": self.next})
+    }
+}
+
+pub fn engine_canon(o: &Outcome) -> Canon {
+    let blank = Canon { kind: String::new(), code: None, data: None, complete: None, next: false };
+    if let Some(r) = o.refusal() {
+        return Canon { kind: "refused".into(), code: r["code"].as_str().map(str::to_owned), ..blank };
+    }
+    if o.kind == "mutation" {
+        let result = serde_json::from_value::<snapback4_core::Value>(o.value["result"].clone()).map(|v| engine_value(&v)).unwrap_or(Json::Null);
+        return Canon { kind: "committed".into(), data: Some(result), ..blank };
+    }
+    if o.value.get("unavailable") == Some(&json!(true)) {
+        return Canon { kind: "unavailable".into(), ..blank };
+    }
+    let data = serde_json::from_value::<snapback4_core::Value>(o.value["data"].clone()).map(|v| engine_value(&v)).unwrap_or(Json::Null);
+    Canon { kind: "answer".into(), data: Some(data), complete: o.value["complete"].as_bool(), next: o.next().is_some(), ..blank }
+}
+
+pub fn model_canon(m: &Json) -> Canon {
+    let blank = Canon { kind: m["kind"].as_str().unwrap_or("error").to_owned(), code: None, data: None, complete: None, next: false };
+    match blank.kind.as_str() {
+        "refused" => Canon { code: m["code"].as_str().map(str::to_owned), ..blank },
+        "committed" => Canon { data: Some(model_value(&m["result"])), ..blank },
+        "answer" => Canon {
+            data: Some(model_value(&m["data"])),
+            complete: m["complete"].as_bool(),
+            next: m["next"] != json!({"null": null}),
+            ..blank
+        },
+        _ => blank,
+    }
+}
+
+/// The first differing field, in the order a reader wants it.
+pub fn differ(e: &Canon, m: &Canon) -> Option<&'static str> {
+    if e.kind != m.kind {
+        return Some("kind");
+    }
+    if e.code != m.code {
+        return Some("code");
+    }
+    if e.data != m.data {
+        return Some(if e.kind == "committed" { "result" } else { "data" });
+    }
+    if e.complete != m.complete {
+        return Some("complete");
+    }
+    if e.next != m.next {
+        return Some("next");
+    }
+    None
+}
+
+/// `lean--{field}--{engine class}~{model class}`.
+pub fn signature(field: &str, e: &Canon, m: &Canon) -> String {
+    format!("lean--{}--{}~{}", field.replace('_', "-"), e.class(field), m.class(field))
+}
+
+fn finding(field: &str, e: &Canon, m: &Canon, engine: Outcome, model: &Json, trail: Vec<Outcome>) -> Verdict {
+    Verdict::Disagree(Finding {
+        signature: signature(field, e, m),
+        oracle: Oracle::Lean,
+        field: field.into(),
+        left: engine,
+        right: Outcome { kind: "lean".into(), value: model.clone() },
+        continuation: trail,
+        store_trace: None,
+    })
+}
+
+fn trail_entry(e: &Canon, m: &Canon) -> Outcome {
+    Outcome { kind: "canonical".into(), value: json!({"engine": e.json(), "model": m.json()}) }
+}
+
+/// What one case comes to; `executed` counts engine and model calls.
+pub struct Checked {
+    pub verdict: Verdict,
+    pub executed: u64,
+    pub pages: u64,
+    pub mutation: bool,
+    /// The first outcome's class on an agreeing case (`committed`, a code,
+    /// `unavailable`, or the data's shape).
+    pub class: String,
+}
+
+/// The module, or why the case is outside the fragment.
+pub fn module(source: &str) -> Result<LeanModule, String> {
+    let (document, diagnostics) = snapback4_lang::parse_document("schema.q", source);
+    if !diagnostics.is_empty() {
+        return Err("parse".into());
+    }
+    snapback4_lang::emit::lean::from_documents(&[document]).map_err(|u| u.reason)
+}
+
+/// Compare one case whose source compiles. `Err` is a harness or emitter
+/// defect (never a verdict).
+pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
+    let unsupported = |reason: String| Ok(Checked { verdict: Verdict::Unsupported(reason), executed: 0, pages: 0, mutation: false, class: String::new() });
+    let module = match module(source) {
+        Ok(m) => m,
+        Err(reason) => return unsupported(reason),
+    };
+    let mutation = matches!(case.program.body, Body::Write(..));
+    if let Err(u) = module.program("run") {
+        return unsupported(u.reason);
+    }
+    if mutation {
+        if let Err(u) = module.program("observe") {
+            return unsupported(format!("observe-{}", u.reason));
+        }
+    }
+    let store = match module.store(&case.rows) {
+        Ok(s) => s,
+        Err(u) => return unsupported(u.reason),
+    };
+    let mut m_args = match module.tag_args("run", &case.args) {
+        Ok(a) => a,
+        Err(u) => return unsupported(u.reason),
+    };
+    let mut engine = execute::engine(case, source)?;
+    engine.set_ceilings(Ceilings::default());
+    let mut executed = 0;
+    let mut pages = 0;
+    if mutation {
+        let e_raw = execute::execute(&mut engine, case, "run", &case.args);
+        let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args, None).map_err(|u| u.to_string())?)?;
+        executed += 2;
+        let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
+        let first_class = e.class("kind");
+        let mut trail = vec![trail_entry(&e, &m)];
+        if let Some(f) = differ(&e, &m) {
+            return Ok(Checked { verdict: finding(f, &e, &m, e_raw, &m_raw, trail), executed, pages, mutation, class: String::new() });
+        }
+        // The resulting stores, seen through `observe`.
+        let after = if m.kind == "committed" { m_raw["store"].clone() } else { store };
+        let o_args = module.tag_args("observe", &case.args).map_err(|u| u.to_string())?;
+        let eo_raw = execute::execute(&mut engine, case, "observe", &case.args);
+        let mo_raw = ask(&module.case("observe", after, &case.principal, o_args, None).map_err(|u| u.to_string())?)?;
+        executed += 2;
+        let (eo, mo) = (engine_canon(&eo_raw), model_canon(&mo_raw));
+        trail.push(trail_entry(&eo, &mo));
+        if let Some(f) = differ(&eo, &mo) {
+            return Ok(Checked { verdict: finding(&format!("post-{f}"), &eo, &mo, eo_raw, &mo_raw, trail), executed, pages, mutation, class: String::new() });
+        }
+        return Ok(Checked { verdict: Verdict::Pass, executed, pages, mutation, class: format!("{}-{}", if mutation { "mutation" } else { "query" }, first_class) });
+    }
+    let mut e_args = case.args.clone();
+    let mut trail = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut first_class = String::new();
+    loop {
+        let e_raw = execute::execute(&mut engine, case, "run", &e_args);
+        let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args.clone(), None).map_err(|u| u.to_string())?)?;
+        executed += 2;
+        pages += 1;
+        let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
+        if pages == 1 {
+            first_class = e.class("kind");
+        }
+        trail.push(trail_entry(&e, &m));
+        let phase = if pages > 1 { "continuation-" } else { "" };
+        if let Some(f) = differ(&e, &m) {
+            return Ok(Checked { verdict: finding(&format!("{phase}{f}"), &e, &m, e_raw, &m_raw, trail), executed, pages, mutation, class: String::new() });
+        }
+        if !e.next {
+            break;
+        }
+        let next = e_raw.next().unwrap().to_owned();
+        if !seen.insert(next.clone()) || seen.len() > case.rows.len() + 2 {
+            return Ok(Checked { verdict: finding("cursor-cycle", &e, &m, e_raw, &m_raw, trail), executed, pages, mutation, class: String::new() });
+        }
+        e_args["c"] = json!(next);
+        m_args.insert("c".into(), m_raw["next"].clone());
+    }
+    Ok(Checked { verdict: Verdict::Pass, executed, pages, mutation, class: format!("query-{first_class}") })
+}
+
+/// The open points a case can exercise (`snapback4/lean/OPEN.md`), counted
+/// over compared cases so a report shows each point's evidence.
+pub fn features(case: &Case) -> Vec<String> {
+    use crate::ast::{Read, Rule, Write};
+    let mut out = Vec::new();
+    let items = &case.program.tables[0];
+    let rules: Vec<Rule> = items.effects.clone().unwrap_or_else(|| vec![items.rule.clone(); 4]);
+    let access_hidden = case.program.tables.get(1).and_then(|t| t.effects.as_ref()).is_some_and(|e| e[0] == Rule::Deny);
+    let body = &case.program.body;
+    let write = match body {
+        Body::Write(w, _) => Some(w),
+        _ => None,
+    };
+    if items.effects.is_some() {
+        out.push("items-effect-rules".into());
+    }
+    if let Some(w) = write {
+        let rule = match w {
+            Write::Insert => &rules[1],
+            Write::Upsert | Write::Update => &rules[2],
+            Write::Delete => &rules[3],
+        };
+        out.push(format!("write-{w:?}-under-{rule:?}").to_lowercase());
+        if matches!(w, Write::Upsert | Write::Update) && rules[0] != Rule::Allow {
+            out.push(format!("write-{w:?}-readable-by-{:?}", rules[0]).to_lowercase());
+        }
+    }
+    let probing = |r: &Rule| matches!(r, Rule::Witness | Rule::OwnerOrWitness);
+    if access_hidden && rules.iter().any(probing) {
+        out.push("probe-of-hidden-access".into());
+    }
+    if let Body::Read { kind, owner, .. } = body {
+        let uniform = match rules[0] {
+            Rule::Owner | Rule::OwnerOrWitness => *owner,
+            _ => true,
+        };
+        if matches!(kind, Read::Page | Read::Bounded) {
+            out.push(format!("{}-{kind:?}", if uniform { "uniform" } else { "non-uniform" }).to_lowercase());
+            if uniform && matches!(kind, Read::Page) {
+                // C2: whether the binder may keep a residual filter on the scan.
+                out.push(format!("uniform-page-{}", if case.program.residual.is_some() { "with-residual" } else { "without-residual" }));
+            }
+        }
+        if let Some(order) = &case.program.order {
+            out.push(format!("order-{}", order.join("-")));
+        }
+        if let Some(residual) = &case.program.residual {
+            out.push(format!("residual-{}", residual_name(residual)));
+        }
+    }
+    out
+}
+
+/// A stable feature name for a residual conjunct of `generate`.
+fn residual_name(residual: &str) -> &'static str {
+    match residual {
+        ".score >= 0" => "score-ge",
+        ".label != ''" => "label-ne",
+        ".maybe = null" => "nullable-eq-null",
+        ".maybe = n" => "nullable-eq-arg",
+        "(.score > 0 or .flag = false)" => "disjunction",
+        _ => "other",
+    }
+}
+
+/// One case, counted into `report`.
+pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(crate::oracle::Finding)) -> Result<(), String> {
+    report.generated += 1;
+    for feature in crate::coverage::features(case) {
+        *report.coverage.entry(feature).or_default() += 1;
+    }
+    let source = case.program.source();
+    if let Err(e) = execute::compile(&source) {
+        report.binder_refused_unexpected += 1;
+        return Err(format!("binder: {e}"));
+    }
+    report.compiled += 1;
+    let checked = compare(case, &source)?;
+    report.executed += checked.executed;
+    if let Verdict::Pass = &checked.verdict {
+        // What agreed, by outcome class: evidence for the open points.
+        *report.store_stats.entry(format!("lean-agreed/{}", checked.class)).or_default() += 1;
+    }
+    let stats = &mut report.store_stats;
+    match &checked.verdict {
+        Verdict::Unsupported(_) => *stats.entry("lean-unsupported".into()).or_default() += 1,
+        _ => {
+            *stats.entry("lean-supported".into()).or_default() += 1;
+            *stats.entry(format!("lean-supported-{}", if checked.mutation { "mutation" } else { "query" })).or_default() += 1;
+            *stats.entry("lean-pages-compared".into()).or_default() += checked.pages;
+            if checked.pages > 1 {
+                *stats.entry("lean-continued-reads".into()).or_default() += 1;
+            }
+        }
+    }
+    if !matches!(checked.verdict, Verdict::Unsupported(_)) {
+        let disagreed = matches!(checked.verdict, Verdict::Disagree(_));
+        for feature in features(case) {
+            *stats.entry(format!("lean-feature/{feature}/compared")).or_default() += 1;
+            if disagreed {
+                *stats.entry(format!("lean-feature/{feature}/disagreeing")).or_default() += 1;
+            }
+        }
+    }
+    report.by_oracle.entry("lean".into()).or_default().record(&checked.verdict);
+    if let Verdict::Disagree(f) = checked.verdict {
+        found(f);
+    }
+    Ok(())
+}
+
+pub fn reproduce(case: &Case, source: &str) -> Result<Verdict, String> {
+    execute::compile(source).map_err(|e| format!("binder: {e}"))?;
+    compare(case, source).map(|c| c.verdict)
+}
+
+/// The Lean campaign's case for `seed`: the Stage 1 generator's case, and
+/// for about half the seeds a variant aimed at the model's open points
+/// (`snapback4/lean/OPEN.md`), from an independent stream so the base case
+/// is unchanged:
+///
+/// - per-effect rules on `items` (R2's named and unnamed update rules, W1–W4
+///   precedence between rules, readability and clashes, C8's non-uniform
+///   reads), with `online only` so any read rule is admissible;
+/// - `access` unreadable to everyone (R1: whether a rule probe sees a row its
+///   table hides);
+/// - page orders over a nullable, a boolean or a unique id column (V2, V3);
+/// - a further domain conjunct: residual filters (C2's lookahead) and a
+///   null-valued equality (V5).
+pub fn generate(seed: u64) -> Case {
+    use crate::ast::{Residency, Rule};
+    let mut case = crate::generate::generate(seed);
+    let mut rng = crate::generate::Rng::new(seed ^ 0x4c45_414e_5641_5249);
+    let mut pick = |n: u64| rng.next() % n;
+    if pick(2) == 0 {
+        return case;
+    }
+    if pick(2) == 0 {
+        // An unpaged total needs a read rule its pins decide (`E_QUARRY_BOUND`):
+        // `.bucket` is always pinned, `.owner` only when the read pins it.
+        let total = matches!(case.program.body, Body::Read { kind: crate::ast::Read::Count | crate::ast::Read::Sum | crate::ast::Read::Min | crate::ast::Read::Max, .. });
+        let owner_pinned = matches!(case.program.body, Body::Read { owner: true, .. });
+        let reads: &[Rule] = if total && !owner_pinned { &[Rule::Allow, Rule::Witness] } else { &[Rule::Allow, Rule::Owner, Rule::Witness, Rule::OwnerOrWitness] };
+        let read = reads[pick(reads.len() as u64) as usize].clone();
+        let insert = [Rule::Allow, Rule::Deny, Rule::Owner, Rule::Witness][pick(4) as usize].clone();
+        let update = [Rule::Allow, Rule::Deny, Rule::Owner, Rule::Witness, Rule::NamedBoth, Rule::NamedNext, Rule::NamedOld][pick(7) as usize].clone();
+        let delete = [Rule::Allow, Rule::Deny, Rule::Owner, Rule::Witness][pick(4) as usize].clone();
+        case.program.tables[0].effects = Some(vec![read, insert, update, delete]);
+        case.program.tables[0].residency = Residency::Online;
+    }
+    if pick(4) == 0 {
+        case.program.tables[1].effects = Some(vec![Rule::Deny, Rule::Allow, Rule::Allow, Rule::Allow]);
+        case.program.tables[1].residency = Residency::Online;
+    }
+    if matches!(case.program.body, Body::Read { kind: crate::ast::Read::Page | crate::ast::Read::Bounded, .. }) && pick(2) == 0 {
+        let orders: [&[&str]; 5] = [&["maybe"], &["maybe", "label"], &["flag", "score"], &["tag"], &["score"]];
+        case.program.order = Some(orders[pick(5) as usize].iter().map(|c| c.to_string()).collect());
+    }
+    if matches!(case.program.body, Body::Read { .. }) && pick(3) == 0 {
+        let residuals = [".score >= 0", ".label != ''", ".maybe = null", ".maybe = n", "(.score > 0 or .flag = false)"];
+        case.program.residual = Some(residuals[pick(5) as usize].to_owned());
+    }
+    case
+}
+
+pub fn run_bounded(seed: u64, cases: u64, out: &std::path::Path, seconds: Option<f64>) -> Result<Report, String> {
+    std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
+    let started = std::time::Instant::now();
+    let mut report = Report { seed, cases, ..Report::default() };
+    let mut saved = BTreeSet::new();
+    let mut failure = None;
+    for i in 0..cases {
+        if seconds.is_some_and(|limit| started.elapsed().as_secs_f64() >= limit) {
+            report.time_limited_workers = 1;
+            break;
+        }
+        let case_started = std::time::Instant::now();
+        let case = generate(seed.wrapping_add(i));
+        let mut findings = Vec::new();
+        if let Err(error) = check(&case, &mut report, |f| {
+            if saved.insert(f.signature.clone()) {
+                findings.push(f);
+            }
+        }) {
+            let path = out.join(format!("setup-{}", case.seed));
+            std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+            std::fs::write(path.join("case.q"), case.program.source()).map_err(|e| e.to_string())?;
+            std::fs::write(path.join("case.json"), serde_json::to_vec_pretty(&case).unwrap()).map_err(|e| e.to_string())?;
+            *report.generator_errors.entry(error.clone()).or_default() += 1;
+            failure = Some(error);
+            break;
+        }
+        for f in findings {
+            let a = crate::shrink::shrink(case.clone(), f);
+            crate::shrink::save(&out.join(&a.finding.signature), &a)?;
+        }
+        let elapsed = case_started.elapsed().as_secs_f64();
+        if elapsed > report.slowest_case_seconds {
+            report.slowest_case_seconds = elapsed;
+            report.slowest_case_seed = Some(case.seed);
+        }
+        if (i + 1) % 1000 == 0 {
+            eprintln!("{} cases in {:.1}s", i + 1, started.elapsed().as_secs_f64());
+        }
+    }
+    report.seconds = started.elapsed().as_secs_f64();
+    std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report).unwrap()).map_err(|e| e.to_string())?;
+    if let Some(error) = failure {
+        return Err(error);
+    }
+    Ok(report)
+}

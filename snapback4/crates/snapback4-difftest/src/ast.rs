@@ -27,12 +27,22 @@ pub struct Column {
     pub name: String,
     pub ty: Type,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Rule {
     Allow,
     Deny,
     Owner,
     Witness,
+    /// `.owner = viewer or exists access[.bucket, viewer]` (Lean variants).
+    OwnerOrWitness,
+    /// `.principal = viewer`, for `access` (Lean variants).
+    Member,
+    /// `update (old, next) <- old.owner = viewer and next.owner = viewer`.
+    NamedBoth,
+    /// `update (old, next) <- next.owner = viewer`.
+    NamedNext,
+    /// `update (old, next) <- old.owner = viewer`.
+    NamedOld,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -41,7 +51,16 @@ impl Rule {
             Self::Deny => "deny",
             Self::Owner => ".owner = viewer",
             Self::Witness => "exists access[.bucket, viewer]",
+            Self::OwnerOrWitness => ".owner = viewer or exists access[.bucket, viewer]",
+            Self::Member => ".principal = viewer",
+            Self::NamedBoth => "old.owner = viewer and next.owner = viewer",
+            Self::NamedNext => "next.owner = viewer",
+            Self::NamedOld => "old.owner = viewer",
         }
+    }
+    /// Whether the rule names the update's two images (`update (old, next)`).
+    pub fn named(&self) -> bool {
+        matches!(self, Self::NamedBoth | Self::NamedNext | Self::NamedOld)
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,6 +76,10 @@ pub struct Table {
     pub keys: Vec<(String, Vec<String>, bool)>,
     pub rule: Rule,
     pub residency: Residency,
+    /// Per-effect rules (read, insert, update, delete) replacing `rule`;
+    /// only the Lean oracle's variants set it (`lean.rs`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effects: Option<Vec<Rule>>,
 }
 impl Table {
     fn source(&self) -> String {
@@ -71,8 +94,10 @@ impl Table {
                 cols.join(", ")
             );
         }
-        for effect in ["read", "insert", "update", "delete"] {
-            out += &format!("  {effect} <- {}\n", self.rule.source());
+        for (i, effect) in ["read", "insert", "update", "delete"].into_iter().enumerate() {
+            let rule = self.effects.as_ref().map_or(&self.rule, |e| &e[i]);
+            let binding = if rule.named() { " (old, next)" } else { "" };
+            out += &format!("  {effect}{binding} <- {}\n", rule.source());
         }
         out += match self.residency {
             Residency::Public => "  sync public\n",
@@ -205,6 +230,12 @@ pub struct Program {
     pub bind_return: bool,
     pub reverse: bool,
     pub helper: bool,
+    /// Page order columns replacing `.label, .score` (Lean variants).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order: Option<Vec<String>>,
+    /// A further domain conjunct, as source (Lean variants).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub residual: Option<String>,
 }
 impl Program {
     pub fn source(&self) -> String {
@@ -240,10 +271,14 @@ impl Program {
                 if *filter {
                     domain += " and .flag = true";
                 }
+                if let Some(residual) = &self.residual {
+                    domain += &format!(" and {residual}");
+                }
+                let order = self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "));
                 match kind {
                     Read::Point => "items[key]".into(),
                     Read::Page | Read::Bounded => format!(
-                        "{domain} {} {take} by .label, .score{}",
+                        "{domain} {} {take} by {order}{}",
                         if *descending { "last" } else { "first" },
                         if matches!(kind, Read::Page) {
                             " after c"

@@ -23,6 +23,9 @@ cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --worke
 cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
 cargo run --release -p snapback4-difftest -- run-devices --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-devices   # server against both device stores; no database
 cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/device-sqlite--heap-bytes-data--loading
+(cd lean && lake build) && cargo run --release -p snapback4-difftest -- run-lean --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-lean   # the engine against the Lean model (LLP 3000.035 §5.2); ~900 cases/s on 8 workers
+cargo run --release -p snapback4-difftest -- replay 'crates/snapback4-difftest/cases/found/lean--kind--committed~NOT_FOUND'   # needs the model built, or SNAPBACK4_LEAN_ORACLE=<quarry-oracle>
+./target/debug/snapback4 check --emit-lean schema.q   # one checked file as the Lean model's case JSON; programs outside its fragment listed with a reason
 # Store tests require SNAPBACK4_EVAL_POSTGRES pointing to a private evaluation cluster.
 cargo test -p snapback4-difftest --features postgres  # fails if the cluster is absent
 cargo run --release -p snapback4-difftest --features postgres -- run-stores --seed 0 --cases 1000000 --workers 8 --seconds 10800 --out /tmp/quarry-stores
@@ -35,7 +38,7 @@ cargo test -p snapback4-sim          # the chat world under faults: the seven in
 cargo test -p snapback4-sim --test exhaustive   # every sequence of two writes (two viewers, two groups): disclosure and write authority against a model of the rules
 SNAPBACK4_EXHAUSTIVE_DEPTH=3 cargo test -p snapback4-sim --test exhaustive -- --ignored   # three writes: ~7,000 states, minutes
 scripts/kani.sh [harness...]         # Kani proofs of the key encoding (crates/snapback4-core/src/key_proofs.rs; minutes, ~12 GB peak); outside test.sh
-(cd lean && ./check.sh)              # the Lean model of Quarry's core (LLP 3000.035 §5.2): lake build (~15 s cold, needs elan), no-sorry/axiom audit, 30 examples; outside test.sh; open points in lean/OPEN.md
+(cd lean && ./check.sh)              # the Lean model of Quarry's core (LLP 3000.035 §5.2): lake build (~15 s cold, needs elan), no-sorry/axiom audit, 31 examples, the quarry-oracle I/O fixture; outside test.sh; open points in lean/OPEN.md
 cargo test -p snapback4-sim --test native   # native jobs: builds native-fixtures/rescore for wasm32-unknown-unknown (cold ~20 s, then cached under target/native-fixture) and runs it
 bash scripts/build-wasm.sh           # the device as wasm into packages/snapback4/src/wasm/ (the web tier and the Chromium witness need it); fails when the gzip exceeds metrics/wasm-budget.json — a landing that needs the bytes raises the budget in the same commit, with the reason
 node witness/idb.mjs                 # the Chromium witness: the client on the wasm device over IndexedDB (needs Chrome)
@@ -61,7 +64,7 @@ log, at-most-once, the day-two classifier, wire forms), `snapback4-lang`
 `snapback4` (verbs and the HTTP wire), `snapback4-sim` (the deterministic
 world hosting the engine and a replica device), `snapback4-difftest` (seeded
 Quarry source generator, rewrite and meter oracles, optional Postgres store
-oracles with prefetch on/off, the server-against-device oracle on both device stores, structural shrinking and replay; not published or linked by shipped crates), `snapback4-device` (the
+oracles with prefetch on/off, the server-against-device oracle on both device stores, the engine-against-Lean-model oracle, structural shrinking and replay; not published or linked by shipped crates), `snapback4-device` (the
 interpreter over a `DeviceStore`: the core's SQLite under the native
 module for Expo and Exact2 hosts, memory under wasm on the web; one
 dispatcher, one suite on both)). The guide (`snapback4-lang/src/guide.rs`) is
@@ -225,11 +228,31 @@ does. `run-devices` accepts `--seconds`. Known findings are retained under
 `cases/found/device-*` with a `DIAGNOSIS.md`; `tests/devices.rs` replays them
 and `tests/smoke.rs` pins the fixed-seed signature set.
 
+The Lean oracle (`run-lean`, LLP 3000.035 §5.2): `snapback4_lang::emit::lean`
+translates each generated program's surface tree (never the binder's IR) to
+the model's case JSON; `quarry-oracle` (`lean/Oracle.lean`, one process per
+worker) answers one tagged outcome per line; the engine runs on SQLite at
+default ceilings. Compared: kind, refusal code, data (tagged: an id is not a
+text), `complete`, `next` presence, each side's own continuation, and a
+mutation's `observe` reread. Not compared: meter fields and sites. Programs
+outside the model's fragment are named unsupported reasons, never passes.
+`lean::generate` adds Lean-only variants (per-effect rules, a hidden probe
+target, nullable/id orders, residual filters) aimed at `lean/OPEN.md`. A
+disagreement is a Rust defect, a model defect (only when a document
+contradicts the model: fix the model, rerun `lean/check.sh`), or an open
+point (record the engine's behaviour in `OPEN.md`); never change the model to
+match the engine without a document. Findings live in
+`cases/found/lean--*` with `DIAGNOSIS.md`; `tests/lean.rs` replays them and
+pins the open signature set. Lean-dependent tests skip loudly without the
+built model; `SNAPBACK4_REQUIRE_LEAN=1` makes that a failure.
+
 Quarry scheduled testing: prepare a separate clean clone whose current branch
 can fast-forward to `origin/main`. The runner fetches/fast-forwards it and starts
 its own socket-only evaluation cluster with `fsync=off`,
 `synchronous_commit=off`, `full_page_writes=off`, `shared_buffers=1GB`, and
-`max_connections=200`. It runs the SQLite, store and device campaigns on the selected
+`max_connections=200`. It builds the Lean model's `quarry-oracle` first
+(`lake build` in `lean/`; a host without `lake` fails the run), then runs the
+SQLite, store, device and Lean campaigns on the selected
 seed window, replays shrunk findings twice, and files/appends open `issues/*.md`
 tickets. Only ticket changes are committed/pushed, with three fetch/rebase
 retries. State and reports live outside Git under `--state-dir`; seeds advance
@@ -243,3 +266,11 @@ never commits or pushes. Dry runs may explicitly supply `--external-postgres
 'host=... user=... dbname=...'`; that cluster is neither started nor stopped by
 the runner. Ambient connections do not override normal private-cluster ownership.
 The installer remains an operator action; do not invoke it during development.
+
+The Lean oracle on a scheduled host (one-time, per user, no sudo): install
+elan with `curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y --default-toolchain none`.
+The runner finds `lake` on `PATH` or in `~/.elan/bin`; the first `lake build`
+downloads the toolchain pinned in `lean/lean-toolchain` (Lean 4.34.1, no
+Mathlib), so the first scheduled run needs network. Check by hand with
+`(cd lean && ./check.sh)` in the runner's clone. `run.json` records the pinned
+toolchain and the oracle binary's digest.

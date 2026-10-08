@@ -298,7 +298,10 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       let cur ← match after with
         | none => pure none
         | some a => do parseCursor order (← ev a).1
-      pageRead cx vw t ps (filt f) order desc take cur
+      let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur
+      -- A cursorless page (no `after`) has no continuation: "A cursorless
+      -- top-N answer has no `next`" (LLP 3000.027 §1; OPEN C9).
+      pure (v, if after.isSome then nx else some .null)
     | .count t pins f => do
       let ps ← evPins pins
       countRead cx vw t ps (filt f)

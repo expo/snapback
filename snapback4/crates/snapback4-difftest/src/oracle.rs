@@ -121,6 +121,8 @@ pub enum Oracle {
         phase: String,
         ceiling: u64,
     },
+    /// The engine against the Lean model (`lean.rs`, LLP 3000.035 §5.2).
+    Lean,
 }
 impl Oracle {
     pub fn name(&self) -> String {
@@ -133,6 +135,7 @@ impl Oracle {
             Self::Rewrite(r) => format!("rewrite-{}", r.name()),
             Self::Meter { .. } => "meter".into(),
             Self::Device { store, .. } => format!("device-{store}"),
+            Self::Lean => "lean".into(),
         }
     }
 }
@@ -314,6 +317,7 @@ pub fn reproduce(case: &Case, source: &str, oracle: &Oracle) -> Result<Verdict, 
         }
         Oracle::Rewrite(r) => rewrite(case, r, source).map(|v| v.0),
         Oracle::Device { .. } => crate::devices::reproduce(case, source, oracle),
+        Oracle::Lean => crate::lean::reproduce(case, source),
         Oracle::Meter {
             dimension,
             ceiling: n,
