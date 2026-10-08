@@ -91755,3 +91755,22 @@ which `guide types` keeps; ordinal paging; the online-only example caveat,
 which the counter example keeps). `guide types` folds the membership sentence
 into the reference sentence and drops the E_SEQUENCE_SUPPLIED line `guide
 writes` owns.
+
+## 2026-10-08 — App-farm lane S2, item 4: numbers on the wire are integers
+
+Round 3 counted three builds that met float/decimal encoding on the wire
+(ant-trail-0355 stored float coordinates in a `json` column and learned from
+the refusal that numbers there must be integers). Verified on the debug build
+of `d3eee62f47`, through `run` and `POST /m` under `dev`: `money USD` and
+`decimal 4` arguments accept only integers in minor units (`1250`, `725`) and
+answer in them (`sum` answers `1250`); `12.5`, `1000.0` and `1e3` refuse 400
+E_INPUT "an integer"; `"12.50"` refuses "expected an integer amount in minor
+units, got a string"; a fraction inside a `json` value refuses "a number must
+be an integer in the signed 53-bit range"; 2^53 + 1 refuses.
+
+`guide wire` gains "Numbers, money and decimals": a compiled `expenses`
+schema, the curl call and its answer, the refusals with their messages, and
+the client-side scaling (`Math.round(dollars * 100)`, Python's
+`json.dumps(10.0)` writing `10.0`). `guide types`, where E_INPUT's `guide`
+pointer lands, says in one sentence that there are no floats and points to
+`guide wire`.

@@ -29,15 +29,49 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
   `{state:"failed", id, why, current?}`. With an `id` (a unique string the caller
   mints once per intended write), a retry of the same call applies at most once
   and answers `replayed: true`; without one, every POST is a new write.
-- Values: `time` is Unix milliseconds; `money` and `decimal S` travel as integers
-  in minor units (12.50 at scale 2 is `1250`, never `12.5`); `bytes` is lowercase
-  hex; a reference is its row's id string.
+- Values: `time` is Unix milliseconds; `bytes` is lowercase hex; a reference is
+  its row's id string. Numbers: see below.
 - A job is not a client call (E_OP): a schedule fires it, and in dev
   `/dev/jobs/<job>` or `snapback4 run <job>` runs one.
 - GET `/changes?since=<seq>&wait=25` long-polls. It answers `{seq, tables,
   generation, store_id}` when a commit lands or after `wait` seconds: re-query
   what reads those tables, then poll again from the new `seq`. `/sync` is the
   device replication protocol; use the client rather than reimplementing it.
+
+## Numbers, money and decimals
+
+Every number on the wire is a JSON integer within ±(2^53 − 1); there are no
+floats. `money CUR` (scale 2 unless given) and `decimal S` hold an integer
+scaled by 10^S and travel as that integer, in both directions:
+
+```quarry
+table expenses:
+  owner: principal
+  amount: money USD                 -- $12.50 travels as 1250
+  rate: decimal 4                   -- 0.0725 travels as 725
+  place: json <=400 ?               -- numbers inside are integers too
+  read <- .owner = viewer
+  insert <- .owner = viewer
+mutation addExpense(amount: money USD, rate: decimal 4, place: json <=400 ?):
+  require amount > 0 else BAD_AMOUNT
+  return insert expenses { owner: viewer, amount, rate, place }
+query spent():
+  return sum(expenses where .owner = viewer, .amount)
+```
+
+```sh
+curl -s -X POST $U/m/addExpense -H 'x-snapback-persona: alice' -H 'Content-Type: application/json' \
+  -d '{"args":{"amount":1250,"rate":725,"place":{"latE6":37774900,"lngE6":-122419400}}}'
+```
+
+`spent` answers `{"data":1250,..}`: cents, not dollars. `12.5` and `1000.0`
+refuse HTTP 400 E_INPUT ("argument amount: an integer"), `"12.50"` too ("expected
+an integer amount in minor units"), and so does a fraction anywhere inside a
+`json` value ("a number must be an integer in the signed 53-bit range"). Scale with rounding before sending:
+`Math.round(dollars * 100)`, since `0.29 * 100` is `28.999999999999996`; in
+Python send `round(x * 100)`, because `json.dumps(10.0)` writes `10.0`.
+Format on display, `(cents / 100).toFixed(2)`. Keep coordinates and
+measurements as scaled integers (microdegrees, milligrams) or as text.
 
 ## Development doors
 

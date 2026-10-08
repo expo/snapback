@@ -20,6 +20,8 @@ A table name means a reference: any id string. Its target is never read, and
 membership cannot prove it exists: use `require exists t[id] else CODE`, or
 bind with `r = t[id] ! else CODE`.
 `default` fills omissions; explicit values win.
+There are no floats: `money` and `decimal S` are integers in minor units, and
+a fraction anywhere in JSON, `json` values included, refuses E_INPUT (guide wire).
 Enums widen within text bounds.
 `require exists t[k]`, `require t[k] != null`, and present `if t[k] != null`
 branches narrow identical admitted unique-key reads, including helper arguments.
