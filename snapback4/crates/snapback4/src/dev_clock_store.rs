@@ -40,8 +40,114 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
     if omitted { names.push("additional tables omitted".into()); }
     if names.is_empty() { names.push("no table names recorded".into()); }
     Ok(Some(format!(
-        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset to continue",
+        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset (or dev --resume-clock) to continue",
         names.join(", "))))
+}
+
+/// UTC calendar text for Unix milliseconds: schedule boundaries are UTC.
+pub fn utc(ms: i64) -> String {
+    let (days, rem) = (ms.div_euclid(86_400_000), ms.rem_euclid(86_400_000));
+    // Civil-from-days (proleptic Gregorian), exact for the I53 range.
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z", rem / 3_600_000, rem % 3_600_000 / 60_000, rem % 60_000 / 1_000)
+}
+
+/// A positive duration in the units `clock advance` accepts, rounded up to a second.
+pub fn span(ms: i64) -> String {
+    let seconds = (ms.max(0) + 999) / 1_000;
+    let (d, h, m, s) = (seconds / 86_400, seconds % 86_400 / 3_600, seconds % 3_600 / 60, seconds % 60);
+    let parts: Vec<String> = [(d, "d"), (h, "h"), (m, "m"), (s, "s")].into_iter().filter(|(n, _)| *n > 0).map(|(n, unit)| format!("{n}{unit}")).collect();
+    if parts.is_empty() { "0s".into() } else { parts.join("") }
+}
+
+/// Each schedule's saved boundary, in declaration order.
+pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
+    engine.schema().schedules.iter()
+        .map(|schedule| engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten().and_then(|value| value.parse().ok()))
+        .collect()
+}
+
+fn period(schedule: &snapback4_core::schema::Schedule) -> String {
+    let every = schedule.every_ms as i64;
+    let unit = [(86_400_000, "d"), (3_600_000, "h"), (60_000, "m"), (1_000, "s"), (1, "ms")].into_iter().find(|(n, _)| every % n == 0).unwrap_or((1, "ms"));
+    let at = if schedule.offset_ms > 0 { format!(" at {:02}:{:02} UTC", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() };
+    format!("every {}{}{at}", every / unit.0, unit.1)
+}
+
+/// What each schedule did on one clock advance, and why one did not fire.
+/// The core fires each schedule at most once per advance, for the latest
+/// boundary, and holds it while its saved boundary is ahead of the clock.
+// @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
+pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool) -> Vec<serde_json::Value> {
+    let after = saved_boundaries(engine);
+    let runs = engine.jobs(64).unwrap_or_default();
+    engine.schema().schedules.iter().enumerate().map(|(index, schedule)| {
+        let every = schedule.every_ms as i64;
+        let (old, saved) = (before.get(index).copied().flatten(), after.get(index).copied().flatten());
+        let current = schedule.boundary(now);
+        let next = current.saturating_add(every);
+        let mut entry = serde_json::json!({ "name": schedule.name, "target": schedule.target, "period": period(schedule), "fired": false, "nextBoundary": utc(next) });
+        if fired.contains(&schedule.name) {
+            let end = saved.unwrap_or(current);
+            entry["fired"] = true.into();
+            entry["periodStart"] = (end - every).into();
+            entry["periodEnd"] = end.into();
+            entry["reason"] = format!("fired for the period {} to {}", utc(end - every), utc(end)).into();
+            if let Some(run) = runs.iter().find(|run| run.name == schedule.target) {
+                entry["run"] = serde_json::json!({ "state": run.state, "rowsWritten": run.rows_written, "error": run.error });
+            }
+            let skipped = old.map(|old| (end - old) / every - 1).unwrap_or(0);
+            if skipped > 0 {
+                entry["skippedPeriods"] = skipped.into();
+                entry["reason"] = format!("fired once, for the latest period {} to {}; {skipped} earlier period{} this advance crossed (from {}) did not run: missed boundaries fire once. Run {} with periodStart/periodEnd for an earlier period",
+                    utc(end - every), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
+            }
+        } else if held {
+            entry["reason"] = "schedules are held (dev --hold-schedules or --replay); a restart without the flag resumes at the next boundary".into();
+        } else if let Some(saved) = saved.filter(|saved| *saved > current) {
+            let due = saved.saturating_add(every);
+            entry["heldUntil"] = utc(due).into();
+            entry["nextBoundary"] = utc(due).into();
+            entry["reason"] = format!("held by the store: its saved boundary {} is ahead of the clock {} (a dev restart resets the clock offset; the store keeps the boundary). Advance {} more, restart with dev --resume-clock, or test on dev --fresh",
+                utc(saved), utc(now), span(due - now)).into();
+        } else if old != saved {
+            entry["reason"] = format!("{} started at boundary {}: a schedule fires at the boundary after the first one it sees, next {} ({} from now)",
+                if old.is_none() { "this schedule" } else { "this changed schedule" }, utc(saved.unwrap_or(current)), utc(next), span(next - now)).into();
+        } else {
+            entry["reason"] = format!("next boundary {} ({} from now; schedule times are UTC)", utc(next), span(next - now)).into();
+        }
+        entry
+    }).collect()
+}
+
+/// Startup lines for schedules the store holds: their saved boundary leads the clock.
+pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
+    engine.schema().schedules.iter().zip(saved_boundaries(engine)).filter_map(|(schedule, saved)| {
+        let saved = saved.filter(|saved| *saved > schedule.boundary(now))?;
+        let due = saved.saturating_add(schedule.every_ms as i64);
+        Some(format!("clock     schedule {} is held until {} ({} from now): its saved boundary {} is ahead of this clock; `clock advance {}` or restart with dev --resume-clock",
+            schedule.name, utc(due), span(due - now), utc(saved), span(due - now)))
+    }).collect()
+}
+
+/// The dev clock offset that continues a store's own time: its newest
+/// recent commit stamp (or saved schedule boundary) less wall time, never negative.
+pub fn resume_offset(store: &snapback4_core::Store, wall: i64) -> Result<i64, RuntimeError> {
+    let commit: Option<i64> = store.conn().query_row(
+        "SELECT MAX(at) FROM (SELECT at FROM _commits ORDER BY seq DESC LIMIT ?1)", [RECENT_COMMITS as i64], |row| row.get(0))?;
+    let mut statement = store.conn().prepare("SELECT value FROM _meta WHERE key LIKE 'schedule:%'")?;
+    let boundary = statement.query_map([], |row| row.get::<_, String>(0))?.flatten().filter_map(|value| value.parse::<i64>().ok()).max();
+    let latest = commit.into_iter().chain(boundary).max().unwrap_or(wall);
+    // Whole seconds, rounded up, so restarting twice does not drift backwards.
+    Ok((latest.saturating_sub(wall).max(0) + 999) / 1_000 * 1_000)
 }
 
 pub fn has_data(engine: &Engine) -> bool {
@@ -66,6 +172,24 @@ mod tests {
             ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut 0).unwrap())),
             ("at", snapback4_core::Value::Int(row_at)),
         ]))], commit_at).unwrap();
+    }
+    #[test]
+    fn utc_text_and_spans_match_the_calendar() {
+        assert_eq!(utc(0), "1970-01-01T00:00:00Z");
+        assert_eq!(utc(951_782_400_000), "2000-02-29T00:00:00Z");
+        assert_eq!(utc(-1), "1969-12-31T23:59:59Z");
+        assert_eq!(utc(1_791_468_000_000), "2026-10-08T14:00:00Z");
+        assert_eq!(span(12_633_000), "3h30m33s");
+        assert_eq!(span(86_400_001), "1d1s");
+        assert_eq!(span(0), "0s");
+    }
+    #[test]
+    fn resume_offset_follows_the_newest_commit_and_is_never_negative() {
+        let mut engine = engine();
+        assert_eq!(resume_offset(engine.store(), 100_000).unwrap(), 0);
+        seed(&mut engine, "alpha", 3_700_500, 1);
+        assert_eq!(resume_offset(engine.store(), 100_000).unwrap(), 3_601_000);
+        assert_eq!(resume_offset(engine.store(), 9_000_000).unwrap(), 0);
     }
     #[test]
     fn commit_tolerance_and_largest_lead_ignore_future_application_values() {

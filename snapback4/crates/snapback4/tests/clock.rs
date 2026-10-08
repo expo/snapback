@@ -749,3 +749,49 @@ fn startup_clock_advice_ignores_bad_row_images_and_reports_inspection_failure() 
         }
     }
 }
+
+// Farm round 2 (dev-clock cluster): an advance names why each schedule did or
+// did not fire, and `--resume-clock` continues a store's time after a restart.
+#[test]
+fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
+    let f = Fixture::new("explain");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable counters:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  insert counters { n: 0 }\nquery counters():\n  return counters first 10 by byId\njob tick(periodStart: time, periodEnd: time):\n  for c in counters:\n    update counters[c.id] { n: c.n + 1 }\nschedule ticker every 1h: tick\nschedule morning every 1d at 06:00: tick\n").unwrap();
+    let start = |args: &[&str]| {
+        let log = f.0.join("startup.log");
+        let mut child = Command::new(BIN).current_dir(&f.0).args(args).args(["--port", "0"])
+            .stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let text = fs::read_to_string(log).unwrap();
+        assert!(!line.is_empty(), "{text}");
+        (Host { child, address: line.trim().trim_start_matches("http://").into() }, text)
+    };
+    let (host, _) = start(&["dev", "--no-watch"]);
+    assert_eq!(host.post("/m/add", json!({"id":"a","args":{}}))["state"], "sent");
+    let advanced = host.post("/dev/clock/advance", json!({"duration":"5h"}));
+    let ticker = &advanced["schedules"][0];
+    assert_eq!((ticker["name"].as_str(), ticker["fired"].as_bool(), ticker["skippedPeriods"].as_i64()), (Some("ticker"), Some(true), Some(4)), "{advanced}");
+    assert_eq!(ticker["periodEnd"].as_i64().unwrap() - ticker["periodStart"].as_i64().unwrap(), 3_600_000);
+    assert_eq!(ticker["run"]["state"], "done", "{advanced}");
+    assert!(ticker["reason"].as_str().unwrap().contains("missed boundaries fire once"), "{advanced}");
+    let morning = &advanced["schedules"][1];
+    assert_eq!(morning["period"], "every 1d at 06:00 UTC");
+    if morning["fired"] == false { assert!(morning["reason"].as_str().unwrap().contains("schedule times are UTC"), "{advanced}"); }
+    drop(host);
+    let (host, log) = start(&["dev", "--no-watch"]);
+    assert!(log.contains("schedule ticker is held until") && log.contains("--resume-clock"), "{log}");
+    let held = host.post("/dev/clock/advance", json!({"duration":"2h"}));
+    assert_eq!(held["work"]["schedules"], 0, "{held}");
+    let ticker = &held["schedules"][0];
+    assert_eq!(ticker["fired"], false);
+    assert!(ticker["reason"].as_str().unwrap().contains("held by the store") && ticker["heldUntil"].is_string(), "{held}");
+    let doctor = output_json(f.command(&["doctor", "--json"]));
+    assert!(doctor.to_string().contains("ahead of the clock: held until"), "{doctor}");
+    drop(host);
+    let refused = f.command(&["dev", "--no-watch", "--resume-clock", "--fresh", "--port", "0"]);
+    assert!(!refused.status.success() && String::from_utf8_lossy(&refused.stderr).contains("cannot be combined"), "{refused:?}");
+    let (host, log) = start(&["dev", "--no-watch", "--resume-clock"]);
+    assert!(log.contains("--resume-clock: offset +") && !log.contains("N_CLOCK_STORE_AHEAD") && !log.contains("is held until"), "{log}");
+    let resumed = host.post("/dev/clock/advance", json!({"duration":"1h"}));
+    assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
+    assert_eq!(host.query("counters")[0]["n"], 2, "{resumed}");
+}

@@ -33,7 +33,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   new <dir> --template social       Expo Router social starter (feed, chats, search, profile)
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   types                            compile and write snapback/generated/api.ts
-  dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h] [--trace-empty]
+  dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
   deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
@@ -138,7 +138,19 @@ fn main() -> ExitCode {
             let Some(project) = std::env::current_dir().ok().and_then(|dir| project::Project::locate(&dir)) else {
                 return Err("no snapback/schema.q here or above; run `snapback4 init` to start one".into());
             };
-            let clock_offset = options.flags.get("clock-offset").map(|text| dev_clock::offset(text)).transpose().map_err(|e| e.to_string())?.unwrap_or(0);
+            let mut clock_offset = options.flags.get("clock-offset").map(|text| dev_clock::offset(text)).transpose().map_err(|e| e.to_string())?.unwrap_or(0);
+            if options.flags.contains_key("resume-clock") {
+                // Continue the persisted store's own time after a restart (periphery; the core clock is unchanged).
+                if options.flags.contains_key("clock-offset") || options.flags.contains_key("fresh") || options.flags.contains_key("memory") {
+                    return Err(dev_clock::input("--resume-clock reads the persisted store's time; it cannot be combined with --clock-offset, --fresh or --memory").to_string());
+                }
+                let path = project.store_path();
+                if path.exists() {
+                    let store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
+                    clock_offset = dev_clock_store::resume_offset(&store, snapback4_core::now_ms()).map_err(|e| e.to_string())?;
+                }
+                eprintln!("clock     --resume-clock: offset {clock_offset:+}ms from the store's newest commit stamp or schedule boundary");
+            }
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
             let bind = development_bind(&options)?;
             serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited)

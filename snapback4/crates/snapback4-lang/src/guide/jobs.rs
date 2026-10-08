@@ -240,10 +240,19 @@ stamp `now` from this clock. The clock keeps ticking monotonically;
 `snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
 for expiry sweeps and queued job chunks to finish. Missed periods fire once,
 not once per skipped boundary; `--hold-schedules` still holds admission.
-The response reports `now`, `advancedMs`, cumulative `offsetMs`, a restart reminder, and work counts (including parked
-jobs); if maintenance fails, time remains advanced and the normal tick retries
+The response reports `now`, `advancedMs`, cumulative `offsetMs`, a restart reminder, work counts (including parked
+jobs), and `schedules`: for each schedule, whether it fired, for which period
+(`periodStart`/`periodEnd`; `skippedPeriods` counts earlier periods the advance
+crossed, which do not run), its job run, or why it did not fire. Schedule times
+are UTC: `every 1d at 06:00` fires at 06:00 UTC. A missed period you still need
+runs with `snapback4 run <job> '{"periodStart":…,"periodEnd":…}'`. If maintenance fails, time remains advanced and the normal tick retries
 pending work, so do not blindly repeat the advance. The offset belongs to
-this process and resets on restart; supply it again when continuing a test.
+this process and resets on restart; supply it again when continuing a test,
+or start `snapback4 dev --resume-clock`, which takes the offset from the store's
+newest commit stamp (or saved schedule boundary). After a plain restart, a
+schedule whose saved boundary is ahead of the clock is held: dev prints
+`schedule <name> is held until …` at startup, `doctor` marks it, and the advance
+reply names the wait.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
 Run time-travel suites on a disposable store and a separate port, from the project directory:
 
@@ -260,7 +269,8 @@ snapback4 doctor --url http://127.0.0.1:4401
 Pass SNAPBACK_URL to the suite's client `url`; the variable cannot redirect a
 hard-coded URL. Issue new sessions for each fresh store and discard its saved tokens.
 `--fresh` (also `--memory`) never changes the main dev store. To resume a
-persistent offset test, restart that store with the same cumulative `--clock-offset`.
+persistent offset test, restart that store with the same cumulative `--clock-offset`
+(or `--resume-clock`).
 `doctor` shows the running offset and a store-ahead note when a stamp in the
 latest 64 commits leads its clock by more than five seconds; dev prints the same
 note once at startup. With no host, doctor compares against wall time. Only the
@@ -324,7 +334,7 @@ With `--fresh`, the count dies with the in-memory store; `doctor` and local
 
 N_CLOCK_STORE_AHEAD means recent commit stamps are more than five seconds ahead
 of the current clock. Use a fresh store per offset test (`dev --fresh --port 4401`),
-or restart with the same cumulative `--clock-offset` to continue. Only the latest
+or restart with the same cumulative `--clock-offset` (or `dev --resume-clock`) to continue. Only the latest
 64 commits are checked: older future commits can be missed, even with rows remaining;
 history can still warn after deletion. Table names may be omitted. See Operations.
 

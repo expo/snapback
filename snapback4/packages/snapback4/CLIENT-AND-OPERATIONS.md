@@ -2423,7 +2423,7 @@ step.
   events or edges; `guide feeds` has the complete program.
 
 - **`snapback4 dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules]
-  [--clock-offset +25h]`** serves `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
+  [--clock-offset +25h|--resume-clock]`** serves `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
   save (the watcher polls every 400 ms; a save with problems keeps the previous generation serving and prints
   the diagnostics; `--no-watch` never re-adopts, says so at startup, and names a changed `snapback/` when a
   request reaches an operation or argument the running schema lacks; restart to serve the edit); the store lives in `.snapback4/store.sqlite` and persists across runs, and `--fresh`
@@ -2472,11 +2472,15 @@ step.
   185s [--port N]` advances a running dev and waits for expiry sweeps and queued jobs, so an `every 2m`
   schedule and a three-minute expiry need no real wait. Missed periods fire once; held schedules stay held.
   Each job chunk keeps its normal meter and commit. The JSON response names `now`, `advancedMs` and `work`
-  counts, including parked jobs. A maintenance error leaves time advanced and pending work retries on the
+  counts, including parked jobs, and a `schedules` list: per schedule, whether it fired, the period it fired
+  for (`periodStart`/`periodEnd`, plus `skippedPeriods` when the advance crossed several), its job run, or
+  why it did not fire (next boundary, schedule times being UTC, or held by a store whose saved boundary is
+  ahead of a restarted clock). A maintenance error leaves time advanced and pending work retries on the
   normal tick; do not blindly repeat the advance. Durations are positive whole numbers with `ms`, `s`, `m`,
   `h`, `d` or `w`, optionally prefixed `+`; the startup offset alone may be negative. Mutations at `POST
   /m/<op>` stamp `now` from this dev clock. The dev clock keeps ticking monotonically and cannot advance
-  backwards. Its offset resets on process restart; supply it again to continue a test. Rows stamped under an
+  backwards. Its offset resets on process restart; supply it again, or start `dev --resume-clock` to continue
+  from the store's newest commit stamp (or saved schedule boundary). Rows stamped under an
   offset keep their times after restart; use a fresh store per offset test.
   Devices keep the server's time for predictions, reads and expiry, including offline starts.
   `clock advance` and `--clock-offset` reach connected devices at their next response.

@@ -1,6 +1,6 @@
 # Snapback 4: after a dev restart, `clock advance` silently fires nothing while a schedule's saved boundary is ahead
 
-Status: Open
+Status: Closed (2026-10-08, farm round 2)
 Date: 2026-10-08
 Scope: Snapback 4 CLI periphery (`crates/snapback4/src/dev_clock*.rs`, `serve_maintenance.rs` advance reply); documentation
 Reproduced: yes, on main cd2fa88d8b
@@ -59,3 +59,38 @@ boundary is still ~3 h ahead of the clock.
   rather than remembering `--clock-offset`.
 - Optionally `clock reset-schedules` for a dev store, rewinding saved
   boundaries to the current clock (dev only; never on serve).
+
+## Resolution (2026-10-08, farm round 2)
+
+Round 2 kept this at the top of the open Snapback list (10 builds, 27 min,
+8 GPT). Two new diaries pinned the remaining confusion:
+rat-trap-sensor-0891 ("First `clock advance 7h` across 06:00 fired no
+schedule (`schedules:0`)") and laundromat-machine-map-0829 ("fired schedule
+for latest (empty) period"). Reproduced both, plus the restart hold above.
+The first is not a hold: `every 1d at 06:00` is 06:00 UTC, and a 7-hour
+advance from 00:47 Pacific does not cross it. The second is the documented
+"missed periods fire once" coalescing, with no word about it in the reply.
+
+Periphery fix, no core change (`crates/snapback4/src/dev_clock_store.rs`,
+`serve_maintenance.rs`, `serve.rs`, `verbs.rs`, `main.rs`):
+
+- `POST /dev/clock/advance` / `clock advance` reply gains `schedules`, one
+  entry per schedule: `fired`, `periodStart`/`periodEnd`, the job `run`
+  (state, rows, error), `skippedPeriods` with a `run <job>` hint when the
+  advance crossed several boundaries, otherwise a `reason`: next boundary in
+  UTC with the wait, "held by the store" with `heldUntil` and the advance
+  needed, schedules held by `--hold-schedules`/`--replay`, or a newly started
+  or changed schedule.
+- `dev --resume-clock` takes the offset from the store's newest recent
+  commit stamp (or saved schedule boundary); refuses with `--clock-offset`,
+  `--fresh` or `--memory`.
+- dev prints `schedule <name> is held until … ; clock advance <dur> or
+  restart with dev --resume-clock` at startup; `doctor`'s schedule line shows
+  UTC times, the next boundary, and "ahead of the clock: held until …".
+- `guide jobs`, `why N_CLOCK_STORE_AHEAD` and CLIENT-AND-OPERATIONS describe
+  the report, UTC schedule times and `--resume-clock`.
+
+Not done: the optional `clock reset-schedules`; `--resume-clock` covers the
+restart case. Test: `crates/snapback4/tests/clock.rs`
+`advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold`,
+plus unit tests for the UTC formatter and resume offset.

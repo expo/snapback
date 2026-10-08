@@ -304,6 +304,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
             Ok(None) => {},
             Err(error) => snapback4_core::diagnostic!("clock     store-ahead inspection unavailable: {error}"),
         }
+        for line in crate::dev_clock_store::held_schedules(&engine, clock.now()) { snapback4_core::diagnostic!("{line}"); }
     }
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also

@@ -43,7 +43,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -881,7 +881,13 @@ pub fn doctor(options: &Options) -> i32 {
                     }
                     for schedule in &engine.schema().schedules {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
-                        lines.push(format!("schedule  {} every {}{} → {}; {}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02}", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target, match last { Some(at) => format!("last boundary {at}"), None => "not yet started (a running server starts it)".into() }));
+                        let last = last.and_then(|at| at.parse::<i64>().ok());
+                        let state = match last {
+                            Some(at) if at > schedule.boundary(now) => format!("last boundary {at} ({}), ahead of the clock: held until {}; restart with dev --resume-clock or advance the clock", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(at.saturating_add(schedule.every_ms as i64))),
+                            Some(at) => format!("last boundary {at} ({}); next {}", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.boundary(now).saturating_add(schedule.every_ms as i64))),
+                            None => "not yet started (a running server starts it)".into(),
+                        };
+                        lines.push(format!("schedule  {} every {}{} → {}; {state}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02} UTC", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target));
                     }
                     if let Ok(work) = engine.timeline_work_counts() {
                         for (name, pending, parked) in work { lines.push(format!("timeline  {name}: {pending} pending delivery work, {parked} parked")); }

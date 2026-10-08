@@ -91489,3 +91489,22 @@ The word budget on the language card is at its edge: listing `totals` cost a
 word, repaid by dropping the dash on the Cards line (fact fixture updated).
 The CLIENT-AND-OPERATIONS guide line now says "prints cards" to keep its list
 inside the 400-character window the keyword test reads.
+
+## 2026-10-08 — Farm round 2: the dev clock explains every schedule; `dev --resume-clock`
+
+Round-2 cluster 2 (10 builds, 27 min, 8 GPT), ticket
+`issues/closed/20261008-snapback4-dev-clock-restart-holds-schedules.md`.
+Reproduced three causes behind `schedules: 0`: a restart hold (saved boundary
+ahead of the reset clock), UTC schedule times (rat-trap-sensor-0891's 7 h
+advance from 00:47 Pacific never crossed 06:00 UTC), and coalesced missed
+periods (laundromat-machine-map-0829's 26 h advance fired only the latest,
+empty period). Periphery only: the advance reply now carries a `schedules`
+list (fired + period + run + `skippedPeriods`, or the reason with the next
+UTC boundary / `heldUntil` and the advance needed); dev prints held schedules
+at startup; `doctor` shows UTC boundaries and holds; `dev --resume-clock`
+continues the store's time from its newest recent commit stamp or saved
+boundary. The core's firing rule is unchanged. The `--hold-schedules` hold is
+reported from the host flag; a restored dev policy without the flag is not
+distinguished. New clock test plus UTC/resume unit tests; `--test clock`
+24/24, `--test check`/`replay` pass. One unrelated witness-preparation unit
+test failed once under parallel load and passes alone.

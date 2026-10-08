@@ -6,7 +6,7 @@ use std::{sync::Arc, time::{Duration, Instant}};
 use tiny_http::Request;
 
 #[derive(Default, serde::Serialize)]
-struct Work { delivery_chunks: usize, expired: u64, schedules: usize, chunks: usize, parked: usize }
+struct Work { delivery_chunks: usize, expired: u64, schedules: usize, chunks: usize, parked: usize, #[serde(skip)] fired: Vec<String> }
 
 const WORK_TIME: Duration = Duration::from_millis(2);
 const CONTENDED_TIME: Duration = Duration::from_micros(250);
@@ -82,7 +82,8 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     if !shared.hold_schedules {
         let fired = phase(shared, engine_work(shared, |engine, _| engine.fire_schedules(shared.now())), drain, "schedules")?;
         work.schedules = fired.len();
-        for name in fired { snapback4_core::diagnostic!("snapback4: schedule {name} fired"); }
+        for name in &fired { snapback4_core::diagnostic!("snapback4: schedule {name} fired"); }
+        work.fired = fired;
     }
     while drain || work.chunks < 500 {
         if crate::lifecycle::stopping() { break; }
@@ -360,6 +361,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         // Match claims' engine-then-clock lock order: no claim can land
         // between shifting its lease and publishing the advanced clock.
         let mut engine = lock(&shared.engine);
+        let before = crate::dev_clock_store::saved_boundaries(&engine);
         lock(&shared.maintenance).advancing = true;
         let mut clock = lock(&shared.clock);
         let mut next = clock.clone();
@@ -368,16 +370,19 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         *clock = next;
         let offset = now - snapback4_core::now_ms();
         let message = format!("cumulative offset {offset:+}ms; lasts until restart{}", if crate::dev_clock_store::has_data(&engine) { "; use dev --fresh --port 4401 for isolated time tests (guide jobs)" } else { "" });
-        Ok((now, offset, message))
+        Ok((now, offset, message, before))
     })();
-    let (now, offset, message) = match advanced {
+    let (now, offset, message, before) = match advanced {
         Ok(result) => result,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
     // request; synchronous clock-advance work intentionally keeps request QoS.
     match work(shared, true, 0) {
-        Ok(work) => respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "work":work})),
+        Ok(work) => {
+            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules);
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "work":work, "schedules":schedules}))
+        }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
         Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "denied":refusal_json(&error.refusal())})),
