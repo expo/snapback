@@ -127,11 +127,10 @@ impl Parser {
         if body.is_empty() {
             // @ref LLP 3000.007#20.19 — default `check` hides a recovery diagnostic only
             // when an earlier error in the same operation's own body already explains it.
-            let mut diagnostic = syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value));
             // A job's parsed prelude cannot explain missing chunks; that repair is independent.
-            if kind != ProgramKind::Job {
-                diagnostic.cascade_of = self.diagnostics[before_body..].iter().find(|d| d.code.starts_with("E_")).map(|d| d.site.clone());
-            }
+            if kind == ProgramKind::Job { return Err(job_without_sweep(&kind_token.site, &name, &prelude)); }
+            let mut diagnostic = syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value));
+            diagnostic.cascade_of = self.diagnostics[before_body..].iter().find(|d| d.code.starts_with("E_")).map(|d| d.site.clone());
             return Err(diagnostic);
         }
         Ok(ProgramDecl { delivery, held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
@@ -215,4 +214,27 @@ impl Parser {
         self.take_kind(Kind::Dedent)?;
         Ok((prelude, chunks))
     }
+}
+
+/// A job body is a sweep (`guide jobs`): name the loop to write, over the
+/// table the prelude already writes or pages when there is one.
+fn job_without_sweep(site: &crate::Site, name: &str, prelude: &[Stmt]) -> crate::Diagnostic {
+    fn table(statements: &[Stmt]) -> Option<(&str, bool)> {
+        statements.iter().find_map(|statement| match statement {
+            Stmt::Expr { value: Expr::Write { table, .. }, .. } | Stmt::Bind { value: Expr::Write { table, .. }, .. } | Stmt::Return { value: Expr::Write { table, .. }, .. } => Some((table.as_str(), false)),
+            Stmt::For { domain: Expr::Read(read), .. } => Some((read.table.as_str(), true)),
+            Stmt::For { body, .. } | Stmt::As { body, .. } => table(body),
+            Stmt::If { then_body, else_body, .. } => table(then_body).or_else(|| table(else_body)),
+            _ => None,
+        })
+    }
+    let found = table(prelude);
+    let swept = found.map_or("<table>", |(table, _)| table);
+    let seen = match found {
+        Some((_, true)) => format!("; a paged `for … in {swept} first N` only reads ahead of a sweep"),
+        Some(_) => "; its writes are outside any sweep".to_owned(),
+        None => String::new(),
+    };
+    syntax_with(site, format!("job {name} has an empty body: a job body is a sweep, one top-level `for row in table:` loop with every write inside it{seen}"),
+        format!("for row in {swept}:  -- then indent the writes under it, address the row as row.id and test mutable columns with `if` (or bound it: for row in {swept} where .<id or immutable column> >= periodStart by .<that column>:)")).guide("jobs")
 }

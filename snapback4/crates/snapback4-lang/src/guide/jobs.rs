@@ -32,7 +32,7 @@ Test mutable columns (`reminded`, `status`, `done`) with `if` inside the loop,
 as above; a sweep whose `where` or `by` uses a mutable column is refused,
 because a write could move its cursor. A job with no top-level table sweep (bare writes, a
 `range` loop, or only a paged `for … first N`) is refused as `job <name> has
-an empty body`.
+an empty body`, with the sweep to write.
 
 A top-level `for p in recipients:` is an adaptive sweep. The engine chooses
 the iterations per transaction, retries a meter-refused chunk at a smaller size,

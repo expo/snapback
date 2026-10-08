@@ -92015,3 +92015,20 @@ carries the same two recipes in its E_SYNC paragraph (no new card lines).
 (`true`, `3`, `null`), so `check`'s other sync issues, `why <table>` and the
 search rewrite no longer show tagged JSON. No acceptance change: the same
 programs are refused, with a different message.
+
+## 2026-10-08 — S1: a job body without a sweep names the sweep to write
+
+App-farm round 3 (cluster 5, 12 builds; two v7 "most needed fix" lines):
+`guide jobs` already opens with "a job body is a sweep" (`a814d0e8b9`), but
+the refusal still said only `job remind has an empty body` with the generic
+"fix this Quarry line" rewrite. It now says what a job body is and names the
+loop to write, over the table the prelude already writes or pages:
+
+```
+schema.q:9:1 — E_QUARRY_SYNTAX: job remind has an empty body: a job body is a sweep, one top-level `for row in table:` loop with every write inside it; its writes are outside any sweep
+  rewrite: for row in invites:  -- then indent the writes under it, address the row as row.id and test mutable columns with `if` (or bound it: for row in invites where .<id or immutable column> >= periodStart by .<that column>:)
+  guide: jobs
+```
+
+A paged `for … first N` prelude is called out as reading ahead of a sweep.
+Same code, same acceptance; the diagnostic now points at `guide jobs`.

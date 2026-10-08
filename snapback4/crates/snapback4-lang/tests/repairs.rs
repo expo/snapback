@@ -223,3 +223,24 @@ fn wildcard_then_bare_column_is_an_explicit_replacement() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
 }
+
+// App farm round 3: the job-body refusal names the sweep to write, over the
+// table the prelude already touches.
+#[test]
+fn a_job_without_a_sweep_names_the_sweep() {
+    let table = "table invites:\n  inviteeId: principal\n  reminded: bool\n  read <- .inviteeId = viewer\n  insert <- deny\n  update <- deny\n  delete <- deny\n";
+    for (body, swept, seen) in [
+        ("  update invites[x] { reminded: true }\n", "invites", "its writes are outside any sweep"),
+        ("  for i in invites first 10 by .id:\n    x = i.reminded\n", "invites", "a paged `for … in invites first N` only reads ahead of a sweep"),
+        ("  x = 1\n", "<table>", "every write inside it"),
+    ] {
+        let bound = compile(&[("schema.q".into(), format!("{table}job remind():\n{body}"))]);
+        let refusal = bound.diagnostics.iter().find(|d| d.message.starts_with("job remind has an empty body")).unwrap_or_else(|| panic!("{:?}", bound.diagnostics));
+        assert_eq!(refusal.code, "E_QUARRY_SYNTAX");
+        assert_eq!(refusal.guide, "jobs");
+        assert!(refusal.message.contains("a job body is a sweep, one top-level `for row in table:` loop") && refusal.message.contains(seen), "{refusal}");
+        assert!(refusal.rewrite.starts_with(&format!("for row in {swept}:")), "{refusal}");
+    }
+    let swept = compile(&[("schema.q".into(), format!("{table}job remind():\n  for row in invites:\n    if not row.reminded:\n      update invites[row.id] {{ reminded: true }}\n"))]);
+    assert!(swept.diagnostics.is_empty(), "the named sweep compiles: {:?}", swept.diagnostics);
+}
