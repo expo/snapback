@@ -1,6 +1,6 @@
 # Snapback 4 heap accounting differs between SQLite and Postgres
 
-**Status:** Open (needs an engine fix or a contract ruling)
+**Status:** Open — ruled 2026-10-08: fix the engine (see Ruling)
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -79,3 +79,23 @@ Exit 1 with this signature means it still reproduces. The test target
 `tests/stores.rs` pins the eight signatures its fixed 33-case corpus
 produces. Fixing the engine changes that set, and the test must be updated
 with the fix.
+
+## Ruling (Charlie, 2026-10-08)
+
+Charge the public `heap_bytes` meter the same way on every store.
+
+- Compute it from the encoded size of the values and rows that a step
+  holds, not from physical scratch. The same program under the same ceiling
+  then has the same outcome on SQLite, Postgres and the device.
+- Protect the server's real memory with a separate internal guard in each
+  store. Set it well above any realistic ceiling, and make it refuse with
+  its own distinct code, never `E_BOUND`.
+
+**Order of work.** Slice C (server against device, LLP 3000.035 §5.1) runs
+first, to find out whether the device store accounts heap a third way, so
+the fix is made once. The fix lane must first confirm the store-specific
+charging the harness lane identified.
+
+**Done when** the six signatures above stop reproducing, the pinned set in
+`snapback4-difftest/tests/stores.rs` is updated to match, and a scheduled
+store run reports no heap or step signatures.
