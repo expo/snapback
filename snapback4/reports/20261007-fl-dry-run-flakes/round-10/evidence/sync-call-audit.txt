@@ -1,0 +1,68 @@
+packages/snapback4/test/test-signals.test.mjs:105:    const pending = runProcess(file, [], { timeout: 3000, maxBuffer: 1024, env: process.env }).finally(() => { completed = true; });
+packages/snapback4/test/test-signals.test.mjs:247:      timeout: 200, maxBuffer: 1024, env: process.env,
+packages/snapback4/test/test-signals.test.mjs:275:      timeout: mode === 'timeout' ? 200 : 15000, maxBuffer: 1024, signal: abort.signal,
+scripts/test-signals.mjs:54:    const result = await runInspection(probe, [String(pid)], { timeout: 10000, maxBuffer: 16 * 1024 * 1024, signal });
+packages/snapback4/test/test-file-runner.test.mjs:6:import { spawn, spawnSync } from 'node:child_process';
+packages/snapback4/test/test-file-runner.test.mjs:144:import {execFileSync} from 'node:child_process';
+packages/snapback4/test/test-file-runner.test.mjs:147:  const pid = execFileSync('/bin/sh', ['-c', 'sleep 600 </dev/null >/dev/null 2>&1 & echo $!'], {encoding:'utf8'}).trim();
+packages/snapback4/test/test-file-runner.test.mjs:166:import {execFileSync} from 'node:child_process';
+packages/snapback4/test/test-file-runner.test.mjs:168:test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bin/sh', ['-c', 'sleep 600 </dev/null >/dev/null 2>&1 & echo $!'])));`);
+packages/snapback4/test/test-file-runner.test.mjs:267:                const r = require('node:child_process').spawnSync(${JSON.stringify(command)}, ${JSON.stringify(args)},
+packages/snapback4/test/test-file-runner.test.mjs:268:                  {timeout:60000,maxBuffer:16*1024*1024});
+packages/snapback4/test/test-file-runner.test.mjs:338:import {execFileSync} from 'node:child_process';
+packages/snapback4/test/test-file-runner.test.mjs:340:test('helper', () => writeFileSync(${JSON.stringify(pidFile)}, execFileSync('/bin/sh', ['-c', 'sleep 600 </dev/null >/dev/null 2>&1 & echo $!'])));`);
+packages/snapback4/test/test-file-runner.test.mjs:360:import {spawnSync} from 'node:child_process';
+packages/snapback4/test/test-file-runner.test.mjs:362:  spawnSync('/bin/sh', ['-c', '(echo ready > "${ready}"; while [ ! -f "${go}" ]; do sleep 0.01; done; sleep 600 </dev/null >/dev/null 2>&1 & echo $! > "${pidFile}.tmp"; mv "${pidFile}.tmp" "${pidFile}") </dev/null >/dev/null 2>&1 & while [ ! -f "${ready}" ]; do sleep 0.01; done'], {timeout:${fixtureWorkMs},killSignal:'SIGKILL'});
+packages/snapback4/test/test-file-runner.test.mjs:440:  writeFileSync(path, `import test from 'node:test';import {execFileSync} from 'node:child_process';test('helper',()=>{execFileSync('/bin/sh',['-c','sleep 600 </dev/null >/dev/null 2>&1 &'])});`);
+packages/snapback4/test/test-file-runner.test.mjs:637:  const native = spawnSync(process.execPath, ['--test', path], {env: nativeEnv, detached: true, timeout:fixtureWorkMs, killSignal:'SIGKILL'});
+packages/snapback4/test/test-file-runner.test.mjs:681:      const states = spawnSync('ps', ['-p', `${first.pid},${child.pid}`, '-o', 'stat='], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+packages/snapback4/test/schema-capability-refusals.test.mjs:7:import {checkedSpawnSync as spawnSync} from './helpers/fixture-command.mjs';
+packages/snapback4/test/schema-capability-refusals.test.mjs:27:  const result=spawnSync(binary,['device',path,...(backend?[file]:[])],{input:requests.map(r=>JSON.stringify(r)+'\n').join(''),encoding:'utf8',timeout:hangBudget(),killSignal:'SIGKILL'});
+packages/snapback4/test/export-failure.test.mjs:9:import { spawnSync } from 'node:child_process';
+packages/snapback4/test/export-failure.test.mjs:58:    const compile = spawnSync('cc', [...(process.platform === 'darwin' ? ['-dynamiclib'] : ['-shared', '-fPIC']), new URL('./publication-interposer.c', import.meta.url).pathname, '-o', library], { encoding: 'utf8' });
+packages/snapback4/test/export-failure.test.mjs:66:import fs from 'node:fs'; import path from 'node:path'; import {spawnSync} from 'node:child_process'; import {inventory,hash} from ${JSON.stringify(payload)};
+packages/snapback4/test/export-failure.test.mjs:83: const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
+packages/snapback4/test/export-failure.test.mjs:89:    const run = fault => { const result = spawnSync(process.execPath, ['--input-type=module', '-e', `Object.defineProperty(process,'platform',{value:'darwin'});const {main}=await import(${JSON.stringify(wrapper)});try{process.exitCode=await main()}catch(e){console.error(e);process.exitCode=1}`], { cwd: root, env: { ...env, SB4_FAULT: fault }, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' }); assert.equal(result.error, undefined, `publication fixture ${fault}: ${result.error?.message}`); return result; };
+packages/snapback4/test/export-failure.test.mjs:109:        const cleanup=spawnSync(binary,['witness','export-cleanup',path.join(root,'artifacts/native-smoke')],{encoding:'utf8'});
+packages/snapback4/test/export-publication.test.mjs:7:import { spawnSync } from 'node:child_process';
+packages/snapback4/test/export-publication.test.mjs:30:const publish = (source, root, lease) => spawnSync(process.execPath, [shim, 'witness', 'export-publish', source, path.join(root, 'dist')], {
+packages/snapback4/test/export-publication.test.mjs:60:    const built = spawnSync('cc', [probe + '.c', ...(process.platform === 'darwin' ? [] : ['-ldl']), '-o', probe], { encoding: 'utf8' });
+packages/snapback4/test/export-publication.test.mjs:163:  const held = spawnSync(binary, ['witness', 'export-lease', blocker], { stdio: ['ignore', 'pipe', 'pipe', lock] });
+packages/snapback4/test/export-background.test.mjs:11:import { checkedSpawnSync as spawnSync } from './helpers/fixture-command.mjs';
+packages/snapback4/test/export-background.test.mjs:60:    const result = spawnSync(process.execPath, [wrapper], { cwd: root, env: { ...env, EXPORT_BYTES: bytes }, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
+packages/snapback4/test/export-background.test.mjs:67:  const status = (...args) => spawnSync(binary, ['witness', 'status', ...args], { cwd: root, env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
+packages/snapback4/test/export-background.test.mjs:104:    const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
+packages/snapback4/test/export-background.test.mjs:264:    const status = spawnSync('ps', ['-p', String(pid), '-o', 'stat='], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL' });
+packages/snapback4/test/export-background.test.mjs:293:  const doctor = spawnSync(binary, ['doctor'], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
+packages/snapback4/test/export-background.test.mjs:344:const fs=require('fs'),{spawn,spawnSync}=require('child_process');
+packages/snapback4/test/export-background.test.mjs:347: const result=spawnSync('/usr/bin/gzip',process.argv.slice(2),{stdio:'inherit'});process.exit(result.status??1);
+packages/snapback4/test/export-background.test.mjs:419:  for (const pid of [compressor.pid, compressor.child]) assert.equal(Number(spawnSync('ps', ['-o','pgid=','-p',String(pid)], {encoding:'utf8'}).stdout.trim()), custody.group, 'compressor descendants share the recorded anchor group');
+packages/snapback4/test/export-background.test.mjs:421:  const contender = spawnSync(binary, ['witness', 'export-cleanup', retentionRoot], { cwd: f.root, env: f.env, encoding: 'utf8', timeout: fixtureWorkMs, killSignal: 'SIGKILL' });
+packages/snapback4/test/export-background.test.mjs:514:    const refused=spawnSync(binary,['witness','export-retain-worker',root,root],{cwd:f.root,env:f.env,encoding:'utf8'});
+packages/snapback4/test/export-background.test.mjs:531:    const built=spawnSync('cc',['-dynamiclib',new URL('./retention-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
+packages/snapback4/test/export-background.test.mjs:553:    const signed=spawnSync('codesign',['--force','--sign','-',injected],{encoding:'utf8'});assert.equal(signed.status,0,signed.stderr);
+packages/snapback4/test/export-background.test.mjs:627:    for(const pid of [compressor.pid,compressor.child]) assert.equal(Number(spawnSync('ps',['-o','pgid=','-p',String(pid)],{encoding:'utf8'}).stdout.trim()),custody.group);
+packages/snapback4/test/export-background.test.mjs:681:  // -ww prevents ps itself clipping commands to a display width. checkedSpawnSync
+packages/snapback4/test/export-background.test.mjs:683:  const result = spawnSync('ps', ['-axww', '-o', 'pid=,command='], {
+packages/snapback4/test/export-background.test.mjs:684:    encoding: 'utf8', env, maxBuffer: 128 * 1024 * 1024,
+packages/snapback4/test/export-background.test.mjs:776:      const sweep=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(sweep.status,0,sweep.stderr);
+packages/snapback4/test/export-background.test.mjs:782:    const sweep=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(sweep.status,0,sweep.stderr);
+packages/snapback4/test/export-background.test.mjs:788:    const doctor=spawnSync(binary,['doctor'],{cwd:f.root,env:f.env,encoding:'utf8'});assert.match(doctor.stdout,/native smoke skipped/);assert.doesNotMatch(doctor.stdout,/no proof for the current export/);
+packages/snapback4/test/export-background.test.mjs:822:      scan=spawnSync(binary,['witness','export-cleanup',root],{cwd:f.root,env:f.env,encoding:'utf8',timeout:fixtureWorkMs,killSignal:'SIGKILL'});
+packages/snapback4/test/export-background.test.mjs:928:    const compiled=spawnSync('cc',[...(process.platform==='darwin'?['-dynamiclib']:['-shared','-fPIC']),new URL('./publication-interposer.c',import.meta.url).pathname,'-o',library],{encoding:'utf8'});
+packages/snapback4/test/export-background.test.mjs:931:import {spawnSync} from 'node:child_process';
+packages/snapback4/test/export-background.test.mjs:934:const r=spawnSync(${JSON.stringify(binary)},args,{env,stdio:args[1]==='export-publish'||args[1]==='export-lease'?['inherit','inherit','inherit',3]:'inherit'});
+packages/snapback4/test/export-background.test.mjs:1071:    for(const pid of [compressor.pid,compressor.child])assert.equal(Number(spawnSync('ps',['-o','pgid=','-p',String(pid)],{encoding:'utf8'}).stdout.trim()),custody.group);
+packages/snapback4/test/export-background.test.mjs:1250:    const armed=spawnSync(binary,['witness','export-maintenance',root],{cwd:f.root,env:f.env,encoding:'utf8'});assert.equal(armed.status,0,armed.stderr);
+packages/snapback4/test/export-native.test.mjs:72:  const { spawnSync } = await import('node:child_process');
+packages/snapback4/test/export-native.test.mjs:81:    const invoke = code => spawnSync(process.execPath, [bin], { cwd: root, encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: binary, PATH: tools+':'+process.env.PATH, SNAPBACK4_NATIVE_SMOKE: 'off', EXPORT_STATUS: String(code) } });
+packages/snapback4/test/export-native.test.mjs:237:  const { spawnSync } = await import('node:child_process');
+packages/snapback4/test/export-native.test.mjs:243:    const result = spawnSync(process.execPath, [helper, 'build', root, out, 'no-device', 'http://127.0.0.1:4400', 'dist'], { encoding: 'utf8' });
+packages/snapback4/test/helpers/fixture-command.mjs:3:import { spawnSync } from 'node:child_process';
+packages/snapback4/test/helpers/fixture-command.mjs:5:export function checkedSpawnSync(command, args, options) {
+packages/snapback4/test/helpers/fixture-command.mjs:6:  const result = spawnSync(command, args, options);
+packages/snapback4/test/test-processes.test.mjs:29:    assert.equal(options.maxBuffer, 16 * 1024 * 1024);
+packages/snapback4/test/test-processes.test.mjs:81:          const r = require('node:child_process').spawnSync(${JSON.stringify(command)}, ${JSON.stringify(args)},
+packages/snapback4/test/test-processes.test.mjs:82:            {timeout:60000,maxBuffer:16*1024*1024});
+packages/snapback4/test/test-processes.test.mjs:142:    [process.execPath, ['-e', "process.stdout.write('x'.repeat(4096));setInterval(()=>{},1000)"], /maxBuffer/],
+packages/snapback4/test/test-processes.test.mjs:147:      return runProcess(command, args, { ...options, maxBuffer: 128 });

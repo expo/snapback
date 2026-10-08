@@ -21,7 +21,7 @@ export async function avatarFixture(t) {
   const clients = [];
   t.after(async () => {
     for (const c of clients) await c.close();
-    if (host.exitCode === null && host.signalCode === null) { const done = new Promise(resolve => host.once("exit", resolve)); signalChild(host); await done; }
+    if (host.exitCode === null && host.signalCode === null) { const done = new Promise(resolve => host.once("exit", resolve)); await signalChild(host); await done; }
     rmSync(dir, { recursive: true, force: true });
   });
   const url = await until(() => { assert.equal(host.exitCode, null, log); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "calibration server");

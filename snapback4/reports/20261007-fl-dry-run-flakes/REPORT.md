@@ -1,5 +1,24 @@
 # Lane FL — load-safe publication dry-run tests
 
+**Round-10 complete process listings:** [round 10](round-10/REPORT.md) gives
+the retention coalescing assertion a checked 128 MiB full-command listing,
+requires successful `ps` completion and preserves every matching row. It adds
+a large-table regression, overflow/truncation controls and a complete audit of
+round 8's synchronous calls.
+
+**Round-9 asynchronous capture:** [round 9](round-9/REPORT.md) fixes round 8's
+blocking initial-identity wait. Capture yields, owned timeout cleanup remains
+active, and fault dispatch awaits fresh exact identity. It includes persistent
+empty-command heartbeat/reaping regressions and mutation controls.
+
+**Round-8 process-work bounds:** [round 8](round-8/REPORT.md) replaces the
+real runner CLI's ten-second launch caps with bounded owned completion,
+preserves every verdict/count/shim assertion, and audits sibling process-work
+and readiness bounds. The primary and other non-background cases pass 20/20
+loaded rounds; the broader background replay is 18/20, with two unresolved
+maintenance-drain failures recorded separately. Delayed-start and hung-runner
+controls pass. This is not a clean publication qualification.
+
 **Round-7 Darwin identity correction:** [round 7](round-7/REPORT.md) binds
 recorded faults to the fixture's selected binary and canonical launch paths,
 including its copied/re-signed executable. It includes the complete Darwin

@@ -1,0 +1,11 @@
+✔ newborn command capture after empty exec state: none (83.015417ms)
+✔ newborn command capture after empty exec state: different birth (28.668546ms)
+✔ newborn command capture after empty exec state: malformed command (32.70647ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 237.988594

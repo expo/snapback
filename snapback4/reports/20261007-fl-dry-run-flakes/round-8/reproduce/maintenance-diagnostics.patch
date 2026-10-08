@@ -1,0 +1,46 @@
+--- a/snapback4/packages/snapback4/test/export-background.test.mjs
++++ b/snapback4/packages/snapback4/test/export-background.test.mjs
+@@ -11,8 +11,8 @@
+ import { checkedSpawnSync as spawnSync } from './helpers/fixture-command.mjs';
+ import { once } from 'node:events';
+ import { randomUUID, createHash } from 'node:crypto';
+-import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+-import { signalFixture } from './helpers/fixture-signals.mjs';
++import { checkSignalRecord, signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
++import { fixtureCommands, signalFixture } from './helpers/fixture-signals.mjs';
+ import { waitForPublisher, killPausedPublisher, releasePublisherBarrier } from './helpers/publication-barrier.mjs';
+ 
+ // Use one spelling for launch and exact identity checks, including Darwin's
+@@ -651,9 +651,29 @@
+ // observer which was launched by the preceding custodian rather than a wrapper.
+ async function maintenanceIdle(f, allowParked = false) {
+   const root=path.join(f.root,'artifacts/native-smoke');
+-  await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
+-    ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
+-    'coalesced maintenance queue drained',90000);
++  try {
++    await until(()=>(allowParked || ['maintenance-request.json','maintenance-claimed.json','maintenance-parked.json'].every(n=>!fs.existsSync(path.join(root,n)))) &&
++      ['maintenance-next.json','maintenance-active.json'].every(n=>!alive(read(path.join(root,n))?.process?.pid)),
++      'coalesced maintenance queue drained',90000);
++  } catch (error) {
++    // Preserve the first failure and evidence before fixture cleanup removes
++    // the queue. A later passing rerun cannot explain a missing transition.
++    try {
++      const records = Object.fromEntries(['request','claimed','parked','next','active','result','done']
++        .map(name => [name, read(path.join(root, `maintenance-${name}.json`))]));
++      const processes = Object.fromEntries(['next','active'].map(name => {
++        const record = records[name]?.process;
++        if (!record) return [name, null];
++        try { return [name, { verified: checkSignalRecord(record, fixtureCommands(f.env.SNAPBACK4_BIN, f.root)) }]; }
++        catch (failure) { return [name, { inspection: failure.message }]; }
++      }));
++      let log;
++      try { log = fs.readFileSync(path.join(root, 'maintenance.log'), 'utf8').slice(-65536); }
++      catch (failure) { log = `unavailable: ${failure.code}`; }
++      error.message += '\nMAINTENANCE_SNAPSHOT ' + JSON.stringify({ records, processes, log });
++    } catch (failure) { error.message += `\nMAINTENANCE_SNAPSHOT unavailable: ${failure.message}`; }
++    throw error;
++  }
+ }
+ for(const mode of ['off','non-macOS']) test(`held retention lock coalesces 28 skipped exports into one pending observer (${mode})`,{timeout:120000},async()=>{
+   const f=fixture(); let holder, exited;

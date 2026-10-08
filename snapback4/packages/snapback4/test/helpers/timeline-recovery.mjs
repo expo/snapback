@@ -198,7 +198,7 @@ export async function recoverTimeline() {
     return {historicalCommitMinimumBytes,serverFollowing:final.data,originalCommitBytes:first.bytes,originalCommitEvents:first.data.events.length,largestUpdateBytes,ceiling:16<<20,sameGeneration:observed.every(d=>d.generation===backend.generation),devices:observed,settledFollowing:final.data.length};
   } finally {
     for(const f of devices)await f.client?.close();
-    if(server.exitCode==null&&server.signalCode==null)signalChild(server, 'SIGTERM');
+    if(server.exitCode==null&&server.signalCode==null)await signalChild(server, 'SIGTERM');
     await exited;await rm(directory,{recursive:true,force:true});
   }
 }

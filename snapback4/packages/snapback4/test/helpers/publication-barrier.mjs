@@ -23,7 +23,7 @@ export async function waitForPublisher(file, argv, timeout = 30000) {
   }
 }
 export async function killPausedPublisher(file, record, argv) {
-  checkSignalRecord(record, argv);
+  await checkSignalRecord(record, argv);
   releasePublisherBarrier(file);
 }
 export function releasePublisherBarrier(file) {
@@ -35,7 +35,7 @@ export function releasePublisherBarrier(file) {
 export async function waitForPublisherExit(record, timeout = 30000) {
   const end = performance.now() + timeout;
   for (;;) {
-    if (!signalTargetAlive(record)) return;
+    if (!await signalTargetAlive(record)) return;
     assert.ok(performance.now() < end, 'owned publisher exited after its lease was released');
     await pause(20);
   }

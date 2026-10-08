@@ -1,6 +1,6 @@
 // One gate for test signals: positive PID, live exact birth, expected command,
-// then another birth/command inspection immediately before dispatch. No await
-// or caller callback separates the final inspection from the signal.
+// then another birth/command inspection immediately before dispatch. Native
+// inspection and readiness waits yield; dispatch follows the final result.
 // Recorded PIDs still have a small exit/reuse race before the syscall. Prefer
 // retained child handles or keeper-owned groups wherever we own the process.
 // @ref LLP 3000#publication-suite-under-contention — readiness is not lifetime;
@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { spawnOwned as nativeSpawn, killOwned, runOwnedCommand } from './test-owned-command.mjs';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { spawnOwned as nativeSpawn, killOwned, runOwnedCommand, runInspection } from './test-owned-command.mjs';
 
 const refusal = detail => new Error(`TEST_SIGNAL_REFUSED: ${detail}`);
 let probe;
@@ -33,19 +33,27 @@ function linuxBirth(pid) {
   if (!/^[RSDTtWKIP]$/.test(fields[0])) throw refusal(`unknown process state for ${pid}`);
   return { parent: Number(fields[1]), start: [fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8'), fields[19]] };
 }
-function snapshot(pid) {
+async function snapshot(pid, signal) {
   positivePid(pid);
+  signal?.throwIfAborted();
   try {
     if (process.platform === 'linux') {
       const before = linuxBirth(pid);
-      const argv = command(fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8'));
+      const raw = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8');
       const after = linuxBirth(pid);
       sameBirth(after.start, before.start);
-      return { pid, ...after, argv };
+      // exec can temporarily expose an empty cmdline. Retain both birth reads
+      // so initial capture can wait within this exact live birth; dispatch
+      // inspection still refuses incomplete commands immediately.
+      if (raw === '') throw Object.assign(refusal('incomplete process command'), {
+        code: 'TEST_SIGNAL_COMMAND_PENDING', record: { pid, ...after },
+      });
+      return { pid, ...after, argv: command(raw) };
     }
     if (process.platform !== 'darwin') throw refusal(`unsupported platform ${process.platform}`);
-    const result = spawnSync(probe, [String(pid)], { timeout: 10000, killSignal: 'SIGKILL', maxBuffer: 16 * 1024 * 1024 });
-    if (result.status !== 0) throw refusal(`PID ${pid} identity unavailable${result.status === 3 ? ' (exited)' : ''}: ${result.error?.message ?? result.stderr}`);
+    const result = await runInspection(probe, [String(pid)], { timeout: 10000, maxBuffer: 16 * 1024 * 1024, signal });
+    signal?.throwIfAborted();
+    if (result.error || result.status !== 0) throw refusal(`PID ${pid} identity unavailable${result.status === 3 ? ' (exited)' : ''}: ${result.error?.message ?? result.stderr}`);
     const output = result.stdout.toString('utf8'), newline = output.indexOf('\n');
     const { start, parent } = JSON.parse(output.slice(0, newline));
     if (!Array.isArray(start) || start.length !== 2 || !start.every(Number.isSafeInteger)) throw refusal('invalid Darwin birth');
@@ -73,36 +81,61 @@ function checkCommand(actual, expected) {
   if (!Array.isArray(expected) || actual.length !== expected.length || !actual.every((arg, i) => expected[i] instanceof RegExp ? expected[i].test(arg) : arg === expected[i]))
     throw refusal('PID must identify this fixture publisher command / expected process command');
 }
-export function inspectSignalTarget(pid, argv, start) {
-  const before = snapshot(pid);
+export async function inspectSignalTarget(pid, argv, start) {
+  const before = await snapshot(pid);
   if (start !== undefined) sameBirth(before.start, start);
   checkCommand(before.argv, argv);
-  const after = snapshot(pid);
+  const after = await snapshot(pid);
   sameBirth(after.start, before.start);
   checkCommand(after.argv, argv);
   return after;
 }
-export function signalTargetAlive(record) {
+export async function signalTargetAlive(record) {
   assert.ok(record?.start !== undefined, 'TEST_SIGNAL_REFUSED: recorded birth required');
   positivePid(record.pid);
-  try { return JSON.stringify((process.platform === 'linux' ? linuxBirth(record.pid) : snapshot(record.pid)).start) === JSON.stringify(record.start); }
+  try { return JSON.stringify((process.platform === 'linux' ? linuxBirth(record.pid) : await snapshot(record.pid)).start) === JSON.stringify(record.start); }
   catch (error) { if (error.code === 'ENOENT' || /identity unavailable: ENOENT|is exited|identity unavailable \(exited\)/.test(error.message)) return false; throw error; }
 }
-export function checkSignalRecord(record, argv) {
+export async function checkSignalRecord(record, argv) {
   assert.ok(record?.start !== undefined, 'TEST_SIGNAL_REFUSED: recorded birth required');
   return inspectSignalTarget(record.pid, argv, record.start);
 }
-export function signalRecorded(record, signal, argv) {
+export async function signalRecorded(record, signal, argv) {
   // This userspace check is not atomic with kill: exit/reuse can still occur.
-  checkSignalRecord(record, argv);
+  await checkSignalRecord(record, argv);
   process.kill(record.pid, signal);
 }
 const children = new WeakMap();
+async function captureChild(child, signal) {
+  const deadline = performance.now() + 120000;
+  let start;
+  for (;;) {
+    try {
+      const record = await snapshot(child.pid, signal);
+      if (record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
+      if (start !== undefined) sameBirth(record.start, start);
+      return record;
+    } catch (error) {
+      // Only the kernel's empty command during newborn exec gets a state wait.
+      // Preserve its first birth and require the same parent on every sample.
+      // Malformed nonempty commands, changed births and read failures refuse.
+      if (error.code !== 'TEST_SIGNAL_COMMAND_PENDING') throw error;
+      if (error.record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
+      if (start !== undefined) sameBirth(error.record.start, start);
+      else start = error.record.start;
+      if (performance.now() >= deadline) throw error;
+      await sleep(10, undefined, { signal });
+    }
+  }
+}
 export function spawnTracked(...args) {
   const child = nativeSpawn(...args);
-  try {
-    const record = snapshot(child.pid);
-    if (record.parent !== process.pid) throw refusal('spawned process is not this parent\'s child');
+  const abort = new AbortController();
+  const stop = () => abort.abort(refusal('direct child exited during capture'));
+  child.once('exit', stop); child.once('error', stop);
+  const state = {};
+  children.set(child, state);
+  state.ready = captureChild(child, abort.signal).then(record => {
     // The kernel inserts a shebang interpreter before the script path. Capture
     // the actual complete argv of this newborn child as well as spawnargs;
     // neither permits another birth, a changed script path or extra arguments.
@@ -112,26 +145,35 @@ export function spawnTracked(...args) {
     // all remaining arguments. Other env forms refuse if their argv changes.
     if (path.basename(record.argv[0]) === 'env' && record.argv[1] && !/[-=]/.test(record.argv[1]))
       argv.push(record.argv.slice(1));
-    children.set(child, { record, argv });
-  } catch (error) {
+    Object.assign(state, { record, argv });
+  }, error => {
     // A short command can finish before capture. Its normal exit remains
     // usable; later fault injection needs captured birth evidence. Owned
     // timeout cleanup can still use the retained native child handle.
-    children.set(child, { error });
-  }
+    state.error = error;
+  }).finally(() => { child.removeListener('exit', stop); child.removeListener('error', stop); });
   return child;
 }
-export function signalChild(child, signal = 'SIGTERM') {
+// Awaitable for fixture readiness and its regressions. Normal exits/capture
+// refusals settle too; only signalChild can authorize a subsequent fault.
+export async function childCaptureReady(child) {
+  const state = children.get(child);
+  if (!state) throw refusal('no captured child birth: use spawnTracked');
+  await state.ready;
+}
+export async function signalChild(child, signal = 'SIGTERM') {
   // Null JS exit fields do NOT prove unreaped custody (LLP 3000 QF7).
   // Require the birth captured at spawn, plus a fresh command/birth check.
   if (!child || child.exitCode !== null || child.signalCode !== null) throw refusal('direct child already exited');
+  await childCaptureReady(child);
+  if (child.exitCode !== null || child.signalCode !== null) throw refusal('direct child already exited');
   const { record, argv, error } = children.get(child) ?? {};
   if (!record) throw refusal(`no captured child birth: ${error?.message ?? 'use spawnTracked'}`);
-  checkSignalRecord(record, argv);
+  await checkSignalRecord(record, argv);
   if (!killOwned(child, signal)) throw refusal('owned child exited before dispatch');
 }
 export { signalSelf } from './test-owned-command.mjs';
 
-// Complete bootstrap before exporting synchronous identity operations. A
-// spawnSync compiler timeout can hang forever if cc handles SIGTERM.
+// Complete bootstrap before identity operations. Compilation and native
+// inspection have owned, asynchronous timeout cleanup, independent of capture.
 if (process.platform === 'darwin') probe = await buildDarwinProbe();

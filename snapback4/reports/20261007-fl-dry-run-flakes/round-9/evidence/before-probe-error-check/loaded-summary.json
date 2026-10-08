@@ -1,0 +1,156 @@
+{
+  "cpus": "80-87",
+  "busyLoops": 8,
+  "concurrentJobs": 2,
+  "rounds": [
+    {
+      "round": 1,
+      "status": 0
+    },
+    {
+      "round": 2,
+      "status": 0
+    },
+    {
+      "round": 3,
+      "status": 0
+    },
+    {
+      "round": 4,
+      "status": 0
+    },
+    {
+      "round": 5,
+      "status": 0
+    },
+    {
+      "round": 6,
+      "status": 0
+    },
+    {
+      "round": 7,
+      "status": 0
+    },
+    {
+      "round": 8,
+      "status": 0
+    },
+    {
+      "round": 9,
+      "status": 0
+    },
+    {
+      "round": 10,
+      "status": 0
+    },
+    {
+      "round": 11,
+      "status": 0
+    },
+    {
+      "round": 12,
+      "status": 0
+    },
+    {
+      "round": 13,
+      "status": 0
+    },
+    {
+      "round": 14,
+      "status": 0
+    },
+    {
+      "round": 15,
+      "status": 0
+    },
+    {
+      "round": 16,
+      "status": 0
+    },
+    {
+      "round": 17,
+      "status": 0
+    },
+    {
+      "round": 18,
+      "status": 0
+    },
+    {
+      "round": 19,
+      "status": 0
+    },
+    {
+      "round": 20,
+      "status": 0
+    }
+  ],
+  "sourceHashes": {
+    "scripts/test-command-group.mjs": "6c0798ec3d989a6073519ca14b1a98ff50b633e67068b37320542036a6ddc88d",
+    "scripts/test-file-owner.mjs": "4e708993ba827a01fe390508be43bf56096e50807d6fe528a261b12ec5f73fbc",
+    "scripts/test-work-bounds.mjs": "b11f8d9ae6199448381d4c55f6d7fdabc6a297c778b9c78abfa15f49c82fc0b0",
+    "scripts/test-command-owner.mjs": "fbb398f8b8e8dfd80c75508cc74bd5dacfbf41b4803e2d3e98ddd40b793654b9",
+    "scripts/test-owned-command.mjs": "0b82c06227bb2c5bc960114bbad6232593899cf1a721b96f91392bede92cc7c3",
+    "scripts/test-signals.mjs": "5448bfb9b390b3456baa268fc5a61645624dc67672ada99a0743dc025895d4db",
+    "scripts/test-progress-reporter.mjs": "d0f14f8f0e9ff6dbf2c176e0350b9c50bee4ee38babbdf974c02a95765dc80a5",
+    "scripts/test-processes.mjs": "cc2f981b1a388024ab40e39a8a27c508485f763d952a21297d706901bbd1badb",
+    "scripts/run-client-tests.mjs": "291911b7a7eb926dcfb95ca87121807c6abe05a6df9b3d868975f74f8d29137d",
+    "packages/snapback4/test/test-processes.test.mjs": "6dc6dff5ef2519de82b9cdef17bd8e51458cfcb0ef7b2fad17992f1ddce73305",
+    "packages/snapback4/test/test-signals.test.mjs": "c03a7da31e6492dd085bf375715214658ecaf0aceea4d4a2a2187e4c81fc0845",
+    "packages/snapback4/test/helpers/astra-search.mjs": "9ee2530f8aac680a860a219b56cdc1f354999ba0ad21dbc13b32f4aaa089bb8d",
+    "packages/snapback4/test/helpers/one-shot.mjs": "901f9dcf50bf2ad75a3078ec10ebb5c8324b6d5dd0001580a3d3ed7aef0c49d3",
+    "packages/snapback4/test/helpers/subscription-pressure-driver.mjs": "1b54bac55d2c659f1101ccfb2ae4a421363f9312dc5dc500b9065d8f963f244d",
+    "packages/snapback4/test/helpers/live-margin.mjs": "1f1d278944ca10a717cc7a8b28dcc959e4b61ff5f1bd3167169e40342a10a63a",
+    "packages/snapback4/test/helpers/react-asset-recovery.mjs": "251ecfba5ea8c32541df1a82bde035f50d3a1c5fa1581c5415b6aa4a730c0d62",
+    "packages/snapback4/test/helpers/delivery-crash-worker.mjs": "f70ce73032298e44f820a35f888e5ec8c018e702dabbb892a9c8aaec46610ac7",
+    "packages/snapback4/test/helpers/pr-authority-fixture.mjs": "6fe32a03e3bcbd2798ed14e0c29708b19e3a50f6a5a9f52a40f9b57b0f8313c4",
+    "packages/snapback4/test/helpers/search-oracle.mjs": "e8c79fc3104170ef343547a243088ea46a3563bd5808f81d1ab1e39c5672e7f9",
+    "packages/snapback4/test/helpers/fixture-signals.mjs": "8c0d07f836eef33bb582136d8c585bf306e37a78986792ba268cbe82e084b8d1",
+    "packages/snapback4/test/helpers/linux-proof-harness.mjs": "39928a8d39f3e39d2b5ef20e9240a7b06a27acfd66b0912badb82ef777d0a920",
+    "packages/snapback4/test/helpers/elf-fixture.mjs": "3a9458811b1789223374e7a9f5b71ec737c7a6c407c4e4db4818beb51e9058f1",
+    "packages/snapback4/test/helpers/social-direct-browser.mjs": "e46b1d1e5022e98ed8be63775880070b3bd46eb021d02ebd89ecb526354cc580",
+    "packages/snapback4/test/helpers/delivery-fixture.mjs": "b6f4ca51bae8e2e8822d4155d16b630dd5582e9aceb1fed7acbe3d6dfc41949f",
+    "packages/snapback4/test/helpers/live-margin-probe.mjs": "daf5b1eff5dbea5214907156e07db5b0b91a7456de17bdac4405fca049adda88",
+    "packages/snapback4/test/helpers/published-capabilities.mjs": "157396f1de571e3dff67da71ab69d307063ad629ec2fb51b6717ef9fe156e9b3",
+    "packages/snapback4/test/helpers/cleanup.mjs": "f66edc75bd935af6b8211316f817d700fc5c87f157ff4b8e73370cff838df64e",
+    "packages/snapback4/test/helpers/mixed-evidence-oracle.mjs": "7c943d43a23a7ecb6ede2b6ecd30ba0a657968b10d48a10eee2a80a9e4e4851f",
+    "packages/snapback4/test/helpers/wait.mjs": "5b363d1b69fcd2a41c5ed6a4f95c7e34db6d6158d8190ee22626f458866d5935",
+    "packages/snapback4/test/helpers/server-output.mjs": "4ad80813ba1bbd9a271f2495153375353704e208170d5926496d0c9fbbab8c3a",
+    "packages/snapback4/test/helpers/avatar-fixture.mjs": "93ba0b4d23a6e5423f70a7b1ef2cb7716dc78fafb2403c3f9b8bbbca1a262084",
+    "packages/snapback4/test/helpers/native-blob.mjs": "571abfe1823e84ed1d60a9ef135f6596278473c5fdcb201d9bcdda1f41b9f908",
+    "packages/snapback4/test/helpers/live-margin-notification.mjs": "3469ce82fb5380790597e9d32195a1c3d1c42346a3f90f8530f14fbdf3b14e4e",
+    "packages/snapback4/test/helpers/approval-oracle.mjs": "e7177d8332961ea9f3a4f609d5754b196a6c72d4f163fcc506547f74b2229a47",
+    "packages/snapback4/test/helpers/ephemeral-server.mjs": "e5c63dfdf3135d5ec0b907a8633df8cb3b083499833e6da1bcf5933b534bd20b",
+    "packages/snapback4/test/helpers/react-pending-items.mjs": "99c18f9fbec6716b1bab2e50ecca4f48eb42003e3b24a404e56f03baf77c13ab",
+    "packages/snapback4/test/helpers/authority-fixture.mjs": "493b74569eed39a3b25c92d640c0d475e83025177fd9a34ec877e30b26ccae6b",
+    "packages/snapback4/test/helpers/live-margin-load.mjs": "b06271e95b9b01f8eff84ce6dac773fdd5b92f90c0d10e4d598959bf22ba7551",
+    "packages/snapback4/test/helpers/social-browser.mjs": "2efd5b950e30c999a5c3719890468fd21290f26aa5c4efac21b06922a19273b3",
+    "packages/snapback4/test/helpers/sync-control.mjs": "265adc01236ca595139afb299871753e44b2a5a57a37ca138c41df8e0f869494",
+    "packages/snapback4/test/helpers/online-client-model.mjs": "402ada943acf2245bebb55777334ffca0aaa6b1868895d5ddf6d729aa858f7d6",
+    "packages/snapback4/test/helpers/app-model-device.mjs": "8ca6da6384156ade59207423d6b9e5304d6c57fd02eab392d8ddca7cdb8d1bd7",
+    "packages/snapback4/test/helpers/fixture-command.mjs": "1f4609803cbd16fa5b3566cb9f98cfb5000dac44f49ba79b823eefb35ba78011",
+    "packages/snapback4/test/helpers/publication-roundtrip-mock.mjs": "fe86fc010d1486d53efe166fda34e7910337ff39017c4f4f42036f8dc0109d49",
+    "packages/snapback4/test/helpers/screen-lifetimes.mjs": "70144b24dc1736858cfeb4ab78b7380972757e0e1f711385c3644a68f87c3a0e",
+    "packages/snapback4/test/helpers/generation-evidence-schedule.mjs": "a720f0d9148f149a0931f4a149ba88a3f7b62695f0ef79ea3003dbf873b10628",
+    "packages/snapback4/test/helpers/search-oracle-categories.mjs": "1b7444140c4beb96cc28c186b5c778678b4449cbeab65a3ff8acab3f01d27542",
+    "packages/snapback4/test/helpers/publication-barrier.mjs": "d176d1e4b380d3f263f94b3d877efac480df870426d637b0e7cc510ee52bcc39",
+    "packages/snapback4/test/helpers/react-harness.mjs": "fb75afd4842838d7fb5e9ef7d7aaba5f34ade9bb67d4a96a7cca12dbc5badad0",
+    "packages/snapback4/test/helpers/live-margin-summary.mjs": "6ba80b95486c866aedf33d4150f47047a0521c19339afe0418084e75f9ff86be",
+    "packages/snapback4/test/helpers/read-through-server.mjs": "61a8ea707e62988c777171c114522193467642aa08938c0fd72f952de75dc0d5",
+    "packages/snapback4/test/helpers/native-oracle-read-only.mjs": "886b91939fe14a1c39660064c8ede1ad86891d36393cdec01492344c2c6feebd",
+    "packages/snapback4/test/helpers/delivery-app-fixture.mjs": "2dbbea7bec1065f96573be05db891e618046d0f3bb82b97e2c4793653c8df68a",
+    "packages/snapback4/test/helpers/browser-server.mjs": "dccaa65a5091eb186ab73b8280fe541450cc07ed4b7b9c692d2866f36d82adb2",
+    "packages/snapback4/test/helpers/app-server.mjs": "2d6ae17dc1d65794a1061e33779692d6b916aa9c320f3edd1ce0924869b5198e",
+    "packages/snapback4/test/helpers/answers-stay.mjs": "224987ece73778d259eaad1f4a8d060369d6eac98b5b40bf803440cf1828b166",
+    "packages/snapback4/test/helpers/app-session-model.mjs": "7ab4aa8c64f841918cde993418ab2a47be1337dd2c8320f6a4ef6a0365c265f6",
+    "packages/snapback4/test/helpers/live-margin-browser.mjs": "7e3c9b7b3cfe89c1c29ce6b838431f7b44d81738236c74d7a98c23b73b721700",
+    "packages/snapback4/test/helpers/timeline-recovery.mjs": "44ef02eb3ab5ae24763e2d2810bfd5f996801c37528bc956ee130bd21164bddf",
+    "packages/snapback4/test/helpers/publish-fixture.mjs": "be3325678d193d63ae12ea6b3bb54e5af6379503f5a3ef68f2a9bc579a9e0f01",
+    "packages/snapback4/test/helpers/replacement-server.mjs": "52b335dc00ca4750c6a2954d54497c2dac27adf37abc242323d265f875443c77",
+    "packages/snapback4/test/helpers/react-pending-peer.mjs": "b7142974a4d4732571d51dd06ae0d346a70769ed51640bda42426fde0f7fef47",
+    "packages/snapback4/test/helpers/schema-capability-fixtures.mjs": "16b57e6257358ca851f2de03450ab14c74c29c875b1cee073641622f4b3ee281",
+    "packages/snapback4/test/helpers/notification-evidence-schedule.mjs": "cd2d8e55e37641ae617f9f2e9e4e53b1c00313168046cb09bd71b905e3b1eb2e"
+  },
+  "sourcesUnchanged": true,
+  "loopsReaped": true,
+  "seconds": 100.01
+}

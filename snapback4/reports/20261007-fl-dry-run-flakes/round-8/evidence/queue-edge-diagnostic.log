@@ -1,0 +1,520 @@
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5611.484615
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 27738.243719
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33600.744479
+-- process inspection: {"snapshots":3,"unrelatedRows":3981}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (34494 ms)
+DIAGNOSTIC_RESULT {"n":1,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3981},"elapsed":34494,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 6051.815911
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 27449.685385
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33767.437668
+-- process inspection: {"snapshots":3,"unrelatedRows":3987}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (34523 ms)
+DIAGNOSTIC_RESULT {"n":2,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3987},"elapsed":34523,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 4806.268395
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 29688.533279
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 34711.603128
+-- process inspection: {"snapshots":3,"unrelatedRows":3868}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (35589 ms)
+DIAGNOSTIC_RESULT {"n":3,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3868},"elapsed":35589,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 4823.182741
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 30088.062858
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 35132.319909
+-- process inspection: {"snapshots":3,"unrelatedRows":3868}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (36088 ms)
+DIAGNOSTIC_RESULT {"n":4,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3868},"elapsed":36088,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5629.261145
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 29678.404545
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 35569.751169
+-- process inspection: {"snapshots":3,"unrelatedRows":3898}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (36431 ms)
+DIAGNOSTIC_RESULT {"n":6,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3898},"elapsed":36431,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5769.248287
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 30772.991549
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 36769.940621
+-- process inspection: {"snapshots":3,"unrelatedRows":3900}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (37652 ms)
+DIAGNOSTIC_RESULT {"n":5,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3900},"elapsed":37652,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5120.414108
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 27041.692931
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32390.729935
+-- process inspection: {"snapshots":3,"unrelatedRows":3705}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (33167 ms)
+DIAGNOSTIC_RESULT {"n":7,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3705},"elapsed":33167,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5282.471787
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 26207.940412
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31704.689839
+-- process inspection: {"snapshots":3,"unrelatedRows":3703}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (32538 ms)
+DIAGNOSTIC_RESULT {"n":8,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3703},"elapsed":32538,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 4528.684925
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 27512.876681
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32261.71352
+-- process inspection: {"snapshots":3,"unrelatedRows":3631}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (33088 ms)
+DIAGNOSTIC_RESULT {"n":9,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3631},"elapsed":33088,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 4479.97931
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 27597.835648
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32264.988523
+-- process inspection: {"snapshots":3,"unrelatedRows":3637}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (33082 ms)
+DIAGNOSTIC_RESULT {"n":10,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3637},"elapsed":33082,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5266.5591
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 28639.94264
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 34074.208367
+-- process inspection: {"snapshots":3,"unrelatedRows":3653}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (34858 ms)
+DIAGNOSTIC_RESULT {"n":12,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3653},"elapsed":34858,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 5433.985256
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 29194.693341
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 34835.659024
+-- process inspection: {"snapshots":3,"unrelatedRows":3646}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (35750 ms)
+DIAGNOSTIC_RESULT {"n":11,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3646},"elapsed":35750,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 4944.778751
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 26046.487291
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31220.239399
+-- process inspection: {"snapshots":3,"unrelatedRows":3627}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (31827 ms)
+DIAGNOSTIC_RESULT {"n":13,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3627},"elapsed":31827,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 4971.385138
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 25582.49989
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 30789.62505
+-- process inspection: {"snapshots":3,"unrelatedRows":3620}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (31290 ms)
+DIAGNOSTIC_RESULT {"n":14,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3620},"elapsed":31290,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 3161.195926
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 18113.416233
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21390.156813
+-- process inspection: {"snapshots":3,"unrelatedRows":3697}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (21861 ms)
+DIAGNOSTIC_RESULT {"n":15,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3697},"elapsed":21861,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 3139.74714
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 18244.361124
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21559.70012
+-- process inspection: {"snapshots":3,"unrelatedRows":3698}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (22130 ms)
+DIAGNOSTIC_RESULT {"n":16,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3698},"elapsed":22130,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 3510.037904
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 16576.56702
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20226.220345
+-- process inspection: {"snapshots":3,"unrelatedRows":3692}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (20785 ms)
+DIAGNOSTIC_RESULT {"n":17,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3692},"elapsed":20785,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 3619.68736
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 17122.519232
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20867.335123
+-- process inspection: {"snapshots":3,"unrelatedRows":3736}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (21404 ms)
+DIAGNOSTIC_RESULT {"n":18,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3736},"elapsed":21404,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+-- client file start: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 3109.868625
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 17860.374738
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21102.92068
+-- process inspection: {"snapshots":3,"unrelatedRows":3666}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (21593 ms)
+DIAGNOSTIC_RESULT {"n":19,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3666},"elapsed":21593,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}
+TAP version 13
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 1 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 3241.788506
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 2 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 17945.747375
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21284.131846
+-- process inspection: {"snapshots":3,"unrelatedRows":3661}
+-- client file ok: packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs (21646 ms)
+DIAGNOSTIC_RESULT {"n":20,"file":"packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3661},"elapsed":21646,"counts":{"tests":2,"pass":2,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":6,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-queue-edge-diagnostic.test.mjs"}

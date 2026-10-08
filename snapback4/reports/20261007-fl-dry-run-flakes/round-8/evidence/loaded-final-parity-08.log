@@ -1,0 +1,174 @@
+-- client file start: packages/snapback4/test/.fl-r8-final-parity-1132122.test.mjs; stall bound 2400000 ms
+TAP version 13
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 1 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 913.995007
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 2 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 1003.421987
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 3 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 911.911114
+  type: 'test'
+  ...
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 4 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 3.206738
+  type: 'test'
+  ...
+# Subtest: group cleanup reaps an unsampled orphan after its sampled parent exits
+ok 5 - group cleanup reaps an unsampled orphan after its sampled parent exits
+  ---
+  duration_ms: 660.492636
+  type: 'test'
+  ...
+# Subtest: native buffered synchronous tests are bounded until Node delivers progress
+ok 6 - native buffered synchronous tests are bounded until Node delivers progress
+  ---
+  duration_ms: 5110.5052
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 7 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 1078.669118
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 8 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 1081.754974
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 9 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 945.963311
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 10 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 1150.148292
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 11 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 1103.341936
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 12 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 1149.100261
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 13 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 695.3433
+  type: 'test'
+  ...
+# Subtest: reaped keeper before its exit callback cannot make the runner send a signal
+ok 14 - reaped keeper before its exit callback cannot make the runner send a signal
+  ---
+  duration_ms: 553.103941
+  type: 'test'
+  ...
+# Subtest: runner death closes the keeper pipe and kills its living group
+ok 15 - runner death closes the keeper pipe and kills its living group
+  ---
+  duration_ms: 597.998742
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17098.829047
+-- process inspection: {"snapshots":3,"unrelatedRows":3667}
+-- client file ok: packages/snapback4/test/.fl-r8-final-parity-1132122.test.mjs (17613 ms)
+LOAD_RESULT {"file":"packages/snapback4/test/.fl-r8-final-parity-1132122.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3667},"elapsed":17613,"counts":{"tests":15,"pass":15,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":2400000,"progressCount":32,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-final-parity-1132122.test.mjs","candidateSha256":"ca9beb1c892aa0e41dcfbfa2018bbd762f9b1e50b570c144b53641115af48809"}
+-- client file start: packages/snapback4/test/export-native.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: retention keeps five completed runs, compresses older receipts and leaves active runs alone
+ok 1 - retention keeps five completed runs, compresses older receipts and leaves active runs alone
+  ---
+  duration_ms: 3377.214608
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3491.866802
+-- process inspection: {"snapshots":3,"unrelatedRows":3648}
+-- client file ok: packages/snapback4/test/export-native.test.mjs (3975 ms)
+LOAD_RESULT {"file":"packages/snapback4/test/export-native.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3648},"elapsed":3975,"counts":{"tests":1,"pass":1,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":4,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-native.test.mjs"}
+-- client file start: packages/snapback4/test/export-publication.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 303.819572
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 286.039558
+  type: 'test'
+  ...
+# Subtest: actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning
+ok 3 - actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning
+  ---
+  duration_ms: 1098.861729
+  type: 'test'
+  ...
+# Subtest: publication refuses changed inventory and a changed proof; no success receipt
+ok 4 - publication refuses changed inventory and a changed proof; no success receipt
+  ---
+  duration_ms: 183.061475
+  type: 'test'
+  ...
+# Subtest: SIGKILL releases the actual Node wrapper lease and cleanup recovers its run
+ok 5 - SIGKILL releases the actual Node wrapper lease and cleanup recovers its run
+  ---
+  duration_ms: 1036.809528
+  type: 'test'
+  ...
+# Subtest: publisher inherits custody if its Node wrapper is killed while publication is blocked
+ok 6 - publisher inherits custody if its Node wrapper is killed while publication is blocked
+  ---
+  duration_ms: 919.487502
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3966.23407
+-- process inspection: {"snapshots":3,"unrelatedRows":3642}
+-- client file ok: packages/snapback4/test/export-publication.test.mjs (4499 ms)
+LOAD_RESULT {"file":"packages/snapback4/test/export-publication.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3642},"elapsed":4499,"counts":{"tests":6,"pass":6,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":900000,"progressCount":14,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-publication.test.mjs"}

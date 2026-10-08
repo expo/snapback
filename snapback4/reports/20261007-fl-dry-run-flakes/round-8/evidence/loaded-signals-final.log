@@ -1,0 +1,713 @@
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 285.318961
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 26.126886
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 26.468558
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 25.024594
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 435.401805
+-- process inspection: {"snapshots":3,"unrelatedRows":3754}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (767 ms)
+LOAD_RESULT {"round":1,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3754},"elapsed":767,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 225.210976
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 37.638522
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.297664
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 22.928081
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 379.111512
+-- process inspection: {"snapshots":3,"unrelatedRows":3742}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (750 ms)
+LOAD_RESULT {"round":2,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3742},"elapsed":750,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 293.557912
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 47.279064
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.347497
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 25.10897
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 495.638023
+-- process inspection: {"snapshots":3,"unrelatedRows":3747}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (843 ms)
+LOAD_RESULT {"round":3,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3747},"elapsed":843,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 337.075728
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 50.821094
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 39.494244
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 33.245547
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 520.275907
+-- process inspection: {"snapshots":3,"unrelatedRows":3737}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (866 ms)
+LOAD_RESULT {"round":4,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3737},"elapsed":866,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 264.086052
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 26.605954
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 27.263459
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 24.717323
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 424.981824
+-- process inspection: {"snapshots":3,"unrelatedRows":3721}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (696 ms)
+LOAD_RESULT {"round":5,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3721},"elapsed":696,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 257.218126
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 26.24286
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 45.957573
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 51.368845
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 445.070479
+-- process inspection: {"snapshots":3,"unrelatedRows":3719}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (722 ms)
+LOAD_RESULT {"round":6,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3719},"elapsed":722,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 280.157534
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 36.499375
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 37.488507
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 25.410882
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 441.473757
+-- process inspection: {"snapshots":3,"unrelatedRows":3718}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (823 ms)
+LOAD_RESULT {"round":7,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3718},"elapsed":823,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 274.902716
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.027268
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.698736
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 23.32782
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 422.10382
+-- process inspection: {"snapshots":3,"unrelatedRows":3710}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (766 ms)
+LOAD_RESULT {"round":8,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3710},"elapsed":766,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 349.896027
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 49.546563
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 52.341223
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 40.762145
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 556.409924
+-- process inspection: {"snapshots":3,"unrelatedRows":3720}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (990 ms)
+LOAD_RESULT {"round":9,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3720},"elapsed":990,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 286.388204
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 27.465101
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.539327
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 24.726006
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 429.438075
+-- process inspection: {"snapshots":3,"unrelatedRows":3715}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (777 ms)
+LOAD_RESULT {"round":10,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3715},"elapsed":777,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 314.259705
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.017132
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.698465
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 23.322772
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 455.585622
+-- process inspection: {"snapshots":3,"unrelatedRows":3705}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (840 ms)
+LOAD_RESULT {"round":11,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3705},"elapsed":840,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 259.324074
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 37.233866
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 51.667152
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 29.663097
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 447.540683
+-- process inspection: {"snapshots":3,"unrelatedRows":3706}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (791 ms)
+LOAD_RESULT {"round":12,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3706},"elapsed":791,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 274.145681
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.501289
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.443954
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 24.195761
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 412.902076
+-- process inspection: {"snapshots":3,"unrelatedRows":3706}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (807 ms)
+LOAD_RESULT {"round":13,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3706},"elapsed":807,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 358.519363
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 47.047617
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 47.101499
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 24.808369
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 545.577626
+-- process inspection: {"snapshots":3,"unrelatedRows":3714}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (865 ms)
+LOAD_RESULT {"round":14,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3714},"elapsed":865,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 290.232157
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 25.765514
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 24.94218
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 23.26785
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 442.202309
+-- process inspection: {"snapshots":3,"unrelatedRows":3718}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (788 ms)
+LOAD_RESULT {"round":15,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3718},"elapsed":788,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 286.982475
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 27.522608
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 26.199415
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 24.448851
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 427.433951
+-- process inspection: {"snapshots":3,"unrelatedRows":3698}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (774 ms)
+LOAD_RESULT {"round":16,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3698},"elapsed":774,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 368.676881
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 55.442682
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 53.869484
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 44.799318
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 593.431632
+-- process inspection: {"snapshots":3,"unrelatedRows":3706}
+-- client file ok: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (916 ms)
+LOAD_RESULT {"round":17,"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":0,"signal":null,"passed":true,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3706},"elapsed":916,"counts":{"tests":4,"pass":4,"fail":0,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","candidateSha256":"87762049a395480e2142fc88a7e8f7ab7d9474a6b398e0b097e2d72c60a1c68a"}
+-- client file start: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 337.996459
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 51.276427
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+not ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 46.007808
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs:72:1'
+  failureType: 'testCodeFailure'
+  error: 'TEST_SIGNAL_REFUSED: no captured child birth: TEST_SIGNAL_REFUSED: incomplete process command'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    refusal (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:15:27)
+    signalChild (file:///home/ccheever/sb4-intent/lane-fl/snapback4/scripts/test-signals.mjs:129:22)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs:84:7)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 51.663817
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 607.581864
+-- process inspection: {"snapshots":3,"unrelatedRows":3707}
+-- client file FAIL: packages/snapback4/test/.fl-r8-signals-1590662.test.mjs (1050 ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"file":"packages/snapback4/test/.fl-r8-signals-1590662.test.mjs","code":1,"signal":null,"passed":false,"keeperExit":{"code":null,"signal":"SIGKILL","cleanupAcknowledged":true},"inspectionDiagnostics":{"snapshots":3,"unrelatedRows":3707},"elapsed":1050,"counts":{"tests":4,"pass":3,"fail":1,"cancelled":0,"skipped":0,"todo":0},"stallMs":1275000,"progressCount":10,"lastProgress":"test:complete: /home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/.fl-r8-signals-1590662.test.mjs"}
+
+false !== true
+
+    at file:///home/ccheever/sb4-intent/lane-fl/snapback4/reports/20261007-fl-dry-run-flakes/round-8/reproduce/signals-final.mjs:14:12
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

@@ -1,0 +1,35 @@
+✖ retention process listing reads a large complete table and refuses partial output (34.004884ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 97.227805
+
+✖ failing tests:
+
+test at packages/snapback4/test/export-background.fl-r10-2035829-silent-truncation.test.mjs:7:39
+✖ retention process listing reads a large complete table and refuses partial output (34.004884ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      ' 10001 snapback4 witness export-maintain /tmp/sb4-process-listing-S3dG0L',
+  -   ' 10002 snapback4 witness export-retain-worker /tmp/sb4-process-listing-S3dG0L',
+  -   ' 10003 snapback4 witness retention-group /tmp/sb4-process-listing-S3dG0L'
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-fl/snapback4/packages/snapback4/test/export-background.fl-r10-2035829-silent-truncation.test.mjs:720:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ ' 10001 snapback4 witness export-maintain /tmp/sb4-process-listing-S3dG0L' ],
+    expected: [ ' 10001 snapback4 witness export-maintain /tmp/sb4-process-listing-S3dG0L', ' 10002 snapback4 witness export-retain-worker /tmp/sb4-process-listing-S3dG0L', ' 10003 snapback4 witness retention-group /tmp/sb4-process-listing-S3dG0L' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

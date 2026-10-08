@@ -90606,3 +90606,128 @@ assertions superseded by round 1 are recorded in the
 [round-5 report](reports/20261007-sn-one-shot-settlement/round5/REPORT.md).
 Work stayed in lane-sn on eb1000; nothing pushed or published. Grok's round-3
 review remains with the author for the next round; no verdict is inferred here.
+
+## 2026-10-08 — FL round 8: bound correctness work independently of launch latency
+
+Fetched and merged origin/main at 2797247960, installed the frozen Snapback 4
+workspace dependencies, and obtained deps-ok from the requested SDK check.
+The real runner CLI parity case now awaits its six invocations through the
+existing owned-command keeper. Each receives the ordinary fifteen-minute
+file-stall floor as a work allowance; one aggregate guard covers the six calls
+and cleanup. The runner's declared-guard census preserves its outer margin.
+Timeouts report TEST_FIXTURE_COMMAND_TIMEOUT distinctly. Verdicts, counts,
+PATH-shim hits, KEPT_FAILURE and inspection/keeper-error refusals are unchanged.
+The sibling audit fixes short correctness-work and readiness bounds in native
+parity, process, signal, export and schema-refusal tests. Intentional watchdog
+and product-deadline assertions retain their clocks and required outcomes.
+
+Loaded repetition also exposed empty Linux cmdline bytes during an env exec.
+Initial child capture now waits only for that incomplete state, retaining the
+first live birth and parent. Changed births, malformed nonempty commands and
+read errors refuse. Three regressions and two mutations cover the distinction.
+Signal dispatch still rechecks exact identity immediately; owned groups and
+retained handles are preferred. Recorded-PID dispatch retains the small
+exit/reuse race between its last inspection and the syscall.
+
+The affected ten-file suite passed 200 tests with 33 Darwin skips; unchanged
+dev_refusals passed 22/22. The frozen load replay ran each changed Linux case
+20 times with eight busy loops and eight test jobs confined to CPUs 80–87.
+The primary and other non-background cases passed 20/20 each. Background
+passed 18/20: two unchanged maintenance-drain predicates failed. Totals were
+2,018 passes, two failures and 640 skips; all keepers acknowledged cleanup and
+all owned load loops were reaped. Both failed cases then passed 60 focused
+repetitions each, which does not explain or erase their failures. The new
+maintenance-drain ticket records them. Failure diagnostics now retain queue
+records, maintenance logs and fresh process observations without changing
+the predicate or its 90-second bound. A later diagnostic candidate run hit
+the existing native invalid-/proc-group error, recorded on its own open ticket.
+No native custody check was relaxed. The final canonical background file with
+diagnostics then passed 63 tests with 32 skips; that rerun does not erase the
+earlier failures. This is not clean loaded qualification.
+
+A twelve-second startup-delay control passes the fixed six-invocation case
+and fails the landed ten-second version. A real hung-runner control fails
+distinctly, drains its private group and detached test descendants, and never
+uses its emergency release. Diagnostic controls preserve the original drain
+assertion. Ref-check passes with zero errors. Work stayed on eb1000 in this
+worktree; no Mac execution or push.
+
+[Round-8 audit, controls, all outcomes and unresolved tickets](reports/20261007-fl-dry-run-flakes/round-8/REPORT.md).
+
+## 2026-10-08 — FL round 9: identity capture cannot suspend watchdog delivery
+
+Astra's round-8 P1 was correct: the new Atomics.wait capture loop blocked the
+runner thread before runProcess armed its timeout. Initial capture now yields
+through abortable timers, keeps the first live birth and spawning parent, and
+settles/cancels when its child exits. Spawn returns the owned child immediately.
+The command clock is armed before capture; timeout/overflow cleanup uses the
+retained native handle immediately and waits for reaping. It cannot depend on
+capture or another inspector finishing. Fault injection still awaits capture
+and fresh exact identity. Borrowed handles, incomplete records, changed births
+and wrong commands remain refusals.
+
+The shared Darwin probe also used a synchronous subprocess. It now uses the
+asynchronous owned leaf-inspection helper with its existing timeout and KILL/
+reaping, and capture cancellation stops an in-flight probe. Compiler group
+custody and its deadline are unchanged. All signal/liveness callers now await
+their results, including Darwin export branches and ordinary fixture cleanup.
+Positive PID validation, selected executable/root spelling and every earlier
+fault outcome remain checked. Recorded-PID checks still have a small exit/
+reuse race before the syscall; owned handles and keeper groups remain preferred.
+
+The persistent-empty-command regression retains real stat/birth/parent and
+proves sibling heartbeats, the 200 ms command timeout, reaping and cancellation
+of pending capture. Final 20-round load checks pass the main CLI case and seven
+capture/leaf cases each: 160 passes, fixed source hashes, every keeper release
+acknowledged and all eight taskset-confined busy loops reaped. Capture timeout/
+reaping takes 202–209 ms and first heartbeats arrive at 19–25 ms. The blocking
+mutation fails at 5.5 seconds; no-wait, missing-birth and missing-parent mutations
+also fail and drain their groups. The real hung-runner control still fails
+distinctly, reaps its descendants and does not use its emergency release.
+
+The ten affected files pass 204 tests with 33 Darwin skips; the final signal
+file passes 16/16 and unchanged dev_refusals passes 22/22. Initial missing
+dependencies were restored from the frozen lockfile, yielding deps-ok. Extra
+helper consumers exposed stale generated SDK artifacts: the avatar failures
+also reproduced with round 8's helper, then disappeared after the ordinary SDK
+build. All four extra consumer files pass 117 tests with current artifacts.
+Ref-check passes with zero errors. Earlier setup/stale-artifact failures are
+retained separately. Round 8's open maintenance/native-inspection failures
+remain unresolved; this is no macOS soak or full-publication claim. Work stayed
+on eb1000 in this worktree; nothing pushed.
+
+[Round-9 correction, API audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-9/REPORT.md).
+
+## 2026-10-08 — FL round 10: count the complete retention process table
+
+The user's macOS r9 soak exposed the default 1 MiB capture limit on the
+coalescing test's full-command ps listing. Round 8 correctly made ENOBUFS
+visible; older code could silently count the truncated table. Both coalescing
+variants now share a 128 MiB listing (32,768 rows averaging 4 KiB; 20,000 with
+headroom), request wide commands, and require successful completion before
+filtering. Overflow still fails explicitly. The original 28-export, one
+observer, no-custodian and full/compressed retention assertions are unchanged.
+
+The new regression puts one matching worker before 20,000 unrelated rows and
+two after them, beyond 1 MiB. It requires all three exact rows and refuses
+both nonzero ps completion and real overflow beyond 128 MiB. Private-copy
+controls fail when the default buffer returns, when truncated output is
+accepted, or when a failed ps status is ignored. All control groups drain.
+
+Every synchronous subprocess call in round 8's eight test files and four
+helper/runner modules was audited, including generated fixture source. The
+other full-table shims already use explicit 16 MiB metadata buffers. Remaining
+calls return fixed fixture data, selected-PID state, small diagnostics, or
+inherit streams. No further host-scaled default-buffer exposure was found.
+Product code and shared asynchronous capture/watchdogs are unchanged. No new
+recorded-PID dispatch is introduced; its previously documented inspection-to-
+syscall race remains, with group/handle custody preferred for owned processes.
+
+The ten affected/surrounding files pass 205 tests with 33 Darwin skips and no
+failures or leaks; export-background contributes 64 passes and 32 skips.
+The focused regression and three expected-failure controls pass, deps-ok is
+confirmed, and ref-check reports zero errors. Source and binary stay fixed
+during verification. Work stays on eb1000; nothing pushed, no Darwin or full
+publication qualification claimed. Earlier round-8 open tickets stay open.
+
+[Round-10 buffer sizing, complete call audit, controls and evidence](reports/20261007-fl-dry-run-flakes/round-10/REPORT.md).

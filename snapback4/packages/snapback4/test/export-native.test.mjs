@@ -196,8 +196,11 @@ test('retention keeps five completed runs, compresses older receipts and leaves 
       if (i === 1) fs.writeFileSync(path.join(dir, 'proof.json.gz'), 'already archived before interruption');
       if (i === 2) {
         holder=spawn('python3',['-c',"import fcntl,sys,pathlib; f=open(sys.argv[1],'a'); fcntl.flock(f,fcntl.LOCK_EX); pathlib.Path(sys.argv[2]).touch(); sys.stdin.read()",path.join(dir,'export.lock'),path.join(root,'active-held')],{stdio:['pipe','ignore','inherit']});
-        exited=once(holder,'exit');const end=Date.now()+5000;
-        while(!fs.existsSync(path.join(root,'active-held'))){assert.ok(Date.now()<end);await new Promise(r=>setTimeout(r,10));}
+        // Python must acquire the real lease; startup scheduling is not part
+        // of the retention claim. Keep a state wait with the fixture's usual
+        // two-minute process allowance, within the runner's 15-minute floor.
+        exited=once(holder,'exit');const end=Date.now()+120000;
+        while(!fs.existsSync(path.join(root,'active-held'))){assert.ok(Date.now()<end,'retention fixture acquired its export lease');await new Promise(r=>setTimeout(r,10));}
       } else retainEvidence(root, dir, binary);
     }
     assert.equal(fs.existsSync(path.join(root, '1-123/smoke-ios-run.json.gz')), true);
@@ -222,7 +225,7 @@ test('wrapper forwards both signals and waits for child cleanup before returning
     for (const signal of ['SIGINT', 'SIGTERM']) {
       const code = `const fs=require('fs'); process.on('${signal}',()=>setTimeout(()=>{fs.writeFileSync(${JSON.stringify(path.join(root, signal))},'cleaned');process.exit(1)},150)); console.log('ready'); setInterval(()=>{},1000);`;
       const child = spawn(process.execPath, [helper, code], { stdio: ['ignore', 'pipe', 'pipe'] });
-      await once(child.stdout, 'data'); signalChild(child, signal);
+      await once(child.stdout, 'data'); await signalChild(child, signal);
       const [status] = await once(child, 'close');
       assert.equal(status, signal === 'SIGINT' ? 130 : 143);
       assert.equal(fs.readFileSync(path.join(root, signal), 'utf8'), 'cleaned');

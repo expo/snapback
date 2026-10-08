@@ -34,7 +34,7 @@ query list():
   const host = spawn(binary, ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(host);
   host.stdout.on("data", bytes => { output += bytes; }); host.stderr.on("data", bytes => { output += bytes; });
-  t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null && host.signalCode === null) { signalChild(host, "SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
+  t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null && host.signalCode === null) { await signalChild(host, "SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
   const url = await until(() => { assert.equal(host.exitCode, null, output); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
   return { url, dir };
 }
