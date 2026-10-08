@@ -91732,3 +91732,26 @@ six budgeted cards were at their word ceiling (12,810 of 12,810), so the types
 card dropped two duplicated sentences to make room (the Clique counter line,
 which `guide writes` states, and a repeated "a null time never expires").
 No semantics changed. LLP 3000.036 §10 records the landing.
+
+## 2026-10-08 — App-farm lane S2, item 3: an omitted optional argument is null
+
+insulin-dose-calculator-0633 (round 3, 25 minutes) reported that an omitted
+optional argument was not `= null` and that the wrong arm cleared a column.
+That does not reproduce on its `0.4.13` binary or on `d3eee62f47`, server or
+device: omitted and explicit null are the same value and `dose = null` is true
+for both. Its dev store shows why the column was cleared: the two clearing
+commits ran under a generation whose mutation wrote `confirmed: dose` with no
+test; the null-test form was never adopted. Details in the ticket, which stays
+open for the lead's semantic question and the `check` note.
+
+`guide writes` now states the rule where it bites (a patch `{ c: x }` clears
+`c` when `x` is omitted; keep with `x ?? row.c`; a flag argument when clearing
+is meant) with a compiled `confirm` example verified on the debug binary
+(omitted and null keep 5, `7` writes 7, `clear: true` writes null). To fit the
+six-card word ceiling, `guide writes` replaces its `usePendingItems` summary
+with a pointer to "Intent cards through settlement" (which states every fact
+it held), and drops three sentences repeated elsewhere (ordinal immutability,
+which `guide types` keeps; ordinal paging; the online-only example caveat,
+which the counter example keeps). `guide types` folds the membership sentence
+into the reference sentence and drops the E_SEQUENCE_SUPPLIED line `guide
+writes` owns.

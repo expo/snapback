@@ -17,6 +17,9 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
 `upsert` inserts/patches; `delete` removes the row.
+An omitted optional argument is null, the same as an explicit null: `x = null`
+is true either way, and no test tells them apart. So a patch `{ c: x }` clears `c` when `x` is omitted: write
+`x ?? row.c` to keep it, and pass a flag when clearing is meant (Details).
 Write results contain omitted optional columns as null and defaults as values;
 updates retain unchanged fields. These fields add no prediction dependency.
 Owned/sequence/receipt fields keep their projection and settlement rules.
@@ -37,6 +40,19 @@ Receipt gaps: `guide sequences`.
 
 Mutations insert, update and delete rows in one transaction.
 Rules and constraints apply before that transaction commits.
+
+Here an omitted or null `dose` keeps the stored value; only `clear: true` clears it:
+
+```quarry
+table doses:
+  owner: principal
+  confirmed: int ?
+  read <- .owner = viewer
+  update <- .owner = viewer
+mutation confirm(d: doses, dose: int ?, clear: bool ?):
+  row = doses[d] ! else NOT_FOUND
+  update doses[d] { confirmed: null if clear = true else dose ?? row.confirmed }
+```
 
 Bound results charge heap, steps, output and rule probes: the `result-cost`
 regression measures 1 probe, 2,316 heap bytes, 20 steps, 70 output bytes
@@ -111,13 +127,8 @@ on reopen; raw online custody is memory-only. Closed/signed-out clients list
 nothing. Legacy entries lacking dispatch metadata are queued unless a
 retained sequence proves dispatch.
 
-For keyed lists, `usePendingItems` (`guide client`) returns row/intent arms,
-explicit scope/key mappings, and text/media operations together. Its local
-`settling` phase covers terminal success through observation, omitted by
-pendingWrites; existing outbox/receipt facts own retirement.
-A predicted row only suppresses a duplicate card. No row, ordinal, receipt
-accounting or media handle is invented. `usePendingState` selects the last
-admitted set-state intent; neither helper sends anything.
+For keyed lists, `usePendingItems` (`guide client`; "Intent cards through
+settlement" in CLIENT-AND-OPERATIONS.md) keeps intent cards until settlement.
 
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
 hidden sends only the oldest unconfirmed write with keepalive, including a retry
@@ -340,16 +351,10 @@ prepay their allowance once per page and share the request's physical walk ceili
 how many denied candidates were traversed. A device still queues if its separate
 prediction work allowance is exhausted. `check --json` includes the same sequence-counter
 descriptions as text `check` under `sequences`.
-Ordinals and their parent reference are immutable; listing the ordinal
-in `immutable` is accepted and redundant.
 
-`first N by .ordinal` and `last N by .ordinal` give a total order within a
-conversation. Pass the returned `next` cursor to continue as for any int column.
-These public, online-only examples use membership to authorize writes;
-private chats also need membership read rules and their sync declarations.
 A predicted insert in a synced table takes a provisional value above every
-held value for that parent, including other pending inserts. Its row carries
-`pending: true`; the Write remains `pending` until the server settles it.
+held value for that parent, including other pending inserts. Its row, in write results,
+point rereads and pages, carries `pending: true`; the Write remains `pending` until the server settles it.
 The settled image replaces the provisional ordinal and reorders local pages.
 Two offline inserts keep their outbox order when they reach the server.
 If no provisional value fits above the device's held integers, the write queues
@@ -364,8 +369,7 @@ ordinal. These dependent refusals keep their intent in the durable outbox
 until the server accepts or refuses it.
 A unique lookup that finds no collision, or a cap that passes, does not make
 an unrelated later refusal provisional. A short-circuited rule arm does not
-read its ordinal. Provisional ordinals in
-write results, point rereads and pages carry `pending: true`.
+read its ordinal.
 
 ### The older application-counter spelling
 
@@ -428,13 +432,13 @@ server commits and reconciles concurrent sends.
 Declare `readUpTo: int default 0 written by .principal` on the membership
 row. `markRead` patches just that field; it needs no row update grant, but a
 named `update (old, next) <- next.readUpTo >= old.readUpTo` still refuses a
-backwards mark. See `guide rules` for the complete Clique membership recipe.
+backwards mark.
 Other fields in the same patch require the row's update rule. Inserts by
 another principal omit readUpTo, including when its intended value is 0.
 
 The projection is private; append `readable by audience` for shared receipts.
 Owners receive settled marks on every device, and held-row patches predict
 offline. E_FIELD_AUTHORITY names the owner: omit the field or write as that
-principal. See `guide rules` for declaration and private-field restrictions.
+principal. See `guide rules` for the Clique membership recipe and private-field restrictions.
 
 "##;

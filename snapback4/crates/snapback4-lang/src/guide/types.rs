@@ -15,17 +15,15 @@ mutation createProfile(name: text 1..80):
   return insert profiles { owner: viewer, name }
 ```
 
-Columns are required unless their type ends in `?`; omitted optional values are null.
-A table name means a reference: any id string; the target is never read.
-Require one with `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
+Columns and arguments are required unless their type ends in `?`; omitted optional values are null.
+A table name means a reference: any id string. Its target is never read, and
+membership cannot prove it exists: use `require exists t[id] else CODE`, or
+bind with `r = t[id] ! else CODE`.
 `default` fills omissions; explicit values win.
 Enums widen within text bounds.
 `require exists t[k]`, `require t[k] != null`, and present `if t[k] != null`
 branches narrow identical admitted unique-key reads, including helper arguments.
 Guard nullable keys first (guide indexes). Writes, rebindings and viewer changes invalidate it.
-Membership cannot prove parent existence: use
-`require exists conversations[conversation] else NOT_FOUND`, or bind with
-`! else NOT_FOUND`.
 
 ## Limits
 
@@ -130,9 +128,6 @@ table members:
   online only
 ```
 
-A client-supplied integer could pin history forever; engine ownership refuses
-that with E_SEQUENCE_SUPPLIED. References retain their ordinary typed-id
-semantics: require a visible parent explicitly when the operation needs it.
 Counters remain keyed by parent table and id across deletions and reopen.
 An explicit store reset clears them with its rows. Adding or rebinding a sequence
 on a populated table refuses E_ADOPT with an empty-table rewrite; there is no
