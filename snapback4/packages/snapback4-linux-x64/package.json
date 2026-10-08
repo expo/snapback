@@ -1,6 +1,6 @@
 {
   "name": "snapback4-linux-x64",
-  "version": "0.4.16",
+  "version": "0.4.17",
   "description": "The static musl snapback4 binary for Linux x64; installed by the snapback4 package.",
   "license": "MIT",
   "os": [
