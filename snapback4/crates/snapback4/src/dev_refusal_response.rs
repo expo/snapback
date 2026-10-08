@@ -74,9 +74,11 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
             record["clause"] = json!("no probe miss and no rule cause were recorded");
         }
         if let Some(cause) = cause {
-            let site = evidence.sites.get(&(cause.table.clone(), cause.phase.clone()))
-                .or_else(|| evidence.sites.get(&(cause.table.clone(), cause.clause.clone())))
-                .or_else(|| evidence.sites.get(&(cause.table.clone(), "table".into())));
+            let clause = evidence.sites.get(&(cause.table.clone(), cause.phase.clone()))
+                .or_else(|| evidence.sites.get(&(cause.table.clone(), cause.clause.clone())));
+            let site = clause.or_else(|| evidence.sites.get(&(cause.table.clone(), "table".into())));
+            // Whether the site is the clause's own line or the table's (an omitted rule).
+            record["siteKind"] = json!(if clause.is_some() { "clause" } else if site.is_some() { "table" } else { "" });
             record["table"] = json!(cause.table);
             record["clause"] = json!(cause.clause);
             record["phase"] = json!(cause.phase);

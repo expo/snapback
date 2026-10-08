@@ -19,6 +19,8 @@ pub(super) struct Call<'a> {
     pub personas: &'a [String],
     pub pinned_now: bool,
     pub json: bool,
+    /// The project, to name a refusing clause from the dev's evidence.
+    pub project: Option<&'a crate::project::Project>,
 }
 
 /// The persona header that acts as the same principal a local `run` would use.
@@ -81,13 +83,19 @@ pub(super) fn forward(store: &Path, busy: &str, call: &Call) -> Result<i32, Stri
     let route = path(call);
     eprintln!("run: the store is live under snapback4 dev at {base}; forwarding to POST {route}{} on its dev clock", persona.map(|p| format!(" as x-snapback-persona: {p}")).unwrap_or_default());
     // A job runs whole before the reply; the read waits as a local run would.
+    let baseline = call.project.filter(|_| call.kind != ProgramKind::Job).and_then(|project| super::run_refusal::baseline(&project.data_dir()));
     let (status, reply) = exchange(address, "POST", &route, persona, &body(call), Duration::from_secs(3600))
         .map_err(|error| alternative(&format!("its listener did not answer ({error})")))?;
     if let Some(denied) = reply.get("denied").and_then(|d| serde_json::from_value::<Refusal>(d.clone()).ok())
         && denied.code == "E_AUTH" && matches!(status, 401 | 403) {
         return Err(alternative(&format!("the host refused the development door ({denied}); a `snapback4 serve` host takes bearer tokens only")));
     }
-    Ok(print(call, &reply))
+    let code = print(call, &reply);
+    let refused = reply.get("why").or_else(|| reply.get("denied")).and_then(|why| why.get("code")).and_then(Json::as_str);
+    if let (Some(project), Some(refused)) = (call.project, refused) && call.kind != ProgramKind::Job {
+        super::run_refusal::print(super::run_refusal::forwarded(&project.data_dir(), baseline, call.op, refused), None);
+    }
+    Ok(code)
 }
 
 fn print(call: &Call, reply: &Json) -> i32 {
@@ -142,7 +150,7 @@ mod tests {
     use super::*;
 
     fn call<'a>(kind: ProgramKind, r#as: Option<&'a str>, args: &'a Json, personas: &'a [String]) -> Call<'a> {
-        Call { op: "add", kind, args, r#as, personas, pinned_now: false, json: false }
+        Call { op: "add", kind, args, r#as, personas, pinned_now: false, json: false, project: None }
     }
 
     #[test]

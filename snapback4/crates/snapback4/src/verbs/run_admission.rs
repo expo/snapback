@@ -20,6 +20,9 @@ impl Source {
     // project.compile() could observe an intervening A → B → A edit.
     pub fn compile(&self) -> Bound { snapback4_lang::compile(&self.quarry) }
 
+    /// The captured files, for quoting exactly the source that ran.
+    pub fn files(&self) -> &[(String, String)] { &self.quarry }
+
     pub fn validate(&self, project: &Project) -> Result<(), Error> {
         let now = project.sources().map_err(|error| Error::Source(error.to_string()))?;
         if now != self.quarry || project.sources_stamp() != self.stamp {

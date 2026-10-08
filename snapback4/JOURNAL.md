@@ -92032,3 +92032,32 @@ schema.q:9:1 — E_QUARRY_SYNTAX: job remind has an empty body: a job body is a 
 
 A paged `for … first N` prelude is called out as reading ahead of a sweep.
 Same code, same acceptance; the diagnostic now points at `guide jobs`.
+
+## 2026-10-08 — S1: `E_RULE` names its clause in development; `check` notes unreachable writes (LLP 3000.036 §3 B–D)
+
+About 16 farm builds (mostly Muse) lost 2–10 minutes to a mutation whose
+table rule was `update <- deny` or an upsert with no update rule. The wire
+refusal stays as it is (its four causes are listed together so it is not an
+existence oracle). Three development-side changes:
+
+- **`run` prints the dev refusal trace.** A local `snapback4 run` now opts its
+  context into the existing refusal collector (LLP 3000.015 §2.1), and a `run`
+  forwarded to a live dev reads the dev's own record for that operation. Under
+  the refusal, on stderr:
+  ``dev: orders refused it: `update <- deny` (schema.q:8:3), at submit:2 —
+  development evidence only; the refusal a client sees never names the clause``,
+  then "a mutation's writes pass the table's insert, update and delete rules
+  as the caller; only a job runs as the system". An omitted rule reads ``no
+  `delete` rule, so delete is deny (schema.q:2:1)``. `--json` stdout is
+  unchanged. The dev console already printed the clause.
+- **`N_WRITE_DENIED`**, a `check` note per mutation write effect, and per
+  upsert arm, whose rule is `deny` (or `false`) or omitted, read from the
+  source so it quotes the clause or names the table site. Jobs and receipt
+  recipe operations are exempt, and so is a patch of only `written by` fields
+  without a named transition, which field authority judges instead of the
+  update rule. A rule whose bind failed gets no note. No reference app or
+  guide block gains a note.
+- **`guide rules`**: one sentence, folded into an existing line to keep the
+  card's line budget.
+
+Nothing changes on the wire or in what programs are accepted.

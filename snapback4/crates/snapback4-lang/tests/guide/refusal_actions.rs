@@ -18,6 +18,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_JOB_VIEWER_CONTEXT", &["Put as recipient.principal: inside the recipient loop."]),
     ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),
     ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),
+    ("N_WRITE_DENIED", &["write the rule its callers need, or do the write in a job", "snapback4 run` prints the clause"]),
     ("E_JOB_VIEWER_FLOW", &["Assign a local inside, then return outside; break and continue need a loop inside the block."]),
     ("E_JOB_VIEWER_QUERY", &["Use all(query(...)) directly in a for domain with one cursor argument and a list return."]),
     ("E_JOB_VIEWER_READ", &["Narrow the query; no partial digest commits. Follow every cursor; one page is a preview."]),

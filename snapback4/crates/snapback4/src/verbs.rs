@@ -25,6 +25,7 @@ mod adoption;
 mod latency;
 mod run_admission;
 mod run_forward;
+mod run_refusal;
 
 pub struct Options {
     pub positionals: Vec<String>,
@@ -555,7 +556,7 @@ pub fn run(options: &Options) -> i32 {
         // @ref LLP 3000.019#3.4 — beside a live dev host, run goes through that server rather than open a second writer.
         Err(error) if error.starts_with("E_STORE_BUSY ") => {
             let call = run_forward::Call { op, kind: program.kind, args: &args_json, r#as: options.flags.get("as").map(String::as_str),
-                personas: &bound.personas, pinned_now: options.flags.contains_key("now"), json: options.json };
+                personas: &bound.personas, pinned_now: options.flags.contains_key("now"), json: options.json, project: Some(&project) };
             return run_forward::forward(&project.store_path(), &error, &call).unwrap_or_else(|text| { eprintln!("{text}"); 2 });
         }
         Err(error) => { eprintln!("{error}"); return 2; }
@@ -595,7 +596,9 @@ pub fn run(options: &Options) -> i32 {
             }
         };
     }
-    let context = Context::new(principal, args).at(now);
+    // @ref LLP 3000.036#3 — the developer's own run collects the refusing clause, as dev does.
+    let trace = snapback4_core::engine::refusal_trace::RefusalTrace::default();
+    let context = Context::new(principal, args).at(now).with_refusal_trace(trace.clone());
     if program.kind == ProgramKind::Query {
         match engine.query(op, context) {
             Ok(outcome) => {
@@ -606,6 +609,7 @@ pub fn run(options: &Options) -> i32 {
             }
             Err(refusal) => {
                 println!("{}", if options.json { json!({ "denied": refusal, "complete": false }).to_string() } else { format!("denied {refusal}") });
+                run_refusal::print(run_refusal::local(&trace, &bound.refusal_sites), Some(source.files()));
                 1
             }
         }
@@ -620,6 +624,7 @@ pub fn run(options: &Options) -> i32 {
                 WriteState::Failed { why, current } => {
                     let body = json!({ "state": "failed", "why": why, "current": current.map(|c| wire::to_json(&c)) });
                     println!("{}", if options.json { body.to_string() } else { format!("failed {why}") });
+                    run_refusal::print(run_refusal::local(&trace, &bound.refusal_sites), Some(source.files()));
                     1
                 }
             },

@@ -1,6 +1,6 @@
 # Snapback 4: E_RULE lists four causes and no clause; `check` does not flag unreachable mutation writes
 
-Status: Open
+Status: Closed 2026-10-08 (lane S1; LLP 3000.036 §3 B, C and D)
 Date: 2026-10-08
 Scope: Snapback 4 core rules refusal text (`snapback4-core` E_RULE) and a `check` note (`snapback4-lang`)
 Reproduced: partly, on main cd2fa88d8b and 0.4.14 (same text)
@@ -62,3 +62,23 @@ not, and three of the four listed causes cannot apply here.
   is unreachable for every caller; jobs run as the system".
 - `guide writes`: one sentence that mutation writes still pass the table's
   insert/update/delete rule.
+
+## Resolution
+
+Closed 2026-10-08 by app-farm lane S1, as LLP 3000.036 §3 recommends (B, C
+and D; not A as written). The wire refusal is unchanged: naming the clause
+only when the rule itself evaluated false would make its absence an existence
+oracle.
+
+- `snapback4 run`, locally and when forwarded to a live dev, prints the dev
+  refusal trace under the refusal on stderr:
+  ``dev: orders refused it: `update <- deny` (schema.q:9:3), at submit:2 — …``,
+  with "a mutation's writes pass the table's insert, update and delete rules
+  as the caller; only a job runs as the system". The dev console already
+  printed the clause.
+- `check` notes `N_WRITE_DENIED` for each mutation write effect, and each
+  upsert arm, whose rule is `deny` or omitted (jobs, receipt recipe
+  operations and owned-field-only patches exempt).
+- `guide rules` says that a mutation's writes pass the table's rules as the
+  caller.
+

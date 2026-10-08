@@ -154,6 +154,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_JOB_VIEWER_PRINCIPAL", "as requires a present non-system principal"),
     ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),
     ("E_JOB_VIEWER_FLOW", "return cannot leave an as block"),
+    ("N_WRITE_DENIED", "A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system."),
     ("E_JOB_VIEWER_QUERY", "a job viewer call requires a declared durable Quarry query"),
     ("E_JOB_VIEWER_READ", "the viewer query is unavailable or cannot certify exhaustion"),
 
