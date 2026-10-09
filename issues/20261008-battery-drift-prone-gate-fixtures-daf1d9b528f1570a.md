@@ -11,11 +11,11 @@
 **Failure signature:** `sha256:daf1d9b528f1570a1eb187240080331726fe7711445e6515825c23b06163d862`
 **First observed run:** `local.20261008T085745Z.82992ad634f1`
 **Last observed run:** `local.20261008T085745Z.82992ad634f1`
-**Last processed run:** `local.20261008T085745Z.82992ad634f1`
+**Last processed run:** `local.20261009T061135Z.d3eee62f477a`
 **Detected at revision:** `82992ad634f187cb9fd66a61006b3ccf15d51eb0`
 **Last observed revision:** `82992ad634f187cb9fd66a61006b3ccf15d51eb0`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Consecutive red runs:** `0`
+**Escalation:** `pending (0/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
