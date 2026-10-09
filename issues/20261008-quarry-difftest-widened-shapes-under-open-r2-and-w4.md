@@ -64,3 +64,7 @@ Retained cases: `snapback4/crates/snapback4-difftest/cases/found/<signature>/DIA
 **Failure signature:** `lean--prelude-code--E_RULE~NOT_FOUND`  
 
 Recurrences:
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `3200`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `1749`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.

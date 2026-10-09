@@ -28,3 +28,5 @@ open a new ticket:
 **Failure signature:** `device-memory--write-predicted-refused--admitted`  
 
 Recurrences:
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `13172`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.

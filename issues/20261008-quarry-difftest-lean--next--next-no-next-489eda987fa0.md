@@ -314,3 +314,5 @@ query run(key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):
 
 When resolved, keep the case as a regression, record the resolution, and move
 this ticket to `issues/closed/`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `7120`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.

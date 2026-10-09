@@ -119,3 +119,13 @@ Every retained case: `snapback4/crates/snapback4-difftest/cases/found/<signature
 **Failure signature:** `device-sqlite--steps-metered-heap-bytes--loading`  
 
 Recurrences:
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `7999`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `8649`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `7220`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `5689`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `5306`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.

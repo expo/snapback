@@ -55,3 +55,9 @@ Counts in seeds 0–19,999: one per store per signature.
 **Failure signature:** `device-sqlite--write-refused--NOT_FOUND`  
 
 Recurrences:
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `89`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `11906`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `10442`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
