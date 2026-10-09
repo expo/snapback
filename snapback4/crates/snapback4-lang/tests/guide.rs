@@ -852,6 +852,11 @@ fn sources() -> Vec<PathBuf> {
                 if path.file_name().is_some_and(|n| n == "node_modules" || n == "target" || n == "dist" || n == "tests" || n == "test") {
                     continue;
                 }
+                // Differential-test records quote the Lean model's own
+                // refusals (`E_MODEL_TYPE`), which no product path emits.
+                if path.ends_with("snapback4-difftest/cases") {
+                    continue;
+                }
                 walk(&path, files);
             } else if path.file_name().is_some_and(|n| n.to_string_lossy().ends_with("_tests.rs") || n.to_string_lossy().ends_with(".test.mjs")) {
                 // A test module inside `src/` invents refusal codes for fixtures;

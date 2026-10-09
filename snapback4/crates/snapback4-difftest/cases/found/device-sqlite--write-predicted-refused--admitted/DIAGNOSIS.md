@@ -21,9 +21,18 @@ device agrees with the server (LLP 3000 §6 invariant 4).
 Charlie ruled on 2026-10-08 to keep predicting supplied-id inserts and to
 document that such a prediction can end in this typed refusal (guide
 `prediction`, Refusals; `contract.ts` `Write`). The oracle classifies exactly
-this shape as the named outcome `predicted-then-refused-unheld-id`
+this shape as the named outcome `predicted-then-refused-unheld-unique-key`
 (`device_writes.rs::refused_over_unheld_id`, and only when convergence
 passes): never a pass, never a disagreement. This case now replays as
-`named: predicted-then-refused-unheld-id` (exit 0); a disagreement here means
+`named: predicted-then-refused-unheld-unique-key` (exit 0); a disagreement here means
 the exception's condition or the device's behaviour changed. Ticket:
 `issues/closed/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`.
+
+**Widened (2026-10-08).** Charlie extended the ruling to any unique key: a
+predicted insert whose id **or other unique-key value** is held by a row the
+device does not hold may end in this typed refusal
+(`issues/closed/20261008-snapback4-device-predicts-insert-over-a-hidden-secondary-unique-clash.md`).
+The named outcome is now `predicted-then-refused-unheld-unique-key`
+(`device_writes.rs::refused_over_unheld_unique`, with `clashing_row` naming
+the seeded row clashing on the id or the unique `tag`); this case replays as
+that name.

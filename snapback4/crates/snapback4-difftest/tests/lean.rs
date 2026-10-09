@@ -12,15 +12,30 @@ use snapback4_difftest::{
 };
 use std::collections::BTreeSet;
 
-/// Open signatures, classified in `cases/found/lean--*/DIAGNOSIS.md`: OPEN
-/// C2 and R2, OPEN W4 (a hidden clash on an absent upsert's insert arm), and
-/// the model defect OPEN E4 (field access on a null base refuses
-/// `E_MODEL_TYPE`; fix owed). A new one fails the fixed-seed run: diagnose it first.
-const CLASSIFIED: [&str; 23] = [
+/// Open signatures, classified in `cases/found/lean--*/DIAGNOSIS.md`: OPEN C2
+/// (a filled page's `next`) and OPEN W4 (a hidden clash on an absent upsert's
+/// insert arm). A new one fails the fixed-seed run: diagnose it first.
+const CLASSIFIED: [&str; 4] = [
     // C2
     "lean--continuation-next--next~no-next",
     "lean--next--next~no-next",
+    // W4
+    "lean--code--E_RULE~NOT_FOUND",
+    "lean--prelude-code--E_RULE~NOT_FOUND",
+];
+/// Resolved findings kept as regressions: each now replays as a pass.
+/// - OPEN C9: a cursorless filled page has no `next` (a model defect, fixed).
+/// - OPEN R2: the unnamed update rule judged only the next image, an engine
+///   defect (security) fixed 2026-10-08 (`b2036dd821`); the widened shapes
+///   reached it under eight more signatures.
+/// - OPEN E4: the model refused field access on a null base, a model defect
+///   (`why E_FIELD`), fixed 2026-10-08.
+const RESOLVED: [&str; 23] = [
+    // C9
+    "lean--next--no-next~next",
     // R2
+    "lean--kind--committed~NOT_FOUND",
+    "lean--kind--committed~E_RULE",
     "lean--code--E_CONSTRAINT~NOT_FOUND",
     "lean--code--E_OVERFLOW~NOT_FOUND",
     "lean--code--REQUIRED~NOT_FOUND",
@@ -29,8 +44,6 @@ const CLASSIFIED: [&str; 23] = [
     "lean--prelude-code--REQUIRED~NOT_FOUND",
     "lean--prelude-kind--committed~E_RULE",
     "lean--prelude-kind--committed~NOT_FOUND",
-    // W4
-    "lean--prelude-code--E_RULE~NOT_FOUND",
     // E4
     "lean--code--E_CONSTRAINT~E_MODEL_TYPE",
     "lean--code--E_OVERFLOW~E_MODEL_TYPE",
@@ -45,10 +58,6 @@ const CLASSIFIED: [&str; 23] = [
     "lean--prelude-code--REQUIRED~E_MODEL_TYPE",
     "lean--prelude-kind--committed~E_MODEL_TYPE",
 ];
-/// Resolved findings kept as regressions: each now replays as a pass. The
-/// `committed~*` pair is OPEN R2, the unnamed update rule judging only the
-/// next image: an engine defect (security), fixed 2026-10-08.
-const RESOLVED: [&str; 3] = ["lean--next--no-next~next", "lean--kind--committed~NOT_FOUND", "lean--kind--committed~E_RULE"];
 
 fn model_built() -> bool {
     let path = lean::oracle_path();

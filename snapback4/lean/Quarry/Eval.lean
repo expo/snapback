@@ -239,6 +239,9 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       | none => typeErr
     | .field a c => do
       let (v, _) ← ev a
+      -- `why E_FIELD`: "Ordinary Quarry field access propagates a null base
+      -- as null" (OPEN E4, confirmed by that document).
+      if v.isNull then return (Value.null, none)
       match v.field? c with
       | some x => pure (x, none)
       | none => typeErr

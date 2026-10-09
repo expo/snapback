@@ -1,6 +1,6 @@
 # Snapback 4 device predicts an insert whose secondary unique value clashes with an unheld row
 
-**Status:** Open
+**Status:** Closed (2026-10-08, ruled: extend the supplied-id ruling to any unique key; documented; named harness outcome)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -60,3 +60,45 @@ named outcome); a shrunk case of this shape is above.
 **Failure signature:** `device-sqlite--write-predicted-refused--admitted`  
 
 Recurrences:
+
+## Resolution
+
+**Ruling (Charlie, 2026-10-08): extend the supplied-id ruling.** Keep
+predicting; a hidden clash on **any** unique key, not only the id, can end in
+a typed server refusal (`E_RULE`) that withdraws the pending row.
+
+**Documentation.**
+- Guide `prediction`, Refusals (one line replaced in place; the card's line
+  budget is unchanged): "A plain `insert` still predicts without proving its
+  caller-supplied id or any unique-key value absent: if a row this device
+  cannot read already has that id or value, the server refuses `E_RULE`, the
+  write settles `failed` and its pending row is withdrawn."
+- `packages/snapback4/src/contract.ts`, the `Write` doc comment, says the
+  same, and that a minted id never collides but another unique value can.
+
+**Harness.** The named outcome widens from "unheld id" to "unique-key value
+held by a row the device does not hold":
+`predicted-then-refused-unheld-unique-key`
+(`device_writes.rs::refused_over_unheld_unique`). Same precision as before:
+the program's first write is a plain insert (`first_insert`); the device
+predicted `items/<id>`; the server refused `E_RULE` without committing; a
+seeded row clashes on the id or on the unique `tag` (`clashing_row`, no
+prelude); neither the server's answer to the viewer nor the device's answer
+before admission shows that row; and convergence passes. Anything else stays a
+disagreement; the clause tests in `tests/devices.rs` keep that a different
+refusal reason (`E_CONSTRAINT`), a readable or held row, a missing row, an
+`upsert`, and an unpredicted write are not the named outcome. The planted
+hidden secondary-unique test now expects the named outcome on both stores.
+
+The clashing row is looked up in the server's physical rows before the call
+(`server_items`), so prelude-created rows count. Every path's first write must
+be that insert (`first_inserts`: a top-level insert, or both branches of an
+`if` starting with inserts of the same id that all clash).
+
+`run-devices --seed 0 --cases 20000` after the change (with the R2 fix on
+main): 11 per store under `predicted-then-refused-unheld-unique-key`. One per
+store remains `write-predicted-refused`: a predicted insert reached through an
+`if` whose other branch holds an `upsert`. The exact condition cannot
+attribute the refusal there, so it stays a disagreement by design. Its next
+nightly occurrence will open a fresh ticket; no ruling is needed, only a
+sharper condition if anyone wants it.

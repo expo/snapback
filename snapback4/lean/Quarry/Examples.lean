@@ -306,6 +306,12 @@ def examples : List Example := [
     expected := r#"{"kind":"answer","data":[{"id":"c","label":"z"},{"id":"b","label":""# ++
       String.singleton (Char.ofNat 0xE000) ++ r#""},{"id":"a","label":""# ++
       String.singleton (Char.ofNat 0x10000) ++ r#""}],"complete":true,"next":null}"# },
+  { name := "field-of-null"
+    source := "why E_FIELD: ordinary field access propagates a null base as null"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.coalesce (.field (.point "todos" [("id", idE "nope")]) "title") (txt "none")) }
+    tables := []
+    expected := r#"{"kind":"answer","data":"none","complete":true,"next":null}"# },
   { name := "id-not-text"
     source := "ticket 20260913 rule-equality-id-string: an id never equals a text"
     case := { schema := plain, store := Store.empty, viewer := alice,

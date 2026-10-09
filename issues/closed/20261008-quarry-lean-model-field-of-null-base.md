@@ -1,6 +1,6 @@
 # Quarry Lean model: field access on a null base refuses E_MODEL_TYPE
 
-**Status:** Open
+**Status:** Closed (2026-10-08, model fixed from `why E_FIELD`)
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 5
@@ -54,3 +54,18 @@ model's semantics, so it is recorded as `lean/OPEN.md` E4 and classified in
 **Failure signature:** `lean--prelude-kind--committed~E_MODEL_TYPE`  
 
 Recurrences:
+
+## Resolution
+
+**Fixed 2026-10-08 (lane GW).** `snapback4/lean/Quarry/Eval.lean`'s `.field`
+arm returns null for a null base, citing `why E_FIELD`; example
+`field-of-null` added (32 examples). `./check.sh`: 38 theorems audited,
+standard axioms only; 32/32 examples agree; 5 oracle fixture cases agree.
+`lean/OPEN.md` E4 is marked confirmed by that document.
+
+All twelve retained `…~E_MODEL_TYPE` cases now replay as passes and moved to
+`RESOLVED` in `tests/lean.rs`. `run-lean --seed 0 --cases 20000` afterwards
+(with the R2 engine fix `b2036dd821` also on main): 14,614 supported, 14,272
+agree, 342 disagree, under four signatures: OPEN C2 (203 + 112) and OPEN W4
+(24 + 3, one new signature `lean--code--E_RULE~NOT_FOUND`). The fix uncovered
+no engine defect.

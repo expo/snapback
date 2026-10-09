@@ -126,9 +126,10 @@ export interface Pending {
 /** A write. Fresh `sent` carries the server answer, including null. A replay
  * confirms execution identity only: `replayed: true` has no historical result.
  * Pending rows show predictions; `id` is caller-supplied or client-minted and stable across replay.
- * A prediction can still end `failed`: an insert whose row id the caller supplies predicts without
- * proving it absent, so a row this device cannot read with that id makes the server refuse `E_RULE`
- * and settlement withdraws the pending row. Row ids minted for the call never collide this way. */
+ * A prediction can still end `failed`: an insert predicts without proving its caller-supplied id or
+ * any unique-key value absent, so a row this device cannot read with that id or value makes the
+ * server refuse `E_RULE` and settlement withdraws the pending row. Row ids minted for the call never
+ * collide this way; another unique value can. */
 // @ref LLP 3000.007#17 — replay confirms execution without historical read authority
 export type Write<R = unknown> =
   | { readonly state: "pending"; readonly id: string; readonly reason?: string }

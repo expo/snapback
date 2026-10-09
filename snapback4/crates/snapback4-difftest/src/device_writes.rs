@@ -21,12 +21,13 @@
 //! synced) or the device declines (`E_PREDICT`) is counted by that reason,
 //! never as a pass.
 //!
-//! One predicted write may end refused: an insert whose row id the caller
-//! supplies predicts without proving that id absent (guide `prediction`,
-//! Refusals), so a row the device does not hold with that id makes the
+//! One predicted write may end refused: an insert predicts without proving
+//! its supplied id or any other unique-key value absent (guide `prediction`,
+//! Refusals), so a row the device does not hold with that value makes the
 //! server refuse `E_RULE`. When convergence then holds, that write is the
-//! named outcome [`UNHELD_ID`] ([`refused_over_unheld_id`] states the exact
-//! condition); every other predicted-then-refused write is a disagreement. The stream reply mirrors `sync_wire.rs::StreamReply`;
+//! named outcome [`UNHELD_UNIQUE`] ([`refused_over_unheld_unique`] states the
+//! exact condition); every other predicted-then-refused write is a
+//! disagreement. The stream reply mirrors `sync_wire.rs::StreamReply`;
 //! `changes` (the TypeScript client's settlement summary, not a device
 //! field) is omitted, and `preserved` comes from
 //! `revocation::preserved_between`, as `serve_sync.rs` computes it.
@@ -45,10 +46,13 @@ use std::collections::BTreeMap;
 
 pub const WRITE_ID: &str = "w1";
 
-/// A predicted insert over a caller-supplied id that a row the device does
-/// not hold already has; the server's refusal withdraws it (ruling of
-/// 2026-10-08, `issues/closed/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`).
-pub const UNHELD_ID: &str = "predicted-then-refused-unheld-id";
+/// A predicted insert whose id or other unique-key value belongs to a row the
+/// device does not hold; the server's refusal withdraws it (rulings of
+/// 2026-10-08: the supplied id,
+/// `issues/closed/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`,
+/// extended to any unique key,
+/// `issues/closed/20261008-snapback4-device-predicts-insert-over-a-hidden-secondary-unique-clash.md`).
+pub const UNHELD_UNIQUE: &str = "predicted-then-refused-unheld-unique-key";
 
 /// Whether `o`'s data shows the row of `target`: the row itself, or, for a
 /// wide `observe` (`[items[key], items[k2]]`), that key's element.
@@ -61,31 +65,118 @@ fn holds_row(o: &Outcome, target: &Key) -> bool {
     row.and_then(|d| d.get("Row")).is_some()
 }
 
-/// The argument naming the row a program's first write inserts, when that
-/// write is a plain insert that runs before anything else can refuse
-/// `E_RULE`: the program `insert` (`key`), or a block whose first statement
-/// other than a `let` is a top-level insert. Lets cannot refuse `E_RULE`; a
-/// `require` or `if` before it disqualifies the block.
-pub fn first_insert(case: &Case) -> Option<Key> {
-    match &case.program.body {
-        Body::Write(Write::Insert, _) => Some(Key::Key),
-        Body::Block(b) => match b.stmts.iter().find(|s| !matches!(s, Stmt::Let(..)))? {
-            Stmt::Write { kind: Write::Insert, target, .. } => Some(target.clone()),
+/// The inserts that can be a program's first write, as `(target, tag)`,
+/// when every path's first write is a plain insert that runs before anything
+/// else can refuse `E_RULE`: the program `insert` (`key`, `tag`), or a block
+/// whose first statement containing a write is a top-level insert, or an
+/// `if` both of whose branches begin (at their first write) with one.
+/// Statements before it (lets, requires, and `if`s holding no write) cannot
+/// refuse `E_RULE`: a failed `require` refuses its own code, and their point
+/// reads see null for a hidden row.
+pub fn first_inserts(case: &Case) -> Option<Vec<(Key, String)>> {
+    fn writes(s: &Stmt) -> bool {
+        let mut all = vec![];
+        s.walk(&mut all);
+        all.iter().any(|s| matches!(s, Stmt::Write { .. }))
+    }
+    fn first(stmts: &[Stmt]) -> Option<Vec<(Key, String)>> {
+        match stmts.iter().find(|s| writes(s))? {
+            Stmt::Write { kind: Write::Insert, target, tag, .. } => Some(vec![(target.clone(), tag.clone())]),
+            Stmt::If(_, then, otherwise) => {
+                let mut out = first(then)?;
+                out.extend(first(otherwise)?);
+                Some(out)
+            }
             _ => None,
-        },
+        }
+    }
+    match &case.program.body {
+        Body::Write(Write::Insert, _) => Some(vec![(Key::Key, "tag".into())]),
+        Body::Block(b) => first(&b.stmts),
         _ => None,
     }
 }
 
-/// The exact condition of [`UNHELD_ID`], before convergence (which
+/// The single row target of [`first_inserts`] (all paths insert the same id).
+pub fn first_insert(case: &Case) -> Option<Key> {
+    let inserts = first_inserts(case)?;
+    let target = inserts[0].0.clone();
+    inserts.iter().all(|(t, _)| *t == target).then_some(target)
+}
+
+/// The `items` rows as `(id, tag)`: what the clash check searches.
+pub type ItemKeys = Vec<(String, String)>;
+
+/// The seeded `items` rows (the server's rows when no prelude ran).
+pub fn seeded_items(case: &Case) -> ItemKeys {
+    case.rows
+        .iter()
+        .filter(|(t, _)| t == "items")
+        .filter_map(|(_, r)| Some((r["id"].as_str()?.to_owned(), r["tag"].as_str().unwrap_or_default().to_owned())))
+        .collect()
+}
+
+/// The server's physical `items` rows, read from its store (expired and
+/// hidden rows included): every row carrying a `tag` field, which only
+/// `items` has. Harness-only; the engine is not asked.
+pub fn server_items(server: &Server) -> Result<ItemKeys, String> {
+    let conn = server.engine.store().conn();
+    let mut statement = conn.prepare("SELECT id, data FROM r").map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|(id, data)| {
+            let value: snapback4_core::Value = serde_json::from_str(&data).ok()?;
+            let tag = value.field("tag").ok()?.as_str().ok()?.to_owned();
+            Some((id, tag))
+        })
+        .collect())
+}
+
+/// The id of the `items` row (from `rows`, the server's rows before the
+/// call) that the first insert ([`first_insert`]) clashes with on a unique
+/// key: the row with the inserted id, else a row holding the inserted `tag`
+/// when `items` declares the unique `byTag`.
+pub fn clashing_row(case: &Case, rows: &[(String, String)]) -> Option<String> {
+    let target = first_insert(case)?;
+    let id = case.args[target.source()].as_str()?;
+    let unique_tag = case.program.tables.first().is_some_and(|t| t.keys.iter().any(|(_, cols, unique)| *unique && cols == &["tag".to_string()]));
+    // Every possible first insert must clash, so whichever ran was refused
+    // for its clash; the id clash is checked first, then the tag.
+    let mut clash = None;
+    for (_, tag) in first_inserts(case)? {
+        let row = rows.iter().find(|(r, _)| r == id).or_else(|| rows.iter().find(|(_, t)| unique_tag && *t == tag))?;
+        clash.get_or_insert_with(|| row.0.clone());
+        if clash.as_deref() != Some(row.0.as_str()) {
+            return None;
+        }
+    }
+    clash
+}
+
+/// `observe`'s arguments reading the clashing row (both keys, for a wide one).
+pub fn clash_args(case: &Case, row: &str) -> Json {
+    let mut args = json!({"key": row});
+    if case.program.wide() {
+        args["k2"] = json!(row);
+    }
+    args
+}
+
+/// The exact condition of [`UNHELD_UNIQUE`], before convergence (which
 /// `compare` also requires): the program's first write is a plain insert
-/// ([`first_insert`]; the generator's inserts take their row id from the
-/// `key` or `k2` argument), the device admitted it as a prediction of
-/// `items/<id>`, the server refused it `E_RULE`, the server was seeded with
-/// an `items` row with that id and no prelude ran, and neither the server's
-/// answer to the viewer nor the device's answer before admission shows that
-/// row.
-pub fn refused_over_unheld_id(case: &Case, admitted: &Json, committed: &Outcome, server_view: &Outcome, device_before: &Outcome) -> bool {
+/// ([`first_insert`]); the device admitted it as a prediction of
+/// `items/<id>`; the server refused it `E_RULE` without committing; a row the
+/// server held before the call (`rows`) clashes with it on the id or on the
+/// unique `tag` ([`clashing_row`]);
+/// and neither the server's answer to the viewer nor the device's answer
+/// before admission (`server_view`, `device_view`: `observe` of that row)
+/// shows the clashing row.
+pub fn refused_over_unheld_unique(case: &Case, rows: &[(String, String)], admitted: &Json, committed: &Outcome, server_view: &Outcome, device_view: &Outcome) -> bool {
     let Some(target) = first_insert(case) else { return false };
     let Some(key) = case.args[target.source()].as_str() else { return false };
     let refusal = committed.value.get("why").or_else(|| committed.value.get("refusal"));
@@ -93,10 +184,9 @@ pub fn refused_over_unheld_id(case: &Case, admitted: &Json, committed: &Outcome,
         && admitted["ok"]["predicted"].as_array().is_some_and(|p| p.contains(&json!(format!("items/{key}"))))
         && committed.value.get("seq").is_none_or(Json::is_null)
         && refusal.is_some_and(|r| r["code"] == "E_RULE")
-        && case.steps.is_empty()
-        && case.rows.iter().any(|(t, row)| t == "items" && row["id"] == json!(key))
-        && !holds_row(server_view, &target)
-        && !holds_row(device_before, &target)
+        && clashing_row(case, rows).is_some()
+        && !holds_row(server_view, &Key::Key)
+        && !holds_row(device_view, &Key::Key)
 }
 
 fn ids() -> Vec<String> {
@@ -151,6 +241,11 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     let observed = devices::observe_args(case);
     let device_before = devices::device_answer_online(dev, case, "observe", &observed, server.online("observe")).outcome;
     report.executed += 1;
+    // The row a first insert would clash with, as the viewer sees it on the
+    // device before admission (and on the server after the call).
+    let rows = server_items(server)?;
+    let clash = clashing_row(case, &rows);
+    let device_clash = clash.as_ref().map(|row| devices::device_answer_online(dev, case, "observe", &clash_args(case, row), server.online("observe")).outcome);
     let admitted = dev.call_text(&json!({"op": "admit", "entry": entry}).to_string());
     let (_, pending_device) = observe(server, dev, case);
     let (committed, seq) = mutate(server, case);
@@ -179,7 +274,11 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
         (format!("refused-{}", denied["code"].as_str().unwrap_or("?")), v)
     } else if admitted["ok"]["predictable"] == json!(true) {
         let v = if seq.is_none() {
-            unheld = refused_over_unheld_id(case, &admitted, &committed, &after_server, &device_before);
+            if let (Some(row), Some(device_view)) = (&clash, &device_clash) {
+                server.engine.set_ceilings(snapback4_core::Ceilings::default());
+                let server_view = crate::execute::execute(&mut server.engine, case, "observe", &clash_args(case, row));
+                unheld = refused_over_unheld_unique(case, &rows, &admitted, &committed, &server_view, device_view);
+            }
             finding(store, "write", "predicted-refused", committed.clone(), admission.clone(), &trail)
         } else if !matches!(pending_device.class.as_str(), "complete" | "refused") {
             Verdict::Unsupported(format!("pending-observe-{}", pending_device.class))
@@ -231,7 +330,7 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
         Verdict::Unsupported(format!("converge-observe-{}", d.class))
     };
     // The named exception holds only when the withdrawn prediction converged.
-    let prediction = if unheld && matches!(converge, Verdict::Pass) { Verdict::Named(UNHELD_ID.into()) } else { prediction };
+    let prediction = if unheld && matches!(converge, Verdict::Pass) { Verdict::Named(UNHELD_UNIQUE.into()) } else { prediction };
     Ok([("write".into(), prediction), ("converge".into(), converge)])
 }
 

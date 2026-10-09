@@ -92372,3 +92372,39 @@ tickets:
 - **What was surprising:** the binder's left-spill makes `2 + read` cost two
   more steps than `read + 2`. Commute was never cost-free once operands could
   read.
+
+## 2026-10-08 — Lane GW follow-up: R2 fixed, E4 fixed, unique-key prediction ruling
+
+Rebased on main: the R2 security fix `b2036dd821` and the wasm budget raise.
+
+- **R2.** The eight widened R2 signatures replay as agreeing. They moved to
+  `RESOLVED` in `tests/lean.rs`, with a note in each DIAGNOSIS.md. The
+  combined R2/W4 ticket now tracks only W4.
+- **E4.** I fixed the Lean model. `why E_FIELD` documents it: a field of a
+  null base is null. This was a one-line arm in `Eval.lean`, plus the
+  `field-of-null` example. `./check.sh` passes: 38 theorems, 32/32 examples,
+  and the oracle fixtures. The ticket is closed.
+- **The Lean rerun.** 14,272 cases agree and 342 disagree, all under C2 or
+  W4, one of them a new W4 run-body signature. E4 hid no other defect: the
+  cases it had stopped at a prelude or block now reach C2 pages and W4
+  clashes.
+- **The prediction ruling (Charlie).** A hidden clash on any unique key may
+  end in a refusal that withdraws the pending row. The prediction card
+  changed one line in place, and so did the `contract.ts` `Write` comment.
+  The harness's named outcome is now `predicted-then-refused-unheld-unique-key`.
+  Clashes are found in the server's physical rows, so rows a prelude created
+  count too. Every path's first write must be the clashing insert.
+- **Device rerun.** 11 cases per store are named. 5 write disagreements
+  remain per store:
+  - 4 are under the refusal-code ticket, which another lane is taking;
+  - 1 is an insert in a branch beside an `upsert`, outside the exact
+    condition.
+- **Guide test.** The guide's code scan now skips the difftest case records.
+  They quote the model's `E_MODEL_TYPE`, which no product path emits.
+
+- **What felt good:** two fixes on two sides (engine and model) collapsed
+  twenty signatures into resolved regressions, and the replay loop showed it
+  in seconds.
+- **What was hard:** precision of the named exception. Every widening of the
+  generator (preludes, `if` branches) found a new way for the "first write"
+  to be ambiguous.

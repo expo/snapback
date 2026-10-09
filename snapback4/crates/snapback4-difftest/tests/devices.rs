@@ -9,7 +9,7 @@ use snapback4_difftest::{
     oracle::{Oracle, Verdict},
     shrink,
 };
-use snapback4_difftest::device_writes::{UNHELD_ID, refused_over_unheld_id};
+use snapback4_difftest::device_writes::{UNHELD_UNIQUE, clashing_row, refused_over_unheld_unique, seeded_items};
 use std::collections::BTreeSet;
 
 #[test]
@@ -85,7 +85,7 @@ fn retained_device_findings_still_reproduce() {
         assert!(matches!(artifact.finding.oracle, Oracle::Device { .. }));
         match shrink::replay(&path).unwrap() {
             // Regression cases of the ruled exception (DIAGNOSIS.md): they replay as its name.
-            Verdict::Named(n) if name.contains("--write-predicted-refused--") => assert_eq!(n, UNHELD_ID, "{name}"),
+            Verdict::Named(n) if name.contains("--write-predicted-refused--") => assert_eq!(n, UNHELD_UNIQUE, "{name}"),
             Verdict::Disagree(f) => assert_eq!(f.signature, name),
             other => panic!("{name} no longer reproduces ({other:?}): diagnose, update its DIAGNOSIS.md and this test"),
         }
@@ -127,7 +127,7 @@ fn a_predicted_insert_over_an_unheld_supplied_id_is_the_named_outcome() {
     for store in devices::STORES {
         let write = &report.by_oracle[&format!("device-{store}-write")];
         assert_eq!((write.attempted, write.passed, write.disagreeing), (1, 0, 0), "{report:#?}");
-        assert_eq!(write.named.get(UNHELD_ID), Some(&1), "{report:#?}");
+        assert_eq!(write.named.get(UNHELD_UNIQUE), Some(&1), "{report:#?}");
         assert_eq!(report.by_oracle[&format!("device-{store}-converge")].passed, 1, "{report:#?}");
     }
     // What the guide states: the client reports E_RULE and settling the
@@ -152,37 +152,45 @@ fn a_predicted_insert_over_an_unheld_supplied_id_is_the_named_outcome() {
 }
 
 #[test]
-fn a_predicted_refusal_of_another_shape_is_still_a_disagreement() {
+fn a_predicted_insert_over_a_hidden_secondary_unique_value_is_the_named_outcome() {
     // A hidden collision on a secondary unique key, with a fresh row id: the
-    // device predicts, the server refuses E_RULE, but no row has the id.
+    // device predicts, the server refuses E_RULE. Charlie's 2026-10-08 ruling
+    // extends the supplied-id exception to any unique key.
     let mut case = unheld_id_case();
     case.program.tables[0].keys.push(("byTag".into(), vec!["tag".into()], true));
     case.rows[0].1["tag"] = json!("tag");
     case.args["key"] = json!("fresh");
+    assert_eq!(clashing_row(&case, &seeded_items(&case)).as_deref(), Some("r0"));
     let mut report = snapback4_difftest::campaign::Report::default();
     let mut files = devices::Files::new().unwrap();
     let mut found = BTreeSet::new();
     devices::check(&case, &mut report, &mut files, |f| { found.insert(f.signature); }).unwrap();
-    let expected: BTreeSet<_> = devices::STORES.iter().map(|s| format!("device-{s}--write-predicted-refused--admitted")).collect();
-    assert_eq!(found, expected, "{report:#?}");
+    assert!(found.is_empty(), "{found:?}");
     for store in devices::STORES {
-        assert!(report.by_oracle[&format!("device-{store}-write")].named.is_empty(), "{report:#?}");
+        let write = &report.by_oracle[&format!("device-{store}-write")];
+        assert_eq!(write.named.get(UNHELD_UNIQUE), Some(&1), "{report:#?}");
+        assert_eq!(write.disagreeing, 0, "{report:#?}");
     }
+    // With no unique key on `tag` there is no clash: no exception applies.
+    let mut plain = case.clone();
+    plain.program.tables[0].keys.retain(|(name, _, _)| name != "byTag");
+    assert_eq!(clashing_row(&plain, &seeded_items(&plain)), None);
     // Each clause of the exact condition is necessary.
     let case = unheld_id_case();
     let admitted = json!({"ok": {"predictable": true, "predicted": ["items/r0"]}});
     let refused = |code: &str| Outcome { kind: "mutation".into(), value: json!({"state": "failed", "why": {"code": code}}) };
     let none = Outcome { kind: "query".into(), value: json!({"data": "Null"}) };
     let row = Outcome { kind: "query".into(), value: json!({"data": {"Row": {}}}) };
-    assert!(refused_over_unheld_id(&case, &admitted, &refused("E_RULE"), &none, &none));
-    assert!(!refused_over_unheld_id(&case, &admitted, &refused("E_CONSTRAINT"), &none, &none));
-    assert!(!refused_over_unheld_id(&case, &admitted, &refused("E_RULE"), &row, &none), "the viewer can read it");
-    assert!(!refused_over_unheld_id(&case, &admitted, &refused("E_RULE"), &none, &row), "the device holds it");
-    assert!(!refused_over_unheld_id(&case, &json!({"ok": {"predictable": true, "predicted": []}}), &refused("E_RULE"), &none, &none));
+    assert!(refused_over_unheld_unique(&case, &seeded_items(&case), &admitted, &refused("E_RULE"), &none, &none));
+    // A different refusal reason (here a visible clash) stays a disagreement.
+    assert!(!refused_over_unheld_unique(&case, &seeded_items(&case), &admitted, &refused("E_CONSTRAINT"), &none, &none));
+    assert!(!refused_over_unheld_unique(&case, &seeded_items(&case), &admitted, &refused("E_RULE"), &row, &none), "the viewer can read it");
+    assert!(!refused_over_unheld_unique(&case, &seeded_items(&case), &admitted, &refused("E_RULE"), &none, &row), "the device holds it");
+    assert!(!refused_over_unheld_unique(&case, &seeded_items(&case), &json!({"ok": {"predictable": true, "predicted": []}}), &refused("E_RULE"), &none, &none));
     let mut absent = case.clone();
     absent.rows.clear();
-    assert!(!refused_over_unheld_id(&absent, &admitted, &refused("E_RULE"), &none, &none), "no row has the id");
+    assert!(!refused_over_unheld_unique(&absent, &seeded_items(&absent), &admitted, &refused("E_RULE"), &none, &none), "no row has the id");
     let mut upsert = case.clone();
     upsert.program.body = Body::Write(Write::Upsert, Expr::Int(1));
-    assert!(!refused_over_unheld_id(&upsert, &admitted, &refused("E_RULE"), &none, &none), "only a plain insert");
+    assert!(!refused_over_unheld_unique(&upsert, &seeded_items(&upsert), &admitted, &refused("E_RULE"), &none, &none), "only a plain insert");
 }

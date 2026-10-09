@@ -183,7 +183,7 @@ pub enum Verdict {
     Pass,
     Unsupported(String),
     /// A documented outcome the oracle recognises by an exact condition
-    /// (`device_writes.rs::UNHELD_ID`): counted under its name, never as a
+    /// (`device_writes.rs::UNHELD_UNIQUE`): counted under its name, never as a
     /// pass and never as a disagreement.
     Named(String),
     Disagree(Finding),

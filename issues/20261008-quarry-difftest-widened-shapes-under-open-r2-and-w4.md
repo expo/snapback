@@ -1,59 +1,66 @@
-# Quarry differential test: widened shapes reach OPEN R2 (security) and W4 under new signatures
+# Quarry differential test: widened shapes reach OPEN W4 (and reached R2, now fixed)
 
-**Status:** Open
-**Impact:** 5
-**Urgency:** 4
-**Ease:** 3
-**Confidence:** 4
-**Systems:** Snapback 4, Quarry rules (write authority), Lean oracle
-**Class:** open questions OPEN R2 (security-relevant) and W4; R2 is the engine defect already ticketed
+**Status:** Open (W4); the R2 part is resolved
+**Impact:** 3
+**Urgency:** 2
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Snapback 4, Quarry write refusals, Lean oracle
+**Class:** open question OPEN W4 (the refusal code of a hidden clash on an absent upsert's insert arm); the R2 part was an engine defect (security), fixed
 **Date:** 2026-10-08
-**Related:** LLP 3000.035 §5.1 (found by the widened generator, lane GW, `run-devices`/`run-lean --seed 0 --cases 20000`)
+**Related:** LLP 3000.035 §5.1 (lane GW, the widened generator), `snapback4/lean/OPEN.md` R2 and W4
 
-**Security-relevant (R2):** an unnamed `update <- .owner = viewer` judges only
-the next image, so a viewer can take over another principal's row with a
-blind `upsert` or `update` that sets `owner: viewer`. That is ticketed in
-`issues/20261008-quarry-difftest-lean--kind--committed-not-found-2b9511f3e782.md`
-and `…-committed-e-rule-0ffb8dcbc8aa.md` and is being fixed in another lane.
-This ticket only collects the new signatures under which the widened
-generator (mutation blocks, a prelude of mutations) reaches it, so the
-nightly runner does not file each one separately: the takeover happens in an
-earlier statement or prelude step, and the difference surfaces later (a
-second insert's `E_CONSTRAINT`, an overflow, a `require`, a prelude step's
-outcome). Every retained R2 case was checked by hand: the first differing
-write is an unnamed-rule `upsert`/`update` of another principal's row setting
-`owner: viewer`. When the R2 fix lands, replay them; each should pass.
+**R2 (security): resolved by `b2036dd821` / `cda33a8e27`.** An unnamed
+`update <- .owner = viewer` judged only the next image, so a viewer could take
+over another principal's row with a blind `upsert` or `update` setting
+`owner: viewer`. The widened generator (mutation blocks, a prelude of
+mutations) reached it under eight signatures besides the original two; the
+takeover happened in an earlier statement or prelude step and the difference
+surfaced later. After the fix, all eight replay as passes and are kept as
+regressions (`tests/lean.rs`, `RESOLVED`; each DIAGNOSIS.md says so):
+`lean--code--E_CONSTRAINT~NOT_FOUND`, `lean--code--E_OVERFLOW~NOT_FOUND`,
+`lean--code--REQUIRED~NOT_FOUND`, `lean--prelude-code--E_CONSTRAINT~E_RULE`,
+`lean--prelude-code--E_CONSTRAINT~NOT_FOUND`,
+`lean--prelude-code--REQUIRED~NOT_FOUND`,
+`lean--prelude-kind--committed~E_RULE`, `lean--prelude-kind--committed~NOT_FOUND`.
+A recurrence would be a regression of the security fix and should get its
+own ticket.
 
-R2 counts in seeds 0–19,999:
+**W4 (open; not security-relevant beyond what a unique key already reveals).**
+An absent `upsert` whose insert arm puts a unique `tag` held by a row the
+viewer cannot read:
 
-- `lean--code--E_CONSTRAINT~NOT_FOUND`: 1
-- `lean--code--E_OVERFLOW~NOT_FOUND`: 2
-- `lean--code--REQUIRED~NOT_FOUND`: 2
-- `lean--prelude-code--E_CONSTRAINT~E_RULE`: 1
-- `lean--prelude-code--E_CONSTRAINT~NOT_FOUND`: 3
-- `lean--prelude-code--REQUIRED~NOT_FOUND`: 1
-- `lean--prelude-kind--committed~E_RULE`: 2
-- `lean--prelude-kind--committed~NOT_FOUND`: 9
+```quarry
+table items:
+  owner: principal
+  ...
+  tag: id
+  unique byTag: tag
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  ...
+mutation run(key: id, k2: id, ...):
+  upsert items[key] { owner: viewer, ..., tag: 'tag0' }
+  return 0
+```
 
-**W4 (open, not security-relevant beyond what a unique key already reveals):**
-`lean--prelude-code--E_RULE~NOT_FOUND`. An absent `upsert` whose insert arm
-puts a unique `tag` held by a row the viewer cannot read: the engine refuses
-`E_RULE`, the model `NOT_FOUND` (OPEN W4's choice). The documents are silent;
-a plain insert's hidden clash is `E_RULE` on both sides (W1). Needs a ruling
-on the code. Count: 8.
+bob's row `r0` holds `tag0`; alice upserts the absent `missing`. The engine
+refuses `E_RULE` ("a unique key ... contains a row you cannot read"); the
+model `NOT_FOUND` (OPEN W4's choice). The documents are silent on a hidden
+clash on the upsert's insert path; a plain insert's hidden clash is `E_RULE`
+on both sides (W1). **Needs a ruling on the code;** then either the model's W4
+choice or the engine changes, with a document.
+
+Counts in `run-lean --seed 0 --cases 20000` after the R2 and E4 fixes: 24
+under `lean--prelude-code--E_RULE~NOT_FOUND` and 3 under
+`lean--code--E_RULE~NOT_FOUND` (the same shape in `run`).
 
 Retained cases: `snapback4/crates/snapback4-difftest/cases/found/<signature>/DIAGNOSIS.md`.
 
 ## Scheduled-run signatures
 
-**Failure signature:** `lean--code--E_CONSTRAINT~NOT_FOUND`  
-**Failure signature:** `lean--code--E_OVERFLOW~NOT_FOUND`  
-**Failure signature:** `lean--code--REQUIRED~NOT_FOUND`  
-**Failure signature:** `lean--prelude-code--E_CONSTRAINT~E_RULE`  
-**Failure signature:** `lean--prelude-code--E_CONSTRAINT~NOT_FOUND`  
+**Failure signature:** `lean--code--E_RULE~NOT_FOUND`  
 **Failure signature:** `lean--prelude-code--E_RULE~NOT_FOUND`  
-**Failure signature:** `lean--prelude-code--REQUIRED~NOT_FOUND`  
-**Failure signature:** `lean--prelude-kind--committed~E_RULE`  
-**Failure signature:** `lean--prelude-kind--committed~NOT_FOUND`  
 
 Recurrences:

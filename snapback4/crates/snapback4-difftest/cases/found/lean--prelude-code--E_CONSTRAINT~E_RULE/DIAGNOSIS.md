@@ -57,3 +57,8 @@ First differing field `prelude-code`. Left (server / engine), then right (model)
 ```
 
 **Diagnosis: open question OPEN R2 (security-relevant; the unnamed update rule judges only the next image), reached through the widened shapes; ticket `issues/20261008-quarry-difftest-widened-shapes-under-open-r2-and-w4.md`.** An `upsert` (or `update`) under `update <- .owner = viewer` sets `owner: viewer` on another principal's row. The engine judges the next image only and admits it (a takeover); the model judges both images and refuses (`NOT_FOUND` on an unreadable target, `E_RULE` on a readable one). The difference then surfaces in a later statement, a prelude step or the observe reread, under this signature. The R2 fix (in progress in another lane) should retire it; replay after it lands.
+
+**Resolved (2026-10-08).** The R2 security fix (`b2036dd821`, landed with
+`cda33a8e27`): an unnamed `update <- R` now judges old and next, as the model
+does. This case now replays as a pass and is kept as a regression
+(`tests/lean.rs`, `RESOLVED`).

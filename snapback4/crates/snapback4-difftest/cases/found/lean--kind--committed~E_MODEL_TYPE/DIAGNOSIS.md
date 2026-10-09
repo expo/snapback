@@ -31,3 +31,10 @@ First differing field `kind`. Left (server / engine), then right (model):
 ```
 
 **Diagnosis: Lean model defect, OPEN E4; ticket `issues/20261008-quarry-lean-model-field-of-null-base.md`.** The block reads `(items[k].score ?? 0)` on a key with no visible row. The documents say field access propagates a null base (`why E_FIELD`, `why E_QUARRY_UNSUPPORTED`: "`row.body` is null when `row` is null"); the engine does, and evaluates 0. The model's `.field` arm refuses `E_MODEL_TYPE`, a refusal no checked program should reach. The model must be fixed (not done in lane GW, whose brief forbade changing model semantics); until then this signature is classified, and the engine's side is not in question.
+
+**Resolved (2026-10-08).** The model was fixed: `Eval.lean`'s `.field` arm
+now gives null for a null base (`why E_FIELD`; OPEN E4 confirmed by that
+document; example `field-of-null`). This case now replays as a pass and is
+kept as a regression (`tests/lean.rs`, `RESOLVED`). In seeds 0–19,999 the
+fix uncovered no new engine or model defect: the cases it had masked added to
+OPEN C2 and W4 (one new W4 signature, `lean--code--E_RULE~NOT_FOUND`).
