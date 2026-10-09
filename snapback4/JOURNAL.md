@@ -92294,3 +92294,10 @@ published.**
   now spells that grant as `update (old, next) <- next.owner = viewer`, and
   the unnamed rule refuses `NOT_FOUND`. `page_admission`'s update variant now
   prepays two rule probes, one per image, because its `group` is mutable.
+
+Landing note: the wasm budget rises from 646,180 to 646,816 B gzip. Rebased
+on the heap-uniform landing `9d5e158aa1`, the combined device measures
+646,316 B on macOS, 136 B over. The fix's own cost was already cut from
++2,747 to +555 B. Per the ratchet rule, the budget is raised in the same
+commit with the reason in `metrics/wasm-budget.json`: this macOS measurement
+plus 500 B. macOS measures at or above Linux. This fix must be published.
