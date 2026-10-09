@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 16982,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            },
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": false
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": true,
+          "id": "r0",
+          "label": "😀",
+          "maybe": 9007199254740990,
+          "owner": "bob",
+          "score": 9007199254740991,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 28071,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 12514,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--code--E_CONSTRAINT~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 3010,
+          "index_entries": 2,
+          "output_bytes": 0,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 26
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_CONSTRAINT",
+          "family": "constraint",
+          "guide": "indexes",
+          "message": "items already has a row with id r0"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_CONSTRAINT",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 155
+}

@@ -62,7 +62,6 @@
 //! replayed on both device stores.
 // @ref LLP 3000.035#5.1 — oracle 4: the server against a device that acquired the same rows.
 use crate::{
-    ast::Body,
     campaign::Report,
     execute::{self, Outcome},
     generate::Case,
@@ -162,7 +161,8 @@ impl Server {
 }
 pub fn server(case: &Case, source: &str) -> Result<Server, String> {
     let bound = execute::compile(source).map_err(|e| format!("binder: {e}"))?;
-    let mut engine = execute::engine(case, source)?;
+    // The prelude runs after the device acquires (`bring_up`).
+    let mut engine = execute::seeded(case, source)?;
     engine.set_ceilings(Ceilings::default());
     let backend = json!({
         "generation": engine.generation(),
@@ -321,6 +321,31 @@ pub fn open(kind: &str, files: &mut Files, backend: &str) -> Result<Box<dyn Dev>
         "memory" => Box::new(Device::open_store(MemoryStore::new(), Some(backend)).map_err(|e| format!("open memory device: {e}"))?),
         _ => unreachable!(),
     })
+}
+
+/// A fresh device of `store` that acquired the seeded rows at the seed
+/// clock. When the case has a prelude or its clock advances, the server then
+/// runs the prelude (sweeps included) and the device catches up with one
+/// more sync round at `clock`, the way a client that stayed connected does.
+/// Returns the device and every page it applied.
+pub fn bring_up(case: &Case, store: &str, files: &mut Files, server: &mut Server) -> Result<(Box<dyn Dev>, Vec<Json>), String> {
+    let mut dev = open(store, files, &server.backend)?;
+    let mut pages = acquire(dev.as_mut(), server, &case.principal, page_limit(case.seed), execute::seed_clock(case))?;
+    if !case.steps.is_empty() || case.sweep || case.seeded_at.is_some() {
+        execute::prelude(&mut server.engine, case);
+        server.engine.set_ceilings(Ceilings::default());
+        pages.extend(sync_round(dev.as_mut(), server, &case.principal, page_limit(case.seed), case.clock)?);
+    }
+    Ok((dev, pages))
+}
+
+/// `observe`'s arguments: `key`, and `k2` for a wide program.
+pub fn observe_args(case: &Case) -> Json {
+    let mut args = json!({"key": case.args["key"]});
+    if case.program.wide() {
+        args["k2"] = case.args["k2"].clone();
+    }
+    args
 }
 
 /// Snapshot page limits: one row per page, small pages and one page.
@@ -604,11 +629,10 @@ pub fn check(case: &Case, report: &mut Report, files: &mut Files, mut found: imp
     let source = case.program.source();
     execute::compile(&source).map_err(|e| format!("binder: {e}"))?;
     report.compiled += 1;
-    let write = matches!(case.program.body, Body::Write(..));
+    let write = case.program.mutation();
     for store in STORES {
         let mut server = server(case, &source)?;
-        let mut dev = open(store, files, &server.backend)?;
-        let pages = acquire(dev.as_mut(), &mut server, &case.principal, page_limit(case.seed), case.clock)?;
+        let (mut dev, pages) = bring_up(case, store, files, &mut server)?;
         *report.store_stats.entry(format!("device-{store}-snapshot-pages")).or_default() += pages.len() as u64;
         *report.store_stats.entry(format!("device-{store}-snapshot-events")).or_default() +=
             pages.iter().map(|p| p["events"].as_array().map_or(0, Vec::len) as u64).sum::<u64>();
@@ -661,9 +685,8 @@ pub fn reproduce(case: &Case, source: &str, oracle: &Oracle) -> Result<Verdict, 
     let Oracle::Device { store, phase, ceiling } = oracle else { return Err("not a device oracle".into()) };
     let mut files = Files::new()?;
     let mut server = server(case, source)?;
-    let mut dev = open(store, &mut files, &server.backend)?;
-    acquire(dev.as_mut(), &mut server, &case.principal, page_limit(case.seed), case.clock)?;
-    if matches!(case.program.body, Body::Write(..)) {
+    let (mut dev, _) = bring_up(case, store, &mut files, &mut server)?;
+    if case.program.mutation() {
         let mut report = Report::default();
         let verdicts = crate::device_writes::compare(store, &mut server, dev.as_mut(), case, &mut report)?;
         return verdicts.into_iter().find(|(p, _)| p == phase).map(|(_, v)| v).ok_or_else(|| format!("no write phase {phase}"));

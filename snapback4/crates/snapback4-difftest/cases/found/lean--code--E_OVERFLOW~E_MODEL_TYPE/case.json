@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 17920,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [
+            {
+              "Let": [
+                "v0",
+                {
+                  "Score": "K2"
+                }
+              ]
+            },
+            {
+              "Let": [
+                "v1",
+                {
+                  "Arg": [
+                    "b",
+                    "Int"
+                  ]
+                }
+              ]
+            }
+          ],
+          "ret": {
+            "Binary": [
+              "Lt",
+              {
+                "Int": 0
+              },
+              {
+                "Binary": [
+                  "Mul",
+                  {
+                    "Var": [
+                      "v1",
+                      "Int"
+                    ]
+                  },
+                  {
+                    "Arg": [
+                      "b",
+                      "Int"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": -9007199254740990,
+      "bucket": 0,
+      "c": null,
+      "k2": "missing2",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 82720,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 14961,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--code--E_OVERFLOW~E_MODEL_TYPE",
+    "oracle": "Lean",
+    "field": "code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 18,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 20
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_OVERFLOW",
+          "family": "input",
+          "message": "E_OVERFLOW: 81129638414606645666991986180100 is outside the i53 value model"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_MODEL_TYPE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_OVERFLOW",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "E_MODEL_TYPE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 126
+}

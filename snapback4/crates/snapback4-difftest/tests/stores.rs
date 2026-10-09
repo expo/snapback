@@ -70,3 +70,30 @@ fn isolated_process_workers_agree_with_serial_counts() {
     assert_eq!(one, two);
     std::fs::remove_dir_all(root).unwrap();
 }
+
+/// Prefetch-reachable reads (`widen.rs`): a page projecting `tags[.tag]` and
+/// `tags[name = .label]`, or a loop reading `tags[row.tag]`, makes the batch
+/// planner mark, transfer and consume rows (the closed coverage-gap ticket).
+/// Consumption shows as fewer database calls with prefetch on.
+#[test]
+fn widened_reads_fill_and_consume_the_prefetch_cache() {
+    use snapback4_difftest::ast::{Body, Proj, Read};
+    let mut database = stores::Database::connect()
+        .expect("private Postgres cluster required: export SNAPBACK4_EVAL_POSTGRES");
+    let mut report = Report::default();
+    let reachable = |c: &snapback4_difftest::generate::Case| match &c.program.body {
+        Body::Read { kind: Read::Fold, .. } => true,
+        Body::Read { project: Some(f), .. } => f.iter().any(|f| *f != Proj::Score),
+        _ => false,
+    };
+    let cases: Vec<_> = (0..).map(generate).filter(reachable).take(12).collect();
+    for case in &cases {
+        stores::check(case, &mut report, &mut database, |f| panic!("seed {}: {}", case.seed, f.signature)).unwrap();
+    }
+    let stat = |k: &str| report.store_stats.get(k).copied().unwrap_or(0);
+    assert!(stat("store-postgres-on-prefetch_marked_reads") > 0, "{report:#?}");
+    assert!(stat("store-postgres-on-prefetch_rows_transferred") > 0, "{report:#?}");
+    assert_eq!(stat("store-postgres-off-prefetch_marked_reads"), 0);
+    assert!(stat("prefetch_consumption_witness_probes") > 0, "{report:#?}");
+    assert!(stat("prefetch_cases_with_transfer") > 0, "{report:#?}");
+}

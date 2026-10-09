@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 15662,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Scalar": {
+          "Bool": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Arg": [
+                    "a",
+                    "Int"
+                  ]
+                },
+                "tag": "tag"
+              }
+            },
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": false
+          }
+        }
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": true,
+          "id": "r0",
+          "label": "é",
+          "maybe": null,
+          "owner": "alice",
+          "score": -9007199254740991,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 331268,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 19859,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 9007199254740990,
+          "b": 0,
+          "bucket": 0,
+          "c": null,
+          "k2": "r1",
+          "key": "r0",
+          "n": null
+        },
+        "at": 331268
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--E_CONSTRAINT~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 2998,
+          "index_entries": 2,
+          "output_bytes": 0,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 26
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_CONSTRAINT",
+          "family": "constraint",
+          "guide": "indexes",
+          "message": "items already has a row with id r0"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_CONSTRAINT",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 234
+}

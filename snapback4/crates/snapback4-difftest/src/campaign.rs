@@ -64,7 +64,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
         return;
     }
     report.compiled += 1;
-    let mut engine = match execute::engine(case, &source) {
+    let (mut engine, prelude) = match execute::world(case, &source) {
         Ok(e) => e,
         Err(e) => {
             *report.generator_errors.entry(e).or_default() += 1;
@@ -78,7 +78,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
         *report.runtime_refusals.entry(code.into()).or_default() += 1;
         if !matches!(
             code,
-            "E_OVERFLOW" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_ID_REUSED"
+            "E_OVERFLOW" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_ID_REUSED" | "REQUIRED"
         ) {
             *report
                 .runtime_refused_unexpected
@@ -113,7 +113,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
                 *report.rewrite_coverage.entry(feature).or_default() += 1;
             }
         }
-        let (verdict, n) = match oracle::rewrite_against(case, &r, &mut engine, &budgeted) {
+        let (verdict, n) = match oracle::rewrite_against(case, &r, &mut engine, &prelude, &budgeted) {
             Ok(v) => v,
             Err(e) => {
                 if e.starts_with("binder:") {
@@ -125,7 +125,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
         };
         report.executed += n;
         report.record(&format!("rewrite-{}", r.name()), &verdict);
-        if r.costs() && !matches!(verdict, Verdict::Unsupported(_)) {
+        if r.costs(&case.program) && !matches!(verdict, Verdict::Unsupported(_)) {
             report
                 .by_oracle
                 .get_mut(&format!("rewrite-{}", r.name()))
@@ -136,7 +136,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
             found(f);
         }
     }
-    if matches!(case.program.body, Body::Write(..)) {
+    if case.program.mutation() {
         report.record("meter", &Verdict::Unsupported("mutation-not-a-read".into()));
         return;
     }

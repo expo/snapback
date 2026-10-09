@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 10006,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "score",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Deny",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [
+            {
+              "Let": [
+                "v0",
+                {
+                  "Score": "K2"
+                }
+              ]
+            },
+            {
+              "Write": {
+                "kind": "Delete",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": false
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "missing",
+      "n": null
+    },
+    "clock": 74788,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 12972,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--code--NOT_FOUND~E_MODEL_TYPE",
+    "oracle": "Lean",
+    "field": "code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 32,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 16
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "NOT_FOUND",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with NOT_FOUND",
+          "rule": "NOT_FOUND",
+          "site": "run:5"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_MODEL_TYPE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "E_MODEL_TYPE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 74
+}

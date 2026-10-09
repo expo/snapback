@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 9772,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [
+            [
+              "byTag",
+              [
+                "tag"
+              ],
+              true
+            ]
+          ],
+          "rule": "Witness",
+          "residency": "Online",
+          "effects": [
+            "Witness",
+            "Witness",
+            "Owner",
+            "Witness"
+          ]
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Allow",
+          "residency": "Public"
+        }
+      ],
+      "body": {
+        "Write": [
+          "Update",
+          {
+            "Int": 0
+          }
+        ]
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 2
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": false
+          }
+        },
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": true
+          }
+        }
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": true,
+          "id": "r0",
+          "label": "",
+          "maybe": null,
+          "owner": "alice",
+          "score": -1,
+          "tag": "tag0"
+        }
+      ],
+      [
+        "access",
+        {
+          "bucket": 0,
+          "id": "bob0",
+          "principal": "bob"
+        }
+      ],
+      [
+        "access",
+        {
+          "bucket": 1,
+          "id": "bob1",
+          "principal": "bob"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r0",
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 316233,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 16775,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 9007199254740990,
+          "b": 7,
+          "bucket": 0,
+          "c": null,
+          "k2": "r2",
+          "key": "r1",
+          "n": null
+        },
+        "at": 316233
+      },
+      {
+        "args": {
+          "a": 9007199254740991,
+          "b": -1,
+          "bucket": 0,
+          "c": null,
+          "k2": "r0",
+          "key": "r0",
+          "n": null
+        },
+        "at": 316233
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--E_CONSTRAINT~E_RULE",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1532,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 3,
+          "steps": 12
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_CONSTRAINT",
+          "family": "constraint",
+          "guide": "indexes",
+          "message": "items.byTag already has a row where tag = 'tag'"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_RULE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "bool": false
+            },
+            "kind": "committed",
+            "next": false
+          },
+          "model": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "bool": false
+            },
+            "kind": "committed",
+            "next": false
+          }
+        }
+      },
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_CONSTRAINT",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "E_RULE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 348
+}

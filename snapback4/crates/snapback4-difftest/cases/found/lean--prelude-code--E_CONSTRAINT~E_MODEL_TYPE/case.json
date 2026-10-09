@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 15155,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": true,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            },
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Score": "K2"
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Arg": [
+              "a",
+              "Int"
+            ]
+          }
+        }
+      ]
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "missing",
+      "n": 0
+    },
+    "clock": 377089,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 10983,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 9007199254740990,
+          "b": 1,
+          "bucket": 1,
+          "c": null,
+          "k2": "r0",
+          "key": "r2",
+          "n": 9007199254740990
+        },
+        "at": 377089
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--E_CONSTRAINT~E_MODEL_TYPE",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 2938,
+          "index_entries": 2,
+          "output_bytes": 0,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 34
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_CONSTRAINT",
+          "family": "constraint",
+          "guide": "indexes",
+          "message": "items already has a row with id r2"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_MODEL_TYPE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_CONSTRAINT",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "E_MODEL_TYPE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 292
+}

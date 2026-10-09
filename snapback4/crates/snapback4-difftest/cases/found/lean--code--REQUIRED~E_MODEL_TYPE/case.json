@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 17574,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "score",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Deny",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [
+            {
+              "Require": [
+                {
+                  "Binary": [
+                    "Eq",
+                    {
+                      "Score": "Key"
+                    },
+                    {
+                      "Int": 2
+                    }
+                  ]
+                },
+                "REQUIRED"
+              ]
+            }
+          ],
+          "ret": {
+            "Int": 1
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "missing2",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 77466,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 16023,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--code--REQUIRED~E_MODEL_TYPE",
+    "oracle": "Lean",
+    "field": "code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 12,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 14
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "REQUIRED",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with REQUIRED",
+          "rule": "REQUIRED",
+          "site": "schema.q:10:3"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_MODEL_TYPE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "REQUIRED",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "E_MODEL_TYPE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 127
+}

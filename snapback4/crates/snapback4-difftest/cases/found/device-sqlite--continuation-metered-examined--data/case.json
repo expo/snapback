@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 16456,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public",
+          "expire": "until"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r4",
+          "label": "𐀀",
+          "score": 9007199254740990,
+          "until": 384743
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r11",
+          "label": "",
+          "score": 9007199254740991,
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r12",
+          "label": "",
+          "score": 0,
+          "until": null
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "missing",
+      "n": null
+    },
+    "clock": 384780,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 13086,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-sqlite--continuation-metered-examined--data",
+    "oracle": {
+      "Device": {
+        "store": "sqlite",
+        "phase": "read",
+        "ceiling": 0
+      }
+    },
+    "field": "continuation-metered-examined",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 0
+                },
+                "id": {
+                  "Id": "r12"
+                },
+                "label": {
+                  "String": ""
+                },
+                "score": {
+                  "Int": 0
+                },
+                "until": "Null"
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 2,
+          "heap_bytes": 1162,
+          "index_entries": 0,
+          "output_bytes": 116,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "seq": 1,
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 0
+                },
+                "id": {
+                  "Id": "r12"
+                },
+                "label": {
+                  "String": ""
+                },
+                "score": {
+                  "Int": 0
+                },
+                "until": "Null"
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 1162,
+          "index_entries": 0,
+          "output_bytes": 116,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "retained": false,
+        "seq": 0,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": [
+                {
+                  "Row": {
+                    "bucket": {
+                      "Int": 0
+                    },
+                    "id": {
+                      "Id": "r11"
+                    },
+                    "label": {
+                      "String": ""
+                    },
+                    "score": {
+                      "Int": 9007199254740991
+                    },
+                    "until": "Null"
+                  }
+                }
+              ]
+            },
+            "metered": {
+              "examined": 2,
+              "heap_bytes": 473,
+              "index_entries": 0,
+              "output_bytes": 128,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 4
+            },
+            "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldExhYmVsU2NvcmU6YjBlM2M0MjRjY2YxMTQyMCIsIkFzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiIn0seyJJbnQiOjkwMDcxOTkyNTQ3NDA5OTF9LHsiSWQiOiJyMTEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOlt7IkludCI6MH1dfV0",
+            "seq": 1,
+            "tables": [
+              "items"
+            ]
+          }
+        },
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": [
+                {
+                  "Row": {
+                    "bucket": {
+                      "Int": 0
+                    },
+                    "id": {
+                      "Id": "r12"
+                    },
+                    "label": {
+                      "String": ""
+                    },
+                    "score": {
+                      "Int": 0
+                    },
+                    "until": "Null"
+                  }
+                }
+              ]
+            },
+            "metered": {
+              "examined": 2,
+              "heap_bytes": 1162,
+              "index_entries": 0,
+              "output_bytes": 116,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 4
+            },
+            "seq": 1,
+            "tables": [
+              "items"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": [
+                {
+                  "Row": {
+                    "bucket": {
+                      "Int": 0
+                    },
+                    "id": {
+                      "Id": "r11"
+                    },
+                    "label": {
+                      "String": ""
+                    },
+                    "score": {
+                      "Int": 9007199254740991
+                    },
+                    "until": "Null"
+                  }
+                }
+              ]
+            },
+            "metered": {
+              "examined": 2,
+              "heap_bytes": 473,
+              "index_entries": 0,
+              "output_bytes": 128,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 4
+            },
+            "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldExhYmVsU2NvcmU6YjBlM2M0MjRjY2YxMTQyMCIsIkFzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiIn0seyJJbnQiOjkwMDcxOTkyNTQ3NDA5OTF9LHsiSWQiOiJyMTEifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOlt7IkludCI6MH1dfV0",
+            "retained": false,
+            "seq": 0,
+            "tables": [
+              "items"
+            ],
+            "unknown": false
+          }
+        },
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": [
+                {
+                  "Row": {
+                    "bucket": {
+                      "Int": 0
+                    },
+                    "id": {
+                      "Id": "r12"
+                    },
+                    "label": {
+                      "String": ""
+                    },
+                    "score": {
+                      "Int": 0
+                    },
+                    "until": "Null"
+                  }
+                }
+              ]
+            },
+            "metered": {
+              "examined": 1,
+              "heap_bytes": 1162,
+              "index_entries": 0,
+              "output_bytes": 116,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 4
+            },
+            "retained": false,
+            "seq": 0,
+            "tables": [
+              "items"
+            ],
+            "unknown": false
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 305
+}

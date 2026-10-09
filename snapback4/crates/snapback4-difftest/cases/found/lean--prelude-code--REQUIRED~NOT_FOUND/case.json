@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 3269,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [],
+          "ret": {
+            "Bool": false
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "K2",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            },
+            {
+              "Require": [
+                {
+                  "Bool": false
+                },
+                "REQUIRED"
+              ]
+            }
+          ],
+          "ret": {
+            "Int": 0
+          }
+        }
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": false,
+          "id": "r0",
+          "label": "𐀀",
+          "maybe": null,
+          "owner": "bob",
+          "score": -1,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r0",
+      "key": "missing",
+      "n": null
+    },
+    "clock": 350400,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 15260,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 9007199254740991,
+          "b": 1,
+          "bucket": 0,
+          "c": null,
+          "k2": "r0",
+          "key": "r1",
+          "n": null
+        },
+        "at": 350400
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--REQUIRED~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1538,
+          "index_entries": 2,
+          "output_bytes": 0,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 16
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "REQUIRED",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with REQUIRED",
+          "rule": "REQUIRED",
+          "site": "schema.q:3:3"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "REQUIRED",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 193
+}

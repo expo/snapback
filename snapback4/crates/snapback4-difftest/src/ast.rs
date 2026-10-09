@@ -8,6 +8,7 @@ pub enum Type {
     Id,
     Bool,
     Principal,
+    Time,
     Nullable(Box<Type>),
 }
 impl Type {
@@ -18,6 +19,7 @@ impl Type {
             Self::Id => "id".into(),
             Self::Bool => "bool".into(),
             Self::Principal => "principal".into(),
+            Self::Time => "time".into(),
             Self::Nullable(t) => format!("{} ?", t.source()),
         }
     }
@@ -80,6 +82,9 @@ pub struct Table {
     /// only the Lean oracle's variants set it (`lean.rs`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effects: Option<Vec<Rule>>,
+    /// `expire at .<column>` (guide expire); the column is a `time ?`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expire: Option<String>,
 }
 impl Table {
     fn source(&self) -> String {
@@ -99,6 +104,9 @@ impl Table {
             let binding = if rule.named() { " (old, next)" } else { "" };
             out += &format!("  {effect}{binding} <- {}\n", rule.source());
         }
+        if let Some(column) = &self.expire {
+            out += &format!("  expire at .{column}\n");
+        }
         out += match self.residency {
             Residency::Public => "  sync public\n",
             Residency::Owner => "  sync to .owner\n",
@@ -114,6 +122,7 @@ pub enum Bin {
     Eq,
     And,
     Or,
+    Lt,
 }
 impl Bin {
     fn source(&self) -> &'static str {
@@ -123,6 +132,7 @@ impl Bin {
             Self::Eq => "=",
             Self::And => "and",
             Self::Or => "or",
+            Self::Lt => "<",
         }
     }
 }
@@ -135,6 +145,12 @@ pub enum Expr {
     Binary(Bin, Box<Expr>, Box<Expr>),
     Identity(Box<Expr>),
     Assert(Box<Expr>),
+    /// A local bound earlier in a block (`v0 = ..`).
+    Var(String, Type),
+    /// `(items[key].score ?? 0)`: a read inside a mutation, after its writes.
+    Score(Key),
+    /// `(exists items[key])`.
+    Present(Key),
 }
 impl Expr {
     pub fn ty(&self) -> Type {
@@ -142,7 +158,9 @@ impl Expr {
             Self::Int(_) => Type::Int,
             Self::Text(_) => Type::Text,
             Self::Bool(_) => Type::Bool,
-            Self::Arg(_, t) => t.clone(),
+            Self::Arg(_, t) | Self::Var(_, t) => t.clone(),
+            Self::Score(_) => Type::Int,
+            Self::Present(_) => Type::Bool,
             Self::Identity(e) => e.ty(),
             Self::Assert(e) => match e.ty() {
                 Type::Nullable(t) => *t,
@@ -159,7 +177,9 @@ impl Expr {
             Self::Int(n) => n.to_string(),
             Self::Text(s) => serde_json::to_string(s).unwrap(),
             Self::Bool(b) => b.to_string(),
-            Self::Arg(n, _) => n.clone(),
+            Self::Arg(n, _) | Self::Var(n, _) => n.clone(),
+            Self::Score(k) => format!("(items[{}].score ?? 0)", k.source()),
+            Self::Present(k) => format!("(exists items[{}])", k.source()),
             Self::Binary(op, a, b) => format!("({} {} {})", a.source(), op.source(), b.source()),
             Self::Identity(e) => format!("identity({})", e.source()),
             Self::Assert(e) => format!("({} ! else NULL_ASSERT)", e.source()),
@@ -202,6 +222,9 @@ pub enum Read {
     Sum,
     Min,
     Max,
+    /// A loop over a bounded page summing a related row's column:
+    /// `for row in <page>: t = tags[row.tag] ...` (the planner's `For` path).
+    Fold,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Write {
@@ -209,6 +232,121 @@ pub enum Write {
     Upsert,
     Update,
     Delete,
+}
+/// Which argument names an `items` row: `key` or `k2`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Key {
+    Key,
+    K2,
+}
+impl Key {
+    pub fn source(&self) -> &'static str {
+        match self {
+            Self::Key => "key",
+            Self::K2 => "k2",
+        }
+    }
+}
+/// A projected page field. `TagGet` and `NameLookup` are cross-table point
+/// reads whose keys vary across the page's rows: the Postgres batch planner
+/// marks them (`engine/prefetch.rs`), as a `Get` and a unique `Lookup`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Proj {
+    Score,
+    TagGet,
+    NameLookup,
+}
+impl Proj {
+    fn source(&self) -> &'static str {
+        match self {
+            Self::Score => "score",
+            Self::TagGet => "t: tags[.tag]",
+            Self::NameLookup => "u: tags[name = .label]",
+        }
+    }
+}
+/// One statement of a generated mutation block.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Stmt {
+    Let(String, Expr),
+    Require(Expr, String),
+    If(Expr, Vec<Stmt>, Vec<Stmt>),
+    Write {
+        kind: Write,
+        target: Key,
+        value: Expr,
+        /// The inserted `tag` (unique `byTag`): `tag0`/`tag1` clash with seeded rows.
+        tag: String,
+        /// `until: now + ttl` on an expiring `items`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ttl: Option<i64>,
+    },
+}
+impl Stmt {
+    pub fn source(&self, indent: usize) -> String {
+        let pad = "  ".repeat(indent);
+        match self {
+            Self::Let(name, e) => format!("{pad}{name} = {}\n", e.source()),
+            Self::Require(e, code) => format!("{pad}require {} else {code}\n", e.source()),
+            Self::If(c, then, otherwise) => {
+                let mut out = format!("{pad}if {}:\n", c.source());
+                for s in then {
+                    out += &s.source(indent + 1);
+                }
+                if !otherwise.is_empty() {
+                    out += &format!("{pad}else:\n");
+                    for s in otherwise {
+                        out += &s.source(indent + 1);
+                    }
+                }
+                out
+            }
+            Self::Write {
+                kind,
+                target,
+                value,
+                tag,
+                ttl,
+            } => {
+                let k = target.source();
+                let until = ttl.map_or(String::new(), |t| format!(", until: now + {t}"));
+                let fields = format!(
+                    "owner: viewer, bucket, score: {}, label: '𐀀', flag: true, maybe: n, tag: '{tag}'{until}",
+                    value.source()
+                );
+                match kind {
+                    Write::Insert => format!("{pad}insert items {{ id: {k}, {fields} }}\n"),
+                    Write::Upsert => format!("{pad}upsert items[{k}] {{ {fields} }}\n"),
+                    Write::Update => format!("{pad}update items[{k}] {{ score: {}{until} }}\n", value.source()),
+                    Write::Delete => format!("{pad}delete items[{k}]\n"),
+                }
+            }
+        }
+    }
+    /// Every statement, depth first, this one included.
+    pub fn walk<'a>(&'a self, out: &mut Vec<&'a Stmt>) {
+        out.push(self);
+        if let Self::If(_, a, b) = self {
+            for s in a.iter().chain(b) {
+                s.walk(out);
+            }
+        }
+    }
+}
+/// A mutation body: statements, then `return ret`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Block {
+    pub stmts: Vec<Stmt>,
+    pub ret: Expr,
+}
+impl Block {
+    pub fn all(&self) -> Vec<&Stmt> {
+        let mut out = vec![];
+        for s in &self.stmts {
+            s.walk(&mut out);
+        }
+        out
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Body {
@@ -219,8 +357,13 @@ pub enum Body {
         descending: bool,
         filter: bool,
         owner: bool,
+        /// A shape over each page row (`{ id, t: tags[.tag], .. }`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        project: Option<Vec<Proj>>,
     },
     Write(Write, Expr),
+    /// Several statements and writes in one mutation (LLP 3000.035 §5.1 widening).
+    Block(Block),
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Program {
@@ -236,8 +379,29 @@ pub struct Program {
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
+    /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
+    /// store before `run`, each at its step's clock (`Case::steps`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prelude: Vec<Block>,
 }
+const SIGNATURE: &str = "key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
+const WIDE_SIGNATURE: &str = "key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
 impl Program {
+    /// Whether `run` is a mutation (`observe` then reads its result).
+    pub fn mutation(&self) -> bool {
+        matches!(self.body, Body::Write(..) | Body::Block(_))
+    }
+    /// Programs with blocks or a prelude take a second key `k2`, and their
+    /// `observe` reads both keys.
+    pub fn wide(&self) -> bool {
+        matches!(self.body, Body::Block(_)) || !self.prelude.is_empty()
+    }
+    fn block_source(block: &Block, out: &mut String) -> String {
+        for s in &block.stmts {
+            *out += &s.source(1);
+        }
+        block.ret.source()
+    }
     pub fn source(&self) -> String {
         let mut declarations = self.tables.iter().map(Table::source).collect::<Vec<_>>();
         if self.helper {
@@ -246,10 +410,19 @@ impl Program {
         if self.reverse {
             declarations.reverse();
         }
-        let mut out = declarations.join("\n");
-        let mutation = matches!(self.body, Body::Write(..));
+        // The prelude comes first, so that no rewrite of `run` or of the
+        // declarations moves its source sites.
+        let mut out = String::new();
+        for (i, block) in self.prelude.iter().enumerate() {
+            out += &format!("mutation prep{i}({WIDE_SIGNATURE}):\n");
+            let result = Self::block_source(block, &mut out);
+            out += &format!("  return {result}\n\n");
+        }
+        out += &declarations.join("\n");
+        let mutation = self.mutation();
+        let signature = if self.wide() { WIDE_SIGNATURE } else { SIGNATURE };
         out += &format!(
-            "\n{} run(key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):\n",
+            "\n{} run({signature}):\n",
             if mutation { "mutation" } else { "query" }
         );
         for (name, e) in &self.lets {
@@ -263,6 +436,7 @@ impl Program {
                 descending,
                 filter,
                 owner,
+                project,
             } => {
                 let mut domain = "items where .bucket = bucket".to_string();
                 if *owner {
@@ -275,11 +449,16 @@ impl Program {
                     domain += &format!(" and {residual}");
                 }
                 let order = self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "));
+                let shape = project.as_ref().map_or(String::new(), |fields| {
+                    let mut f = vec!["id"];
+                    f.extend(fields.iter().map(Proj::source));
+                    format!(" {{ {} }}", f.join(", "))
+                });
+                let end = if *descending { "last" } else { "first" };
                 match kind {
                     Read::Point => "items[key]".into(),
                     Read::Page | Read::Bounded => format!(
-                        "{domain} {} {take} by {order}{}",
-                        if *descending { "last" } else { "first" },
+                        "{domain} {end} {take} by {order}{}{shape}",
                         if matches!(kind, Read::Page) {
                             " after c"
                         } else {
@@ -290,6 +469,10 @@ impl Program {
                     Read::Sum => format!("sum({domain}, .score)"),
                     Read::Min => format!("min({domain}, .score)"),
                     Read::Max => format!("max({domain}, .score)"),
+                    Read::Fold => {
+                        out += &format!("  total = 0\n  for row in {domain} {end} {take} by {order}:\n    t = tags[row.tag]\n    if t != null:\n      total = total + t.rank\n");
+                        "total".into()
+                    }
                 }
             }
             Body::Write(kind, e) => {
@@ -305,6 +488,7 @@ impl Program {
                 };
                 "true".into()
             }
+            Body::Block(block) => Self::block_source(block, &mut out),
         };
         if self.bind_return {
             out += &format!("  answer = {result}\n  return answer\n");
@@ -312,7 +496,11 @@ impl Program {
             out += &format!("  return {result}\n");
         }
         if mutation {
-            out += "\nquery observe(key: id):\n  return items[key]\n";
+            if self.wide() {
+                out += "\nquery observe(key: id, k2: id):\n  return [items[key], items[k2]]\n";
+            } else {
+                out += "\nquery observe(key: id):\n  return items[key]\n";
+            }
         }
         out
     }

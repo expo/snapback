@@ -36,7 +36,12 @@ pub fn compile(source: &str) -> Result<snapback4_lang::Bound, Json> {
         Err(serde_json::to_value(&bound.diagnostics).unwrap())
     }
 }
-pub fn engine(case: &Case, source: &str) -> Result<Engine, String> {
+/// The clock the rows are seeded at.
+pub fn seed_clock(case: &Case) -> i64 {
+    case.seeded_at.unwrap_or(case.clock)
+}
+/// The seeded world before its prelude, at the case's budget.
+pub fn seeded(case: &Case, source: &str) -> Result<Engine, String> {
     let b = compile(source).map_err(|e| format!("binder: {e}"))?;
     let rows = case
         .rows
@@ -55,10 +60,48 @@ pub fn engine(case: &Case, source: &str) -> Result<Engine, String> {
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program))
         .map_err(|e| e.to_string())?;
     engine
-        .seed_at(rows, case.clock)
+        .seed_at(rows, seed_clock(case))
         .map_err(|e| e.to_string())?;
     engine.set_ceilings(case.budget);
     Ok(engine)
+}
+/// The seeded world after its prelude, and the prelude's outcomes.
+pub fn world(case: &Case, source: &str) -> Result<(Engine, Vec<Outcome>), String> {
+    let mut engine = seeded(case, source)?;
+    let outcomes = prelude(&mut engine, case);
+    Ok((engine, outcomes))
+}
+pub fn engine(case: &Case, source: &str) -> Result<Engine, String> {
+    world(case, source).map(|w| w.0)
+}
+/// Run the prelude in order on `engine`, each step at its clock and at the
+/// default ceilings, sweeping first where the step says so, then sweep at
+/// `clock` if the case says so. Returns one outcome per step and sweep (a
+/// sweep's is the number of rows it removed). Leaves the case's budget set.
+pub fn prelude(engine: &mut impl Executor, case: &Case) -> Vec<Outcome> {
+    let mut out = vec![];
+    for (i, step) in case.steps.iter().enumerate() {
+        if step.sweep {
+            out.push(sweep(engine, step.at));
+        }
+        engine.set_ceilings(snapback4_core::Ceilings::default());
+        let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
+        out.push(execute_as(engine, case, &format!("prep{i}"), &step.args, viewer, step.at));
+    }
+    if case.sweep {
+        out.push(sweep(engine, case.clock));
+    }
+    engine.set_ceilings(case.budget);
+    out
+}
+fn sweep(engine: &mut impl Executor, now: i64) -> Outcome {
+    Outcome {
+        kind: "sweep".into(),
+        value: match engine.sweep(now) {
+            Ok(n) => json!({"at": now, "swept": n}),
+            Err(e) => json!({"at": now, "error": e}),
+        },
+    }
 }
 pub trait Executor {
     fn program(&self, name: &str) -> &snapback4_core::ir::Program;
@@ -73,6 +116,8 @@ pub trait Executor {
         context: Context,
     ) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError>;
     fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings);
+    /// `sweep_expired` at `now`: rows physically removed.
+    fn sweep(&mut self, now: i64) -> Result<u64, String>;
 }
 impl Executor for Engine {
     fn program(&self, name: &str) -> &snapback4_core::ir::Program {
@@ -97,6 +142,9 @@ impl Executor for Engine {
     fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings) {
         Engine::set_ceilings(self, ceilings);
     }
+    fn sweep(&mut self, now: i64) -> Result<u64, String> {
+        Engine::sweep_expired(self, now, 10_000).map_err(|e| e.to_string())
+    }
 }
 #[cfg(feature = "postgres")]
 impl Executor for snapback4_core::engine::postgres::PostgresEngine {
@@ -120,8 +168,15 @@ impl Executor for snapback4_core::engine::postgres::PostgresEngine {
     fn set_ceilings(&mut self, ceilings: snapback4_core::Ceilings) {
         Self::set_ceilings(self, ceilings);
     }
+    fn sweep(&mut self, now: i64) -> Result<u64, String> {
+        Self::sweep_expired(self, now, 10_000).map_err(|e| e.to_string())
+    }
 }
 pub fn execute(engine: &mut impl Executor, case: &Case, name: &str, args: &Json) -> Outcome {
+    execute_as(engine, case, name, args, &case.principal, case.clock)
+}
+pub fn execute_as(engine: &mut impl Executor, case: &Case, name: &str, args: &Json, viewer: &str, at: i64) -> Outcome {
+    let _ = case;
     let p = engine.program(name);
     let input = p
         .args
@@ -140,8 +195,8 @@ pub fn execute(engine: &mut impl Executor, case: &Case, name: &str, args: &Json)
         }
     };
     let kind = p.kind.clone();
-    let context = Context::new(&case.principal, input)
-        .at(case.clock)
+    let context = Context::new(viewer, input)
+        .at(at)
         .with_ids(["minted-0".into(), "minted-1".into()]);
     if kind == ProgramKind::Query {
         match engine.query(name, context) {

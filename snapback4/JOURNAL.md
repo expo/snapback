@@ -92301,3 +92301,74 @@ on the heap-uniform landing `9d5e158aa1`, the combined device measures
 +2,747 to +555 B. Per the ratchet rule, the budget is raised in the same
 commit with the reason in `metrics/wasm-budget.json`: this macOS measurement
 plus 500 B. macOS measures at or above Linux. This fix must be published.
+
+## 2026-10-08 — The difftest generator is widened (LLP 3000.035 §5.1, lane GW)
+
+Branch `sb4/difftest-widen`. `snapback4-difftest/src/widen.rs` adds what
+slice A left out. It draws from a stream independent of the base generator
+(`generate::base`), so an unwidened seed is the base case byte for byte.
+
+**What it adds** (frequencies over seeds 0–19,999):
+
+- prefetch-reachable reads, 21.8%: pages projecting `tags[.tag]` and
+  `tags[name = .label]`, and a loop reading `tags[row.tag]`;
+- mutation blocks, 12.3%: lets, `require`, `if`/`else`, several writes to
+  `key` and `k2`, and reads after writes;
+- a prelude of mutations on the same store, 17.1%: compared on every oracle,
+  sometimes as the other viewer; a device catches up by one sync round;
+- expiry, 16.8%: a clock advancing between operations, sweeps and
+  `until: now + ttl`;
+- upsert insert-arm clashes on a seeded `tag` (OPEN W4).
+
+The other changes:
+
+- the shrinker reduces each new shape, and now skips reductions that change
+  nothing (they looped forever);
+- `lean::generate` narrows half the out-of-fragment cases back in;
+- `snapback4-difftest compile <file.q>` prints binder diagnostics.
+
+**Prefetch.** The ticket's planted fault (first consumed hit becomes a miss)
+was caught by the random corpus: 1,523 prefetch-on disagreements in 2,000
+seeds, none prefetch-off. After the revert there were 0, and
+`git diff --quiet` was clean on core, device and bind. Over 20,000 seeds:
+
+- 1,957 cases transferred rows;
+- 619,942 rows were transferred;
+- 49,523 probes consumed cached answers (fewer database calls with prefetch
+  on).
+
+The coverage ticket is closed.
+
+**20,000-case runs.** Stores and `run` agree everywhere. Devices: 780
+disagreements per store. Lean: 2,552 disagreements. Each new signature is
+retained under `cases/found/` with a DIAGNOSIS.md, and grouped into five
+tickets:
+
+- unswept expired rows: the server's meter counts them and the device's does
+  not;
+- a device prediction over a hidden secondary unique clash;
+- a device's final refusal after an unproved prediction carries a later
+  statement's code;
+- the Lean model's field-of-null defect (OPEN E4, 2,221 cases; the fix is
+  owed, since this lane was not permitted to change the model);
+- R2 and W4 reached under new signatures.
+
+**Harness defects fixed:**
+
+- commute's cost claim did not hold when the right operand hoists a read;
+- the prelude's source sites moved under rewrites, so the prelude is now
+  emitted first;
+- the pending marker was not stripped inside `observe`'s array;
+- the unheld-id named outcome did not recognise a one-insert block;
+- coverage counted a delete's unused value.
+
+- **What felt good:** the independent stream made the widening safe to land
+  without disturbing existing pins. The physical database-call witness gave
+  consumption coverage without touching the engine.
+- **What was hard:** one model defect (field of null) produced twelve
+  signatures by engine class, and one expiry meter difference produced
+  fourteen per device store. The signature scheme splits a cause by its
+  surface, so a diagnosis has to regroup them.
+- **What was surprising:** the binder's left-spill makes `2 + read` cost two
+  more steps than `read + 2`. Commute was never cost-free once operands could
+  read.

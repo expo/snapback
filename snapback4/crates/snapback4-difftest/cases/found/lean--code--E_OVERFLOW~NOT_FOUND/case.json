@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 12359,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [
+            {
+              "Let": [
+                "v0",
+                {
+                  "Arg": [
+                    "b",
+                    "Int"
+                  ]
+                }
+              ]
+            },
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 1
+                },
+                "tag": "tag"
+              }
+            },
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Binary": [
+                    "Add",
+                    {
+                      "Var": [
+                        "v0",
+                        "Int"
+                      ]
+                    },
+                    {
+                      "Int": 1
+                    }
+                  ]
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Int": 0
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": true,
+          "id": "r0",
+          "label": "",
+          "maybe": -9007199254740990,
+          "owner": "alice",
+          "score": 1,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 9007199254740991,
+      "bucket": 0,
+      "c": null,
+      "k2": "r0",
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 54887,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 13315,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--code--E_OVERFLOW~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1541,
+          "index_entries": 2,
+          "output_bytes": 0,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 27
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_OVERFLOW",
+          "family": "input",
+          "message": "E_OVERFLOW: 9007199254740992 is outside the i53 value model"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_OVERFLOW",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 243
+}

@@ -12,11 +12,38 @@ use snapback4_difftest::{
 };
 use std::collections::BTreeSet;
 
-/// Open signatures, classified in `cases/found/lean--*/DIAGNOSIS.md` (OPEN
-/// C2). A new one fails the fixed-seed run: diagnose it first.
-const CLASSIFIED: [&str; 2] = [
-    "lean--next--next~no-next",
+/// Open signatures, classified in `cases/found/lean--*/DIAGNOSIS.md`: OPEN
+/// C2 and R2, OPEN W4 (a hidden clash on an absent upsert's insert arm), and
+/// the model defect OPEN E4 (field access on a null base refuses
+/// `E_MODEL_TYPE`; fix owed). A new one fails the fixed-seed run: diagnose it first.
+const CLASSIFIED: [&str; 23] = [
+    // C2
     "lean--continuation-next--next~no-next",
+    "lean--next--next~no-next",
+    // R2
+    "lean--code--E_CONSTRAINT~NOT_FOUND",
+    "lean--code--E_OVERFLOW~NOT_FOUND",
+    "lean--code--REQUIRED~NOT_FOUND",
+    "lean--prelude-code--E_CONSTRAINT~E_RULE",
+    "lean--prelude-code--E_CONSTRAINT~NOT_FOUND",
+    "lean--prelude-code--REQUIRED~NOT_FOUND",
+    "lean--prelude-kind--committed~E_RULE",
+    "lean--prelude-kind--committed~NOT_FOUND",
+    // W4
+    "lean--prelude-code--E_RULE~NOT_FOUND",
+    // E4
+    "lean--code--E_CONSTRAINT~E_MODEL_TYPE",
+    "lean--code--E_OVERFLOW~E_MODEL_TYPE",
+    "lean--code--E_RULE~E_MODEL_TYPE",
+    "lean--code--NOT_FOUND~E_MODEL_TYPE",
+    "lean--code--REQUIRED~E_MODEL_TYPE",
+    "lean--kind--committed~E_MODEL_TYPE",
+    "lean--prelude-code--E_CONSTRAINT~E_MODEL_TYPE",
+    "lean--prelude-code--E_OVERFLOW~E_MODEL_TYPE",
+    "lean--prelude-code--E_RULE~E_MODEL_TYPE",
+    "lean--prelude-code--NOT_FOUND~E_MODEL_TYPE",
+    "lean--prelude-code--REQUIRED~E_MODEL_TYPE",
+    "lean--prelude-kind--committed~E_MODEL_TYPE",
 ];
 /// Resolved findings kept as regressions: each now replays as a pass. The
 /// `committed~*` pair is OPEN R2, the unnamed update rule judging only the
@@ -43,7 +70,15 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
         let case = lean::generate(seed);
         let source = case.program.source();
         execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed} does not compile: {e}"));
-        let module = lean::module(&source).unwrap_or_else(|r| panic!("seed {seed}: schema unsupported: {r}"));
+        let module = match lean::module(&source) {
+            Ok(m) => m,
+            // Only expiry is outside the model at the schema level.
+            Err(r) => {
+                assert_eq!(r, "table-expiry", "seed {seed}");
+                reasons.insert(r);
+                continue;
+            }
+        };
         match module.program("run") {
             Ok(_) => {
                 supported += 1;
@@ -56,9 +91,10 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
             }
         }
     }
-    // Only the unpaged aggregates the model does not have are outside it.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum"].map(String::from).into());
-    assert!(supported > 2600, "{supported}");
+    // Outside it: the unpaged aggregates, page projections (`shape`), the
+    // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "loop", "shape", "table-expiry"].map(String::from).into());
+    assert!(supported > 2000, "{supported}");
 }
 
 #[test]
@@ -101,7 +137,7 @@ fn fixed_seed_campaign_against_the_model() {
     let counts = &report.by_oracle["lean"];
     assert_eq!(counts.attempted, 400);
     assert!(report.generator_errors.is_empty(), "{:?}", report.generator_errors);
-    assert!(counts.passed + counts.disagreeing >= 340, "{counts:?}");
+    assert!(counts.passed + counts.disagreeing >= 280, "{counts:?}");
     for signature in counts.signatures.keys() {
         assert!(CLASSIFIED.contains(&signature.as_str()), "unclassified Lean disagreement {signature}: shrink, diagnose and record it under cases/found/");
     }

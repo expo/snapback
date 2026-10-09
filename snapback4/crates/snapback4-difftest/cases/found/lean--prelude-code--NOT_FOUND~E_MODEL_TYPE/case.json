@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 5028,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "score",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Deny",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Scalar": {
+          "Int": 0
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Update",
+                "target": "Key",
+                "value": {
+                  "Score": "Key"
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Arg": [
+              "b",
+              "Int"
+            ]
+          }
+        }
+      ]
+    },
+    "rows": [],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 394620,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 10723,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 1,
+          "b": 7,
+          "bucket": 0,
+          "c": null,
+          "k2": "r2",
+          "key": "missing",
+          "n": 1
+        },
+        "at": 394620
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--NOT_FOUND~E_MODEL_TYPE",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 30,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 13
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "NOT_FOUND",
+          "family": "rule",
+          "guide": "programs",
+          "message": "the program refused with NOT_FOUND",
+          "rule": "NOT_FOUND",
+          "site": "prep0:4"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_MODEL_TYPE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "E_MODEL_TYPE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 92
+}

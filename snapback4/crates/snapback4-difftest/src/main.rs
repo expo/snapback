@@ -40,6 +40,20 @@ fn command() -> Result<bool, String> {
             println!("{}", serde_json::to_string_pretty(&report).unwrap());
             Ok(report.failed())
         }
+        // A generated or hand-written source's binder diagnostics (none: "ok").
+        Some("compile") if args.len() == 2 => {
+            let source = std::fs::read_to_string(&args[1]).map_err(|e| e.to_string())?;
+            match snapback4_difftest::execute::compile(&source) {
+                Ok(_) => {
+                    println!("ok");
+                    Ok(false)
+                }
+                Err(d) => {
+                    println!("{}", serde_json::to_string_pretty(&d).unwrap());
+                    Ok(true)
+                }
+            }
+        }
         Some("replay") if args.len() == 2 => match shrink::replay(&PathBuf::from(&args[1]))? {
             Verdict::Pass => {
                 println!("pass");
@@ -59,7 +73,7 @@ fn command() -> Result<bool, String> {
             }
         },
         _ => Err(
-            "usage: snapback4-difftest run|run-stores|run-devices|run-lean --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores, devices and lean)] | replay <dir>"
+            "usage: snapback4-difftest run|run-stores|run-devices|run-lean --seed <u64> --cases <n> --out <dir> [--workers <n>] [--seconds <n> (stores, devices and lean)] | replay <dir> | compile <file.q>"
                 .into(),
         ),
     }

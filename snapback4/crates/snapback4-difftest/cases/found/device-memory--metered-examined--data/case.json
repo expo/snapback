@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 12742,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public",
+          "expire": "until"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Bounded",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r5",
+          "label": "",
+          "score": 0,
+          "until": 335968
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "missing",
+      "n": null
+    },
+    "clock": 335969,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 19782,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-memory--metered-examined--data",
+    "oracle": {
+      "Device": {
+        "store": "memory",
+        "phase": "read",
+        "ceiling": 0
+      }
+    },
+    "field": "metered-examined",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": []
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 7,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 3
+        },
+        "seq": 1,
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": []
+        },
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 7,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 3
+        },
+        "retained": false,
+        "seq": 0,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": []
+            },
+            "metered": {
+              "examined": 1,
+              "heap_bytes": 7,
+              "index_entries": 0,
+              "output_bytes": 12,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 3
+            },
+            "seq": 1,
+            "tables": [
+              "items"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": []
+            },
+            "metered": {
+              "examined": 0,
+              "heap_bytes": 7,
+              "index_entries": 0,
+              "output_bytes": 12,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 3
+            },
+            "retained": false,
+            "seq": 0,
+            "tables": [
+              "items"
+            ],
+            "unknown": false
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 166
+}

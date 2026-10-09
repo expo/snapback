@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 12509,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "score",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Scalar": {
+          "Bool": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Let": [
+                "v1",
+                {
+                  "Score": "Key"
+                }
+              ]
+            }
+          ],
+          "ret": {
+            "Arg": [
+              "b",
+              "Int"
+            ]
+          }
+        }
+      ]
+    },
+    "rows": [],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r0",
+      "key": "missing",
+      "n": 0
+    },
+    "clock": 302550,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 18635,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": -1,
+          "b": -1,
+          "bucket": 0,
+          "c": null,
+          "k2": "r0",
+          "key": "missing",
+          "n": null
+        },
+        "at": 302550
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-kind--committed~E_MODEL_TYPE",
+    "oracle": "Lean",
+    "field": "prelude-kind",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 16,
+          "index_entries": 0,
+          "output_bytes": 10,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 14
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "result": {
+          "Int": -1
+        },
+        "seq": 1,
+        "state": "sent",
+        "tables": []
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_MODEL_TYPE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "int": "-1"
+            },
+            "kind": "committed",
+            "next": false
+          },
+          "model": {
+            "code": "E_MODEL_TYPE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 174
+}

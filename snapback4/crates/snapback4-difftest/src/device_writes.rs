@@ -32,7 +32,7 @@
 //! `revocation::preserved_between`, as `serve_sync.rs` computes it.
 // @ref LLP 3000.035#5.1 — predicted device writes against committed server outcomes.
 use crate::{
-    ast::{Body, Write},
+    ast::{Body, Key, Stmt, Write},
     campaign::Report,
     devices::{self, Dev, Server},
     execute::Outcome,
@@ -50,28 +50,53 @@ pub const WRITE_ID: &str = "w1";
 /// 2026-10-08, `issues/closed/20261008-snapback4-device-predicts-insert-over-an-unheld-id.md`).
 pub const UNHELD_ID: &str = "predicted-then-refused-unheld-id";
 
-fn holds_row(o: &Outcome) -> bool {
-    o.data().and_then(|d| d.get("Row")).is_some()
+/// Whether `o`'s data shows the row of `target`: the row itself, or, for a
+/// wide `observe` (`[items[key], items[k2]]`), that key's element.
+fn holds_row(o: &Outcome, target: &Key) -> bool {
+    let Some(data) = o.data() else { return false };
+    let row = match data.get("Array").and_then(Json::as_array) {
+        Some(items) => items.get(usize::from(*target == Key::K2)),
+        None => Some(data),
+    };
+    row.and_then(|d| d.get("Row")).is_some()
+}
+
+/// The argument naming the row a program's first write inserts, when that
+/// write is a plain insert that runs before anything else can refuse
+/// `E_RULE`: the program `insert` (`key`), or a block whose first statement
+/// other than a `let` is a top-level insert. Lets cannot refuse `E_RULE`; a
+/// `require` or `if` before it disqualifies the block.
+pub fn first_insert(case: &Case) -> Option<Key> {
+    match &case.program.body {
+        Body::Write(Write::Insert, _) => Some(Key::Key),
+        Body::Block(b) => match b.stmts.iter().find(|s| !matches!(s, Stmt::Let(..)))? {
+            Stmt::Write { kind: Write::Insert, target, .. } => Some(target.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 /// The exact condition of [`UNHELD_ID`], before convergence (which
-/// `compare` also requires): the program is an insert (the generator's
-/// inserts take their row id from the `key` argument), the device admitted
-/// it as a prediction of `items/<key>`, the server refused it `E_RULE`, the
-/// server held an `items` row with that id before the call, and neither the
-/// server's answer to the viewer nor the device's answer before admission
-/// shows that row.
+/// `compare` also requires): the program's first write is a plain insert
+/// ([`first_insert`]; the generator's inserts take their row id from the
+/// `key` or `k2` argument), the device admitted it as a prediction of
+/// `items/<id>`, the server refused it `E_RULE`, the server was seeded with
+/// an `items` row with that id and no prelude ran, and neither the server's
+/// answer to the viewer nor the device's answer before admission shows that
+/// row.
 pub fn refused_over_unheld_id(case: &Case, admitted: &Json, committed: &Outcome, server_view: &Outcome, device_before: &Outcome) -> bool {
-    let Some(key) = case.args["key"].as_str() else { return false };
+    let Some(target) = first_insert(case) else { return false };
+    let Some(key) = case.args[target.source()].as_str() else { return false };
     let refusal = committed.value.get("why").or_else(|| committed.value.get("refusal"));
-    matches!(case.program.body, Body::Write(Write::Insert, _))
-        && admitted["ok"]["predictable"] == json!(true)
+    admitted["ok"]["predictable"] == json!(true)
         && admitted["ok"]["predicted"].as_array().is_some_and(|p| p.contains(&json!(format!("items/{key}"))))
         && committed.value.get("seq").is_none_or(Json::is_null)
         && refusal.is_some_and(|r| r["code"] == "E_RULE")
+        && case.steps.is_empty()
         && case.rows.iter().any(|(t, row)| t == "items" && row["id"] == json!(key))
-        && !holds_row(server_view)
-        && !holds_row(device_before)
+        && !holds_row(server_view, &target)
+        && !holds_row(device_before, &target)
 }
 
 fn ids() -> Vec<String> {
@@ -102,7 +127,7 @@ fn mutate(server: &mut Server, case: &Case) -> (Outcome, Option<u64>) {
 }
 
 fn observe(server: &mut Server, dev: &mut dyn Dev, case: &Case) -> (Outcome, devices::DeviceAnswer) {
-    let args = json!({"key": case.args["key"]});
+    let args = devices::observe_args(case);
     server.engine.set_ceilings(snapback4_core::Ceilings::default());
     let s = crate::execute::execute(&mut server.engine, case, "observe", &args);
     let program = "observe";
@@ -123,7 +148,7 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     let predictable = devices::operation_tables(&backend, "run").iter().all(synced);
     let entry = json!({"id": WRITE_ID, "seq": 1, "op": "run", "args": case.args, "viewer": case.principal, "now": case.clock,
         "new_ids": ids(), "predictable": predictable, "predicted": [], "replay_candidate": false});
-    let observed = json!({"key": case.args["key"]});
+    let observed = devices::observe_args(case);
     let device_before = devices::device_answer_online(dev, case, "observe", &observed, server.online("observe")).outcome;
     report.executed += 1;
     let admitted = dev.call_text(&json!({"op": "admit", "entry": entry}).to_string());
@@ -131,7 +156,7 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     let (committed, seq) = mutate(server, case);
     report.executed += 2;
     let (after_server, _) = {
-        let args = json!({"key": case.args["key"]});
+        let args = devices::observe_args(case);
         (crate::execute::execute(&mut server.engine, case, "observe", &args), ())
     };
     let admission = Outcome { kind: "admission".into(), value: admitted.clone() };
@@ -139,6 +164,7 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     let trail = (vec![committed.clone(), after_server.clone()], vec![admission.clone(), pending_device.outcome.clone()]);
     let kind = match &case.program.body {
         crate::ast::Body::Write(w, _) => format!("{w:?}").to_lowercase(),
+        crate::ast::Body::Block(_) => "block".into(),
         _ => unreachable!(),
     };
     let mut unheld = false;
@@ -210,13 +236,21 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
 }
 
 /// The device-only `pending: true` field a predicted row image carries
-/// (guide `prediction`). Only that field, only with that value, is removed.
+/// (guide `prediction`), in a row or in each row of an array. Only that
+/// field, only with that value, is removed.
 fn strip_pending(data: Option<&Json>) -> Option<Json> {
-    let mut data = data?.clone();
-    if let Some(row) = data.get_mut("Row").and_then(Json::as_object_mut) {
-        if row.get("pending") == Some(&json!({"Bool": true})) {
-            row.remove("pending");
+    fn strip(data: &mut Json) {
+        if let Some(row) = data.get_mut("Row").and_then(Json::as_object_mut) {
+            if row.get("pending") == Some(&json!({"Bool": true})) {
+                row.remove("pending");
+            }
+        }
+        // A wide `observe` returns `[items[key], items[k2]]`.
+        if let Some(items) = data.get_mut("Array").and_then(Json::as_array_mut) {
+            items.iter_mut().for_each(strip);
         }
     }
+    let mut data = data?.clone();
+    strip(&mut data);
     Some(data)
 }

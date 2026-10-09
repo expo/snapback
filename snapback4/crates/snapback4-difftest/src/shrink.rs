@@ -82,7 +82,28 @@ fn smaller(case: &Case) -> Vec<Case> {
                 out.push(c);
             }
         }
-        Body::Read { take, filter, .. } => {
+        Body::Block(b) => {
+            for reduced in block_smaller(b) {
+                let mut c = case.clone();
+                c.program.body = Body::Block(reduced);
+                out.push(c);
+            }
+        }
+        Body::Read { take, filter, project, .. } => {
+            if let Some(fields) = project {
+                let mut c = case.clone();
+                if let Body::Read { project, .. } = &mut c.program.body {
+                    *project = None;
+                }
+                out.push(c);
+                for i in 0..fields.len() {
+                    let mut c = case.clone();
+                    if let Body::Read { project: Some(f), .. } = &mut c.program.body {
+                        f.remove(i);
+                    }
+                    out.push(c);
+                }
+            }
             if *take > 1 {
                 let mut c = case.clone();
                 if let Body::Read { take, .. } = &mut c.program.body {
@@ -99,12 +120,156 @@ fn smaller(case: &Case) -> Vec<Case> {
             }
         }
     }
+    // The prelude, its clock and sweeps, and expiry.
+    for i in 0..case.program.prelude.len() {
+        let mut c = case.clone();
+        c.program.prelude.remove(i);
+        if i < c.steps.len() {
+            c.steps.remove(i);
+        }
+        out.push(c);
+        for reduced in block_smaller(&case.program.prelude[i]) {
+            let mut c = case.clone();
+            c.program.prelude[i] = reduced;
+            out.push(c);
+        }
+    }
+    for i in 0..case.steps.len() {
+        let step = &case.steps[i];
+        if step.sweep || step.viewer.is_some() {
+            let mut c = case.clone();
+            c.steps[i].sweep = false;
+            out.push(c);
+            let mut c = case.clone();
+            c.steps[i].viewer = None;
+            out.push(c);
+        }
+    }
+    if case.sweep {
+        let mut c = case.clone();
+        c.sweep = false;
+        out.push(c);
+    }
+    if case.seeded_at.is_some() {
+        // Collapse time: every operation at `clock`.
+        let mut c = case.clone();
+        c.seeded_at = None;
+        for s in &mut c.steps {
+            s.at = c.clock;
+        }
+        out.push(c);
+    }
+    for i in 0..case.program.tables.len() {
+        if case.program.tables[i].expire.is_some() {
+            let mut c = case.clone();
+            c.program.tables[i].expire = None;
+            out.push(c);
+        }
+    }
+    for i in 0..case.rows.len() {
+        if case.rows[i].1.get("until").is_some_and(|u| !u.is_null()) {
+            let mut c = case.clone();
+            c.rows[i].1["until"] = serde_json::Value::Null;
+            out.push(c);
+        }
+    }
     for field in ["a", "b", "n", "bucket"] {
         if case.args[field].is_number() && case.args[field] != 0 {
             let mut c = case.clone();
             c.args[field] = serde_json::json!(0);
             out.push(c);
         }
+    }
+    out
+}
+/// Structural reductions of a block: drop a statement, inline either branch
+/// of an `if`, drop an `else`, simplify each expression, and plain writes.
+pub fn block_smaller(b: &Block) -> Vec<Block> {
+    let mut out = vec![];
+    let mut with = |f: &dyn Fn(&mut Block)| {
+        let mut c = b.clone();
+        f(&mut c);
+        out.push(c);
+    };
+    for i in 0..b.stmts.len() {
+        with(&|c| {
+            c.stmts.remove(i);
+        });
+        if let Stmt::If(cond, then, otherwise) = &b.stmts[i] {
+            for branch in [then, otherwise] {
+                with(&|c| {
+                    c.stmts.splice(i..=i, branch.clone());
+                });
+            }
+            if !otherwise.is_empty() {
+                with(&|c| {
+                    if let Stmt::If(_, _, e) = &mut c.stmts[i] {
+                        e.clear();
+                    }
+                });
+            }
+            for j in 0..then.len() + otherwise.len() {
+                with(&|c| {
+                    if let Stmt::If(_, t, e) = &mut c.stmts[i] {
+                        if j < t.len() {
+                            if t.len() > 1 {
+                                t.remove(j);
+                            }
+                        } else {
+                            e.remove(j - t.len());
+                        }
+                    }
+                });
+            }
+            for e in cond.simpler() {
+                with(&|c| {
+                    if let Stmt::If(x, ..) = &mut c.stmts[i] {
+                        *x = e.clone();
+                    }
+                });
+            }
+        }
+        match &b.stmts[i] {
+            Stmt::Let(_, e) | Stmt::Require(e, _) => {
+                for e in e.simpler() {
+                    with(&|c| {
+                        if let Stmt::Let(_, x) | Stmt::Require(x, _) = &mut c.stmts[i] {
+                            *x = e.clone();
+                        }
+                    });
+                }
+            }
+            Stmt::Write { value, tag, ttl, target, .. } => {
+                for e in value.simpler() {
+                    with(&|c| {
+                        if let Stmt::Write { value, .. } = &mut c.stmts[i] {
+                            *value = e.clone();
+                        }
+                    });
+                }
+                if ttl.is_some() || tag != "tag" || *target != Key::Key {
+                    with(&|c| {
+                        if let Stmt::Write { ttl, .. } = &mut c.stmts[i] {
+                            *ttl = None;
+                        }
+                    });
+                    with(&|c| {
+                        if let Stmt::Write { tag, .. } = &mut c.stmts[i] {
+                            *tag = "tag".into();
+                        }
+                    });
+                    with(&|c| {
+                        if let Stmt::Write { target, .. } = &mut c.stmts[i] {
+                            *target = Key::Key;
+                        }
+                    });
+                }
+            }
+            Stmt::If(..) => {}
+        }
+    }
+    for e in b.ret.simpler() {
+        with(&|c| c.ret = e.clone());
     }
     out
 }
@@ -119,7 +284,12 @@ pub fn shrink_with(
     let mut attempts = 0;
     loop {
         let mut reduced = None;
+        // A reduction that changes nothing would be accepted forever.
+        let current = serde_json::to_string(&case).unwrap();
         for c in smaller(&case) {
+            if serde_json::to_string(&c).unwrap() == current {
+                continue;
+            }
             attempts += 1;
             if let Ok(Verdict::Disagree(f)) = reproduce(&c, &c.program.source(), &finding.oracle) {
                 if f.signature == finding.signature {

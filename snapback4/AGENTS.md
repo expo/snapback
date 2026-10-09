@@ -19,6 +19,7 @@ cd apps/chat && bun run dev                            # the app on the real cli
 bun run --cwd packages/snapback4 typecheck   # the contract, the client and the hooks typecheck
 cargo test -p snapback4-core --test corpus -- --nocapture   # the conformance corpus, with skip reasons
 cargo test -p snapback4-difftest     # fixed seeds, oracle regressions and replay (opt-in, no database by default)
+cargo run --release -p snapback4-difftest -- compile case.q   # a generated or hand-written source's binder diagnostics ("ok" when none)
 cargo run --release -p snapback4-difftest -- run --seed 0 --cases 100000 --workers 6 --out /tmp/quarry-difftest
 cargo run --release -p snapback4-difftest -- replay crates/snapback4-difftest/cases/found/rewrite-identity--why--NOT_FOUND
 cargo run --release -p snapback4-difftest -- run-devices --seed 0 --cases 100000 --workers 8 --out /tmp/quarry-devices   # server against both device stores; no database
@@ -193,11 +194,15 @@ twice on SQLite, and compare up to eight seeded positions per dimension on
 Postgres (including first/last), plus the case's original budget. Sampling
 counters are in `store_stats`; each selected position runs prefetch on and off.
 Physical prefetch counters are separate from the exact public outcome record.
-The present generator does not fill the Postgres prefetch cache: it emits no
-per-row related-key lookup in a page loop, so its reads receive no prefetch marks.
-The focused control in the DT-B report demonstrates that a consumed cached-hit
-fault changes an outcome; the random campaign does not claim this coverage.
-See the [prefetch coverage ticket](../issues/20261007-quarry-store-oracle-prefetch-coverage-gap.md). Heap is charged identically on every store and the device (LLP 3000.007
+The widened generator (`src/widen.rs`) emits prefetch-reachable reads: pages
+projecting `tags[.tag]` and `tags[name = .label]` (a `Get` and a unique
+`Lookup` whose keys vary across rows) and a loop reading `tags[row.tag]`, so
+`store_stats` reports marked reads, transferred rows, cases with a transfer
+and `prefetch_consumption_witness_probes` (fewer database calls with prefetch
+on: cached answers were consumed). A planted cached-hit-to-miss fault is caught
+by the random corpus (LLP 3000.035 §5.1; the closed
+[coverage ticket](../issues/closed/20261007-quarry-store-oracle-prefetch-coverage-gap.md)).
+Heap is charged identically on every store and the device (LLP 3000.007
 §20.24.5); any disagreement is a ticket candidate, never normalized into a pass.
 The cluster regression asserts it finds no signature and refuses any new one.
 
@@ -209,6 +214,22 @@ and artifact saving. It does not silently claim the requested million. The sched
 runner rejects incomplete reports; its own `--hours` option instead chooses a
 case count from a 256-case calibration of both campaigns, with 20% headroom and
 a million-case cap. This is a sizing estimate, not a hard deadline.
+
+Generator widening (`src/widen.rs`, LLP 3000.035 §5.1): from a stream
+independent of the base generator (`generate::base`; a seed it leaves alone is
+the base case byte for byte), cases gain prefetch-reachable reads, mutation
+blocks (lets, `require`, `if`, several writes to `key` and `k2`, reads after
+writes), a prelude of mutations `prep0..` run in order on the same store before
+`run` (`Case::steps`, sometimes as the other viewer; `observe` then reads both
+keys), and expiry (`expire at .until`, a clock advancing from `seeded_at`
+through each step to `clock`, sweeps, `until: now + ttl`). Every oracle runs the
+prelude (`execute::world`) and compares its outcomes (`prelude-*` fields;
+`store-postgres-prelude`); a device acquires at the seed clock and catches up by
+one sync round after the server's prelude. The prelude is emitted first so no
+rewrite moves its sites. `lean::generate` narrows half the cases outside the
+model (projections, expiry) back into its fragment; the rest stay named
+unsupported (`shape`, `loop`, `table-expiry`). The report's `coverage` counts
+each new feature (`block/*`, `prelude/*`, `projection/*`, `expire/*`, `clock/*`).
 
 Quarry device testing (`src/devices.rs`, `src/device_writes.rs`, LLP 3000.035
 §5.1 oracle 4): each case runs on a server engine and on a device of each store

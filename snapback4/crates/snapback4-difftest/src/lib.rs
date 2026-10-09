@@ -13,6 +13,7 @@ pub mod meter;
 pub mod oracle;
 pub mod shrink;
 pub mod sites;
+pub mod widen;
 
 #[cfg(feature = "postgres")]
 pub mod stores;

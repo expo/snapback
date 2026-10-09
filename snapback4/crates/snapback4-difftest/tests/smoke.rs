@@ -158,14 +158,103 @@ fn device_oracle_fixed_seeds_on_both_device_stores() {
     assert_eq!(signatures, DEVICE_KNOWN.iter().map(|s| s.to_string()).collect(), "new or missing signatures need diagnosis");
     for store in devices::STORES {
         let read = &report.by_oracle[&format!("device-{store}-read")];
-        assert!(read.passed >= 20 && read.disagreeing == 0, "{report:#?}");
+        assert!(read.passed >= 15 && read.disagreeing == 0, "{report:#?}");
         // Only residency withholds a read in this corpus; never a pass.
         assert!(read.unsupported.keys().all(|k| k.starts_with("online-only-")), "{report:#?}");
         assert!(report.by_oracle[&format!("device-{store}-cut")].passed > 200, "{report:#?}");
-        // The corpus writes are online only; the planted insert predicts.
-        assert_eq!(report.by_oracle[&format!("device-{store}-write")].passed, 1, "{report:#?}");
-        assert_eq!(report.by_oracle[&format!("device-{store}-converge")].passed, 2, "{report:#?}");
-        assert_eq!(report.store_stats[&format!("device-{store}-write-insert-predicted")], 1);
+        // Most corpus writes are online only; the planted insert predicts.
+        let write = &report.by_oracle[&format!("device-{store}-write")];
+        assert!(write.passed >= 1 && write.disagreeing == 0, "{report:#?}");
+        assert!(report.by_oracle[&format!("device-{store}-converge")].passed >= 2, "{report:#?}");
+        assert!(report.store_stats[&format!("device-{store}-write-insert-predicted")] >= 1);
+        // Widened writes: blocks reach the device's admission.
+        assert!(report.store_stats.keys().any(|k| k.starts_with(&format!("device-{store}-write-block-"))), "{report:#?}");
         assert!(report.store_stats[&format!("device-{store}-snapshot-pages")] > 40);
     }
+}
+
+/// Widening (`widen.rs`) draws from its own stream: a seed it leaves alone is
+/// the base case byte for byte, and every widened case compiles and carries
+/// one of the new dimensions.
+#[test]
+fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
+    use snapback4_difftest::generate::base;
+    let mut seen = std::collections::BTreeSet::new();
+    for seed in 0..600 {
+        let case = generate(seed);
+        let plain = base(seed);
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed}: {e}\n{source}"));
+        let mut dims = vec![];
+        if case.program.tables.iter().any(|t| t.name == "tags") {
+            dims.push("prefetch-read");
+        }
+        if matches!(case.program.body, Body::Block(_)) {
+            dims.push("block");
+        }
+        if !case.program.prelude.is_empty() {
+            dims.push("prelude");
+        }
+        if case.program.tables[0].expire.is_some() {
+            dims.push("expiry");
+        }
+        if dims.is_empty() {
+            assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
+        }
+        seen.extend(dims);
+    }
+    assert_eq!(seen.len(), 4, "{seen:?}");
+}
+
+/// The shrinker reduces the new shapes structurally: a planted predicate
+/// that holds while any `upsert` remains keeps exactly one statement and
+/// drops the projection, the other prelude steps, expiry and sweeps.
+#[test]
+fn shrinking_reduces_blocks_preludes_projections_and_expiry() {
+    let case = (0..)
+        .map(generate)
+        .find(|c| {
+            !c.program.prelude.is_empty()
+                && c.program.tables[0].expire.is_some()
+                && c.program.prelude.len() > 1
+                && c.program.prelude.iter().chain(match &c.program.body {
+                    Body::Block(b) => Some(b),
+                    _ => None,
+                })
+                .flat_map(|b| b.all())
+                .filter(|s| matches!(s, Stmt::Write { .. }))
+                .count()
+                    > 2
+                && c.program.source().contains("upsert items[")
+        })
+        .unwrap();
+    let planted = |c: &snapback4_difftest::generate::Case, source: &str, o: &oracle::Oracle| -> Result<Verdict, String> {
+        let hit = source.contains("upsert items[");
+        let out = execute::Outcome { kind: "query".into(), value: json!({}) };
+        Ok(if hit { oracle::disagreement(o, "planted", out.clone(), out, vec![]) } else { Verdict::Pass })
+            .map(|v| {
+                let _ = c;
+                v
+            })
+    };
+    let Verdict::Disagree(finding) = planted(&case, &case.program.source(), &oracle::Oracle::Repeat).unwrap() else { unreachable!() };
+    let artifact = shrink::shrink_with(case.clone(), finding, planted);
+    let small = &artifact.case;
+    let writes: Vec<_> = small
+        .program
+        .prelude
+        .iter()
+        .chain(match &small.program.body {
+            Body::Block(b) => Some(b),
+            _ => None,
+        })
+        .flat_map(|b| b.all())
+        .filter(|s| matches!(s, Stmt::Write { .. }))
+        .collect();
+    assert!(writes.len() <= 1, "{}", small.program.source());
+    assert!(small.program.prelude.len() <= 1, "{}", small.program.source());
+    assert!(small.program.tables.iter().all(|t| t.expire.is_none()), "{}", small.program.source());
+    assert!(small.seeded_at.is_none() && !small.sweep && small.steps.iter().all(|s| !s.sweep && s.viewer.is_none()));
+    assert!(small.rows.is_empty(), "{:?}", small.rows);
+    assert!(small.program.source().contains("upsert items["));
 }

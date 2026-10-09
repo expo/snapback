@@ -49,6 +49,8 @@ pub struct Database {
 }
 pub(crate) struct World {
     pub engine: PostgresEngine,
+    /// The prelude's outcomes (`execute::prelude`), run once after seeding.
+    pub prelude: Vec<execute::Outcome>,
     name: String,
     diagnostics: crate::pg_diagnostics::Diagnostics,
 }
@@ -173,15 +175,18 @@ impl Database {
             (name, engine)
         };
         engine
-            .seed_at(rows, case.clock)
+            .seed_at(rows, execute::seed_clock(case))
             .map_err(|e| diagnostics.describe(&error_chain("seed INSERT/UPDATE/commit", &e)))?;
+        engine.set_prefetch(true);
+        let prelude = execute::prelude(&mut engine, case);
         engine.set_ceilings(case.budget);
-        if matches!(case.program.body, crate::ast::Body::Write(..)) {
+        if case.program.mutation() {
             self.seeded = self.snapshot(&name)?;
         }
         Ok(World {
             name,
             engine,
+            prelude,
             diagnostics,
         })
     }

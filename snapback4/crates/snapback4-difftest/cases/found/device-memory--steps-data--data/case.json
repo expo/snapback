@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 13950,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner",
+          "expire": "until"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Sum",
+          "take": 1,
+          "descending": true,
+          "filter": false,
+          "owner": true
+        }
+      },
+      "lets": [
+        [
+          "unused",
+          {
+            "Int": 4
+          }
+        ]
+      ],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r2",
+          "owner": "alice",
+          "score": 1,
+          "until": 371668
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 372669,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 16645,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-memory--steps-data--data",
+    "oracle": {
+      "Device": {
+        "store": "memory",
+        "phase": "steps",
+        "ceiling": 7
+      }
+    },
+    "field": "steps-data",
+    "left": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "loading": true,
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 7,
+          "index_entries": 0,
+          "output_bytes": 6,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 8
+        },
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "right": {
+      "kind": "projection",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 7,
+          "index_entries": 0,
+          "output_bytes": 9,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 7
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "capped_at": [
+              "steps",
+              "programs.run.0"
+            ],
+            "complete": false,
+            "cut": "meter",
+            "data": "Null",
+            "metered": {
+              "examined": 1,
+              "heap_bytes": 7,
+              "index_entries": 0,
+              "output_bytes": 6,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 8
+            },
+            "seq": 1,
+            "tables": [
+              "items"
+            ],
+            "unavailable": true
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "device-call",
+          "value": {
+            "raw": {
+              "ok": {
+                "complete": true,
+                "cut": null,
+                "data": 0,
+                "decorationExpiry": null,
+                "metered": {
+                  "examined": 0,
+                  "heap_bytes": 7,
+                  "index_entries": 0,
+                  "output_bytes": 9,
+                  "rows_written": 0,
+                  "rule_probes": 0,
+                  "steps": 1000000
+                },
+                "next": null,
+                "nextExpiry": null,
+                "retained": false,
+                "scopes": {
+                  "items": [
+                    {
+                      "0": "alice"
+                    }
+                  ]
+                },
+                "tables": [
+                  "items"
+                ],
+                "unknown": false,
+                "watermark": 1
+              }
+            },
+            "reply": {
+              "complete": true,
+              "cut": null,
+              "data": 0,
+              "decorationExpiry": null,
+              "metered": {
+                "examined": 0,
+                "heap_bytes": 7,
+                "index_entries": 0,
+                "output_bytes": 9,
+                "rows_written": 0,
+                "rule_probes": 0,
+                "steps": 7
+              },
+              "next": null,
+              "nextExpiry": null,
+              "retained": false,
+              "scopes": {
+                "items": [
+                  {
+                    "0": "alice"
+                  }
+                ]
+              },
+              "tables": [
+                "items"
+              ],
+              "unknown": false,
+              "watermark": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 88
+}

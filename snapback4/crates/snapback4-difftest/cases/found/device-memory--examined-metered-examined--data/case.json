@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 15034,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public",
+          "expire": "until"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r5",
+          "label": "é",
+          "score": -9007199254740990,
+          "until": 347998
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 348000,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 19611,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-memory--examined-metered-examined--data",
+    "oracle": {
+      "Device": {
+        "store": "memory",
+        "phase": "examined",
+        "ceiling": 7
+      }
+    },
+    "field": "examined-metered-examined",
+    "left": {
+      "kind": "projection",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": [],
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 2,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "right": {
+      "kind": "projection",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": [],
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 2,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": []
+            },
+            "metered": {
+              "examined": 1,
+              "heap_bytes": 2,
+              "index_entries": 0,
+              "output_bytes": 12,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 4
+            },
+            "seq": 1,
+            "tables": [
+              "items"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "device-call",
+          "value": {
+            "raw": {
+              "ok": {
+                "complete": true,
+                "cut": null,
+                "data": [],
+                "decorationExpiry": null,
+                "metered": {
+                  "examined": 8185,
+                  "heap_bytes": 2,
+                  "index_entries": 0,
+                  "output_bytes": 12,
+                  "rows_written": 0,
+                  "rule_probes": 0,
+                  "steps": 4
+                },
+                "next": null,
+                "nextExpiry": null,
+                "retained": false,
+                "scopes": {
+                  "items": [
+                    {}
+                  ]
+                },
+                "tables": [
+                  "items"
+                ],
+                "unknown": false,
+                "watermark": 1
+              }
+            },
+            "reply": {
+              "complete": true,
+              "cut": null,
+              "data": [],
+              "decorationExpiry": null,
+              "metered": {
+                "examined": 0,
+                "heap_bytes": 2,
+                "index_entries": 0,
+                "output_bytes": 12,
+                "rows_written": 0,
+                "rule_probes": 0,
+                "steps": 4
+              },
+              "next": null,
+              "nextExpiry": null,
+              "retained": false,
+              "scopes": {
+                "items": [
+                  {}
+                ]
+              },
+              "tables": [
+                "items"
+              ],
+              "unknown": false,
+              "watermark": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 91
+}

@@ -294,7 +294,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         Ok(m) => m,
         Err(reason) => return unsupported(reason),
     };
-    let mutation = matches!(case.program.body, Body::Write(..));
+    let mutation = case.program.mutation();
     if let Err(u) = module.program("run") {
         return unsupported(u.reason);
     }
@@ -311,10 +311,38 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         Ok(a) => a,
         Err(u) => return unsupported(u.reason),
     };
-    let mut engine = execute::engine(case, source)?;
+    // The prelude: each step on the engine and on the model's store, in order.
+    for i in 0..case.steps.len() {
+        if let Err(u) = module.program(&format!("prep{i}")) {
+            return unsupported(format!("prelude-{}", u.reason));
+        }
+        if let Err(u) = module.tag_args(&format!("prep{i}"), &case.steps[i].args) {
+            return unsupported(format!("prelude-{}", u.reason));
+        }
+    }
+    let (mut engine, prelude) = execute::world(case, source)?;
     engine.set_ceilings(Ceilings::default());
     let mut executed = 0;
     let mut pages = 0;
+    let mut store = store;
+    let mut steps = prelude.iter().filter(|o| o.kind != "sweep");
+    let mut trail = vec![];
+    for (i, step) in case.steps.iter().enumerate() {
+        let name = format!("prep{i}");
+        let e_raw = steps.next().ok_or("prelude outcome missing")?.clone();
+        let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
+        let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
+        let m_raw = ask(&module.case(&name, store.clone(), viewer, args, None).map_err(|u| u.to_string())?)?;
+        executed += 2;
+        let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
+        trail.push(trail_entry(&e, &m));
+        if let Some(f) = differ(&e, &m) {
+            return Ok(Checked { verdict: finding(&format!("prelude-{f}"), &e, &m, e_raw, &m_raw, trail), executed, pages, mutation, class: String::new() });
+        }
+        if m.kind == "committed" {
+            store = m_raw["store"].clone();
+        }
+    }
     if mutation {
         let e_raw = execute::execute(&mut engine, case, "run", &case.args);
         let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args, None).map_err(|u| u.to_string())?)?;
@@ -384,6 +412,27 @@ pub fn features(case: &Case) -> Vec<String> {
     };
     if items.effects.is_some() {
         out.push("items-effect-rules".into());
+    }
+    // Widened shapes (`widen.rs`) inside the model's fragment.
+    if matches!(body, Body::Block(_)) {
+        out.push("block".into());
+    }
+    if !case.program.prelude.is_empty() {
+        out.push(format!("prelude-{}-steps", case.program.prelude.len()));
+        if case.steps.iter().any(|s| s.viewer.is_some()) {
+            out.push("prelude-other-viewer".into());
+        }
+    }
+    let blocks = case.program.prelude.iter().chain(match body {
+        Body::Block(b) => Some(b),
+        _ => None,
+    });
+    let stmts: Vec<_> = blocks.flat_map(|b| b.all()).collect();
+    if stmts.iter().filter(|s| matches!(s, crate::ast::Stmt::Write { .. })).count() > 1 {
+        out.push("multi-write".into());
+    }
+    if stmts.iter().any(|s| matches!(s, crate::ast::Stmt::Write { kind: Write::Insert | Write::Upsert, tag, .. } if tag == "tag0" || tag == "tag1")) {
+        out.push("unique-tag-clash-candidate".into());
     }
     if let Some(w) = write {
         let rule = match w {
@@ -501,6 +550,11 @@ pub fn reproduce(case: &Case, source: &str) -> Result<Verdict, String> {
 pub fn generate(seed: u64) -> Case {
     use crate::ast::{Residency, Rule};
     let mut case = crate::generate::generate(seed);
+    // Half the widened cases the model cannot run (projections, expiry) are
+    // narrowed back into its fragment; the other half stay named unsupported.
+    if crate::generate::Rng::new(seed ^ 0x4c45_414e_4e41_5257).next() % 2 == 0 {
+        narrow(&mut case);
+    }
     let mut rng = crate::generate::Rng::new(seed ^ 0x4c45_414e_5641_5249);
     let mut pick = |n: u64| rng.next() % n;
     if pick(2) == 0 {
@@ -532,6 +586,52 @@ pub fn generate(seed: u64) -> Case {
         case.program.residual = Some(residuals[pick(5) as usize].to_owned());
     }
     case
+}
+
+/// Remove the widened dimensions outside the model's fragment (`widen.rs`):
+/// page projections (`shape`) and expiry (`table-expiry`, and the `now` of
+/// `until: now + ttl`). Blocks and the prelude are inside it.
+pub fn narrow(case: &mut Case) {
+    use crate::ast::Stmt;
+    if let Body::Read { project, .. } = &mut case.program.body {
+        *project = None;
+    }
+    if !matches!(case.program.body, Body::Read { kind: crate::ast::Read::Fold, .. }) {
+        case.program.tables.retain(|t| t.name != "tags");
+        case.rows.retain(|(t, _)| t != "tags");
+    }
+    for t in &mut case.program.tables {
+        if t.expire.take().is_some() {
+            t.columns.retain(|c| c.name != "until");
+        }
+    }
+    for (_, row) in &mut case.rows {
+        if let Some(o) = row.as_object_mut() {
+            o.remove("until");
+        }
+    }
+    fn plain(stmts: &mut [Stmt]) {
+        for s in stmts {
+            match s {
+                Stmt::Write { ttl, .. } => *ttl = None,
+                Stmt::If(_, a, b) => {
+                    plain(a);
+                    plain(b);
+                }
+                _ => {}
+            }
+        }
+    }
+    if let Body::Block(b) = &mut case.program.body {
+        plain(&mut b.stmts);
+    }
+    for b in &mut case.program.prelude {
+        plain(&mut b.stmts);
+    }
+    case.sweep = false;
+    for s in &mut case.steps {
+        s.sweep = false;
+    }
 }
 
 pub fn run_bounded(seed: u64, cases: u64, out: &std::path::Path, seconds: Option<f64>) -> Result<Report, String> {

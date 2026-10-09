@@ -1,0 +1,307 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 5008,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner",
+          "expire": "until"
+        },
+        {
+          "name": "tags",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 5,
+          "descending": true,
+          "filter": false,
+          "owner": true,
+          "project": [
+            "TagGet"
+          ]
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r0",
+          "label": "",
+          "owner": "bob",
+          "score": -1,
+          "tag": "tag0",
+          "until": 371334
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r8",
+          "label": "é",
+          "owner": "bob",
+          "score": 0,
+          "tag": "tag8",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r9",
+          "label": "",
+          "owner": "bob",
+          "score": 9007199254740990,
+          "tag": "tag9",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r11",
+          "label": "é",
+          "owner": "bob",
+          "score": 0,
+          "tag": "tag11",
+          "until": null
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "key": "missing",
+      "n": null
+    },
+    "clock": 371336,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 15099,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-sqlite--examined-metered-heap-bytes--data",
+    "oracle": {
+      "Device": {
+        "store": "sqlite",
+        "phase": "examined",
+        "ceiling": 2
+      }
+    },
+    "field": "examined-metered-heap_bytes",
+    "left": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "data": [],
+        "metered": {
+          "examined": 4,
+          "heap_bytes": 1384,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 16
+        },
+        "next": "WzMsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldE93bmVyTGFiZWxTY29yZTo4ZmEwNjEwZTUxNTU3MWY4IiwiRGVzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiw6kifSx7IkludCI6MH0seyJJZCI6InI4In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9LHsiSWQiOiJib2IifV19XQ",
+        "nextExpiry": null,
+        "tables": [
+          "items",
+          "tags"
+        ],
+        "unknown": false
+      }
+    },
+    "right": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "data": [],
+        "metered": {
+          "examined": 4,
+          "heap_bytes": 2187,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 16
+        },
+        "next": "WzMsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldE93bmVyTGFiZWxTY29yZTo4ZmEwNjEwZTUxNTU3MWY4IiwiRGVzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiw6kifSx7IkludCI6MH0seyJJZCI6InI4In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9LHsiSWQiOiJib2IifV19XQ",
+        "nextExpiry": null,
+        "tables": [
+          "items",
+          "tags"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "capped_at": [
+              "examined",
+              "programs.run.0"
+            ],
+            "complete": false,
+            "cut": "meter",
+            "data": {
+              "Array": []
+            },
+            "metered": {
+              "examined": 4,
+              "heap_bytes": 1384,
+              "index_entries": 0,
+              "output_bytes": 12,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 16
+            },
+            "next": "WzMsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldE93bmVyTGFiZWxTY29yZTo4ZmEwNjEwZTUxNTU3MWY4IiwiRGVzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiw6kifSx7IkludCI6MH0seyJJZCI6InI4In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9LHsiSWQiOiJib2IifV19XQ",
+            "seq": 1,
+            "tables": [
+              "items",
+              "tags"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "device-call",
+          "value": {
+            "raw": {
+              "ok": {
+                "complete": false,
+                "cut": "meter",
+                "data": [],
+                "decorationExpiry": null,
+                "metered": {
+                  "examined": 8194,
+                  "heap_bytes": 2187,
+                  "index_entries": 0,
+                  "output_bytes": 12,
+                  "rows_written": 0,
+                  "rule_probes": 0,
+                  "steps": 16
+                },
+                "next": "WzMsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldE93bmVyTGFiZWxTY29yZTo4ZmEwNjEwZTUxNTU3MWY4IiwiRGVzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiw6kifSx7IkludCI6MH0seyJJZCI6InI4In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9LHsiSWQiOiJib2IifV19XQ",
+                "nextExpiry": null,
+                "retained": false,
+                "scopes": {
+                  "items": [
+                    {
+                      "0": "bob"
+                    }
+                  ]
+                },
+                "tables": [
+                  "items",
+                  "tags"
+                ],
+                "unknown": false,
+                "watermark": 1
+              }
+            },
+            "reply": {
+              "complete": false,
+              "cut": "meter",
+              "data": [],
+              "decorationExpiry": null,
+              "metered": {
+                "examined": 4,
+                "heap_bytes": 2187,
+                "index_entries": 0,
+                "output_bytes": 12,
+                "rows_written": 0,
+                "rule_probes": 0,
+                "steps": 16
+              },
+              "next": "WzMsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldE93bmVyTGFiZWxTY29yZTo4ZmEwNjEwZTUxNTU3MWY4IiwiRGVzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiw6kifSx7IkludCI6MH0seyJJZCI6InI4In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9LHsiSWQiOiJib2IifV19XQ",
+              "nextExpiry": null,
+              "retained": false,
+              "scopes": {
+                "items": [
+                  {
+                    "0": "bob"
+                  }
+                ]
+              },
+              "tables": [
+                "items",
+                "tags"
+              ],
+              "unknown": false,
+              "watermark": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 211
+}

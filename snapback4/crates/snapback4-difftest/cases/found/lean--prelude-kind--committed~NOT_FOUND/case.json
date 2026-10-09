@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 18123,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Scalar": {
+          "Bool": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "K2",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Int": 2
+          }
+        }
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "flag": true,
+          "id": "r1",
+          "label": "😀",
+          "maybe": null,
+          "owner": "bob",
+          "score": 1,
+          "tag": "tag1"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 352668,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 15452,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": -9007199254740991,
+          "b": 1,
+          "bucket": 0,
+          "c": null,
+          "k2": "r1",
+          "key": "r0",
+          "n": null
+        },
+        "at": 352668,
+        "viewer": "alice"
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-kind--committed~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "prelude-kind",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 2,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1538,
+          "index_entries": 2,
+          "output_bytes": 9,
+          "rows_written": 1,
+          "rule_probes": 0,
+          "steps": 16
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "result": {
+          "Int": 2
+        },
+        "seq": 2,
+        "state": "sent",
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "int": "2"
+            },
+            "kind": "committed",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 197
+}

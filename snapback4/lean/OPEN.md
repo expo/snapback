@@ -104,6 +104,27 @@ are listed so that nobody reopens them.
 - *Model:* `text + text` and `list + list` are unbounded. The heap meter is
   out of scope.
 
+**E4. What is a field of a null base? (model defect, found; fix owed)**
+- *Documents:* `why E_FIELD`: "Ordinary Quarry field access propagates a
+  null base as null"; `why E_QUARRY_UNSUPPORTED`: "Ordinary field access
+  propagates null: `row.body` is null when `row` is null" (`a?.b` is
+  rewritten to `a.b`). The prediction card uses
+  `profiles[principal = viewer].displayName ?? 'Someone'`.
+- *Model:* `Eval.lean`'s `.field` arm refuses `E_MODEL_TYPE` when the base
+  is not a row, so `items[key].score ?? 0` on an absent or hidden row
+  refuses instead of evaluating to 0. The documents contradict the model:
+  this is a model defect, not an open point.
+- *Engine (observed):* propagates null. Found by the widened generator
+  (LLP 3000.035 §5.1, lane GW, 2026-10-08): its blocks read
+  `(items[key].score ?? 0)` after their writes. In seeds 0–19,999 of
+  `run-lean` it accounts for every `…~E_MODEL_TYPE` signature (for example
+  `lean--kind--committed~E_MODEL_TYPE`); the shrunk cases are
+  `crates/snapback4-difftest/cases/found/lean--*~E_MODEL_TYPE`.
+- *Status:* the lane that found it was not permitted to change the model's
+  semantics. The fix is one arm (`field` of null is null) plus an example;
+  until it lands, those signatures stand classified as this model defect
+  (`issues/20261008-quarry-lean-model-field-of-null-base.md`).
+
 ## Rules
 
 **R1. Does an `exists t[..]` probe inside a rule see rows that `t`'s own read
@@ -302,6 +323,14 @@ rule hides?**
 - *Engine (observed):* agrees on the absent-target upserts generated (a
   missing key; the generator's unique `tag` value never clashes, so the clash
   cases are not yet exercised).
+- *Engine (observed, widened generator, seeds 0–19,999, 2026-10-08):* block
+  and prelude writes now put a seeded row's `tag`. On a clash with a row the
+  viewer **cannot** read, the engine refuses `E_RULE` ("a unique key ...
+  contains a row you cannot read") where the model refuses `NOT_FOUND`
+  (`lean--prelude-code--E_RULE~NOT_FOUND`, 8 cases;
+  `issues/20261008-quarry-difftest-widened-shapes-under-open-r2-and-w4.md`).
+  No other clash signature appeared, but OPEN E4 masks many block cases
+  (their reads after writes refuse `E_MODEL_TYPE` in the model). Open.
 
 **W5. Where do new ids come from?**
 - *Model:* an insert needs an explicit `id`. The emitter or harness supplies

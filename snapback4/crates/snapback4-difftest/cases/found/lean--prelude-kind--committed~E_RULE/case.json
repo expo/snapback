@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 3871,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Online",
+          "effects": [
+            "OwnerOrWitness",
+            "Witness",
+            "Owner",
+            "Witness"
+          ]
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Allow",
+          "residency": "Public"
+        }
+      ],
+      "body": {
+        "Scalar": {
+          "Int": 0
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Arg": [
+                    "a",
+                    "Int"
+                  ]
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Arg": [
+              "b",
+              "Int"
+            ]
+          }
+        }
+      ]
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": true,
+          "id": "r0",
+          "label": "",
+          "maybe": null,
+          "owner": "bob",
+          "score": 9007199254740990,
+          "tag": "tag0"
+        }
+      ],
+      [
+        "access",
+        {
+          "bucket": 1,
+          "id": "alice1",
+          "principal": "alice"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r0",
+      "key": "missing",
+      "n": null
+    },
+    "clock": 374039,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 11131,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 0,
+          "b": -1,
+          "bucket": 0,
+          "c": null,
+          "k2": "r0",
+          "key": "r0",
+          "n": 0
+        },
+        "at": 374039
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-kind--committed~E_RULE",
+    "oracle": "Lean",
+    "field": "prelude-kind",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1538,
+          "index_entries": 0,
+          "output_bytes": 10,
+          "rows_written": 1,
+          "rule_probes": 2,
+          "steps": 14
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "result": {
+          "Int": -1
+        },
+        "seq": 2,
+        "state": "sent",
+        "tables": [
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "E_RULE",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "int": "-1"
+            },
+            "kind": "committed",
+            "next": false
+          },
+          "model": {
+            "code": "E_RULE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 198
+}

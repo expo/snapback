@@ -13,7 +13,42 @@ pub struct Case {
     pub args: Json,
     pub clock: i64,
     pub budget: Ceilings,
+    /// The prelude's inputs, one per `Program::prelude` mutation, in order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub steps: Vec<Step>,
+    /// The clock the rows are seeded at; `clock` when absent. Time advances
+    /// from here through each step to `clock`, where `run` executes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seeded_at: Option<i64>,
+    /// Sweep expired rows at `clock`, before `run`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sweep: bool,
 }
+/// One prelude mutation's input: its arguments, viewer and clock, and whether the
+/// expired rows are swept (`sweep_expired`) at that clock before it runs.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Step {
+    pub args: Json,
+    pub at: i64,
+    /// The step's viewer; the case's principal when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viewer: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sweep: bool,
+}
+/// Labels: empty, ASCII, private use, outside the BMP, an emoji, and a
+/// precomposed and a decomposed `é` (distinct texts, code-point ordered).
+pub const TEXTS: [&str; 7] = ["", "a", "\u{e000}", "\u{10000}", "\u{1f600}", "\u{e9}", "e\u{301}"];
+/// Integers at and near the i53 bounds.
+pub const VALUES: [i64; 7] = [
+    0,
+    1,
+    -1,
+    9_007_199_254_740_991,
+    -9_007_199_254_740_991,
+    9_007_199_254_740_990,
+    -9_007_199_254_740_990,
+];
 pub struct Rng(u64);
 impl Rng {
     pub fn new(seed: u64) -> Self {
@@ -26,7 +61,7 @@ impl Rng {
         z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
         z ^ (z >> 31)
     }
-    fn pick(&mut self, n: u64) -> u64 {
+    pub fn pick(&mut self, n: u64) -> u64 {
         self.next() % n
     }
 }
@@ -39,7 +74,12 @@ fn column(name: &str, ty: Type) -> Column {
 fn binary(op: Bin, a: Expr, b: Expr) -> Expr {
     Expr::Binary(op, Box::new(a), Box::new(b))
 }
+/// The base case for `seed`, widened (`crate::widen`) from an independent
+/// stream: a seed whose widening draws nothing is the base case unchanged.
 pub fn generate(seed: u64) -> Case {
+    crate::widen::widen(base(seed))
+}
+pub fn base(seed: u64) -> Case {
     let mut rng = Rng::new(seed);
     let mode = rng.pick(4);
     let rule = [Rule::Allow, Rule::Deny, Rule::Owner, Rule::Witness][mode as usize].clone();
@@ -74,6 +114,7 @@ pub fn generate(seed: u64) -> Case {
         rule,
         residency,
         effects: None,
+        expire: None,
     };
     let access = Table {
         name: "access".into(),
@@ -89,16 +130,9 @@ pub fn generate(seed: u64) -> Case {
         rule: Rule::Allow,
         residency: Residency::Public,
         effects: None,
+        expire: None,
     };
-    let values: [i64; 7] = [
-        0,
-        1,
-        -1,
-        9_007_199_254_740_991,
-        -9_007_199_254_740_991,
-        9_007_199_254_740_990,
-        -9_007_199_254_740_990,
-    ];
+    let values = VALUES;
     let a = values[rng.pick(values.len() as u64) as usize];
     let b = values[rng.pick(values.len() as u64) as usize];
     let arithmetic = binary(
@@ -140,6 +174,7 @@ pub fn generate(seed: u64) -> Case {
             descending: false,
             filter: false,
             owner: false,
+            project: None,
         },
         17..=23 => Body::Read {
             kind: Read::Page,
@@ -147,6 +182,7 @@ pub fn generate(seed: u64) -> Case {
             descending: rng.pick(2) == 0,
             filter: rng.pick(2) == 0,
             owner: mode == 2,
+            project: None,
         },
         n @ 24..=28 => Body::Read {
             kind: [Read::Bounded, Read::Count, Read::Sum, Read::Min, Read::Max][(n - 24) as usize]
@@ -155,6 +191,7 @@ pub fn generate(seed: u64) -> Case {
             descending: rng.pick(2) == 0,
             filter: rng.pick(2) == 0,
             owner: mode == 2,
+            project: None,
         },
         n => Body::Write(
             [Write::Insert, Write::Upsert, Write::Update, Write::Delete][(n - 29) as usize].clone(),
@@ -196,6 +233,7 @@ pub fn generate(seed: u64) -> Case {
             helper: true,
             order: None,
             residual: None,
+            prelude: vec![],
         },
         rows,
         principal: if rng.pick(2) == 0 { "alice" } else { "bob" }.into(),
@@ -205,5 +243,8 @@ pub fn generate(seed: u64) -> Case {
             steps: 10000 + rng.pick(10000),
             ..Ceilings::default()
         },
+        steps: vec![],
+        seeded_at: None,
+        sweep: false,
     }
 }

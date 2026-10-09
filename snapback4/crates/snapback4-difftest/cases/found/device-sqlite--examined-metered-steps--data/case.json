@@ -1,0 +1,368 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 5689,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public",
+          "expire": "until"
+        },
+        {
+          "name": "tags",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "rank",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Fold",
+          "take": 5,
+          "descending": true,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r1",
+          "label": "",
+          "score": 9007199254740990,
+          "tag": "tag1",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r2",
+          "label": "é",
+          "score": 1,
+          "tag": "tag2",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r3",
+          "label": "",
+          "score": 0,
+          "tag": "tag3",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r5",
+          "label": "a",
+          "score": 9007199254740991,
+          "tag": "tag5",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r6",
+          "label": "",
+          "score": -9007199254740990,
+          "tag": "tag6",
+          "until": 397352
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r7",
+          "label": "",
+          "score": 9007199254740991,
+          "tag": "tag7",
+          "until": 397354
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r8",
+          "label": "",
+          "score": 1,
+          "tag": "tag8",
+          "until": 397389
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r9",
+          "label": "",
+          "score": -9007199254740990,
+          "tag": "tag9",
+          "until": 397352
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r10",
+          "label": "𐀀",
+          "score": 1,
+          "tag": "tag10",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r11",
+          "label": "a",
+          "score": -9007199254740990,
+          "tag": "tag11",
+          "until": 397352
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "r0",
+      "n": null
+    },
+    "clock": 397389,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 17870,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "seeded_at": 397352
+  },
+  "finding": {
+    "signature": "device-sqlite--examined-metered-steps--data",
+    "oracle": {
+      "Device": {
+        "store": "sqlite",
+        "phase": "examined",
+        "ceiling": 8
+      }
+    },
+    "field": "examined-metered-steps",
+    "left": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "data": 0,
+        "metered": {
+          "examined": 12,
+          "heap_bytes": 1809,
+          "index_entries": 0,
+          "output_bytes": 9,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 30
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items",
+          "tags"
+        ],
+        "unknown": false
+      }
+    },
+    "right": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "data": 0,
+        "metered": {
+          "examined": 12,
+          "heap_bytes": 3049,
+          "index_entries": 0,
+          "output_bytes": 9,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 46
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items",
+          "tags"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "capped_at": [
+              "examined",
+              "programs.run.0"
+            ],
+            "complete": false,
+            "cut": "meter",
+            "data": {
+              "Int": 0
+            },
+            "metered": {
+              "examined": 12,
+              "heap_bytes": 1809,
+              "index_entries": 0,
+              "output_bytes": 9,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 30
+            },
+            "seq": 1,
+            "tables": [
+              "items",
+              "tags"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "device-call",
+          "value": {
+            "raw": {
+              "ok": {
+                "complete": false,
+                "cut": "meter",
+                "data": 0,
+                "decorationExpiry": null,
+                "metered": {
+                  "examined": 8196,
+                  "heap_bytes": 3049,
+                  "index_entries": 0,
+                  "output_bytes": 9,
+                  "rows_written": 0,
+                  "rule_probes": 0,
+                  "steps": 46
+                },
+                "next": null,
+                "nextExpiry": null,
+                "retained": false,
+                "scopes": {
+                  "items": [
+                    {}
+                  ],
+                  "tags": [
+                    {}
+                  ]
+                },
+                "tables": [
+                  "items",
+                  "tags"
+                ],
+                "unknown": false,
+                "watermark": 1
+              }
+            },
+            "reply": {
+              "complete": false,
+              "cut": "meter",
+              "data": 0,
+              "decorationExpiry": null,
+              "metered": {
+                "examined": 12,
+                "heap_bytes": 3049,
+                "index_entries": 0,
+                "output_bytes": 9,
+                "rows_written": 0,
+                "rule_probes": 0,
+                "steps": 46
+              },
+              "next": null,
+              "nextExpiry": null,
+              "retained": false,
+              "scopes": {
+                "items": [
+                  {}
+                ],
+                "tags": [
+                  {}
+                ]
+              },
+              "tables": [
+                "items",
+                "tags"
+              ],
+              "unknown": false,
+              "watermark": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 389
+}

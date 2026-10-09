@@ -22,7 +22,6 @@
 //! engine charge events. Fresh schema mode is opt-in for equivalence tests.
 // @ref LLP 3000.035#5.1 — store oracle, shrinking and isolated seeded cases.
 use crate::{
-    ast::Body,
     campaign::Report,
     execute::{self, Outcome},
     generate::{Case, generate},
@@ -56,10 +55,14 @@ pub(crate) fn setup_error(error: snapback4_core::RuntimeError) -> String {
 
 pub use crate::store_database::Database;
 
+/// The store oracle's dimension for the prelude's outcomes (SQLite against
+/// Postgres, each world's prelude run once after seeding).
+pub const PRELUDE: &str = "prelude";
+
 fn record(e: &mut impl execute::Executor, case: &Case) -> (Outcome, Vec<Outcome>) {
     let first = execute::execute(e, case, "run", &case.args);
     let mut trail = Vec::new();
-    if matches!(case.program.body, Body::Write(..)) {
+    if case.program.mutation() {
         e.set_ceilings(Ceilings::unbounded());
         trail.push(execute::execute(e, case, "observe", &case.args));
     } else if first.next().is_some() {
@@ -178,9 +181,20 @@ fn reproduce_in(
         let right = record(&mut sqlite, case);
         return Ok(compare(oracle, &left, &right));
     }
-    let Oracle::Store { prefetch, .. } = oracle else {
+    let Oracle::Store { prefetch, dimension, .. } = oracle else {
         return Err("not a store oracle".into());
     };
+    if dimension.as_deref() == Some(PRELUDE) {
+        let (_, left) = execute::world(case, source)?;
+        let world = match db.create(case, source) {
+            Ok(w) => w,
+            Err(e) if e.starts_with("postgres-unsupported:") => return Ok(Verdict::Unsupported(e)),
+            Err(e) => return Err(e),
+        };
+        let verdict = oracle::prelude_disagreement(oracle, &left, &world.prelude, false).unwrap_or(Verdict::Pass);
+        db.remove(world)?;
+        return Ok(verdict);
+    }
     let mut world = match db.create(case, source) {
         Ok(w) => w,
         Err(e) if e.starts_with("postgres-unsupported:") => return Ok(Verdict::Unsupported(e)),
@@ -216,7 +230,7 @@ pub fn check(
     let source = case.program.source();
     execute::compile(&source).map_err(|e| format!("binder: {e}"))?;
     report.compiled += 1;
-    let mut sqlite = execute::engine(case, &source)?;
+    let (mut sqlite, sqlite_prelude) = execute::world(case, &source)?;
     let snapshot = crate::store_database::SqliteSnapshot::capture(&sqlite)?;
     let mut world = match db.create(case, &source) {
         Ok(w) => w,
@@ -237,8 +251,21 @@ pub fn check(
         }
         Err(e) => return Err(e),
     };
+    if !case.steps.is_empty() || case.sweep {
+        let oracle = Oracle::Store {
+            prefetch: true,
+            dimension: Some(PRELUDE.into()),
+            ceiling: 0,
+        };
+        let verdict = oracle::prelude_disagreement(&oracle, &sqlite_prelude, &world.prelude, false).unwrap_or(Verdict::Pass);
+        report.executed += 2 * sqlite_prelude.len() as u64;
+        report.by_oracle.entry("store-postgres-prelude".into()).or_default().record(&verdict);
+        if let Verdict::Disagree(f) = verdict {
+            found(f);
+        }
+    }
     let result = (|| {
-        let write = matches!(case.program.body, Body::Write(..));
+        let write = case.program.mutation();
         let mut probes = vec![(None, 0)];
         // Sweep from the uncut public ledger; each probe includes its complete
         // continuation. Probe selection follows SQLite, never the candidate store.
@@ -255,6 +282,7 @@ pub fn check(
                     | "E_CONSTRAINT"
                     | "E_ID_REUSED"
                     | "E_BOUND"
+                    | "REQUIRED"
             ) {
                 *report
                     .runtime_refused_unexpected
@@ -343,6 +371,7 @@ pub fn check(
                 .or_default() += (probes.len() - selected.len()) as u64;
         }
         let mut first_world = true;
+        let mut transferred_case = false;
         for (position, (dimension, ceiling)) in probes.into_iter().enumerate() {
             if write {
                 snapshot.restore(&sqlite)?;
@@ -377,6 +406,10 @@ pub fn check(
                     continue;
                 }
             }
+            // Database calls per mode: fewer with prefetch on means cached
+            // answers were consumed (the cache never authorizes or meters,
+            // so this physical witness is the only one the API exposes).
+            let mut calls = [0u64; 2];
             for prefetch in [true, false] {
                 let oracle = Oracle::Store {
                     prefetch,
@@ -418,6 +451,10 @@ pub fn check(
                         .entry(format!("{}-{name}", oracle.name()))
                         .or_default() += delta;
                 }
+                calls[usize::from(prefetch)] = after.database_calls - before.database_calls;
+                if prefetch && after.prefetch_rows_transferred > before.prefetch_rows_transferred {
+                    transferred_case = true;
+                }
                 report.executed += 1 + right.1.len() as u64;
                 let verdict = compare(&oracle, &left, &right);
                 report
@@ -436,6 +473,13 @@ pub fn check(
                     found(f);
                 }
             }
+            if calls[1] < calls[0] {
+                *report.store_stats.entry("prefetch_consumption_witness_probes".into()).or_default() += 1;
+                *report.store_stats.entry("prefetch_database_calls_saved".into()).or_default() += calls[0] - calls[1];
+            }
+        }
+        if transferred_case {
+            *report.store_stats.entry("prefetch_cases_with_transfer".into()).or_default() += 1;
         }
         Ok(())
     })();
@@ -533,13 +577,20 @@ pub fn run_bounded(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::Body;
     use serde_json::json;
 
     #[test]
     fn restored_world_matches_fresh_bytes() {
         let mut reuse = Database::connect().unwrap();
         let mut fresh = Database::connect_fresh().unwrap();
-        for seed in [0, 3, 19, 23, 24, 26] {
+        // Widened seeds: a mutation after a prelude (restored to the
+        // post-prelude snapshot), and an expiring table after a sweep.
+        let widened = [
+            (0..).find(|s| { let c = generate(*s); !c.steps.is_empty() && c.program.mutation() }).unwrap(),
+            (0..).find(|s| { let c = generate(*s); c.sweep && c.program.mutation() }).unwrap(),
+        ];
+        for seed in [0, 3, 19, 23, 24, 26].into_iter().chain(widened) {
             let case = generate(seed);
             let source = case.program.source();
             let mut a = reuse.create(&case, &source).unwrap();
@@ -550,7 +601,7 @@ mod tests {
                     oracle::ceiling("heap_bytes", 6669),
                     oracle::ceiling("steps", 0),
                 ] {
-                    if matches!(case.program.body, Body::Write(..)) {
+                    if case.program.mutation() {
                         reuse.restore(&mut a, &case, &source).unwrap();
                         fresh.restore(&mut b, &case, &source).unwrap();
                     }

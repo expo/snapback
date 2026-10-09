@@ -38,8 +38,21 @@ impl Rewrite {
             Self::Declarations => "declarations",
         }
     }
-    pub fn costs(&self) -> bool {
-        !matches!(self, Self::Commute | Self::Declarations)
+    /// Whether the rewrite may change meter fields. Commuting operands
+    /// preserves cost only when neither hoists work: a read on the right of
+    /// a binary operator makes the binder spill the left value first ("Work
+    /// hoisted from the right cannot run before the left value",
+    /// `bind/program/expr.rs`), two more steps. Order of evaluation, not cost,
+    /// is the language's promise there.
+    pub fn costs(&self, p: &Program) -> bool {
+        match self {
+            Self::Declarations => false,
+            Self::Commute => match &p.body {
+                Body::Scalar(e) | Body::Write(_, e) | Body::Block(Block { ret: e, .. }) => reads(e),
+                _ => false,
+            },
+            _ => true,
+        }
     }
     pub fn apply(&self, p: &Program) -> Option<Program> {
         let mut q = p.clone();
@@ -50,6 +63,7 @@ impl Rewrite {
                 let e = match &mut q.body {
                     Body::Scalar(e)
                     | Body::Write(Write::Insert | Write::Upsert | Write::Update, e) => e,
+                    Body::Block(b) => &mut b.ret,
                     _ => return None,
                 };
                 if let Expr::Binary(op, a, b) = e {
@@ -95,6 +109,15 @@ impl Rewrite {
             }
         }
         Some(q)
+    }
+}
+/// Whether an expression performs a read (which the binder hoists).
+fn reads(e: &Expr) -> bool {
+    match e {
+        Expr::Score(_) | Expr::Present(_) => true,
+        Expr::Binary(_, a, b) => reads(a) || reads(b),
+        Expr::Identity(a) | Expr::Assert(a) => reads(a),
+        _ => false,
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -259,9 +282,28 @@ pub fn rewrite(case: &Case, r: &Rewrite, source: &str) -> Result<(Verdict, u64),
     if r.apply(&case.program).is_none() {
         return Ok((Verdict::Unsupported("rewrite-not-applicable".into()), 0));
     }
-    let mut left = execute::engine(case, source)?;
+    let (mut left, prelude) = execute::world(case, source)?;
     let a = execute::execute(&mut left, case, "run", &case.args);
-    rewrite_against(case, r, &mut left, &a).map(|(v, n)| (v, n + 1))
+    rewrite_against(case, r, &mut left, &prelude, &a).map(|(v, n)| (v, n + 1))
+}
+
+/// The first differing prelude outcome (`prelude-{field}`), if any.
+pub fn prelude_field(a: &[Outcome], b: &[Outcome], omit_meter: bool) -> Option<(String, usize)> {
+    for (i, (x, y)) in a.iter().zip(b).enumerate() {
+        if let Some(f) = field(x, y, omit_meter) {
+            return Some((format!("prelude-{f}"), i));
+        }
+    }
+    (a.len() != b.len()).then(|| ("prelude-length".into(), a.len().min(b.len())))
+}
+pub fn prelude_disagreement(oracle: &Oracle, a: &[Outcome], b: &[Outcome], omit_meter: bool) -> Option<Verdict> {
+    let (f, i) = prelude_field(a, b, omit_meter)?;
+    let blank = || Outcome { kind: "absent".into(), value: json!({}) };
+    let x = a.get(i).cloned().unwrap_or_else(blank);
+    let y = b.get(i).cloned().unwrap_or_else(blank);
+    let mut trail = a.to_vec();
+    trail.extend(b.iter().cloned());
+    Some(disagreement(oracle, &f, x, y, trail))
 }
 
 /// Reuse the unchanged original world's outcome across independent rewrites.
@@ -270,20 +312,24 @@ pub fn rewrite_against(
     case: &Case,
     r: &Rewrite,
     left: &mut snapback4_core::Engine,
+    left_prelude: &[Outcome],
     a: &Outcome,
 ) -> Result<(Verdict, u64), String> {
     let oracle = Oracle::Rewrite(r.clone());
     let Some(program) = r.apply(&case.program) else {
         return Ok((Verdict::Unsupported("rewrite-not-applicable".into()), 0));
     };
-    let mut right = execute::engine(case, &program.source())?;
+    let (mut right, right_prelude) = execute::world(case, &program.source())?;
+    if let Some(v) = prelude_disagreement(&oracle, left_prelude, &right_prelude, r.costs(&case.program)) {
+        return Ok((v, right_prelude.len() as u64));
+    }
     let b = execute::execute(&mut right, case, "run", &case.args);
     let mapped = crate::sites::corresponding(left, &right, &b);
-    if let Some(f) = field(a, &mapped, r.costs()) {
+    if let Some(f) = field(a, &mapped, r.costs(&case.program)) {
         return Ok((disagreement(&oracle, &f, a.clone(), b, vec![]), 1));
     }
     let mut executions = 1;
-    if matches!(case.program.body, Body::Write(..)) {
+    if case.program.mutation() {
         let x = execute::execute(left, case, "observe", &case.args);
         let y = execute::execute(&mut right, case, "observe", &case.args);
         executions += 2;
@@ -334,14 +380,17 @@ pub fn reproduce(case: &Case, source: &str, oracle: &Oracle) -> Result<Verdict, 
 }
 
 pub fn repeat(case: &Case, source: &str) -> Result<(Verdict, u64), String> {
-    let mut left = execute::engine(case, source)?;
-    let mut right = execute::engine(case, source)?;
+    let (mut left, p) = execute::world(case, source)?;
+    let (mut right, q) = execute::world(case, source)?;
+    if let Some(v) = prelude_disagreement(&Oracle::Repeat, &p, &q, false) {
+        return Ok((v, 2 * p.len() as u64));
+    }
     let a = execute::execute(&mut left, case, "run", &case.args);
     let b = execute::execute(&mut right, case, "run", &case.args);
     if let Some(f) = field(&a, &b, false) {
         return Ok((disagreement(&Oracle::Repeat, &f, a, b, vec![]), 2));
     }
-    if matches!(case.program.body, Body::Write(..)) {
+    if case.program.mutation() {
         let x = execute::execute(&mut left, case, "observe", &case.args);
         let y = execute::execute(&mut right, case, "observe", &case.args);
         if let Some(f) = field(&x, &y, false) {
