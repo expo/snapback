@@ -316,3 +316,5 @@ When resolved, keep the case as a regression, record the resolution, and move
 this ticket to `issues/closed/`.
 
 - 2026-10-09: run `20261009T011321Z-eb3eb4e7`, seed `7120`, commit `74f3a1dd3240287cd7f5405ed55588e0c93db8e5`.
+
+- 2026-10-10: run `20261010T000005Z-fe12e802`, seed `16824`, commit `e92ba8687bc6e363cf5f76436f53d8b3bacdd284`.
