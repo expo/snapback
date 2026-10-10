@@ -64,10 +64,11 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "witness", "start"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("test", "testing"), ("tests", "testing"), ("fixture", "testing"), ("fixtures", "testing"), ("acceptance", "testing"), ("e2e", "testing"), ("cases", "testing"),
     ("index", "start"),
     ("oracle", "read-only"), ("observer", "read-only"), ("dashboard", "read-only"), ("preview", "read-only"),
     ("envelope", "bounds"), ("heaviest", "bounds"), ("1000", "bounds"),
@@ -651,6 +652,7 @@ in `guide client`, never this automatically fetched avatar pattern."##,
         "receipts" => receipts::CARD,        "bounds" => bounds::CARD,
         "refusals" => refusals::CARD,
         "personas" => personas::CARD,
+        "testing" => include_str!("guide/testing.md"),
         _ => return None,
     })
 }

@@ -21,6 +21,7 @@ pub use init::init;
 pub use sql::sql;
 mod residency;
 mod test_fixture;
+mod test_cases;
 mod adoption;
 mod latency;
 mod run_admission;
@@ -1096,6 +1097,7 @@ pub fn test(options: &Options) -> i32 {
     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
     let mut skipped = Vec::new();
     let mut near = Vec::new();
+    let (mut complete, mut capped, mut refused_derived) = (0usize, 0usize, 0usize);
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
             continue;
@@ -1131,6 +1133,7 @@ pub fn test(options: &Options) -> i32 {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
+                    if outcome.complete { complete += 1 } else { capped += 1 }
                     // @ref LLP 3000.007#20.22.1 — report approach to a ceiling on the fixture, separately from actual cuts.
                     if outcome.capped_at.is_none() && outcome.word_cut_at.is_none() {
                         if let Some(cost) = crate::serve::read_cost::near_ceiling(m, ceilings) { near.push(format!("{} ({persona}) {cost}", program.program.name)); }
@@ -1141,7 +1144,8 @@ pub fn test(options: &Options) -> i32 {
                     // A program's own `require` refusing a derived argument
                     // is information, not a failure: the persona is not in
                     // that group. Run it with yours to see the meters.
-                    println!("      {:<28} refused {} on derived arguments{shown} — run it with yours: snapback4 run {} '{{..}}' --as {persona}", format!("{} ({persona})", program.program.name), refusal.code, program.program.name);
+                    refused_derived += 1;
+                    println!("      {:<28} refused {} on derived arguments{shown} — give it yours in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"args\":{{..}}}}", format!("{} ({persona})", program.program.name), refusal.code, test_cases::FILE, program.program.name);
                 }
                 Err(refusal) => {
                     failures += 1;
@@ -1153,9 +1157,20 @@ pub fn test(options: &Options) -> i32 {
     for line in near.iter().take(10) { println!("near ceiling: {line}"); }
     if near.len() > 10 { println!("near ceiling: {} more query/persona reads passed half a ceiling without a cut", near.len() - 10); }
     for line in &skipped {
-        println!("      not run: {line} — pass a fixture with a row of that table, or run it: snapback4 run <query> '{{..}}' --as <persona>");
+        println!("      not run: {line} — add a row of that table to the fixture, or a case in {}", test_cases::FILE);
     }
-    if failures > 0 { 1 } else { 0 }
+    let (mut passed, mut failed_cases) = (0, 0);
+    if let Some(fixture) = options.flags.get("fixture") {
+        match test_cases::run(&mut engine, &bound, fixture) {
+            Ok((p, f)) => { passed = p; failed_cases = f; }
+            Err(error) => { eprintln!("{error}"); return 1; }
+        }
+    }
+    // One line a script or an agent can read: derived refusals and unrun
+    // queries are not failures, but they are not coverage either.
+    println!("test: {complete} complete, {capped} capped, {refused_derived} refused on derived arguments, {} not run, {failures} denied{}",
+        skipped.len(), if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
+    if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }
 
 /// A plausible argument for `test`, from the store and the persona.

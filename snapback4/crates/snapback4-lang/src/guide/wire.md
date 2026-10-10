@@ -88,7 +88,8 @@ Dev only, same machine; `serve` refuses each one.
 
 - `/seed` with `[{"table":"t","row":{"id":"..",..}}]` writes rows as the system,
   rules bypassed, and answers `{seeded: N}`. It is an upsert by id, so every row
-  names a 26-character id (`guide personas`).
+  names its own `id` (any unique string; `idFrom(label)` gives a stable one), and
+  a principal field holds `"dev:alice"`, not `"alice"` (`guide testing`).
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.

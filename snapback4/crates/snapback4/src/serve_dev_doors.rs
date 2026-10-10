@@ -50,6 +50,9 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
         if row.is_object() && row.get("id").is_none_or(|id| !id.is_string()) {
             return refuse(request, missing_id(index, table));
         }
+        if let Some(why) = wire::bare_principal(definition, row) {
+            return refuse(request, Refusal::new("E_INPUT", "input", format!("seed row {index} ({table}): {why}")));
+        }
         match wire::row_from_json(definition, row) {
             Ok(value) => typed.push((table.to_owned(), value)),
             Err(why) => return refuse(request, Refusal::new("E_INPUT", "input", format!("{table}: {why}"))),

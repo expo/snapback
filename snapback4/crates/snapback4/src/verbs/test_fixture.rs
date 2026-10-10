@@ -25,12 +25,14 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     let mut unknown = Vec::new();
     for name in names {
         let Some(table) = name.strip_suffix(".jsonl") else { continue };
+        if name == super::test_cases::FILE { continue; }
         let Some(definition) = bound.schema.tables.get(table) else { unknown.push(name); continue };
         let path = std::path::Path::new(fixture).join(&name);
         let text = std::fs::read_to_string(&path).map_err(|error| format!("cannot read fixture file {}: {error}", path.display()))?;
         for (line_number, line) in text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty()) {
             let at = format!("{name}:{}", line_number + 1);
             let json = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
+            if let Some(why) = wire::bare_principal(definition, &json) { return Err(format!("{at}: {why}")); }
             let row = wire::row_from_json(definition, &json).map_err(|error| format!("{at}: {error}\n  hint: a fixture row is one JSON object per line with the table's fields and an \"id\"; see snapback4 guide testing"))?;
             rows.push((table.to_owned(), row));
         }
@@ -38,7 +40,11 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     if !unknown.is_empty() && !options.json {
         eprintln!("test: ignored {} (no table with that name in snapback/*.q)", unknown.join(", "));
     }
-    let loaded = engine.load(rows).map_err(|error| format!("{fixture}: {error}\n  hint: every fixture file loads as one batch (parents first); a NOT_FOUND here names a referenced or read-through parent row that no fixture file supplies"))?;
+    let loaded = engine.load(rows).map_err(|error| {
+        let text = error.to_string();
+        let hint = if text.contains("NOT_FOUND") { "\n  hint: every fixture file loads as one batch, parents first; NOT_FOUND means a referenced or read-through parent row is in no fixture file (check the id)" } else { "" };
+        format!("{fixture}: {text}{hint}")
+    })?;
     if options.flags.contains_key("residency") {
         engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot build fixture maintains: {error}"))?;
     }

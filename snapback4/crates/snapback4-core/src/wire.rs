@@ -107,6 +107,20 @@ pub fn row_from_json(table: &crate::schema::Table, json: &Json) -> Result<Value,
     Ok(Value::Row(out.into()))
 }
 
+/// Fixture and `/seed` rows name principals as stored: `dev:alice`, never the
+/// persona's bare name. A bare name loads, but no viewer ever matches it, so
+/// every rule and query silently sees nothing; refuse it with the spelling.
+pub fn bare_principal(table: &crate::schema::Table, json: &Json) -> Option<String> {
+    use crate::schema::ColumnType as C;
+    let Json::Object(fields) = json else { return None };
+    fields.iter().find_map(|(name, value)| {
+        let principal = match table.columns.get(name)? { C::Principal => true, C::Optional(inner) => matches!(**inner, C::Principal), _ => false };
+        let text = value.as_str()?;
+        (principal && !text.contains(':') && text != crate::SYSTEM_PRINCIPAL).then(|| format!(
+            "{name}: \"{text}\" is not a principal; the persona {text} is \"dev:{text}\" (accounts are user:…, guests guest:…, services service:…)"))
+    })
+}
+
 pub fn column_from_json(kind: &crate::schema::ColumnType, json: &Json) -> Result<Value, String> {
     use crate::schema::ColumnType as C;
     Ok(match (kind, json) {
