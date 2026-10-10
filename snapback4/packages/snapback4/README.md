@@ -1,7 +1,7 @@
 # snapback4
 
 A scale-to-zero backend: Quarry declares your data and rules; typed clients read online or on a device, using the same
-Rust interpreter as the server. The package carries the TypeScript client and the CLI (currently darwin-arm64).
+Rust interpreter as the server. The package carries the TypeScript client and the CLI (prebuilt for macOS arm64 and Linux x64).
 
 ## Start here: your first working account screen
 

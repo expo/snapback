@@ -25,7 +25,18 @@ const child = spawn(binary, process.argv.slice(2), { stdio: exportLease ? ["inhe
 } });
 const handlers = new Map(["SIGINT", "SIGTERM", "SIGHUP"].map(signal => [signal, () => { try { child.kill(signal); } catch { /* gone */ } }]));
 for (const [signal, handler] of handlers) process.on(signal, handler);
+// `npx snapback4 dev` puts npm and `sh -c` above this wrapper. A SIGTERM to the
+// npx PID kills npm and the shell but never reaches us, so the server would keep
+// serving as an orphan. Our parent's death is the stop signal. (`process.ppid` is
+// read once at startup, so probe the original parent instead.)
+const parent = process.ppid;
+const parentAlive = () => { try { process.kill(parent, 0); return true; } catch (error) { return error.code === "EPERM"; } };
+const orphanWatch = parent > 1 ? setInterval(() => {
+  if (!parentAlive()) { try { child.kill("SIGTERM"); } catch { /* gone */ } }
+}, 250) : null;
+orphanWatch?.unref();
 child.on("exit", (code, signal) => {
+  if (orphanWatch) clearInterval(orphanWatch);
   for (const [name, handler] of handlers) process.off(name, handler);
   if (signal) {
     // Restore the default disposition before re-raising. Some platforms do not

@@ -12,22 +12,33 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     // remain installed for authoritative import, which strips and rebuilds them.
     if options.flags.contains_key("residency") { schema.maintains.retain(|m| m.private.is_some()); }
     let mut engine = Engine::memory(schema, bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot open a store: {error}"))?;
-    let entries = std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))?;
-    let mut loaded = 0;
-    for entry in entries {
+    let mut names = Vec::new();
+    for entry in std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))? {
         let entry = entry.map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))?;
-        let name = entry.file_name().to_string_lossy().to_string();
+        names.push(entry.file_name().to_string_lossy().to_string());
+    }
+    names.sort();
+    // One batch for the whole directory: the engine orders parents before
+    // children within a batch, so file order (and read_dir order) cannot make
+    // a read-through child or a reference miss its parent.
+    let mut rows = Vec::new();
+    let mut unknown = Vec::new();
+    for name in names {
         let Some(table) = name.strip_suffix(".jsonl") else { continue };
-        let Some(definition) = bound.schema.tables.get(table) else { continue };
-        let text = std::fs::read_to_string(entry.path()).map_err(|error| format!("cannot read fixture file {}: {error}", entry.path().display()))?;
-        let mut rows = Vec::new();
-        for line in text.lines().filter(|line| !line.trim().is_empty()) {
-            let json = serde_json::from_str(line).map_err(|error| format!("{name}: {error}"))?;
-            let row = wire::row_from_json(definition, &json).map_err(|error| format!("{name}: {error}"))?;
+        let Some(definition) = bound.schema.tables.get(table) else { unknown.push(name); continue };
+        let path = std::path::Path::new(fixture).join(&name);
+        let text = std::fs::read_to_string(&path).map_err(|error| format!("cannot read fixture file {}: {error}", path.display()))?;
+        for (line_number, line) in text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty()) {
+            let at = format!("{name}:{}", line_number + 1);
+            let json = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
+            let row = wire::row_from_json(definition, &json).map_err(|error| format!("{at}: {error}\n  hint: a fixture row is one JSON object per line with the table's fields and an \"id\"; see snapback4 guide testing"))?;
             rows.push((table.to_owned(), row));
         }
-        loaded += engine.load(rows).map_err(|error| format!("{name}: {error}"))?;
     }
+    if !unknown.is_empty() && !options.json {
+        eprintln!("test: ignored {} (no table with that name in snapback/*.q)", unknown.join(", "));
+    }
+    let loaded = engine.load(rows).map_err(|error| format!("{fixture}: {error}\n  hint: every fixture file loads as one batch (parents first); a NOT_FOUND here names a referenced or read-through parent row that no fixture file supplies"))?;
     if options.flags.contains_key("residency") {
         engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot build fixture maintains: {error}"))?;
     }
@@ -64,5 +75,29 @@ mod column_tests {
             for (table,_) in files {std::fs::remove_file(root.join(format!("{table}.jsonl"))).unwrap();}
         }
         std::fs::remove_dir(&root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod order_tests {
+    use super::*;
+    // `items` sorts before `lists`: the child's file is read first, yet the
+    // directory loads as one batch with parents ordered before children.
+    #[test]
+    fn read_through_child_file_before_parent_file_loads() {
+        let source = "use personas alice, bob\n\ntable lists:\n  owner: principal\n  title: text 1..80\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  cap 50 by owner\n  sync to .owner\n\ntable items:\n  parent: lists\n  text: text 1..200\n  immutable parent\n  read through .parent\n  insert <- .parent.owner = viewer\n  cap 50 by parent\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let root = std::env::temp_dir().join(format!("fixture-order-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("items.jsonl"), "{\"id\":\"00000000000000000000000C01\",\"parent\":\"00000000000000000000000B01\",\"text\":\"wash\"}\n").unwrap();
+        std::fs::write(root.join("lists.jsonl"), "{\"id\":\"00000000000000000000000B01\",\"owner\":\"dev:alice\",\"title\":\"Home\"}\n").unwrap();
+        let options = Options { positionals: vec![], json: true, flags: [("fixture".into(), root.to_str().unwrap().into())].into() };
+        let project = Project { root: root.clone() };
+        let engine = engine(&project, &bound, &options);
+        std::fs::remove_dir_all(&root).unwrap();
+        let engine = engine.unwrap();
+        assert_eq!(engine.store().rows("items").unwrap().len(), 1);
+        assert_eq!(engine.store().rows("lists").unwrap().len(), 1);
     }
 }

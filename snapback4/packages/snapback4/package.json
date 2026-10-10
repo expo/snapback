@@ -81,7 +81,7 @@
   },
   "dependencies": {
     "openid-client": "6.8.8",
-    "undici": "8.8.0"
+    "undici": "8.11.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/",
