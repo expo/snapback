@@ -286,24 +286,25 @@ pub fn check(options: &Options) -> i32 {
         }
         if options.flags.contains_key("verbose") { for line in &field_authority { println!("  {line}"); } }
         if options.flags.contains_key("verbose") {
-            for report in note_reports(&bound.notes, true) { println!("{}", present(&report)); }
+            // Verbose keeps every explanation, in the same consequence order as the summary.
+            let mut ranked: Vec<&snapback4_lang::Diagnostic> = bound.notes.iter().collect();
+            ranked.sort_by_key(|note| crate::note_rank::tier(&note.code));
+            let ranked: Vec<snapback4_lang::Diagnostic> = ranked.into_iter().cloned().collect();
+            for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
-            for note in &bound.notes {
-                let summary = note_summary(note);
-                println!("note: {} — {}: {}", note.site, note.code, present(&summary));
-            }
+            // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
+            let notes = bound.notes.iter().map(|note| crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)) })
+                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary) }))
+                .collect();
+            for line in crate::note_rank::render(notes) { println!("{line}"); }
         }
     }
     if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("cost")) {
         println!("{scale_summary}");
     }
-    if !options.json {
+    if !options.json && options.flags.contains_key("verbose") {
         for search in certificates.iter().flat_map(|certificate| &certificate.search) {
-            if options.flags.contains_key("verbose") {
-                println!("  {} at {}: {}; rewrite: {} (guide {})", search.code, search.site, search.message, search.rewrite, search.guide);
-            } else {
-                println!("note: {} — {}: {}", search.site, search.code, present(search.summary));
-            }
+            println!("  {} at {}: {}; rewrite: {} (guide {})", search.code, search.site, search.message, search.rewrite, search.guide);
         }
     }
     if details && !options.json {

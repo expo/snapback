@@ -6,6 +6,7 @@
 mod witness_socket;
 mod listen_refusal;
 mod verb_help;
+mod note_rank;
 mod assets;
 mod host_limits;
 mod auth;
