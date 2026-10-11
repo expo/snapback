@@ -363,10 +363,6 @@ fn internal_names(diagnostics: &mut Vec<Diagnostic>, authored: &std::collections
 /// user's text literal (`'$5'`, `"$saved"`) is never one. A canonical
 /// identity (`$intent:byAt:…`, `$view:…`) is not one either: `check` labels
 /// planner indexes itself and `--verbose` prints them canonical on purpose.
-pub(crate) fn internal_word(text: &str) -> Option<(usize, usize)> {
-    internal_word_from(text, 0, &Default::default())
-}
-
 fn internal_word_from(text: &str, from: usize, authored: &std::collections::BTreeSet<String>) -> Option<(usize, usize)> {
     let bytes = text.as_bytes();
     (from..bytes.len()).find_map(|at| {

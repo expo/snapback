@@ -77,3 +77,26 @@ fn json_and_text_both_name_every_sequence_counter() {
     }
     fs::remove_dir_all(dir).unwrap();
 }
+
+/// Wave 5 (#3b, 19 lanes): the compiled owner-or-grant and per-party queries
+/// printed only under `--verbose`. The default check prints each form once,
+/// under its first N_NEVER_COMPLETE, and that note says "(below)".
+#[test]
+fn never_complete_prints_its_compiled_form_by_default() {
+    let dir = std::env::temp_dir().join(format!("sb4-check-compiled-form-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let source = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\n\
+table tickets:\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists staff[viewer]\n  online only\n\
+table sessions:\n  tutor: principal\n  learner: principal\n  at: int\n  read <- .tutor = viewer or .learner = viewer\n  online only\n\
+query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2(c: cursor ?):\n  return tickets last 20 by .at after c\nquery mySessions(c: cursor ?):\n  return sessions last 50 by .at after c\n";
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check"]).output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(text.matches("  rewrite: Branch on the grant").count(), 1, "one grant form, under the first note:\n{text}");
+    assert!(text.contains("    query queue(c: cursor ?):\n      if exists staff[viewer]:\n        return tickets last 50 by .at after c\n      return tickets where .owner = viewer last 50 by .at after c"), "{text}");
+    assert_eq!(text.matches("  rewrite: Replace this query with one per party").count(), 1, "{text}");
+    assert!(text.contains("query mySessionsAsTutor(c: cursor ?)") && text.contains("query mySessionsAsLearner(c: cursor ?)"), "{text}");
+    assert!(text.contains("pinning the owner otherwise (below)"), "{text}");
+    fs::remove_dir_all(dir).unwrap();
+}
