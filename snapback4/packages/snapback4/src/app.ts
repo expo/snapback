@@ -21,6 +21,7 @@ import { personaApp } from "./app-persona.ts";
 import { ownOnline, onlineView, type Online } from "./app-online-arm.ts";
 import { armRefusal, requestArm } from "./online-arm-fence.ts";
 export type { Online } from "./app-online-arm.ts";
+export type { Client, Principal, Refusal, Write, Read } from "./contract.ts";
 import { sessionRevocations } from "./app-revocations.ts";
 import { mergeFences, type SessionOrigin } from "./app-global.ts";
 import { signup, login, guest, keepSession, restoreSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";

@@ -268,7 +268,9 @@ test('the card words import from the modules that return them; UseMutation names
   const result = check(`import { createClient, type Client, type Principal, type Read, type Write, type Refusal } from './dist/client.js';
 import { isReady, isDenied, isLoading, existence, useMutation, type UseMutation, type WriteHook, type MutationHook } from './dist/react.js';
 import type { Mutation, Ephemeral, Signal, Query } from './dist/contract.js';
+import { createApp, type Client as AppClient } from './dist/app.js';
 const client: Client = createClient({ url: 'http://127.0.0.1:4400', persona: 'alice' });
+const appClient: AppClient = createApp({ url: 'http://127.0.0.1:4400', persona: 'alice' }).client;
 const viewer: Principal | null = client.viewer();
 declare const op: Query<{}, { id: string }[]>, add: Mutation<{ body: string }, { id: string }>, typing: Ephemeral<{ room: string }, null>;
 const read: Read<{ id: string }[]> = client.observe(op, {}).getSnapshot();
