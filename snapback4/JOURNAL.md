@@ -92505,3 +92505,17 @@ Linux, 852 B over 647,972. The device's share of the wave-2 fixes (LLP
 row, and `delete row`/`update row`. The staff-grant page verdict is server
 only. Budget 649,324 B (measurement + 500 B), reason in
 `metrics/wasm-budget.json`.
+
+## 2026-10-11 — Workstream L: the guide fits a tool window (wave 3 #1, #2, #8, #10)
+
+Forty wave-3 lanes lost batched `guide` output to truncation. A card over 130
+lines now prints its opening and a numbered section index; `--section` takes
+a number or forgiving words and names what mentions them on a miss, `--find`
+greps a card, and `--full` prints it whole (tests that parse a card pass it).
+`clock`/`date`/`now` open a new `time` card (day numbers are not timestamps),
+`guide cheatsheet` is one screen around a compiled schema, and `guide api`
+indexes every package subpath, kept equal to the exports by
+`test/api-index.test.mjs`. `init` prints the files it wrote. The testing
+card's acceptance script spawns `resolveBinary()` and stops it with a
+TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
+owner-only examples. Design in LLP 3000.007 §20.1.
