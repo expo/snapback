@@ -253,6 +253,13 @@ rule hides?**
   contract". It does not say whether such a total reports `complete`.
 - *Model:* a count or exists that is not cut is complete, uniform rule or
   not. It counts exactly the visible matches (`countRead_eq`).
+- *Engine (observed, 2026-10-11, LLP 3000.036 §15.12):* a query's search
+  `exists t where …` over a rule its pins do not decide answers `true` with
+  `complete: false` when a visible row matches, and is unavailable (no data,
+  `complete` false) when none does; it never answers `false` there. The guide
+  reads card says an undecided scan has no answer. Model follow-up: mark such
+  an `exists` incomplete and throw `.unavailable` on no visible match (not run:
+  the lane had no elan). `lean::generate` does not emit a search `exists` yet.
 
 **C6. How do several reads combine into one answer's `complete`?**
 - *Model:* `complete` is the conjunction over every read in the request.
