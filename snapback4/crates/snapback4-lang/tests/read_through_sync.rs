@@ -37,7 +37,7 @@ const MODEL:&str="table parents:\n  owner: principal\n  archived: bool\n  immuta
 #[test]fn grant_guard_stays_required_through_every_level(){
     let source=include_str!("fixtures/read-through-device.q").replace(".principal = viewer and (created orgs[.org] or exists members[.org, viewer])",".principal = viewer");
     let b=snapback4_lang::compile(&[("bad.q".into(),source)]);
-    for child in ["projects","tasks","comments"] {assert!(b.diagnostics.iter().any(|d|d.code=="E_SYNC"&&d.message.contains(&format!("private audience of {child}"))&&d.message.contains("grant probe")),"{:?}",b.diagnostics);}
+    for child in ["projects","tasks","comments"] {assert!(b.diagnostics.iter().any(|d|d.code=="E_SYNC"&&d.message.split(':').next().unwrap().strip_prefix("members grants the private audience of ").is_some_and(|tables|tables.split(", ").any(|t|t==child))&&d.message.contains("grant probe")),"{:?}",b.diagnostics);}
 }
 
 #[test]fn delivered_history_reserves_its_marker_without_changing_ordinary_fields(){

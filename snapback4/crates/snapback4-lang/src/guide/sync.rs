@@ -12,7 +12,7 @@ table todos:
   sync to .ownerId
 ```
 
-- `E_SYNC`: the declared audience disagrees with the read rule; omit the audience to infer it, keeping the intended rule.
+- `E_SYNC`: the read rule is not exactly one audience, or a membership insert proves no grant; the rewrite names the edit, and `guide sharing` has rosters, teams, two parties and owner plus staff.
 - `N_SYNC_ORDER`: page and horizon orders differ; keep the intended selection (`first 1` can change), and restart pagination if changing order.
 - `N_NO_HORIZON`: a partition can grow; read the diagnostic's prediction warning before adding `last N by .column` or an intended cap.
 
@@ -196,8 +196,7 @@ continuation and requires the terminal page before catch-up publishes coverage.
 Empty groups consume page room too, so even a page with no rows can continue.
 
 `last N by .a, .b` creates an ordinary index with the audience columns first,
-then the listed order and an `id` tiebreaker if not already listed. A named
-index still works. Repeating a listed column or an audience column is
+then the listed order and an `id` tiebreaker if not already listed. A named index still works if it leads with the audience columns; on a read-through audience the compiler puts the inherited group first, then the named index's columns. Repeating a listed column or an audience column is
 E_QUARRY_SYNTAX: keep each order column once and omit the audience pins.
 
 A synced table with no horizon delivers every row of
@@ -512,7 +511,7 @@ audience. For example, `read <- .ownerId = viewer` cannot pair with
 match the read rule's membership probe, declare its unique group/principal
 key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
-column or index; do not make private rows public just to enable sync. A rule with two readers (`.claimant = viewer or .postedBy = viewer`) splits into a membership table synced to its members, as `participants` and `threads` above; a public-or-owner rule (`.approved or .author = viewer`) splits into a public table and an owner-synced one, moving a row when it is shared. Either way, `online only` keeps the rule as written without offline.
+column or index; do not make private rows public just to enable sync. A rule with two readers (`.claimant = viewer or .postedBy = viewer`) splits into a parties table synced to its members; an owner beside shares folds the owner into the shares; an owner beside a staff role keeps one table per audience (all in `guide sharing`); a public-or-owner rule (`.approved or .author = viewer`) splits into a public table and an owner-synced one, moving a row when it is shared. A members row read under `.principal = viewer or exists members[.group, viewer]` is its own witness and syncs as the probe alone. A membership insert branch that proves no grant is refused once, at that insert rule, with the probe conjoined. Either way, `online only` keeps the rule as written without offline.
 Mismatched read-through audiences also get E_SYNC, with the schema-specific
 `read through .ref` / `sync` repair.
 

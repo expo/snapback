@@ -58,13 +58,15 @@ mod native;
 mod jobs;
 #[path = "guide/sync.rs"]
 mod sync;
+#[path = "guide/sharing.rs"]
+mod sharing;
 #[path = "guide/indexes.rs"]
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -173,6 +175,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "offline-interactions" => include_str!("guide/offline_interactions.md"),
         "rules" => include_str!("guide/rules.md"),
         "sync" => sync::CARD,
+        "sharing" => sharing::CARD,
         "residency" => r##"# Residency: facts at check, coverage on each call
 
 Residency describes which data a device holds and which operations need the server.

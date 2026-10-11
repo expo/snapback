@@ -1046,7 +1046,7 @@ pub fn why(options: &Options) -> i32 {
             println!("  update <- {}", table.rules.update.quarry());
             println!("  delete <- {}", table.rules.delete.quarry());
             match &table.sync {
-                Some(sync) => println!("  {} — a device holds these rows; {}", sync.line(), match &sync.audience { Audience::Public => "everyone holds the same partition".to_owned(), Audience::Column(c) => format!("each row reaches the principal in .{c}"), Audience::Target { table, principal, .. } => format!("each row reaches every principal in {table}.{principal} whose group matches") }),
+                Some(sync) => println!("  {} — a device holds these rows; {}", sync.line(), match &sync.audience { Audience::Public => "everyone holds the same partition".to_owned(), Audience::Column(c) => format!("each row reaches the principal in .{c}"), Audience::Target { table, principal, prefix } if prefix.is_empty() => format!("each row reaches every principal in {table}.{principal} (one roster, no group key)"), Audience::Target { table, principal, .. } => format!("each row reaches every principal in {table}.{principal} whose group matches") }),
                 None => println!("  online-only — no sync line; reads go to the server"),
             }
             if let Some(column) = &table.expire {

@@ -415,6 +415,8 @@ impl Sync {
         let audience = match &self.audience {
             Audience::Public => "sync public".to_owned(),
             Audience::Column(column) => format!("sync to .{column}"),
+            // A roster with no group columns has no `sync to` spelling: it is the inferred `sync`.
+            Audience::Target { prefix, .. } if prefix.is_empty() => "sync".to_owned(),
             Audience::Target { table, prefix, .. } => format!("sync to {table}[{}]", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
         };
         match &self.horizon {
@@ -700,6 +702,22 @@ impl RuleExpr {
             1 => audience.pop().expect("one audience"),
             _ => Self::Or(audience),
         })
+    }
+
+    /// The device audience of `table_name`'s read rule: service grants
+    /// removed, then every same-row disjunct a self-probe absorbs (a members
+    /// row read under `.principal = viewer or exists members[.group, viewer]`
+    /// is its own witness, so the first disjunct adds no reader). What
+    /// remains must still be one of the three invertible forms.
+    // @ref LLP 3000.036.000#3.1 — absorption is exact equivalence, never a narrowing.
+    pub fn sync_audience_rule(&self, table_name: &str, table: &Table) -> std::borrow::Cow<'_, RuleExpr> {
+        let audience = self.device_audience_rule();
+        let terms = audience.disjuncts();
+        if terms.len() < 2 { return audience; }
+        let absorbed = |term: &RuleExpr| terms.iter().any(|other| crate::engine::rules::self_probe_absorbs(table_name, table, term, other));
+        if !terms.iter().any(|term| absorbed(term)) { return audience; }
+        let mut kept: Vec<RuleExpr> = terms.iter().filter(|term| !absorbed(term)).map(|term| (*term).clone()).collect();
+        std::borrow::Cow::Owned(if kept.len() == 1 { kept.pop().expect("one audience") } else { Self::Or(kept) })
     }
 
     /// The rule as Quarry text, for diagnostics and rewrites.
@@ -1172,7 +1190,7 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
 /// Why a `sync` line cannot be honoured, as the term the author must change.
 fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
-    let audience_rule = table.rules.read.device_audience_rule();
+    let audience_rule = table.rules.read.sync_audience_rule(table_name, table);
     // @ref LLP 3000.014#5 — a child admits exactly its substituted audience, never a public subset.
     if table.through.is_some() {
         let exact = match (audience_rule.as_ref(), &sync.audience) {
@@ -1232,8 +1250,9 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
                         issue(
                             issues,
                             format!(
-                                "{target_name} grants the private audience of {table_name}: every insert rule branch needs an independent grant probe in {target_name}, binding its recipient to viewer and its group columns to this group's columns ({}), or a created probe for the new group; `.{principal} = viewer` alone lets anyone join. This also governs insert if absent and upsert",
-                                binding.columns.join(", ")
+                                "{target_name} grants the private audience of {table_name}: every insert rule branch needs an independent grant probe in {target_name}, `exists {target_name}[{}]`, binding its recipient to viewer and its group columns to this group's columns{}, or a created probe for the new group; `.{principal} = viewer` alone lets anyone join. This also governs insert if absent and upsert",
+                                binding.columns.iter().map(|column| format!(".{column}, ")).collect::<String>() + "viewer",
+                                if binding.columns.is_empty() { " (none: the roster is one group, so a caller already in it may add others)".to_owned() } else { format!(" ({})", binding.columns.join(", ")) }
                             ),
                         );
                     }
@@ -1315,8 +1334,10 @@ fn grant_guard(
         RuleExpr::Exists { table, index, key, .. } => table == audience_name && audience.index(index).is_some_and(|index| {
             let fields = index.columns();
             let term = |column: &str| fields.iter().position(|field| field == column).and_then(|at| key.get(at));
+            // With no group columns (a global roster) the one group is the
+            // whole table, so any row of the caller's proves the grant.
             index.is_plain() && fields.len() == key.len() && term(principal) == Some(&RuleTerm::Viewer)
-                && !columns.is_empty() && columns.iter().all(|column|
+                && columns.iter().all(|column|
                     matches!(term(column), Some(RuleTerm::Field(field) | RuleTerm::NextField(field)) if field == column))
         }),
         RuleExpr::Created { table, index, key, .. } => columns.len() == 1 && key.len() == 1 && group_pinned(key)
@@ -1326,6 +1347,58 @@ fn grant_guard(
         RuleExpr::Or(rules) => rules.iter().all(|rule| grant_guard(rule, columns, principal, audience_name, audience, schema)),
         _ => false,
     }
+}
+
+/// The audience table's insert (or update) rule with the grant probe the
+/// sync check asks for conjoined to every branch that lacks one: the paste-
+/// ready repair behind "every insert rule branch needs an independent grant
+/// probe". Branches that already prove a grant are kept as written. When no
+/// branch lets the mutation that creates a group add its first member, the
+/// second string names that `created` branch.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GrantRepair {
+    /// The whole repaired rule line, `insert <- ...` or `update <- ...`.
+    pub rule: String,
+    /// The branches, as written, that prove no grant.
+    pub unguarded: Vec<String>,
+    /// `or created group[.column]` when no branch admits a new group's first member.
+    pub created: Option<String>,
+}
+
+pub fn audience_grant_repair(schema: &Schema, target_name: &str, binding: &AudienceBinding, update: bool) -> Option<GrantRepair> {
+    let target = schema.table(target_name)?;
+    let rule = if update { &target.rules.update } else { &target.rules.insert };
+    let mut key: Vec<RuleTerm> = binding.columns.iter().map(|column| RuleTerm::Field(column.clone())).collect();
+    key.push(RuleTerm::Viewer);
+    let probe = RuleExpr::Exists { table: target_name.to_owned(), index: binding.group_index.clone(), key, equalities: Vec::new(), provenance: crate::ir::KeyProvenance::Shape };
+    let guarded = |rule: &RuleExpr| grant_guard(rule, &binding.columns, &binding.principal, target_name, target, schema);
+    let conjoin = |rule: &RuleExpr| -> RuleExpr {
+        if guarded(rule) { return rule.clone(); }
+        match rule {
+            RuleExpr::Allow => probe.clone(),
+            RuleExpr::And(items) => RuleExpr::And(items.iter().cloned().chain([probe.clone()]).collect()),
+            other => RuleExpr::And(vec![other.clone(), probe.clone()]),
+        }
+    };
+    let repaired = match rule {
+        RuleExpr::Or(_) => RuleExpr::Or(rule.disjuncts().into_iter().map(conjoin).collect()),
+        other => conjoin(other),
+    };
+    let creates = |rule: &RuleExpr| rule.disjuncts().iter().any(|branch| matches!(branch, RuleExpr::Created { .. })
+        || matches!(branch, RuleExpr::And(items) if items.iter().any(|item| matches!(item, RuleExpr::Created { .. }))));
+    let created = match binding.columns.as_slice() {
+        [column] if !update && !creates(rule) => match target.columns.get(column).map(ColumnType::required) {
+            Some(ColumnType::Ref { table: group }) => Some(format!("or created {group}[.{column}]")),
+            _ => None,
+        },
+        _ => None,
+    };
+    let printed = |rule: &RuleExpr| match rule {
+        RuleExpr::Or(items) => items.iter().map(|item| match item { RuleExpr::And(_) if items.len() > 1 => format!("({})", item.quarry()), other => other.quarry() }).collect::<Vec<_>>().join(" or "),
+        other => other.quarry(),
+    };
+    let unguarded = rule.disjuncts().into_iter().filter(|branch| !guarded(branch)).map(RuleExpr::quarry).collect();
+    Some(GrantRepair { rule: format!("{} <- {}", if update { "update" } else { "insert" }, printed(&repaired)), unguarded, created })
 }
 
 /// The target table's columns a content row's `prefix` columns are matched
@@ -1376,7 +1449,7 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
     let mut want = prefix.iter().map(|column| RuleTerm::Field(column.clone())).collect::<Vec<_>>();
     want.push(RuleTerm::Viewer);
     let spelled_want = want.iter().map(|t| match t { RuleTerm::Field(f) => format!(".{f}"), _ => "viewer".into() }).collect::<Vec<_>>().join(", ");
-    let audience_rule = table.rules.read.device_audience_rule();
+    let audience_rule = table.rules.read.sync_audience_rule(table_name, table);
     let columns = if audience_rule.is_uniformly_readable() {
         // A public table may sync to any audience; the mapping is by name and type.
         target_prefix_columns(table_name, table, target, prefix, principal).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}]: {target_name} has no column matching {} (same name and type, or one reference to the same table)", prefix.iter().map(|c| format!("{table_name}.{c}")).collect::<Vec<_>>().join(", ")))?

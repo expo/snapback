@@ -294,6 +294,17 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             }
             let prefix = need.prefix;
             if !prefix.is_empty() { requests.index(original, prefix.clone(), None, &sync.site, false); }
+            // @ref LLP 3000.036.000#2.3 — a read-through audience groups by a captured parent column no
+            // declared index can name; the named index then orders the window inside each group.
+            if let Some((_, SyncOrder::Index(name))) = &mut sync.horizon
+                && prefix.iter().any(|column| original.captures.contains_key(column))
+                && let Some(declared) = original.indexes.iter().find(|index| &index.name == name)
+                && declared.is_plain() && !declared.columns.starts_with(&prefix) {
+                let mut columns = prefix.clone();
+                for column in &declared.columns { if !columns.contains(column) { columns.push(column.clone()); } }
+                if !columns.iter().any(|column| column == "id") { columns.push("id".into()); }
+                *name = requests.index(original, columns, None, &sync.site, true);
+            }
             if let Some((last, by @ SyncOrder::Columns(_))) = &mut sync.horizon {
                 let SyncOrder::Columns(order) = by else { unreachable!() };
                 // @ref LLP 3000.019#3.1 — audience pins lead, then authored order, then the id tiebreaker once.
