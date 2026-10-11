@@ -45,6 +45,7 @@ card/assets/1:sendClip | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | 
 card/assets/1:sendClip | eligible
 card/assets/1:sendPhotos | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/assets/1:sendPhotos | eligible
+card/bounds/2:signUp | never
 card/effects/1:send | eligible
 card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/effects/2:send | eligible
@@ -495,6 +496,7 @@ card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read r
 card/start/5:remove | eligible
 card/start/5:toggle | eligible
 card/start/5:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
+card/testing/1:addCard | never
 card/types/1:createProfile | never
 card/wire/1:addExpense | never
 card/writes/1:checkin | never
