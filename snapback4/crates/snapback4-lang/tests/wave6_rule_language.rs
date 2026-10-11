@@ -331,3 +331,130 @@ fn a_parent_probe_guard_beside_a_grant_is_named_unfollowed_and_the_runtime_agree
     assert_eq!((complete, ids.len()), (false, 2), "the owner reads every row, capped, as the note says");
     assert_eq!(page(&mut engine, "gardenVisits", "vic", &pairs), (true, BTreeSet::from(["k1".to_owned()])));
 }
+
+// ---- #22: authorization lints, each on its lane's shape and its near misses ----
+
+#[test]
+fn n_probe_only_read_names_a_probe_that_names_no_caller_and_the_rewrite_closes_it() {
+    // Lane 073: Bob read Alice's review because the probe only asked whether the application exists.
+    let apps = "table applications:\n  applicant: principal\n  immutable applicant\n  read <- .applicant = viewer\n  online only\n";
+    let reviews = |rule: &str| format!("{apps}table reviews:\n  application: applications\n  body: text <=200\n  immutable application\n  {rule}\n  online only\nquery reviewsOf(application: applications):\n  return reviews where .application = application first 20 by .id\n");
+    let open = reviews("read <- exists applications[.application]");
+    let b = clean(&open);
+    let n = note(&b, "N_PROBE_ONLY_READ").unwrap_or_else(|| panic!("{:#?}", b.notes)).clone();
+    assert!(n.rewrite.contains("`read through .application`") && n.rewrite.contains("`exists applications[.application, applicant = viewer]`"), "{n}");
+    let rows = || -> Rows { vec![("applications", vec![("id", id("a1")), ("applicant", id("alice"))]), ("reviews", vec![("id", id("r1")), ("application", id("a1")), ("body", Value::String("ok".into()))])] };
+    let mut engine_open = engine(&open, rows());
+    assert_eq!(page(&mut engine_open, "reviewsOf", "bob", &[("application", id("a1"))]).1.len(), 1, "the note's claim: bob reads alice's review");
+    let closed = reviews("read through .application");
+    let b = clean(&closed);
+    assert!(note(&b, "N_PROBE_ONLY_READ").is_none(), "{:#?}", b.notes);
+    let mut engine_closed = engine(&closed, rows());
+    assert_eq!(page(&mut engine_closed, "reviewsOf", "bob", &[("application", id("a1"))]).1.len(), 0);
+    assert_eq!(page(&mut engine_closed, "reviewsOf", "alice", &[("application", id("a1"))]).1.len(), 1);
+    // Near misses: a probe naming the caller, and one whose own test makes the parent public.
+    assert!(note(&clean(&reviews("read <- exists applications[.application, applicant = viewer]")), "N_PROBE_ONLY_READ").is_none());
+    let decks = "table decks:\n  owner: principal\n  isPublic: bool\n  read <- .owner = viewer or .isPublic = true\n  online only\ntable cards:\n  deck: decks\n  read <- exists decks[.deck, owner = viewer] or exists decks[.deck, isPublic = true]\n  online only\n";
+    assert!(note(&clean(decks), "N_PROBE_ONLY_READ").is_none());
+}
+
+#[test]
+fn n_vacuous_rule_names_a_self_asserted_counterpart_and_not_an_owners_own_row() {
+    // Lane 061: any persona could schedule a session as "therapist" and then write the client's notes.
+    let tables = |insert: &str| format!("table therapists:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable sessions:\n  therapist: principal\n  client: principal\n  immutable therapist, client\n  read <- .therapist = viewer or .client = viewer\n  {insert}\n  online only\ntable notes:\n  session: sessions\n  body: text <=200\n  immutable session\n  read <- .session.therapist = viewer or .session.client = viewer\n  insert <- .session.therapist = viewer\n  online only\nmutation scheduleSession(client: principal):\n  return insert sessions {{ therapist: viewer, client }}\n");
+    let open = tables("insert <- .therapist = viewer");
+    let b = clean(&open);
+    let n = note(&b, "N_VACUOUS_RULE").unwrap_or_else(|| panic!("{:#?}", b.notes)).clone();
+    assert!(n.message.contains("notes trusts `.session.therapist = viewer`") && n.rewrite.contains("`insert <- .therapist = viewer and exists <roles>[viewer]`"), "{n}");
+    let mut engine_open = engine(&open, vec![]);
+    assert_eq!(mutate(&mut engine_open, "scheduleSession", "carol", &[("client", id("bob"))]), "ok", "the note's claim: an outsider schedules");
+    let closed = tables("insert <- .therapist = viewer and exists therapists[viewer]");
+    assert!(note(&clean(&closed), "N_VACUOUS_RULE").is_none());
+    // A row naming only its writer (the todo shape) and a consent row (a patient naming a doctor) are never noted.
+    let todo = "table todos:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add(title: text <=80):\n  return insert todos { owner: viewer, title }\n";
+    assert!(note(&clean(todo), "N_VACUOUS_RULE").is_none());
+    let consent = "table careLinks:\n  patient: principal\n  doctor: principal\n  read <- .patient = viewer or .doctor = viewer\n  insert <- .patient = viewer\n  online only\ntable results:\n  patient: principal\n  read <- .patient = viewer or exists careLinks[patient = .patient, doctor = viewer]\n  online only\nmutation grantAccess(doctor: principal):\n  return insert careLinks { patient: viewer, doctor }\n";
+    let b = bound(consent);
+    assert!(note(&b, "N_VACUOUS_RULE").is_none(), "{:#?}", b.notes);
+}
+
+#[test]
+fn n_lookup_hidden_names_a_write_role_the_read_rule_never_uses_and_the_runtime_agrees() {
+    // Lane 001: vetted drivers pass the update rule but cannot find a requested ride.
+    let rides = |read: &str| format!("table drivers:\n  principal: principal\n  vetted: bool\n  unique principal\n  read <- .principal = viewer\n  online only\ntable rides:\n  patient: principal\n  driver: principal ?\n  status: enum('requested', 'accepted') default 'requested'\n  immutable patient\n  read <- {read}\n  insert <- .patient = viewer\n  update <- .patient = viewer or .driver = viewer or exists drivers[viewer, vetted = true]\n  online only\nmutation acceptRide(ride: rides):\n  r = rides[ride] ! else NOT_FOUND\n  require r.status = 'requested' else ALREADY_TAKEN\n  update rides[ride] {{ driver: viewer, status: 'accepted' }}\n");
+    let hidden = rides(".patient = viewer or .driver = viewer");
+    let b = clean(&hidden);
+    let n = note(&b, "N_LOOKUP_HIDDEN").unwrap_or_else(|| panic!("{:#?}", b.notes)).clone();
+    assert!(n.message.contains("`exists drivers[viewer, vetted = true]`") && n.rewrite.contains("read <- .patient = viewer or .driver = viewer or exists drivers[viewer, vetted = true]"), "{n}");
+    let rows = || -> Rows { vec![("drivers", vec![("id", id("d1")), ("principal", id("dee")), ("vetted", Value::Bool(true))]), ("rides", vec![("id", id("x1")), ("patient", id("pat")), ("driver", Value::Null), ("status", Value::String("requested".into()))])] };
+    let mut before = engine(&hidden, rows());
+    assert_eq!(mutate(&mut before, "acceptRide", "dee", &[("ride", id("x1"))]), "NOT_FOUND", "the runtime agrees with the note");
+    let fixed = rides(".patient = viewer or .driver = viewer or .status = 'requested' and exists drivers[viewer, vetted = true]");
+    let b = clean(&fixed);
+    assert!(note(&b, "N_LOOKUP_HIDDEN").is_none(), "{:#?}", b.notes);
+    let mut after = engine(&fixed, rows());
+    assert_eq!(mutate(&mut after, "acceptRide", "dee", &[("ride", id("x1"))]), "ok");
+    // A party the app keeps a reader by invariant (a facilitator who is a member) is not named.
+    let member = "table members:\n  group: text <=20\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  online only\ntable posts:\n  group: text <=20\n  facilitator: principal\n  read <- exists members[.group, viewer]\n  update <- .facilitator = viewer\n  online only\nmutation pin(post: posts):\n  update posts[post] { group: 'g' }\n";
+    assert!(note(&clean(member), "N_LOOKUP_HIDDEN").is_none());
+}
+
+#[test]
+fn n_write_denied_names_a_counter_only_a_role_may_update_in_a_mutation_for_everyone() {
+    // Lane 062: growers donate seeds; the stock counter's table admits only staff.
+    let library = |guard: &str| format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable varieties:\n  stock: int\n  read <- allow\n  update <- exists roles[viewer]\n  online only\ntable donations:\n  variety: varieties\n  grower: principal\n  packets: int\n  read <- .grower = viewer\n  insert <- .grower = viewer\n  online only\nmutation donate(variety: varieties, packets: int):\n{guard}  v = varieties[variety] ! else NOT_FOUND\n  insert donations {{ variety, grower: viewer, packets }}\n  update varieties[variety] {{ stock: v.stock + packets }}\n");
+    let open = library("");
+    let b = clean(&open);
+    let n = b.notes.iter().find(|n| n.code == "N_WRITE_DENIED").unwrap_or_else(|| panic!("{:#?}", b.notes)).clone();
+    assert!(n.message.contains("`stock` is a counter") && n.rewrite.starts_with("keep the count from the rows the callers write instead"), "{n}");
+    let mut engine_open = engine(&open, vec![("varieties", vec![("id", id("v1")), ("stock", Value::Int(0))])]);
+    assert_eq!(mutate(&mut engine_open, "donate", "gil", &[("variety", id("v1")), ("packets", Value::Int(3))]), "E_RULE", "the runtime agrees");
+    // The maintained form: no counter column, a sum view over the donations.
+    let maintained = "table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable varieties:\n  name: text <=40\n  read <- allow\n  online only\ntable donations:\n  variety: varieties\n  grower: principal\n  packets: int\n  read <- .grower = viewer\n  insert <- .grower = viewer\n  online only\nview donated: sum donations of .packets by .variety\n  read <- allow\nmutation donate(variety: varieties, packets: int):\n  v = varieties[variety] ! else NOT_FOUND\n  insert donations { variety, grower: viewer, packets }\n";
+    let b = clean(maintained);
+    assert!(!b.notes.iter().any(|n| n.code == "N_WRITE_DENIED"), "{:#?}", b.notes);
+    let mut engine_view = engine(maintained, vec![("varieties", vec![("id", id("v1")), ("name", Value::String("bean".into()))])]);
+    assert_eq!(mutate(&mut engine_view, "donate", "gil", &[("variety", id("v1")), ("packets", Value::Int(3))]), "ok");
+    // A staff-guarded counter is not noted.
+    let guarded = library("  require exists roles[viewer] else NOT_STAFF\n");
+    assert!(!clean(&guarded).notes.iter().any(|n| n.code == "N_WRITE_DENIED"));
+}
+
+// ---- The farm sweep (opt-in): every farm schema through the wave-6 lints ----
+
+/// `SNAPBACK4_FARM=~/sb4-loop cargo test -p snapback4-lang --test wave6_rule_language farm -- --ignored --nocapture`
+/// compiles every `wave*/apps/*/snapback/*.q` and prints each wave-6 note.
+#[test]
+#[ignore]
+fn farm_sweep_prints_every_wave6_note() {
+    let Ok(root) = std::env::var("SNAPBACK4_FARM") else { return };
+    let mut apps = Vec::new();
+    for wave in std::fs::read_dir(&root).unwrap().flatten() {
+        let apps_dir = wave.path().join("apps");
+        let Ok(entries) = std::fs::read_dir(&apps_dir) else { continue };
+        for app in entries.flatten() { apps.push(app.path().join("snapback")); }
+    }
+    apps.sort();
+    let codes = ["N_PROBE_ONLY_READ", "N_VACUOUS_RULE", "N_LOOKUP_HIDDEN", "N_WRITE_DENIED"];
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for dir in apps {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        let mut sources: Vec<(String, String)> = entries.flatten().filter(|e| e.path().extension().is_some_and(|x| x == "q"))
+            .map(|e| (e.file_name().to_string_lossy().into_owned(), std::fs::read_to_string(e.path()).unwrap())).collect();
+        if sources.is_empty() { continue; }
+        sources.sort();
+        let b = compile(&sources);
+        *counts.entry("apps".into()).or_default() += 1;
+        for n in &b.notes {
+            if n.code == "N_NEVER_COMPLETE" {
+                let kind = if n.rewrite.contains("there is no single complete form") { "never-complete: no form" } else if n.rewrite.contains("return exactly the rows") || n.rewrite.starts_with("Replace this query") { "never-complete: form" } else { "never-complete: pin only" };
+                *counts.entry(kind.into()).or_default() += 1;
+                if let Some(why) = n.rewrite.split("there is no single complete form: ").nth(1) { println!("NOFORM {}", why.split("; keep the query").next().unwrap()); }
+            }
+            if !codes.contains(&n.code.as_str()) { continue; }
+            *counts.entry(n.code.clone()).or_default() += 1;
+            println!("{} {}\n  {}\n  -> {}\n", dir.display(), n.code, n.message, n.rewrite);
+        }
+    }
+    println!("{counts:#?}");
+}

@@ -12,6 +12,7 @@ mod refusals;
 pub(crate) mod rule_operator;
 mod pin_rewrite;
 mod complete_form;
+mod auth_lints;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
@@ -280,6 +281,8 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(denied_reads(&catalog, &schema, &programs));
+    // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
+    notes.extend(auth_lints::notes(&catalog, &schema));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
