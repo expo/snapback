@@ -294,8 +294,9 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
-            let notes = bound.notes.iter().map(|note| crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)) })
-                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary) }))
+            let notes = bound.notes.iter().map(|note| crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
+                form: crate::note_rank::compiled_form(&note.code, &note.rewrite).map(|(lead, code)| (lead, present(&code))) })
+                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None }))
                 .collect();
             for line in crate::note_rank::render(notes) { println!("{line}"); }
         }
