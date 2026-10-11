@@ -17,6 +17,11 @@ table requests:
   insert <- .author = viewer
   online only
 
+query board(c: cursor ?):              -- one page: staff see every request, authors their own
+  if exists staff[viewer]:
+    return requests last 50 by .id after c
+  return requests where .author = viewer last 50 by .id after c
+
 query queue(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
   return requests last 50 by .id after c
@@ -36,7 +41,11 @@ grant admits admins too; test `role = 'staff'` where only staff is meant. Each o
 `require`, so a member gets `NOT_STAFF` instead of a bare `E_RULE`, and the
 staff queue reads every open ticket and answers `complete: true`. The table's
 update rule admits the author and staff; `retitle` narrows it to the author
-and `close` to staff, one `require` each.
+and `close` to staff, one `require` each. A page that staff read whole and
+members read their own rows of is one query that branches on the grant
+(`board`): each branch scans rows its reader may read, so both answer
+`complete: true`. A single `where .author = viewer or exists roles[viewer]`
+scan cannot promise that (`N_NEVER_COMPLETE`), and two queries split the screen.
 
 ```quarry
 use personas alice, bob, carol
@@ -61,6 +70,11 @@ table tickets:
   insert <- .author = viewer
   update <- .author = viewer or exists roles[viewer]
   online only
+
+query board(c: cursor ?):
+  if exists roles[viewer]:
+    return tickets last 50 by .at after c
+  return tickets where .author = viewer last 50 by .at after c
 
 query mine(c: cursor ?):
   return tickets where .author = viewer last 20 by .at after c
@@ -102,6 +116,8 @@ call `grant` once with it. Cases for `test.cases.jsonl` (with a ticket
 `t1` by bob in the tickets fixture):
 
 ```jsonl
+{"as":"alice","op":"board","args":{},"expect":"complete","label":"staff read every ticket on one page"}
+{"as":"bob","op":"board","args":{},"expect":"complete","label":"a member reads their own tickets, complete too"}
 {"as":"alice","op":"queue","args":{},"expect":"complete","label":"an admin sees every open ticket"}
 {"as":"bob","op":"queue","args":{},"expect":"NOT_STAFF"}
 {"as":"carol","op":"retitle","args":{"ticket":"t1","title":"x"},"expect":"NOT_FOUND","label":"a member cannot read bob's ticket"}

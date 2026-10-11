@@ -1,7 +1,6 @@
 # Cheatsheet: the common forms on one screen
 
-The forms most apps need, in one schema that compiles, then the commands and client calls around it.
-Each line names the card that has the rest.
+The forms most apps need, in one schema that compiles, then the commands and client calls; each line names the card with the rest.
 
 ```quarry
 use identity                              -- guests and password accounts (guide personas)
@@ -19,7 +18,6 @@ table lists:                              -- every table has an implicit `id`
   delete <- .owner = viewer
   cap 100 by owner                        -- at most 100 rows per owner
   sync to .owner last 100 by .at          -- each owner's devices hold their newest 100
-
 table items:
   list: lists                             -- a reference: the parent row's id
   owner: principal
@@ -32,9 +30,19 @@ table items:
   delete <- .owner = viewer
   cap 500 by list
   sync to .owner
-
 view openItems: count items where .done = false by .owner, .list   -- a maintained count; a missing group reads 0
   read <- .owner = viewer
+table staff:                              -- a role: one row per staff member (guide recipes)
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table requests:                           -- owner or staff: two audiences, so `online only` (guide sharing)
+  author: principal
+  title: text 1..200
+  read <- .author = viewer or exists staff[viewer]
+  insert <- .author = viewer
+  online only
 
 query myLists(c: cursor ?):               -- a page; pass the answer's `next` back as `c`
   return lists where .owner = viewer last 20 by .at after c   -- `last` reads newest first; `first` oldest first
@@ -42,6 +50,10 @@ query itemsOf(list: lists, c: cursor ?):
   return items where .owner = viewer and .list = list first 50 by .id after c
 query openCount(list: lists):
   return openItems[viewer, list]
+query board(c: cursor ?):                 -- owner or staff on one page: branch on the grant; both complete
+  if exists staff[viewer]:
+    return requests last 50 by .id after c
+  return requests where .author = viewer last 50 by .id after c
 
 mutation addList(title: text 1..80):
   return insert lists { owner: viewer, title }
@@ -55,7 +67,6 @@ mutation toggle(item: items):
   return null
 mutation removeItem(item: items):
   delete items[item]
-  return null
 ```
 
 ## Quarry
@@ -63,18 +74,15 @@ mutation removeItem(item: items):
 - Comments start with `--` (never `//`); blocks indent two spaces; `snapback/*.q` share one namespace.
 - Types: `text <=N`, `text M..N` (a length), `int` (no range: bound it with `require n >= 1 and n <= 10 else CODE`), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
   `json <=N`, `bytes <=N`, `[text <=20] <=8`, `image <=N`, a table name (a reference); `T ?` is optional (`guide types`).
-- Durations are milliseconds: `500ms 30s 15m 24h 7d`; `now + 1h`; `day(now)` is a UTC day number (`guide time`).
 - Operators: `= != < <= > >=`, `and or not`, `+ - * / %`, `x ?? fallback`, `a if cond else b`, `exists t[k]`.
   `/` and `%` take ints (and times) and floor: `7 / 2` is 3, `-7 / 2` is -4, `-7 % 2` is 1; zero refuses E_DIV_ZERO.
   `money` and `decimal` add, subtract and multiply by an int but do not divide; `share(total, people, viewer)` splits an amount.
-- Text: `'it\'s'` or `"it's"`; `\\`, `\n` and `\t` escape too; `+` joins text. A reference never converts to text.
-- Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`.
-  `t[a, b]` takes a declared unique key's values in column order; `t[col = x]` names a column; inside
-  brackets a bare name is a local or argument, and in rules the row's own column is `.col`.
-- Pages: `where` is optional; `return pieces first 50 by .id after c` pages a whole readable table.
-- Shapes: `t[x] { id, name: .title }` copies `id` and renames `title`; `name: title` would read a local.
+- Text: `'it\'s'` or `"it's"`; `\\`, `\n`, `\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)` (`guide time`).
+- Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`. `t[a, b]` takes
+  a unique key's values in column order; `t[col = x]` names a column; in brackets a bare name is a local or argument, `.col` the row's.
+- Pages: `where` is optional (`return pieces first 50 by .id after c`). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.
 - Writes: `insert t { .. }`, `update t[id] { .. }`, `upsert t[k] { .. }`, `delete t[id]` (`guide writes`).
-  A missing target refuses NOT_FOUND, `delete` too: `if exists t[id]: delete t[id]` is idempotent.
+  A missing target refuses NOT_FOUND, `delete` too: guard it with `if exists t[id]:` and `delete t[id]` on the next line.
   Each statement checks `unique`, so swap two keys through a free value. Deleting a row leaves rows
   that reference it (delete them first); `read through` children refuse with E_PARENT_HAS_CHILDREN.
 - Table clauses: `unique a, b else CODE`, `cap N by col`, `immutable col`, `expire at .col`, `search col`,
@@ -112,13 +120,11 @@ const add = useMutation(api.addList);                     // add.run({ title });
 [add.last].find(isFailed)?.why.message;                   // the refusal of the last run, if any
 ```
 
-Headless or tests: `createClient({ url, persona: "alice" })` from `snapback4/client`, then
-`await client.query(api.myLists, {})` and `await client.mutate(api.addList, { title })`.
-Every export by subpath: `guide api`.
+Headless or tests: `createClient({ url, persona: "alice" })` from `snapback4/client`, then `await client.query(api.myLists, {})`
+and `await client.mutate(api.addList, { title })`. Every export by subpath: `guide api`.
 
 ## Tests
 
 - `npx snapback4 test --fixture fixtures --as alice`: `fixtures/<table>.jsonl` rows, then `fixtures/test.cases.jsonl`:
   `{"as":"bob","op":"addItem","args":{"list":"l1","text":"x"},"expect":"denied"}` (`guide testing`).
-- Over HTTP: `dev --port 0 --memory`; stdout's first line is the URL; `POST /seed`, `POST /q/<query>`,
-  `POST /m/<mutation>` with header `x-snapback-persona: alice` (`guide testing --section acceptance`, `guide wire`).
+- Over HTTP: `dev --port 0 --memory` (stdout's first line is the URL); `POST /seed`, `/q/<query>`, `/m/<mutation>` with `x-snapback-persona: alice` (`guide testing --section acceptance`).
