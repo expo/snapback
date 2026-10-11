@@ -72,7 +72,10 @@ fn refusals_explain_private_maintained_ephemeral_and_read_positions() {
     let b = compile(&[("schema.q".into(),format!("{}  read <- .message.owner = viewer\n",TABLES.trim_end_matches("  public\n")))]);
     let d = b.diagnostics.iter().find(|d| d.code=="E_QUARRY_RULE_HOP").expect(&format!("{:?}",b.diagnostics));
     assert!(d.message.contains("read through"),"{d:?}");
-    assert!(d.rewrite.contains("read through .message") && d.rewrite.contains("read <- .owner = viewer") && !d.rewrite.contains("require "),"{d:?}");
+    // LLP 3000.036 §12: one hop on a table that does not sync probes the parent directly.
+    assert!(d.rewrite.contains("read through .message") && d.rewrite.contains("read <- exists messages[.message, owner = viewer]") && !d.rewrite.contains("require "),"{d:?}");
+    let repaired = compile(&[("schema.q".into(),format!("{}  read <- exists messages[.message, owner = viewer]\n",TABLES.trim_end_matches("  public\n")))]);
+    assert!(repaired.diagnostics.is_empty(), "{:?}", repaired.diagnostics);
 }
 
 #[test]
