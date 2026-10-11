@@ -37,6 +37,7 @@ export declare const api: {
   stopTyping: Ephemeral<{ room: string }, null>;
   typingIn: Query<{ room: string }, { principal: string }[]>;
   handleAvailable: Query<{ handle: string }, boolean>;
+  unreadCount: Query<{}, number>;
   myProfile: Query<{}, { id: string; principal: string; handle: string } | null>;
   createProfile: Mutation<{ handle: string }, { id: string; principal: string; handle: string }>;
   thread: Query<{ conversationId: string; c?: Cursor | null }, Message[]>;

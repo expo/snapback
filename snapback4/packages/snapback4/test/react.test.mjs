@@ -65,6 +65,35 @@ test("journal storage listener belongs to the last shared owner", (t) => {
   }
 });
 
+// Wave-3 lanes 053 063 089: the non-null viewer follows the gate's own snapshot.
+test("useSignedInViewer returns the signed-in viewer and refuses E_AUTH outside a signed-in gate", async () => {
+  const { createElement } = await import("react");
+  const { renderToString } = await import("react-dom/server");
+  const { AppProvider, SnapbackProvider, useAuth, useSignedInViewer } = await import("../dist/react.js");
+  const client = viewer => ({ viewer: () => viewer, onViewer: () => () => {} });
+  const app = (snapshot, clientViewer = snapshot.viewer) => ({ client: client(clientViewer), online: {}, onOnlineChange: () => () => {},
+    auth: { ...snapshot, onChange: () => () => {}, getSnapshot: () => snapshot } });
+  function Mine() { return createElement("p", null, useSignedInViewer()); }
+  function Gate() { const auth = useAuth(); return auth.state === "signed-in" ? createElement(Mine) : createElement("p", null, auth.state); }
+  const underApp = (snapshot, child, clientViewer) => renderToString(createElement(AppProvider, { app: app(snapshot, clientViewer) }, createElement(child)));
+  assert.equal(underApp({ state: "signed-in", viewer: "dev:alice" }, Mine), "<p>dev:alice</p>");
+  // The app's auth snapshot decides, even while the client's viewer lags it.
+  assert.equal(underApp({ state: "signed-in", viewer: "dev:alice" }, Mine, null), "<p>dev:alice</p>");
+  for (const state of ["restoring", "signed-out"]) {
+    assert.equal(underApp({ state, viewer: null }, Gate), `<p>${state}</p>`, "a gate never renders the signed-in child");
+    assert.throws(() => underApp({ state, viewer: null }, Mine, "dev:stale"), error => {
+      assert.equal(error.why.code, "E_AUTH");
+      assert.match(error.message, new RegExp(`auth.state is "${state}"`));
+      assert.match(error.why.rewrite, /auth\.state === "signed-in"/);
+      return true;
+    });
+  }
+  const underClient = viewer => renderToString(createElement(SnapbackProvider, { client: client(viewer) }, createElement(Mine)));
+  assert.equal(underClient("dev:bob"), "<p>dev:bob</p>");
+  assert.throws(() => underClient(null), error => error.why.code === "E_AUTH");
+  assert.throws(() => renderToString(createElement(Mine)), /no <AppProvider> or <SnapbackProvider>/);
+});
+
 test("React hooks and reference-app lifetimes", async (t) => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
