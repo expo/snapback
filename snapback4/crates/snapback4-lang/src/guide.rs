@@ -64,7 +64,7 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{FULL_LINES, find, listing, nearest, overview, section, section_index, sections};
+pub use discovery::{FULL_LINES, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
 pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
 
@@ -99,7 +99,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("recurring", "recipes"), ("recurring job", "recipes"), ("close at time", "recipes"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
-    ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"),
+    ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "totals"),
     ("aggregate", "totals"), ("sum", "totals"), ("sums", "totals"), ("count", "totals"), ("counts", "totals"),
     ("total", "totals"), ("rollup", "totals"), ("counters-aggregates", "totals"),
     ("replay", "personas"), ("replay adapter", "personas"), ("seed", "personas"),
@@ -134,6 +134,28 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("mutation page over expiring messages", "sequences"),
     ("prohibited mutation scan over expiring rows", "sequences"),
 ];
+
+/// Aliases that name one section of their card: `guide <alias>` prints that
+/// section (with a line naming it; `--full` still prints the card), and
+/// `--section <alias>` or `--find <alias>` inside that card land there when
+/// no heading or line holds the word. Each entry is (alias, heading words).
+// @ref LLP 3000.007#20.1 — wave 6: `guide pagination` opened the reads card's index, and `--section pagination` found nothing.
+pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
+    ("pagination", "Pages and cursors"), ("paging", "Pages and cursors"), ("cursor", "Pages and cursors"),
+    ("roles", "Roles"), ("role", "Roles"), ("admin", "Roles"), ("rbac", "Roles"), ("permissions", "Roles"),
+    ("two-party", "Two parties"), ("two party", "Two parties"), ("buyer seller", "Two parties"), ("marketplace", "Two parties"),
+    ("booking", "Booking"), ("bookings", "Booking"), ("reservation", "Booking"), ("reservations", "Booking"),
+    ("capacity", "Booking"), ("seats", "Booking"), ("double booking", "Booking"),
+    ("recurring", "Schedules"), ("recurring job", "Schedules"), ("close at time", "Schedules"),
+    ("e2e", "An acceptance script over HTTP"), ("acceptance", "An acceptance script over HTTP"),
+    ("division", "Limits"), ("reserved", "Quarry"), ("reserved words", "Quarry"), ("subpaths", "Client subpaths"),
+];
+
+/// The section an alias names in its card, if it names one: (card, heading words).
+pub fn alias_section(word: &str) -> Option<(&'static str, &'static str)> {
+    let (alias, heading) = ALIAS_SECTIONS.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word.trim()))?;
+    Some((resolve(alias)?, heading))
+}
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {

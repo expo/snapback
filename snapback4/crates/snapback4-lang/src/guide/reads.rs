@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Reads
 
-Read authorized rows; `sync … last N` bounds the device's working set, not server history: cursor queries page server history beyond it, offline only within acquired device data.
+Read authorized rows; `sync … last N` bounds the device's working set, while cursors page server history (offline: acquired data only).
 
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
@@ -25,7 +25,7 @@ Repeated `where` clauses combine with `and` in order.
 ## Limits
 
 - A positional key names one row; use `where` for populations: E_QUARRY_POSITIONAL_SCAN.
-- Add a cursor if the screen pages: N_NO_CURSOR. React's `usePage` passes it as `c`: declare `c: cursor ?`, read `after c`.
+- Add a cursor if the screen pages: N_NO_CURSOR.
 - A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
 - N_SHAPE_METER: maintained totals (guide views), previews, or queries.
@@ -35,11 +35,16 @@ Repeated `where` clauses combine with `and` in order.
 Reads select authorized rows by id, predicate or search text.
 Add an order, page size and cursor to browse a population.
 
+### Pages and cursors
+
 State the rows, then the order and page. `messages where .roomId = roomId
 last 20 by .at after c` means the newest matching messages. The compiler
 chooses the index. Positional keys select identity for `id`/same-table references,
 otherwise the declared unique key accepting types in order; ambiguous types need named columns.
 The rules run before any projection, count or order reaches the caller.
+Declare `c: cursor ?`, read `after c`, pass each answer's `next` as `c`; `usePage` does that.
+
+### Completeness
 
 `complete` means the query answered its declared request within known coverage and execution limits.
 Filling a declared page bound is complete.

@@ -1,8 +1,53 @@
 //! Card discovery and the schema-evolution recipe.
 use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
+// @ref LLP 3000.007#20.1 — wave 6: the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index: guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index (piped, as agents read them, also their first section): guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
+}
+
+/// `guide aliases`: every alias, one per line, with the card (and section) it opens.
+pub fn aliases() -> String {
+    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` prints the whole card):\n", ALIASES.len());
+    for (word, target) in ALIASES {
+        match super::alias_section(word) {
+            Some((_, heading)) => out.push_str(&format!("{word} -> {target} --section {heading:?}\n")),
+            None => out.push_str(&format!("{word} -> {target}\n")),
+        }
+    }
+    out.trim_end().to_owned()
+}
+
+/// The section number (1-based, as the index numbers it) and heading whose
+/// words start with `heading`'s: how an alias's section is found.
+fn numbered_heading(card: &str, heading: &str) -> Option<(usize, String)> {
+    let wanted = words_of(heading);
+    sections(card).into_iter().enumerate().find(|(_, s)| words_of(&s.1).starts_with(&wanted)).map(|(n, s)| (n + 1, s.1))
+}
+
+/// `guide <alias>` for an alias that names a section of `card` (the card
+/// `name`, as printed): the title, a line saying where this is and how to
+/// read the rest, then the section. `None` for an alias of a whole card.
+pub fn alias_landing(word: &str, name: &str, card: &str) -> Option<String> {
+    let (target, heading) = super::alias_section(word)?;
+    if target != name { return None; }
+    let (n, heading) = numbered_heading(card, heading)?;
+    let (_, _, start, end) = sections(card).into_iter().nth(n - 1)?;
+    let lines: Vec<&str> = card.lines().collect();
+    let title = lines.first().filter(|line| line.starts_with("# ")).copied().unwrap_or_default();
+    Some(format!("{title}\n({} -> guide {name}, section {n}. {heading}; the whole card: snapback4 guide {name} --full · its sections: --sections)\n\n{}",
+        word.trim(), lines[start..end].join("\n").trim_end()))
+}
+
+/// `--section`/`--find` with an alias of this card that no heading or line
+/// holds: the section it names, or the card's opening for a whole-card alias.
+fn alias_inside(name: &str, card: &str, words: &str) -> Option<String> {
+    if let Some(landing) = alias_landing(words, name, card) { return Some(landing); }
+    if super::resolve(words.trim()) != Some(name) || KEYWORDS.contains(&words.trim()) { return None; }
+    let found = sections(card);
+    let lines: Vec<&str> = card.lines().collect();
+    Some(format!("{} is an alias of the whole guide {name} card, which no line names; here is its opening (the rest: --sections, --full):\n\n{}",
+        words.trim(), lines[..opening_end(card, &found)].join("\n").trim_end()))
 }
 
 fn distance(a: &str, b: &str) -> usize {
@@ -123,7 +168,33 @@ fn index_lines(card: &str, found: &[(usize, String, usize, usize)]) -> String {
 /// section index (and the ways to read more again). `None` when the card
 /// prints whole.
 // @ref LLP 3000.007#20.1 — the run-on hint sits under the title, so a short opening never reads as the whole card (wave 4).
-pub fn overview(name: &str, card: &str) -> Option<String> {
+pub fn overview(name: &str, card: &str) -> Option<String> { overview_with(name, card, false) }
+
+/// The same overview with the card's first section printed between the
+/// opening and the index: what `guide <card>` prints when stdout is not a
+/// terminal (an agent's tool), so one call shows the card's first content
+/// and not only its table of contents. A first section longer than
+/// [`FIRST_SECTION_LINES`] is cut at a paragraph boundary with the command
+/// that prints the rest.
+// @ref LLP 3000.007#20.1 — wave 6: 11 lanes re-ran --section/--full 3–4 times after an index-only opening.
+pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { overview_with(name, card, true) }
+
+/// The most lines of a card's first section the piped overview prints.
+const FIRST_SECTION_LINES: usize = 80;
+
+/// The last paragraph boundary (a blank line outside a fence) in
+/// `lines[from..to]` at or before `limit`, as an absolute line number.
+fn boundary(lines: &[&str], from: usize, to: usize, limit: usize) -> Option<usize> {
+    let mut fenced = false;
+    let mut best = None;
+    for (i, line) in lines.iter().enumerate().take(to).skip(from) {
+        if line.trim_start().starts_with("```") { fenced = !fenced; }
+        else if !fenced && line.trim().is_empty() && i <= limit { best = Some(i); }
+    }
+    best
+}
+
+fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> {
     let total = card.lines().count();
     let found = sections(card);
     if total <= FULL_LINES || found.is_empty() { return None; }
@@ -141,11 +212,21 @@ pub fn overview(name: &str, card: &str) -> Option<String> {
         if let Some(&lead_end) = boundaries.get(1) { cut = cut.max(lead_end.min(first)); }
     }
     // The title line, then the hint in the same paragraph, then the rest of the opening.
-    let hint = format!("(This is the opening and section index of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
+    let shown = if first_section { "opening, first section and section index" } else { "opening and section index" };
+    let hint = format!("(This is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
     let mut out = match lines.first().filter(|line| line.starts_with("# ")) {
         Some(title) => format!("{title}\n{hint}\n{}", lines[1..cut].join("\n")),
         None => format!("{hint}\n\n{}", lines[..cut].join("\n")),
     }.trim_end().to_owned();
+    if first_section {
+        if cut < first { out.push_str(&format!("\n\n… the opening continues for {} lines: snapback4 guide {name} --section 0", first - cut)); }
+        let (_, heading, start, end) = &found[0];
+        let limit = start + FIRST_SECTION_LINES;
+        let stop = if end - start <= FIRST_SECTION_LINES { *end } else { boundary(&lines, start + 1, *end, limit).unwrap_or(limit) };
+        out.push_str("\n\n");
+        out.push_str(lines[*start..stop].join("\n").trim_end());
+        if stop < *end { out.push_str(&format!("\n\n… section 1 ({heading}) continues for {} lines: snapback4 guide {name} --section 1", end - stop)); }
+    }
     out.push_str(&format!("\n\nSections of guide {name}:\n"));
     out.push_str(&index_lines(card, &found));
     out.push_str(&format!("More: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all {total} lines"));
@@ -229,8 +310,13 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
     if let Ok(n) = wanted.parse::<usize>() {
         return match found.get(n.wrapping_sub(1)) {
             Some((_, _, start, end)) => Ok(print(*start, *end)),
-            None => Err(format!("guide {name} has no section {n}\n{}", section_index(name, card))),
+            // `1000` is an alias of the bounds card, not its thousandth section.
+            None => alias_inside(name, card, words).ok_or_else(|| format!("guide {name} has no section {n}\n{}", section_index(name, card))),
         };
+    }
+    // An alias that names a section of this card lands there (`subpaths` would match two headings).
+    if super::alias_section(words).is_some_and(|(target, _)| target == name) {
+        if let Some(landing) = alias_inside(name, card, words) { return Ok(landing); }
     }
     let numbered: Vec<(usize, &(usize, String, usize, usize), String)> = found.iter().enumerate().map(|(n, s)| (n + 1, s, words_of(&s.1))).collect();
     let stages: [&dyn Fn(&str) -> bool; 4] = [
@@ -273,6 +359,8 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
         let note = format!("No heading of guide {name} is named {words:?}, and its mentions span {} sections; here they are:\n", counts.len());
         return find(name, card, words).map(|lines| format!("{note}{lines}"));
     }
+    // A whole-card alias no line mentions prints the card's opening.
+    if let Some(opening) = alias_inside(name, card, words) { return Ok(opening); }
     // A miss: the nearest heading by spelling (a typo), and the index.
     let mut out = format!("no section of guide {name} is named {words:?}, and no line mentions it");
     let mut near: Vec<(usize, usize, &str)> = numbered.iter().map(|(n, s, heading)| {
@@ -300,6 +388,8 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     // No line holds every word: print the lines holding any of them, still exiting 1.
     let mut any = false;
     if hits.is_empty() {
+        // An alias of this card no line holds: the section it names, or the opening.
+        if let Some(landing) = alias_inside(name, card, words) { return Ok(landing); }
         hits = any_mentions(card, words);
         if hits.is_empty() { return Err(format!("no line of guide {name} mentions {words:?}\n{}", section_index(name, card))); }
         any = true;

@@ -1082,6 +1082,73 @@ fn natural_words_find_their_cards() {
     }
 }
 
+// Wave 6 (LLP 3000.007 §20.1): `guide reads --section pagination` exited 1 and
+// `guide recipes --find capacity` found nothing although both are aliases of
+// those cards (074, 086). Every alias now works inside its own card, and the
+// curated ones land on the section they name.
+#[test]
+fn every_alias_is_a_section_or_find_word_inside_its_card() {
+    for &(word, target) in guide::ALIASES {
+        let text = card(target).unwrap();
+        assert!(guide::section(target, text, word).is_ok(), "guide {target} --section {word:?} refuses");
+        assert!(guide::find(target, text, word).is_ok(), "guide {target} --find {word:?} refuses");
+    }
+    for &(word, heading) in guide::ALIAS_SECTIONS {
+        let (target, _) = guide::alias_section(word).unwrap_or_else(|| panic!("{word} is not an alias"));
+        let text = card(target).unwrap();
+        let landing = guide::alias_landing(word, target, text).unwrap_or_else(|| panic!("{word}: no heading of guide {target} starts with {heading:?}"));
+        let title = text.lines().next().unwrap();
+        assert!(landing.starts_with(&format!("{title}\n({word} -> guide {target}, section ")), "{landing}");
+        assert!(landing.lines().nth(3).is_some_and(|line| line.starts_with("##") && line.contains(heading.split(' ').next().unwrap())), "{word}: {landing}");
+        assert_eq!(guide::section(target, text, word).unwrap(), landing, "{word}: --section lands where the bare alias does");
+        assert!(landing.lines().count() < text.lines().count(), "{word} prints one section");
+    }
+    let reads = card("reads").unwrap();
+    let pages = guide::alias_landing("pagination", "reads", reads).unwrap();
+    assert!(pages.contains("### Pages and cursors") && pages.contains("`c: cursor ?`") && pages.contains("`next`") && pages.contains("usePage"), "{pages}");
+    let capacity = guide::find("recipes", card("recipes").unwrap(), "capacity").unwrap();
+    assert!(capacity.contains("## Booking"), "{capacity}");
+    assert_eq!(card("aggregates"), card("totals"), "100 looked for totals under `aggregates`");
+    // A whole-card alias that no line names prints the opening, never a miss.
+    let oracle = guide::section("read-only", card("read-only").unwrap(), "oracle").unwrap();
+    assert!(oracle.starts_with("oracle is an alias of the whole guide read-only card") && oracle.contains("# Read-only"), "{oracle}");
+    // Words that are neither an alias nor in the card still refuse.
+    assert!(guide::section("reads", reads, "banana").is_err() && guide::find("reads", reads, "banana").is_err());
+}
+
+// Wave 6: the bare listing ended in one ~5 KB line of aliases (098); it is one
+// screen now, and `guide aliases` lists them one per line.
+#[test]
+fn the_listing_fits_a_screen_and_aliases_have_their_own_command() {
+    let listing = guide::listing();
+    assert!(listing.lines().count() <= 10 && listing.lines().all(|line| line.len() < 600), "{listing}");
+    assert!(listing.contains("snapback4 guide aliases") && !listing.contains("offline -> prediction"), "{listing}");
+    let aliases = guide::aliases();
+    assert_eq!(aliases.lines().count(), guide::ALIASES.len() + 1);
+    for &(word, target) in guide::ALIASES { assert!(aliases.lines().any(|line| line.starts_with(&format!("{word} -> {target}"))), "{word}"); }
+    assert!(aliases.contains("pagination -> reads --section \"Pages and cursors\""), "{aliases}");
+}
+
+// Wave 6: 11 lanes re-ran `--section`/`--full` after an index-only opening. A
+// piped `guide <card>` (an agent's tool) also prints the first section; the
+// terminal form keeps the short index.
+#[test]
+fn a_piped_overview_carries_the_first_section_and_the_terminal_one_the_index() {
+    for name in KEYWORDS {
+        let text = card(name).unwrap();
+        let (Some(short), Some(piped)) = (guide::overview(name, text), guide::overview_and_first_section(name, text)) else { continue };
+        assert!(short.lines().count() <= 70, "{name}: the terminal overview fits a window");
+        assert!(piped.lines().count() <= 150, "{name}: {} lines piped", piped.lines().count());
+        let first = &guide::sections(text)[0];
+        let heading = text.lines().nth(first.2).unwrap();
+        assert!(piped.contains(&format!("\n\n{heading}\n")), "{name}: section 1 ({heading}) is printed");
+        let (opening, index) = piped.split_once("\n\nSections of guide ").unwrap();
+        assert!(opening.contains(heading) && index.ends_with(&format!("--full prints all {} lines", text.lines().count())), "{name}");
+        assert!(short.starts_with(text.lines().next().unwrap()) && piped.starts_with(text.lines().next().unwrap()));
+        if first.3 - first.2 > 80 { assert!(piped.contains(&format!("… section 1 ({}) continues for ", first.1)) && piped.contains(&format!("snapback4 guide {name} --section 1")), "{name}: a long first section says how to read the rest"); }
+    }
+}
+
 #[test]
 fn prediction_card_compiles_clean() {
     let text = card("prediction").expect("prediction has a card");
@@ -1302,7 +1369,9 @@ fn password_policy_and_guest_choice_are_on_the_card() {
 
 #[test]
 fn w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards() {
-    assert_eq!(card("aggregates"), card("maintains"));
+    // Wave 6: `aggregates` opens the totals card, beside `aggregate` (lane 100); views stay on maintains.
+    assert_eq!(card("aggregates"), card("totals"));
+    assert_eq!(card("views"), card("maintains"));
     for doc in [card("reads").unwrap(), readme_reference("reads")] {
         for text in ["meter: true", "x-snapback-meter: 1", "heapBytes", "probes", "principal id", "ignores"] { assert!(doc.contains(text), "missing {text}"); }
     }

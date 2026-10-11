@@ -288,9 +288,9 @@ Public feeds share an activity union: Following delivers it to each reader; Tren
 
 ## Reference map: open only what the feature needs
 
-`snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
-cards and aliases; `guide cheatsheet` is one screen of the common forms. A card over 130 lines prints its opening
-and a numbered section index: `--section <number or words>` prints one, `--find <words>` greps it, `--full` prints all.
+`snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` indexes the cards; `guide aliases`
+lists words that open a card or one section (`guide pagination`). A card over 130 lines prints its opening, a section index
+and, piped, its first section: `--section <number or words>` prints one, `--find <words>` greps it, `--full` prints all.
 Every refusal names a code, site and rewrite.
 Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
 | Need | One reference lookup |
