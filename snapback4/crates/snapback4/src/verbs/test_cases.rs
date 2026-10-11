@@ -55,7 +55,9 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let case: Json = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
         let Some(op) = case.get("op").and_then(Json::as_str) else { return Err(format!("{at}: each case names \"op\" (a query or mutation)")) };
         let Some(bound_program) = bound.programs.iter().find(|p| p.program.name == op) else {
-            return Err(format!("{at}: unknown operation {op}"));
+            let starter = super::init::starter_fixture(FILE).is_some_and(|starter| starter == text);
+            let hint = if starter { format!("\n  hint: {FILE} is the todo starter's unmodified cases for list/add/toggle/remove; `snapback4 init --adapt` removes it (write your own cases, `snapback4 guide testing`)") } else { String::new() };
+            return Err(format!("{at}: unknown operation {op}{hint}"));
         };
         let program = bound_program.program.clone();
         let persona = case.get("as").and_then(Json::as_str).unwrap_or_else(|| default_persona(&bound.personas));

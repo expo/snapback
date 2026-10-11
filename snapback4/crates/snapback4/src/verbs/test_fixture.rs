@@ -27,8 +27,16 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     for name in names {
         let Some(table) = name.strip_suffix(".jsonl") else { continue };
         if name == super::test_cases::FILE { continue; }
-        let Some(definition) = bound.schema.tables.get(table) else { unknown.push(name); continue };
         let path = std::path::Path::new(fixture).join(&name);
+        let Some(definition) = bound.schema.tables.get(table) else {
+            // @ref LLP 3000.011.003.000#7.4 — the starter's own unmodified sample is skipped loudly; a project's file for a missing table still refuses.
+            if super::init::starter_fixture(&name).is_some_and(|starter| std::fs::read_to_string(&path).is_ok_and(|text| text == starter)) {
+                eprintln!("test: WARNING: skipped {} — the todo starter's unmodified sample rows for a `{table}` table your snapback/*.q does not declare; `snapback4 init --adapt` removes it and the starter's other leftovers", path.display());
+                continue;
+            }
+            unknown.push(name);
+            continue;
+        };
         let text = std::fs::read_to_string(&path).map_err(|error| format!("cannot read fixture file {}: {error}", path.display()))?;
         for (line_number, line) in text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty()) {
             let at = format!("{name}:{}", line_number + 1);

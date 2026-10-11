@@ -735,17 +735,32 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
         let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
         assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{flag}: {tested:?}");
     }
-    // A stray starter file from an earlier init names the starter as its source.
+    // Wave 4 (1d): the starter's unmodified todos.jsonl beside a schema without
+    // `todos` is skipped with a warning naming `init --adapt`; the project's
+    // own rows still load and its cases still run.
     let dir = Dir::new();
     fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    fs::write(dir.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+    fs::write(dir.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  body: text <=100\n  public 'shared'\nquery all(c: cursor ?):\n  return notes after c first 50 by .id\n").unwrap();
     let starter = Dir::new();
     assert!(starter.run("--web").status.success());
     fs::create_dir_all(dir.0.join("fixtures")).unwrap();
     fs::copy(starter.0.join("fixtures/todos.jsonl"), dir.0.join("fixtures/todos.jsonl")).unwrap();
+    fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
+    fs::write(dir.0.join("fixtures/test.cases.jsonl"), "{\"as\":\"alice\",\"op\":\"all\",\"args\":{},\"count\":1}\n").unwrap();
+    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+    let stderr = String::from_utf8_lossy(&tested.stderr);
+    assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{tested:?}");
+    assert!(stderr.contains("WARNING: skipped fixtures/todos.jsonl") && stderr.contains("snapback4 init --adapt"), "{stderr}");
+    // A todos.jsonl the project changed is its own file for a missing table: still a refusal, naming the starter.
+    fs::write(dir.0.join("fixtures/todos.jsonl"), format!("{}{{\"id\":\"todo-eggs\",\"title\":\"Eggs\",\"done\":false,\"ownerId\":\"dev:alice\"}}\n", fs::read_to_string(starter.0.join("fixtures/todos.jsonl")).unwrap())).unwrap();
     let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success());
     assert!(String::from_utf8_lossy(&tested.stderr).contains("todo starter's sample"), "{tested:?}");
+    // Any other file for a missing table refuses the run.
+    fs::remove_file(dir.0.join("fixtures/todos.jsonl")).unwrap();
+    fs::write(dir.0.join("fixtures/note.jsonl"), "{\"id\":\"n2\",\"body\":\"typo\"}\n").unwrap();
+    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+    assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("note.jsonl names no table"), "{tested:?}");
 }
 
 #[test]
