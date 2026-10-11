@@ -5,7 +5,13 @@ Rust interpreter as the server. The package carries the TypeScript client and th
 
 ## Start here: a new app in five steps
 
-Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). Every Quarry example in this README and in `snapback4 guide` compiles in the suite; `npx snapback4 guide start` lists eight short patterns.
+Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). Every Quarry example in this README and in `snapback4 guide` compiles in the suite; `npx snapback4 guide start` lists eight short patterns. **Backend first** (schema → check → test, then the client; a starter written after your schema fits it, so there is nothing to adapt):
+```sh
+npm install --save-exact snapback4 && npx snapback4 init   # writes only snapback/schema.q: edit it (guide cheatsheet)
+npx snapback4 check                                        # until clean; notes carry rewrites; writes snapback/generated/api.ts
+npx snapback4 test --fixture fixtures --as alice           # your fixtures/<table>.jsonl rows and fixtures/test.cases.jsonl
+npx snapback4 init --web                                   # or --expo: sign-in (or persona picker) and a Home for your schema
+```
 
 1. **Install and scaffold.** In a new directory:
    ```sh

@@ -1501,6 +1501,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `usePendingWrites(op?)`, `usePendingItems(options)`, `usePendingState(op, options)` | admitted writes; rows merged with intent cards; the latest admitted set-state intent |
 | `useAction(op)` | `{ run(args, options?), last, inFlight }` (`UseAction<typeof op>`) with `Act<R>` outcomes |
 | `useViewer()`, `useSignedInViewer()` | `Principal \| null`; `Principal`, throwing `E_AUTH` outside a signed-in gate |
+| `usePersonaApp(persona, open)` | the `App` for a development persona, or null: opens it with `open(persona)`, closes it on switch and unmount |
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
 | `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`), `denied` or `error` (`why`) |
@@ -1687,8 +1688,9 @@ leaves the persona's queued writes on its device for its next app. The url must 
 carries the header; `snapback4 dev` still checks the socket, `Host` and `Origin`, and `serve`
 refuses personas, which the app also reports as `E_AUTH`. A browser writes only with a device, as for
 any `createApp`: without one, `app.mutate` refuses `E_ADMISSION` and names
-`createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app; close the
-old one in the effect cleanup. One tab is one device per store, and each persona has its own store.
+`createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app:
+`usePersonaApp(persona, openApp)` opens one per persona and closes the old one on switch and
+unmount (or close it in your own effect's cleanup). One tab is one device per store, and each persona has its own store.
 
 A schema with `use personas` and no `use identity` has no account to sign into: the starter's
 `auth.guest()` refuses `E_AUTH` there, so open a persona app instead of calling it. Each recipe
@@ -1757,10 +1759,10 @@ keep `127.0.0.1`. A physical phone cannot use personas: `dev` admits the header 
 socket.
 
 ```tsx
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAuth, usePersonaApp } from "snapback4/react";
 import { createApp, type App } from "snapback4/app";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Text, View } from "react-native";
 
 const url = "http://127.0.0.1:4400"; // the iOS simulator reaches this machine's loopback
@@ -1769,13 +1771,7 @@ const openApp = (persona: string): App =>
   createApp({ url, persona, device: nativeAvailable() ? nativeDevice : undefined });
 export function PersonaRoot({ children }: { children: ReactNode }) {
   const [persona, setPersona] = useState<string | null>(null);
-  const [app, setApp] = useState<App | null>(null);
-  useEffect(() => {
-    if (!persona) return;
-    const opened = openApp(persona);
-    setApp(opened);
-    return () => { setApp(null); void opened.close(); };
-  }, [persona]);
+  const app = usePersonaApp(persona, openApp); // null until the chosen persona's app exists
   if (!persona || !app) return <View>{personas.map(name =>
     <Button key={name} title={`Act as ${name}`} onPress={() => setPersona(name)} />)}</View>;
   return <AppProvider app={app}><Signed leave={() => setPersona(null)}>{children}</Signed></AppProvider>;

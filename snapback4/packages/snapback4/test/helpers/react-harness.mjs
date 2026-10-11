@@ -6,7 +6,7 @@ export const reactHarness = (expiryRecipe, receiptsRecipe) => `
 import { waitFor as awaitState } from '/@fs/${new URL('./wait.mjs', import.meta.url).pathname}';
 import { Activity, StrictMode, act, useEffect, useLayoutEffect, useMemo, useRef, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProvider, useAuth, useClient, useSeen, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, usePendingItems, usePendingState, useAcquired, useAction, useViewer, useAsset, useNow } from "snapback4/react";
+import { AppProvider, useAuth, useClient, useSeen, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, usePendingItems, usePendingState, useAcquired, useAction, useViewer, useAsset, useNow, usePersonaApp } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
@@ -422,6 +422,30 @@ const cases = {
     } finally { waits.forEach(wait => wait.resolve()); await unmount(); await Promise.all(owners.map(app => app.close())); }
   },
 
+  // Wave 6 (LLP 3000.013 §6.7): one hook owns a persona's app; StrictMode replays its effect.
+  async "usePersonaApp opens one app per persona, closes the previous on switch and unmount, and never shows a stale app"() {
+    const opened = [], seen = [];
+    const open = persona => { const app = { persona, closes: 0, close: async () => { app.closes++; } }; opened.push(app); return app; };
+    let latest;
+    function Probe({ persona }) { latest = usePersonaApp(persona, persona => open(persona)); seen.push([persona, latest?.persona ?? null]); return null; }
+    await mount(h(Probe, { persona: null }));
+    check(latest === null && opened.length === 0, "no persona opens nothing");
+    await render(h(Probe, { persona: "alice" }));
+    const alice = opened.at(-1);
+    check(latest === alice && alice.persona === "alice" && alice.closes === 0, "alice's app is current");
+    check(opened.every(app => app === alice || app.closes === 1), "a StrictMode replay closes its first app exactly once");
+    const before = opened.length;
+    await render(h(Probe, { persona: "alice" }));
+    check(opened.length === before && latest === alice, "a re-render with the same persona and a new inline opener keeps the app");
+    await render(h(Probe, { persona: "bob" }));
+    const bob = opened.at(-1);
+    check(latest === bob && bob.persona === "bob" && alice.closes === 1, "switching closes alice and shows bob");
+    check(seen.every(([persona, shown]) => shown === null || shown === persona), "no render shows another persona's app: " + JSON.stringify(seen));
+    await render(h(Probe, { persona: null }));
+    check(latest === null && bob.closes === 1, "clearing the persona closes its app");
+    await unmount();
+    check(opened.every(app => app.closes === 1), "every opened app closed exactly once");
+  },
   async "useQuery owns observations through Strict Mode, equivalent arguments and unmount"() {
     const client = controlled(args => ready(args)); let latest;
     function Probe({ value }) { latest = useQuery(query, { value }); return null; }

@@ -692,7 +692,7 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
     // The schema has none of the todo starter's operations: the screen behind
     // the picker is the neutral Home, which compiles against any schema.
-    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)") && app.contains("function Home(") && !app.contains("api.list"), "{app}");
+    assert!(!app.contains("auth.guest()") && app.contains("usePersonaApp(persona, openApp)") && app.contains("function Home(") && !app.contains("api.list"), "{app}");
     // Rerunning skips everything it wrote and still never touches the schema.
     let again = dir.init(&["--web", "--skip-existing"]);
     assert!(again.status.success(), "{again:?}");
@@ -817,7 +817,13 @@ fn frontend_starters_ignore_builds_and_take_the_directorys_name() {
         assert!(output.status.success(), "{output:?}");
         assert!(fs::read_to_string(dir.join(".gitignore")).unwrap().lines().any(|line| line == "dist/"), "{flag}");
         if flag == "--web" { assert!(fs::read_to_string(dir.join("index.html")).unwrap().contains("<title>Bake Sale</title>")); }
-        else { assert_eq!(serde_json::from_slice::<Value>(&fs::read(dir.join("app.json")).unwrap()).unwrap()["expo"]["name"], "Bake Sale"); }
+        else {
+            let config: Value = serde_json::from_slice(&fs::read(dir.join("app.json")).unwrap()).unwrap();
+            assert_eq!(config["expo"]["name"], "Bake Sale");
+            // Wave 6 (067): the ids are the directory's, never the todo starter's.
+            assert_eq!((&config["expo"]["slug"], &config["expo"]["scheme"], &config["expo"]["ios"]["bundleIdentifier"], &config["expo"]["android"]["package"]),
+                (&json!("bake-sale"), &json!("bakesale"), &json!("dev.snapback4.bakesale"), &json!("dev.snapback4.bakesale")));
+        }
     }
     let dir = Dir::new();
     assert!(dir.run("--online").status.success());
@@ -868,12 +874,12 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     let named = check(&dir);
     assert!(named.status.success(), "{named:?}");
     let stdout = String::from_utf8_lossy(&named.stdout);
-    for text in ["starter: 4 files left", "fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx: the unmodified starter screen shows the guest sign-in", "src/client.ts", "fix: snapback4 init --adapt"] {
+    for text in ["starter: 5 files left", "fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx: the unmodified starter screen shows the guest sign-in", "src/client.ts", "README.md: the unmodified starter README describes the todo starter", "fix: snapback4 init --adapt"] {
         assert!(stdout.contains(text), "{text}: {stdout}");
     }
     let json = check_json(&dir);
     assert_eq!(json["starterLeftovers"]["fix"], "snapback4 init --adapt");
-    assert_eq!(json["starterLeftovers"]["files"].as_array().unwrap().iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>(), ["fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx", "src/client.ts"]);
+    assert_eq!(json["starterLeftovers"]["files"].as_array().unwrap().iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>(), ["fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx", "src/client.ts", "README.md"]);
     // `test` points at the same command.
     let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "carol"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("snapback4 init --adapt"), "{tested:?}");
@@ -885,14 +891,14 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     let adapted = dir.init(&["--adapt"]);
     assert!(adapted.status.success(), "{adapted:?}");
     let stdout = String::from_utf8_lossy(&adapted.stdout);
-    assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts"), "{stdout}");
+    assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts and README.md"), "{stdout}");
     // Wave 4 (R1): adapt removes the files it names, never the directory.
     assert!(dir.0.join("fixtures").is_dir() && fs::read_dir(dir.0.join("fixtures")).unwrap().count() == 0);
     assert!(stdout.contains("fixtures/ stays"), "{stdout}");
     assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), personas);
     let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
-    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)"), "{app}");
+    assert!(!app.contains("auth.guest()") && app.contains("usePersonaApp(persona, openApp)"), "{app}");
     assert!(client.contains(r#"personas: readonly string[] = ["carol", "dave"]"#) && client.contains("127.0.0.1:4517") && !client.contains("4400"), "{client}");
     // Exactly what schema-first init writes for the same schema and port.
     let schema_first = Dir::new();
@@ -902,6 +908,12 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     for file in ["src/App.tsx", "src/client.ts"] {
         assert_eq!(fs::read_to_string(dir.0.join(file)).unwrap(), fs::read_to_string(schema_first.0.join(file)).unwrap(), "{file}");
     }
+    // Wave 6 (042): the README is rewritten too, to the one schema-first init writes
+    // (named after the directory, the persona sign-in, `dev --port`), apart from the title.
+    let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
+    assert!(!readme.contains("todos") && readme.contains("usePersonaApp") && readme.contains("npx snapback4 dev --port 4517 ") && readme.contains("127.0.0.1:4517"), "{readme}");
+    let body = |text: String| text.split_once('\n').unwrap().1.to_owned();
+    assert_eq!(body(readme), body(fs::read_to_string(schema_first.0.join("README.md")).unwrap()));
     // Adapted: the screen behind the picker is the neutral Home, so nothing is
     // left over and no screen calls the starter's operations (wave 4, 1c).
     assert!(app.contains("function Home(") && app.contains("useSignedInViewer()") && !app.contains("api.list"), "{app}");
@@ -925,6 +937,33 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     assert!(idle.status.success() && String::from_utf8_lossy(&idle.stdout).contains("nothing to adapt"), "{idle:?}");
 }
 
+/// Wave 6 (067): Expo projects started by 0.4.21 or earlier carry the todo
+/// starter's slug, scheme and bundle ids. `check` names them and `init
+/// --adapt` renames only those values after the directory; changed ids stay.
+#[test]
+fn adapt_names_an_old_expo_starters_ids_after_the_directory() {
+    let parent = Dir::new();
+    let dir = parent.0.join("4h-club");
+    fs::create_dir_all(&dir).unwrap();
+    let run = |args: &[&str]| Command::new(BIN).args(args).current_dir(&dir).output().unwrap();
+    assert!(run(&["init", "--expo"]).status.success());
+    let fresh = fs::read_to_string(dir.join("app.json")).unwrap();
+    assert!(fresh.contains("\"4h-club\"") && fresh.contains("\"app4hclub\"") && fresh.contains("\"dev.snapback4.app4hclub\"") && !fresh.contains("todos"), "{fresh}");
+    let old = fresh.replace("\"dev.snapback4.app4hclub\"", "\"dev.snapback4.todos\"").replace("\"app4hclub\"", "\"snapback4todos\"").replace("\"4h-club\"", "\"snapback4-todos\"");
+    fs::write(dir.join("app.json"), &old).unwrap();
+    let checked = String::from_utf8_lossy(&run(&["check"]).stdout).into_owned();
+    assert!(checked.contains("app.json: the todo starter's ids") && checked.contains("dev.snapback4.app4hclub"), "{checked}");
+    let adapted = run(&["init", "--adapt"]);
+    assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote app.json"), "{adapted:?}");
+    assert_eq!(fs::read_to_string(dir.join("app.json")).unwrap(), fresh, "only the ids change");
+    // A project that set its own bundle id keeps the file as it is.
+    let mine = old.replace("\"dev.snapback4.todos\",\n      \"supportsTablet\"", "\"com.example.club\",\n      \"supportsTablet\"");
+    assert_ne!(mine, old);
+    fs::write(dir.join("app.json"), &mine).unwrap();
+    assert!(String::from_utf8_lossy(&run(&["init", "--adapt"]).stdout).contains("nothing to adapt"));
+    assert_eq!(fs::read_to_string(dir.join("app.json")).unwrap(), mine);
+}
+
 #[test]
 fn adapt_never_touches_a_file_the_project_changed() {
     let dir = Dir::new();
@@ -938,20 +977,22 @@ fn adapt_never_touches_a_file_the_project_changed() {
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
     let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
     let stdout = String::from_utf8_lossy(&checked.stdout);
-    assert!(stdout.contains("starter: 1 file left") && stdout.contains("fixtures/todos.jsonl") && !stdout.contains("App.tsx"), "{stdout}");
+    // Wave 6: the README is the starter's own, unmodified, so it follows the schema even beside a changed screen.
+    assert!(stdout.contains("starter: 2 files left") && stdout.contains("fixtures/todos.jsonl") && stdout.contains("README.md") && !stdout.contains("App.tsx"), "{stdout}");
     let adapted = dir.init(&["--adapt"]);
     assert!(adapted.status.success(), "{adapted:?}");
     assert!(!dir.0.join("fixtures/todos.jsonl").exists());
     assert_eq!(fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap(), cases);
     assert_eq!(fs::read_to_string(dir.0.join("App.tsx")).unwrap(), app);
     assert_eq!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap(), client);
-    assert!(!String::from_utf8_lossy(&adapted.stdout).contains("rewrote"), "{adapted:?}");
+    let adapted = String::from_utf8_lossy(&adapted.stdout);
+    assert!(adapted.contains("rewrote README.md —") && !adapted.contains("App.tsx") && !adapted.contains("client.ts"), "{adapted}");
     // An unmodified Expo screen adapts like the web one.
     let dir = Dir::new();
     assert!(dir.init(&["--expo"]).status.success());
     fs::write(dir.0.join("snapback/schema.q"), "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
     assert!(dir.init(&["--adapt"]).status.success());
-    assert!(fs::read_to_string(dir.0.join("App.tsx")).unwrap().contains("openApp(persona)"));
+    assert!(fs::read_to_string(dir.0.join("App.tsx")).unwrap().contains("usePersonaApp(persona, openApp)"));
     assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains(r#"= ["carol"];"#));
     // --adapt takes no starter flags and needs a schema.
     assert_eq!(dir.init(&["--adapt", "--port", "1"]).status.code(), Some(2));
@@ -1084,7 +1125,10 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             }
             for todo in ["api.list", "api.add", "api.toggle", "api.remove", "<Todos />"] { assert!(!app.contains(todo), "{flag} {sign_in}: {todo}"); }
             assert!(app.contains("<FirstRead />") && app.contains("const read = useQuery(api.recent, {});") && app.contains("matchRead(read, {") && !app.contains("api.one"), "{flag} {sign_in}: {app}");
-            assert_eq!(app.contains("openApp(persona)"), sign_in.contains("personas"), "{flag} {sign_in}");
+            assert_eq!(app.contains("usePersonaApp(persona, openApp)"), sign_in.contains("personas"), "{flag} {sign_in}");
+            // Wave 6 (042): the README follows the screen, and is what schema-first init writes.
+            let readme = fs::read_to_string(first.0.join("README.md")).unwrap();
+            assert!(!readme.contains("todos") && readme.contains("`Home`") && readme.contains(if sign_in.contains("personas") { "usePersonaApp" } else { "Continue as a guest" }), "{flag} {sign_in}: {readme}");
             assert_eq!(app.contains("auth.guest()"), sign_in.contains("identity"), "{flag} {sign_in}");
             // One import per module.
             let modules: Vec<&str> = app.lines().filter(|line| line.starts_with("import ")).map(|line| line.rsplit_once(" from ").unwrap().1).collect();
@@ -1102,10 +1146,13 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             for file in [app_path, "src/client.ts"] {
                 assert_eq!(fs::read_to_string(first.0.join(file)).unwrap(), fs::read_to_string(schema_first.0.join(file)).unwrap(), "{flag} {sign_in}: {file}");
             }
+            let body = |dir: &Dir| fs::read_to_string(dir.0.join("README.md")).unwrap().split_once('\n').unwrap().1.to_owned();
+            assert_eq!(body(&first), body(&schema_first), "{flag} {sign_in}: README");
             // Restoring the todo operations brings the Todos screen back.
             fs::write(first.0.join("snapback/schema.q"), format!("{sign_in}{}", include_str!("../src/verbs/init/starter/schema.q").lines().filter(|line| !line.starts_with("use ")).collect::<Vec<_>>().join("\n"))).unwrap();
             assert!(first.init(&["--adapt"]).status.success());
             assert!(fs::read_to_string(first.0.join(app_path)).unwrap().contains("function Todos()"), "{flag} {sign_in}");
+            assert!(fs::read_to_string(first.0.join("README.md")).unwrap().starts_with("# Todos: a Snapback 4"), "{flag} {sign_in}: the todo README comes back with the screen");
         }
     }
 }

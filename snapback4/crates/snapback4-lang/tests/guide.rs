@@ -167,7 +167,8 @@ fn w14b_first_account_screen_is_self_contained() {
     }
     for command in readme.split("guide ").skip(1) {
         let name = command.split(|c: char| !(c.is_ascii_alphabetic() || c == '-')).next().unwrap();
-        if !name.is_empty() { assert!(card(name).is_some(), "dead card: {name}"); }
+        // `guide aliases` lists the alias table (wave 6); every other word names a card.
+        if !name.is_empty() && name != "aliases" { assert!(card(name).is_some(), "dead card: {name}"); }
     }
 }
 

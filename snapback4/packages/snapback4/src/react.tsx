@@ -453,6 +453,32 @@ export function useSignedInViewer(): Principal {
   return viewer;
 }
 
+/** The app for a development persona (`use personas`), owned by this
+ * component: `open(persona)` runs in an effect when `persona` changes (pass
+ * your own `createApp({ url, persona, device })`), the previous app closes in
+ * that effect's cleanup and on unmount, and the result is `null` while no
+ * persona is chosen and until the chosen persona's app exists, never the
+ * previous persona's app. Render `<AppProvider app={app}>` from it and gate
+ * on `useAuth().state` inside, as for any app. `open` is read when the persona
+ * changes, so an inline arrow does not reopen the app on every render.
+ * `const app = usePersonaApp(persona, name => createApp({ url, persona: name, device: webDevice() }))` */
+// @ref LLP 3000.013#6.7 — wave 6: persona switching owned an App lifecycle every UI rewrote; one hook owns open/close.
+export function usePersonaApp(persona: string | null, open: (persona: string) => App): App | null {
+  const [current, setCurrent] = useState<{ readonly persona: string; readonly app: App } | null>(null);
+  const opener = useRef(open);
+  opener.current = open;
+  useEffect(() => {
+    if (!persona) return;
+    const app = opener.current(persona);
+    setCurrent({ persona, app });
+    return () => {
+      setCurrent(previous => previous?.app === app ? null : previous);
+      void app.close();
+    };
+  }, [persona]);
+  return current !== null && current.persona === persona ? current.app : null;
+}
+
 /** The session the local-first client holds, or null once it ended (after
  * `signOut()`, or once the server refused it); re-renders when it ends. A
  * screen that keeps the token — a native image header, a presence lease —
