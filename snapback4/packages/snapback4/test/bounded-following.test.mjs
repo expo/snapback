@@ -177,18 +177,22 @@ query conditionalEventsHeld():
   test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: hangBudget(11) }, async t => {
     // Both source kinds are full: the scan must visit held owned rows, then
     // reject them on the unknown filter, rather than withhold a partial table.
+    // The filter reads the row (.actorId): a row-independent test such as
+    // `exists eventSwitch['gate']` is decided once, before the scan, as an
+    // `if` (LLP 3000.036 §15.4), and would never visit a row.
     const f = await fixture(t, tier, "sync public", source => source + `
 table eventSwitch:
-  enabled: bool
+  actor: principal
+  unique actor
   public 'filtered event witness'
   insert <- true
   online only
-mutation enableEvents():
-  insert eventSwitch { id: 'gate', enabled: true }
+mutation enableEvents(actor: principal):
+  insert eventSwitch { actor }
 query filteredEvents():
-  return feedPosts last 10 by .at where exists eventSwitch['gate']
+  return feedPosts last 10 by .at where exists eventSwitch[.actorId]
 `);
-    await f.mutate("enableEvents", "bob", {});
+    for (const actor of ["dev:alice", "dev:bob"]) await f.mutate("enableEvents", "bob", { actor });
     const bob = await f.open("bob");
     assert.ok((await bob.client.query(query("filteredEvents"), {})).data.length > 0, "the server gate selects real events");
     bob.holdWrites = true;
@@ -223,6 +227,11 @@ table eventSwitch:
   enabled: bool
   public 'unknown filter witness'
   online only
+table eventActors:
+  actor: principal
+  unique actor
+  public 'per-row unknown filter witness'
+  online only
 mutation addNote(id: id):
   return insert notes { id, body: 'predicted' }
 query guarded():
@@ -234,6 +243,8 @@ query conditionalEvents():
     return feedPosts last 10 by .at
   return []
 query filteredEvents():
+  return feedPosts last 10 by .at where exists eventActors[.actorId]
+query guardedEvents():
   return feedPosts last 10 by .at where exists eventSwitch['gate']
 query speculativePage():
   return posts last 10 by .at { post: .id, online: exists connected[.authorId] }
@@ -242,9 +253,11 @@ query speculativePage():
       { table: "notes", row: { id: "n2", body: "held" } },
       { table: "audit", row: { id: "a1", body: "server" } },
       { table: "eventSwitch", row: { id: "gate", enabled: true } },
+      { table: "eventActors", row: { id: "ea", actor: "dev:alice" } },
+      { table: "eventActors", row: { id: "eb", actor: "dev:bob" } },
     ]);
     const bob = await f.open("bob");
-    for (const name of ["guarded", "conditionalEvents", "filteredEvents", "speculativePage"]) {
+    for (const name of ["guarded", "conditionalEvents", "filteredEvents", "guardedEvents", "speculativePage"]) {
       const answer = await bob.client.query(query(name), {});
       if (name === "guarded") assert.equal(answer.data.id, "a1");
       else assert.ok(answer.data.length > 0, "server takes the true gate branch");
@@ -257,7 +270,7 @@ query speculativePage():
     const heldReads = [];
     for (const offline of [true, false]) {
       bob.offline = offline; await bob.client.sync();
-      await Promise.all(["guarded", "conditionalEvents", "filteredEvents", "speculativePage"].map(async name => {
+      await Promise.all(["guarded", "conditionalEvents", "filteredEvents", "guardedEvents", "speculativePage"].map(async name => {
         const before = bob.queries.length, observedAt = bob.observed.length;
         if (offline) assert.equal((await bob.client.query(query(name), {})).denied?.code, "E_OFFLINE", name);
         else {
@@ -277,6 +290,12 @@ query speculativePage():
           // Z's partial owned-table read withholds before the scan. The fully
           // synced event-slot case above separately exercises rejected rows.
           assert.equal(raw.loading, true); assert.equal("data" in raw, false);
+        } else if (name === "guardedEvents") {
+          // A row-independent test in a returned page's where is decided
+          // once, as an if (LLP 3000.036 §15.4): the device stops at the
+          // unknown guard exactly like conditionalEvents, and the page's
+          // static reads still fence the server (asserted below).
+          assert.deepEqual(raw.data, []); assert.deepEqual(raw.tables, ["eventSwitch"]);
         } else assert.deepEqual(raw.data, []);
         assert.equal(bob.queries.length, before, "neither a server nor remembered answer can pass the fence");
       }));
@@ -376,7 +395,12 @@ query countedFeed(c: cursor ?):
     // full production timer, with the original E_QUERY_RETRY assertion.
     const started = performance.now();
     assert.equal((await bob.client.query(query("countedFeed"), { c: null })).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
-    assert.ok(performance.now() - started >= 30_000, "custody exhaustion uses the real 30-second timer");
+    // Node arms setTimeout from libuv's cached, millisecond-truncated loop
+    // time, which trails performance.now() by the current turn's work, so the
+    // real deadline can fire a few milliseconds short of 30 000 measured here.
+    // The four-round loading exit settles in well under a second.
+    const elapsed = performance.now() - started;
+    assert.ok(elapsed >= 30_000 - 100, `custody exhaustion uses the real 30-second timer (${elapsed} ms)`);
     const raw = bob.observed.at(-1);
     assert.equal(raw.loading, true); assert.equal(raw.unknown, false); assert.equal(raw.complete, false);
     assert.deepEqual(raw.tables, ["events"], "the scalar cap skipped the following statements");
