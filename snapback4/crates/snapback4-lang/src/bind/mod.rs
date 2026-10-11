@@ -304,11 +304,13 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             "API name receiptFamilies collides with the generated receipt-family namespace",
             "rename the operation or module receiptFamilies").guide("receipts"));
     }
-    internal_names(&mut diagnostics);
+    // A `$name` the author wrote (a quoted sort key, say) is theirs, not an internal.
+    let authored: std::collections::BTreeSet<String> = catalog.source.declarations.values().flat_map(|text| dollar_words(text)).collect();
+    internal_names(&mut diagnostics, &authored);
     // @ref LLP 3000.036#15.6 — notes print no `$` internals either (captures, temporaries).
     for note in &mut notes {
-        note.message = spell_internals(&note.message);
-        note.rewrite = spell_internals(&note.rewrite);
+        note.message = spell_internals_except(&note.message, &authored);
+        note.rewrite = spell_internals_except(&note.rewrite, &authored);
     }
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
@@ -321,7 +323,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
 /// parent's refusal again: it is dropped. Otherwise the capture reads as the
 /// reference it copies (`.enrollment.dancer`).
 // @ref LLP 3000.036#14.3 — wave 4 #8 (064 080): never print `$`-prefixed internals in a problem.
-fn internal_names(diagnostics: &mut Vec<Diagnostic>) {
+fn internal_names(diagnostics: &mut Vec<Diagnostic>, authored: &std::collections::BTreeSet<String>) {
     let internal = |d: &Diagnostic| capture_spelling(&d.message).is_some() || capture_spelling(&d.rewrite).is_some();
     let through_parent = |text: &str| {
         let mut text = text.to_owned();
@@ -343,13 +345,13 @@ fn internal_names(diagnostics: &mut Vec<Diagnostic>) {
     // problem at its site is that problem's cascade and is dropped; otherwise it
     // reads as the author wrote it (`read through .report`) or without the `$`.
     // @ref LLP 3000.036#15.6 — wave 5 lane 082: no `$` internal reaches a printed problem.
-    let dollar = |d: &Diagnostic| internal_word(&d.message).is_some() || internal_word(&d.rewrite).is_some();
+    let dollar = |d: &Diagnostic| internal_word_from(&d.message, 0, authored).is_some() || internal_word_from(&d.rewrite, 0, authored).is_some();
     let clean_sites: Vec<crate::Site> = diagnostics.iter().filter(|d| !dollar(d)).flat_map(|d| [Some(d.site.clone()), d.cascade_of.clone()]).flatten().collect();
     diagnostics.retain(|d| !dollar(d) || !(clean_sites.contains(&d.site) || d.cascade_of.as_ref().is_some_and(|site| clean_sites.contains(site))));
     for d in diagnostics.iter_mut() {
         if dollar(d) { d.mechanical = false; }
-        d.message = spell_internals(&d.message);
-        d.rewrite = spell_internals(&d.rewrite);
+        d.message = spell_internals_except(&d.message, authored);
+        d.rewrite = spell_internals_except(&d.rewrite, authored);
     }
     // The child's copy of the parent's refusal, reported at the parent's own site.
     let own: Vec<(crate::Site, String)> = diagnostics.iter().filter(|d| d.cascade_of.as_ref() != Some(&d.site)).map(|d| (d.site.clone(), d.code.clone())).collect();
@@ -362,28 +364,41 @@ fn internal_names(diagnostics: &mut Vec<Diagnostic>) {
 /// identity (`$intent:byAt:…`, `$view:…`) is not one either: `check` labels
 /// planner indexes itself and `--verbose` prints them canonical on purpose.
 pub(crate) fn internal_word(text: &str) -> Option<(usize, usize)> {
-    internal_word_from(text, 0)
+    internal_word_from(text, 0, &Default::default())
 }
 
-fn internal_word_from(text: &str, from: usize) -> Option<(usize, usize)> {
+fn internal_word_from(text: &str, from: usize, authored: &std::collections::BTreeSet<String>) -> Option<(usize, usize)> {
     let bytes = text.as_bytes();
     (from..bytes.len()).find_map(|at| {
         if bytes[at] != b'$' { return None; }
         if at > 0 && (bytes[at - 1].is_ascii_alphanumeric() || matches!(bytes[at - 1], b'_' | b'\'' | b'"')) { return None; }
         if !bytes.get(at + 1).is_some_and(|b| b.is_ascii_alphabetic()) { return None; }
         let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
-        if bytes.get(at + 1 + name) == Some(&b':') { return None; }
+        if bytes.get(at + 1 + name) == Some(&b':') || authored.contains(&text[at..at + 1 + name]) { return None; }
         Some((at, at + 1 + name))
     })
+}
+
+/// Every `$name` spelled in authored source.
+fn dollar_words(text: &str) -> Vec<String> {
+    let bytes = text.as_bytes();
+    (0..bytes.len()).filter(|&at| bytes[at] == b'$').filter_map(|at| {
+        let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
+        (name > 0).then(|| text[at..at + 1 + name].to_owned())
+    }).collect()
 }
 
 /// The author's spelling of each `$` name: `$readThrough(x)` is `read
 /// through .x`, a capture `.$ref.field` (or `$a.$b.id`) is the path it copies
 /// (`.ref.field`), and any other compiler name loses its `$`.
 pub fn spell_internals(text: &str) -> String {
+    spell_internals_except(text, &Default::default())
+}
+
+fn spell_internals_except(text: &str, authored: &std::collections::BTreeSet<String>) -> String {
     let mut text = text.to_owned();
     let mut from = 0;
-    while let Some((start, end)) = internal_word_from(&text, from) {
+    while let Some((start, end)) = internal_word_from(&text, from, authored) {
         let call = &text[end..];
         if &text[start..end] == "$readThrough" && call.starts_with('(') && let Some(close) = call.find(')') {
             let reference = call[1..close].trim().trim_start_matches('.').to_owned();

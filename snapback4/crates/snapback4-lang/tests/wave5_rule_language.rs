@@ -145,12 +145,15 @@ fn a_row_independent_test_in_where_is_a_guard_in_check_and_at_run_time() {
 /// A `$` that starts a compiler name: not after a word or quote character (a
 /// user's `'$5'` or `"$saved"`), and not a canonical identity (`$intent:…`,
 /// which `check` labels and `--verbose` prints canonical on purpose).
-fn internal(text: &str) -> Option<String> {
+fn internal(text: &str, sources: &str) -> Option<String> {
     let bytes = text.as_bytes();
     (0..bytes.len()).find_map(|at| {
         if bytes[at] != b'$' || (at > 0 && (bytes[at - 1].is_ascii_alphanumeric() || matches!(bytes[at - 1], b'_' | b'\'' | b'"'))) { return None; }
         let name: String = text[at + 1..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
-        (name.starts_with(|c: char| c.is_ascii_alphabetic()) && !text[at + 1 + name.len()..].starts_with(':')).then(|| text[at.saturating_sub(40)..(at + 1 + name.len() + 20).min(text.len())].to_owned())
+        // A `$name` the author wrote is theirs.
+        let authored = sources.contains(&format!("${name}"));
+        (name.starts_with(|c: char| c.is_ascii_alphabetic()) && !authored && !text[at + 1 + name.len()..].starts_with(':'))
+            .then(|| text[text.floor_char_boundary(at.saturating_sub(40))..text.floor_char_boundary((at + 1 + name.len() + 20).min(text.len()))].to_owned())
     })
 }
 
@@ -187,11 +190,12 @@ fn no_problem_or_note_prints_a_dollar_internal() {
     for project in &projects {
         let inputs: Vec<(String, String)> = project.iter().map(|file| (file.file_name().unwrap().to_string_lossy().into_owned(), std::fs::read_to_string(file).unwrap())).collect();
         let b = compile(&inputs);
+        let written: String = inputs.iter().map(|(_, text)| text.as_str()).collect();
         let summary = snapback4_lang::bind::residency::prediction_summary(&b).map(|text| snapback4_lang::bind::spell_internals(&text));
         for (kind, text) in b.diagnostics.iter().map(|d| ("problem", format!("{} {}", d.message, d.rewrite)))
             .chain(b.notes.iter().map(|n| ("note", format!("{} {}", n.message, n.rewrite))))
             .chain(summary.map(|text| ("prediction", text))) {
-            if let Some(context) = internal(&text) { leaks.push(format!("{} ({kind}): …{context}…", project[0].display())); }
+            if let Some(context) = internal(&text, &written) { leaks.push(format!("{} ({kind}): …{context}…", project[0].display())); }
         }
     }
     assert!(leaks.is_empty(), "{} leaks:\n{}", leaks.len(), leaks.join("\n"));
