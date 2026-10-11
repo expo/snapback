@@ -31,3 +31,8 @@ same complete query declaration with `held` added. Paste it over that query
 only if device-only lookup fits the screen: its predicate, order and duplicate
 matches stay the same, but it requires acquired coverage and has no server
 fallback. Otherwise keep the server query and its incomplete absence verdict.
+
+Its rewrite renders the pin as code: the equality to add, the parent read that
+supplies its value, or one query per party for a two-party rule (guide bounds,
+"Private lists"). A row-independent grant (`exists staff[viewer]`) or a
+`require` guard is not used.

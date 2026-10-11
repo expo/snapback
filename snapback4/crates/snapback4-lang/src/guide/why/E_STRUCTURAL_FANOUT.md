@@ -50,3 +50,4 @@ query cut is an incomplete null; a mutation cut is `E_BOUND` with no write.
 Mutation prefix existence tests require a uniform plain prefix and the same
 expiry admission as other scans (guide programs). Rule probes keep
 exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor.
+Its rewrite also names a count view over your table (guide bounds, "Private lists").

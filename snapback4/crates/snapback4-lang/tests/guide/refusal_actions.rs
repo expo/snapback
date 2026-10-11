@@ -20,6 +20,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),
     ("E_SYSTEM_PRINCIPAL_WRITE", &["make the column optional and write `null` for system events, or name a service principal"]),
     ("N_WRITE_DENIED", &["write the rule its callers need, or do the write in a job", "snapback4 run` prints the clause"]),
+    ("N_READ_DENIED", &["give it the rule its readers need over its group keys"]),
     ("E_JOB_VIEWER_FLOW", &["Assign a local inside, then return outside; break and continue need a loop inside the block."]),
     ("E_JOB_VIEWER_QUERY", &["Use all(query(...)) directly in a for domain with one cursor argument and a list return."]),
     ("E_JOB_VIEWER_READ", &["Narrow the query; no partial digest commits. Follow every cursor; one page is a preview."]),

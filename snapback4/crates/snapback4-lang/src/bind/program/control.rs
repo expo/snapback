@@ -241,7 +241,7 @@ impl Binder<'_> {
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
                 if self.caller_kind == ProgramKind::Job && self.loops + self.caller_loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
                     let after = self.visible_bindings();
-                    if let Some((name, _)) = before.iter().find(|(name, old)| after.get(*name).is_some_and(|new| old.revision != new.revision)) {
+                    if let Some((name, _)) = before.iter().find(|(name, old)| !name.starts_with('$') && after.get(*name).is_some_and(|new| old.revision != new.revision)) {
                         return Err(placement(site, format!("automatic sweep carries local {name} across iterations, but chunks commit independently"), format!("declare {name} inside the `for row in table:` body for per-item work, or store cross-chunk progress in a table")).guide("jobs"));
                     }
                 }

@@ -243,7 +243,14 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             }
             match bind_schedule(decl, &programs) {
                 Ok(schedule) => schema.schedules.push(schedule),
-                Err(diagnostic) => diagnostics.push(diagnostic),
+                Err(mut diagnostic) => {
+                    // A declared job that failed to bind already has its own error; this one only follows from it.
+                    if !programs.iter().any(|p| p.program.name == decl.target)
+                        && let Some(failed) = catalog.documents.iter().flat_map(|doc| doc.programs.iter()).find(|p| p.name == target || decl.target.ends_with(&format!(".{}", p.name))) {
+                        diagnostic.cascade_of = Some(failed.site.clone());
+                    }
+                    diagnostics.push(diagnostic)
+                }
             }
         }
     }
@@ -253,6 +260,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(receipt_notes);
     notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
+    notes.extend(denied_reads(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
@@ -344,6 +352,36 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
 /// `complete: false` on the server whatever it finds (LLP 3000 §7,
 /// completeness is a class): say so at compile time, with the index that
 /// would decide it, as Snapback 2's structural facts did.
+/// `N_READ_DENIED`: a query or mutation looks up an aggregate by key whose
+/// read rule is `deny`, so every caller reads its zero value as if real.
+// @ref LLP 3000.036#11 — lane 008: a deny maintain looked up in a shape read as 0.
+fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
+    use snapback4_core::{ir::ProgramKind, schema::RuleExpr};
+    let mut notes = Vec::new();
+    for bound in programs {
+        if !matches!(bound.program.kind, ProgramKind::Query | ProgramKind::Mutation) { continue; }
+        let mut seen = std::collections::BTreeSet::new();
+        for read in snapback4_core::ir::read_sites(&bound.program) {
+            let Some(table) = schema.table(&read.table) else { continue };
+            let Some(info) = catalog.tables.get(&read.table) else { continue };
+            // A keyed lookup of an aggregate reads as its zero value when absent,
+            // so a denied one is indistinguishable from a real 0. Pages and row
+            // reads of denied sources stay empty or null, visibly.
+            if read.kind != "point" || info.maintained.is_none() { continue; }
+            // Only an authored `read <- deny`: an aggregate without a read line inherits its source's audience.
+            let Some(rule) = info.maintained.as_ref().and_then(|maintain| maintain.read.as_ref()) else { continue };
+            let authored_deny = matches!(&rule.value, crate::ast::Expr::Name { name, .. } if name == "deny" || name == "false")
+                || matches!(&rule.value, crate::ast::Expr::Literal { value: crate::ast::Literal::Bool(false), .. });
+            if !authored_deny || !matches!(table.rules.read, RuleExpr::Deny) || !seen.insert(read.table.clone()) { continue; }
+            let site = &rule.site;
+            notes.push(Diagnostic::new(&bound.site, "N_READ_DENIED",
+                format!("{} {} looks up aggregate {} by key, whose read rule is deny ({site}): every caller reads its zero value, never an error", bound.program.kind.word(), bound.program.name, read.table),
+                format!("give {} the read rule its readers need, over its group keys (for example the source table's rule), or read it only in a job, which runs as the system", read.table)).guide("rules"));
+        }
+    }
+    notes
+}
+
 fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     // A synced table with no horizon: every row of every group a device
@@ -514,7 +552,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     "N_NEVER_COMPLETE",
                     if held_rewrite.is_some() { format!("query {}: this lookup does not pin an authorized row's id; matching a name does not prove uniqueness or absence. The server may return matches but cannot certify complete. The held replacement (check --verbose) keeps the same matches and shape on the device; it requires acquired coverage and has no server fallback. Keep the original query if server lookup is required", bound.program.name) }
                     else { format!("{} {}: {}the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
-                    held_rewrite.or(search_rewrite.clone()).or(scope_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", "))),
+                    held_rewrite.or(search_rewrite.clone()).unwrap_or_else(|| {
+                        let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+                        match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned) { Some(pin) => format!("{base}. As code: {pin}"), None => base }
+                    }),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),
             );
