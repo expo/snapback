@@ -108,7 +108,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     // The core's structural check catches what binding did not; a
     // declaration that already refused is not reported twice.
     if diagnostics.is_empty() {
+        let mut grants = super::audience_diagnostics::Grants::default();
         for issue in core::validate(&schema) {
+            if grants.take(&issue) { continue; }
             let site = catalog.site_for(&issue.path);
             if issue.message.starts_with("ephemeral:") {
                 let (message, fix) = issue.message.split_once("; ").unwrap_or((&issue.message, "keep that data in a durable table"));
@@ -135,6 +137,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
                 diagnostics.push(Diagnostic::new(&site, "E_SCHEMA_CONSTRAINT", issue.message, "fix the declaration named by this message").guide("indexes"));
             }
         }
+        diagnostics.extend(grants.diagnostics(&schema, catalog));
     }
     schema
 }
@@ -352,8 +355,21 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
     }
     let horizon = match &sync.horizon {
         Some((last, SyncOrder::Index(by))) => {
-            if !info.indexes.iter().any(|index| &index.name == by) {
+            let Some(index) = info.indexes.iter().find(|index| &index.name == by) else {
                 return Err(sync_error(&sync.site, format!("horizon names unknown index {}.{by}", info.decl.name), name_rewrite(by, info.indexes.iter().map(|i| i.name.as_str()), None)));
+            };
+            let group: Vec<String> = match &audience { Audience::Public => Vec::new(), Audience::Column(column) => vec![column.clone()], Audience::Target { prefix, .. } => prefix.clone() };
+            if index.is_plain() && !index.columns.starts_with(&group) {
+                // @ref LLP 3000.036.000#2.3 — name the two repairs against this table's own columns.
+                let order: Vec<String> = index.columns.iter().filter(|column| !group.contains(column)).cloned().collect();
+                let spelled = |columns: &[String]| columns.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ");
+                let window = if order.is_empty() || order == ["id"] { "last {n} by .id".to_owned() } else { format!("last {{n}} by {}", spelled(&order)) };
+                let window = window.replace("{n}", &last.to_string());
+                let mut lead = group.clone();
+                lead.extend(order.iter().cloned());
+                return Err(sync_error(&sync.site,
+                    format!("horizon index {by} ({}) must lead with the audience column{} {}: a device keeps the newest {last} rows of each group, read from an index that starts with the group", index.columns.join(", "), if group.len() == 1 { "" } else { "s" }, group.join(", ")),
+                    format!("{window}  -- in place of `last {last} by {by}`: the compiler builds the index with {} first; or declare `by {by}: {}`", group.join(", "), lead.join(", "))));
             }
             Some(Horizon { last: *last, by: by.clone() })
         }
@@ -365,8 +381,8 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
 
 // @ref LLP 3000.007#6.6 — omitted audiences invert exactly the same three read rules.
 fn infer_audience(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleExpr, source: &str, named: Option<&str>) -> Fallible<Audience> {
-    let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{source}`: a synced table's read rule must be exactly `public`, `.column = viewer` or `exists target[.columns, viewer]`, so each device holds every row its viewer may read and no other; do not make private rows public to get past this"), audience_split(&info.decl.name, rule));
-    match rule.device_audience_rule().as_ref() {
+    let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{source}`: a synced table's read rule must be exactly `public`, `.column = viewer` or `exists target[.columns, viewer]`, so each device holds every row its viewer may read and no other; do not make private rows public to get past this"), audience_split(catalog, info, rule));
+    match &super::intent_sync::audience_rule(&info.decl.name, info, rule) {
         RuleExpr::Public { .. } | RuleExpr::Allow if named.is_none() => Ok(Audience::Public),
         RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) if named.is_none() => Ok(Audience::Column(column.clone())),
         RuleExpr::Exists { table, index, key, equalities, .. } if equalities.is_empty() && key.last() == Some(&RuleTerm::Viewer) => {
@@ -385,8 +401,11 @@ fn infer_audience(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &R
     }
 }
 
-/// The paved splits that keep every reader (LLP 3000.036 §1 A).
-fn audience_split(table: &str, rule: &RuleExpr) -> String {
+/// The paved splits that keep every reader (LLP 3000.036 §1 A), spelled
+/// against this table's own columns for the shapes builders meet most:
+/// two parties, an owner beside a group, an owner beside a role.
+// @ref LLP 3000.036.000#2.1 — each union shape gets the recipe that keeps every reader offline.
+fn audience_split(catalog: &Catalog, info: &TableInfo, rule: &RuleExpr) -> String {
     fn viewer(rule: &RuleExpr) -> bool {
         let term = |term: &RuleTerm| matches!(term, RuleTerm::Viewer);
         match rule {
@@ -397,14 +416,59 @@ fn audience_split(table: &str, rule: &RuleExpr) -> String {
             RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, t)| t)).any(term),
         }
     }
-    let audience = rule.device_audience_rule();
+    let table = &info.decl.name;
+    let audience = super::intent_sync::audience_rule(table, info, rule);
     let online = "; or replace the sync line with `online only` and keep this rule";
     let disjuncts = audience.disjuncts();
     if disjuncts.len() > 1 && disjuncts.iter().any(|disjunct| !viewer(disjunct)) {
         let private = disjuncts.iter().find(|disjunct| viewer(disjunct)).map_or_else(|| ".owner = viewer".to_owned(), |disjunct| disjunct.quarry());
         return format!("keep shared and private rows in two tables: the shared rows in a `public '..'` table with its own sync, the rest in a table read and synced by `{private}`, moving a row when it becomes shared (guide sync){online}");
     }
-    format!("give each reader a row in a membership table synced to its members, and read through it: `table {table}Readers:` with `item: {table}`, `reader: principal`, `unique item, reader`, `read <- .reader = viewer`, `sync`; then here `read <- exists {table}Readers[.id, viewer]` and `sync to {table}Readers[.id] by .reader` (guide sync){online}")
+    // `.col = viewer` disjuncts: the row's own reader columns.
+    let owners: Vec<&String> = disjuncts.iter().filter_map(|disjunct| match disjunct {
+        RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => Some(column),
+        _ => None,
+    }).collect();
+    // `exists t[.a, viewer]` disjuncts: a group this row belongs to.
+    let groups: Vec<(&String, &String, Vec<&String>)> = disjuncts.iter().filter_map(|disjunct| match disjunct {
+        RuleExpr::Exists { table: target, index, key, equalities, .. } if equalities.is_empty() && key.len() > 1 && key.last() == Some(&RuleTerm::Viewer) => {
+            let fields = key[..key.len() - 1].iter().map(|term| match term { RuleTerm::Field(field) => Some(field), _ => None }).collect::<Option<Vec<_>>>()?;
+            Some((target, index, fields))
+        }
+        _ => None,
+    }).collect();
+    // A row-independent probe (`exists staff[viewer]`): a role, not a group.
+    let roles: Vec<String> = disjuncts.iter().filter(|disjunct| matches!(disjunct, RuleExpr::Exists { key, equalities, .. }
+        if key.iter().chain(equalities.iter().map(|(_, term)| term)).all(|term| !matches!(term, RuleTerm::Field(_))) && key.iter().chain(equalities.iter().map(|(_, term)| term)).any(|term| matches!(term, RuleTerm::Viewer))))
+        .map(|disjunct| disjunct.quarry()).collect();
+    let spelled = |columns: &[&String]| columns.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ");
+    if owners.len() >= 2 && owners.len() == disjuncts.len() {
+        let parties = format!("{table}Parties");
+        return format!("{} readers are {} audiences: give the row a parties table and read through it: `table {parties}:` with `item: {table}`, `party: principal`, `unique item, party`, `immutable item, party`, `read <- exists {parties}[.item, viewer]`, `insert <- created {table}[.item]`, `sync`; then here `read <- exists {parties}[.id, viewer]`, `sync`, and {}; the mutation that inserts the row inserts one {parties} row per reader (guide sharing: two parties){online}",
+            spelled(&owners), owners.len(),
+            owners.iter().map(|owner| format!("`after insert <- exists {parties}[item = .id, party = .{owner}]`")).collect::<Vec<_>>().join(" and "));
+    }
+    if let [(target, index, fields)] = groups.as_slice() && !owners.is_empty() && owners.len() + 1 == disjuncts.len()
+        && let Some(target_info) = catalog.tables.get(*target)
+        && let Some(probe) = target_info.indexes.iter().find(|candidate| &candidate.name == *index)
+        && probe.columns.len() == fields.len() + 1 {
+        let recipient = &probe.columns[fields.len()];
+        let group_columns = &probe.columns[..fields.len()];
+        let bind = |owner: &String| group_columns.iter().zip(fields).map(|(column, field)| format!("{column} = .{field}")).chain([format!("{recipient} = .{owner}")]).collect::<Vec<_>>().join(", ");
+        let grant = format!("exists {target}[{}, viewer]", group_columns.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", "));
+        let created = match (group_columns, fields.as_slice()) {
+            ([column], [field]) if field.as_str() == "id" => format!("created {table}[.{column}] or "),
+            _ => String::new(),
+        };
+        return format!("the owner is one more reader of the group: drop {} and give each owner a {target} row, so every reader reads through {target}: here `read <- exists {target}[{}, viewer]`, `sync`, and {}; in {target}, `insert <- {created}{grant}` (each insert branch proves the caller's grant), and the mutation that inserts the row inserts the owner's {target} row (guide sharing: a team the owner manages){online}",
+            owners.iter().map(|owner| format!("`.{owner} = viewer`")).collect::<Vec<_>>().join(" and "),
+            spelled(fields), owners.iter().map(|owner| format!("`after insert <- exists {target}[{}]`", bind(owner))).collect::<Vec<_>>().join(" and "));
+    }
+    if !owners.is_empty() && !roles.is_empty() && owners.len() + roles.len() == disjuncts.len() {
+        return format!("an owner plus a role ({}) is a union of two audiences, which sync does not deliver: keep one table per audience and let mutations write across: this table read and synced by `{}`, a staff copy read by `{}` and synced to it, and staff updates inserted into rows the owner reads (guide sharing: an owner plus staff){online}",
+            roles.join(", "), owners.iter().map(|owner| format!(".{owner} = viewer")).collect::<Vec<_>>().join(" or "), roles.join(" or "));
+    }
+    format!("give each reader a row in a membership table synced to its members, and read through it: `table {table}Readers:` with `item: {table}`, `reader: principal`, `unique item, reader`, `immutable item, reader`, `read <- .reader = viewer`, `insert <- created {table}[.item] or exists {table}Readers[.item, viewer]`, `sync`; then here `read <- exists {table}Readers[.id, viewer]` and `sync to {table}Readers[.id] by .reader` (guide sharing){online}")
 }
 
 /// Bind a rule expression over a table's focal row.
@@ -851,12 +915,12 @@ table messages:
         let two = sync(".claimant = viewer or .postedBy = viewer", "sync to .claimant");
         assert!(two.message.contains("`read <- .claimant = viewer or .postedBy = viewer`"), "{}", two.message);
         assert!(two.message.contains("do not make private rows public"), "{}", two.message);
-        assert!(two.rewrite.contains("`table claimsReaders:`") && two.rewrite.contains("`sync to claimsReaders[.id] by .reader`") && two.rewrite.contains("`online only`"), "{}", two.rewrite);
+        assert!(two.rewrite.contains("`table claimsParties:`") && two.rewrite.contains("`read <- exists claimsParties[.id, viewer]`") && two.rewrite.contains("`after insert <- exists claimsParties[item = .id, party = .claimant]`") && two.rewrite.contains("`online only`"), "{}", two.rewrite);
         let shared = sync(".approved or .postedBy = viewer", "sync");
         assert!(shared.message.contains("`read <- .approved or .postedBy = viewer`") && !shared.message.contains("Bool"), "{}", shared.message);
         assert!(shared.rewrite.contains("`public '..'` table") && shared.rewrite.contains("`.postedBy = viewer`"), "{}", shared.rewrite);
         // The split the rewrite names compiles.
-        let split = "table claims:\n  claimant: principal\n  postedBy: principal\n  read <- exists claimsReaders[.id, viewer]\n  insert <- .postedBy = viewer\n  sync to claimsReaders[.id] by .reader\ntable claimsReaders:\n  item: claims\n  reader: principal\n  unique item, reader\n  read <- .reader = viewer\n  insert <- deny\n  sync\n";
+        let split = "table claims:\n  claimant: principal\n  postedBy: principal\n  read <- exists claimsParties[.id, viewer]\n  insert <- .postedBy = viewer\n  after insert <- exists claimsParties[item = .id, party = .claimant]\n  after insert <- exists claimsParties[item = .id, party = .postedBy]\n  sync\ntable claimsParties:\n  item: claims\n  party: principal\n  unique item, party\n  immutable item, party\n  read <- exists claimsParties[.item, viewer]\n  insert <- created claims[.item]\n  sync\n";
         let bound = crate::compile(&[("schema.q".into(), split.into())]);
         assert!(bound.diagnostics.iter().all(|d| !d.code.starts_with("E_")), "{:?}", bound.diagnostics);
     }

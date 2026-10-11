@@ -62,3 +62,57 @@ fn owner_rewrite(schema: &Schema, maintain: &MaintainDecl) -> Option<String> {
     let args = key.iter().map(|f| if f == owner { "viewer".to_owned() } else { f.clone() }).collect::<Vec<_>>().join(", ");
     Some(format!("For own-state existence, replace {} with `sync public last {} by {order} with own keys .{owner}` on {}, and replace its Boolean lookups with `exists {}[{args}]`; remove the summary's declaration and read/sync lines. This keeps the public window and supplies complete own-key absence offline. For aggregate totals instead: ", maintain.name, horizon.last, maintain.source, maintain.source))
 }
+
+/// The audience-grant refusals of the core's sync check, gathered per
+/// audience table and reported once at its insert (or update) rule with the
+/// repaired rule, instead of once per synced table at each `sync` line.
+// @ref LLP 3000.036.000#2.2 — the refusal sits where the edit goes and prints the conjunction to add.
+#[derive(Default)]
+pub(crate) struct Grants {
+    /// (audience table, update) -> the synced tables it governs.
+    found: std::collections::BTreeMap<(String, bool), Vec<String>>,
+}
+
+impl Grants {
+    pub(crate) fn take(&mut self, issue: &snapback4_core::schema::SchemaIssue) -> bool {
+        let Some(content) = issue.path.strip_prefix("tables.").and_then(|path| path.strip_suffix(".sync")) else { return false };
+        let (target, update) = if let Some((target, _)) = issue.message.split_once(" grants the private audience of ") { (target, false) }
+            else if let Some((target, _)) = issue.message.split_once(" can retarget the private audience of ") { (target, true) }
+            else { return false };
+        self.found.entry((target.to_owned(), update)).or_default().push(content.to_owned());
+        true
+    }
+
+    pub(crate) fn diagnostics(self, schema: &Schema, catalog: &super::catalog::Catalog) -> Vec<Diagnostic> {
+        use snapback4_core::schema::{audience_binding, audience_grant_repair};
+        let mut out = Vec::new();
+        for ((target, update), contents) in self.found {
+            let site = catalog.site_for(&format!("tables.{target}.rules.{}", if update { "update" } else { "insert" }));
+            let binding = contents.iter().find_map(|content| {
+                let table = schema.table(content)?;
+                audience_binding(schema, content, table, table.sync.as_ref()?).ok()
+            });
+            let Some(binding) = binding else { continue };
+            let Some(repair) = audience_grant_repair(schema, &target, &binding, update) else { continue };
+            let probe = format!("exists {target}[{}viewer]", binding.columns.iter().map(|column| format!(".{column}, ")).collect::<String>());
+            let synced = contents.join(", ");
+            let roster = if binding.columns.is_empty() { " The roster has no group columns, so it is one group: a caller already in it may add others, and the first member is seeded (fixtures, `/seed`) or written by a job as the system." } else { "" };
+            let (message, rewrite) = if update {
+                (format!("{target} can retarget the private audience of {synced}: an update that changes {} on {target} moves a grant, so make those columns immutable or guard every update branch with an independent grant probe `{probe}`",
+                    binding.columns.iter().chain([&binding.principal]).cloned().collect::<Vec<_>>().join(", ")),
+                 format!("immutable {}  -- or: {}", binding.columns.iter().chain([&binding.principal]).cloned().collect::<Vec<_>>().join(", "), repair.rule))
+            } else {
+                let branches = repair.unguarded.iter().map(|branch| format!("`{branch}`")).collect::<Vec<_>>().join(", ");
+                (format!("{target} grants the private audience of {synced}: each {target} row delivers its group's rows to its {}, so every insert rule branch needs an independent grant probe in {target}, `{probe}` (the caller already holds this group), or a `created` probe for a group this mutation made; {branches} proves neither, so a caller could grant access it does not hold ({}). This also governs insert if absent and upsert.{roster}", binding.principal,
+                    if repair.unguarded.iter().any(|branch| branch.contains("exists ")) { "a probe of another table, such as ownership of the group's parent row, is not membership: conjoin the grant probe".to_owned() }
+                    else { format!("`.{} = viewer` alone lets anyone join", binding.principal) }),
+                 match &repair.created {
+                     Some(created) => format!("{}  -- and add `{created}` so the mutation that creates the group can add its first member", repair.rule),
+                     None => repair.rule.clone(),
+                 })
+            };
+            out.push(Diagnostic::new(&site, "E_SYNC", message, rewrite).guide("sync"));
+        }
+        out
+    }
+}
