@@ -16,9 +16,11 @@ conflicting value refuses before any file is written.
   --web            a Vite + React todos app (vite.config.mts, src/App.tsx)
   --expo           an Expo todos app
   --template chat  with --web or --expo: the full reference chat app
-  --port N         the backend port the client calls (default 4400)
-  --web-port N     the Vite page's port for dev and preview (--web only;
-                   default 5173, or the port after --port)
+  --port N         the backend port: the client's URL, the README's
+                   `snapback4 dev --port N`, and with --web the page on N+1
+                   (dev and preview), so one flag moves all of them
+                   (default 4400; the page 5173)
+  --web-port N     the Vite page's port instead of N+1 (--web only)
   --skip-existing  keep every existing file and write only the missing ones
 
 A project's own snapback/*.q is never overwritten and never a conflict, nor is
