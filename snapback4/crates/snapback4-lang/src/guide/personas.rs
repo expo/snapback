@@ -64,7 +64,9 @@ See `guide services` for diagnostic limits and `guide jobs` for isolated time-tr
 
 ## Operations
 `use personas alice, bob` declares a development cast. `snapback4 run send '{..}' --as alice` (the default
-persona is alice) and the `x-snapback-persona: alice` header in development act as `dev:alice`; `persona: "alice"` on the client sends the header. Personas are a development door: the socket peer, `Host`, and optional
+persona is alice) and the `x-snapback-persona: alice` header in development act as `dev:alice`; `persona: "alice"` on the client sends the header.
+The declaration is the cast: dev refuses a persona it does not name with 401 E_AUTH, naming the line to extend, so
+an acceptance test can expect an outsider to be refused (a schema without `use personas` admits any name). Personas are a development door: the socket peer, `Host`, and optional
 browser `Origin` must all be literal loopback/local http(s) values. Foreign, opaque, malformed and duplicate
 Origins are refused before routing, and CORS reflects only an admitted local Origin. `snapback4 dev` is
 development only: it admits loopback personas and an unauthenticated `POST /seed` as the system principal;
