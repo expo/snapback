@@ -148,6 +148,17 @@ test("README TypeScript examples compile and call every public function", (t) =>
   assert.deepEqual([...diagnostics, ...missing.map(name => `${name} needs a call in a README ts/tsx block`)], []);
 });
 
+// Lane 092 found hook signatures only by grepping react.d.ts: the index lists every export.
+test("the React entry index names every function snapback4/react exports", () => {
+  const source = read(join(root, "src/react.tsx"));
+  const reexported = source.match(/^export \{([^}]*)\} from "\.\/contract\.ts";$/m)[1].split(",").map(name => name.trim()).filter(name => name && !name.startsWith("type "));
+  const exported = [...new Set([...source.matchAll(/^export function (\w+)/gm)].map(match => match[1]))];
+  const index = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/#### The React entry at a glance\n([\s\S]*?)\n####/)?.[1];
+  assert.ok(index, "CLIENT-AND-OPERATIONS.md has the React entry index");
+  assert.ok(exported.length > 20 && reexported.includes("matchRead"));
+  assert.deepEqual([...exported, ...reexported].filter(name => !new RegExp("`" + name + "[`(]").test(index)), []);
+});
+
 test("Queries teach predicate reads and engine-chosen scope lanes", () => {
   const queries = read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).replace(/\s+/g, " ");
   assert.ok(queries.includes("messages where .roomId = roomId"));

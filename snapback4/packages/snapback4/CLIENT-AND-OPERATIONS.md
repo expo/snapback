@@ -1483,6 +1483,32 @@ export function App({ client, conversationId }: { client: Client; conversationId
 }
 ```
 
+#### The React entry at a glance
+
+Every function `snapback4/react` exports, with its result. `op` is a generated `api.*` handle;
+the `Use*` types name a hook's result for a prop. Hover any name for its full comment.
+
+| Function | Returns |
+| --- | --- |
+| `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
+| `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
+| `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
+| `useQuery(op, args, { keep }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards |
+| `usePage(op, args)` | `{ items, hasMore, read, loadMore }` (`UsePage<typeof op>`, a `PageHook<R>`); `op` declares `c: cursor ?` |
+| `useFollowing(op, args)` | Following history: the snapshot plus `loadMore`, `retry`, `refresh` (`guide feeds`) |
+| `useMutation(op)` | `{ run(args, options?), last, inFlight }` (`UseMutation<typeof op>`): `Write<R>`, or `Signal<R>` for an ephemeral `op` |
+| `usePendingWrite(op, id?)` | `useMutation`'s shape plus `pending` and `restoring`, for a saved mutation id |
+| `usePendingWrites(op?)`, `usePendingItems(options)`, `usePendingState(op, options)` | admitted writes; rows merged with intent cards; the latest admitted set-state intent |
+| `useAction(op)` | `{ run(args, options?), last, inFlight }` (`UseAction<typeof op>`) with `Act<R>` outcomes |
+| `useViewer()`, `useSignedInViewer()` | `Principal \| null`; `Principal`, throwing `E_AUTH` outside a signed-in gate |
+| `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
+| `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
+| `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`), `denied` or `error` (`why`) |
+| `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
+| `useInspection(enabled?)` | development overlay samples, or null when disabled |
+| `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
+| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any outcome); the state name; notice flags |
+
 #### Narrowing reads and writes in TypeScript
 
 `matchRead` takes no type arguments: the row type comes from the read, and the handlers'
