@@ -85,6 +85,7 @@ persona against the loaded fixture; mutations change what later lines see.
 Run the installed binary directly so the PID you hold is the server (through
 `npx`, npm and a shell sit in between). `--memory` keeps no store, so
 parallel runs never contend. Readiness is the first stdout line: the URL.
+`resolveBinary()` from `snapback4/bin-path` returns the platform binary itself, with no Node wrapper.
 
 ```js
 // node scripts/acceptance.mjs

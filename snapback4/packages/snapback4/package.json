@@ -71,6 +71,11 @@
       "types": "./dist/inspection.d.ts",
       "import": "./dist/inspection.js",
       "default": "./dist/inspection.js"
+    },
+    "./bin-path": {
+      "types": "./dist/bin-path.d.ts",
+      "import": "./dist/bin-path.js",
+      "default": "./dist/bin-path.js"
     }
   },
   "imports": {

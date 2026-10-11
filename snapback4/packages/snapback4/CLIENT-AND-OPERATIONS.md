@@ -2468,6 +2468,32 @@ step.
   Otherwise, and for fatal signals such as `SIGBUS`, termination is immediate with the OS
   signal status. `SIGKILL`, power loss and an unwritable stderr cannot be reported from inside the process.
   `snapback4 why SNAPBACK4_SIGNAL` explains the code.
+- **Scripts that spawn `dev`.** `resolveBinary()` from `snapback4/bin-path` returns the binary the
+  `snapback4` shim runs: `SNAPBACK4_BIN`, then the installed platform package, then a repository build.
+  Spawning it directly puts no npm, shell or Node wrapper between the script and the server, so the child's
+  PID is the server's and `kill()` stops it. Wait for the first stdout line (the listening URL), then
+  stop the child in `finally`:
+
+```ts
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createInterface } from "node:readline";
+import { resolveBinary } from "snapback4/bin-path";
+import { createClient } from "snapback4/client";
+import { api } from "../snapback/generated/api";
+
+const dev = spawn(resolveBinary(), ["dev", "--port", "0", "--fresh", "--no-watch"], { stdio: ["ignore", "pipe", "inherit"] });
+const [url] = await once(createInterface({ input: dev.stdout }), "line") as [string];
+const client = createClient({ url, persona: "alice" });
+try {
+  const me = await client.query(api.myProfile, {});
+  if ("denied" in me) throw Error(me.denied.message);
+} finally {
+  await client.close();
+  dev.kill("SIGTERM");
+  if (dev.exitCode === null && dev.signalCode === null) await once(dev, "exit");
+}
+```
 - **Development clock:** `snapback4 dev --clock-offset +25h` starts 25 hours ahead; `snapback4 clock advance
   185s [--port N]` advances a running dev and waits for expiry sweeps and queued jobs, so an `every 2m`
   schedule and a three-minute expiry need no real wait. Missed periods fire once; held schedules stay held.
