@@ -101,3 +101,19 @@ query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2
     assert!(text.contains("pinning `.owner` otherwise (below)"), "{text}");
     fs::remove_dir_all(dir).unwrap();
 }
+
+/// Wave 6 #20 (6 lanes): a maintained view is counted as a view, not a table
+/// a fixture fills.
+#[test]
+fn check_counts_views_apart_from_tables() {
+    let dir = std::env::temp_dir().join(format!("sb4-check-views-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let source = "table slots:\n  seats: int\n  public 'p'\n  online only\ntable bookings:\n  slot: slots\n  guest: principal\n  read <- .guest = viewer\n  insert <- .guest = viewer\n  online only\nview taken: count bookings by .slot\n  read <- allow\n";
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    let run = |args: &[&str]| String::from_utf8(Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap().stdout).unwrap();
+    let text = run(&["check"]);
+    assert!(text.starts_with("check: ok — 2 tables, 1 view (0 synced), 0 operations"), "{text}");
+    let json: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
+    assert_eq!((json["tables"].as_u64(), json["views"].as_u64()), (Some(2), Some(1)), "{json}");
+    fs::remove_dir_all(dir).unwrap();
+}
