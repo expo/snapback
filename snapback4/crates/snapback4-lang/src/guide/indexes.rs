@@ -133,11 +133,12 @@ mutation signUp(shift: shifts):
 ```
 
 A grant that reads no row field, such as `exists staff[viewer]` or
-`viewer = 'service:ops'`, admits every row to its holder, but completeness is
-decided per page from its pins, so neither the grant nor a `require` guard
-makes an unpinned staff page complete: staff receive every row with
-`complete: false`. Page with the cursor and render "may be incomplete"; the
-note says when a grant is not used.
+`viewer = 'service:ops'`, admits every row to its holder. When it holds for
+the caller, and the caller may read the row that grants it (`read <-
+.principal = viewer` on `staff`), the page is decided once: a staff page is
+`complete`, and everyone else pages their own rows with `complete: false`.
+A grant row its holder cannot read, or a `require` guard, decides nothing;
+the note says when a grant is not used.
 
 ## Operations
 

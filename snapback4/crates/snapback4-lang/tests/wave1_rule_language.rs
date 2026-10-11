@@ -354,7 +354,7 @@ query discussion(card: cards, c: cursor ?):
   return comments where .card = card first 20 by .id after c
 ", "N_NEVER_COMPLETE");
     assert!(parent.rewrite.contains("cardRow = cards[card] ! else NOT_FOUND") && parent.rewrite.contains(".board = cardRow.board"), "{parent}");
-    let staff = note("table staff:
+    let staff_source = "table staff:
   principal: principal
   unique principal
   read <- .principal = viewer
@@ -366,8 +366,14 @@ table tickets:
 query inbox(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
   return tickets first 20 by .id after c
-", "N_NEVER_COMPLETE");
-    assert!(staff.rewrite.contains("exists staff[") && staff.rewrite.contains("require"), "{staff}");
+";
+    // LLP 3000.036 §12.1: the required, readable grant decides the page for
+    // every caller who reaches it, so the guarded inbox has no note; unguarded,
+    // the note says staff pages are complete.
+    let guarded = bound(staff_source);
+    assert!(guarded.diagnostics.is_empty() && !guarded.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:#?}", guarded.notes);
+    let staff = note(&staff_source.replace("  require exists staff[viewer] else NOT_STAFF\n", ""), "N_NEVER_COMPLETE");
+    assert!(staff.message.contains("except for callers `exists staff[viewer]` admits") && staff.rewrite.contains("complete: true"), "{staff}");
 }
 
 #[test]

@@ -651,7 +651,7 @@
     "id": "shapes-05",
     "card": "shapes",
     "home": "Details",
-    "text": "In the first example, table and shape names are the language card's. A shape over a page is\na bounded loop; its fields are the row's columns by bare name, `*` for all\nof them, `...shape` for a named shape's fields, and `name: expr` with `.`\nas the row. There is no `select` spelling.\nA table-typed helper accepts that table's row or reference. A reference has no\nfields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's\nimplicit row parameter, `messages[m] { body: .body }`. Shapes are projections,\nnot declared helper-argument types.\nA row-based shape keeps `pending?: boolean` from its base, including `*`, named\nspreads and subsequent shapes. It is this device's unconfirmed change, absent\nafter confirmation; it is not a schema column or metadata on a containing record."
+    "text": "In the first example, table and shape names are the language card's. A shape over a page is\na bounded loop; its fields are the row's columns by bare name, `*` for all\nof them, `...shape` for a named shape's fields, and `name: expr` with `.`\nas the row. There is no `select` spelling.\nA table-typed helper accepts that table's row or reference. A reference's\nfield reads its row: `.slot.day` is `slots[.slot].day`, null when missing or\nhidden; `slots[.slot] ! else NOT_FOUND` refuses instead. Shapes are projections,\nnot declared helper-argument types.\nA row-based shape keeps `pending?: boolean` from its base, including `*`, named\nspreads and subsequent shapes. It is this device's unconfirmed change, absent\nafter confirmation; it is not a schema column or metadata on a containing record."
   },
   {
     "id": "shapes-06",
@@ -795,6 +795,6 @@
     "id": "types-08",
     "card": "types",
     "home": "E_QUARRY_TYPE",
-    "text": "E_QUARRY_TYPE means the expression's type does not fit its position.\nThe diagnostic names the expected and actual types and the source location.\nA table reference is that table's typed id, not its row: read `table[id]`\nbefore selecting fields. Narrow an optional value with `if x != null:`,\n`x ! else CODE` or `x ?? default` before using it where a present value is\nrequired. Use the declared enum type when its variants cannot all widen\nto the helper's text bound; changing a type never converts stored values."
+    "text": "E_QUARRY_TYPE means the expression's type does not fit its position.\nThe diagnostic names the expected and actual types and the source location.\nA table reference is that table's typed id, not its row: `ref.field` reads\nthe row (`table[ref].field`, null when missing or hidden), and `table[id] !\nelse NOT_FOUND` refuses instead. Narrow an optional value with `if x != null:`,\n`x ! else CODE` or `x ?? default` before using it where a present value is\nrequired. Use the declared enum type when its variants cannot all widen\nto the helper's text bound; changing a type never converts stored values."
   }
 ]

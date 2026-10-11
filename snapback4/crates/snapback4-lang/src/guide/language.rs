@@ -246,7 +246,7 @@ query chips(postId: posts, c: cursor ?):
 fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
 shape messageCard = { *, room: rooms[.roomId], count: messageCounts[.roomId] }
 shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- named shape: `.` denotes the row; use `row card` or `page card`
-fn messageBody(m: messages): m.body                                  -- row arguments keep their fields
+fn messageBody(m: messages): m.body                                  -- a reference argument reads its row
 fn messageById(m: messages):
   require exists messages[m] else NOT_FOUND
   return messages[m].body      -- reference arguments keep their ids
@@ -389,7 +389,7 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
 mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:
   msg = messages[messageId] ! else NOT_FOUND                         -- the row, or refuse with the code; `msg` is present from here on
   require msg.authorId = viewer else NOT_AUTHOR
-  update messages[msg] { body, editedAt: now } if .body = expected    -- a row as the key; `if` makes the update conditional: E_CONFLICT with the current row when false
+  update msg { body, editedAt: now } if .body = expected             -- a row as the key (`delete msg` too); `if` makes the update conditional: E_CONFLICT with the current row when false
   return null                                                        -- same as bare `return`
 
 mutation join(roomId: rooms, principal: principal):

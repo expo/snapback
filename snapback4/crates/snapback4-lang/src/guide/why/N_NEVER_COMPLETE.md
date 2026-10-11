@@ -34,5 +34,6 @@ fallback. Otherwise keep the server query and its incomplete absence verdict.
 
 Its rewrite renders the pin as code: the equality to add, the parent read that
 supplies its value, or one query per party for a two-party rule (guide indexes,
-"Private lists"). A row-independent grant (`exists staff[viewer]`) or a
+"Private lists"). A row-independent grant (`exists staff[viewer]`) whose row its holder may
+read decides the page once for that holder, so staff pages are complete; a
 `require` guard is not used.

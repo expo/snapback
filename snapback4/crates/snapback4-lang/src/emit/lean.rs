@@ -315,6 +315,11 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         if rules.contains_key(word) {
             return no("rule-repeated", format!("{} has two {word} rules", t.name));
         }
+        // @ref LLP 3000.036#12 — the engine decides a page once for a caller whose
+        // row-independent grant holds; the model's `uniform` has no such arm yet.
+        if r.effect == Effect::Read && read_grant(&r.value) {
+            return no("read-grant", format!("{} read rule has a disjunct that reads no row column", t.name));
+        }
         let ctx = RuleCtx { table: shape, tables };
         let json = match (r.effect, r.bindings.as_slice()) {
             (Effect::Update, []) => {
@@ -335,6 +340,25 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         "uniqueCodes": shape.codes,
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
+}
+
+/// A top-level `or` with a disjunct that reads no `.column` of the row.
+fn read_grant(rule: &Expr) -> bool {
+    fn disjuncts<'a>(e: &'a Expr, out: &mut Vec<&'a Expr>) {
+        match e { Expr::Binary { op, left, right, .. } if op == "or" => { disjuncts(left, out); disjuncts(right, out); }, other => out.push(other) }
+    }
+    fn focal(e: &Expr) -> bool {
+        match e {
+            Expr::Focal { .. } => true,
+            Expr::Member { base, .. } | Expr::Unary { value: base, .. } => focal(base),
+            Expr::Binary { left, right, .. } => focal(left) || focal(right),
+            Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().any(|key| focal(&key.value)),
+            _ => false,
+        }
+    }
+    let mut parts = Vec::new();
+    disjuncts(rule, &mut parts);
+    parts.len() > 1 && parts.iter().any(|part| !focal(part) && !matches!(part, Expr::Literal { .. }))
 }
 
 /// Which image a focal `.col` names, or the named update images.
@@ -784,6 +808,7 @@ impl<'a> Scope<'a> {
 
     fn write(&self, e: &Expr) -> R<Json> {
         let Expr::Write { op, table, keys, fields, if_absent, condition, .. } = e else { unreachable!() };
+        if *op != WriteOp::Insert && keys.is_empty() { return no("row-variable-write", crate::print::expression(e)); }
         let t = self.table(table)?;
         Ok(match op {
             WriteOp::Insert => {

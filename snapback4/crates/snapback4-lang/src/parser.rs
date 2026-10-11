@@ -413,6 +413,11 @@ impl Parser {
                 let mut prefix = Vec::new();
                 loop {
                     if !self.at(".") || self.peek_at(1).kind != Kind::Word {
+                        // @ref LLP 3000.036#12 — wave 2 (039): a whole roster is the inferred audience, not a keyed one.
+                        if self.peek_at(1).value == "=" || self.at("viewer") || self.peek_at(2).value == "viewer" {
+                            return Err(syntax_with(&site, format!("sync to {table}[...] names this row's group columns, never the viewer; a roster every member reads is the inferred audience"),
+                                format!("read <- exists {table}[viewer] (a unique principal roster), then a bare `sync` line; or sync to {table}[.groupColumn] for a roster per group (guide sharing)")).guide("sharing"));
+                        }
                         return Err(syntax_with(&site, format!("sync to {table}[...] takes .column keys of this table"), rewrite));
                     }
                     self.take(".")?;
@@ -482,6 +487,13 @@ impl Parser {
             self.take(".")?;
             Some(self.word()?.value)
         } else { None };
+        // @ref LLP 3000.036#12 — wave 2 (035): `sync to .a, .b` asks for a union audience.
+        if matches!(audience, SyncAudience::Column(_)) && horizon.is_none() && self.at(",") && self.peek_at(1).value == "." {
+            let SyncAudience::Column(first) = &audience else { unreachable!() };
+            let second = self.peek_at(2).value.clone();
+            return Err(syntax_with(&self.peek().site.clone(), format!("a table syncs to one audience; `sync to .{first}, .{second}` would be a union of two readers, which sync does not deliver"),
+                format!("for two parties, give each row a parties membership that names both readers (guide sharing: two parties), or keep `read <- .{first} = viewer or .{second} = viewer` and replace the sync line with `online only`")).guide("sharing"));
+        }
         if !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) {
             let audience_text = match &audience {
                 SyncAudience::Public => "sync public".to_owned(),

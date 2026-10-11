@@ -580,7 +580,11 @@ impl Parser {
             "upsert" => WriteOp::Upsert,
             _ => WriteOp::Delete,
         };
-        let keys = if op == WriteOp::Insert { Vec::new() } else {
+        // @ref LLP 3000.036#12 — `delete row` / `update row { … }` name a bound
+        // row variable; the binder resolves it to `t[row]` (an empty key list).
+        let row_variable = matches!(op, WriteOp::Delete | WriteOp::Update) && !self.at("[")
+            && (if op == WriteOp::Delete { matches!(self.peek().kind, Kind::Newline | Kind::Eof | Kind::Dedent) } else { self.at("{") });
+        let keys = if op == WriteOp::Insert || row_variable { Vec::new() } else {
             let read = self.parse_read(&table, &op_token.site)?;
             if !read.seeks.is_empty() { return Err(syntax(&op_token.site, "a write needs an exact key; use a bounded page for a seek")); }
             read.keys

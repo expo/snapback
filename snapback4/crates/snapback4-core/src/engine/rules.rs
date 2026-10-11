@@ -85,6 +85,103 @@ fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap
     }
 }
 
+/// A read rule `A or G` whose disjunct `G` reads no column of the row (a
+/// role such as `exists staff[viewer]`, or a service seat) is true for every
+/// row whenever `G` holds for this caller. The page is then decided once, per
+/// caller: a staff console's list is complete for staff, and is the same
+/// per-row walk as before for everyone else.
+///
+/// Only grants whose every fact the caller could read are used, so `complete`
+/// discloses nothing beyond the caller's own readable rows: each probe's
+/// target row must be readable by its own read rule once the probe key pins
+/// it (`.principal = viewer`, `public`, or the same probe), and a negated
+/// probe is never a grant.
+// @ref LLP 3000.036#12 — the role-guard completeness proof deferred in §11, server-side and per caller.
+pub fn grant_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
+    let table = schema.table(&scan.table)?;
+    if table.through.is_some() { return None; }
+    let rule = &table.rules.read;
+    if !matches!(rule, RuleExpr::Or(_)) { return None; }
+    let grants: Vec<RuleExpr> = rule.disjuncts().into_iter()
+        .filter(|disjunct| { let mut fields = BTreeSet::new(); disjunct.fields(&mut fields); fields.is_empty() })
+        .filter(|disjunct| self_disclosing(schema, disjunct))
+        .cloned().collect();
+    (!grants.is_empty()).then(|| if grants.len() == 1 { grants.into_iter().next().unwrap() } else { RuleExpr::Or(grants) })
+}
+
+/// A top-level `require` of the grant (`require exists staff[viewer] else …`)
+/// before the statement holding `scan`, in a program that never writes the
+/// grant's table: every caller who reaches the page holds the grant, so the
+/// page is fully readable for each of them. Scans compare structurally, so a
+/// copy of a scan before the guard counts as unguarded.
+// @ref LLP 3000.036#12 — require dominance: staff consoles and staff-only mutation passes.
+pub fn grant_dominated(schema: &Schema, program: &crate::ir::Program, scan: &Scan) -> bool {
+    let Some(grant) = grant_decision(schema, scan) else { return false };
+    let probes: Vec<&RuleExpr> = grant.disjuncts();
+    let written: BTreeSet<String> = crate::ir::write_tables(program).into_iter().map(|(table, _)| table).collect();
+    let matches = |condition: &Expr| {
+        let Expr::Exists(read) = condition else { return false };
+        probes.iter().any(|probe| match probe {
+            RuleExpr::Exists { table, index, key, equalities, .. } => equalities.is_empty() && &read.table == table && &read.index == index
+                && !written.contains(table) && read.key.len() == key.len()
+                && read.key.iter().zip(key).all(|(expression, term)| pinned_term(term, expression)),
+            _ => false,
+        })
+    };
+    for (position, statement) in program.body.iter().enumerate() {
+        let (inside, _) = crate::ir::body_read_structure(std::slice::from_ref(statement));
+        if inside.iter().any(|candidate| *candidate == scan) { return false; }
+        if let crate::ir::Stmt::Require { condition, .. } = statement && matches(condition) {
+            let (later, _) = crate::ir::body_read_structure(&program.body[position + 1..]);
+            return later.iter().any(|candidate| *candidate == scan);
+        }
+    }
+    false
+}
+
+/// Every fact the grant reads is one the caller may read itself.
+fn self_disclosing(schema: &Schema, grant: &RuleExpr) -> bool {
+    match grant {
+        RuleExpr::Allow | RuleExpr::Public { .. } => true,
+        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => [a, b].iter().all(|term| matches!(term, RuleTerm::Viewer | RuleTerm::Literal(_))),
+        RuleExpr::And(items) => items.iter().all(|item| self_disclosing(schema, item)),
+        RuleExpr::Exists { table: target, index, key, equalities, .. } => {
+            let Some(target_table) = schema.table(target) else { return false };
+            let Some(target_index) = target_table.index(index) else { return false };
+            if target_table.through.is_some() || target_table.is_expiring() { return false; }
+            let value = |term: &RuleTerm| match term {
+                RuleTerm::Viewer => Some(Expr::Input(Input::Viewer)),
+                RuleTerm::Literal(value) => Some(Expr::Literal(value.clone())),
+                _ => None,
+            };
+            let mut pins: BTreeMap<String, Expr> = BTreeMap::new();
+            for (component, term) in target_index.components.iter().zip(key) {
+                let (Some(column), Some(expr)) = (component.column(), value(term)) else { return false };
+                pins.insert(column.clone(), expr);
+            }
+            for (column, term) in equalities {
+                let Some(expr) = value(term) else { return false };
+                pins.insert(column.clone(), expr);
+            }
+            let pinned = |name: &str| pins.get(name);
+            // The witness row's own read rule, decided by what the probe pins,
+            // or carrying this very probe as a disjunct (`read <- exists staff[viewer]`).
+            rule_true(&target_table.rules.read, target, target_table, &pinned)
+                || target_table.rules.read.disjuncts().iter().any(|disjunct| implied_by(disjunct, grant))
+        }
+        _ => false,
+    }
+}
+
+/// `weaker` holds whenever `stronger` does: the same probe with fewer extra equalities.
+fn implied_by(weaker: &RuleExpr, stronger: &RuleExpr) -> bool {
+    match (weaker, stronger) {
+        (RuleExpr::Exists { table: a, index: ai, key: ak, equalities: ae, .. }, RuleExpr::Exists { table: b, index: bi, key: bk, equalities: be, .. }) =>
+            a == b && ai == bi && ak == bk && ae.iter().all(|pair| be.contains(pair)),
+        _ => weaker == stronger,
+    }
+}
+
 /// Lazy lanes need a position that identifies one row within the lane.
 /// Keep setup evaluation and non-uniform traversal in their original order.
 pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {

@@ -822,10 +822,11 @@ fn b2_every_check_summarizes_zero_one_and_three_never_mutations() {
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             println!("{text}");
-            let lines: Vec<_> = text.lines().filter(|line| line.contains("never predict:")).collect();
+            let lines: Vec<_> = text.lines().filter(|line| line.contains("never predict")).collect();
             if count == 0 { assert!(lines.is_empty()); } else {
                 let names = if count == 1 { "like (reads online-only maintain likeCounts)" } else { "createPost (reads online-only maintain likeCounts), like (reads online-only maintain likeCounts), repost (reads online-only maintain likeCounts)" };
-                assert_eq!(lines, [format!("{count} mutations never predict: {names} — snapback4 why <op>")]);
+                let head = if count == 1 { "1 mutation never predicts".to_owned() } else { format!("{count} mutations never predict") };
+                assert_eq!(lines, [format!("{head}: {names} (they run on the server when called; no action needed for an online app) — snapback4 why <op>")]);
             }
         }
     }
@@ -910,7 +911,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
 fn b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text() {
     let p = Project::new();
     p.source("table ranked:\n  score: int\n  read <- allow\n  insert <- allow\ntable entries:\n  postId: id\n  by byPost: postId, id\n  public 'feed'\n  sync\nmaintain entryCounts: count entries by postId\n  read <- allow\n  online only\nmutation repost(postId: id):\n  return entryCounts[postId]\nmutation like():\n  insert ranked { score: 1 }\nmutation createPost():\n  insert ranked { score: 0 }\n");
-    let summary = "3 mutations never predict: createPost (writes online-only table ranked), like (writes online-only table ranked), repost (reads online-only maintain entryCounts) — snapback4 why <op>";
+    let summary = "3 mutations never predict: createPost (writes online-only table ranked), like (writes online-only table ranked), repost (reads online-only maintain entryCounts) (they run on the server when called; no action needed for an online app) — snapback4 why <op>";
     for args in [vec!["check"], vec!["check", "--json"], vec!["check", "--residency"]] {
         let output = p.run(&args);
         assert!(output.status.success(), "{output:?}");
@@ -930,9 +931,9 @@ fn b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied() {
     println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("schema.q:1:1 — E_NOT_PREDICTABLE"));
-    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutations never predict: dispatch (author marked this mutation : server)"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutation never predicts: dispatch (author marked this mutation : server)"));
     let verbose = p.run(&["check", "--verbose"]);
-    assert!(String::from_utf8_lossy(&verbose.stdout).contains("1 mutations never predict: dispatch"));
+    assert!(String::from_utf8_lossy(&verbose.stdout).contains("1 mutation never predicts: dispatch"));
     p.source(&source.replace(": server", ":"));
     let output = p.run(&["check", "--json"]);
     assert!(output.status.success(), "{output:?}");

@@ -272,9 +272,8 @@ query history(id: messages):
 "#;
     clean("chat.q", &at_line(schema, 89, helper));
     let reference = bind("chat.q", "table messages:\n  body: text <=100\n  public 'messages'\nfn state(m: messages): m.body\nquery q(id: messages):\n  return state(id)\n");
-    assert_eq!(reference.diagnostics.len(), 1);
-    assert_eq!(reference.diagnostics[0].message, "a messages reference has no fields");
-    assert!(reference.diagnostics[0].rewrite.contains("messages[m] ! else NOT_FOUND"));
+    // A reference's field reads its row (LLP 3000.036 §12), as `messages[m].body` does.
+    assert!(reference.diagnostics.is_empty(), "{:?}", reference.diagnostics);
     // S11's residency syntax is owned by B2: its message names inheritance
     // and the `online only` opt-out; the builder's removal stays clean.
     let source = at_line("table likes:\n  postId: id\n  public 'likes'\n", 70, "maintain likeCounts: count likes by postId\n  read <- allow\n  sync public last 2000 by byId");

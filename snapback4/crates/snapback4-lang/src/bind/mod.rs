@@ -404,6 +404,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         if prefix == ["id"] || table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if *by == prefix)) {
             continue;
         }
+        // @ref LLP 3000.036#12 — a unique key inside the group (`unique principal`
+        // under `sync to .principal`) holds at most one row per group.
+        if !prefix.is_empty() && table.indexes.values().any(|index| index.unique && index.is_plain() && !index.columns().is_empty() && index.columns().iter().all(|column| prefix.contains(column))) {
+            continue;
+        }
         // @ref LLP 3000.007#20.23 — a horizon decides *which* rows a device keeps, so the
         // index must order the group by when its rows were minted. Any other index is
         // well-formed: it compiles, silences this note, and leaves residency arbitrary,
@@ -532,6 +537,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             if visibility.uniform {
                 continue;
             }
+            // @ref LLP 3000.036#12 — after `require exists staff[viewer]`, every caller who reaches the page holds the grant.
+            if snapback4_core::engine::rules::grant_dominated(schema, &bound.program, scan) {
+                continue;
+            }
             let Some(index) = table.index(&scan.index) else { continue };
             let pinned: std::collections::BTreeSet<String> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| key.scalar().and(component.column()).cloned()).collect();
             let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
@@ -553,10 +562,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     &bound.site,
                     "N_NEVER_COMPLETE",
                     if held_rewrite.is_some() { format!("query {}: this lookup does not pin an authorized row's id; matching a name does not prove uniqueness or absence. The server may return matches but cannot certify complete. The held replacement (check --verbose) keeps the same matches and shape on the device; it requires acquired coverage and has no server fallback. Keep the original query if server lookup is required", bound.program.name) }
-                    else { format!("{} {}: {}the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
+                    else { format!("{} {}: {}the page over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index,
+                        snapback4_core::engine::rules::grant_decision(schema, scan).map_or_else(String::new, |grant| format!(" except for callers `{}` admits", grant.quarry())),
+                        table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     held_rewrite.or(search_rewrite.clone()).unwrap_or_else(|| {
                         let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
-                        match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned) { Some(pin) => format!("{base}. As code: {pin}"), None => base }
+                        let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
+                        match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) { Some(pin) => format!("{base}. As code: {pin}"), None => base }
                     }),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),

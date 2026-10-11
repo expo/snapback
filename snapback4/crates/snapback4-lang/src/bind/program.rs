@@ -975,6 +975,29 @@ impl<'a> Binder<'a> {
     fn write_inner(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         if self.viewer_depth.is_some() { return Err(job_reads::read_only(expr.site())); }
         let A::Write { op, table, keys, fields, if_absent, condition, site } = expr else { unreachable!() };
+        // @ref LLP 3000.036#12 — `delete row` and `update row { … }` write the
+        // row a present row variable holds: the same write as `t[row]`.
+        if keys.is_empty() && matches!(op, WriteOp::Delete | WriteOp::Update) {
+            let resolved = match self.lookup(table) {
+                Some(Ty::Row(target)) => Some(target.clone()),
+                _ => None,
+            };
+            let Some(target) = resolved else {
+                let (message, rewrite) = match self.lookup(table) {
+                    Some(Ty::Optional(inner)) if matches!(inner.as_ref(), Ty::Row(_)) => {
+                        let Ty::Row(target) = inner.as_ref() else { unreachable!() };
+                        (format!("{table} may be null; {} needs a present row", op.word()), format!("{table} = {target}[id] ! else NOT_FOUND, then {} {table}", op.word()))
+                    }
+                    Some(other) => (format!("{} {table} needs a row variable; {table} is {}", op.word(), other.name()), format!("{} t[{table}]", op.word())),
+                    None if self.catalog.tables.contains_key(table.as_str()) => (format!("{} {table} names no row", op.word()), format!("{} {table}[id]{}", op.word(), if *op == WriteOp::Update { " { … }" } else { "" })),
+                    None => (format!("unknown row variable {table}"), format!("bind it first: row = t[id] ! else NOT_FOUND, then {} row", op.word())),
+                };
+                return Err(unknown(site, message, rewrite));
+            };
+            let key = ast::KeyPart { column: None, value: A::Name { name: table.clone(), site: site.clone() }, site: site.clone() };
+            let resolved = A::Write { op: *op, table: target, keys: vec![key], fields: fields.clone(), if_absent: *if_absent, condition: condition.clone(), site: site.clone() };
+            return self.write_inner(&resolved, out, valued);
+        }
         if self.in_prelude {
             return Err(placement(site, "a write belongs to a chunk", format!("move {} {table} inside a top-level `for row in table:` job sweep", op.word())));
         }

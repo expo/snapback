@@ -589,17 +589,24 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                     return Err(type_error(site, format!("viewer meets {} here; only principal columns compare with viewer", other.name()), "declare the column as principal"));
                 }
                 if ordered && !transition {
-                    // An insert rule orders only the new row's own required int/time columns and integer literals.
+                    // An insert rule orders only the new row's own required
+                    // int/time/decimal/money columns and integer literals (a
+                    // literal beside decimal or money is minor units, as the
+                    // wire and programs read it).
+                    // @ref LLP 3000.036#12 — money and decimal hold integer minor units, so they order like int.
                     let own = |term: &RuleTerm| match term { RuleTerm::Field(field) => info.columns.contains_key(field), RuleTerm::Literal(Value::Int(_)) => true, _ => false };
                     if !own(&l) || !own(&r) || matches!((&l, &r), (RuleTerm::Literal(_), RuleTerm::Literal(_))) {
                         return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, "an ordered comparison beyond this row's own columns"));
                     }
-                    let scalar = |ty: &Ty| matches!(ty, Ty::Int | Ty::Time);
+                    let scalar = |ty: &Ty| matches!(ty, Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..));
                     let literal = |term: &RuleTerm| matches!(term, RuleTerm::Literal(_));
                     if !scalar(&lt) || !scalar(&rt) || (lt != rt && !literal(&l) && !literal(&r)) {
                         let optional = matches!(lt, Ty::Optional(_)) || matches!(rt, Ty::Optional(_));
-                        return Err(type_error(site, format!("an insert-rule ordered comparison joins {} with {}{}", lt.name(), rt.name(), if optional { "; an optional column may be null, which is not ordered" } else { "" }),
-                            if optional { "declare the column required, or check it in the mutation with require" } else { "compare required int or time columns of one type, or a column with an integer literal" }));
+                        let both_columns = !literal(&l) && !literal(&r);
+                        let help = if optional { "declare the column required, or check it in the mutation with require".to_owned() }
+                            else if both_columns && scalar(&lt) && scalar(&rt) { format!("columns ordered against each other need one type ({} and {} differ); compare each with an integer literal, or check it in the mutation with require", lt.name(), rt.name()) }
+                            else { format!("an insert rule orders int, time, decimal and money columns; check this {} comparison in the mutation with require", if scalar(&lt) { rt.name() } else { lt.name() }) };
+                        return Err(type_error(site, format!("an insert-rule ordered comparison joins {} with {}{}", lt.name(), rt.name(), if optional { "; an optional column may be null, which is not ordered" } else { "" }), help));
                     }
                 } else if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
                     let image = |term: &RuleTerm| match term { RuleTerm::OldField(f) => Some(format!("old.{f}")), RuleTerm::NextField(f) => Some(format!("next.{f}")), _ => None };

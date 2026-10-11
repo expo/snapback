@@ -188,6 +188,23 @@ impl Binder<'_> {
                 if name == "length" && matches!(t.required(), Ty::Text(_) | Ty::List(..) | Ty::Page(..) | Ty::Collection(..)) {
                     return Err(unsupported(site, ".length", format!("count({})", print::expression(base))));
                 }
+                // @ref LLP 3000.036#12 — a required reference's field reads its row:
+                // `x.ref.col` is `t[x.ref].col`, the same authorized point read
+                // (null when the row is missing or hidden), bound once.
+                // A recorded attribution column spelled `ref.col` names the value
+                // copied at insert; the live read would be a second meaning.
+                let recorded = matches!(base.as_ref(), A::Member { name: column, .. }
+                    if self.catalog.tables.values().any(|info| info.recorded.contains_key(&format!("{column}.{name}"))));
+                if let Ty::Ref(table) = &t && name != "id" && !recorded
+                    && self.catalog.tables.get(table).is_some_and(|info| info.maintained.is_none() && info.decl.ephemeral.is_none())
+                {
+                    let local = self.temp("reference");
+                    let runtime = self.declare(&local, t.clone());
+                    out.push(Stmt::Const { name: runtime, value: e });
+                    let key = ast::KeyPart { column: None, value: A::Name { name: local, site: site.clone() }, site: site.clone() };
+                    let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: table.clone(), keys: vec![key], index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
+                    return self.computation(&A::Member { base: Box::new(A::Read(read)), name: name.clone(), site: site.clone() }, out);
+                }
                 let (value, ty) = self.member(e, t, name, site)?;
                 Ok((value, self.field_refinement(expr).unwrap_or(ty)))
             }

@@ -155,3 +155,11 @@ records. For reproduction, decompress it beside the script and run the script
 with Python 3; its output is the receipt. The input records were produced by
 `cases::generated()` plus `cases::census()`, `snapshot::baseline` with measurement
 false, and the same returned-shape clearing used by the differential test.
+
+LLP 3000.036 §12 reference fields (2026-10-11): a required reference's field
+reads its row, so `m.body` on a `messages` reference binds as
+`messages[m].body`. One census program therefore becomes bindable:
+`515c83…:bad` (`body(id)`, a table-typed helper given a reference), whose
+siblings `rowArg`, `refArg` and `both` keep their historical digests.
+`reference-field-admissions.sha256` pins only this new identity; no
+historical digest or census source changes.

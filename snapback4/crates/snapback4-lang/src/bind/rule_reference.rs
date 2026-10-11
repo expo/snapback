@@ -108,32 +108,122 @@ pub(super) fn reference_rewrite(catalog: &Catalog, info: &TableInfo, expr: &Expr
 }
 
 /// A read rule that hops (`.box.season`) cannot be a partition's audience.
-/// The table-rule repair copies the immutable deciding value onto the row,
-/// checks it against the parent at insert, and probes one hop.
+/// The repair is always one that compiles as printed (round-tripped in
+/// `tests/wave2_rule_language.rs`): an online-only table or a view probes the
+/// row that holds the deciding value (`exists parent[.ref, field = viewer]`,
+/// copying the last reference when the chain is longer than one hop); a
+/// synced table compared with `viewer` copies the deciding principal, which
+/// sync can use as a column audience.
 // @ref LLP 3000.036#11 — app-farm pattern 33: show a table-rule repair, not mutation syntax.
+// @ref LLP 3000.036#12 — wave 2 R9: skip the intermediate one-hop form that is itself refused.
 pub(super) fn read_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr) -> Option<String> {
-    fn find(expr: &Expr) -> Option<(String, String)> {
+    /// `.a.b … .f` rooted at the row, outermost first: `[a, b, …, f]`.
+    fn chain(expr: &Expr) -> Option<Vec<String>> {
+        let mut names = Vec::new();
+        let mut at = expr;
+        loop {
+            match at {
+                Expr::Member { base, name, .. } => { names.push(name.clone()); at = base; }
+                Expr::Focal { .. } => break,
+                _ => return None,
+            }
+        }
+        names.reverse();
+        (names.len() >= 2).then_some(names)
+    }
+    /// The first hop chain, with the equality it sits in (`= X`), if any.
+    fn find(expr: &Expr) -> Option<(Vec<String>, Option<(&Expr, String)>)> {
+        if let Some(names) = chain(expr) { return Some((names, Some((expr, "true".into())))); }
         match expr {
-            Expr::Member { base, name, .. } => match base.as_ref() {
-                Expr::Member { base: focal, name: reference, .. } if matches!(focal.as_ref(), Expr::Focal { .. }) => Some((reference.clone(), name.clone())),
-                other => find(other),
+            Expr::Binary { op, left, right, .. } if op == "=" => match (chain(left), chain(right)) {
+                (Some(names), None) => Some((names, Some((expr, crate::print::expression(right))))),
+                (None, Some(names)) => Some((names, Some((expr, crate::print::expression(left))))),
+                _ => find(left).or_else(|| find(right)),
             },
-            Expr::Binary { left, right, .. } => find(left).or_else(|| find(right)),
+            Expr::Member { base, .. } => find(base).map(|(names, _)| (names, None)),
+            Expr::Binary { left, right, .. } => match (chain(left), chain(right)) {
+                (Some(names), _) | (None, Some(names)) => Some((names, None)),
+                _ => find(left).or_else(|| find(right)),
+            },
             Expr::Unary { value, .. } => find(value),
-            Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().find_map(|key| find(&key.value)),
+            Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().find_map(|key| find(&key.value)).map(|(names, _)| (names, None)),
             _ => None,
         }
     }
-    let (reference, field) = find(rule)?;
-    let parent = match Ty::from_scalar(info.columns.get(&reference)?).required() { Ty::Ref(parent) => parent, _ => return None };
-    let parent_info = catalog.tables.get(&parent)?;
-    let declared = match column_ty(parent_info, &field)?.required() {
-        Ty::Ref(table) => table,
-        Ty::Principal => "principal".into(),
-        other => other.name(),
+    let (names, equality) = find(rule)?;
+    let (refs, field) = names.split_at(names.len() - 1);
+    let field = &field[0];
+    // Resolve each hop: (reference column, the table holding it, the table it names).
+    let mut hops: Vec<(&str, &TableInfo, String)> = Vec::new();
+    let mut owner = info;
+    for reference in refs {
+        let Ty::Ref(target) = column_ty(owner, reference)?.required() else { return None };
+        let next = catalog.tables.get(&target)?;
+        hops.push((reference, owner, target));
+        owner = next;
+    }
+    let holder = owner;
+    let field_ty = column_ty(holder, field)?;
+    let declared = |ty: &Ty| match ty.required() { Ty::Ref(table) => table, Ty::Principal => "principal".into(), other => other.name() };
+    let table = &info.decl.name;
+    let first = hops[0].0;
+    let parent = &hops[0].2;
+    let immutable = |owner: &TableInfo, column: &str| owner.decl.immutable.iter().any(|(columns, _)| columns.iter().any(|c| c == column));
+    // The copy below is checked once, at insert; it stays true while every
+    // later hop (and, for a copied value, the value itself) cannot change.
+    let mutable: Vec<String> = hops.iter().skip(1).filter(|(column, owner, _)| !immutable(owner, column)).map(|(column, owner, _)| format!("{}.{column}", owner.decl.name)).collect();
+    let caveat = |extra: &[String]| {
+        let all: Vec<&String> = mutable.iter().chain(extra).collect();
+        if all.is_empty() { String::new() } else { format!(" (the copy is checked at insert, so this holds while {} cannot change)", all.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(" and ")) }
     };
-    let printed = crate::print::expression(rule);
-    let one_hop = printed.replace(&format!(".{reference}.{field}"), &format!(".{field}"));
-    let one_hop = one_hop.strip_prefix('(').and_then(|text| text.strip_suffix(')')).unwrap_or(&one_hop).to_owned();
-    Some(format!("a read rule probes one hop, so copy the deciding value onto {table}: declare `{field}: {declared}` with `immutable {reference}, {field}`, check it against the parent in the insert rule (`insert <- … and exists {parent}[.{reference}, {field} = .{field}]`), then `read <- {one_hop}`; or `read through .{reference}` when {table} rows share the whole {parent} audience", table = info.decl.name))
+    let through = format!("; or `read through .{first}` when {table} rows share the whole {parent} audience");
+    let replace = |replacement: &str| {
+        let (node, _) = equality.as_ref().expect("an equality to replace");
+        crate::print::with_source(rule, &|e| std::ptr::eq(e, *node).then(|| (replacement.to_owned(), true)))
+    };
+    let synced = info.maintained.is_none() && info.decl.sync.is_some() && !info.decl.online_only;
+    let viewer = equality.as_ref().is_some_and(|(_, other)| other == "viewer") && matches!(field_ty.required(), Ty::Principal);
+    if let Some(view) = &info.maintained {
+        // A view's rows are its groups: group by the reference the probe needs.
+        let (_, _, holder_table) = hops.last()?;
+        let (_, other) = equality.as_ref()?;
+        if hops.len() == 1 {
+            let probe = format!("exists {holder_table}[.{first}, {field} = {other}]");
+            return Some(format!("a read rule reads no reference hop; probe the row that decides instead: `read <- {}`", replace(&probe)));
+        }
+        let source = catalog.tables.get(&view.source)?;
+        let carried = source.columns.iter().find(|(_, ty)| matches!(Ty::from_scalar(ty).required(), Ty::Ref(t) if &t == holder_table)).map(|(name, _)| name.clone())?;
+        let probe = format!("exists {holder_table}[.{carried}, {field} = {other}]");
+        let mut by: Vec<String> = view.by.clone();
+        if !by.contains(&carried) { by.push(carried.clone()); }
+        return Some(format!("a read rule reads no reference hop: group the view by the {source_name} column that names the deciding row (`by {}`), then probe it: `read <- {}`", by.iter().map(|b| format!(".{b}")).collect::<Vec<_>>().join(", "), replace(&probe), source_name = view.source));
+    }
+    if synced && viewer {
+        // Sync needs a column audience: copy the deciding principal itself.
+        let check = if hops.len() == 1 { format!("exists {parent}[.{first}, {field} = .{field}]") } else { format!(".{field} = .{}", names.join(".")) };
+        let declare = if info.columns.contains_key(field) { String::new() } else { format!("declare `{field}: principal` with `immutable {first}, {field}`, ") };
+        let holder_column = format!("{}.{field}", holder.decl.name);
+        let extra = if immutable(holder, field) { vec![] } else { vec![holder_column] };
+        return Some(format!("a read rule reads no reference hop, and a synced row needs its reader on the row: {declare}check it in the insert rule (`insert <- … and {check}`), then `read <- {}`{}{through}", replace(&format!(".{field} = viewer")), caveat(&extra)));
+    }
+    let Some((_, other)) = &equality else {
+        // Not an equality (for example `!=`): copy the value and compare it on the row.
+        let check = if hops.len() == 1 { format!("exists {parent}[.{first}, {field} = .{field}]") } else { format!(".{field} = .{}", names.join(".")) };
+        let printed = crate::print::expression(rule);
+        let one = printed.replace(&format!(".{}", names.join(".")), &format!(".{field}"));
+        let one = one.strip_prefix('(').and_then(|t| t.strip_suffix(')')).unwrap_or(&one).to_owned();
+        let holder_column = format!("{}.{field}", holder.decl.name);
+        let extra = if immutable(holder, field) { vec![] } else { vec![holder_column] };
+        return Some(format!("a read rule reads no reference hop, so copy the deciding value onto {table}: declare `{field}: {}` with `immutable {first}, {field}`, check it in the insert rule (`insert <- … and {check}`), then `read <- {one}`{}{through}", declared(&field_ty), caveat(&extra)));
+    };
+    if hops.len() == 1 {
+        let probe = format!("exists {parent}[.{first}, {field} = {other}]");
+        return Some(format!("a read rule reads no reference hop; probe the row that decides instead: `read <- {}`{through}", replace(&probe)));
+    }
+    // Two or more hops: copy the last reference, check it at insert, probe one hop.
+    let (last, _, holder_table) = hops.last()?;
+    let check = if hops.len() == 2 { format!("exists {parent}[.{first}, {last} = .{last}]") } else { format!(".{last} = .{}", refs.join(".")) };
+    let declare = if info.columns.contains_key(*last) { String::new() } else { format!("declare `{last}: {holder_table}` with `immutable {first}, {last}`, ") };
+    let probe = format!("exists {holder_table}[.{last}, {field} = {other}]");
+    Some(format!("a read rule reads no reference hop, so copy the reference that names the deciding row onto {table}: {declare}check it in the insert rule (`insert <- … and {check}`), then probe it: `read <- {}`{}{through}", replace(&probe), caveat(&[])))
 }
