@@ -182,6 +182,20 @@ pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { ov
 /// The most lines of a card's first section the piped overview prints.
 const FIRST_SECTION_LINES: usize = 80;
 
+/// Cards up to this many lines print whole when stdout is not a terminal.
+/// Larger cards (language, social, maintains, sync, bounds, writes, effects,
+/// jobs, sharing, search) still print their opening, first section and index:
+/// an agent reading several cards in one command overflows its tool's output.
+pub const PIPED_FULL_LINES: usize = 400;
+
+/// `guide <card>` when stdout is not a terminal (an agent's tool): the whole
+/// card up to [`PIPED_FULL_LINES`], else [`overview_and_first_section`].
+// @ref LLP 3000.007#20.1 — wave 7: 11 lanes asked for the whole card piped (four fix-first); five overflowed on several --full cards, hence the cap.
+pub fn piped(name: &str, card: &str) -> String {
+    if card.lines().count() <= PIPED_FULL_LINES { return card.to_owned(); }
+    overview_and_first_section(name, card).unwrap_or_else(|| card.to_owned())
+}
+
 /// The last paragraph boundary (a blank line outside a fence) in
 /// `lines[from..to]` at or before `limit`, as an absolute line number.
 fn boundary(lines: &[&str], from: usize, to: usize, limit: usize) -> Option<usize> {
@@ -334,10 +348,23 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
             many => return Err(format!("{words:?} matches {} sections of guide {name}: {}; pick one by number: snapback4 guide {name} --section {}", many.len(), many.iter().map(|(n, s, _)| format!("{n}. {}", s.1)).collect::<Vec<_>>().join(" · "), many[0].0)),
         }
     }
-    // No heading matches. When the words occur, print the section holding most
-    // of their mentions, or every mention when no section holds most of them.
-    // @ref LLP 3000.007#20.1 — a topic word (audience, React, Reference) prints what it names instead of failing (wave 4).
+    // No heading matches. A curated alias naming a section of another card
+    // lands there, saying so (`guide wire --section acceptance`).
+    // @ref LLP 3000.007#20.1 — wave 7: acceptance under wire, statements under language, loops under writes.
     let hits = mentions(card, words);
+    if let Some((target, _)) = super::alias_section(words).filter(|(target, _)| *target != name) {
+        if let Some(landing) = super::card(target).and_then(|text| alias_landing(words, target, text)) {
+            let here = match hits.len() {
+                0 => String::new(),
+                1 => format!(" (one line of guide {name} mentions it: --find {words:?})"),
+                n => format!(" ({n} lines of guide {name} mention it: --find {words:?})"),
+            };
+            return Ok(format!("No heading of guide {name} is named {words:?}; it is a section of guide {target}{here}:\n\n{landing}"));
+        }
+    }
+    // When the words occur, print the section holding most of their mentions
+    // (a strict plurality), or every mention when sections tie for the most.
+    // @ref LLP 3000.007#20.1 — a topic word (audience, React, Reference) prints what it names instead of failing (wave 4).
     if !hits.is_empty() {
         let mut counts: Vec<(usize, usize)> = Vec::new();
         for &i in &hits {
@@ -345,12 +372,18 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
             match counts.iter_mut().find(|(section, _)| *section == n) { Some(entry) => entry.1 += 1, None => counts.push((n, 1)) }
         }
         let &(best, count) = counts.iter().max_by_key(|(n, count)| (*count, std::cmp::Reverse(*n))).expect("a hit has a section");
-        if count * 2 > hits.len() {
+        // @ref LLP 3000.007#20.1 — wave 7: a plurality lands (`client --section react` listed 4 sections); only a tie lists mentions.
+        if counts.iter().filter(|(_, other)| *other == count).count() == 1 {
             let (heading, start, end) = if best == 0 { ("Opening", 0, opening) } else { let s = &found[best - 1]; (s.1.as_str(), s.2, s.3) };
             let share = match (hits.len(), count == hits.len()) {
                 (1, _) => "the one line that mentions it".to_owned(),
                 (total, true) => format!("all {total} lines that mention it"),
-                (total, false) => format!("{count} of the {total} lines that mention it (--find {words:?} prints them all)"),
+                (total, false) => {
+                    let mut others: Vec<(usize, usize)> = counts.iter().copied().filter(|(n, _)| *n != best).collect();
+                    others.sort_by_key(|&(n, count)| (std::cmp::Reverse(count), n));
+                    let others = others.iter().take(3).map(|&(n, count)| format!("{n}. {} ({count})", if n == 0 { "Opening" } else { found[n - 1].1.as_str() })).collect::<Vec<_>>().join(", ");
+                    format!("{count} of the {total} lines that mention it; also {others} (--find {words:?} prints them all)")
+                }
             };
             let note = format!("No heading of guide {name} is named {words:?}; {best}. {heading} holds {share}.");
             let body = if best == 0 { lines[start..end].join("\n").trim_end().to_owned() } else { print(start, end) };

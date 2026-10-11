@@ -150,12 +150,13 @@ fn main() -> ExitCode {
                             else if let Some(words) = words_of("section") { guide::section(name, &card, &words) }
                             else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
                             // An alias that names a section prints it; piped (an agent's tool), a
-                            // long card also prints its first section, not only its index.
-                            // @ref LLP 3000.007#20.1 — wave 6: aliases land on their section; non-TTY prints section 1.
+                            // card up to 400 lines prints whole, a longer one its first section too.
+                            // @ref LLP 3000.007#20.1 — wave 6: aliases land on their section; wave 7: non-TTY prints whole cards up to a cap.
                             else if let Some(landing) = guide::alias_landing(keyword, name, &card) { Ok(landing) }
                             else if std::io::IsTerminal::is_terminal(&std::io::stdout()) { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) }
-                            else { Ok(guide::overview_and_first_section(name, &card).unwrap_or_else(|| card.clone())) };
-                        match chosen {
+                            else { Ok(guide::piped(name, &card)) };
+                        // A section of another card (`wire --section acceptance`) arrives unstripped.
+                        match chosen.map(|text| verbs::without_design_references(&text)) {
                             Ok(text) => println!("{text}"),
                             Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
                         }

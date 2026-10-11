@@ -64,7 +64,7 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{FULL_LINES, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
+pub use discovery::{FULL_LINES, PIPED_FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
 pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
 
@@ -109,6 +109,8 @@ pub const ALIASES: &[(&str, &str)] = &[
     // @ref LLP 3000.007#20.1 — wave 5: words builders tried (`guide queries`, `language --section loops`).
     ("query", "reads"), ("queries", "reads"), ("loop", "language"), ("loops", "language"),
     ("insert", "writes"), ("update", "writes"), ("upsert", "writes"), ("delete", "writes"),
+    // @ref LLP 3000.007#20.1 — wave 7: section words builders guessed (`--section statements`, `react`, `money`).
+    ("statements", "writes"), ("statement", "writes"), ("money", "types"), ("currency", "types"),
     ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
     ("persona", "personas"), ("persona picker", "personas"), ("switch persona", "personas"), ("picker", "personas"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
@@ -149,6 +151,8 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("recurring", "Schedules"), ("recurring job", "Schedules"), ("close at time", "Schedules"),
     ("e2e", "An acceptance script over HTTP"), ("acceptance", "An acceptance script over HTTP"),
     ("division", "Limits"), ("reserved", "Quarry"), ("reserved words", "Quarry"), ("subpaths", "Client subpaths"),
+    ("statements", "Details"), ("statement", "Details"), ("loops", "Loops"), ("loop", "Loops"),
+    ("react", "React"), ("hooks", "React"),
 ];
 
 /// The section an alias names in its card, if it names one: (card, heading words).
