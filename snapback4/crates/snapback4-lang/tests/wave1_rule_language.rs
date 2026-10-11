@@ -395,7 +395,7 @@ mutation signUp(shift: shifts):
   return insert signups { shift, volunteer: viewer }
 ");
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:#?}", b.diagnostics));
-    assert!(d.rewrite.contains("view signupsCount: count signups by shift") && d.rewrite.contains("require signupsCount[shift] < limit"), "{d}");
+    assert!(d.rewrite.contains("view signupsCount: count signups by .shift") && d.rewrite.contains("require signupsCount[shift] < s.slots else SHIFT_FULL"), "{d}");
     assert!(d.message.contains("point read of a full unique key"), "{d}");
 }
 
