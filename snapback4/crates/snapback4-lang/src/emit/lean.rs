@@ -781,6 +781,11 @@ impl<'a> Scope<'a> {
                 if !read.keys.is_empty() {
                     return no("keyed-range", print());
                 }
+                // The binder decides a row-independent test in a returned page's
+                // `where` once, as an `if` (LLP 3000.036 §15.4); the model scans it.
+                if read.filter.as_deref().is_some_and(crate::bind::where_guards::has_guard) {
+                    return no("where-guard", print());
+                }
                 let (pins, filter) = self.domain(read, false)?;
                 let table = self.table(&read.table)?;
                 for c in &read.order_keys {

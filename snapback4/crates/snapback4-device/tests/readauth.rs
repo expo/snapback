@@ -10,6 +10,8 @@ mod timing;
 mod regressions;
 #[path = "readauth/round2.rs"]
 mod round2;
+#[path = "readauth/where_guards.rs"]
+mod where_guards;
 use common::*;
 use serde_json::{Value as Json, json};
 use snapback4_core::{Engine, WriteState, wire};
