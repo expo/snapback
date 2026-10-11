@@ -527,3 +527,14 @@ fn a_two_party_list_prints_the_authors_query_once_per_party_and_it_compiles() {
     }
 }
 
+// ---- #17 (analysis): two-audience sync lines name the recipe ----
+
+#[test]
+fn a_union_sync_line_and_a_viewer_keyed_roster_name_their_recipes() {
+    let d = first("table bookings:\n  student: principal\n  chef: principal\n  read <- .student = viewer or .chef = viewer\n  sync to .student, .chef\n", "E_QUARRY_SYNTAX");
+    assert!(d.message.contains("one audience") && d.rewrite.contains("online only") && d.rewrite.contains("two parties") && d.guide == "sharing", "{d}");
+    let d = first("table engineers:\n  principal: principal\n  unique principal\n  read <- exists engineers[viewer]\n  sync\ntable jobs:\n  title: text\n  read <- exists engineers[viewer]\n  sync to engineers[principal = viewer]\n", "E_QUARRY_SYNTAX");
+    assert!(d.rewrite.contains("then a bare `sync` line") && d.guide == "sharing", "{d}");
+    // The rewrite it names compiles.
+    clean("table engineers:\n  principal: principal\n  unique principal\n  read <- exists engineers[viewer]\n  sync\ntable jobs:\n  title: text\n  read <- exists engineers[viewer]\n  sync\n");
+}
