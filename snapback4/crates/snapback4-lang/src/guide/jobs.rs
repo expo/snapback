@@ -34,6 +34,37 @@ because a write could move its cursor. A job with no top-level table sweep (bare
 `range` loop, or only a paged `for … first N`) is refused as `job <name> has
 an empty body`, with the sweep to write.
 
+A sweep may read other tables and guard its writes. Here each signup looks up
+its game, and a reminder is inserted once: a rerun of the same period writes
+nothing (`not exists reminders where .game = g.id and .family = s.family`
+works too; the `unique` key is the backstop).
+
+```quarry
+table games:
+  startsAt: time
+  public
+  online only
+table signups:
+  game: games
+  family: principal
+  immutable game, family
+  public
+  online only
+table reminders:
+  game: games
+  family: principal
+  unique game, family
+  public
+  online only
+
+job remindFamilies(periodStart: time, periodEnd: time):
+  for s in signups:
+    g = games[s.game]
+    if g != null and g.startsAt >= periodEnd and g.startsAt < periodEnd + 1d:
+      if not exists reminders[g.id, s.family]:
+        insert reminders { game: g.id, family: s.family }
+```
+
 A top-level `for p in recipients:` is an adaptive sweep. The engine chooses
 the iterations per transaction, retries a meter-refused chunk at a smaller size,
 and parks if one iteration cannot fit. Each successful chunk commits its

@@ -16,7 +16,8 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
-`upsert` inserts/patches; `delete` removes the row.
+`upsert` inserts/patches; `delete` removes the row: NOT_FOUND when absent
+(guard with `if exists t[id]:`), and rows referencing it stay.
 An omitted optional argument is null, the same as an explicit null: `x = null`
 is true either way, and no test tells them apart. So a patch `{ c: x }` clears `c` when `x` is omitted: write
 `x ?? row.c` to keep it, and pass a flag when clearing is meant (Details).
@@ -55,9 +56,8 @@ mutation confirm(d: doses, dose: int ?, clear: bool ?):
   update doses[d] { confirmed: null if clear = true else dose ?? row.confirmed }
 ```
 
-Bound results charge heap, steps, output and rule probes: the `result-cost`
-regression measures 1 probe, 2,316 heap bytes, 20 steps, 70 output bytes
-in both interpreters. Defaults use actual sizes; discarded inserts skip completion.
+Bound results charge heap, steps, output and rule probes.
+Defaults use actual sizes; discarded inserts skip completion.
 
 If `messageId` in `writeForms` addresses retained history from a room the
 writer has left, the call still predicts. Reads hide the updated message
@@ -335,11 +335,7 @@ charges.
 (b) A caller's row behind at least the separate 8,192-candidate walk bound
 of unreadable siblings is unreachable by paging in that direction. The page
 is empty with no cursor, identically in every world beyond that bound.
-The generated harness compares hidden siblings, witnesses and counter history
-across refusals, logical meters, expiry deadlines, pages/cursors, sync images and watermarks, and
-device prediction, admission, reopened outboxes and settlement. It separately
-checks successful assignments and these limits; it does not promise identical
-outcomes when the caller's actual authority changes. Authorization-dependent scans follow the shared caller accounting law in `guide rules`. This applies to cap
+Authorization-dependent scans follow the shared caller accounting law in `guide rules`. This applies to cap
 checks on insertion and upsert, unique collisions, counter reads, rule witnesses,
 and pages with simple or compound read rules. Every effect prepays its whole
 rule before its first witness, so short-circuiting compound write rules cannot

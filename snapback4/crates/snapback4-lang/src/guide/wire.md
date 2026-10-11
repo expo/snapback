@@ -122,12 +122,13 @@ operation's signature before anything runs: a body that is not JSON, an
 argument of the wrong JSON type or shape (a fraction, a string for an `int`,
 a number for `text`), or an argument the operation does not take is **400**
 `{denied:{code:"E_INPUT"}}`. No or a dead credential (or an undeclared
-persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP; a
-body past its ceiling (1 MiB of JSON, 16 MiB for `/seed`) is **413**. Once
+persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP, and
+a declared one at the wrong door (a job or query at `/m/`, a mutation at
+`/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed`) is **413**. Once
 decoded, the operation runs, and everything it refuses is **200**: a query
 answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
-checks made while it runs — a missing required argument, text past its bound
-(`why.code` E_INPUT) — rules (E_RULE), constraints
+checks made while it runs — a missing required argument, text outside its
+bounds, `''` for a `text 1..500` argument too (`why.code` E_INPUT) — rules (E_RULE), constraints
 (E_CONSTRAINT), `NOT_FOUND`, the program's own `require … else CODE` (with
 `why.site` and `why.rule`), and a reused write id (E_ID_REUSED). A retryable
 refusal is 503 instead. So branch on the body, not only the status; for an

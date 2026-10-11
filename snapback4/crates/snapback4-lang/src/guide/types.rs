@@ -31,7 +31,7 @@ Guard nullable keys first (guide indexes). Writes, rebindings and viewer changes
 
 - Guard or assert nullable values before passing them to required parameters: E_QUARRY_TYPE.
 - Values and arithmetic must fit the integer range: E_OVERFLOW.
-- A divisor must be nonzero: E_DIV_ZERO.
+- `/` and `%` take ints and floor: `-7 / 2` is -4, `-7 % 2` is 1. A divisor must be nonzero: E_DIV_ZERO.
 - New required defaults must also fit the existing store: E_ADOPT.
 
 ## Details

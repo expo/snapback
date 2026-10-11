@@ -31,7 +31,8 @@ whose device holds it. `guide refusals` gives the order the checks run in.
 
 Everyone signed in is a member. A `roles` row makes a principal staff or an
 admin; `exists roles[viewer]` is the staff grant and `exists roles[viewer,
-role = 'admin']` the admin grant. Each operation repeats its grant as a
+role = 'admin']` the admin grant. An admin has a `roles` row, so every staff
+grant admits admins too; test `role = 'staff'` where only staff is meant. Each operation repeats its grant as a
 `require`, so a member gets `NOT_STAFF` instead of a bare `E_RULE`, and the
 staff queue reads every open ticket and answers `complete: true`. The table's
 update rule admits the author and staff; `retitle` narrows it to the author

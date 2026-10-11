@@ -31,8 +31,11 @@ There are two spellings, and they do not mix:
   `sum(t where …, .col)`. The parentheses are required; the column is the
   second argument, written `.col`. `min` and `max` take the same arguments.
 - **In a view** (declared at top level): `view name: count t by .key` or
-  `view name: sum t of .col by .key`, optionally `where …` before `by`. Read
+  `view name: sum t of .col by .key`, optionally `where …` before `by`
+  (`sum t of .col where … by .key`, in that order). Read
   it by its group key, `spentByOwner[viewer]`; a group with no rows reads `0`.
+  A view over an `online only` table is read online; its own `online only`
+  line is optional.
 
 ## In a job
 
