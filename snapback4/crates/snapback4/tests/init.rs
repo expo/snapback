@@ -860,7 +860,9 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     assert!(adapted.status.success(), "{adapted:?}");
     let stdout = String::from_utf8_lossy(&adapted.stdout);
     assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts"), "{stdout}");
-    assert!(!dir.0.join("fixtures").exists());
+    // Wave 4 (R1): adapt removes the files it names, never the directory.
+    assert!(dir.0.join("fixtures").is_dir() && fs::read_dir(dir.0.join("fixtures")).unwrap().count() == 0);
+    assert!(stdout.contains("fixtures/ stays"), "{stdout}");
     assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), personas);
     let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
@@ -982,4 +984,31 @@ fn init_lists_the_files_it_wrote() {
         }
         for name in names { assert!(dir.0.join(&name).exists(), "{args:?}: listed {name} does not exist ({listed})"); }
     }
+}
+
+/// Wave 4 (R1, 17 lanes): `init --adapt` removed the emptied `fixtures/`, so
+/// the documented next step, writing `fixtures/<table>.jsonl`, failed. Adapt
+/// removes only the starter files it names; the project's own fixture files
+/// and the directory stay.
+#[test]
+fn adapt_keeps_the_fixture_directory_and_the_projects_own_rows() {
+    let dir = Dir::new();
+    assert!(dir.init(&["--web"]).status.success());
+    fs::write(dir.0.join("snapback/schema.q"), "use identity\nuse personas alice\ntable notes:\n  body: text <=100\n  ownerId: principal\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\nquery mine(c: cursor ?):\n  return notes where .ownerId = viewer after c first 50 by .id\n").unwrap();
+    let mine = "{\"id\":\"n1\",\"body\":\"hi\",\"ownerId\":\"dev:alice\"}\n";
+    fs::write(dir.0.join("fixtures/notes.jsonl"), mine).unwrap();
+    let adapted = dir.init(&["--adapt"]);
+    assert!(adapted.status.success(), "{adapted:?}");
+    let stdout = String::from_utf8_lossy(&adapted.stdout);
+    assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && !stdout.contains("notes.jsonl"), "{stdout}");
+    assert!(dir.0.join("fixtures").is_dir());
+    assert_eq!(fs::read_to_string(dir.0.join("fixtures/notes.jsonl")).unwrap(), mine);
+    assert!(!dir.0.join("fixtures/todos.jsonl").exists() && !dir.0.join("fixtures/test.cases.jsonl").exists());
+    // With only the starter's files there, the emptied directory stays too.
+    let dir = Dir::new();
+    assert!(dir.init(&["--expo"]).status.success());
+    fs::write(dir.0.join("snapback/schema.q"), "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.0.join("fixtures").is_dir());
+    fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
 }

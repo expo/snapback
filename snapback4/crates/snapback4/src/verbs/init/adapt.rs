@@ -160,10 +160,12 @@ pub(super) fn adapt(dir: &Path) -> i32 {
         };
         if let Err(error) = result { eprintln!("init --adapt: {}: {error}", path.display()); return 2; }
     }
-    // An emptied starter fixture directory goes with its files.
-    if removed.iter().any(|path| path.starts_with("fixtures/")) { let _ = std::fs::remove_dir(dir.join("fixtures")); }
+    // @ref LLP 3000.011.003.000#7.4 — adapt removes the files it names, never a directory: the next step writes fixtures/<table>.jsonl.
     if found.is_empty() { println!("init --adapt: nothing to adapt — no unmodified starter file conflicts with your snapback/*.q"); }
-    if !removed.is_empty() { println!("init --adapt: removed {} (the todo starter's samples; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)", removed.join(" and ")); }
+    if !removed.is_empty() {
+        let kept = if removed.iter().any(|path| path.starts_with("fixtures/")) { "; fixtures/ stays for your own rows" } else { "" };
+        println!("init --adapt: removed {} (the todo starter's samples{kept}; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)", removed.join(" and "));
+    }
     if !rewritten.is_empty() {
         let why = found.iter().find(|leftover| leftover.rewrite.is_some()).map(|leftover| leftover.why.as_str()).unwrap_or_default();
         println!("init --adapt: rewrote {} — {why}", rewritten.join(" and "));
