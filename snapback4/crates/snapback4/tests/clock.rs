@@ -797,3 +797,24 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
     assert_eq!(host.query("counters")[0]["n"], 2, "{resumed}");
 }
+
+// Wave 4 of the app farm: the time card's look-back sweep catches up
+// rows that fell due in boundaries an advance coalesced into one run.
+#[test]
+fn the_time_cards_look_back_sweep_catches_up_coalesced_boundaries() {
+    let card = snapback4_lang::guide::card("time").unwrap();
+    let block = snapback4_lang::guide::quarry(card).into_iter().find(|b| b.contains("job closeDeparted(")).unwrap();
+    let f = Fixture::new("catch-up");
+    fs::write(f.0.join("snapback/schema.q"), format!("use personas alice\n{block}mutation add(name: text <=40, departsAt: time):\n  insert trains {{ name, departsAt }}\nquery clock():\n  return now\nquery open():\n  return trains where .open first 50 by .id\n")).unwrap();
+    let host = f.start(&["dev", "--no-watch"]);
+    let now = host.query("clock").as_i64().unwrap();
+    for (n, minutes) in [10, 50, 170].into_iter().enumerate() {
+        let write = host.post("/m/add", json!({"id": format!("w{n}"), "args": {"name": format!("t{n}"), "departsAt": now + minutes * 60_000}}));
+        assert_eq!(write["state"], "sent", "{write}");
+    }
+    let advanced = host.post("/dev/clock/advance", json!({"duration":"3h"}));
+    let closer = &advanced["schedules"][0];
+    assert_eq!(closer["fired"], true, "{advanced}");
+    assert!(closer["skippedPeriods"].as_i64().unwrap() > 100, "one run stands for every coalesced minute: {advanced}");
+    assert_eq!(host.query("open"), json!([]), "rows due in skipped periods are closed too");
+}

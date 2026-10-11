@@ -2984,10 +2984,11 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
   (`guide <E_CODE>` explains a code). A card over 130 lines prints its opening and a numbered section index;
-  `--section <number or words>` prints one section (any case, a unique prefix or the heading's words),
-  `--find <words>` prints the lines that mention them, and `--full` prints the whole card. Natural words
+  `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
+  word no heading names prints the section holding most of its mentions, or all of them when they spread),
+  `--find <words>` prints the lines that mention them (`a|b` for either), and `--full` prints the whole card. Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects, `clock` → time.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.

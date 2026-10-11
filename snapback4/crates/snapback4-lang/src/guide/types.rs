@@ -36,6 +36,8 @@ Guard nullable keys first (guide indexes). Writes, rebindings and viewer changes
 
 ## Details
 
+### Column types
+
 ```quarry
 table everything:
   who: principal                      -- the authenticated subject; `viewer` is one
@@ -73,12 +75,12 @@ query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take 
 Types describe the values a column or argument accepts.
 They also set limits on text, lists and uploaded assets.
 
+### Null guards and ids
+
 Null guards narrow repeated pure `fn` calls over identical lexical names,
 snapshot fields, literals or pure calls. Pure helpers read no tables/clocks
 and write nothing. Rebinding argument roots invalidates facts. Other calls
 need binding once; both calls remain metered.
-
-See `expiryTtl` in `guide language`.
 
 Mixed-table references need explicit generic ids: `[exposedId(x), exposedId(y)]`.
 For nested `[].id` conflicts, widen each projected field with `exposedId(row.id)`.
@@ -95,6 +97,8 @@ query nestedIds(x: a, y: b):
   return [{ id: exposedId(x) }, { id: exposedId(y) }]
 ```
 
+### Text bounds
+
 `text` defaults to `text <=10000` characters in columns, arguments and helper
 parameters. Write `text <=N` or `text M..N` when the bound is a product rule;
 an indexed column must also fit the key budget (`guide indexes`).
@@ -107,8 +111,8 @@ on this table, such as `conversationId: conversations`. E_SEQUENCE_PARENT
 names a missing, optional or non-reference parent column and gives the rewrite.
 For an import that retargets an existing sequence parent, keep the existing
 parent or import a new row id; redeclaring the column cannot move an ordinal.
-The ordinal and parent reference are immutable; an explicit `immutable ordinal`
-is redundant and accepted, including for maintained reference paths. Do not
+The ordinal and parent reference are immutable (`immutable ordinal` is
+redundant but accepted). Do not
 supply a value or default. A table named `sequence` remains a reference type;
 only the two words `sequence by` introduce an ordinal.
 

@@ -20,6 +20,29 @@ The client adds link (a transport or HTTP response failure) and client (the clie
 Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
 
+## Which refusal fires first
+
+An operation stops at the first refusal it reaches, and a mutation's writes
+roll back with it. In order (each step verified against the engine):
+
+1. **Arguments.** Every argument decodes against its declared type and bounds
+   before any statement runs: one character for a `text 2..40` argument is
+   `E_INPUT`, and no `require` in the body sees it.
+2. **Statements, top to bottom.** A lookup `x = t[id] ! else CODE` refuses with
+   your code when the row is absent or the caller's read rule hides it; a
+   `require … else CODE` refuses where it stands; each write is checked when it
+   runs, so a `require` after a refused write never runs.
+3. **Inside one write.** The target: an update, delete or upsert patch of a
+   missing or unreadable row is `NOT_FOUND`. Then the table's write rule:
+   `E_RULE`. Then `unique` keys: your `else CODE`, or `E_CONSTRAINT` naming the
+   index; a clash with a row the caller cannot read is `E_RULE`. Then `cap`:
+   `E_CONSTRAINT`. Then `immutable`: `E_CONSTRAINT` naming the column.
+4. **After the last statement.** `after insert` obligations: `E_CONSTRAINT`
+   naming the row that must exist.
+
+A denied write rule therefore hides a duplicate, and a duplicate hides a full
+`cap` group. To answer your own code first, test for it first with a `require`.
+
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
 so that a hidden row cannot be probed. For access UI, use a membership query
@@ -57,11 +80,18 @@ mutation removePost(post: posts):
   return null
 ```
 
-For expiring server scans, `E_BOUND` includes unswept rows. For delivery
-reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK calls
-`onDeliveryRefused` once and parks the interval until the next start, which
-retries with a new id. There is no retry within the session. A committed report
-that runs again is a no-op report (`why E_BOUND`, `guide receipts`).
+For example, `require joinCount[ride] < r.seats else RIDE_FULL` before `insert joins
+{ ride, rider: viewer }` answers `RIDE_FULL` to a rider already on a full
+ride, not `ALREADY_JOINED`. To answer the duplicate first, check it first:
+`require not exists joins[ride, viewer] else ALREADY_JOINED` (the caller can
+read their own row). Two cases never reach the unique code. `insert … if
+absent` answers null on a clash; add `require j != null else ALREADY_JOINED`
+after it. A clash with a row the caller cannot read is `E_RULE`, whatever the
+`else` says, and `exists` cannot see that row either; the code names a clash
+only on a readable table. `guide recipes --section booking` puts these checks in order
+beside a public occupancy count.
+
+## Your codes on constraints, and E_BOUND
 
 `unique handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
 constraint's user-facing code and message. Render `message`; `detail` retains
@@ -70,18 +100,11 @@ Omit the literal to use the default `the program refused with HANDLE_TAKEN`.
 Omit the hook to keep the existing `E_CONSTRAINT` message. The indexes card
 shows the declaration; code validation is the same as `require … else CODE`.
 
-Which refusal a caller sees is the first one the program reaches. Statements
-run in order: each `require` and `x ! else CODE` refuses where it stands, and a
-`unique … else CODE` is checked when its `insert` (or `update`, `upsert`) runs.
-So `require joinCount[ride] < r.seats else RIDE_FULL` before `insert joins
-{ ride, rider: viewer }` answers `RIDE_FULL` to a rider already on a full
-ride, not `ALREADY_JOINED`. To answer the duplicate first, check it first:
-`require not exists joins[ride, viewer] else ALREADY_JOINED` (the caller can
-read their own row). Two cases never reach the unique code. `insert … if
-absent` answers null on a clash; add `require j != null else ALREADY_JOINED`
-after it. A clash with a row the caller cannot read is `E_RULE`, whatever the
-`else` says, and `exists` cannot see that row either; the code names a clash
-only on a readable table (a public occupancy table, `guide writes`).
+For expiring server scans, `E_BOUND` includes unswept rows. For delivery
+reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK calls
+`onDeliveryRefused` once and parks the interval until the next start, which
+retries with a new id. There is no retry within the session. A committed report
+that runs again is a no-op report (`why E_BOUND`, `guide receipts`).
 
 ## Operations
 

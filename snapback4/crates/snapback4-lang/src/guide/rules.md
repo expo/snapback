@@ -16,6 +16,7 @@ table reactions:
 
 ## Reference
 
+### Hops, operators and read through
 Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent.
 Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`. Program lookups (`t[id] !`, `exists`) are reads too: a row the caller cannot read is NOT_FOUND there, before any later `require` or the delete/update rule runs, so give a moderator read access to what they moderate, or delete by id without a lookup and let the delete rule decide (`guide refusals` has the recipe).
 Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered.
@@ -55,6 +56,7 @@ query discussion(issue: issues, c: cursor ?):
   comments where .issue = issue first 20 by .id after c
 ```
 
+### A child inherits its parent's readers
 A child names one required immutable reference, without a default, to an ordinary application table. `read through` is its whole read rule; put service grants on the parent. The parent's read-rule fields and authored expiry must be immutable. An insert also needs a live parent readable by the writer, before the child's insert rule runs. The engine captures those inputs; they travel with sync images but never appear in query rows or accept payload values.
 
 Each child expires no later than its parent, through any number of levels. A parent's delete needs read authority and waits until its children are deleted and expired children swept. Its id cannot be reused while physical children remain. A mutable child deadline can shorten its life but cannot extend it past the parent.
@@ -70,6 +72,7 @@ to prove absence; changed unique keys or cap groups need their populations cover
 coverage and no live children. Expiry uses the later of the device's supplied
 clock and the last atomically applied server time.
 
+### Clique receipts and reactions
 Clique receipts and reactions need only their message reference. The unread view uses the captured conversation field and inherits its rule, without an explicit `read` or copied deadline. These parents stay online, so reaction pages use the server:
 
 ```quarry
@@ -132,6 +135,7 @@ query reacted(message: messages, c: cursor ?):
   reactions where .message = message first 50 by .principal after c { id, principal, emoji }
 ```
 
+### Row rules, probes and rule spelling
 A view grouped directly by the parent reference is read by key, such as
 `totals[issue]`; scanning its groups is refused. An unknown parent or unknown
 child coverage leaves that device count incomplete, never an invented zero.
@@ -163,9 +167,8 @@ equalities may cover a total unique key and check extra columns on that one row,
 for both `exists` and `created`, without an extra index. A full positional unique
 key may come first, followed by named extra-column tests, as in
 `docs[.docId, ownerId = viewer]`. Every focal field used
-by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Read and delete rules
-compare with `=` and `!=` alone, insert rules order only the row's own required int/time columns: a rule that varies with time is not an
-audience a partition can hold (use `expire`). A read rule that is exactly
+by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. A rule cannot vary
+with time (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
 sync). The system principal consults no rules, so `system` is never a rule word.
 An audience read rule may add `or viewer = 'service:pusher'` (or several
@@ -176,6 +179,7 @@ become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-`
 become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
 declare separate insert, update and delete rules for the operations intended.
 
+### What a refused write returns: E_RULE, NOT_FOUND, E_CONSTRAINT
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
@@ -190,10 +194,7 @@ valid update or upsert-patch admitted by the update rule can change a hidden
 row; if the resulting row remains hidden, it returns null. Without a custom
 unique refusal, an update or upsert-patch with a secondary unique clash returns
 NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is
-unreadable, and E_CONSTRAINT naming the index if both are readable. For rule
-denial, an update condition or a secondary unique clash on an unreadable target,
-NOT_FOUND carries no row, index, column or branch detail. A missing update
-target or an incomplete upsert insert patch returns NOT_FOUND. An update
+unreadable, and E_CONSTRAINT naming the index if both are readable. An update
 condition on an unreadable target returns NOT_FOUND even if it would match; on a
 readable target, a false condition returns E_CONFLICT with a read-rule
 `current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a
@@ -205,10 +206,6 @@ update or upsert-patch does not prove absence.
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
 | Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
-A hidden collision on ordinary insert or `insert ... if absent` stays
-`E_RULE`; a readable collision names its index (if-absent returns null).
-An update or upsert-patch colliding with a different hidden row returns generic
-`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
 and the update rule predicates. It grants no extra stream or snapshot row.
@@ -223,6 +220,7 @@ delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
 wider update authority under a separately readable aggregate view. Restrict its
 read audience or source write authority if that delta is private.
 
+### Disclosure: aggregates, assets and maintained columns
 Omitted asset columns keep their placement. An explicit asset id on a row you
 cannot read must be your own upload, even if it equals the retained id. A rule
 probe costs one unit regardless of expired siblings; a uniform false page is
@@ -276,6 +274,7 @@ table has no update rule. A named `update (old, next)` rule also constrains
 owner writes; it can compare matching integers or times with `<`, `<=`, `>`
 and `>=`. Read rules keep their equality-only contract.
 
+### Private owned fields
 The field is private to its owner unless declared `readable by audience`.
 Group/public log images omit private fields; the owner's principal partition
 carries their image, and every owner's device receives it while the row is
