@@ -7,6 +7,9 @@ keep its operation, ID and raw arguments exactly; for a new invitation,
 use a new ID. Explicit null and an omitted optional argument are different
 raw inputs even when validation gives them the same value. See `guide
 actions` for durable invocation collection and `guide writes` for mutations.
+Over HTTP it is a 200 `{state: "failed", why: {code: "E_ID_REUSED"}}` from
+`/m/<op>`; the JS client refuses the same reuse locally, before sending, as
+`E_WRITE_ID_REUSE`.
 
 The recorded body is the replay body, with value-free diagnostic messages
 and no `result` or `current`. Retries return only

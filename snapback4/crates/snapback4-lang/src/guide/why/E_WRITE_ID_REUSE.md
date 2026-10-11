@@ -34,3 +34,5 @@ has no record, it executes or refuses the write against its current state.
 Separate live web tabs have separate outboxes; the server deduplicates their
 requests under the same principal and id. Different principals may use the same
 id independently.
+The server's own code for a reused id is `E_ID_REUSED` (HTTP 200,
+`{state: "failed"}` from `/m/<op>`), which a wire client sees instead.

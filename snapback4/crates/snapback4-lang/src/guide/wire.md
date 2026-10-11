@@ -8,15 +8,17 @@ curl -s -X POST $U/q/mine -H 'x-snapback-persona: alice' -H 'Content-Type: appli
 curl -s -X POST $U/m/add -H 'x-snapback-persona: alice' -H 'Content-Type: application/json' -d '{"args":{"body":"hi"}}'
 ```
 
-`snapback4 dev` serves on that address (choose another with `--port N`; the
-first stdout line is the URL). The JS client (`snapback4/client`) stays the
+`snapback4 dev` serves on that address (choose another with `--port N`, or
+`--port 0` for a free one; the first stdout line is the URL). A taken port
+refuses the start at once with `E_ADDRINUSE`, naming the holder's pid. The JS client (`snapback4/client`) stays the
 paved surface for apps: it adds sync, offline writes and live queries.
 
 ## Identity
 
 In development, `x-snapback-persona: alice` acts as `dev:alice`: same machine
-only, `[A-Za-z0-9_-]+`, with `use personas` declaring the cast. `snapback4 serve`
-refuses personas. Everywhere else send `Authorization: Bearer <token>`, from
+only, `[A-Za-z0-9_-]+`, and only for a name `use personas` declares; any other
+name is 401 E_AUTH naming the declaration (a schema without `use personas`
+admits any name). `snapback4 serve` refuses personas. Everywhere else send `Authorization: Bearer <token>`, from
 `/auth/guest` (`{}`), `/auth/signup` or `/auth/login` (`{"email","password"}`),
 each answering `{"session":{principal,kind,token,expiresAt}}`; a worker's token
 comes from `snapback4 token --service <name>`. Send one credential, not both.
@@ -26,9 +28,12 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
 - `/q/<op>` with `{"args":{..}}` answers `{data, complete, cut, next, seq, tables, viewer}`
   or `{denied}`. Page by passing `next` back as the query's cursor argument.
 - `/m/<op>` with `{"id"?, "args":{..}}` answers `{state:"sent", id, seq, result}` or
-  `{state:"failed", id, why, current?}`. With an `id` (a unique string the caller
-  mints once per intended write), a retry of the same call applies at most once
-  and answers `replayed: true`; without one, every POST is a new write.
+  `{state:"failed", id, why, current?}`, both HTTP 200 (see Refusals for the
+  status codes). With an `id` (a unique string the caller mints once per
+  intended write), a retry of the same call applies at most once and answers
+  `replayed: true`; the same `id` with another operation or other arguments is
+  `{state:"failed", why:{code:"E_ID_REUSED"}}`. Without an `id`, every POST is a
+  new write.
 - Values: `time` is Unix milliseconds; `bytes` is lowercase hex; a reference is
   its row's id string. Numbers: see below.
 - A job is not a client call (E_OP): a schedule fires it, and in dev
@@ -86,23 +91,56 @@ measurements as scaled integers (microdegrees, milligrams) or as text.
 
 Dev only, same machine; `serve` refuses each one.
 
-- `/seed` with `[{"table":"t","row":{"id":"..",..}}]` writes rows as the system,
-  rules bypassed, and answers `{seeded: N}`. It is an upsert by id, so every row
-  names its own `id` (any unique string; `idFrom(label)` gives a stable one), and
-  a principal field holds `"dev:alice"`, not `"alice"` (`guide testing`).
+- `/seed` with a JSON array `[{"table":"t","row":{"id":"..",..}}, ..]` writes
+  every row as the system in one commit, rules bypassed (types, constraints,
+  caps and sync still apply), and answers `{seeded: N}`; anything else is 400
+  E_INPUT, and a row the engine refuses answers 200 `{denied}` with nothing
+  written. Rows are written like inserts: omitted columns take their
+  `default` (`now` is the dev clock), sequence columns are assigned and must be
+  omitted (E_SEQUENCE_SUPPLIED), and the `$`-prefixed fields `snapback4 data`
+  prints are recorded by the engine itself: drop them before seeding. It is an upsert by `id`: every row
+  names its own (any unique string; `idFrom(label)` gives a stable one), a
+  reseed updates the mutable columns of an existing row, and a different value
+  for an `immutable` column refuses E_CONSTRAINT ("… is immutable; /seed is an
+  upsert by id …"): keep the original value, use a new id, or restart dev with
+  `--memory`. A principal field holds `"dev:alice"`, not `"alice"`.
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.
-- GET `/dev/status` names the served generation, the dev clock and the personas.
+- GET `/dev/status` (no credential) is the readiness probe: it names the
+  server's `pid`, `project`, whether the store is `temporary`, the served
+  generation, the dev clock and the declared personas.
 - `snapback4 run <op> --as bob` beside a running dev forwards to these routes.
 
 ## Refusals
 
-A program's own refusal is HTTP 200 with `{denied}` (503 when retryable).
-No or a dead credential is 401 E_AUTH; an unknown operation or route is 404
-E_OP; a bad body or argument is 400 E_INPUT; a body past its ceiling (1 MiB of
-JSON, 16 MiB for `/seed`) is 413. A refusal is `{code, family, message,
-rewrite?, guide?}`, and `snapback4 why <code>` explains one.
+Two layers answer differently. The HTTP layer decodes the request against the
+operation's signature before anything runs: a body that is not JSON, an
+argument of the wrong JSON type or shape (a fraction, a string for an `int`,
+a number for `text`), or an argument the operation does not take is **400**
+`{denied:{code:"E_INPUT"}}`. No or a dead credential (or an undeclared
+persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP; a
+body past its ceiling (1 MiB of JSON, 16 MiB for `/seed`) is **413**. Once
+decoded, the operation runs, and everything it refuses is **200**: a query
+answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
+checks made while it runs — a missing required argument, text past its bound
+(`why.code` E_INPUT) — rules (E_RULE), constraints
+(E_CONSTRAINT), `NOT_FOUND`, the program's own `require … else CODE` (with
+`why.site` and `why.rule`), and a reused write id (E_ID_REUSED). A retryable
+refusal is 503 instead. So branch on the body, not only the status; for an
+`add(body: text <=200)` mutation:
+
+```sh
+curl -s -w ' %{http_code}\n' -X POST $U/m/add -H 'x-snapback-persona: alice' -d '{"args":{"body":12.5}}'
+# {"denied":{"code":"E_INPUT","message":"argument body: expected text …"}} 400
+curl -s -w ' %{http_code}\n' -X POST $U/m/add -H 'x-snapback-persona: alice' -d '{"args":{"body":"'"$(printf 'x%.0s' {1..300})"'"}}'
+# {"state":"failed","why":{"code":"E_INPUT","message":"E_INPUT: body is longer than 200 characters"}} 200
+```
+
+A refusal is `{code, family, message, site?, rule?, rewrite?, guide?}`, and
+`snapback4 why <code>` explains one. `E_WRITE_ID_REUSE` is the JS client's own
+local refusal for the same mistake, before anything is sent; the wire's code is
+`E_ID_REUSED`.
 
 The full reference, including `/assets`, the rest of `/auth`, worker and action
 doors, and clock headers, is "The wire" in CLIENT-AND-OPERATIONS.md §5, which

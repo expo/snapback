@@ -79,7 +79,8 @@ for its endpoint. For example, a user's bearer token cannot claim effects:
 mint a service token with `snapback4 token --service pusher` against the
 same store and supply it to the worker. Application requests use a live
 user session; loopback `dev` may instead use `x-snapback-persona: alice`
-for a declared persona. `serve` never accepts that persona header. Renew
+for a declared persona (an undeclared name is refused, naming the `use personas`
+line to extend). `serve` never accepts that persona header. Renew
 or sign in again for an expired session, and check that the token belongs
 to the backend the URL actually reaches.
 Detailed dev explanations require a loopback peer, a loopback Host and, when present,

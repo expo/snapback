@@ -1,0 +1,262 @@
+//! CLI behaviour agents scripted against (wave 1 friction): piping output,
+//! per-verb help, a taken port, the dev PID, undeclared personas, and the
+//! fixture exit code. Real subprocesses of the built binary.
+use std::fs;
+use std::io::{BufRead, BufReader};
+use std::os::unix::process::ExitStatusExt;
+use std::path::PathBuf;
+use std::process::{Child, Command, Output, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
+
+const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
+static SERIAL: AtomicUsize = AtomicUsize::new(0);
+
+struct Project(PathBuf);
+impl Project {
+    fn new(schema: &str) -> Self {
+        let dir = std::env::temp_dir().join(format!("sb4-cli-friction-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("snapback")).unwrap();
+        fs::write(dir.join("snapback/schema.q"), schema).unwrap();
+        Project(dir)
+    }
+    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn write(&self, path: &str, text: &str) {
+        let path = self.0.join(path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
+    }
+    /// `dev --fresh --no-watch` on `port`; returns the child and its URL.
+    fn dev(&self, port: u16) -> (Dev, String) {
+        let mut child = Command::new(BIN).current_dir(&self.0)
+            .args(["dev", "--port", &port.to_string(), "--fresh", "--no-watch"])
+            .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        let mut line = String::new();
+        BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let dev = Dev(child);
+        assert!(line.starts_with("http://"), "dev's first stdout line is its URL: {line:?}");
+        (dev, line.trim().to_owned())
+    }
+}
+impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+
+struct Dev(Child);
+impl Drop for Dev { fn drop(&mut self) { let _ = self.0.kill(); let _ = self.0.wait(); } }
+
+fn text(output: &Output) -> String { format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)) }
+
+fn http(url: &str, method: &str, path: &str, persona: Option<&str>, body: &str) -> (u16, serde_json::Value) {
+    use std::io::{Read, Write};
+    let address = url.strip_prefix("http://").unwrap();
+    let mut stream = std::net::TcpStream::connect(address).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let persona = persona.map(|p| format!("x-snapback-persona: {p}\r\n")).unwrap_or_default();
+    write!(stream, "{method} {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Type: application/json\r\n{persona}Content-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+    let mut reply = String::new();
+    stream.read_to_string(&mut reply).unwrap();
+    let status = reply.split_whitespace().nth(1).unwrap().parse().unwrap();
+    let body = reply.split_once("\r\n\r\n").map(|(_, b)| b).unwrap_or("");
+    // Chunked or not, the JSON object is the outermost braces.
+    let json = body.find('{').and_then(|start| body.rfind('}').map(|end| &body[start..=end])).unwrap_or("null");
+    (status, serde_json::from_str(json).unwrap_or(serde_json::Value::Null))
+}
+
+/// `snapback4 test | head` used to panic on EPIPE, and the production build
+/// (panic = abort) dumped core. A closed reader now ends a one-shot verb quietly.
+#[test]
+fn a_closed_pipe_ends_a_one_shot_verb_without_a_panic() {
+    let project = Project::new("use personas alice\nquery alive():\n  return true\n");
+    for args in [&["guide", "language"][..], &["--help"], &["check"], &["test"]] {
+        let mut child = Command::new(BIN).current_dir(&project.0).args(args)
+            .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        // Close the read end before the verb writes (or while it does).
+        drop(child.stdout.take());
+        let output = child.wait_with_output().unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!stderr.contains("panicked") && !stderr.contains("Broken pipe"), "{args:?}: {stderr}");
+        assert_ne!(output.status.code(), Some(101), "{args:?}: {stderr}");
+        assert!(output.status.success() || output.status.signal() == Some(libc::SIGPIPE), "{args:?}: {:?} {stderr}", output.status);
+    }
+}
+
+/// A taken port fails the start at once, names the port, the holder and the
+/// way out; a holder that is a dev is named by its PID, which `/dev/status`
+/// reports too, so a script can prove it owns the server it polls.
+#[test]
+fn dev_refuses_a_taken_port_and_names_the_holder() {
+    let project = Project::new("use personas alice\nquery alive():\n  return true\n");
+    // A stranger on the port.
+    let stranger = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = stranger.local_addr().unwrap().port();
+    let started = Instant::now();
+    let output = project.run(&["dev", "--port", &port.to_string(), "--fresh", "--no-watch"]);
+    let log = text(&output);
+    assert!(!output.status.success(), "{log}");
+    assert!(started.elapsed() < Duration::from_secs(20), "a taken port is refused immediately: {log}");
+    assert!(log.contains(&format!("E_ADDRINUSE at 127.0.0.1:{port}")), "{log}");
+    assert!(log.contains("does not answer GET /dev/status") && log.contains(&format!("snapback4 dev --port {}", port + 1)) && log.contains("--port 0"), "{log}");
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("http://"), "a refused start prints no URL: {log}");
+    drop(stranger);
+
+    // A dev on the port: its PID is in /dev/status and in the second dev's refusal.
+    let (first, url) = project.dev(0);
+    let (status, body) = http(&url, "GET", "/dev/status", None, "");
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["pid"].as_u64(), Some(u64::from(first.0.id())), "{body}");
+    let port = url.rsplit(':').next().unwrap();
+    let output = project.run(&["dev", "--port", port, "--fresh", "--no-watch"]);
+    let log = text(&output);
+    assert!(!output.status.success(), "{log}");
+    assert!(log.contains("E_ADDRINUSE") && log.contains(&format!("a running snapback4 dev (pid {})", first.0.id())) && log.contains(&format!("kill {}", first.0.id())), "{log}");
+}
+
+/// `snapback4 test --help` is about test (lane 054): its columns, its states,
+/// its exit codes and where the testing card is; every verb gets its own page.
+#[test]
+fn each_verb_has_its_own_help() {
+    let help = |args: &[&str]| {
+        let output = Command::new(BIN).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let full = help(&["--help"]);
+    let test = help(&["test", "--help"]);
+    assert_ne!(test, full);
+    for term in ["examined", "entries", "probes", "capped", "complete: false", "on derived arguments", "not run", "Exit 1", "guide testing"] {
+        assert!(test.contains(term), "test --help explains {term}:\n{test}");
+    }
+    let dev = help(&["dev", "--help"]);
+    for term in ["/dev/status", "pid", "E_ADDRINUSE", "--port 0", "--fresh", "--memory", "E_STORE_BUSY", "use personas", "SIGTERM"] {
+        assert!(dev.contains(term), "dev --help explains {term}:\n{dev}");
+    }
+    let run = help(&["run", "--help"]);
+    assert!(run.contains("--port N") && run.contains("dev --fresh"), "{run}");
+    let check = help(&["check", "--help"]);
+    assert!(check.contains("advisory") && check.contains("by design") && check.contains("Exit 0"), "{check}");
+    assert!(help(&["init", "--help"]).contains("without overwriting"));
+    // Verbs without a page print their own lines from the full help.
+    let data = help(&["data", "--help"]);
+    assert!(data.starts_with("  data <table>") && !data.contains("  dev ["), "{data}");
+    assert!(full.contains("snapback4 <verb> --help"), "{full}");
+}
+
+/// `use personas` is the cast: dev refuses an undeclared persona with 401
+/// E_AUTH naming the declaration (lane 035 expected exactly this), and a
+/// schema without the declaration still admits any well-formed name.
+#[test]
+fn dev_refuses_an_undeclared_persona() {
+    let project = Project::new("use personas alice, bob\nquery whoAmI():\n  return viewer\n");
+    let (_dev, url) = project.dev(0);
+    let (status, body) = http(&url, "POST", "/q/whoAmI", Some("alice"), "{}");
+    assert_eq!((status, body["data"].as_str()), (200, Some("dev:alice")), "{body}");
+    let (status, body) = http(&url, "POST", "/q/whoAmI", Some("intruder"), "{}");
+    assert_eq!(status, 401, "{body}");
+    assert_eq!(body["denied"]["code"], "E_AUTH", "{body}");
+    let message = body["denied"]["message"].as_str().unwrap();
+    assert!(message.contains("persona intruder is not declared") && message.contains("use personas alice, bob"), "{message}");
+    let (status, body) = http(&url, "POST", "/m/nothing", Some("intruder"), "{}");
+    assert_eq!((status, &body["denied"]["code"]), (401, &serde_json::json!("E_AUTH")), "{body}");
+
+    let open = Project::new("query whoAmI():\n  return viewer\n");
+    let (_dev, url) = open.dev(0);
+    let (status, body) = http(&url, "POST", "/q/whoAmI", Some("anyone"), "{}");
+    assert_eq!((status, body["data"].as_str()), (200, Some("dev:anyone")), "{body}");
+}
+
+const FIXTURE_SCHEMA: &str = "use personas alice, bob
+
+table lists:
+  owner: principal
+  title: text 1..80
+  done: bool default false
+  n: int default 7
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  cap 50 by owner
+  sync to .owner
+
+table items:
+  list: lists
+  pos: sequence by list
+  text: text 1..80
+  immutable list
+  read through .list
+  insert <- .list.owner = viewer
+  cap 50 by list
+
+query flags(list: lists):
+  l = lists[list] ! else NOT_FOUND
+  return { done: l.done, n: l.n }
+
+query kids(list: lists):
+  return items where .list = list first 50 by .pos
+";
+
+/// Fixture rows load as inserts do: column defaults filled, sequences
+/// assigned in file order. Anything that keeps the fixture from loading
+/// (a supplied sequence, a bare principal, a file naming no table) exits
+/// non-zero with nothing run (lane 050 saw an error and exit 0).
+#[test]
+fn fixture_rows_load_as_inserts_and_a_bad_fixture_fails_the_run() {
+    let project = Project::new(FIXTURE_SCHEMA);
+    project.write("fx/lists.jsonl", "{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Home\"}\n");
+    project.write("fx/items.jsonl", "{\"id\":\"I1\",\"list\":\"L1\",\"text\":\"a\"}\n{\"id\":\"I2\",\"list\":\"L1\",\"text\":\"b\"}\n");
+    project.write("fx/test.cases.jsonl", concat!(
+        "{\"as\":\"alice\",\"op\":\"flags\",\"args\":{\"list\":\"L1\"},\"data\":{\"done\":false,\"n\":7}}\n",
+        "{\"as\":\"alice\",\"op\":\"kids\",\"args\":{\"list\":\"L1\"},\"data\":[{\"id\":\"I1\",\"list\":\"L1\",\"pos\":1,\"text\":\"a\"},{\"id\":\"I2\",\"list\":\"L1\",\"pos\":2,\"text\":\"b\"}]}\n"));
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("cases: 2 passed, 0 failed"), "{}", text(&output));
+
+    for (file, row, expect) in [
+        ("fx/items.jsonl", "{\"id\":\"I1\",\"list\":\"L1\",\"text\":\"a\",\"pos\":4}\n", "E_SEQUENCE_SUPPLIED"),
+        ("fx/lists.jsonl", "{\"id\":\"L1\",\"owner\":\"alice\",\"title\":\"Home\"}\n", "is not a principal"),
+        ("fx/list.jsonl", "{\"id\":\"L2\",\"owner\":\"dev:alice\",\"title\":\"Typo\"}\n", "list.jsonl names no table"),
+    ] {
+        let bad = Project::new(FIXTURE_SCHEMA);
+        bad.write("fx/lists.jsonl", "{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Home\"}\n");
+        bad.write(file, row);
+        for args in [&["test", "--fixture", "fx"][..], &["test", "--fixture", "fx", "--residency"], &["check", "--residency", "--fixture", "fx", "--as", "alice"]] {
+            let output = bad.run(args);
+            assert_eq!(output.status.code(), Some(1), "{args:?} with {file}: {}", text(&output));
+            assert!(text(&output).contains(expect), "{args:?}: {}", text(&output));
+        }
+    }
+}
+
+/// `/seed` is an upsert by id: a reseed updates mutable columns, and a changed
+/// immutable column says so instead of reading like a rule problem (lane 094).
+#[test]
+fn seed_upserts_by_id_and_names_an_immutable_change() {
+    let project = Project::new(FIXTURE_SCHEMA);
+    let (_dev, url) = project.dev(0);
+    let seed = |rows: &str| http(&url, "POST", "/seed", None, rows);
+    assert_eq!(seed("{\"table\":\"lists\"}").0, 400);
+    let (status, body) = seed("[{\"table\":\"lists\",\"row\":{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Home\"}},{\"table\":\"items\",\"row\":{\"id\":\"I1\",\"list\":\"L1\",\"text\":\"a\"}}]");
+    assert_eq!((status, &body["seeded"]), (200, &serde_json::json!(2)), "{body}");
+    let (status, body) = seed("[{\"table\":\"lists\",\"row\":{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Renamed\"}}]");
+    assert_eq!((status, &body["seeded"]), (200, &serde_json::json!(1)), "{body}");
+    let (_, flags) = http(&url, "POST", "/q/flags", Some("alice"), "{\"args\":{\"list\":\"L1\"}}");
+    assert_eq!(flags["data"], serde_json::json!({"done": false, "n": 7}), "defaults apply to seeded rows: {flags}");
+    let (status, body) = seed("[{\"table\":\"lists\",\"row\":{\"id\":\"L1\",\"owner\":\"dev:bob\",\"title\":\"Home\"}}]");
+    assert_eq!((status, &body["denied"]["code"]), (200, &serde_json::json!("E_CONSTRAINT")), "{body}");
+    let message = body["denied"]["message"].as_str().unwrap();
+    assert!(message.contains("lists.owner is immutable") && message.contains("upsert by id"), "{message}");
+}
+
+/// `run` beside a `dev --fresh` would read the on-disk store; `--port N`
+/// reaches that dev's own temporary store, and a local run says which store answered.
+#[test]
+fn run_port_reaches_a_fresh_dev_and_a_local_run_names_its_store() {
+    let project = Project::new("use personas alice, bob\nquery whoAmI():\n  return viewer\n");
+    let (_dev, url) = project.dev(0);
+    let port = url.rsplit(':').next().unwrap();
+    let output = project.run(&["run", "whoAmI", "--as", "bob", "--port", port, "--json"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains(&format!("--port: the snapback4 dev at {url}; forwarding to POST /q/whoAmI as x-snapback-persona: bob")), "{}", text(&output));
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap()["data"], "dev:bob");
+    let local = project.run(&["run", "whoAmI", "--json"]);
+    assert!(local.status.success() && String::from_utf8_lossy(&local.stderr).contains("run: on the local store .snapback4/store.sqlite"), "{}", text(&local));
+}

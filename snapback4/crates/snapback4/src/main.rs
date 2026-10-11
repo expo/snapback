@@ -4,6 +4,9 @@
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
 mod witness_socket;
+mod listen_refusal;
+mod verb_help;
+mod note_rank;
 mod assets;
 mod host_limits;
 mod auth;
@@ -45,7 +48,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     --long-waits N                   viewers' held /changes?wait and /a/ calls (default 1024, max 4096; SNAPBACK4_LONG_WAITS)
     --long-waits-per-principal N     held change polls one principal may hold (default 16; SNAPBACK4_LONG_WAITS_PER_PRINCIPAL)
     --claim-waits N                  service workers' claim polls, a separate pool (default 32, max 1024; SNAPBACK4_CLAIM_WAITS)
-  run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona
+  run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
@@ -63,7 +66,9 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   witness ios --bundle-id ID (--smoke | --segment NAME) [--udid ID] [--port N] [--artifacts DIR] [--prime] [--relaunch] [--timeout 120]
                                       record an installed iOS app cold-offline, then reconnect its owned backend
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
-  --version";
+  --version
+
+snapback4 <verb> --help explains one verb (init, check, dev, run, test: flags, output columns, exit codes).";
 
 fn main() -> ExitCode {
     snapback4_core::diagnostics::set_thread_start(thread_priority::background);
@@ -80,8 +85,10 @@ fn main() -> ExitCode {
     };
     if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
+    quiet_broken_pipe(verb);
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
-        println!("{HELP}");
+        // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
+        println!("{}", verb_help::page(verb, HELP).unwrap_or_else(|| HELP.to_owned()));
         return ExitCode::SUCCESS;
     }
     let options = verbs::parse(&args);
@@ -168,6 +175,19 @@ fn main() -> ExitCode {
         }
     };
     ExitCode::from(code as u8)
+}
+
+/// `snapback4 test | head`: Rust ignores SIGPIPE, so a closed reader turns the
+/// next `println!` into a panic, and the production build (panic = abort) dumps
+/// core. A one-shot verb takes the Unix default instead and ends quietly with
+/// the pipe. Hosts keep ignoring it: `dev`, `serve` and the device answer on
+/// sockets and child pipes that may close under them, and their diagnostics
+/// writer already discards a failed write; `deploy`/`rollback`/`token` change
+/// state and are left to finish.
+fn quiet_broken_pipe(verb: &str) {
+    if matches!(verb, "dev" | "serve" | "device" | "witness" | "deploy" | "rollback" | "token") { return; }
+    // SAFETY: process entry, before any thread or child is started.
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }
 
 fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String> {

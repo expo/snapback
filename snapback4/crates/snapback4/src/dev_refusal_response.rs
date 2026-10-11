@@ -68,6 +68,16 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         };
         let mut record = json!({"operation":evidence.operation, "code":code, "requestId":evidence.request,
             "generation":evidence.generation, "clause":"cause not instrumented", "at":snapback4_core::now_ms()});
+        // A program's own `require … else CODE` (or `! else CODE`) carries
+        // its source site in the refusal itself: the response's own
+        // evidence, not an older trace, so the log can name the line.
+        let why = body.get("denied").or_else(|| body.get("why"));
+        if cause.is_none() && let Some(why) = why
+            && why.get("rule").and_then(Value::as_str) == Some(code) && let Some(site) = why.get("site").and_then(Value::as_str) {
+            record["clause"] = json!("program refusal");
+            record["site"] = json!(site);
+            record["siteKind"] = json!("program");
+        }
         if empty_answer {
             record["emptyRead"] = json!(true);
             record["cause"] = json!(if cause.as_ref().is_some_and(|cause| cause.no_candidate) { "no-candidate" } else { "unrecorded" });

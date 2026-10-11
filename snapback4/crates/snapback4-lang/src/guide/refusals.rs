@@ -26,6 +26,37 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+
+A lookup is a read, and reads come first. `posts[post] ! else NOT_FOUND`,
+`exists` and every query see only rows the viewer's read rule admits, so a row
+the viewer cannot read is NOT_FOUND at the lookup, and a later `require … else
+NOT_YOURS` or the table's delete rule never runs for it. A write target is
+judged by its own rule instead: `delete posts[post]` with no lookup before it
+runs the delete rule even on a row the viewer cannot read, and refuses
+NOT_FOUND only when that rule does. A moderator who removes other people's
+posts must therefore either be admitted by the read rule, as here, or delete
+by id without looking the row up first:
+
+```quarry
+table moderators:
+  principal: principal
+  unique principal
+  read <- allow
+  online only
+table posts:
+  author: principal
+  body: text 1..200
+  immutable author
+  read <- .author = viewer or exists moderators[viewer]
+  insert <- .author = viewer
+  delete <- .author = viewer or exists moderators[viewer]
+  online only
+mutation removePost(post: posts):
+  p = posts[post] ! else NOT_FOUND
+  delete posts[p.id]
+  return null
+```
+
 For expiring server scans, `E_BOUND` includes unswept rows. For delivery
 reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK calls
 `onDeliveryRefused` once and parks the interval until the next start, which
@@ -192,6 +223,14 @@ its address), run the command once, then restart it; for another CLI, wait for
 it to finish. The presence of an old lock file alone does not refuse work.
 Leave `<database>-owner` in place: deleting or replacing it while a process runs
 ends exclusion and can admit a second owner without stopping the first.
+
+E_ADDRINUSE at 127.0.0.1:4400 means the port `dev` or `serve` was asked to listen
+on is already taken, so this server did not start and served nothing. The
+message names the holder: a running dev answers `GET /dev/status` with its
+`pid` and project. Stop that process (`kill <pid>`) and rerun, or choose another
+port with `--port N`; `--port 0` picks a free one, and the URL is always stdout's
+first line. A script must not go on to test whatever already answers there: it
+may be an orphaned instance serving an older schema and store.
 
 E_STORE means the database operation failed, such as a SQLite writer lock
 held by another process. For example, starting a second writer during

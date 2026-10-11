@@ -2567,7 +2567,13 @@ step.
   adoption does not yet yield bounded writer chunks. A reconnect is never acknowledged only in memory.
   The stderr banner prints `store: temporary — discarded on exit` for either flag, or `store: <SQLite
   path>` for persistent dev. For dev and serve, readiness is the first stdout line: the listening URL, emitted
-  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. For a
+  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. The
+  stderr banner names the server's process (`snapback4 dev: http://127.0.0.1:4400  pid 1234 …`), and `GET
+  /dev/status` answers the same `pid`, so a script that spawned dev (perhaps through npx, npm and a shell) can
+  prove the server it polls is its own. A port that is already taken refuses the start at once with
+  `E_ADDRINUSE`, naming the holder (a running dev's pid and project) and suggesting `--port N`; `--port 0`
+  picks a free port, and the first stdout line names it. A second dev on the same project's store refuses
+  with `E_STORE_BUSY`, naming the owner's address and pid. For a
   replay mode that must not emit notifications, run `snapback4 dev --replay`: new emits are never delivered.
   The startup banner says effects are suppressed and schedules held; `doctor` reports the persisted dev replay
   and schedule policy. The write's transaction keeps only a durable `suppressed` count, shown by `doctor`,
@@ -2584,7 +2590,8 @@ step.
   and `--release` invocations refuse `--replay` with `E_REPLAY_DEV_ONLY`; production always emits normally.
   `dev` writes `api.ts` on start and on every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the same machine with the
-  `x-snapback-persona: alice` header (the client's `persona: "alice"`), acting as `dev:alice`. For loopback
+  `x-snapback-persona: alice` header (the client's `persona: "alice"`), acting as `dev:alice`; a name the
+  declaration lacks is refused 401 `E_AUTH` naming it (a schema without `use personas` admits any name). For loopback
   identity requests, `dev` removes the per-peer and per-email minute counters and prints that fact and the
   host's Argon2 slot count once at startup: available cores, capped at 16, minimum 2. Connection/worker caps
   remain; `serve` keeps two Argon2 slots and the 30-per-peer and 10-per-email limits. `dev` and `serve` print
@@ -2658,17 +2665,24 @@ try {
   suppressed too. `doctor` compares the live host generation with the store and uses the host's dev clock for
   deferred pushes. A `--no-watch` host needs a restart after another process adopts; a schema refusal needs a
   corrected save. A stopped host's deferred deadlines use wall time.
-- **`POST /seed`** (dev only, same machine) takes `[{ "table": "t", "row": { "id": "..", .. } }, ..]`, writes
-  the rows as the system principal in one commit (rules bypassed; validation, constraints, aggregates and sync
-  apply) and answers `{ "seeded": N }`. Seed is an upsert by `id`, so every row names its own and rerunning a
-  seed updates those rows instead of duplicating them; a row without one refuses `E_FIELD` with its index. Use
+- **`POST /seed`** (dev only, same machine) takes a JSON array `[{ "table": "t", "row": { "id": "..", .. } }, ..]`,
+  writes the rows as the system principal in one commit (rules bypassed; validation, constraints, aggregates and
+  sync apply) and answers `{ "seeded": N }`; any other body shape is 400 `E_INPUT`, and a row the engine refuses
+  answers 200 `{ "denied" }` with nothing written. Rows are written as inserts are: omitted columns take their
+  `default` (`now` is the dev clock), sequence columns are assigned (supplying one refuses
+  `E_SEQUENCE_SUPPLIED`), and the `$`-prefixed fields `snapback4 data` prints are recorded by the engine, so drop
+  them. A principal field holds the stored principal (`"dev:alice"`); a bare `"alice"` refuses. Seed is an
+  upsert by `id`, so every row names its own and rerunning a seed updates those rows' mutable columns instead
+  of duplicating them; a different value for an `immutable` column refuses `E_CONSTRAINT` naming the column and
+  the upsert (keep the original value, use a new id, or restart `dev --memory`); a row without an id refuses
+  `E_FIELD` with its index. Use
   26-character Crockford base32 ids (digits and capital letters except I, L, O, U), such as
   `0000000000000000000000SEED`; in JavaScript `idFrom("seed:alice")` from `snapback4/client` derives the same valid
   id from a label every time. For recorded-action replay that must not emit notifications, run
   `snapback4 dev --replay`: new effects are never delivered and schedules are held. `guide replay` explains
   the restart and explicit-job behaviour.
-- **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--now <milliseconds|+duration>]
-  [--json]`** runs one operation against the local store (defaults to `dev:alice`; declared personas get the
+- **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--port N] [--now <milliseconds|+duration>]
+  [--json]`** runs one operation against the local store, and says so on stderr (defaults to `dev:alice`; declared personas get the
   `dev:` prefix and other principal ids are used verbatim) and prints the result, the meter and, for a
   mutation, the partition events; a job runs whole as the system (`--as` is ignored) and prints its run.
   Before opening SQLite, it takes the store's lifetime lock: the sidecar file `<database>-owner` beside the
@@ -2678,7 +2692,10 @@ try {
   principal, a job to `POST /dev/jobs/<job>`. It says so on stderr and prints the same shape (a forwarded
   mutation has no events or meter). `--now`, a non-persona principal, a `serve` host and a stopped host are not
   forwarded: those refuse `E_STORE_BUSY` with the store site, the server address and the equivalent `curl`
-  command. Another CLI writer refuses the same way; stop it or the host, run once, then restart.
+  command. Another CLI writer refuses the same way; stop it or the host, run once, then restart. A `dev
+  --fresh`/`--memory` host owns no file, so a plain `run` beside it reads `.snapback4/store.sqlite`, not that
+  host's temporary store; `run --port N` forwards to the dev on `127.0.0.1:N` whichever store it serves.
+  `data`, `sql` and `test` always read the on-disk store; inspect a fresh dev over HTTP.
   `token` asks a live host to mint; `test` without a fixture, `deploy` and `rollback` refuse while it runs;
   HTTP `/seed` already runs through the dev host. Native devices (process clients and embedded C-ABI hosts) share compatible
   ownership with each other, but refuse a backend owner before initialization and exclude backend writers
@@ -2837,7 +2854,8 @@ submitted client clock.
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry the visible read encountered, or
 null. `POST /m/<op>` with `{ "id", "args", "newIds" }` answers `{ state: "sent", id, seq, result }` on fresh
 success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "failed", id, why, current? }`
-(a client-minted `id` makes the write apply at most once). A replay adds `replayed: true` and omits both
+(a client-minted `id` makes the write apply at most once; the same `id` with another operation or other
+arguments answers `failed` with `E_ID_REUSED`). A replay adds `replayed: true` and omits both
 `result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused at
 `/m/<job>` (`E_OP`); in dev, `POST /dev/jobs/<job>` runs one (§5). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
 `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged snapshot: `{ snapshot: true,
@@ -2906,13 +2924,18 @@ successor uses the same service token (`E_ACTION_LEASE`). `runWorker`
 sends it. A user token at these worker doors is 401 `E_AUTH`.
 
 Authorization:
-`x-snapback-persona` (dev, same machine, `[A-Za-z0-9_-]+`) or
+`x-snapback-persona` (dev, same machine, `[A-Za-z0-9_-]+`, a name `use personas` declares) or
 `Authorization: Bearer <token>`; send one, since both together refuse `E_AUTH`. Status
-codes: 401 with no or a dead credential, 404 `E_OP` for an unknown
-operation or route, 400 `E_INPUT`/`E_OP` for a bad body or argument, 413
-past the body ceiling (1 MiB for JSON, 16 MiB for `/seed`), 200 for a
-program's own refusal (`{ denied }`; 503 when it is retryable), and a
-response over 16 MiB is refused `E_BOUND`. `OPTIONS *` answers CORS for
+codes come from two layers. Before anything runs, the request is decoded against the operation's
+signature: a body that is not JSON, an argument of the wrong JSON type or shape (a fraction, a string for an
+`int`) or an argument the operation does not take is 400 `{ denied: E_INPUT }`, and a query route for a
+mutation is 400 `E_OP`; 401 with no or a dead credential or an undeclared persona, 404 `E_OP` for an unknown
+operation or route, 413 past the body ceiling (1 MiB for JSON, 16 MiB for `/seed`). Everything the decoded
+operation refuses is 200 — a query's `{ denied }`, a mutation's `{ state: "failed", why }` — including value
+checks made while it runs (a missing required argument or text past its bound is `why.code` `E_INPUT`),
+rules, constraints, `NOT_FOUND`, the program's own `require … else CODE` (with `why.rule` and `why.site`) and
+a reused write id (`E_ID_REUSED`; `E_WRITE_ID_REUSE` is the JS client's local refusal before sending); 503 when
+it is retryable. A response over 16 MiB is refused `E_BOUND`. `OPTIONS *` answers CORS for
 `content-type`, `x-snapback-persona`, `authorization` and `range`. The
 server sweeps expiry and fires schedules once a second, runs queued job
 chunks each tick, and sweeps unplaced assets once a minute.

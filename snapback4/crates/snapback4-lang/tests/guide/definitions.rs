@@ -263,6 +263,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_NATIVE_TRAP", "The first refusal — a bound, a constraint, a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of fuel per chunk (about 90,000 per host call) is the step ceiling, so the row ceilings usually bind first."),
     ("E_NOT_PREDICTABLE", "`mutation name(args) predicts:` asserts this eligibility: `check` refuses `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with the reason and rewrite."),
     ("E_OFFLINE", "Offline it returns its last server answer, held in memory for this client's lifetime, with fresh: false and since. Without one it refuses E_OFFLINE (family link, retryable)."),
+    ("E_ADDRINUSE", "E_ADDRINUSE at 127.0.0.1:4400 means the port `dev` or `serve` was asked to listen on is already taken, so this server did not start and served nothing."),
     ("E_HTTP_LIMIT", "E_HTTP_LIMIT warns below 1024"),
     ("E_HTTP_LISTENER", "E_HTTP_LISTENER names an OS accept failure, including descriptor exhaustion"),
     ("E_HTTP_RESPONSE", "E_HTTP_RESPONSE means a request received HTTP with an invalid response envelope"),
