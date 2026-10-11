@@ -37,19 +37,23 @@ impl Platform {
 
 /// The screen a signed-in viewer sees: the starter's `Todos`, which calls
 /// list/add/toggle/remove, or `Home`, which compiles against any schema (the
-/// viewer and the generated api's operation names, for the project to replace).
+/// viewer and the generated api's operation names, for the project to replace),
+/// with one real read when the schema has a query that takes no required
+/// arguments (its `api` path, `notes` or `module.notes`).
 // @ref LLP 3000.011.003.000#7.4 — a starter screen must typecheck against the schema beside it.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Body { Todos, Home }
+// @ref LLP 3000.013#6.6 — wave 5: the adapted Home renders one useQuery through matchRead, the idioms Todos taught.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub(super) enum Body { Todos, Home(Option<String>) }
 
 /// The starter's screen and client for a schema: the guest sign-in, or, with
 /// `personas`, the persona picker, around `body`. The texts are as the
 /// starter ships them, before init's port rewrite.
-pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: Body) -> (String, String) {
+pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: &Body) -> (String, String) {
     let (guest, guest_client, persona, persona_client, todos, home) = match platform {
         Platform::Web => (include_str!("starter/web/guest.tsx"), include_str!("starter/web/client.ts"), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), include_str!("starter/web/todos.tsx"), include_str!("starter/web/home.tsx")),
         Platform::Expo => (include_str!("starter/expo/guest.tsx"), include_str!("starter/expo/client.ts"), include_str!("starter/personas/expo-app.tsx"), include_str!("starter/personas/expo-client.ts"), include_str!("starter/expo/todos.tsx"), include_str!("starter/expo/home.tsx")),
     };
+    let first_read = match platform { Platform::Web => include_str!("starter/web/first-read.tsx"), Platform::Expo => include_str!("starter/expo/first-read.tsx") };
     let (head, client) = match personas {
         None => (guest, guest_client.to_owned()),
         Some(personas) => {
@@ -57,7 +61,11 @@ pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: Bod
             (persona, persona_client.replace("PERSONAS", &format!("[{list}]")))
         }
     };
-    let app = match body { Body::Todos => compose(head, todos), Body::Home => compose(&head.replace("<Todos />", "<Home />"), home) };
+    let app = match body {
+        Body::Todos => compose(head, todos),
+        Body::Home(None) => compose(&head.replace("<Todos />", "<Home />"), &home.replace("    <FirstRead />\n", "")),
+        Body::Home(Some(op)) => compose(&compose(&head.replace("<Todos />", "<Home />"), home), &first_read.replace("api.OP", &format!("api.{op}"))),
+    };
     (super::without_design_references(&app), super::without_design_references(&client))
 }
 
@@ -98,7 +106,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     package["version"] = json!("0.1.0");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
     package["scripts"]["build"] = json!("vite build && snapback4 web-shell dist");
-    let (app, client) = screens(Platform::Web, shape.personas.as_deref(), shape.body);
+    let (app, client) = screens(Platform::Web, shape.personas.as_deref(), &shape.body);
     vec![
         ("package.json", super::pretty(&package)),
         ("index.html", include_str!("starter/web/index.html").replace("TITLE", &html_text(&shape.title))),
@@ -127,7 +135,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!("snapback4todos");
     config["expo"]["ios"]["bundleIdentifier"] = json!("dev.snapback4.todos");
     config["expo"]["android"]["package"] = json!("dev.snapback4.todos");
-    let (app, client) = screens(Platform::Expo, shape.personas.as_deref(), shape.body);
+    let (app, client) = screens(Platform::Expo, shape.personas.as_deref(), &shape.body);
     vec![
         ("package.json", super::pretty(&package)),
         ("app.json", super::pretty(&config)),

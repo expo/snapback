@@ -1061,7 +1061,8 @@ fn adapt_keeps_the_fixture_directory_and_the_projects_own_rows() {
 /// the guest sign-in and the persona picker.
 #[test]
 fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
-    let notes = "table notes:\n  body: text <=100\n  public 'shared'\n  insert <- allow\nmutation post(body: text 1..100):\n  return insert notes { body }\n";
+    // Wave 5: the Home renders the first query without required arguments (`recent`, not `one`).
+    let notes = "table notes:\n  body: text <=100\n  public 'shared'\n  insert <- allow\nmutation post(body: text 1..100):\n  return insert notes { body }\nquery one(n: notes):\n  return notes[n]\nquery recent(c: cursor ?):\n  return notes first 20 by .id after c\n";
     for (flag, app_path) in [("--web", "src/App.tsx"), ("--expo", "App.tsx")] {
         for sign_in in ["use identity\n", "use personas carol, dave\n"] {
             let schema = format!("{sign_in}{notes}");
@@ -1075,6 +1076,7 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             let app = fs::read_to_string(first.0.join(app_path)).unwrap();
             assert!(app.contains("function Home()") && !app.contains("function Todos()") && app.contains("useSignedInViewer()") && app.contains("Object.keys(api)"), "{flag} {sign_in}: {app}");
             for todo in ["api.list", "api.add", "api.toggle", "api.remove", "<Todos />"] { assert!(!app.contains(todo), "{flag} {sign_in}: {todo}"); }
+            assert!(app.contains("<FirstRead />") && app.contains("const read = useQuery(api.recent, {});") && app.contains("matchRead(read, {") && !app.contains("api.one"), "{flag} {sign_in}: {app}");
             assert_eq!(app.contains("openApp(persona)"), sign_in.contains("personas"), "{flag} {sign_in}");
             assert_eq!(app.contains("auth.guest()"), sign_in.contains("identity"), "{flag} {sign_in}");
             // One import per module.

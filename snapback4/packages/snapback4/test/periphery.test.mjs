@@ -204,6 +204,52 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   assertCoreTree(dir);
 });
 
+// Wave 5 (LLP 3000.013 §6.6): the adapted Home renders the schema's first
+// argument-free query through matchRead; it must typecheck against api.ts.
+for (const starter of ["expo", "web"]) test(`${starter} adapted Home reads the schema's first argument-free query and typechecks`, (t) => {
+  const { dir, run } = fixture(t);
+  run("init", `--${starter}`);
+  writeFileSync(join(dir, "snapback/schema.q"), `use personas carol, dave
+table notes:
+  owner: principal
+  body: text <=100
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+query one(n: notes):
+  return notes[n]
+query mine(c: cursor ?):
+  return notes where .owner = viewer first 20 by .id after c
+mutation post(body: text 1..100):
+  return insert notes { owner: viewer, body }
+`);
+  run("init", "--adapt"); run("check");
+  const app = readFileSync(join(dir, starter === "expo" ? "App.tsx" : "src/App.tsx"), "utf8");
+  assert.match(app, /const read = useQuery\(api\.mine, \{\}\);/);
+  assert.match(app, /matchRead\(read, \{ present: .*denied: why => why\.message, partial: wait, otherwise: wait \}\)/);
+  linkDeclaredDependencies(dir, starter);
+  const checked = spawnSync(process.execPath, [join(dir, "node_modules/typescript/bin/tsc"), "--noEmit"], { cwd: dir, encoding: "utf8" });
+  assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+});
+
+function linkDeclaredDependencies(dir, starter) {
+  const reference = join(root, "apps", starter === "expo" ? "chat-expo" : "chat");
+  const packageJson = json(join(dir, "package.json"));
+  const require = createRequire(join(reference, "package.json"));
+  for (const name of Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies })) {
+    const target = join(dir, "node_modules", name);
+    mkdirSync(dirname(target), { recursive: true });
+    if (name === "snapback4") {
+      mkdirSync(target);
+      copyFileSync(join(root, "packages/snapback4/package.json"), join(target, "package.json"));
+      cpSync(join(root, "packages/snapback4/dist"), join(target, "dist"), { recursive: true });
+    } else {
+      const installed = require.resolve.paths(name).map(path => join(path, name)).find(existsSync);
+      if (installed) symlinkSync(realpathSync(installed), target, "dir");
+    }
+  }
+}
+
 for (const starter of ["expo", "web"]) for (const template of [[], ["--template", "chat"]]) test(`${starter} ${template.length ? "chat " : ""}fresh template and generated server typecheck with only declared dependencies`, (t) => {
   const { dir, run } = fixture(t);
   run("init", `--${starter}`, ...template); run("check");

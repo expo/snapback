@@ -65,15 +65,22 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     // Which starter screen is on disk, if both files are still as init wrote
     // them: its sign-in (guest, or a persona picker) and its body.
     let client_shape = normalized(&client);
-    let current = [Body::Todos, Body::Home].into_iter().find_map(|body| {
-        let (guest_app, guest_client) = starter::screens(platform, None, body);
-        let (persona_app, persona_client) = starter::screens(platform, Some(&[]), body);
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| {
+        let (guest_app, guest_client) = starter::screens(platform, None, &body);
+        let (persona_app, persona_client) = starter::screens(platform, Some(&[]), &body);
         if app == guest_app && client_shape == normalized(&guest_client) { Some((None, body)) }
         else if app == persona_app && client_shape == normalized(&persona_client) { Some((Some(personas_of(&client)), body)) }
         else { None }
     });
     let Some((sign_in, body)) = current else { return };
-    let wanted_body = if todos { Body::Todos } else { Body::Home };
+    // A Home keeps its read while the schema still declares that query
+    // argument-free; a Home without one stays as written (it fits any schema).
+    let wanted_body = match &body {
+        _ if todos => Body::Todos,
+        Body::Home(None) => Body::Home(None),
+        Body::Home(Some(op)) if own.reads.contains(op) => body.clone(),
+        _ => Body::Home(own.reads.first().cloned()),
+    };
     // A sign-in no starter screen fits keeps the one on disk, with advice.
     let wanted_sign_in = match wanted(own) {
         Ok(wanted) => wanted,
@@ -83,7 +90,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         }
     };
     if wanted_sign_in == sign_in && wanted_body == body { return; }
-    let (app_text, mut client_text) = starter::screens(platform, wanted_sign_in.as_deref(), wanted_body);
+    let (app_text, mut client_text) = starter::screens(platform, wanted_sign_in.as_deref(), &wanted_body);
     let mut reasons = Vec::new();
     let mut client_leftover = None;
     if wanted_sign_in != sign_in {
@@ -100,15 +107,23 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         client_leftover = Some(Leftover { path: client_path, why: format!("the unmodified starter client for {from}; adapt writes {to}"), rewrite: Some(client_text) });
     }
     if wanted_body != body {
-        reasons.push(match wanted_body {
-            Body::Home => "its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer and your operations, from snapback/generated/api.ts) for you to replace".to_owned(),
-            Body::Todos => "your snapback/*.q declares the todo starter's operations again; adapt writes the Todos screen back".to_owned(),
+        reasons.push(match (&wanted_body, &body) {
+            (Body::Home(_), Body::Home(Some(op))) => format!("its Home screen reads api.{op}, which your snapback/*.q no longer declares as a query without required arguments; adapt writes the Home screen again{}", match &wanted_body { Body::Home(Some(next)) => format!(", reading api.{next}"), _ => String::new() }),
+            (Body::Home(_), _) => "its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace".to_owned(),
+            (Body::Todos, _) => "your snapback/*.q declares the todo starter's operations again; adapt writes the Todos screen back".to_owned(),
         });
     }
     let why = reasons.join("; ");
     let why = if why.starts_with("the unmodified") { why } else { format!("the unmodified starter screen: {why}") };
     found.push(Leftover { path: app_path, why, rewrite: Some(app_text) });
     found.extend(client_leftover);
+}
+
+/// The `api` path a starter Home's first read calls, if it has one.
+fn first_read(app: &str) -> Option<String> {
+    let after = app.split_once("function FirstRead()")?.1;
+    let op = after.split_once("useQuery(api.")?.1.split_once(',')?.0;
+    Some(op.to_owned())
 }
 
 fn read(dir: &Path, path: &str) -> Option<String> {

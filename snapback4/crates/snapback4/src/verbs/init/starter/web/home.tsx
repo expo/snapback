@@ -19,5 +19,6 @@ function Home() {
       <button onClick={() => void auth.logout()}>Sign out</button>
     </header>
     <p>Your operations, from snapback/generated/api.ts: {Object.keys(api).join(", ") || "none yet"}</p>
+    <FirstRead />
   </main>;
 }

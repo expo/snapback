@@ -18,6 +18,7 @@ function Home() {
     <Text style={{ fontSize: 24 }}>Signed in</Text>
     <Text>{viewer} · {tier} · {link === "online" ? "online" : "offline"}</Text>
     <Text>Your operations, from snapback/generated/api.ts: {Object.keys(api).join(", ") || "none yet"}</Text>
+    <FirstRead />
     <Button title="Sign out" onPress={() => void auth.logout()} />
   </View>;
 }

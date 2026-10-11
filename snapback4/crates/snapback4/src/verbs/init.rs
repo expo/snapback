@@ -89,7 +89,7 @@ pub fn init(options: &Options) -> i32 {
     let shape = starter::Shape {
         title: title(dir),
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
-        body: if own.as_ref().is_none_or(adapt::fits_todos) { starter::Body::Todos } else { starter::Body::Home },
+        body: match own.as_ref() { Some(own) if !adapt::fits_todos(own) => starter::Body::Home(own.reads.first().cloned()), _ => starter::Body::Todos },
     };
     let mut files = if social { social::files() }
         else if chat && web { web::files() } else if chat { expo_files() }
@@ -268,8 +268,8 @@ pub fn init(options: &Options) -> i32 {
     }
     let screens = files.iter().any(|(name, _)| name.starts_with("src/") || name.starts_with("App."));
     if let Some(own) = own.as_ref().filter(|_| screens && (web || expo) && !chat && !social) {
-        if shape.body == starter::Body::Home {
-            println!("init: your snapback/*.q was kept; it has no todo starter operations, so the screen behind the sign-in is a Home that compiles against any schema (the signed-in viewer and your operations) — run `snapback4 check` to write snapback/generated/api.ts, then replace Home with your own screens");
+        if matches!(shape.body, starter::Body::Home(_)) {
+            println!("init: your snapback/*.q was kept; it has no todo starter operations, so the screen behind the sign-in is a Home that compiles against any schema (the signed-in viewer, your operations and your first query without required arguments) — run `snapback4 check` to write snapback/generated/api.ts, then replace Home with your own screens");
         } else {
             println!("init: your snapback/*.q was kept; the starter screens call the todo starter's operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
         }
@@ -294,7 +294,10 @@ pub(crate) fn starter_fixture(name: &str) -> Option<String> {
 fn regenerable(name: &str) -> bool { name.starts_with("snapback/generated/") }
 
 /// The project's own schema: every `snapback/*.q` already in the directory.
-struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String>, tables: Vec<String>, operations: Vec<String> }
+/// `reads`: the `api` paths of the queries a starter Home may read with
+/// `useQuery(api.x, {})` (no required arguments), in declaration order;
+/// empty when the schema does not compile.
+struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String>, tables: Vec<String>, operations: Vec<String>, reads: Vec<String> }
 
 fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
     let folder = dir.join("snapback");
@@ -303,7 +306,8 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
         Err(error) if matches!(error.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => return Ok(None),
         Err(error) => return Err(format!("{}: {error}", folder.display())),
     };
-    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new(), tables: Vec::new(), operations: Vec::new() };
+    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new(), tables: Vec::new(), operations: Vec::new(), reads: Vec::new() };
+    let mut sources = Vec::new();
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
         if !name.ends_with(".q") { continue; }
@@ -315,9 +319,13 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
         own.personas.extend(document.personas);
         own.tables.extend(document.tables.into_iter().map(|table| table.name));
         own.operations.extend(document.programs.into_iter().map(|program| program.name));
-        own.files.push(name);
+        own.files.push(name.clone());
+        sources.push((name, source));
     }
     own.files.sort();
+    sources.sort();
+    let bound = snapback4_lang::compile(&sources);
+    if bound.diagnostics.is_empty() { own.reads = snapback4_lang::emit::argument_free_reads(&bound); }
     Ok((!own.files.is_empty()).then_some(own))
 }
 

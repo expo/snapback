@@ -164,6 +164,20 @@ fn arg_bound(ty: &snapback4_core::ir::ArgType) -> String {
     }
 }
 
+/// The `api` paths (`notes`, `module.notes`) of the queries `useQuery(api.x, {})`
+/// reads: no required arguments, not held, not a Following query. In
+/// declaration order; a starter Home reads the first (`init --adapt`).
+pub fn argument_free_reads(bound: &Bound) -> Vec<String> {
+    bound.programs.iter().filter(|program| program.program.kind == ProgramKind::Query
+        && program.args.iter().all(|(_, ty)| ty.is_optional())
+        && !bound.schema.operations.get(&program.program.name).is_some_and(|fact| fact.held)
+        && snapback4_core::engine::following_history::projection::plan(&bound.schema, &program.program).is_none())
+        .map(|program| {
+            let short = program.program.name.rsplit('.').next().unwrap_or(&program.program.name);
+            if program.module == "schema" { short.to_owned() } else { format!("{}.{short}", program.module) }
+        }).collect()
+}
+
 /// The React hook a generated query's comment names, so pageability is visible before a type error.
 pub const HOOK_FOLLOWING: &str = " React: useFollowing.";
 pub const HOOK_PAGE: &str = " React: usePage (declares c) or useQuery.";
