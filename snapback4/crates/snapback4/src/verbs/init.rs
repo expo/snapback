@@ -229,7 +229,7 @@ fn has_scripts(dir: &Path, depth: usize) -> bool {
 
 /// A starter is the user's code: keep each comment's explanation and drop the
 /// annotation pointing into this repository's design records.
-fn without_design_references(text: &str) -> String {
+pub(crate) fn without_design_references(text: &str) -> String {
     const POINTER: &str = concat!("@", "ref LLP ");
     text.split_inclusive('\n').map(|line| {
         let Some(start) = line.find(POINTER) else { return line.to_owned() };

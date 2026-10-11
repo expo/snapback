@@ -132,7 +132,8 @@ fn main() -> ExitCode {
             match keyword {
                 None => println!("{}", guide::listing()),
                 Some(keyword) => match guide::card(keyword) {
-                    Some(card) => println!("{card}"),
+                    // Cards embed starter sources; print them as init installs them.
+                    Some(card) => println!("{}", verbs::without_design_references(card)),
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),
                         None => {

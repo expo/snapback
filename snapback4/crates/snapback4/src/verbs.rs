@@ -18,6 +18,7 @@ mod sql;
 mod work_records;
 pub mod witness;
 pub use init::init;
+pub(crate) use init::without_design_references;
 pub use sql::sql;
 mod residency;
 mod test_fixture;

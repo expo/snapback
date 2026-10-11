@@ -62,7 +62,7 @@ for (const tier of ['process', 'wasm']) test(`in-chat unique order: 10,000 messa
     const hit = ordinal % 37 === 0;
     const id = `m${String(10001 - ordinal).padStart(5, '0')}`;
     rows.push({ table: 'messages', row: { id, conversation: 'chat', ordinal, at: 10001 - ordinal,
-      sender: ordinal % 2 ? 'dev:alice' : 'missing', body: hit ? 'coffee coffers car' : 'ordinary' } });
+      sender: ordinal % 2 ? 'dev:alice' : 'dev:missing', body: hit ? 'coffee coffers car' : 'ordinary' } });
     if (hit) expected.unshift(id);
   }
   rows.push({ table: 'messages', row: { id: 'secret', conversation: 'hidden', ordinal: 99999, at: 99999, sender: 'dev:bob', body: 'coffee car' } });
