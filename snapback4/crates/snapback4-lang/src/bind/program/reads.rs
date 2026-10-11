@@ -182,12 +182,20 @@ impl Binder<'_> {
         if self.kind == ProgramKind::Query && read.keys.is_empty() && read.seeks.is_empty() && read.matching.is_none()
             && has_focal(&predicate) && !pins_leading_column(&predicate, index.columns.first().map(String::as_str))
         {
-            let consequence = if follow_edge_filter(&predicate, self.table(&read.table, &read.site)?) {
+            let info = self.table(&read.table, &read.site)?;
+            let follows = follow_edge_filter(&predicate, info);
+            let consequence = if follows {
                 "pages come back short and incomplete when followed authors are sparse (`complete: false`)"
             } else { "sparse matches can exhaust the row meter and return short `complete: false` pages" };
+            // @ref LLP 3000.036#12 — wave 2 (024): a `where` every row passes is the trivial repair.
+            let rewrite = match always_true(&predicate, info) {
+                Some(column) => format!("drop this `where`: .{column} is required, so every row passes it"),
+                None if follows => "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)".to_owned(),
+                None => "pin a column with `where .col = value`, choose `by .col`, read a `view` for a count or total, or drop a `where` every row passes".to_owned(),
+            };
             self.notes.push(Diagnostic::new(predicate.site(), "N_SPARSE_FILTER",
                 format!("{} by {}: this unscoped `where` pins no index prefix; {consequence}", read.table, index.name),
-                "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)").guide("feeds"));
+                rewrite).guide(if follows { "feeds" } else { "reads" }));
         }
         let value = self.row_predicate(&read.table, &predicate)?;
         Ok((read, Some(Box::new(value))))
@@ -263,6 +271,23 @@ fn remove_trailing_shape(expr: &mut A) {
 
 // Recognize the edge probe structurally, including renamed follow tables
 // and named keys. Ordinary row predicates retain the general sparse note.
+/// `.col != null` over a required column: every row passes.
+fn always_true(expr: &A, table: &TableInfo) -> Option<String> {
+    let A::Binary { op, left, right, .. } = expr else { return None };
+    if op != "!=" { return None; }
+    let column = |side: &A| match side {
+        A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) => Some(name.clone()),
+        _ => None,
+    };
+    let null = |side: &A| matches!(side, A::Literal { value: ast::Literal::Null, .. });
+    let name = match (column(left), column(right)) {
+        (Some(name), _) if null(right) => name,
+        (_, Some(name)) if null(left) => name,
+        _ => return None,
+    };
+    (name == "id" || table.columns.get(&name).is_some_and(|ty| !ty.optional)).then_some(name)
+}
+
 fn follow_edge_filter(expr: &A, table: &TableInfo) -> bool {
     match expr {
         A::Exists { read, .. } => read.keys.iter().any(|key| matches!(&key.value, A::Name { name, .. } if name == "viewer"))

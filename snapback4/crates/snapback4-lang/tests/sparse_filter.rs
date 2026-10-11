@@ -11,10 +11,12 @@ fn unscoped_sparse_filters_name_the_feed_recipe() {
         let bound = check(&format!("entries after c last 20 by byTime where {predicate}"));
         let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_SPARSE_FILTER").collect();
         assert_eq!(notes.len(), 1, "{predicate}: {:?}", bound.notes);
-        assert_eq!(notes[0].guide, "feeds");
+        // LLP 3000.036 §12: an ordinary residual filter is a reads matter; only a
+        // follow-edge filter points at the feeds card.
+        assert_eq!(notes[0].guide, "reads");
         println!("{}", notes[0]);
         assert_eq!(notes[0].message, "entries by byTime: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages");
-        assert_eq!(notes[0].rewrite, "pin a column with `where .col = value`, choose `by .col`, or read a `view` (see `snapback4 guide feeds`)");
+        assert_eq!(notes[0].rewrite, "pin a column with `where .col = value`, choose `by .col`, read a `view` for a count or total, or drop a `where` every row passes");
     }
 }
 

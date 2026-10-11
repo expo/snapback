@@ -224,3 +224,44 @@ fn a_hop_copy_names_the_mutable_link_it_depends_on() {
     clean(&apply_hop_rewrite(&source, "availability", &d.rewrite));
 }
 
+// ---- #16 (analysis numbering): note false positives ----
+
+#[test]
+fn a_unique_audience_key_is_one_row_per_group_and_gets_no_horizon_note() {
+    let source = "table members:
+  principal: principal
+  role: text
+  unique principal
+  read <- .principal = viewer
+  sync to .principal
+";
+    let b = clean(source);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NO_HORIZON"), "{:#?}", b.notes);
+    // Without the unique key the group can grow, and the note stays.
+    let b = clean(&source.replace("  unique principal\n", ""));
+    assert!(b.notes.iter().any(|n| n.code == "N_NO_HORIZON"), "{:#?}", b.notes);
+}
+
+#[test]
+fn a_where_every_row_passes_is_named_as_the_sparse_filter_repair() {
+    let source = "table beds:
+  ward: text
+  floor: int ?
+  public
+  online only
+query beds(c: cursor ?):
+  return beds where .ward != null first 20 by .id after c
+";
+    let b = clean(source);
+    let n = b.notes.iter().find(|n| n.code == "N_SPARSE_FILTER").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.rewrite.contains("drop this `where`") && n.rewrite.contains(".ward is required"), "{n}");
+    assert_eq!(n.guide, "reads");
+    // An optional column is a real filter: no tautology claim.
+    let b = clean(&source.replace(".ward != null", ".floor != null"));
+    let n = b.notes.iter().find(|n| n.code == "N_SPARSE_FILTER").unwrap();
+    assert!(!n.rewrite.contains("drop this"), "{n}");
+    // `why N_SPARSE_FILTER` explains the read, not the feeds reference.
+    let why = snapback4_lang::guide::explain_code("N_SPARSE_FILTER").unwrap();
+    assert!(why.contains("drop a `where` that every row passes") && !why.contains("E_TIMELINE_IMPORT"), "{why}");
+}
+

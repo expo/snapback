@@ -1,23 +1,22 @@
-# Feeds — N_SPARSE_FILTER
+# Reads — N_SPARSE_FILTER
 
-| Code | Meaning and next step |
-|---|---|
-| E_VIEW_FEED_SHAPE | The projection or viewer predicate is unsupported. Use the activity and Following views above |
-| E_TIMELINE_SHAPE | The sources do not fit Following. Keep three distinct public sources, full sync and owner rules |
-| E_TIMELINE_FOLLOWS | The edge key is invalid. Declare the immutable unique follower/followed pair |
-| E_TIMELINE_FILTER | Selection is not stable. Make selection columns immutable; use `.parentId = null and not .removed` |
-| E_TIMELINE_REMOVAL | Removal must be one-way. Insert false, change only false → true and retain the original card |
-| E_TIMELINE_READ | The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows |
-| E_TIMELINE_OWNED | Derived rows belong to the engine. Write posts, reposts or follows |
-| E_TIMELINE_SERVER | The mutation needs server-only state. Queue it without predicted rows |
-| E_TIMELINE_ACTIVATE | Dev adopts automatically. Deploy needs `--allow-feed-adoption`, with copy/lock estimates; limit 5,000,000 copies. Start now, no refill; use fresh names or planned `home` in `guide feeds` |
-| E_TIMELINE_REDEFINE | A materialized declaration changed or experimental reconstruction remains. Original ids are post ids; repost ids require their slots and edge-admission history is not retained. Remove the view and deploy, then add the new definition with a fresh name, or use the planned `home` query in `guide feeds`; use the matching engine for a 0.3 store |
-| E_TIMELINE_IMPORT | Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore |
-| FEED_POST_NOT_FOUND | A new repost needs a live original. Refresh the source |
-| FEED_EVENT_REMOVED | A removed event cannot be resurrected. Use a fresh event id |
-| FEED_CANNOT_FOLLOW_SELF | Self-follow is refused. Own events already appear without it |
-| E_RULE | A non-owner `remove` is refused; remove only your own post |
-| N_SPARSE_FILTER | A residual predicate may reject many rows. Narrow the read; the planned `home` in `guide feeds` can fail closed with `complete: false` and no `next`. Materialized Following can adopt retained sources |
+A `where` that pins no index prefix is a residual filter: the scan walks the
+index and tests each row, so a page whose matches are rare can spend the row
+meter on rejected rows and come back short with `complete: false`. It is a
+note, not an error; small tables and deliberate scans can keep it. Narrow the
+read in one of these ways:
+
+- pin a column: `where .owner = owner` (or a key, `tasks[owner]`), so the
+  scan starts at the matching rows;
+- order by the filtered column, `by .col`, so the matches are adjacent;
+- drop a `where` that every row passes, such as `.ward != null` on a required
+  column or a check the read rule already makes;
+- for a count or a total, read a `view` instead of filtering rows.
+
+A residual predicate may reject many rows. Narrow the read; for a social
+timeline, the planned `home` in `guide feeds` can fail closed with
+`complete: false` and no `next`. Materialized Following can adopt retained
+sources.
 
 Finite ranked windows enumerate inclusive UTC buckets:
 `bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still

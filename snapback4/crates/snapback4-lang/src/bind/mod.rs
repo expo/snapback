@@ -402,6 +402,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         if prefix == ["id"] || table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if *by == prefix)) {
             continue;
         }
+        // @ref LLP 3000.036#12 — a unique key inside the group (`unique principal`
+        // under `sync to .principal`) holds at most one row per group.
+        if !prefix.is_empty() && table.indexes.values().any(|index| index.unique && index.is_plain() && !index.columns().is_empty() && index.columns().iter().all(|column| prefix.contains(column))) {
+            continue;
+        }
         // @ref LLP 3000.007#20.23 — a horizon decides *which* rows a device keeps, so the
         // index must order the group by when its rows were minted. Any other index is
         // well-formed: it compiles, silences this note, and leaves residency arbitrary,
