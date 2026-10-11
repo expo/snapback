@@ -92485,3 +92485,13 @@ scale test pins every bounds-card example to its scale classes, so the
 recipes moved to `guide indexes`. The authoring census counts the new
 `signUp` example and the testing card's `addCard`; both are online-only and
 never predict.
+
+## 2026-10-11 — 0.4.17: the wasm budget rises 1,156 B for the wave-1 rule fixes
+
+The integrated 0.4.17 tree measures 2,141,383 B raw / 647,472 B gzip on
+Linux, 656 B over the 646,816 B budget. The bytes are the device's share of
+two wave-1 fixes (LLP 3000.037): insert rules that order the new row's own
+int/time columns (capability `insert-rule-order`), which the device judges
+and predicts like the server, and the optional author message on
+`require`/`!` refusals. The budget is now 647,972 B (this measurement +
+500 B headroom), with the reason in `metrics/wasm-budget.json`.
