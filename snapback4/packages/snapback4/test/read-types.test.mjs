@@ -519,3 +519,107 @@ export function Screen() {
     assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
   }
 });
+
+// Wave 6 (006 009 011 020 024 028 054 068 079 080): shared status helpers had
+// no name for "any outcome", and `isFailed` refused the `unknown` that a
+// `Promise<unknown>` helper produces. `Outcome` names the union; `isFailed`
+// narrows `unknown` and still refuses a read.
+test('Outcome names every write, signal and action outcome; isFailed narrows unknown and still refuses reads', async () => {
+  for (const entry of ['./src/react.tsx', './dist/react.js']) {
+    const result = check(`import { isFailed, useMutation, useAction, type Outcome, type Write, type Act, type Signal, type Read, type Refusal } from '${entry}';
+import type { Outcome as ClientOutcome } from './dist/client.js';
+import type { Outcome as AppOutcome } from './dist/app.js';
+import type { Outcome as ContractOutcome, Mutation, Action, Ephemeral } from './dist/contract.js';
+declare const api: { add: Mutation<{ t: string }, { id: string }>; invite: Action<{ who: string }, null>; typing: Ephemeral<{}, null> };
+// 080: a helper over Promise<unknown> erased the run() envelope.
+async function act(work: Promise<unknown>, report: (message: string) => void) {
+  const outcome = await work;
+  if (isFailed(outcome)) { const why: Refusal = outcome.why; const id: string = outcome.id; const state: 'failed' = outcome.state; report(why.message); }
+}
+// The same helper typed by the outcome union keeps every arm.
+async function typed(work: Promise<Outcome>) {
+  const outcome = await work;
+  if (isFailed(outcome)) return outcome.why.message;
+  if ('denied' in outcome) return outcome.denied.message;
+  const state: 'pending' | 'sent' | 'done' = outcome.state;
+  return null;
+}
+// 006 009 011 054: one notice for every screen, not typed to one table's rows.
+function FailText({ of }: { of: readonly (Outcome | undefined)[] }) { return <p role="alert">{of.find(isFailed)?.why.message}</p>; }
+function Loose({ last }: { last: unknown }) { return isFailed(last) ? last.why.message : null; }
+export function Form() {
+  const add = useMutation(api.add), invite = useAction(api.invite), typing = useMutation(api.typing);
+  const outcomes: (Outcome | undefined)[] = [add.last, invite.last, typing.last];
+  const one: Outcome<{ id: string }> | undefined = add.last;
+  const write: Write<{ id: string }> | undefined = add.last;
+  void act(add.run({ t: 'x' }), () => {}); void typed(invite.run({ who: 'a' }));
+  const anything: any = add.last;
+  if (isFailed(anything)) anything.why;
+  const same: [ClientOutcome, AppOutcome, ContractOutcome] = [] as unknown as [Outcome, Outcome, Outcome];
+  return <><FailText of={outcomes} /><Loose last={invite.last} />{one?.state}{write?.state}{same.length}</>;
+}
+declare const read: Read<{ id: string }[]>;
+// @ts-expect-error a read is not a write outcome
+isFailed(read);
+// @ts-expect-error a string is not a write outcome
+isFailed('failed');
+declare const hooks: { last: Write<string> | undefined }[];
+const hook = hooks.find(isFailed);
+const message: string | undefined = hook?.last.why.message;
+// @ts-expect-error a hook narrows its last outcome, not itself
+hook?.why;
+const loose: unknown[] = [];
+const failed = loose.find(isFailed);
+const looseMessage: string | undefined = failed?.why.message;
+`, undefined, 'tsx');
+    assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
+  }
+  const { isFailed } = await import('../dist/contract.js');
+  const why = { code: 'E_RULE', family: 'rule', message: 'no' };
+  for (const value of ['failed', 0, true, null, undefined, {}, [], { state: 'sent' }, { last: 'failed' }, { last: null }]) assert.equal(isFailed(value), false, JSON.stringify(value));
+  assert.equal(isFailed({ state: 'failed', id: 'w', why }), true);
+  assert.equal(isFailed({ last: { state: 'failed', id: 'w', why } }), true);
+});
+
+// Wave 6: 14 lanes (60 minutes, six fix-first votes) wrote the same fallback
+// three times for denied, partial and otherwise. LLP 3000.031 §8 keeps the
+// decision explicit; `...otherwiseAll(fallback)` is that decision in one token.
+test('otherwiseAll routes denied, partial and every unnamed state to one fallback, spelled at the call site', async () => {
+  for (const entry of ['./src/react.tsx', './dist/react.js']) {
+    const result = check(`import { matchRead, otherwiseAll, readPresentation, useQuery, usePage, type Read, type UseQuery, type Cursor, type ReadMatchOtherwiseAll } from '${entry}';
+import { otherwiseAll as contractOtherwiseAll } from './dist/contract.js';
+import type { Query } from './dist/contract.js';
+type Row = { id: string; name: string };
+declare const api: { list: Query<{ c?: Cursor | null }, Row[]>; one: Query<{ id: string }, Row | null>; count: Query<{}, number> };
+function Status({ read }: { read: Read<unknown> }) { const status = readPresentation(read); return <p role={status.why ? 'alert' : 'status'}>{status.why?.message ?? (status.pending ? 'Loading…' : 'Nothing yet')}</p>; }
+export function Screen({ one }: { one: UseQuery<typeof api.one> }) {
+  const page = usePage(api.list, {});
+  const list = matchRead(page.read, { present: rows => <ul>{rows.map(row => <li key={row.id}>{row.name}</li>)}{rows[0]?.name}</ul>, ...otherwiseAll(read => <Status read={read} />) });
+  const name: string = matchRead(one, { present: row => row.name, ...otherwiseAll(() => '…') });
+  const count: number | null = matchRead(useQuery(api.count, {}), { present: n => n, absent: () => 0, ...otherwiseAll(() => null) });
+  // Written after the spread, an explicit handler wins.
+  const why: string = matchRead(one, { ...otherwiseAll(() => ''), denied: refusal => refusal.message, present: row => row.id });
+  const same: typeof otherwiseAll = contractOtherwiseAll;
+  const handlers: ReadMatchOtherwiseAll<string> = otherwiseAll(() => '');
+  return <>{list}{name}{count}{why}{same.length}{handlers.otherwise({ loading: true })}</>;
+}
+`, undefined, 'tsx');
+    assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
+  }
+  // A denied written before the spread would be silently overwritten: tsc refuses it.
+  const before = check(`import { matchRead, otherwiseAll, type Read } from './dist/react.js';
+declare const read: Read<{ id: string }[]>;
+matchRead(read, { denied: () => 'x', present: rows => rows.length, ...otherwiseAll(() => 0) });`);
+  assert.deepEqual(before.codes, [2783], before.text);
+  assert.match(before.text, /'denied' is specified more than once/);
+  const { matchRead, otherwiseAll } = await import('../dist/contract.js');
+  const { readyRead } = await import('../dist/read-existence.js');
+  const why = { code: 'E_RULE', family: 'rule', message: 'no' };
+  const reads = [{ loading: true }, { denied: why }, readyRead({ data: [], complete: true, cut: null, fresh: true }),
+    readyRead({ data: [], complete: false, cut: null, fresh: true }), readyRead({ data: [{ id: 'r' }], complete: true, cut: null, fresh: true })];
+  const seen = [];
+  const out = reads.map(read => matchRead(read, { present: rows => rows.length, ...otherwiseAll(given => { seen.push(given); return 'fallback'; }) }));
+  assert.deepEqual(out, ['fallback', 'fallback', 'fallback', 'fallback', 1]);
+  assert.deepEqual(seen, reads.slice(0, 4));
+  assert.equal(matchRead(reads[1], { ...otherwiseAll(() => 'fallback'), denied: refusal => refusal.code, present: () => 'present' }), 'E_RULE');
+});

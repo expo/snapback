@@ -365,21 +365,35 @@ export function isLoading<R extends Read<unknown>>(read: R): read is Extract<R, 
 export function isDenied<R extends Read<unknown>>(read: R): read is Extract<R, { readonly denied: Refusal }> {
   return "denied" in read;
 }
+/** Any durable write, ephemeral signal or action outcome: what `run`, `client.mutate`
+ * and `client.act` resolve to, and a hook's `last`. Type a shared status helper's
+ * input with it: `function FailText({ of }: { of: Outcome | undefined })`. */
+// @ref LLP 3000.013#6.7 — one name for the outcome union, so helpers never fall back to `unknown`.
+export type Outcome<R = unknown> = Write<R> | Signal<R> | Act<R>;
 /** What `isFailed` reads from a mutation or action hook: its latest outcome. */
-interface OutcomeHook { readonly last: Write<unknown> | Signal<unknown> | Act<unknown> | undefined }
-/** `isFailed`'s narrowing: an outcome's `failed` arm, or a hook whose `last` is one. */
-type FailedOutcome<W> = W extends { readonly last: infer L }
-  ? W & { readonly last: Extract<L, { readonly state: "failed" }> }
-  : Extract<W, { readonly state: "failed" }>;
+interface OutcomeHook { readonly last: Outcome | undefined }
+type OutcomeLike = Outcome | OutcomeHook | null | undefined;
+/** `isFailed` takes `unknown` (and `any`) whole; otherwise only outcomes,
+ * hooks, null and undefined, so a read passed by mistake still fails. */
+type OutcomeInput<W> = unknown extends W ? unknown : [W] extends [OutcomeLike] ? unknown : OutcomeLike;
+/** `isFailed`'s narrowing: an outcome's `failed` arm, a hook whose `last` is
+ * one, or, from `unknown`, any failed outcome (`id` and `why`). Shaped like
+ * `OutcomeInput` so the predicate is provably a subtype of the parameter. */
+type FailedOutcome<W> = unknown extends W ? W & Extract<Outcome, { readonly state: "failed" }>
+  : [W] extends [OutcomeLike] ? (W extends { readonly last: infer L }
+    ? W & { readonly last: Extract<L, { readonly state: "failed" }> }
+    : Extract<W, { readonly state: "failed" }>)
+  : never;
 /** A failed write, signal or action outcome; accepts a hook's `last` (undefined
  * before the first run), so `[add.last, remove.last].find(isFailed)?.why` types.
  * A hook itself is accepted too and tested by its `last`:
- * `[add, remove].find(isFailed)?.last.why`. */
+ * `[add, remove].find(isFailed)?.last.why`. An `unknown` value (an awaited
+ * `Promise<unknown>`, a helper's loose parameter) narrows to a failed outcome. */
 // @ref LLP 3000.013#6.6 — a hook passed where its outcome belongs narrows instead of a TS2769 overload wall.
-export function isFailed<W extends Write<unknown> | Signal<unknown> | Act<unknown> | OutcomeHook | null | undefined>(outcome: W): outcome is FailedOutcome<W> {
-  if (outcome == null) return false;
-  const latest = "last" in outcome ? outcome.last : outcome;
-  return latest != null && "state" in latest && latest.state === "failed";
+// @ref LLP 3000.013#6.7 — `unknown` is accepted and narrowed; a Read is still refused.
+export function isFailed<W>(outcome: W & OutcomeInput<W>): outcome is FailedOutcome<W> {
+  const latest: unknown = typeof outcome === "object" && outcome !== null && "last" in outcome ? outcome.last : outcome;
+  return typeof latest === "object" && latest !== null && "state" in latest && latest.state === "failed";
 }
 
 /** A write's fresh server result, or `undefined`: while it is pending, after
@@ -424,16 +438,16 @@ type ReadMatchIncomplete<T> = { [K in keyof ReadMatchHandlers<T>]?: ReadMatchHan
 /** The error a fallback without `denied`/`partial` reports: the property's
  * type is the fix. LLP 3000.031 §8 keeps both decisions explicit. */
 type FallbackDecisions<H> = H extends { otherwise: unknown }
-  ? ("denied" extends keyof H ? unknown : { denied: "otherwise skips denied: add denied: why => …, or reuse a zero-argument fallback (denied: fallback)" })
-    & ("partial" extends keyof H ? unknown : { partial: "otherwise skips partial: add partial: data => …, or reuse a zero-argument fallback (partial: fallback)" })
+  ? ("denied" extends keyof H ? unknown : { denied: "otherwise skips denied: add denied: why => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
+    & ("partial" extends keyof H ? unknown : { partial: "otherwise skips partial: add partial: data => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
   : unknown;
 
 /** Render the current read, preserving its narrowed data and metadata.
  * Pass no type arguments: T comes from the read and the result is the union of
  * the handlers' returns. `present`/`partial` receive data; `otherwise` receives
  * the read itself (narrow with `isReady`). Denied and partial stay explicit:
- * to route them to the fallback too, name it and pass it three times,
- * `const wait = () => "…"; matchRead(read, { present, otherwise: wait, denied: wait, partial: wait })`.
+ * to route them to the fallback too, say so with one spread,
+ * `matchRead(read, { present: rows => …, ...otherwiseAll(() => "…") })`.
  * Pure dispatch: no reclassification, subscription, retention or permission.
  * For pages pass page.read; present pages may still be incomplete.
  * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.
@@ -451,6 +465,24 @@ export function matchRead<T, R>(read: Read<T>, handlers: (ReadMatchHandlers<T, R
     case "partial": return handlers.partial(read.data, read);
     case "present": return handlers.present ? handlers.present(read.data, read) : handlers.otherwise!(read);
   }
+}
+
+/** The handlers `otherwiseAll` spreads: one fallback for every state the call does not name. */
+export interface ReadMatchOtherwiseAll<R> {
+  readonly otherwise: (read: Read<unknown>) => R;
+  readonly denied: (why: Refusal, read: Read<unknown>) => R;
+  readonly partial: (data: unknown, read: Read<unknown>) => R;
+}
+/** One fallback for every state a `matchRead` call does not name, denial and
+ * uncertain emptiness included, spelled at the call site:
+ * `matchRead(read, { present: rows => <List rows={rows} />, ...otherwiseAll(read => <Status read={read} />) })`.
+ * The fallback receives the read itself (`readPresentation(read).why` holds a
+ * refusal). Spread it after the handlers you write: a `denied` or `partial`
+ * written before it is a compile error (TS2783), and one written after it wins.
+ * Pure: it only builds the three handlers. */
+// @ref LLP 3000.031#8 — the fallback for denied/partial stays a visible decision; one token names it.
+export function otherwiseAll<R>(fallback: (read: Read<unknown>) => R): ReadMatchOtherwiseAll<R> {
+  return { otherwise: read => fallback(read), denied: (_why, read) => fallback(read), partial: (_data, read) => fallback(read) };
 }
 
 /** Display metadata only; never an authorization or mutation-admission decision. */

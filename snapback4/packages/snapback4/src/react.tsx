@@ -20,8 +20,8 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadPresentation } from "./contract.ts";
-export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
+export { matchRead, otherwiseAll, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadPresentation } from "./contract.ts";
+export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 // React apps name the app they hand to <AppProvider> here; `createApp` itself
 // stays in snapback4/app so this entry never imports the session runtime.
 export type { App, AppOptions, AppAuth, AuthSnapshot, AuthState, AppResult, Online } from "./app.ts";
