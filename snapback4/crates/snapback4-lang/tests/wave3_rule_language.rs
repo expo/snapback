@@ -416,3 +416,44 @@ fn a_second_reference_hop_and_an_optional_comparison_get_rewrites_that_compile()
     assert_eq!(run(&mut engine, "p1", 50), "TOO_MUCH");
     assert_eq!(run(&mut engine, "p2", 5), "NOT_FOUND", "a missing bed refuses; `?? 0` would have admitted it");
 }
+
+// ---- #22: which refusal fires first, and how to get the author's code ----
+
+const RIDES: &str = "table rides:\n  seats: int\n  public 'p'\n  insert <- allow\n  online only\ntable joins:\n  ride: rides\n  rider: principal\n  immutable ride, rider\n  unique ride, rider else ALREADY_JOINED\n  read <- .rider = viewer\n  insert <- .rider = viewer\n  online only\nview joinCount: count joins by ride\n  read <- allow\n";
+
+fn refusal(engine: &mut Engine, op: &str, viewer: &str, pairs: &[(&str, Value)]) -> String {
+    use snapback4_core::WriteState;
+    match engine.mutate(op, None, Context::new(viewer, args(pairs))).unwrap().state {
+        WriteState::Sent { result, .. } => format!("sent {}", snapback4_core::wire::to_json(&result)),
+        WriteState::Failed { why, .. } => why.code,
+    }
+}
+
+#[test]
+fn requires_run_in_program_order_before_the_write_that_checks_unique() {
+    use snapback4_core::value::object;
+    let mutations = "mutation join(ride: rides):\n  r = rides[ride] ! else NOT_FOUND\n  require joinCount[ride] < r.seats else RIDE_FULL\n  return insert joins { ride, rider: viewer }\nmutation joinOnce(ride: rides):\n  require not exists joins[ride, viewer] else ALREADY_JOINED\n  r = rides[ride] ! else NOT_FOUND\n  require joinCount[ride] < r.seats else RIDE_FULL\n  return insert joins { ride, rider: viewer }\nmutation joinQuietly(ride: rides):\n  j = insert joins { ride, rider: viewer } if absent\n  require j != null else ALREADY_JOINED\n  return j\n";
+    let b = clean(&format!("{RIDES}{mutations}"));
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("rides".to_owned(), object([("id", Value::Id("r1".into())), ("seats", Value::Int(1))]))]).unwrap();
+    let ride = [("ride", Value::Id("r1".into()))];
+    assert!(refusal(&mut engine, "join", "carol", &ride).starts_with("sent"));
+    // 038: the full ride's `require` runs before the insert's unique check.
+    assert_eq!(refusal(&mut engine, "join", "carol", &ride), "RIDE_FULL");
+    // The author's code first: a `require` on the caller's own (readable) row.
+    assert_eq!(refusal(&mut engine, "joinOnce", "carol", &ride), "ALREADY_JOINED");
+    // 072: `if absent` answers null on a clash, never the unique code; require it.
+    assert_eq!(refusal(&mut engine, "joinQuietly", "carol", &ride), "ALREADY_JOINED");
+}
+
+#[test]
+fn a_unique_clash_with_a_row_the_caller_cannot_read_is_e_rule() {
+    use snapback4_core::value::object;
+    // 069: another student's booking is hidden, so `else SLOT_TAKEN` does not name it.
+    let source = "table bookings:\n  slot: int\n  student: principal\n  unique slot else SLOT_TAKEN\n  read <- .student = viewer\n  insert <- .student = viewer\n  online only\nmutation book(slot: int):\n  return insert bookings { slot, student: viewer }\n";
+    let b = clean(source);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("bookings".to_owned(), object([("id", Value::Id("k1".into())), ("slot", Value::Int(3)), ("student", Value::Id("ann".into()))]))]).unwrap();
+    assert_eq!(refusal(&mut engine, "book", "bob", &[("slot", Value::Int(3))]), "E_RULE");
+    assert_eq!(refusal(&mut engine, "book", "ann", &[("slot", Value::Int(3))]), "SLOT_TAKEN");
+}
