@@ -816,7 +816,13 @@ impl<'r> Runner<'r> {
         let coverage = self.components.scalar.take().expect("scalar coverage scope");
         self.components.scalar = outer;
         let value = result?;
-        if !coverage.coverage().complete {
+        // @ref LLP 3000.036#15.12 — a visible witness proves existence over a
+        // per-row rule: rows the caller may not read can only hide absence.
+        // Every other gap (a cut, unknown device coverage, a held horizon,
+        // words, presence) still makes the answer unavailable.
+        let witnessed = scan.existence && matches!(value, Value::Int(n) if n > 0)
+            && super::components::Frame { non_uniform: false, ..coverage.clone() }.coverage().complete;
+        if !coverage.coverage().complete && !witnessed {
             self.scalar_unavailable = true;
             return Err(RuntimeError::Prediction(format!("{}: streaming aggregate needs complete domain coverage", scan.site)));
         }

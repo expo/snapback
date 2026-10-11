@@ -231,8 +231,9 @@ fn an_ordered_test_in_brackets_names_the_search_form_and_hides_the_schedule_casc
     assert!(d.message.starts_with("brackets take key equalities; `totalPoints > app.totalPoints` is an ordered test"), "{d:#?}");
     let search = "exists applications where .status = 'submitted' and .totalPoints > app.totalPoints";
     assert_eq!(d.rewrite, format!("for a search, write `{search}`"));
-    // (A public table: over a per-row rule a query's search `exists` answers
-    // unknown (null) unless decided, and a mutation's is E_STRUCTURAL_FANOUT.)
+    // (A public table, to pin `false`: over a per-row rule a query's search
+    // `exists` with no readable match has no value, and a mutation's is
+    // E_STRUCTURAL_FANOUT; see the test below.)
     let public = source.replace("  read <- .owner = viewer\n", "  public 'applications'\n");
     let mut engine = engine(&public.replace(probe, search), vec![
         ("applications", vec![("id", id("a1")), ("owner", id("amy")), ("status", Value::String("submitted".into())), ("totalPoints", Value::Int(5))]),
@@ -248,6 +249,30 @@ fn an_ordered_test_in_brackets_names_the_search_form_and_hides_the_schedule_casc
     let job = bound(&format!("{APPLICATIONS}job sweep():\n  for row in applications:\n    if exists applications[status = 'submitted', totalPoints > row.totalPoints]:\n      update applications[row.id] {{ totalPoints: 0 }}\nschedule nightly every 1d: sweep\n"));
     let schedule = job.diagnostics.iter().find(|d| d.message.starts_with("schedule nightly")).unwrap_or_else(|| panic!("{:#?}", job.diagnostics));
     assert!(schedule.message.contains("which did not compile") && schedule.rewrite == "fix this Quarry line and rerun snapback4 check" && schedule.cascade_of.is_some(), "{schedule:#?}");
+}
+
+/// Lane 017's repair over its own per-row rule (LLP 3000.036 §15.11): a
+/// readable match answers `true`, a match only another owner may read has no
+/// value (never `false`), a domain the scan's pins decide answers `false`,
+/// `check` says so, and the mutation form stays E_STRUCTURAL_FANOUT.
+#[test]
+fn a_search_exists_over_a_per_row_rule_answers_a_readable_match() {
+    let source = format!("{APPLICATIONS}query plain():\n  return exists applications where .status = 'submitted'\nquery mine():\n  return exists applications where .owner = viewer and .status = 'submitted'\n");
+    let b = clean(&source);
+    let n = b.notes.iter().find(|n| n.code == "N_NEVER_COMPLETE" && n.message.starts_with("query plain:")).unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.contains("the `exists` over applications[..]") && n.message.contains("it answers `true` (`complete: false`) when a row the caller may read matches")
+        && n.message.contains("never `false` from the server"), "{}", n.message);
+    assert!(!b.notes.iter().any(|n| n.message.starts_with("query mine:") && n.code == "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let submitted = |id_: &str, owner: &str| ("applications", vec![("id", id(id_)), ("owner", id(owner)), ("status", Value::String("submitted".into())), ("totalPoints", Value::Int(1))]);
+    let mut engine = engine(&source, vec![submitted("a1", "amy")]);
+    let amy = engine.query("plain", Context::new("amy", BTreeMap::new())).unwrap();
+    assert!(amy.data == Value::Bool(true) && !amy.complete && !amy.unavailable, "{amy:?}");
+    let bob = engine.query("plain", Context::new("bob", BTreeMap::new())).unwrap();
+    assert!(bob.data == Value::Null && !bob.complete && bob.unavailable, "{bob:?}");
+    let mine = engine.query("mine", Context::new("bob", BTreeMap::new())).unwrap();
+    assert!(mine.data == Value::Bool(false) && mine.complete, "{mine:?}");
+    let d = first(&format!("{APPLICATIONS}mutation gate():\n  require exists applications where .status = 'submitted' else NONE\n  return 1\n"), "E_STRUCTURAL_FANOUT");
+    assert!(d.message.contains("would miss hidden applications rows"), "{d:#?}");
 }
 
 /// Lane 057: named equalities covering two unique keys were ambiguous although

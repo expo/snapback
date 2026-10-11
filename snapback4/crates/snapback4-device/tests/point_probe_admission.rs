@@ -68,11 +68,16 @@ fn tied_populations<H: Host>(host: &mut H) {
             assert_eq!(s.data.as_array().unwrap().len(), 1);
             assert_eq!(s.data.as_array().unwrap()[0].field("id"), Ok(&id("m")));
             // Hidden candidates prevent a complete global population claim.
-            // Its scalar consumer refuses rather than producing false.
+            // Its scalar consumer never produces false; bob's own readable
+            // row proves presence (LLP 3000.036 §15.12), still incomplete.
             assert!(!s.complete);
             let any = server.query("any", context("bob", &input)).unwrap();
-            assert!(any.unavailable && !any.complete);
-            assert_eq!(any.data, Value::Null);
+            assert!(!any.unavailable && !any.complete);
+            assert_eq!(any.data, Value::Bool(true));
+            // Without a readable candidate, the hidden ones leave no answer.
+            let none = server.query("any", context("dave", &input)).unwrap();
+            assert!(none.unavailable && !none.complete);
+            assert_eq!(none.data, Value::Null);
             let local = device.query("any", "bob", &json, 10).unwrap();
             // A local answer is allowed only when it does not contradict a
             // complete server answer; the server exposed no false claim.
