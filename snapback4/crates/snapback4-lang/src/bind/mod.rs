@@ -727,21 +727,23 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         let decided_clause = decided.first().map_or_else(String::new, |d| format!("; `{}` is decided by the scan's pins, but the server decides a page only from a disjunct that reads no column of the row, so the page is `complete: false` for its holders too, whatever `require` or `if` guards it", d.quarry()));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
+                        // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "there is no single …"); the sentence around it never repeats it (wave 7 R1).
+                        let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
                         let complete_form = match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
                             complete_form::Outcome::Form(form) if form.incomplete.is_empty() => format!("the complete form for everyone is {}", form.phrase),
                             complete_form::Outcome::Form(form) => format!("the closest form is {} (its parent-probe arm stays `complete: false`; a copy of the deciding principal on the row completes it)", form.phrase),
                             complete_form::Outcome::None(_) => "there is no single complete form: keep the query and expect `capped`".to_owned(),
-                            complete_form::Outcome::NotApplicable if parties >= 2 => "the complete form is one query per party".to_owned(),
-                            complete_form::Outcome::NotApplicable if !decided.is_empty() => "the complete form is a copy of the deciding principal on the row".to_owned(),
-                            complete_form::Outcome::NotApplicable => "the complete form is the pin".to_owned(),
+                            complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
+                            complete_form::Outcome::NotApplicable if !decided.is_empty() => format!("{lead} a copy of the deciding principal on the row"),
+                            complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
                         };
                         // @ref LLP 3000.036#15.12 — an `exists` answers a visible match as `true` and nothing else: say what it returns.
                         let treatment = if search_rewrite.is_some() { String::new() } else if scan.existence {
-                            format!("; {}it answers `true` (`complete: false`) when a row the caller may read matches, otherwise null with no value (a client shows `loading`), never `false` from the server: rows the caller may not read leave absence unproven — test.cases.jsonl: the default passes it (`\"data\": true` pins a match); the complete form{} is {complete_form} (check --verbose)",
-                                grant.as_ref().map_or_else(String::new, |grant| format!("for a caller `{}` does not admit, ", grant.quarry())), if grant.is_some() { " for everyone" } else { "" })
+                            format!("; {}it answers `true` (`complete: false`) when a row the caller may read matches, otherwise null with no value (a client shows `loading`), never `false` from the server: rows the caller may not read leave absence unproven — test.cases.jsonl: the default passes it (`\"data\": true` pins a match); {complete_form} (check --verbose)",
+                                grant.as_ref().map_or_else(String::new, |grant| format!("for a caller `{}` does not admit, ", grant.quarry())))
                         } else { match &grant {
-                            Some(grant) => format!("; test.cases.jsonl: run it as a caller `{}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form for everyone is {complete_form} (check --verbose)", grant.quarry()),
-                            None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is {complete_form} (check --verbose)"),
+                            Some(grant) => format!("; test.cases.jsonl: run it as a caller `{}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)", grant.quarry()),
+                            None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)"),
                         } };
                         format!("{} {}: {}the {} over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, if scan.existence { "`exists`" } else { "page" }, scan.table, scan.index,
                         grant.as_ref().map_or_else(String::new, |grant| format!(" except for callers `{}` admits", grant.quarry())),
