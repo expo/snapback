@@ -3,13 +3,39 @@
 A scale-to-zero backend: Quarry declares your data and rules; typed clients read online or on a device, using the same
 Rust interpreter as the server. The package carries the TypeScript client and the CLI (prebuilt for macOS arm64 and Linux x64).
 
-## Start here: your first working account screen
+## Start here: a new app in five steps
 
-Follow this `README.md` through password signup, profile, avatar and reopen. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). For messaging apps: `npx snapback4 new my-social --template social` installs the Expo Router starter; `guide social` explains typing, once-media and revalidation.
+Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). Every Quarry example in this README and in `snapback4 guide` compiles in the suite; `npx snapback4 guide start` lists eight short patterns.
+
+1. **Install and scaffold.** In a new directory:
+
+   ```sh
+   npm install --save-exact snapback4
+   npx snapback4 init --web      # or --expo; plain `init` writes only snapback/schema.q
+   npm install
+   ```
+
+   Each starter is one screen over one table: a todo list with guest sign-in, a live query and three mutations. `init` never replaces a file (it only adds missing `package.json` entries); add `--skip-existing` to keep yours and write only the missing files. The full reference chat app is `init --web --template chat` (or `--expo`); a messaging app is `npx snapback4 new my-social --template social` (`guide social`).
+2. **Write the schema.** Edit `snapback/schema.q`: tables with rules and `sync`, then queries and mutations. Start from `npx snapback4 guide language`, then `guide rules` and `guide sync`.
+3. **Check and serve.** `npx snapback4 check` names each problem with a rewrite (`npx snapback4 why <code>` explains one) and writes the typed `snapback/generated/api.ts`. `npx snapback4 dev` serves http://127.0.0.1:4400 and re-adopts the schema on every save; run the app beside it with `npm run dev` (web) or `npm start` (Expo). Call an operation as a development persona: `npx snapback4 run add '{"title":"milk"}' --as alice`.
+4. **Seed and test.** Rows live in `fixtures/<table>.jsonl` and expected outcomes in `fixtures/test.cases.jsonl` (the starters ship both); `npx snapback4 test --fixture fixtures --as alice` runs them with no server. `npx snapback4 guide testing` shows both formats and an acceptance script over HTTP.
+5. **Choose the client.** One constructor per kind of program:
+
+   | You are writing | Use | Notes |
+   |---|---|---|
+   | A Node script, seed or test | `createClient({ url, persona: "alice" })` from `snapback4/client` | Personas are development-only; for real users call `signup`/`login` from `snapback4/auth` and pass `{ url, session }`. |
+   | A browser app | `createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })` under `AppProvider` | **A bare `createClient()` in a browser refuses every mutation with `E_ADMISSION`.** Browser writes need `createApp` with a device; the `init --web` starter's `src/client.ts` is the pattern. |
+   | An Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })` | The `init --expo` starter's `src/client.ts` also selects `webDevice()` on web. Expo Go runs online. |
+
+   React hooks (`useQuery`, `usePage`, `useMutation`, `useAuth`) come from `snapback4/react`; `guide client` has the read and write contract.
+
+## Tutorial: your first working account screen
+
+Follow this `README.md` through password signup, profile, avatar and reopen.
 
 ### 1. Create and run the backend
 
-Use Node 24. In a new app directory, install the exact package and Expo starter:
+In a new app directory, install the exact package and Expo starter:
 
 ```sh
 npm install --save-exact snapback4
@@ -17,13 +43,13 @@ npx snapback4 init --expo
 npm install
 ```
 
-Use `init --web` for the offline Vite starter, `init` for a schema, or `init --online` for an online-only app. The
+Use `init --web` for the Vite starter, `init` for a schema, or `init --online` for an online-only app. The
 example below uses the Expo starter's installed React Native and SecureStore. Replace `snapback/schema.q`,
-`src/client.ts` and `App.tsx` with the blocks below, and remove the unused `src/Inbox.tsx`, `src/Thread.tsx` and
-`src/witness.ts` chat screens. Remove the chat's optional `snapback/worker.mts`. Then run `npx snapback4 check` to
+`src/client.ts` and `App.tsx` with the blocks below. Then run `npx snapback4 check` to
 generate the API; keep `npx snapback4 dev` running in one terminal and `npm start` in another (Expo Go), or use `npm run
 ios:dev` for a native development build. Do not set a persona for this password example. The iOS simulator reaches
-`http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment for a physical phone.
+`http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment for a physical phone. The starter's
+`expo-env.d.ts` gives `process.env` its type; keep it.
 
 ### 2. Declare identity and a profile
 
@@ -283,7 +309,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Need | One reference lookup |
 |---|---|
 | Quarry grammar | `guide language` |
-| Complete chat example / offline web starter | `guide app` / [Vite starter](./CLIENT-AND-OPERATIONS.md#offline-web-starter) |
+| Complete chat example / chat starters | `guide app` / [`init --web --template chat`](./CLIENT-AND-OPERATIONS.md#offline-web-starter) |
 | Fields / indexes / rules / aggregates / totals (`count`, `sum`) | `guide types` / `guide indexes` / `guide rules` / `guide maintains` / `guide totals` |
 | Reads / shapes / writes / helpers / chat receipts | `guide reads` / `guide shapes` / `guide writes` / `guide programs` / `guide receipts` |
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
