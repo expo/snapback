@@ -140,3 +140,68 @@ fn a_row_independent_test_in_where_is_a_guard_in_check_and_at_run_time() {
     assert!(note(&b, "N_NEVER_COMPLETE").is_some(), "{:#?}", b.notes);
 }
 
+// ---- I5: no `$` internal in any problem or note ----
+
+/// A `$` that starts a compiler name: not after a word or quote character (a
+/// user's `'$5'` or `"$saved"`), and not a canonical identity (`$intent:…`,
+/// which `check` labels and `--verbose` prints canonical on purpose).
+fn internal(text: &str) -> Option<String> {
+    let bytes = text.as_bytes();
+    (0..bytes.len()).find_map(|at| {
+        if bytes[at] != b'$' || (at > 0 && (bytes[at - 1].is_ascii_alphanumeric() || matches!(bytes[at - 1], b'_' | b'\'' | b'"'))) { return None; }
+        let name: String = text[at + 1..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+        (name.starts_with(|c: char| c.is_ascii_alphabetic()) && !text[at + 1 + name.len()..].starts_with(':')).then(|| text[at.saturating_sub(40)..(at + 1 + name.len() + 20).min(text.len())].to_owned())
+    })
+}
+
+fn sources(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if path.is_dir() && !matches!(name.as_str(), "target" | "node_modules" | ".git" | "generated") { sources(&path, out); }
+        else if name.ends_with(".q") { out.push(path); }
+    }
+}
+
+/// Lane 082's `read through .report` over a reassigned `assignedTo` printed
+/// `$readThrough(report)` in a cascaded E_QUARRY_RULE_OPERATOR; a sweep of the
+/// five farms' final schemas found captures (`.$plan.athlete`, `[$issueproject,
+/// …]`) in notes too. Every `.q` in the repository (fixtures that fail on
+/// purpose included), each alone and each `snapback/` directory together,
+/// prints no `$` internal in a problem, a note or the prediction summary.
+#[test]
+fn no_problem_or_note_prints_a_dollar_internal() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut files = Vec::new();
+    sources(&root, &mut files);
+    files.sort();
+    assert!(files.len() > 100, "the corpus is the repository's .q files: {}", files.len());
+    let mut projects: Vec<Vec<std::path::PathBuf>> = files.iter().map(|file| vec![file.clone()]).collect();
+    let mut dirs: BTreeMap<std::path::PathBuf, Vec<std::path::PathBuf>> = BTreeMap::new();
+    for file in &files {
+        if file.parent().is_some_and(|dir| dir.ends_with("snapback")) { dirs.entry(file.parent().unwrap().to_owned()).or_default().push(file.clone()); }
+    }
+    projects.extend(dirs.into_values().filter(|group| group.len() > 1));
+    let mut leaks = Vec::new();
+    for project in &projects {
+        let inputs: Vec<(String, String)> = project.iter().map(|file| (file.file_name().unwrap().to_string_lossy().into_owned(), std::fs::read_to_string(file).unwrap())).collect();
+        let b = compile(&inputs);
+        let summary = snapback4_lang::bind::residency::prediction_summary(&b).map(|text| snapback4_lang::bind::spell_internals(&text));
+        for (kind, text) in b.diagnostics.iter().map(|d| ("problem", format!("{} {}", d.message, d.rewrite)))
+            .chain(b.notes.iter().map(|n| ("note", format!("{} {}", n.message, n.rewrite))))
+            .chain(summary.map(|text| ("prediction", text))) {
+            if let Some(context) = internal(&text) { leaks.push(format!("{} ({kind}): …{context}…", project[0].display())); }
+        }
+    }
+    assert!(leaks.is_empty(), "{} leaks:\n{}", leaks.len(), leaks.join("\n"));
+    // The lane's shape: the cascade is hidden beside its cause, and E_READ_THROUGH
+    // offers the live-parent probe an online-only table accepts on a mutable column.
+    let rescue = std::fs::read_to_string(root.join("crates/snapback4-lang/tests/fixtures/wave5-internals/rescue-calls.q")).unwrap();
+    let b = bound(&rescue);
+    let through = b.diagnostics.iter().find(|d| d.code == "E_READ_THROUGH").unwrap_or_else(|| panic!("{:#?}", b.diagnostics));
+    assert!(through.rewrite.contains("read <- exists reports[.report, caller = viewer] or exists reports[.report, assignedTo = viewer] or exists roles[viewer, role = 'dispatcher']"), "{}", through.rewrite);
+    assert!(b.diagnostics.iter().filter(|d| d.code != "E_READ_THROUGH").all(|d| d.cascade_of.is_some() && d.rewrite == "fix this Quarry line and rerun snapback4 check"), "{:#?}", b.diagnostics);
+    let repaired = rescue.replace("  read through .report\n", "  read <- exists reports[.report, caller = viewer] or exists reports[.report, assignedTo = viewer] or exists roles[viewer, role = 'dispatcher']\n");
+    clean(&repaired);
+}

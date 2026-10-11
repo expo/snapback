@@ -86,7 +86,7 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             }
             // @ref LLP 3000.036#13.3 — say which of the two differs, with its one-line fix (lanes 057 081 089).
             let query_pins = query_index.columns().into_iter().take(scan.prefix.len()).collect::<Vec<_>>();
-            let bracket = |index: &snapback4_core::schema::Index| format!("[{}]", index.components.iter().filter_map(order_component).collect::<Vec<_>>().join(", ").replace('.', ""));
+            let bracket = |index: &snapback4_core::schema::Index| format!("[{}]", index.components.iter().filter_map(order_component).map(|component| component.replacen('.', "", 1)).collect::<Vec<_>>().join(", "));
             let take = scan.take.maximum();
             let difference = if query_pins != audience_columns {
                 let extra = query_pins.iter().filter(|column| !audience_columns.contains(column)).map(|column| format!(".{column}")).collect::<Vec<_>>();

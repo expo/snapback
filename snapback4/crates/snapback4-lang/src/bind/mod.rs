@@ -293,6 +293,11 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             "rename the operation or module receiptFamilies").guide("receipts"));
     }
     internal_names(&mut diagnostics);
+    // @ref LLP 3000.036#15.6 — notes print no `$` internals either (captures, temporaries).
+    for note in &mut notes {
+        note.message = spell_internals(&note.message);
+        note.rewrite = spell_internals(&note.rewrite);
+    }
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
     Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
@@ -321,9 +326,64 @@ fn internal_names(diagnostics: &mut Vec<Diagnostic>) {
         while let Some(at) = capture_spelling(&d.rewrite) { d.rewrite.remove(at); }
         d.mechanical = false;
     }
+    // Any other `$`-prefixed compiler name (`$readThrough(report)`, `$intentLane`)
+    // is a lowering's, never the author's: a problem spelling one beside another
+    // problem at its site is that problem's cascade and is dropped; otherwise it
+    // reads as the author wrote it (`read through .report`) or without the `$`.
+    // @ref LLP 3000.036#15.6 — wave 5 lane 082: no `$` internal reaches a printed problem.
+    let dollar = |d: &Diagnostic| internal_word(&d.message).is_some() || internal_word(&d.rewrite).is_some();
+    let clean_sites: Vec<crate::Site> = diagnostics.iter().filter(|d| !dollar(d)).flat_map(|d| [Some(d.site.clone()), d.cascade_of.clone()]).flatten().collect();
+    diagnostics.retain(|d| !dollar(d) || !(clean_sites.contains(&d.site) || d.cascade_of.as_ref().is_some_and(|site| clean_sites.contains(site))));
+    for d in diagnostics.iter_mut() {
+        if dollar(d) { d.mechanical = false; }
+        d.message = spell_internals(&d.message);
+        d.rewrite = spell_internals(&d.rewrite);
+    }
     // The child's copy of the parent's refusal, reported at the parent's own site.
     let own: Vec<(crate::Site, String)> = diagnostics.iter().filter(|d| d.cascade_of.as_ref() != Some(&d.site)).map(|d| (d.site.clone(), d.code.clone())).collect();
     diagnostics.retain(|d| d.cascade_of.as_ref() != Some(&d.site) || !own.contains(&(d.site.clone(), d.code.clone())));
+}
+
+/// The byte range of a `$`-prefixed compiler name (`$readThrough`): a `$`
+/// that starts an identifier and follows no word or quote character, so a
+/// user's text literal (`'$5'`, `"$saved"`) is never one. A canonical
+/// identity (`$intent:byAt:…`, `$view:…`) is not one either: `check` labels
+/// planner indexes itself and `--verbose` prints them canonical on purpose.
+pub(crate) fn internal_word(text: &str) -> Option<(usize, usize)> {
+    internal_word_from(text, 0)
+}
+
+fn internal_word_from(text: &str, from: usize) -> Option<(usize, usize)> {
+    let bytes = text.as_bytes();
+    (from..bytes.len()).find_map(|at| {
+        if bytes[at] != b'$' { return None; }
+        if at > 0 && (bytes[at - 1].is_ascii_alphanumeric() || matches!(bytes[at - 1], b'_' | b'\'' | b'"')) { return None; }
+        if !bytes.get(at + 1).is_some_and(|b| b.is_ascii_alphabetic()) { return None; }
+        let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
+        if bytes.get(at + 1 + name) == Some(&b':') { return None; }
+        Some((at, at + 1 + name))
+    })
+}
+
+/// The author's spelling of each `$` name: `$readThrough(x)` is `read
+/// through .x`, a capture `.$ref.field` (or `$a.$b.id`) is the path it copies
+/// (`.ref.field`), and any other compiler name loses its `$`.
+pub fn spell_internals(text: &str) -> String {
+    let mut text = text.to_owned();
+    let mut from = 0;
+    while let Some((start, end)) = internal_word_from(&text, from) {
+        let call = &text[end..];
+        if &text[start..end] == "$readThrough" && call.starts_with('(') && let Some(close) = call.find(')') {
+            let reference = call[1..close].trim().trim_start_matches('.').to_owned();
+            let spelled = format!("read through .{reference}");
+            text.replace_range(start..end + close + 1, &spelled);
+            from = start + spelled.len();
+        } else {
+            text.remove(start);
+            from = start;
+        }
+    }
+    text
 }
 
 /// The byte offset of the `$` in a captured-parent spelling `.$reference.field`.

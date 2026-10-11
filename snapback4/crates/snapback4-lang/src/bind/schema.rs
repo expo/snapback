@@ -489,6 +489,17 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
         }
         // @ref LLP 3000.036#14.3 — a read-through child binds its parent's rule over hidden
         // captures (`.$enrollment.dancer`): its refusal is the parent's (`internal_names` drops the copy).
+        // @ref LLP 3000.036#15.6 — a `read through` that did not expand (E_READ_THROUGH says why)
+        // leaves its internal call; its refusal is that problem's cascade, spelled as written.
+        if let Expr::Call { name, args, .. } = &rule.value && name == "$readThrough" {
+            let reference = match args.as_slice() { [Expr::Name { name, .. }] => name.clone(), _ => "parent".into() };
+            error.message = format!("`read through .{reference}` did not expand, so {} has no read rule yet", info.decl.name);
+            // The cascade convention: `check` hides it beside its cause unless --verbose.
+            error.rewrite = "fix this Quarry line and rerun snapback4 check".into();
+            error.cascade_of = Some(rule.site.clone());
+            error.mechanical = false;
+            return error;
+        }
         if rule.effect == Effect::Read && let Some(through) = &info.through {
             error.rewrite = format!("repair {}'s read rule (its own diagnostic prints the repair); {} reads through it", through.parent, info.decl.name);
             error.cascade_of = Some(error.site.clone());

@@ -161,7 +161,8 @@ fn note_reports(notes: &[snapback4_lang::Diagnostic], verbose: bool) -> Vec<Stri
 fn print_prediction(bound: &Bound, verbose: bool) {
     let summary = if verbose { snapback4_lang::bind::residency::prediction_summary(bound) }
         else { snapback4_lang::bind::residency::prediction_overview(bound) };
-    if let Some(summary) = summary { println!("{}", crate::presentation::indexes(&bound.schema, &summary, verbose)); }
+    // Compiler temporaries (`sessions[$reference3]`) never print (LLP 3000.036 §15.6).
+    if let Some(summary) = summary { println!("{}", crate::presentation::indexes(&bound.schema, &snapback4_lang::bind::spell_internals(&summary), verbose)); }
 }
 
 fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
