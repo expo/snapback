@@ -26,7 +26,7 @@ pub(super) struct Recent {
     watermark: Option<Arc<watermark::Watermark>>,
 }
 impl Recent {
-    pub fn start(project: &Path, store: &str, address: std::net::SocketAddr, trace_empty: bool) -> Result<Self, String> {
+    pub fn start(project: &Path, store: &str, address: std::net::SocketAddr, trace_empty: bool, detail: bool) -> Result<Self, String> {
         if !component(store) { return Err("invalid store identity for dev evidence".into()); }
         let now = snapback4_core::now_ms();
         let instance = snapback4_core::ids::mint(now, &mut 0).map_err(|e| e.to_string())?;
@@ -47,7 +47,7 @@ impl Recent {
             // Holding this lock, not a PID or an old timestamp, proves liveness.
             let _active = active;
             let mut records = VecDeque::new();
-            let mut console = console::Console::default();
+            let mut console = console::Console::with_detail(detail);
             let mut shutdown = None;
             let mut remaining = LIMIT;
             loop {
@@ -217,7 +217,7 @@ mod tests {
     fn late_handoff_cannot_replace_a_newer_response() {
         let path = std::env::temp_dir().join(format!("sb4-response-order-{}-{}", std::process::id(), snapback4_core::now_ms()));
         fs::create_dir_all(&path).unwrap();
-        let stream = Recent::start(&path, "store", "127.0.0.1:0".parse().unwrap(), false).unwrap();
+        let stream = Recent::start(&path, "store", "127.0.0.1:0".parse().unwrap(), false, false).unwrap();
         let first = stream.watermark.as_ref().unwrap().next();
         let second = stream.watermark.as_ref().unwrap().next();
         for (sequence, operation) in [(second, "newer"), (first, "older")] {

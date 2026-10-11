@@ -80,7 +80,7 @@ fn dev_reports_source_locally_and_production_keeps_the_same_caller_refusal() {
  #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;assert_eq!(fs::metadata(dev.project.record_path(store)).unwrap().permissions().mode()&0o777,0o600);}
  let why=dev.project.why(&[]);assert!(why.status.success(),"{}",String::from_utf8_lossy(&why.stderr));assert_eq!(serde_json::from_slice::<Value>(&why.stdout).unwrap(),envelope);
  let deadline=Instant::now()+Duration::from_secs(5);
- loop {let stderr=fs::read_to_string(&dev.stderr).unwrap();if stderr.contains("dev refusal: add: rows — insert rule at") {break;}assert!(Instant::now()<deadline,"{stderr}");std::thread::sleep(Duration::from_millis(10));}
+ loop {let stderr=fs::read_to_string(&dev.stderr).unwrap();if stderr.lines().any(|l| l.starts_with("dev refusal: add E_RULE at ") && l.contains("schema.q:5:3 (insert rule on rows)") && l.ends_with(" — snapback4 why recent")) {break;}assert!(Instant::now()<deadline,"{stderr}");std::thread::sleep(Duration::from_millis(10));}
  assert!(!reply.to_string().contains("schema.q"));
  let prod=Host::start(Project::new(),false,false);
  let minted=Command::new(BIN).current_dir(&prod.project.0).args(["token","--service","mp-test","--release","release"]).output().unwrap();
@@ -194,7 +194,7 @@ fn real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actua
 fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
  let project=Project::new();
  let source=format!("{SOURCE}\nquery injected():\n  require false else NOT_FOUND\n  return null\nmutation injectedWrite():\n  require false else NOT_FOUND\n  return null\nquery missing():\n  require false else NOT_FOUND\n  return null\nquery page():\n  return rows first 5 by .id\nquery absent():\n  return rows['absent']\nquery afterRead():\n  ignored = rows['hidden']\n  require false else NOT_FOUND\n  return ignored\n");
- fs::write(project.0.join("snapback/schema.q"),&source).unwrap();let dev=Host::start_with(project,true,false,&["--trace-empty"]);
+ fs::write(project.0.join("snapback/schema.q"),&source).unwrap();let dev=Host::start_with(project,true,false,&["--trace-empty","--verbose"]);
  let previous=dev.refuse("add");let store=previous["store_id"].as_str().unwrap();dev.project.wait_record(store,"add");
  let mut last_id=0;
  for (path,op,code,payload) in [
@@ -390,7 +390,7 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
   let deadline=Instant::now()+Duration::from_secs(5);
   loop {
    let log=fs::read_to_string(&dev.stderr).unwrap();
-   if log.contains("dev refusal: refused:") {
+   if log.contains("dev refusal: refused ") {
     assert_eq!(log.lines().filter(|line| line.starts_with("dev refusal:")).count(),1,"{log}"); break;
    }
    assert!(Instant::now()<deadline,"{log}");std::thread::sleep(Duration::from_millis(10));

@@ -118,10 +118,11 @@ stops the server when its parent dies. snapback4 guide testing has the script.
   --hold-schedules    admit no scheduled runs
   --clock-offset +25h start the dev clock ahead; --resume-clock continues the store's time
   --trace-empty       record unknown empty reads in snapback4 why recent
+  --verbose           print each refusal's full record (phase, generation, store, instance, request)
   long-wait flags     see snapback4 --help
 
-Stop with Ctrl-C or SIGTERM. Refusals print as `dev refusal: …` lines with
-their source site; snapback4 why recent lists them.";
+Stop with Ctrl-C or SIGTERM. Refusals print as one short `dev refusal: <op> <CODE> at <site> (<clause>)`
+line per cause; snapback4 why recent lists the full records.";
 
 const RUN: &str = "snapback4 run <operation> [json-args] [--as <persona|principal-id>] [--port N] [--now <ms|+duration>] [--json]
 

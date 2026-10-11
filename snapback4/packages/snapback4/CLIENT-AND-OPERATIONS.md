@@ -3191,8 +3191,10 @@ time. Repeats do not extend the window; idle windows still flush. The console
 holds at most 32 distinct groups and prints the oldest early on overflow. Counts
 cover accepted writer records; dropped evidence remains reported separately.
 Individual `why recent` records and its 32-record limit are unchanged. Save
-errors also use counted console windows. Lines include phase and generation
-alongside both source sites. Normal dev shutdown (`SIGINT`, `SIGTERM`, `SIGHUP`)
+errors also use counted console windows. By default a line is short (operation,
+code, source site, clause and table, a hidden lookup's read rule, `×N`);
+`dev --verbose` prints the full line with phase, generation, execution site,
+store, instance and the first request/job identity and time. Normal dev shutdown (`SIGINT`, `SIGTERM`, `SIGHUP`)
 drains accepted records and flushes these windows even with held polls and no
 application worker. It waits up to two seconds for acknowledgement. A stalled
 writer or abrupt termination can still lose queued records and unprinted

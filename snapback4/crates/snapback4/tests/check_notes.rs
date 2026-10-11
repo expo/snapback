@@ -37,7 +37,8 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
         String::from_utf8(output.stdout).unwrap()
     };
     let plain = run(&["check"]);
-    assert_eq!(plain.matches(" — N_NO_HORIZON:").count(), 2);
+    assert_eq!(plain.matches(" — N_NO_HORIZON:").count(), 1, "{plain}");
+    assert!(plain.contains("note: N_NO_HORIZON (as above) also for table second (schema.q:5:1)"), "{plain}");
     assert!(plain.contains("check --verbose"));
     assert!(plain.contains("schema.q:1:1") && plain.contains("schema.q:5:1"), "{plain}");
     assert!(!plain.contains("rewrite:"));
