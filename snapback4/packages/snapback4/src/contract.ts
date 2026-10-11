@@ -439,7 +439,8 @@ type FallbackDecisions<H> = H extends { otherwise: unknown }
  * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.
  */
 // @ref LLP 3000.013#6.6 — an omitted denied/partial with `otherwise` fails naming the fix, not a Pick<> dump.
-export function matchRead<T, H extends ReadMatchHandlers<NoInfer<T>> | ReadMatchFallbackHandlers<NoInfer<T>> | ReadMatchIncomplete<NoInfer<T>>>(
+// @ref LLP 3000.013#6.7 — NoInfer wraps the whole handler set, never T inside it: `NoInfer<T> & ({} | undefined)` never simplified, so present rows refused `rows[0]` and `for…of`.
+export function matchRead<T, H extends NoInfer<ReadMatchHandlers<T> | ReadMatchFallbackHandlers<T> | ReadMatchIncomplete<T>>>(
   read: Read<T>, handlers: H & FallbackDecisions<H>,
 ): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
 export function matchRead<T, R>(read: Read<T>, handlers: (ReadMatchHandlers<T, R> & { otherwise?: never }) | ReadMatchFallbackHandlers<T, R>): R {

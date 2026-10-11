@@ -482,3 +482,40 @@ test('sentResult returns a fresh sent result and undefined for every other outco
     assert.equal(sentResult(write), undefined);
   }
 });
+
+// Wave 6 (045 047 084 094): `present`'s payload printed as `NoInfer<Row[]> &
+// ({} | undefined)`, so `rows[0]`, `for…of` and spreading failed (TS7053,
+// TS2488) on 0.4.20 and 0.4.21. The data is the read's own non-null type.
+test('present and partial payloads index, iterate and destructure like the plain result type', () => {
+  for (const entry of ['./src/react.tsx', './dist/react.js']) {
+    const result = check(`import { matchRead, useQuery, usePage, type UseQuery, type Cursor } from '${entry}';
+import type { Query } from './dist/contract.js';
+export type Rows = { categories: { closed: boolean; id: string; name: string; pending?: boolean }; members: { id: string; name: string } };
+declare const api: { allCategories: Query<Record<string, never>, Rows["categories"][]>; memberList: Query<{ c?: Cursor | null }, Rows["members"][]>;
+  one: Query<{ id: string }, Rows["members"] | null>; frozen: Query<{}, readonly Rows["members"][]>; count: Query<{}, number>; maybe: Query<{}, Rows["members"][] | null> };
+function First({ read }: { read: UseQuery<typeof api.allCategories> }) {
+  return matchRead(read, { loading: () => 'Loading…', denied: why => why.message, absent: () => 'None',
+    partial: rows => rows[0]?.name ?? '…',
+    present: rows => {
+      const first: Rows["categories"] | undefined = rows[0];
+      const [top] = rows, names: string[] = [];
+      for (const row of rows) names.push(row.name);
+      const copy: Rows["categories"][] = [...rows];
+      return [first?.name, top?.name, rows.find(row => row.closed)?.id, rows.at(-1)?.id, copy.length, names.join()].join();
+    } });
+}
+export function Screen() {
+  const page = usePage(api.memberList, {});
+  const list = matchRead(page.read, { denied: () => 0, partial: rows => rows.length, otherwise: () => 0, present: rows => { let n = 0; for (const row of rows) n += row.name.length; return n + (rows[0]?.id.length ?? 0); } });
+  const frozen = matchRead(useQuery(api.frozen, {}), { denied: () => '', partial: () => '', otherwise: () => '', present: rows => rows[0]?.name ?? rows.map(row => row.id).join() });
+  const one = matchRead(useQuery(api.one, { id: 'a' }), { denied: () => '', partial: row => row?.name ?? '', otherwise: () => '', present: row => row.name });
+  const count = matchRead(useQuery(api.count, {}), { denied: () => 0, partial: n => n, otherwise: () => 0, present: n => n + 1 });
+  const maybe = matchRead(useQuery(api.maybe, {}), { denied: () => '', otherwise: () => '', partial: rows => rows?.[0]?.id ?? '',
+    present: rows => { const all: Rows["members"][] = rows; return all[0]?.id ?? ''; } });
+  const typed: [number, string, string, number, string] = [list, frozen, one, count, maybe];
+  return <First read={useQuery(api.allCategories, {})} />;
+}
+`, undefined, 'tsx');
+    assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
+  }
+});
