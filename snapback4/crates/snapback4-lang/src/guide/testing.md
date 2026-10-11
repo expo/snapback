@@ -50,10 +50,18 @@ per line, the table's fields by name plus an `id`.
   in minor units; `bytes` is lowercase hex; lists are arrays; an optional field may be omitted or `null`.
 - Every file loads as one batch with parents before children, so file names and order do not matter.
   `NOT_FOUND` while loading means a referenced or read-through parent is in no file.
-- Rows load as inserts do, as the system (rules skipped; types, constraints and caps checked): an omitted
-  column takes its `default` (`default now` is the load time), and a `sequence` column is assigned in file
-  order — omit it, since supplying one refuses `E_SEQUENCE_SUPPLIED`. The `$`-prefixed fields that
-  `snapback4 data` prints are recorded by the engine: drop them when turning a dump into a fixture.
+- Rows load exactly as `POST /seed` writes them: as inserts, as the system (rules skipped). An omitted
+  column takes its `default` (`default now` is the load time); a `sequence` column is assigned in file
+  order — omit it, since supplying one refuses `E_SEQUENCE_SUPPLIED`; a duplicate `unique` refuses with
+  your own code (`unique slot else SEAT_TAKEN` refuses `SEAT_TAKEN`), a full `cap` with `E_CONSTRAINT`;
+  and every `view`,
+  `maintain` and maintained column counts the loaded rows, then follows the cases' writes. An
+  engine-maintained column is refused (`E_MAINTAINED_COLUMN`): load the source rows instead. The
+  `$`-prefixed fields that `snapback4 data` prints are recorded by the engine: drop them when turning a
+  dump into a fixture.
+- `time` values are absolute: the cases and the dev server run at the wall clock, so put fixture times
+  in the past (a row with `expires` or a window already behind `now` reads as gone) and live writes
+  get `now`, which sorts after every fixture time.
 - A fixture that does not load (a bad row, a bare principal, a `.jsonl` file whose name is no table) fails the
   run with exit 1 and runs nothing.
 

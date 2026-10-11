@@ -116,8 +116,9 @@ first loads the rows into a private in-memory store and afterwards runs
 dir/test.cases.jsonl, your own operations with expectations.
 
   --fixture dir   dir/<table>.jsonl, one JSON row per line, loaded as one batch
-                  (parents first) with the table's defaults and sequences
-                  applied as on insert. Without it, test reads the dev store
+                  (parents first) exactly as POST /seed writes rows: defaults,
+                  sequences, unique (your codes) and caps, maintained views.
+                  Without it, test reads the dev store
                   .snapback4/store.sqlite (E_STORE_BUSY while a dev owns it).
   --as alice      one persona (default: every persona in `use personas`)
   --residency     what each persona's device would acquire; --verbose also runs the queries

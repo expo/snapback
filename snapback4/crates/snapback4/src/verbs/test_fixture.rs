@@ -8,9 +8,10 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     let Some(fixture) = options.flags.get("fixture") else { return project.open_engine(bound).map_err(|error| format!("cannot open the store: {error}")); };
     let started = std::time::Instant::now();
     let mut schema = bound.schema.clone();
-    // Defer ordinary maintains until after bulk loading. Column derives must
-    // remain installed for authoritative import, which strips and rebuilds them.
-    if options.flags.contains_key("residency") { schema.maintains.retain(|m| m.private.is_some()); }
+    // Residency defers ordinary maintains until after bulk loading and builds
+    // them once; column derives stay installed and maintain as rows insert.
+    let residency = options.flags.contains_key("residency");
+    if residency { schema.maintains.retain(|m| m.private.is_some()); }
     let mut engine = Engine::memory(schema, bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot open a store: {error}"))?;
     let mut names = Vec::new();
     for entry in std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))? {
@@ -31,7 +32,11 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
         let text = std::fs::read_to_string(&path).map_err(|error| format!("cannot read fixture file {}: {error}", path.display()))?;
         for (line_number, line) in text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty()) {
             let at = format!("{name}:{}", line_number + 1);
-            let json = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
+            let mut json: serde_json::Value = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
+            // A residency fixture is often an exported store: engine-maintained
+            // columns are dropped and rebuilt from the source rows. `test`
+            // refuses them as an insert and `/seed` do (E_MAINTAINED_COLUMN).
+            if residency && let Some(fields) = json.as_object_mut() { fields.retain(|field, _| !definition.maintained.contains_key(field)); }
             if let Some(why) = wire::bare_principal(definition, &json) { return Err(format!("{at}: {why}")); }
             let row = wire::row_from_json(definition, &json).map_err(|error| format!("{at}: {error}\n  hint: a fixture row is one JSON object per line with the table's fields and an \"id\"; see snapback4 guide testing"))?;
             rows.push((table.to_owned(), row));
@@ -43,12 +48,13 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
         return Err(format!("{fixture}: {} name{} no table in snapback/*.q; nothing was run\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
             unknown.join(", "), if unknown.len() == 1 { "s" } else { "" }, tables.join(", "), super::test_cases::FILE));
     }
-    let loaded = engine.load(rows).map_err(|error| {
+    // Fixture rows take `/seed`'s insert path (defaults, sequences, unique with the author's codes, caps, maintained views), not the trusted bulk import.
+    let loaded = engine.seed(rows).map_err(|error| {
         let text = error.to_string();
         let hint = if text.contains("NOT_FOUND") { "\n  hint: every fixture file loads as one batch, parents first; NOT_FOUND means a referenced or read-through parent row is in no fixture file (check the id)" } else { "" };
         format!("{fixture}: {text}{hint}")
     })?;
-    if options.flags.contains_key("residency") {
+    if residency {
         engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot build fixture maintains: {error}"))?;
     }
     if !options.json { println!("test: loaded {loaded} rows from {fixture} in {:.1} s", started.elapsed().as_secs_f64()); }

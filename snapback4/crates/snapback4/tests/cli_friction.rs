@@ -260,3 +260,107 @@ fn run_port_reaches_a_fresh_dev_and_a_local_run_names_its_store() {
     let local = project.run(&["run", "whoAmI", "--json"]);
     assert!(local.status.success() && String::from_utf8_lossy(&local.stderr).contains("run: on the local store .snapback4/store.sqlite"), "{}", text(&local));
 }
+
+const PARITY_SCHEMA: &str = "use personas alice, bob
+
+table items:
+  owner: principal
+  qty: int
+  done: bool default false
+  n: int default 7
+  at: time default now
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  delete <- .owner = viewer
+  cap 50 by owner
+
+table seats:
+  slot: int
+  who: principal
+  unique slot else SEAT_TAKEN
+  read <- .who = viewer
+  insert <- .who = viewer
+  cap 5 by who
+
+view qtyByOwner: sum items of .qty by .owner
+  read <- allow
+
+view countByOwner: count items by .owner
+  read <- allow
+
+query item(item: items):
+  i = items[item] ! else NOT_FOUND
+  return { done: i.done, n: i.n, stamped: i.at > 0 }
+
+query totals(owner: principal):
+  return { qty: qtyByOwner[owner], count: countByOwner[owner] }
+
+mutation setQty(item: items, qty: int):
+  i = items[item] ! else NOT_FOUND
+  require i.owner = viewer else NOT_YOURS
+  return update items[item] { qty }
+
+mutation drop(item: items):
+  delete items[item]
+  return true
+
+mutation book(slot: int):
+  return insert seats { slot, who: viewer }
+";
+
+/// Fixture rows and `/seed` take one insert path (wave 2, R2 and R4): the same
+/// rows answer the same in `test --fixture` and over a dev's `/seed` — omitted
+/// columns take their defaults, maintained views count the loaded rows and
+/// follow later updates and deletes (no negative group), and a duplicate
+/// `unique` refuses with the author's code instead of loading.
+#[test]
+fn fixture_rows_and_seed_rows_answer_alike() {
+    let items = [r#"{"id":"I1","owner":"dev:alice","qty":2}"#, r#"{"id":"I2","owner":"dev:alice","qty":3}"#];
+    let seats = r#"{"id":"S1","slot":1,"who":"dev:alice"}"#;
+    // (persona, operation, args, the answer both paths must give)
+    let steps: [(&str, &str, &str, serde_json::Value); 7] = [
+        ("alice", "item", r#"{"item":"I1"}"#, serde_json::json!({"done": false, "n": 7, "stamped": true})),
+        ("alice", "totals", r#"{"owner":"dev:alice"}"#, serde_json::json!({"qty": 5, "count": 2})),
+        ("alice", "setQty", r#"{"item":"I1","qty":10}"#, serde_json::Value::Null),
+        ("alice", "totals", r#"{"owner":"dev:alice"}"#, serde_json::json!({"qty": 13, "count": 2})),
+        ("alice", "drop", r#"{"item":"I2"}"#, serde_json::json!(true)),
+        ("alice", "totals", r#"{"owner":"dev:alice"}"#, serde_json::json!({"qty": 10, "count": 1})),
+        ("alice", "totals", r#"{"owner":"dev:bob"}"#, serde_json::json!({"qty": 0, "count": 0})),
+    ];
+    let project = Project::new(PARITY_SCHEMA);
+    project.write("fx/items.jsonl", &format!("{}\n{}\n", items[0], items[1]));
+    project.write("fx/seats.jsonl", &format!("{seats}\n"));
+    let cases: String = steps.iter().map(|(who, op, args, data)| {
+        let data = if data.is_null() { String::new() } else { format!(",\"data\":{data}") };
+        format!("{{\"as\":\"{who}\",\"op\":\"{op}\",\"args\":{args}{data}}}\n")
+    }).collect();
+    project.write("fx/test.cases.jsonl", &cases);
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("cases: 7 passed, 0 failed"), "{}", text(&output));
+
+    let (_dev, url) = project.dev(0);
+    let rows: Vec<String> = items.iter().map(|row| format!("{{\"table\":\"items\",\"row\":{row}}}")).chain([format!("{{\"table\":\"seats\",\"row\":{seats}}}")]).collect();
+    let (status, body) = http(&url, "POST", "/seed", None, &format!("[{}]", rows.join(",")));
+    assert_eq!((status, &body["seeded"]), (200, &serde_json::json!(3)), "{body}");
+    for (who, op, args, data) in &steps {
+        let route = if matches!(*op, "item" | "totals") { format!("/q/{op}") } else { format!("/m/{op}") };
+        let (status, body) = http(&url, "POST", &route, Some(who), &format!("{{\"args\":{args}}}"));
+        assert_eq!(status, 200, "{op}: {body}");
+        let answer = if route.starts_with("/q/") { &body["data"] } else { assert_eq!(body["state"], "sent", "{op}: {body}"); &body["result"] };
+        if !data.is_null() { assert_eq!(answer, data, "{op} {args} over /seed answers as the fixture run did"); }
+    }
+
+    // A duplicate unique key refuses with the author's code on both paths.
+    let duplicate = r#"{"id":"S2","slot":1,"who":"dev:bob"}"#;
+    let bad = Project::new(PARITY_SCHEMA);
+    bad.write("fx/seats.jsonl", &format!("{seats}\n{duplicate}\n"));
+    let output = bad.run(&["test", "--fixture", "fx"]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output));
+    assert!(text(&output).contains("SEAT_TAKEN"), "{}", text(&output));
+    let (_dev, url) = bad.dev(0);
+    let (status, body) = http(&url, "POST", "/seed", None, &format!("[{{\"table\":\"seats\",\"row\":{seats}}},{{\"table\":\"seats\",\"row\":{duplicate}}}]"));
+    assert_eq!((status, &body["denied"]["code"]), (200, &serde_json::json!("SEAT_TAKEN")), "{body}");
+}
