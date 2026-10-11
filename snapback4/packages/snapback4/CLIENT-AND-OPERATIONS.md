@@ -1509,6 +1509,67 @@ export function useOwnClient(url: string, persona: string): Client | null {
 }
 ```
 
+#### Personas in a React UI
+
+A development UI can act as a declared persona (`use personas alice, bob`) behind the same
+`AppProvider`, `useAuth` and `app.mutate` it uses for accounts: `createApp({ url, persona: "bob",
+device })` acts as `dev:bob` with no session. `app.auth.state` goes `restoring` → `signed-in`;
+`login`, `signup`, `guest` and `logoutEverywhere` refuse `E_AUTH`; `logout()` stops the app and
+leaves the persona's queued writes on its device for its next app. The url must be literal loopback
+(`localhost`, `127.x`, `[::1]`), or `ready` resolves `{ ok: false }` with `E_AUTH` before any request
+carries the header; `snapback4 dev` still checks the socket, `Host` and `Origin`, and `serve`
+refuses personas, which the app also reports as `E_AUTH`. A browser writes only with a device, as for
+any `createApp`: without one, `app.mutate` refuses `E_ADMISSION` and names
+`createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app; close the
+old one in the effect cleanup. One tab is one device per store, and each persona has its own store.
+
+```tsx
+import { AppProvider, useAuth, useQuery } from "snapback4/react";
+import { createApp, type App } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { webDevice } from "snapback4/web";
+import { useEffect, useState } from "react";
+import { api } from "../snapback/generated/api";
+
+const url = "http://127.0.0.1:4400";
+const personas = ["alice", "bob"];
+const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+// `?as=bob` acts as dev:bob on `snapback4 dev`; without it, people sign in.
+const openApp = (persona: string | null): App => persona
+  ? createApp({ url, persona, device: webDevice() })
+  : createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });
+export function Root() {
+  const [persona, setPersona] = useState(() => new URLSearchParams(location.search).get("as"));
+  const [app, setApp] = useState<App | null>(null);
+  useEffect(() => {
+    const opened = openApp(persona);
+    setApp(opened);
+    return () => { void opened.close(); };
+  }, [persona]);
+  const choose = (next: string) => {
+    const address = new URL(location.href);
+    address.searchParams.set("as", next);
+    history.replaceState(null, "", address);
+    setPersona(next);
+  };
+  if (!app) return null;
+  return <AppProvider app={app}>
+    {loopback && <select aria-label="Persona" value={persona ?? ""} onChange={e => choose(e.target.value)}>
+      <option value="" disabled>Sign in</option>{personas.map(name => <option key={name}>{name}</option>)}</select>}
+    <Who />
+  </AppProvider>;
+}
+function Who() {
+  const auth = useAuth();
+  const me = useQuery(api.myProfile, {});
+  if (auth.state !== "signed-in") return <p>{auth.why?.message ?? "Opening…"}</p>;
+  return <p>{auth.viewer}: {"data" in me && me.data ? me.data.handle : "no profile yet"}</p>;
+}
+```
+
+Without React, `createLocalClient({ url, persona, device })` and `createClient({ url, persona })`
+take the same option; the online one reads in a browser but refuses durable writes there.
+
 `useQuery` observes: it re-renders when a sync or a local prediction
 touches the query's tables, and at the next visible `expire at` time even
 when a local device is offline. A column named `expiresAt` alone does not

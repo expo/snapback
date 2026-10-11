@@ -15,8 +15,10 @@ createApp({ url: appOptions.url, assets: { keep: "everything", maxBytes: 1 } });
 createApp({ url: appOptions.url, assets: { keep: "viewed", maxBytes: "64MB" } });
 // @ts-expect-error polling intervals remain numeric
 createApp({ url: appOptions.url, waitSeconds: "1" });
-// @ts-expect-error identity belongs to app.auth
+// A development persona is the one identity createApp takes directly (LLP 3000.013 §6.1).
 createApp({ url: appOptions.url, persona: "alice" });
+// @ts-expect-error a persona is a name
+createApp({ url: appOptions.url, persona: true });
 // @ts-expect-error guest sign-in belongs to app.auth.guest()
 createApp({ url: appOptions.url, guest: true });
 // @ts-expect-error sessions belong to app.auth and its sessionStore

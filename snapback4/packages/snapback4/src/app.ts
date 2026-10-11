@@ -17,6 +17,7 @@ import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
 import { guardClient } from "./app-client.ts";
+import { personaApp } from "./app-persona.ts";
 import { ownOnline, onlineView, type Online } from "./app-online-arm.ts";
 import { armRefusal, requestArm } from "./online-arm-fence.ts";
 export type { Online } from "./app-online-arm.ts";
@@ -58,6 +59,11 @@ export interface App {
 export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "session" | "guest"> {
   readonly readOnly?: boolean;
   readonly device?: DeviceOpener | undefined;
+  /** A development persona for loopback `snapback4 dev` only: the app acts as
+   * `dev:<persona>` with no session (`?as=bob` pickers). app.auth sign-in is
+   * refused; a non-loopback url refuses with E_AUTH, and serve refuses personas.
+   * A browser needs a device to write, as with every createApp. */
+  readonly persona?: string;
 }
 
 function problem(error: unknown): Refusal {
@@ -78,6 +84,7 @@ class SessionEpochChanged extends StorageWarning {
 
 export function createApp(options: AppOptions): App {
   validateReadOptions(options);
+  if (options.persona !== undefined) return personaApp({ ...options, persona: options.persona });
   const readOnly = options.readOnly ?? false;
   let assets: AssetRetention | undefined, configurationError: StorageWarning | undefined;
   try { if (options.device) assets = assetRetention(options.assets); }
