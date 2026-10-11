@@ -1527,3 +1527,29 @@ fn fixture_test_reports_cursorless_top_n_complete() {
     let measured = text.lines().find(|line| line.contains("top (alice)")).expect(&text);
     assert!(measured.contains("complete in") && !measured.contains("capped"), "{text}");
 }
+
+// Large cards truncate in agent tools: an index and one section at a time.
+#[test]
+fn guide_prints_a_cards_heading_index_and_one_section() {
+    let index = Command::new(BIN).args(["guide", "language", "--sections"]).output().unwrap();
+    assert!(index.status.success() && index.stderr.is_empty(), "{index:?}");
+    let index = String::from_utf8_lossy(&index.stdout);
+    assert!(index.starts_with("language: ") && index.contains("Older spellings that still compile ("), "{index}");
+    for keyword in snapback4_lang::guide::KEYWORDS {
+        let card = Command::new(BIN).args(["guide", keyword]).output().unwrap();
+        let card = String::from_utf8_lossy(&card.stdout).into_owned();
+        for (_, heading, _, _) in snapback4_lang::guide::sections(&card) {
+            let output = Command::new(BIN).args(["guide", keyword, "--section", &heading]).output().unwrap();
+            let text = String::from_utf8_lossy(&output.stdout);
+            // Repeated headings (a card may have two "Example" sections) refuse as ambiguous.
+            if !output.status.success() { assert!(text.contains("matches") && text.contains("sections of guide"), "{keyword} {heading}: {text}"); continue; }
+            let body = text.split_once("\n\n").map(|(_, body)| body).unwrap_or(&text).trim_end();
+            assert!(body.starts_with("##") && card.contains(body), "{keyword} --section {heading}");
+        }
+    }
+    let output = Command::new(BIN).args(["guide", "reads", "--section", "no such heading"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Limits ("), "{output:?}");
+    let listing = Command::new(BIN).arg("guide").output().unwrap();
+    assert!(String::from_utf8_lossy(&listing.stdout).contains("--section <heading>"));
+}
