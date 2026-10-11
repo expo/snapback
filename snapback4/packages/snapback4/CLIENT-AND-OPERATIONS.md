@@ -1452,6 +1452,60 @@ export function App({ client, conversationId }: { client: Client; conversationId
 }
 ```
 
+#### Narrowing reads and writes in TypeScript
+
+`matchRead` takes no type arguments: the row type comes from the read, and the handlers'
+return types become the result's union (`matchRead<Row[]>(…)` fails with "Expected 2 type
+arguments"). `present` and `partial` receive `data`; `otherwise` receives the **read** (loading,
+absent or present, even when one of those also has a handler), so narrow it with `isReady` before
+touching `.data`. `denied` and `partial` stay explicit beside `otherwise`, so a list still
+decides what an uncertain page shows. A `Write` is `pending`, `sent` or `failed`, and a replayed
+`sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it. The
+online client can return `pending` too, while offline or with `waitSeconds: 0`. `close()` returns
+a promise; an effect cleanup must return nothing, so write `() => { void client.close(); }`.
+`UseMutation<typeof api.op>` names a hook's type for a prop; every name here imports from
+`snapback4/react`, and `Client` also from `snapback4/client`.
+
+```tsx
+import { isDenied, isLoading, isReady, matchRead, useMutation, useQuery, type UseMutation, type Write } from "snapback4/react";
+import { createClient, type Client } from "snapback4/client";
+import { useEffect, useState } from "react";
+import { api } from "../snapback/generated/api";
+type Message = { id: string; body: string | null };
+function Bodies({ rows }: { rows: readonly Message[] }) { return <ul>{rows.map(row => <li key={row.id}>{row.body}</li>)}</ul>; }
+export function Thread({ conversationId }: { conversationId: string }) {
+  const read = useQuery(api.thread, { conversationId });
+  const send = useMutation(api.send);
+  return <>{matchRead(read, {
+    denied: why => <p role="alert">{why.message}</p>,
+    partial: rows => <><Bodies rows={rows} /><p>Results may be incomplete</p></>,
+    present: rows => <Bodies rows={rows} />,
+    otherwise: read => isReady(read) ? <p>No messages yet</p> : <p>Loading…</p>,
+  })}<Composer conversationId={conversationId} send={send} /></>;
+}
+function Composer({ conversationId, send }: { conversationId: string; send: UseMutation<typeof api.send> }) {
+  const [note, setNote] = useState("");
+  const settle = (write: Write<{ id: string }>) => setNote(write.state === "failed" ? write.why.message
+    : write.state === "pending" ? "Sending…" : write.replayed ? "Already sent" : `Sent ${write.result.id}`);
+  return <><button onClick={() => void send.run({ conversationId, body: "hi" }).then(settle)}>Send</button>{note}</>;
+}
+export function Header() {
+  const me = useQuery(api.myProfile, {});
+  if (isLoading(me)) return <p>Loading…</p>;
+  if (isDenied(me)) return <p role="alert">{me.denied.message}</p>;
+  return <p>{me.existence === "present" ? me.data.handle : "No profile"}</p>;
+}
+export function useOwnClient(url: string, persona: string): Client | null {
+  const [client, setClient] = useState<Client | null>(null);
+  useEffect(() => {
+    const opened = createClient({ url, persona });
+    setClient(opened);
+    return () => { void opened.close(); };
+  }, [url, persona]);
+  return client;
+}
+```
+
 `useQuery` observes: it re-renders when a sync or a local prediction
 touches the query's tables, and at the next visible `expire at` time even
 when a local device is offline. A column named `expiresAt` alone does not

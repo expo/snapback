@@ -30,6 +30,7 @@ process.stdout.write(JSON.stringify(out));`);
   const failed = Object.entries(out).filter(([, value]) => typeof value === "string" && value.startsWith("FAILED"));
   assert.deepEqual(failed, []);
   assert.ok(out["snapback4/client"].includes("createClient"));
+  assert.ok(out["snapback4/react"].includes("isReady"), "isReady is exported where hooks are imported");
   assert.deepEqual(out["snapback4/bin-path"], ["resolveBinary"]);
   assert.ok(existsSync(out.binary), out.binary);
   assert.match(execFileSync(out.binary, ["--version"], { encoding: "utf8" }), /snapback4/);

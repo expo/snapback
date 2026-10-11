@@ -263,3 +263,35 @@ state.delivered;
 `);
   assert.deepEqual(result.codes, [], result.text);
 });
+
+test('the card words import from the modules that return them; UseMutation names a hook by its operation', () => {
+  const result = check(`import { createClient, type Client, type Principal, type Read, type Write, type Refusal } from './dist/client.js';
+import { isReady, isDenied, isLoading, existence, useMutation, type UseMutation, type WriteHook, type MutationHook } from './dist/react.js';
+import type { Mutation, Ephemeral, Signal, Query } from './dist/contract.js';
+const client: Client = createClient({ url: 'http://127.0.0.1:4400', persona: 'alice' });
+const viewer: Principal | null = client.viewer();
+declare const op: Query<{}, { id: string }[]>, add: Mutation<{ body: string }, { id: string }>, typing: Ephemeral<{ room: string }, null>;
+const read: Read<{ id: string }[]> = client.observe(op, {}).getSnapshot();
+if (isReady(read)) { const rows: { id: string }[] = read.data; }
+if (isDenied(read)) { const why: Refusal = read.denied; }
+if (!isLoading(read)) existence(read);
+function Row({ remove }: { remove: UseMutation<typeof add> }) {
+  const hook: WriteHook<{ body: string }, { id: string }> = remove;
+  void remove.run({ body: 'x' }, { waitSeconds: 0 }).then((write: Write<{ id: string }>) => {
+    if (write.state === 'sent' && !write.replayed) { const id: string = write.result.id; }
+    // @ts-expect-error a replayed receipt carries no historical result
+    if (write.state === 'sent') write.result.id;
+  });
+  // @ts-expect-error arguments stay typed through the named hook
+  void remove.run({ text: 'x' });
+  return null;
+}
+function useBoth() {
+  const durable: UseMutation<typeof add> = useMutation(add);
+  const signal: UseMutation<typeof typing> = useMutation(typing);
+  const same: MutationHook<{ room: string }, Signal<null>> = signal;
+  return [durable, same] as const;
+}
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});

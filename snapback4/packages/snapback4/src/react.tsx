@@ -20,7 +20,8 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, type ReadMatchHandlers, type ReadMatchFallbackHandlers } from "./contract.ts";
+export { matchRead, isReady, isLoading, isDenied, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadPresentation } from "./contract.ts";
+export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link } from "./contract.ts";
 import { Pages } from "./react-pages.ts";
 import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";
@@ -167,18 +168,22 @@ export function useFollowing<A, R extends readonly unknown[]>(op: FollowingQuery
 
 /** A write. `run` never throws; `last` is the most recent outcome, including
  * queued settlement. A sent replay has `replayed: true` and no result. */
-interface MutationHook<A, Outcome> {
+export interface MutationHook<A, Outcome> {
   run(args: A): Promise<Outcome>;
   last: Outcome | undefined;
   inFlight: boolean;
 }
 /** A durable write's hook: `run` takes `client.mutate`'s options, so `{ waitSeconds: 0 }`
  * returns at custody and `{ id }` submits under an id the app saved first. */
-interface WriteHook<A, R> {
+export interface WriteHook<A, R> {
   run(args: A, options?: MutateOptions): Promise<Write<R>>;
   last: Write<R> | undefined;
   inFlight: boolean;
 }
+/** What `useMutation(op)` returns, named by the operation, for props:
+ * `function Row({ remove }: { remove: UseMutation<typeof api.remove> })`. */
+export type UseMutation<O> = O extends Ephemeral<infer A, infer R> ? MutationHook<A, Signal<R>>
+  : O extends Mutation<infer A, infer R> ? WriteHook<A, R> : never;
 function useTrackedMutation<A, R>(op: Ephemeral<A, R>): MutationHook<A, Signal<R>>;
 function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string): WriteHook<A, R> & { restoring: boolean };
 function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: string): MutationHook<A, Write<R> | Signal<R>> | WriteHook<A, R>;

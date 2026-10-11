@@ -45,7 +45,7 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
-`matchRead` requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)` gets Refusal; `absent(read)`/`loading(read)` get their arm. `otherwise(read)` covers omitted loading/absent/present only. Denied/partial remain explicit; metadata stays. `existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
+`matchRead` (no type arguments) requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)`: the read, for omitted loading/absent/present; denied/partial stay explicit. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
 
 | Meaning | UI decision |
 | --- | --- |

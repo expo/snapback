@@ -340,7 +340,8 @@ export interface Client {
   /** Clear local credentials and close; remote session revocation is best effort. */
   signOut(): Promise<void>;
   /** Finish local cleanup without waiting on held network responses. Known write/action
-   * outcomes survive; unreceived outcomes return pending with their original id. */
+   * outcomes survive; unreceived outcomes return pending with their original id.
+   * In a React effect cleanup, which must return nothing: `() => { void client.close(); }`. */
   close(): Promise<void>;
 }
 
@@ -378,6 +379,9 @@ export type ReadMatchFallbackHandlers<T, R = unknown> =
   } & { otherwise: (read: Extract<Read<T>, { loading: true }> | Absent<T> | Present<T>) => R };
 
 /** Render the current read, preserving its narrowed data and metadata.
+ * Pass no type arguments: T comes from the read and the result is the union of
+ * the handlers' returns. `present`/`partial` receive data; `otherwise` receives
+ * the read itself (narrow with `isReady`). Denied and partial stay explicit.
  * Pure dispatch: no reclassification, subscription, retention or permission.
  * For pages pass page.read; present pages may still be incomplete.
  * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.

@@ -15,6 +15,8 @@ import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAf
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
+// The card's words, from the module that returns them: `import { createClient, type Client } from "snapback4/client"`.
+export type { Client, Principal, Session, Refusal, Read, Ready, SettledRead, Write, Signal, Act, ActOptions, MutateOptions, MutationPromise, PendingWrite, Link, Query, Mutation, Ephemeral, Action, ArgsOf, ResultOf, Observed, ObserveOptions, Cursor } from "./contract.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries, readDeadlineWithdrawn } from "./read-expiry.ts";
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
