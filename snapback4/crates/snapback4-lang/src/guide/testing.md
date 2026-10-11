@@ -50,17 +50,26 @@ per line, the table's fields by name plus an `id`.
   in minor units; `bytes` is lowercase hex; lists are arrays; an optional field may be omitted or `null`.
 - Every file loads as one batch with parents before children, so file names and order do not matter.
   `NOT_FOUND` while loading means a referenced or read-through parent is in no file.
+- Rows load as inserts do, as the system (rules skipped; types, constraints and caps checked): an omitted
+  column takes its `default` (`default now` is the load time), and a `sequence` column is assigned in file
+  order — omit it, since supplying one refuses `E_SEQUENCE_SUPPLIED`. The `$`-prefixed fields that
+  `snapback4 data` prints are recorded by the engine: drop them when turning a dump into a fixture.
+- A fixture that does not load (a bad row, a bare principal, a `.jsonl` file whose name is no table) fails the
+  run with exit 1 and runs nothing.
 
 ## `snapback4 test --fixture fixtures --as alice`
 
 Runs every query as the persona with arguments derived from the data: a
 reference is that table's first row by `id` order, a principal is the persona,
-text is the shortest valid value. Columns are the meter: `examined` rows read,
-`entries` index entries walked, `probes` rule lookups, `steps`, `heap B`,
-`output B`; the `ceilings` row is the limit for each. A derived argument the
-rules refuse is reported, not failed. The last line counts complete, capped,
-refused, not-run and denied queries and the cases below; the exit code is 1
-when a query is denied or a case fails.
+text is the shortest valid value. Columns are the meter: `examined` rows the
+read looked at (not rows returned), `entries` index entries walked, `probes`
+rule lookups, `steps`, `heap B`, `output B`; the `ceilings` row is the limit
+for each. `complete` is the whole answer; `capped` is a partial one
+(`complete: false`: a ceiling, or a page that cannot prove completeness on the
+server), not a refusal. A derived argument the rules refuse is reported, not
+failed. The last line counts complete, capped, refused, not-run and denied
+queries and the cases below; the exit code is 1 when a query is denied, a case
+fails or the fixture does not load. `snapback4 test --help` prints this legend.
 
 ## `test.cases.jsonl`: your operations, in order, with expectations
 
@@ -82,15 +91,19 @@ persona against the loaded fixture; mutations change what later lines see.
 
 ## An acceptance script over HTTP
 
-Run the installed binary directly so the PID you hold is the server (through
-`npx`, npm and a shell sit in between). `--memory` keeps no store, so
-parallel runs never contend. Readiness is the first stdout line: the URL.
+Spawn the package's `node_modules/.bin/snapback4` rather than `npx` (npm and a
+shell sit in between); it forwards signals to the server and stops it if your
+script dies. `--port 0` takes a free port and `--memory` keeps no store, so
+parallel runs never contend; a fixed port that is taken refuses at once
+(`E_ADDRINUSE`, naming the holder) instead of leaving you talking to an older
+server. Readiness is the first stdout line: the URL. `GET /dev/status` names
+the server's `pid`; `snapback4 dev --help` has the lifecycle.
 
 ```js
 // node scripts/acceptance.mjs
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
-const dev = spawn("node_modules/.bin/snapback4", ["dev", "--port", "4410", "--memory"], { stdio: ["ignore", "pipe", "inherit"] });
+const dev = spawn("node_modules/.bin/snapback4", ["dev", "--port", "0", "--memory"], { stdio: ["ignore", "pipe", "inherit"] });
 try {
   const url = await new Promise((resolve, reject) => {
     dev.stdout.once("data", chunk => resolve(String(chunk).split("\n")[0].trim()));
@@ -107,5 +120,9 @@ try {
 ```
 
 Queries answer `{data, complete, ..}` or `{denied}`; mutations `{state: "sent", result}` or
-`{state: "failed", why}`; both are HTTP 200 (`guide wire`). `/seed` writes as the system and skips
-rules; seed parents and children in one call. Personas and `/seed` exist only under `dev`.
+`{state: "failed", why}`; both are HTTP 200 (`guide wire`), while a request that does not decode
+(a wrong JSON type, an unknown argument) is 400. `/seed` takes a JSON array, writes as the system and
+skips rules, with fixture-row semantics (defaults, sequences); seed parents and children in one call.
+It is an upsert by `id`: a reseed updates mutable columns, and changing an `immutable` one refuses
+`E_CONSTRAINT` (use a new id, or restart with `--memory`). Personas and `/seed` exist only under `dev`,
+and a persona must be declared in `use personas` (an outsider is 401 `E_AUTH`).

@@ -36,3 +36,10 @@ Delete targets and insert/if-absent collision lookups also reserve authorization
 before resolving a row, including expired rows. The allowance covers the read
 rule's worst case, including probes that could short-circuit; execution still
 charges the rule work once.
+
+Reads come first. A program's own lookup (`posts[post] ! else NOT_FOUND`,
+`exists`) sees only rows the caller's read rule admits, so a hidden row is
+NOT_FOUND there and a later `require … else CODE` or the table's delete rule
+never runs: a moderator who must delete others' rows needs a read rule that
+admits moderators, or a `delete posts[post]` by id with no lookup first, which
+the delete rule judges directly (`guide refusals`).

@@ -26,6 +26,37 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+
+A lookup is a read, and reads come first. `posts[post] ! else NOT_FOUND`,
+`exists` and every query see only rows the viewer's read rule admits, so a row
+the viewer cannot read is NOT_FOUND at the lookup, and a later `require … else
+NOT_YOURS` or the table's delete rule never runs for it. A write target is
+judged by its own rule instead: `delete posts[post]` with no lookup before it
+runs the delete rule even on a row the viewer cannot read, and refuses
+NOT_FOUND only when that rule does. A moderator who removes other people's
+posts must therefore either be admitted by the read rule, as here, or delete
+by id without looking the row up first:
+
+```quarry
+table moderators:
+  principal: principal
+  unique principal
+  read <- allow
+  online only
+table posts:
+  author: principal
+  body: text 1..200
+  immutable author
+  read <- .author = viewer or exists moderators[viewer]
+  insert <- .author = viewer
+  delete <- .author = viewer or exists moderators[viewer]
+  online only
+mutation removePost(post: posts):
+  p = posts[post] ! else NOT_FOUND
+  delete posts[p.id]
+  return null
+```
+
 For expiring server scans, `E_BOUND` includes unswept rows. For delivery
 reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK calls
 `onDeliveryRefused` once and parks the interval until the next start, which
