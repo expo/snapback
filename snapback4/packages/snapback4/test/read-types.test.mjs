@@ -431,6 +431,48 @@ export function Inbox() { const page = usePage(api.list, {}); return isDenied(pa
   assert.match(result.text, /'PageHook<\{ id: string; \}\[\]>' is not assignable to parameter of type 'Read<unknown>'/);
 });
 
+// Wave 5 (LLP 3000.013 §6.6): 072 and 080 passed hooks to isFailed and met a
+// TS2769 overload wall; seven lanes omitted denied/partial beside otherwise.
+test('isFailed takes a hook and tests its last outcome; a fallback without denied or partial names the fix', async () => {
+  const hooks = check(`import { isFailed, useMutation, useAction, type Write } from './dist/react.js';
+import type { Mutation, Action, Ephemeral } from './dist/contract.js';
+declare const api: { add: Mutation<{ t: string }, string>; invite: Action<{ who: string }, null>; typing: Ephemeral<{}, null> };
+export function Form() {
+  const add = useMutation(api.add), remove = useMutation(api.add), invite = useAction(api.invite), typing = useMutation(api.typing);
+  const hook = [add, remove, invite, typing].find(isFailed);
+  const message: string | undefined = hook?.last.why.message;
+  if (isFailed(add)) { const failed: 'failed' = add.last.state; const id: string = add.last.id; }
+  const outcome = [add.last, remove.last].find(isFailed);
+  const same: string | undefined = outcome?.why.message;
+  const write: Write<string> | undefined = add.last;
+  // @ts-expect-error a hook narrows its last outcome, not itself: read hook.last.why
+  hook?.why;
+  return message ?? same ?? write?.state ?? null;
+}
+`);
+  assert.deepEqual(hooks.codes, [], hooks.text);
+  for (const [handlers, missing] of [['present: rows => rows.length, otherwise: () => 0', 'denied'], ['denied: why => why.message, present: () => 1, otherwise: () => 0', 'partial']]) {
+    const result = check(`import { matchRead, type Read } from './dist/react.js';
+declare const read: Read<{ id: string }[]>;
+matchRead(read, { ${handlers} });`);
+    assert.deepEqual(result.codes, [2345], result.text);
+    assert.match(result.text, new RegExp(`Property '${missing}' is missing in type .* but required in type '\\{ ${missing}: "otherwise skips ${missing}: add ${missing}: `), result.text);
+  }
+  const idiom = check(`import { matchRead, type Read } from './dist/react.js';
+declare const read: Read<{ id: string }[]>;
+const wait = () => '…';
+const shown: number | string = matchRead(read, { present: rows => rows.length, otherwise: wait, denied: wait, partial: wait });
+`);
+  assert.deepEqual(idiom.codes, [], idiom.text);
+  const { isFailed } = await import('../dist/contract.js');
+  const why = { code: 'E_RULE', family: 'rule', message: 'no' };
+  assert.equal(isFailed({ last: { state: 'failed', id: 'w', why }, inFlight: false }), true);
+  assert.equal(isFailed({ last: { state: 'sent', id: 'w', seq: 1, result: null }, inFlight: false }), false);
+  assert.equal(isFailed({ last: undefined, inFlight: false }), false);
+  assert.equal(isFailed({ state: 'failed', id: 'w', why }), true);
+  assert.equal(isFailed(undefined), false);
+});
+
 test('sentResult returns a fresh sent result and undefined for every other outcome', async () => {
   const { sentResult } = await import('../dist/contract.js');
   const why = { code: 'E_RULE', family: 'rule', message: 'no' };

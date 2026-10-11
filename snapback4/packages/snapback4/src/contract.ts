@@ -365,10 +365,21 @@ export function isLoading<R extends Read<unknown>>(read: R): read is Extract<R, 
 export function isDenied<R extends Read<unknown>>(read: R): read is Extract<R, { readonly denied: Refusal }> {
   return "denied" in read;
 }
+/** What `isFailed` reads from a mutation or action hook: its latest outcome. */
+interface OutcomeHook { readonly last: Write<unknown> | Signal<unknown> | Act<unknown> | undefined }
+/** `isFailed`'s narrowing: an outcome's `failed` arm, or a hook whose `last` is one. */
+type FailedOutcome<W> = W extends { readonly last: infer L }
+  ? W & { readonly last: Extract<L, { readonly state: "failed" }> }
+  : Extract<W, { readonly state: "failed" }>;
 /** A failed write, signal or action outcome; accepts a hook's `last` (undefined
- * before the first run), so `[add.last, remove.last].find(isFailed)?.why` types. */
-export function isFailed<W extends Write<unknown> | Signal<unknown> | Act<unknown> | null | undefined>(outcome: W): outcome is Extract<W, { readonly state: "failed" }> {
-  return outcome != null && "state" in outcome && outcome.state === "failed";
+ * before the first run), so `[add.last, remove.last].find(isFailed)?.why` types.
+ * A hook itself is accepted too and tested by its `last`:
+ * `[add, remove].find(isFailed)?.last.why`. */
+// @ref LLP 3000.013#6.6 — a hook passed where its outcome belongs narrows instead of a TS2769 overload wall.
+export function isFailed<W extends Write<unknown> | Signal<unknown> | Act<unknown> | OutcomeHook | null | undefined>(outcome: W): outcome is FailedOutcome<W> {
+  if (outcome == null) return false;
+  const latest = "last" in outcome ? outcome.last : outcome;
+  return latest != null && "state" in latest && latest.state === "failed";
 }
 
 /** A write's fresh server result, or `undefined`: while it is pending, after
@@ -407,16 +418,29 @@ export type ReadMatchFallbackHandlers<T, R = unknown> =
     [K in "loading" | "absent" | "present"]?: ReadMatchHandlers<T, R>[K];
   } & { otherwise: (read: Extract<Read<T>, { loading: true }> | Absent<T> | Present<T>) => R };
 
+/** A handler set with `otherwise` while it still lacks `denied` or `partial`:
+ * accepted for inference only, so the missing decision is named below. */
+type ReadMatchIncomplete<T> = { [K in keyof ReadMatchHandlers<T>]?: ReadMatchHandlers<T>[K] } & Pick<ReadMatchFallbackHandlers<T>, "otherwise">;
+/** The error a fallback without `denied`/`partial` reports: the property's
+ * type is the fix. LLP 3000.031 §8 keeps both decisions explicit. */
+type FallbackDecisions<H> = H extends { otherwise: unknown }
+  ? ("denied" extends keyof H ? unknown : { denied: "otherwise skips denied: add denied: why => …, or reuse a zero-argument fallback (denied: fallback)" })
+    & ("partial" extends keyof H ? unknown : { partial: "otherwise skips partial: add partial: data => …, or reuse a zero-argument fallback (partial: fallback)" })
+  : unknown;
+
 /** Render the current read, preserving its narrowed data and metadata.
  * Pass no type arguments: T comes from the read and the result is the union of
  * the handlers' returns. `present`/`partial` receive data; `otherwise` receives
- * the read itself (narrow with `isReady`). Denied and partial stay explicit.
+ * the read itself (narrow with `isReady`). Denied and partial stay explicit:
+ * to route them to the fallback too, name it and pass it three times,
+ * `const wait = () => "…"; matchRead(read, { present, otherwise: wait, denied: wait, partial: wait })`.
  * Pure dispatch: no reclassification, subscription, retention or permission.
  * For pages pass page.read; present pages may still be incomplete.
  * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.
  */
-export function matchRead<T, H extends ReadMatchHandlers<NoInfer<T>> | ReadMatchFallbackHandlers<NoInfer<T>>>(
-  read: Read<T>, handlers: H,
+// @ref LLP 3000.013#6.6 — an omitted denied/partial with `otherwise` fails naming the fix, not a Pick<> dump.
+export function matchRead<T, H extends ReadMatchHandlers<NoInfer<T>> | ReadMatchFallbackHandlers<NoInfer<T>> | ReadMatchIncomplete<NoInfer<T>>>(
+  read: Read<T>, handlers: H & FallbackDecisions<H>,
 ): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
 export function matchRead<T, R>(read: Read<T>, handlers: (ReadMatchHandlers<T, R> & { otherwise?: never }) | ReadMatchFallbackHandlers<T, R>): R {
   if ("loading" in read) return handlers.loading ? handlers.loading(read) : handlers.otherwise!(read);

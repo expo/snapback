@@ -1507,7 +1507,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
-| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any outcome); the state name; notice flags |
+| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any outcome or hook); the state name; notice flags |
 | `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
 
 #### Narrowing reads and writes in TypeScript
@@ -1517,7 +1517,10 @@ return types become the result's union (`matchRead<Row[]>(…)` fails with "Expe
 arguments"). `present` and `partial` receive `data`; `otherwise` receives the **read** (loading,
 absent or present, even when one of those also has a handler), so narrow it with `isReady` before
 touching `.data`. `denied` and `partial` stay explicit beside `otherwise`, so a list still
-decides what an uncertain page shows. A `Write` is `pending`, `sent` or `failed`, and a replayed
+decides what an uncertain page shows; leaving one out fails with "Property 'denied' is missing
+… `otherwise skips denied: add denied: why => …`". To send them to the same fallback, name a
+zero-argument function and pass it three times:
+`const wait = () => "…"; matchRead(read, { present: rows => rows.length, otherwise: wait, denied: wait, partial: wait })`. A `Write` is `pending`, `sent` or `failed`, and a replayed
 `sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it, or
 let `sentResult(write)` do both (below). The
 online client can return `pending` too, while offline or with `waitSeconds: 0`. `close()` returns
@@ -1551,7 +1554,9 @@ in the generated module is a table's row; a projected query's rows are not table
 no `id` unless the projection names one. `isReady`, `isLoading` and `isDenied` take any read,
 so one guard covers reads of different queries: `[thread, me].find(isDenied)` or
 `reads.some(isLoading)` types without annotating `Read<unknown>[]`. `isFailed` does the same for
-outcomes, including a hook's `last` (undefined before the first run). `App`, `AppOptions` and
+outcomes, including a hook's `last` (undefined before the first run), and takes a mutation or
+action hook itself, testing its `last`: `[add.last, remove.last].find(isFailed)?.why` and
+`[add, remove].find(isFailed)?.last.why` both type. `App`, `AppOptions` and
 `AuthSnapshot` are also exported here for components that take the app; `createApp` itself
 imports from `snapback4/app`. After `auth.state === "signed-in"`, `auth.viewer` is a
 `Principal`, never null. Below that gate, `useSignedInViewer()` gives any component the same
@@ -1992,9 +1997,8 @@ For a browser-only UI, substitute HTML controls for the React Native controls.
 ```tsx
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
-import { useAuth, useMutation, usePage, useQuery } from "snapback4/react";
+import { matchRead, readPresentation, useAuth, useMutation, usePage, useQuery, type ReadPresentation } from "snapback4/react";
 import { mintId } from "snapback4/client";
-import { matchRead, readPresentation, type ReadPresentation } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
 export function ConversationScreen({ backend, conversationId }: { backend: string; conversationId: string }) {

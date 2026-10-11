@@ -3,7 +3,7 @@
 **Start here:** `useQuery`/`usePage`, `matchRead`/`readPresentation`; composers/receipts above rows. `useFollowing` (`guide feeds`).
 
 ```tsx
-import { matchRead, usePage } from "snapback4/react"; import { readPresentation } from "snapback4/contract";
+import { matchRead, readPresentation, usePage } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function Inbox() { const page = usePage(api.inboxCards, {}), status = readPresentation(page.read); return <>{matchRead(page.read, { loading: () => "Loading…", denied: why => why.message,
     absent: () => "No conversations", partial: () => "Partial results", present: rows => `${rows.length} conversations` })}
@@ -16,8 +16,7 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 
 ## Reference
 ```tsx
-import { useState } from "react"; import { useMutation, useQuery } from "snapback4/react";
-import { matchRead } from "snapback4/contract";
+import { useState } from "react"; import { matchRead, useMutation, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function Composer({ conversationId }: { conversationId: string }) {
   const [draft, setDraft] = useState(""); const send = useMutation(api.send);
@@ -45,8 +44,8 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
-`matchRead` (no type arguments) requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)`: the read, for omitted loading/absent/present; denied/partial stay explicit. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
-Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()` ([lists/scalars](CLIENT-AND-OPERATIONS.md#lists-and-single-values-with-usequery)). [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
+`matchRead` (no type arguments) requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit (one zero-argument fallback: `otherwise: wait, denied: wait, partial: wait`). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
+Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`; `[add, remove].find(isFailed)?.last.why` ([lists/scalars](CLIENT-AND-OPERATIONS.md#lists-and-single-values-with-usequery)). [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
 
 | Meaning | UI decision |
 | --- | --- |

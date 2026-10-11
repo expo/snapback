@@ -6,8 +6,7 @@ This index lists each subpath's functions, hooks and main types; their editors s
 ```ts
 import { createApp } from "snapback4/app";
 import { webDevice } from "snapback4/web";
-import { AppProvider, useAuth, usePage, useQuery, useMutation } from "snapback4/react";
-import { matchRead, type RowOf } from "snapback4/contract";
+import { AppProvider, useAuth, usePage, useQuery, useMutation, matchRead, isFailed, type RowOf } from "snapback4/react";
 import { api, type Rows } from "../snapback/generated/api.ts";   // written by `snapback4 check` and `dev`
 ```
 
@@ -23,7 +22,7 @@ type and `Ops` the handles' types; `RowOf<typeof api.op>`, `ArgsOf<…>` and `Re
 |---|---|---|---|
 | `snapback4/app` | the app object: identity, client lifetime, pending writes | `createApp` | `App`, `AppOptions`, `AppAuth`, `AuthState`, `Online` |
 | `snapback4/react` | React and React Native hooks | `AppProvider`, `useAuth`, `useClient`, `useViewer`, `useSignedInViewer`, `useSession`, `useQuery`, `usePage`, `useFollowing`, `useMutation`, `useAction`, `useAsset`, `useLink`, `useOnline`, `useNow`, `useAcquired`, `useAcquisition`, `usePendingWrite`, `usePendingWrites`, `usePendingItems`, `usePendingState`, `useSeen`, `useInspection`, `SnapbackProvider`; and the `snapback4/contract` guards | `UseQuery`, `UsePage`, `UseAction`, `UseMutation`, `WriteHook`, `MutationHook`, `AssetState`, `PendingItem` |
-| `snapback4/contract` | reading answers: the types every tier shares | `matchRead`, `isReady`, `isLoading`, `isDenied`, `isFailed`, `sentResult` (a write's fresh result, if any), `existence`, `readPresentation` | `Read`, `Ready`, `SettledRead`, `Refusal`, `Write`, `PendingWrite`, `Query`, `Mutation`, `Action`, `RowOf`, `ArgsOf`, `ResultOf`, `Cursor`, `Principal`, `Client` |
+| `snapback4/contract` | reading answers: the types every tier shares | `matchRead`, `isReady`, `isLoading`, `isDenied`, `isFailed` (an outcome, or a hook by its latest one), `sentResult` (a write's fresh result, if any), `existence`, `readPresentation` | `Read`, `Ready`, `SettledRead`, `Refusal`, `Write`, `PendingWrite`, `Query`, `Mutation`, `Action`, `RowOf`, `ArgsOf`, `ResultOf`, `Cursor`, `Principal`, `Client` |
 | `snapback4/client` | the online client without a device (scripts, tests, servers) | `createClient`, `mintId`, `idFrom` | `Client`, `ClientOptions`, `Session` |
 | `snapback4/web` | the device in the browser (wasm) | `webDevice`, `indexedDbPersistence`, `memoryPersistence` | `WebDeviceOptions`, `Persistence` |
 | `snapback4/local` | a local-first client over a device you open | `createLocalClient` | `LocalOptions`, `LocalClient`, `DeviceOpener` |
