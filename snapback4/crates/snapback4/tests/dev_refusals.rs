@@ -194,7 +194,7 @@ fn real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actua
 fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
  let project=Project::new();
  let source=format!("{SOURCE}\nquery injected():\n  require false else NOT_FOUND\n  return null\nmutation injectedWrite():\n  require false else NOT_FOUND\n  return null\nquery missing():\n  require false else NOT_FOUND\n  return null\nquery page():\n  return rows first 5 by .id\nquery absent():\n  return rows['absent']\nquery afterRead():\n  ignored = rows['hidden']\n  require false else NOT_FOUND\n  return ignored\n");
- fs::write(project.0.join("snapback/schema.q"),source).unwrap();let dev=Host::start_with(project,true,false,&["--trace-empty"]);
+ fs::write(project.0.join("snapback/schema.q"),&source).unwrap();let dev=Host::start_with(project,true,false,&["--trace-empty"]);
  let previous=dev.refuse("add");let store=previous["store_id"].as_str().unwrap();dev.project.wait_record(store,"add");
  let mut last_id=0;
  for (path,op,code,payload) in [
@@ -210,18 +210,28 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
   loop {
    let records=dev.project.wait_record(store,op);let record=records["records"].as_array().unwrap().last().unwrap();
    let id=record["requestId"].as_u64().unwrap();
-   if id>last_id {assert_eq!(record["code"],code);if code=="EMPTY_READ" { assert_eq!(record["cause"],"no-candidate"); assert_eq!(record["clause"],"no-candidate"); assert!(record["site"].as_str().is_some()); } else { assert_eq!(record["clause"],"cause not instrumented");assert!(record["site"].is_null()); } last_id=id;break;}
+   if id>last_id {assert_eq!(record["code"],code);if code=="EMPTY_READ" { assert_eq!(record["cause"],"no-candidate"); assert_eq!(record["clause"],"no-candidate"); assert!(record["site"].as_str().is_some()); } else {
+     // A program's own refusal names its `require` line (wave-1 #41), from the response itself.
+     assert_eq!(record["clause"],"program refusal","{record}");assert_eq!(record["siteKind"],"program");
+     let line=record["site"].as_str().unwrap().split(':').nth(1).unwrap().parse::<usize>().unwrap();
+     assert!(source.lines().nth(line-1).unwrap().contains("require false else NOT_FOUND"),"{record}");
+   } last_id=id;break;}
    assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(10));
   }
  }
- let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}}]));assert_eq!(seed["seeded"],1);
+ let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"dev:bob"}}]));assert_eq!(seed["seeded"],1);
  let before=dev.project.why(&[]);assert!(before.status.success());
  let page=dev.post("/q/page",json!({}));assert_eq!(page["data"],json!([]),"{page}");
  let after=dev.project.why(&[]);assert!(after.status.success());
  assert_eq!(after.stdout,before.stdout,"visibility filtering is not a refusal");
  let terminal=dev.post("/q/afterRead",json!({}));assert_eq!(terminal["denied"]["code"],"NOT_FOUND");
  let records=dev.project.wait_record(store,"afterRead");let record=records["records"].as_array().unwrap().last().unwrap();
- assert_eq!(record["clause"],"cause not instrumented","an earlier filtered read is not this terminal refusal's cause");
+ assert_eq!(record["clause"],"program refusal","an earlier filtered read is not this terminal refusal's cause");
+ let line=record["site"].as_str().unwrap().split(':').nth(1).unwrap().parse::<usize>().unwrap();
+ assert!(source.lines().nth(line-1).unwrap().contains("require false else NOT_FOUND"),"the site is the require, not the filtered read: {record}");
+ let expected=format!("dev refusal: afterRead: — program refusal at {};",record["site"].as_str().unwrap());
+ let deadline=Instant::now()+Duration::from_secs(10);
+ loop {let console=fs::read_to_string(&dev.stderr).unwrap();if console.contains(&expected) {break;}assert!(Instant::now()<deadline,"{console}");std::thread::sleep(Duration::from_millis(20));}
  let refused=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"bob"}}));assert_eq!(refused["why"]["code"],"E_RULE");
  let first=dev.project.wait_record(store,"add");let first=first["records"].as_array().unwrap().last().unwrap();let first_id=first["requestId"].as_u64().unwrap();
  assert_eq!(first["clause"],"insert rule");
@@ -294,7 +304,7 @@ fn point_answer_corruption_is_rejected_even_with_a_moving_sequence() {
  let project=Project::new();
  fs::write(project.0.join("snapback/schema.q"),format!("{SOURCE}\nquery point(id: rows):\n  return rows[id]\n")).unwrap();
  let dev=Host::start(project,true,false);
- assert_eq!(dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}}]))["seeded"],1);
+ assert_eq!(dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"dev:bob"}}]))["seeded"],1);
  let missing=dev.post("/q/point",json!({"args":{"id":"absent"}}));
  let hidden=dev.post("/q/point",json!({"args":{"id":"hidden"}}));
  assert!(point_answers_share_watermark(&missing,&hidden));
@@ -328,7 +338,7 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
   let store=identity["store_id"].as_str().unwrap();
   let snapshot=|| { let out=dev.project.why(&[]); assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr)); serde_json::from_slice::<Value>(&out.stdout).unwrap() };
   assert_eq!(snapshot()["traceEmpty"],trace_empty);
-  let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}},{"table":"expired","row":{"id":"expired","until":1}}]));
+  let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"dev:bob"}},{"table":"expired","row":{"id":"expired","until":1}}]));
   assert_eq!(seed["seeded"],2);
   for (op,args,cause) in [("point",json!({"id":"absent"}),"no-candidate"), ("publicPoint",json!({}),"no-candidate"), ("expiredPoint",json!({}),"unrecorded"), ("literal",json!({}),"unrecorded")] {
    let before=snapshot();
