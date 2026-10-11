@@ -592,10 +592,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         // @ref LLP 3000.036#13.2 — the one line says what a test and a client do with the verdict, and where the complete form is.
                         let parties = table.rules.read.disjuncts().iter().filter(|d| matches!(d, snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Field(c), snapback4_core::schema::RuleTerm::Viewer) | snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Viewer, snapback4_core::schema::RuleTerm::Field(c)) if unpinned.contains(c))).count();
                         let complete_form = if parties >= 2 { "one query per party" } else { "the pin" };
-                        let treatment = match &grant {
+                        let treatment = if search_rewrite.is_some() { String::new() } else { match &grant {
                             Some(grant) => format!("; test.cases.jsonl: run it as a caller `{}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form for everyone is {complete_form} (check --verbose)", grant.quarry()),
                             None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is {complete_form} (check --verbose)"),
-                        };
+                        } };
                         format!("{} {}: {}the page over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index,
                         grant.as_ref().map_or_else(String::new, |grant| format!(" except for callers `{}` admits", grant.quarry())),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },

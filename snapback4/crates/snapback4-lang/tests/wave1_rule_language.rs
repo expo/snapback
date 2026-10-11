@@ -66,7 +66,8 @@ fn rule_operators_name_what_rules_evaluate_and_move_the_check_into_the_mutation(
         ("insert <- .startsAt > now", "the clock", "`require startsAt > now else INVALID_STARTS_AT`"),
         ("delete <- .startsAt > now", "the clock", "`row = shifts[id] ! else NOT_FOUND` then `require row.startsAt > now else INVALID_STARTS_AT`"),
         ("delete <- .bid >= 3", "an ordered comparison", "`require row.bid >= 3 else INVALID_BID`"),
-        ("update <- .bid >= 3", "an ordered comparison", "`update (old, next) <- next.bid >= 3`"),
+        // An unnamed update rule holds before and after: its named form keeps both (LLP 3000.036 §13.6).
+        ("update <- .bid >= 3", "an ordered comparison", "`update (old, next) <- old.bid >= 3 and next.bid >= 3`"),
         ("update (old, next) <- next.bid >= old.bid + old.step", "arithmetic", "`require bid >= row.bid + row.step else INVALID_BID`"),
         ("insert <- .bid > 0 and isOpen(.bid)", "a helper or function call", "`require isOpen(bid) else INVALID_BID`"),
     ] {

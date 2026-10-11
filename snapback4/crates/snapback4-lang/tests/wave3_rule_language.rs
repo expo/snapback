@@ -356,3 +356,30 @@ fn hops_naming_two_audiences_on_a_synced_table_get_the_online_form() {
     assert!(!d.rewrite.contains("online only") && d.rewrite.contains("read <- .organizer = viewer"), "{d}");
     clean(&apply_hop_rewrite(&one, "shifts", &d.rewrite));
 }
+
+// ---- #24 (I4): money in an update rule, one ordering rule, no policy change ----
+
+#[test]
+fn a_money_update_bound_has_one_rewrite_that_compiles_and_keeps_the_policy() {
+    use snapback4_core::{WriteState, value::object};
+    let source = "table budgets:\n  owner: principal\n  available: money USD\n  read <- .owner = viewer\n  insert <- .owner = viewer and .available >= 0\n  update <- .owner = viewer and .available >= 0\n  online only\nmutation spend(budget: budgets, available: money USD):\n  update budgets[budget] { available }\n";
+    let d = first(source, "E_QUARRY_RULE_OPERATOR");
+    assert!(d.message.contains("decimal or money"), "{d}");
+    let named = d.rewrite.split('`').nth(1).unwrap();
+    // 062: the rewrite keeps the owner check (it used to print the bound alone).
+    assert_eq!(named, "update (old, next) <- old.owner = viewer and old.available >= 0 and next.owner = viewer and next.available >= 0", "{d}");
+    let repaired = source.replace("  update <- .owner = viewer and .available >= 0", &format!("  {named}"));
+    let b = clean(&repaired);
+    // The engine enforces it in minor units, and only for the owner.
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("budgets".to_owned(), object([("id", Value::Id("b1".into())), ("owner", Value::Id("ann".into())), ("available", Value::Int(500))]))]).unwrap();
+    let run = |engine: &mut Engine, viewer: &str, cents: i64| match engine.mutate("spend", None, Context::new(viewer, args(&[("budget", Value::Id("b1".into())), ("available", Value::Int(cents))]))).unwrap().state {
+        WriteState::Sent { .. } => "sent".to_owned(), WriteState::Failed { why, .. } => why.code };
+    assert_eq!(run(&mut engine, "ann", -1), "E_RULE");
+    assert_eq!(run(&mut engine, "ann", 0), "sent");
+    assert_ne!(run(&mut engine, "bob", 100), "sent");
+    // A remaining mismatch names the mutation check, not a different bound (062's second rewrite).
+    let mismatch = "table budgets:\n  owner: principal\n  available: money USD\n  floor: int\n  read <- .owner = viewer\n  update (old, next) <- old.owner = viewer and next.available >= old.floor\n  online only\n";
+    let d = first(mismatch, "E_QUARRY_TYPE");
+    assert!(d.rewrite.contains("require available >= row.floor else INVALID_AVAILABLE") && !d.rewrite.contains("update (old, next)"), "{d}");
+}

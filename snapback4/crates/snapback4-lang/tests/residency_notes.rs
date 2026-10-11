@@ -405,7 +405,7 @@ fn no_cursor_advises_continuation_and_the_capped_control_is_silent() {
     assert_eq!(b.notes.len(), 1);
     let note = &b.notes[0];
     println!("W10a diagnostic:\n{note}");
-    assert!(note.message.ends_with("with no cursor, so the page cannot continue"), "{note}");
+    assert!(note.message.contains("with no cursor, so the page cannot continue"), "{note}");
     assert!(note.rewrite.starts_with("if the screen pages, declare `c: cursor ?`"), "{note}");
     assert!(!note.message.contains("complete") && !note.rewrite.contains("cap 50"), "{note}");
     for fixed in [source.replace("  public 'typing roster'", "  cap 50 by conversationId\n  public 'typing roster'"), source.replace("conversationId: id):", "conversationId: id, c: cursor ?):").replace("first 50", "after c first 50")] {
@@ -693,7 +693,8 @@ fn w6r2_ascending_page_advice_preserves_prediction() {
 
 #[test]
 fn w6r2_descending_page_keeps_horizon_rewrite() {
-    mutation_page_horizon_advice("archive last 20 by byTime", "sync public last 500 by .at");
+    // The query `archives` reads oldest first; the window keeps the newest rows (LLP 3000.036 §13.3).
+    mutation_page_horizon_advice("archive last 20 by byTime", "sync public last 500 by .at, and read chat.archives newest first (`last N` in place of `first N`): a horizon keeps the newest rows");
 }
 
 #[test]

@@ -26,7 +26,7 @@ pub(super) fn diagnostic(site: &Site, table: &str, effect: &str, transition: boo
     let text = strip_parens(&crate::print::expression(cmp));
     let field = first_field(&text).unwrap_or_else(|| "value".to_owned());
     let code = format!("INVALID_{}", screaming(&field));
-    let message = format!("`{text}` in the {effect} rule of {table} uses {what}, which table rules do not evaluate: rules compare columns, viewer and literals with = and !=, and order (<, <=, >, >=) only an insert row's own required int/time columns and integer literals, or old/next in a named update (old, next) rule");
+    let message = format!("`{text}` in the {effect} rule of {table} uses {what}, which table rules do not evaluate: rules compare columns, viewer and literals with = and !=, and order (<, <=, >, >=) only an insert row's own required int, time, decimal or money columns and integer literals (minor units beside decimal or money), or old/next in a named update (old, next) rule");
     // The mutation names the stored row `row` and supplies new values as arguments.
     let stored = |image: Option<&str>, name: &str| match image { Some("next") => name.to_owned(), _ => format!("row.{name}") };
     let inserted = |_: Option<&str>, name: &str| name.to_owned();
@@ -48,6 +48,28 @@ pub(super) fn diagnostic(site: &Site, table: &str, effect: &str, transition: boo
         _ => format!("check it in the mutation before the write: `row = {table}[id] ! else NOT_FOUND` then `require {} else {code}`", map_fields(&text, &stored)),
     };
     Diagnostic::new(site, "E_QUARRY_RULE_OPERATOR", message, rewrite).guide("rules")
+}
+
+/// An unnamed `update <- R` holds for the row before and after the write, so
+/// its named form is `update (old, next) <- R(old) and R(next)`: every clause
+/// kept, the ordered one included (lane 062). The mutation form follows.
+pub(crate) fn named_update(table: &str, rule: &Expr, comparison: &str) -> String {
+    let text = strip_parens(&crate::print::expression(rule));
+    let wrap = |s: String| if text.contains(" or ") { format!("({s})") } else { s };
+    let old = wrap(map_fields(&text, &|_, name| format!("old.{name}")));
+    let next = wrap(map_fields(&text, &|_, name| format!("next.{name}")));
+    let field = first_field(comparison).unwrap_or_else(|| "value".to_owned());
+    let _ = table;
+    format!("name both images; an unnamed update rule holds before and after the write, so the named form keeps both: `update (old, next) <- {old} and {next}`; or drop `{comparison}` from the rule and check the new value in the mutation: `require {} else INVALID_{}`", map_fields(comparison, &|_, name| name.to_owned()), screaming(&field))
+}
+
+/// A named transition's comparison the rule language cannot type, as the
+/// mutation check that states the same condition.
+pub(crate) fn transition_require(table: &str, cmp: &Expr) -> String {
+    let text = strip_parens(&crate::print::expression(cmp));
+    let field = first_field(&text).unwrap_or_else(|| "value".to_owned());
+    let stored = |image: Option<&str>, name: &str| match image { Some("next") => name.to_owned(), _ => format!("row.{name}") };
+    format!("check it in the mutation that updates the row: `row = {table}[id] ! else NOT_FOUND` then `require {} else INVALID_{}` (the new values are the mutation's arguments)", map_fields(&text, &stored), screaming(&field))
 }
 
 /// A table rule's predicate as the check a mutation states before writing:
