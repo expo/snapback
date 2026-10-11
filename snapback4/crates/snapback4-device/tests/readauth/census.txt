@@ -404,6 +404,22 @@ card/receipts/1:leave | never
 card/receipts/1:seen | never
 card/receipts/1:send | eligible
 card/receipts/1:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/recipes/2:close | never
+card/recipes/2:file | never
+card/recipes/2:grant | never
+card/recipes/2:retitle | never
+card/recipes/3:answer | eligible
+card/recipes/3:answer | offers/update | {"Exists":{"table":"offerParties","index":"$intent:byOfferParty:ada54fe769deffe0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/recipes/3:makeOffer | eligible
+card/recipes/3:makeOffer | offerParties/insert | {"Or":[{"Eq":[{"Field":"party"},"Viewer"]},{"Exists":{"table":"offerParties","index":"$intent:byOfferParty:ada54fe769deffe0","key":[{"Field":"offer"},"Viewer"],"provenance":"Shape"}}]} | read rule
+card/recipes/3:makeOffer | offers/insert | {"Exists":{"table":"offerParties","index":"$intent:byOfferParty:ada54fe769deffe0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/recipes/3:note | eligible
+card/recipes/3:note | notes/insert | {"Exists":{"table":"offerParties","index":"$intent:byOfferParty:ada54fe769deffe0","key":[{"Field":"offer"},"Viewer"],"provenance":"Shape"}} | read rule
+card/recipes/4:addSlot | eligible
+card/recipes/4:book | never
+card/recipes/4:cancel | eligible
+card/recipes/5:host | never
+card/recipes/5:rsvp | never
 card/refusals/1:checkin | never
 card/refusals/1:createRoom | eligible
 card/refusals/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

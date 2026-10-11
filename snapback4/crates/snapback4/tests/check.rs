@@ -1609,3 +1609,32 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     assert!(found.contains("Details") && found.contains(": query today():"), "{found}");
     assert_eq!(guide(&["language", "--find", "no such words anywhere"]).0, Some(1));
 }
+
+// Wave 4: the recipes card's cases are what `test` answers against its schemas.
+#[test]
+fn the_recipes_cards_cases_pass_against_their_schemas() {
+    let card = snapback4_lang::guide::card("recipes").unwrap();
+    let fenced = |text: &str, tag: &str| -> Vec<String> {
+        text.split(&format!("```{tag}\n")).skip(1).map(|rest| rest.split_once("\n```").unwrap().0.to_owned()).collect()
+    };
+    for (heading, fixtures) in [
+        ("## Roles", vec![("tickets", r#"{"id":"t1","author":"dev:bob","title":"Leaky tap"}"#)]),
+        ("## Two parties", vec![("listings", r#"{"id":"l1","seller":"dev:alice","title":"Bike","price":12000}"#)]),
+        ("## Booking", vec![("slots", r#"{"id":"s1","host":"dev:alice","startsAt":4102444800000,"seats":1}"#)]),
+    ] {
+        let section = card.split_once(heading).unwrap().1.split("\n## ").next().unwrap();
+        let p = Project::new();
+        p.source(&fenced(section, "quarry")[0]);
+        fs::create_dir(p.0.join("fixture")).unwrap();
+        let jsonl = fenced(section, "jsonl");
+        // The roles recipe seeds its first admin with the card's own fixture row.
+        if heading == "## Roles" { fs::write(p.0.join("fixture/roles.jsonl"), format!("{}\n", jsonl[0])).unwrap(); }
+        for (table, row) in fixtures { fs::write(p.0.join(format!("fixture/{table}.jsonl")), format!("{row}\n")).unwrap(); }
+        let cases = jsonl.last().unwrap();
+        fs::write(p.0.join("fixture/test.cases.jsonl"), format!("{cases}\n")).unwrap();
+        let output = p.run(&["test", "--fixture", "fixture"]);
+        let text = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success(), "{heading}: {text}{}", String::from_utf8_lossy(&output.stderr));
+        assert!(text.contains(&format!("cases: {} passed, 0 failed", cases.lines().count())), "{heading}: {text}");
+    }
+}
