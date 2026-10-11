@@ -92,7 +92,7 @@ fn forward_to(address: SocketAddr, busy: &str, call: &Call) -> Result<i32, Strin
         Err(error) => return Err(alternative(&format!("its listener did not answer GET /dev/status ({error})"))),
     }
     let route = path(call);
-    eprintln!("run: forwarding to the live snapback4 dev at {base}: POST {route}{} on its dev clock and store", persona.map(|p| format!(" as x-snapback-persona: {p}")).unwrap_or_default());
+    eprintln!("run: forwarding to POST {route}{} on the live snapback4 dev at {base} (its dev clock and its store)", persona.map(|p| format!(" as x-snapback-persona: {p}")).unwrap_or_default());
     // A job runs whole before the reply; the read waits as a local run would.
     let baseline = call.project.filter(|_| call.kind != ProgramKind::Job).and_then(|project| super::run_refusal::baseline(&project.data_dir()));
     let (status, reply) = exchange(address, "POST", &route, persona, &body(call), Duration::from_secs(3600))

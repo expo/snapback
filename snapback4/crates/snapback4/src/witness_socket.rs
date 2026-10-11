@@ -39,7 +39,8 @@ pub fn take(verb: &str) -> Result<Option<TcpListener>, String> {
     } else { Ok(None) }
 }
 
-pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>, max_connections: usize, verb: &str) -> Result<tiny_http::Server, String> {
+/// `in_use` words the refusal for a taken port (the caller names the holder).
+pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>, max_connections: usize, in_use: impl FnOnce() -> String) -> Result<tiny_http::Server, String> {
     crate::thread_priority::request_parent()?;
     // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — a held wait is a connection too; the cap grows with the long-wait pools.
     let limits = tiny_http::ConnectionLimits { thread_start: Some(crate::thread_priority::dispatcher), max_connections, ..Default::default() };
@@ -57,7 +58,7 @@ pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>, max_connect
         tiny_http::Server::http_with_limits((bind, port), limits)
     };
     result.map_err(|e| match e.downcast_ref::<std::io::Error>() {
-        Some(error) if error.kind() == std::io::ErrorKind::AddrInUse => crate::listen_refusal::in_use(bind, port, verb),
+        Some(error) if error.kind() == std::io::ErrorKind::AddrInUse => in_use(),
         _ => format!("cannot listen on {bind}:{port}: {e}"),
     })
 }

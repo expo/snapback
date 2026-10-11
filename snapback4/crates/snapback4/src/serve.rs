@@ -287,7 +287,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         Some(crate::store_owner::host(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
-    let server = crate::witness_socket::server(bind, port, inherited, capacity.connections(), if dev { "dev" } else { "serve" })?;
+    let server = crate::witness_socket::server(bind, port, inherited, capacity.connections(), || crate::listen_refusal::in_use(bind, port, if dev { "dev" } else { "serve" }))?;
     let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
     if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
     if let Mode::Release { owner, .. } = &mut mode {
