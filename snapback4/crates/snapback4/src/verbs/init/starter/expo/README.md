@@ -28,7 +28,12 @@ guest", then add a few todos.
   device, the online client (Expo Go) or `webDevice()` (web).
 - `App.tsx`: sign-in, the live list (`usePage`) and writes (`useMutation`).
   `usePage` passes the query's cursor itself: a paged query takes `c: cursor ?`
-  and reads `after c` (`npx snapback4 guide reads`).
+  and reads `after c` (`npx snapback4 guide reads`); any other query reads
+  with `useQuery`. Props name hook results by operation (`UsePage<typeof
+  api.list>`, `UseQuery<…>`, `UseMutation<…>`), and `useSignedInViewer()` is
+  the viewer below the sign-in. After you replace the schema,
+  `npx snapback4 init --adapt` swaps this screen for a `Home` that compiles
+  against any schema, while it is unmodified.
 - `expo-env.d.ts`: Expo's types, including `process.env.EXPO_PUBLIC_*`.
 - `metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then
   ships the web device's wasm and skips the local `.snapback4/` store.

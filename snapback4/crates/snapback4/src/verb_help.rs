@@ -21,8 +21,10 @@ conflicting value refuses before any file is written.
                    default 5173, or the port after --port)
   --skip-existing  keep every existing file and write only the missing ones
 
-A project's own snapback/*.q is never overwritten and never a conflict, and
-the todo starter's fixtures are written only beside the starter's own schema.
+A project's own snapback/*.q is never overwritten and never a conflict, nor is
+snapback/generated/ (check's output), and the todo starter's fixtures are
+written only beside the starter's own schema; beside a schema without the
+todo operations, the screen behind the sign-in is a neutral Home.
 Beside a schema that declares `use personas` and no `use identity`, the
 screen picks a persona instead of signing in as a guest.
 
@@ -30,10 +32,12 @@ Init first, schema second: once you replace the starter's schema, `check`
 names the starter files that no longer fit it, and --adapt fits them:
 
   --adapt          remove the todo starter's fixtures and cases when the
-                   schema has no todos table and its operations; rewrite the
-                   starter screen and client for the schema's sign-in (guest
-                   sign-in, or a persona picker for `use personas` without
-                   `use identity`), keeping the backend port. Only files whose
+                   schema has no todos table and its operations (fixtures/
+                   itself stays); rewrite the starter screen and client for
+                   the schema's sign-in (guest sign-in, or a persona picker
+                   for `use personas` without `use identity`), keeping the
+                   backend port, and replace the Todos screen with a Home
+                   screen that compiles against any schema. Only files whose
                    bytes still match what init wrote are touched.
 
 Next: npm install (when a package.json was written), snapback4 check, then

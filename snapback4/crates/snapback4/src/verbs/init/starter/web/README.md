@@ -28,7 +28,12 @@ returns.
   mutations with `E_ADMISSION`.
 - `src/App.tsx`: sign-in, the live list (`usePage`) and writes (`useMutation`).
   `usePage` passes the query's cursor itself: a paged query takes `c: cursor ?`
-  and reads `after c` (`npx snapback4 guide reads`).
+  and reads `after c` (`npx snapback4 guide reads`); any other query reads
+  with `useQuery`. Props name hook results by operation (`UsePage<typeof
+  api.list>`, `UseQuery<…>`, `UseMutation<…>`), and `useSignedInViewer()` is
+  the viewer below the sign-in. After you replace the schema,
+  `npx snapback4 init --adapt` swaps this screen for a `Home` that compiles
+  against any schema, while it is unmodified.
 - `src/styles.css`, `index.html` (titled after this directory) and
   `vite.config.mts`: yours to change; `.mts` keeps Vite's config ESM even when
   package.json says `"type": "commonjs"`.

@@ -19,13 +19,9 @@ pub(super) struct Shape {
     /// Personas of a kept schema that declares `use personas` and no
     /// `use identity`: nobody can sign in, so the screen picks a persona.
     pub personas: Option<Vec<String>>,
-}
-
-// The persona screens reuse the guest starter's `Todos` screen verbatim.
-fn with_persona_session(head: &str, guest: &str, personas: &[String]) -> (String, String) {
-    let todos = guest.find("function Todos()").expect("the starter screen declares Todos");
-    let list = personas.iter().map(|name| serde_json::to_string(name).unwrap()).collect::<Vec<_>>().join(", ");
-    (format!("{head}{}", &guest[todos..]), format!("[{list}]"))
+    /// The screen behind the sign-in: the todo list over the starter's own
+    /// operations, or the neutral `Home` beside a schema without them.
+    pub body: Body,
 }
 
 /// Which starter screen pair: the guest sign-in, or the persona picker.
@@ -39,22 +35,61 @@ impl Platform {
     }
 }
 
+/// The screen a signed-in viewer sees: the starter's `Todos`, which calls
+/// list/add/toggle/remove, or `Home`, which compiles against any schema (the
+/// viewer and the generated api's operation names, for the project to replace).
+// @ref LLP 3000.011.003.000#7.4 — a starter screen must typecheck against the schema beside it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Body { Todos, Home }
+
 /// The starter's screen and client for a schema: the guest sign-in, or, with
-/// `personas`, the persona picker around the same `Todos` screen. The texts
-/// are as the starter ships them, before init's port rewrite.
-pub(super) fn screens(platform: Platform, personas: Option<&[String]>) -> (String, String) {
-    let (guest_app, guest_client, persona_app, persona_client) = match platform {
-        Platform::Web => (include_str!("starter/web/App.tsx"), include_str!("starter/web/client.ts"), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts")),
-        Platform::Expo => (include_str!("starter/expo/App.tsx"), include_str!("starter/expo/client.ts"), include_str!("starter/personas/expo-app.tsx"), include_str!("starter/personas/expo-client.ts")),
+/// `personas`, the persona picker, around `body`. The texts are as the
+/// starter ships them, before init's port rewrite.
+pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: Body) -> (String, String) {
+    let (guest, guest_client, persona, persona_client, todos, home) = match platform {
+        Platform::Web => (include_str!("starter/web/guest.tsx"), include_str!("starter/web/client.ts"), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), include_str!("starter/web/todos.tsx"), include_str!("starter/web/home.tsx")),
+        Platform::Expo => (include_str!("starter/expo/guest.tsx"), include_str!("starter/expo/client.ts"), include_str!("starter/personas/expo-app.tsx"), include_str!("starter/personas/expo-client.ts"), include_str!("starter/expo/todos.tsx"), include_str!("starter/expo/home.tsx")),
     };
-    let (app, client) = match personas {
-        None => (guest_app.to_owned(), guest_client.to_owned()),
+    let (head, client) = match personas {
+        None => (guest, guest_client.to_owned()),
         Some(personas) => {
-            let (app, list) = with_persona_session(persona_app, guest_app, personas);
-            (app, persona_client.replace("PERSONAS", &list))
+            let list = personas.iter().map(|name| serde_json::to_string(name).unwrap()).collect::<Vec<_>>().join(", ");
+            (persona, persona_client.replace("PERSONAS", &format!("[{list}]")))
         }
     };
+    let app = match body { Body::Todos => compose(head, todos), Body::Home => compose(&head.replace("<Todos />", "<Home />"), home) };
     (super::without_design_references(&app), super::without_design_references(&client))
+}
+
+/// One module from a sign-in head and a screen body, each written as a whole
+/// file: their single-line named imports merge per module (packages before
+/// `../`, then `./`), then the head's code, then the body's.
+fn compose(head: &str, body: &str) -> String {
+    fn split(text: &str) -> (Vec<&str>, &str) {
+        let mut imports = Vec::new();
+        let mut rest = text;
+        while let Some(line) = rest.split_inclusive('\n').next().filter(|line| line.starts_with("import ")) {
+            imports.push(line.trim_end());
+            rest = &rest[line.len()..];
+        }
+        (imports, rest.trim_start_matches('\n'))
+    }
+    let (head_imports, head_code) = split(head);
+    let (body_imports, body_code) = split(body);
+    // (`import {` or `import type {`, module, names) in first-seen order.
+    let mut merged: Vec<(String, String, Vec<String>)> = Vec::new();
+    for line in head_imports.into_iter().chain(body_imports) {
+        let (Some(open), Some(close)) = (line.find('{'), line.find('}')) else { panic!("starter imports are `import {{ … }} from \"…\";`: {line}") };
+        let (kind, module) = (line[..open].trim().to_owned(), line[close + 1..].trim().to_owned());
+        let names = line[open + 1..close].split(',').map(|name| name.trim().to_owned()).filter(|name| !name.is_empty());
+        match merged.iter_mut().find(|(k, m, _)| *k == kind && *m == module) {
+            Some((_, _, existing)) => for name in names { if !existing.contains(&name) { existing.push(name); } },
+            None => merged.push((kind, module, names.collect())),
+        }
+    }
+    merged.sort_by_key(|(_, module, _)| if module.contains("\"../") { 1 } else if module.contains("\"./") { 2 } else { 0 });
+    let imports = merged.iter().map(|(kind, module, names)| format!("{kind} {{ {} }} {module}\n", names.join(", "))).collect::<String>();
+    format!("{imports}\n{head_code}\n{body_code}")
 }
 
 pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
@@ -63,7 +98,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     package["version"] = json!("0.1.0");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
     package["scripts"]["build"] = json!("vite build && snapback4 web-shell dist");
-    let (app, client) = screens(Platform::Web, shape.personas.as_deref());
+    let (app, client) = screens(Platform::Web, shape.personas.as_deref(), shape.body);
     vec![
         ("package.json", super::pretty(&package)),
         ("index.html", include_str!("starter/web/index.html").replace("TITLE", &html_text(&shape.title))),
@@ -92,7 +127,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!("snapback4todos");
     config["expo"]["ios"]["bundleIdentifier"] = json!("dev.snapback4.todos");
     config["expo"]["android"]["package"] = json!("dev.snapback4.todos");
-    let (app, client) = screens(Platform::Expo, shape.personas.as_deref());
+    let (app, client) = screens(Platform::Expo, shape.personas.as_deref(), shape.body);
     vec![
         ("package.json", super::pretty(&package)),
         ("app.json", super::pretty(&config)),

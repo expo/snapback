@@ -1,8 +1,6 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { App as SnapbackApp } from "snapback4/app";
-import { isDenied, isLoading } from "snapback4/contract";
-import { AppProvider, useAuth, useLink, useMutation, usePage } from "snapback4/react";
-import { api } from "../snapback/generated/api.ts";
+import { AppProvider, useAuth } from "snapback4/react";
 import { openApp, personas } from "./client.ts";
 
 // `?as=bob` acts as the declared persona dev:bob; the picker switches it.
@@ -38,4 +36,3 @@ function Account({ leave, children }: { leave: () => void; children: ReactNode }
     <button onClick={leave}>Choose a persona</button>
   </main>;
 }
-

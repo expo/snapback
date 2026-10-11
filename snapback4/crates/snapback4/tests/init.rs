@@ -614,6 +614,9 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         assert!(tested.status.success() && summary.contains("cases: 7 passed, 0 failed"), "{flag}: {tested:?}");
         let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
         for call in ["AppProvider", "auth.guest()", "usePage(api.list", "useMutation(api.add)", "api.toggle", "api.remove"] { assert!(app.contains(call), "{flag}: {call}"); }
+        // Wave 4 (I7): the named hook types and the signed-in viewer hook are
+        // in the starter, where builders look for them.
+        for call in ["useSignedInViewer()", "UsePage<typeof api.list>", "UseMutation<typeof api.toggle>", "UseQuery<typeof api.op>", "useQuery(api.op, args)", ".find(isFailed)"] { assert!(app.contains(call), "{flag}: {call}"); }
         assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("webDevice()"));
         let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
         assert_eq!(package["dependencies"]["snapback4"], env!("CARGO_PKG_VERSION"));
@@ -676,7 +679,7 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     let output = dir.init(&["--web"]);
     assert!(output.status.success(), "{output:?}");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("kept 1 existing file unchanged: snapback/schema.q") && stdout.contains("adapt them to your schema"), "{stdout}");
+    assert!(stdout.contains("kept 1 existing file unchanged: snapback/schema.q") && stdout.contains("replace Home with your own screens"), "{stdout}");
     assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), mine);
     for file in ["src/App.tsx", "src/client.ts", "package.json", "README.md", "snapback/generated/package.json"] { assert!(dir.0.join(file).is_file(), "{file}"); }
     // The starter's todos rows and cases would fail `test` beside this schema.
@@ -687,7 +690,9 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
     assert!(client.contains(r#"personas: readonly string[] = ["carol"]"#) && client.contains("createApp({ url, persona, device: webDevice() })"), "{client}");
     let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
-    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)") && app.contains("function Todos()"), "{app}");
+    // The schema has none of the todo starter's operations: the screen behind
+    // the picker is the neutral Home, which compiles against any schema.
+    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)") && app.contains("function Home()") && !app.contains("api.list"), "{app}");
     // Rerunning skips everything it wrote and still never touches the schema.
     let again = dir.init(&["--web", "--skip-existing"]);
     assert!(again.status.success(), "{again:?}");
@@ -897,10 +902,11 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     for file in ["src/App.tsx", "src/client.ts"] {
         assert_eq!(fs::read_to_string(dir.0.join(file)).unwrap(), fs::read_to_string(schema_first.0.join(file)).unwrap(), "{file}");
     }
-    // Adapted: no files left over; the screen's todo calls remain advice.
-    let json = check_json(&dir);
-    assert!(json["starterLeftovers"]["files"].as_array().unwrap().is_empty() && json["starterLeftovers"]["fix"].is_null(), "{json}");
-    assert!(String::from_utf8_lossy(&check(&dir).stdout).contains("its Todos screen still calls"));
+    // Adapted: the screen behind the picker is the neutral Home, so nothing is
+    // left over and no screen calls the starter's operations (wave 4, 1c).
+    assert!(app.contains("function Home()") && app.contains("useSignedInViewer()") && !app.contains("api.list"), "{app}");
+    assert!(check_json(&dir)["starterLeftovers"].is_null());
+    assert!(!String::from_utf8_lossy(&check(&dir).stdout).contains("starter:"));
     // New personas rewrite the picker's list; `use identity` brings the guest screen back.
     fs::write(dir.0.join("snapback/schema.q"), personas.replace("carol, dave", "erin")).unwrap();
     assert!(dir.init(&["--adapt"]).status.success());
@@ -908,6 +914,8 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     fs::write(dir.0.join("snapback/schema.q"), format!("use identity\n{personas}")).unwrap();
     assert!(dir.init(&["--adapt"]).status.success());
     let guest = Dir::new();
+    fs::create_dir_all(guest.0.join("snapback")).unwrap();
+    fs::write(guest.0.join("snapback/schema.q"), format!("use identity\n{personas}")).unwrap();
     assert!(guest.init(&["--web", "--port", "4517"]).status.success());
     for file in ["src/App.tsx", "src/client.ts"] {
         assert_eq!(fs::read_to_string(dir.0.join(file)).unwrap(), fs::read_to_string(guest.0.join(file)).unwrap(), "{file}");
@@ -1032,6 +1040,53 @@ fn adapt_keeps_the_fixture_directory_and_the_projects_own_rows() {
     assert!(dir.init(&["--adapt"]).status.success());
     assert!(dir.0.join("fixtures").is_dir());
     fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
+}
+
+/// Wave 4 (1c, 8 lanes): after `--adapt` the starter's Todos screen still
+/// called list/add/toggle/remove and the app did not typecheck. Beside a
+/// schema without those operations, both orders (init first, then adapt; or
+/// schema first) write the same neutral Home screen, for web and Expo, under
+/// the guest sign-in and the persona picker.
+#[test]
+fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
+    let notes = "table notes:\n  body: text <=100\n  public 'shared'\n  insert <- allow\nmutation post(body: text 1..100):\n  return insert notes { body }\n";
+    for (flag, app_path) in [("--web", "src/App.tsx"), ("--expo", "App.tsx")] {
+        for sign_in in ["use identity\n", "use personas carol, dave\n"] {
+            let schema = format!("{sign_in}{notes}");
+            let first = Dir::new();
+            assert!(first.init(&[flag]).status.success());
+            fs::write(first.0.join("snapback/schema.q"), &schema).unwrap();
+            let adapted = first.init(&["--adapt"]);
+            assert!(adapted.status.success(), "{adapted:?}");
+            let stdout = String::from_utf8_lossy(&adapted.stdout);
+            assert!(stdout.contains(&format!("rewrote {app_path}")) && stdout.contains("replace Home with your own screens"), "{flag} {sign_in}: {stdout}");
+            let app = fs::read_to_string(first.0.join(app_path)).unwrap();
+            assert!(app.contains("function Home()") && !app.contains("function Todos()") && app.contains("useSignedInViewer()") && app.contains("Object.keys(api)"), "{flag} {sign_in}: {app}");
+            for todo in ["api.list", "api.add", "api.toggle", "api.remove", "<Todos />"] { assert!(!app.contains(todo), "{flag} {sign_in}: {todo}"); }
+            assert_eq!(app.contains("openApp(persona)"), sign_in.contains("personas"), "{flag} {sign_in}");
+            assert_eq!(app.contains("auth.guest()"), sign_in.contains("identity"), "{flag} {sign_in}");
+            // One import per module.
+            let modules: Vec<&str> = app.lines().filter(|line| line.starts_with("import ")).map(|line| line.rsplit_once(" from ").unwrap().1).collect();
+            let mut unique = modules.clone();
+            unique.sort(); unique.dedup();
+            assert_eq!(unique.len(), modules.len(), "{flag} {sign_in}: {app}");
+            // Nothing left over, and a second adapt has nothing to do.
+            assert!(!String::from_utf8_lossy(&Command::new(BIN).arg("check").current_dir(&first.0).output().unwrap().stdout).contains("starter:"));
+            assert!(String::from_utf8_lossy(&first.init(&["--adapt"]).stdout).contains("nothing to adapt"));
+            // Schema first writes exactly the same screen and client.
+            let schema_first = Dir::new();
+            fs::create_dir_all(schema_first.0.join("snapback")).unwrap();
+            fs::write(schema_first.0.join("snapback/schema.q"), &schema).unwrap();
+            assert!(schema_first.init(&[flag]).status.success());
+            for file in [app_path, "src/client.ts"] {
+                assert_eq!(fs::read_to_string(first.0.join(file)).unwrap(), fs::read_to_string(schema_first.0.join(file)).unwrap(), "{flag} {sign_in}: {file}");
+            }
+            // Restoring the todo operations brings the Todos screen back.
+            fs::write(first.0.join("snapback/schema.q"), format!("{sign_in}{}", include_str!("../src/verbs/init/starter/schema.q").lines().filter(|line| !line.starts_with("use ")).collect::<Vec<_>>().join("\n"))).unwrap();
+            assert!(first.init(&["--adapt"]).status.success());
+            assert!(fs::read_to_string(first.0.join(app_path)).unwrap().contains("function Todos()"), "{flag} {sign_in}");
+        }
+    }
 }
 
 /// Wave 4 (1b, 6 lanes): schema first, `check`, then `init --web` refused

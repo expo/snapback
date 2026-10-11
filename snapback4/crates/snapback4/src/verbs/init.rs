@@ -89,6 +89,7 @@ pub fn init(options: &Options) -> i32 {
     let shape = starter::Shape {
         title: title(dir),
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
+        body: if own.as_ref().is_none_or(adapt::fits_todos) { starter::Body::Todos } else { starter::Body::Home },
     };
     let mut files = if social { social::files() }
         else if chat && web { web::files() } else if chat { expo_files() }
@@ -263,7 +264,11 @@ pub fn init(options: &Options) -> i32 {
     }
     let screens = files.iter().any(|(name, _)| name.starts_with("src/") || name.starts_with("App."));
     if let Some(own) = own.as_ref().filter(|_| screens && (web || expo) && !chat && !social) {
-        println!("init: your snapback/*.q was kept; the starter screens call the todo starter's operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
+        if shape.body == starter::Body::Home {
+            println!("init: your snapback/*.q was kept; it has no todo starter operations, so the screen behind the sign-in is a Home that compiles against any schema (the signed-in viewer and your operations) — run `snapback4 check` to write snapback/generated/api.ts, then replace Home with your own screens");
+        } else {
+            println!("init: your snapback/*.q was kept; the starter screens call the todo starter's operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
+        }
         match own.identity {
             None if shape.personas.is_some() => println!("init: your schema declares `use personas` and no `use identity`, so the screen picks a persona instead of signing in (development only; `snapback4 guide personas`)"),
             None => println!("init: your schema declares no `use identity`: add `use identity` for the starter's guest sign-in (`snapback4 guide personas`)"),

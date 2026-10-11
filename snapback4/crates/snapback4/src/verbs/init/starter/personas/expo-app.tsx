@@ -1,11 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, Pressable, SafeAreaView, Text, TextInput, View } from "react-native";
+import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import type { App as SnapbackApp } from "snapback4/app";
-import { isDenied, isLoading } from "snapback4/contract";
-import { AppProvider, useAuth, useLink, useMutation, usePage } from "snapback4/react";
-import { api } from "./snapback/generated/api";
-import { openApp, personas, tier } from "./src/client";
+import { AppProvider, useAuth } from "snapback4/react";
+import { openApp, personas } from "./src/client";
 
 export function App() {
   return <SafeAreaView style={{ flex: 1 }}><StatusBar style="auto" /><Personas /></SafeAreaView>;
@@ -38,4 +36,3 @@ function Account({ leave, children }: { leave: () => void; children: ReactNode }
     <Button title="Choose a persona" onPress={leave} />
   </View>;
 }
-

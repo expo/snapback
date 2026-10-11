@@ -1,34 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { isDenied, isLoading } from "snapback4/contract";
-import { AppProvider, useAuth, useLink, useMutation, usePage } from "snapback4/react";
+import { isDenied, isFailed, isLoading } from "snapback4/contract";
+import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
-import { app } from "./client.ts";
-
-export function App() {
-  return <AppProvider app={app}><Account /></AppProvider>;
-}
-
-// Every read and write runs as the signed-in viewer, so sign in first.
-function Account() {
-  const auth = useAuth();
-  const [problem, setProblem] = useState("");
-  if (auth.state === "restoring") return <p>Restoring your session…</p>;
-  if (auth.state === "signed-in") return <Todos />;
-  const signIn = async () => {
-    const result = await auth.guest();
-    if (!result.ok) setProblem(result.why.message);
-  };
-  return <main>
-    <h1>Todos</h1>
-    <p>{problem || auth.why?.message || "Signed out"}</p>
-    <button onClick={() => void signIn()}>Continue as a guest</button>
-  </main>;
-}
 
 function Todos() {
   const auth = useAuth(), link = useLink();
+  // Never null here: Account renders this screen only once signed in.
+  const viewer = useSignedInViewer();
   // A live query: it re-renders on every change, including this device's own
   // unconfirmed writes (marked `pending`) and changes from other devices.
+  // usePage is for a query that takes `c: cursor ?`; any other query reads
+  // with useQuery(api.op, args), which returns the Read itself (render it
+  // with matchRead from snapback4/contract).
   const todos = usePage(api.list, {});
   const add = useMutation(api.add), toggle = useMutation(api.toggle), remove = useMutation(api.remove);
   const [title, setTitle] = useState("");
@@ -38,18 +21,26 @@ function Todos() {
     void add.run({ title: title.trim() });
     setTitle("");
   };
-  const failed = [add.last, toggle.last, remove.last].find(write => write?.state === "failed");
+  const failed = [add.last, toggle.last, remove.last].find(isFailed);
   return <main>
     <header>
       <h1>Todos</h1>
-      <span role="status">{link === "online" ? "Online" : "Offline"}</span>
+      <span role="status">{viewer} · {link === "online" ? "Online" : "Offline"}</span>
       <button onClick={() => void auth.logout()}>Sign out</button>
     </header>
     <form onSubmit={submit}>
       <input value={title} onChange={event => setTitle(event.target.value)} placeholder="What needs doing?" maxLength={200} />
       <button type="submit">Add</button>
     </form>
-    {failed?.state === "failed" && <p role="alert">{failed.why.message}</p>}
+    {failed && <p role="alert">{failed.why.message}</p>}
+    <TodoList todos={todos} toggle={toggle} remove={remove} />
+  </main>;
+}
+
+// Hook results are named by the operation for props: UsePage<typeof api.list>,
+// UseMutation<typeof api.toggle>, and UseQuery<typeof api.op> for useQuery.
+function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; toggle: UseMutation<typeof api.toggle>; remove: UseMutation<typeof api.remove> }) {
+  return <>
     {isLoading(todos.read) && <p>Loading…</p>}
     {isDenied(todos.read) && <p role="alert">{todos.read.denied.message}</p>}
     <ul>
@@ -62,5 +53,5 @@ function Todos() {
       </li>)}
     </ul>
     {todos.hasMore && <button onClick={todos.loadMore}>Show more</button>}
-  </main>;
+  </>;
 }

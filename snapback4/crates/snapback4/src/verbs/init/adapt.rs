@@ -4,7 +4,7 @@
 //! fit the schema, are leftovers: `check` names them and `init --adapt`
 //! removes or rewrites them. A file the project changed is never touched.
 // @ref LLP 3000.011.003.000#7.2 — leftovers are judged by the starter's original bytes, never by name alone.
-use super::starter::{self, Platform};
+use super::starter::{self, Body, Platform};
 use super::{OwnSchema, own_schema};
 use std::path::Path;
 
@@ -19,14 +19,20 @@ pub(crate) struct Leftover {
 /// Starter operations its fixtures, cases and `Todos` screen call.
 const STARTER_OPERATIONS: [&str; 4] = ["list", "add", "toggle", "remove"];
 
+/// Whether a schema still has the starter's `todos` table and the operations
+/// its fixtures, cases and `Todos` screen call.
+pub(super) fn fits_todos(own: &OwnSchema) -> bool {
+    own.tables.iter().any(|table| table == "todos")
+        && STARTER_OPERATIONS.iter().all(|op| own.operations.iter().any(|name| name == op))
+}
+
 /// What the schema in `dir` leaves of the starter, and the advice that goes
-/// with it (a screen the project must adapt by hand). No schema: nothing.
+/// with it (a sign-in the project must write by hand). No schema: nothing.
 pub(crate) fn leftovers(dir: &Path) -> (Vec<Leftover>, Vec<String>) {
     let Ok(Some(own)) = own_schema(dir) else { return (Vec::new(), Vec::new()) };
     let mut found = Vec::new();
     let mut advice = Vec::new();
-    let todos = own.tables.iter().any(|table| table == "todos")
-        && STARTER_OPERATIONS.iter().all(|op| own.operations.iter().any(|name| name == op));
+    let todos = fits_todos(&own);
     if !todos {
         for (path, text) in starter::FIXTURES {
             if read(dir, path).is_some_and(|current| current == super::without_design_references(text)) {
@@ -56,36 +62,53 @@ fn wanted(own: &OwnSchema) -> Result<Option<Vec<String>>, &'static str> {
 fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, advice: &mut Vec<String>) {
     let (app_path, client_path) = platform.paths();
     let (Some(app), Some(client)) = (read(dir, app_path), read(dir, client_path)) else { return };
-    // Which starter pair is on disk, if either file is still as init wrote it.
-    let shipped = |personas: Option<&[String]>| starter::screens(platform, personas);
-    let (guest_app, guest_client) = shipped(None);
-    let (persona_app, persona_client) = shipped(Some(&[]));
+    // Which starter screen is on disk, if both files are still as init wrote
+    // them: its sign-in (guest, or a persona picker) and its body.
     let client_shape = normalized(&client);
-    let current = if app == guest_app && client_shape == normalized(&guest_client) { Some(None) }
-        else if app == persona_app && client_shape == normalized(&persona_client) { Some(Some(personas_of(&client))) }
-        else { None };
-    let Some(current) = current else { return };
-    let screen = if todos { "" } else { "; its Todos screen still calls the starter's list/add/toggle/remove: replace it with your own screens" };
-    match wanted(own) {
-        Ok(wanted) if wanted == current => {
-            if !todos { advice.push(format!("{app_path} is the starter's screen{screen}")); }
+    let current = [Body::Todos, Body::Home].into_iter().find_map(|body| {
+        let (guest_app, guest_client) = starter::screens(platform, None, body);
+        let (persona_app, persona_client) = starter::screens(platform, Some(&[]), body);
+        if app == guest_app && client_shape == normalized(&guest_client) { Some((None, body)) }
+        else if app == persona_app && client_shape == normalized(&persona_client) { Some((Some(personas_of(&client)), body)) }
+        else { None }
+    });
+    let Some((sign_in, body)) = current else { return };
+    let wanted_body = if todos { Body::Todos } else { Body::Home };
+    // A sign-in no starter screen fits keeps the one on disk, with advice.
+    let wanted_sign_in = match wanted(own) {
+        Ok(wanted) => wanted,
+        Err(why) => {
+            advice.push(format!("{app_path} is the starter's {}, but your snapback/*.q {why}", if sign_in.is_none() { "guest sign-in" } else { "persona picker" }));
+            sign_in.clone()
         }
-        Ok(wanted) => {
-            let (app, mut text) = shipped(wanted.as_deref());
-            // Keep the backend port init wrote.
-            if let Some(port) = port_of(&client) { text = text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
-            let (from, to) = match (&current, &wanted) {
-                (None, Some(personas)) => ("the guest sign-in".to_owned(), format!("a persona picker ({})", personas.join(", "))),
-                (Some(_), None) => ("a persona picker".to_owned(), "the guest sign-in".to_owned()),
-                (Some(old), Some(new)) => (format!("a picker for {}", old.join(", ")), format!("one for {}", new.join(", "))),
-                (None, None) => unreachable!(),
-            };
-            let because = if wanted.is_some() { "your snapback/*.q declares `use personas` and no `use identity`" } else { "your snapback/*.q declares `use identity`" };
-            found.push(Leftover { path: app_path, why: format!("the unmodified starter screen shows {from}, but {because}; adapt writes {to}{screen}"), rewrite: Some(app) });
-            found.push(Leftover { path: client_path, why: format!("the unmodified starter client for {from}; adapt writes {to}"), rewrite: Some(text) });
-        }
-        Err(why) => advice.push(format!("{app_path} is the starter's {}, but your snapback/*.q {why}{screen}", if current.is_none() { "guest sign-in" } else { "persona picker" })),
+    };
+    if wanted_sign_in == sign_in && wanted_body == body { return; }
+    let (app_text, mut client_text) = starter::screens(platform, wanted_sign_in.as_deref(), wanted_body);
+    let mut reasons = Vec::new();
+    let mut client_leftover = None;
+    if wanted_sign_in != sign_in {
+        let (from, to) = match (&sign_in, &wanted_sign_in) {
+            (None, Some(personas)) => ("the guest sign-in".to_owned(), format!("a persona picker ({})", personas.join(", "))),
+            (Some(_), None) => ("a persona picker".to_owned(), "the guest sign-in".to_owned()),
+            (Some(old), Some(new)) => (format!("a picker for {}", old.join(", ")), format!("one for {}", new.join(", "))),
+            (None, None) => unreachable!(),
+        };
+        let because = if wanted_sign_in.is_some() { "your snapback/*.q declares `use personas` and no `use identity`" } else { "your snapback/*.q declares `use identity`" };
+        reasons.push(format!("the unmodified starter screen shows {from}, but {because}; adapt writes {to}"));
+        // Keep the backend port init wrote.
+        if let Some(port) = port_of(&client) { client_text = client_text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
+        client_leftover = Some(Leftover { path: client_path, why: format!("the unmodified starter client for {from}; adapt writes {to}"), rewrite: Some(client_text) });
     }
+    if wanted_body != body {
+        reasons.push(match wanted_body {
+            Body::Home => "its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer and your operations, from snapback/generated/api.ts) for you to replace".to_owned(),
+            Body::Todos => "your snapback/*.q declares the todo starter's operations again; adapt writes the Todos screen back".to_owned(),
+        });
+    }
+    let why = reasons.join("; ");
+    let why = if why.starts_with("the unmodified") { why } else { format!("the unmodified starter screen: {why}") };
+    found.push(Leftover { path: app_path, why, rewrite: Some(app_text) });
+    found.extend(client_leftover);
 }
 
 fn read(dir: &Path, path: &str) -> Option<String> {
@@ -169,6 +192,9 @@ pub(super) fn adapt(dir: &Path) -> i32 {
     if !rewritten.is_empty() {
         let why = found.iter().find(|leftover| leftover.rewrite.is_some()).map(|leftover| leftover.why.as_str()).unwrap_or_default();
         println!("init --adapt: rewrote {} — {why}", rewritten.join(" and "));
+    }
+    if found.iter().any(|leftover| leftover.rewrite.as_deref().is_some_and(|text| text.contains("function Home()"))) {
+        println!("init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)");
     }
     for line in advice { println!("init --adapt: {line}"); }
     0
