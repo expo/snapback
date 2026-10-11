@@ -7,7 +7,7 @@
 //! without the farm; `--nocapture` prints each wave-7 note they find.
 use snapback4_core::{Context, Engine, Value, WriteState, value::object};
 use snapback4_lang::{Bound, Diagnostic, compile};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 fn bound(source: &str) -> Bound {
     compile(&[("schema.q".into(), source.into())])
@@ -158,4 +158,43 @@ fn r1_no_farm_diagnostic_repeats_a_phrase() {
         checked += b.notes.len() + b.diagnostics.len();
     }
     println!("checked {checked} farm diagnostics");
+}
+
+// ---- 17.2: the whole-table total's view rewrite compiles (lane 020) ----
+
+/// The backticked pieces of a rewrite.
+fn pieces(rewrite: &str) -> Vec<&str> {
+    rewrite.split('`').skip(1).step_by(2).collect()
+}
+
+#[test]
+fn a_whole_table_total_prints_a_grouped_view_that_compiles_and_counts_every_row() {
+    // Lane 020: households read by their worker or a coordinator; the coverage total is ungrouped.
+    let schema = |extra: &str| format!("table roles:\n  principal: principal\n  role: enum('worker', 'coordinator')\n  unique principal\n  read <- .principal = viewer\n  online only\ntable households:\n  worker: principal\n  members: int\n{extra}  read <- .worker = viewer or exists roles[viewer, role = 'coordinator']\n  insert <- .worker = viewer\n  online only\n");
+    for (total, value) in [("count(households)", 3), ("sum(households, .members)", 9)] {
+        let source = format!("{}query coverage():\n  return {total}\n", schema(""));
+        let b = bound(&source);
+        let d = problem(&b, "E_QUARRY_BOUND").unwrap_or_else(|| panic!("{source}\n{:#?}", b.diagnostics));
+        let p = pieces(&d.rewrite);
+        assert!(!p.iter().any(|piece| piece.ends_with("[]")), "no ungrouped lookup: {d}");
+        let column = p.iter().find(|piece| piece.contains("enum('all')")).unwrap_or_else(|| panic!("{d}"));
+        let immutable = p.iter().find(|piece| piece.starts_with("immutable ")).unwrap();
+        let view = p.iter().find(|piece| piece.starts_with("view ")).unwrap();
+        let read = p.iter().find(|piece| piece.starts_with("read <- ")).unwrap();
+        let lookup = p.iter().find(|piece| piece.ends_with("['all']")).unwrap();
+        assert_eq!(*read, "read <- exists roles[viewer, role = 'coordinator']", "{d}");
+        let repaired = format!("{}{view}\n  {read}\nquery coverage():\n  return {lookup}\n", schema(&format!("  {column}\n  {immutable}\n")));
+        let b = clean(&repaired);
+        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        engine.seed([
+            ("roles".to_owned(), object([("id", id("r1")), ("principal", id("cora")), ("role", text("coordinator"))])),
+            ("households".to_owned(), object([("id", id("h1")), ("worker", id("wes")), ("members", Value::Int(2))])),
+            ("households".to_owned(), object([("id", id("h2")), ("worker", id("wes")), ("members", Value::Int(3))])),
+            ("households".to_owned(), object([("id", id("h3")), ("worker", id("wyn")), ("members", Value::Int(4))])),
+        ]).unwrap_or_else(|e| panic!("{repaired}\n{e:?}"));
+        let (_, data) = query(&mut engine, "coverage", "cora", &[]).unwrap();
+        assert_eq!(data, Value::Int(value), "the coordinator reads the whole table's total:\n{repaired}");
+        let worker = query(&mut engine, "coverage", "wes", &[]);
+        assert!(worker.as_ref().map_or(true, |(_, data)| *data != Value::Int(value)), "a worker does not read the whole total: {worker:?}");
+    }
 }

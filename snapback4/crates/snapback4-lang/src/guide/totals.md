@@ -121,6 +121,10 @@ query myDeptTotal(dept: text <=20):
 
 Finance reads every department's total; each requester reads their own.
 `E_QUARRY_BOUND`'s rewrite prints this view for your table, column and group.
+A view groups by at least one column (`count requests` alone does not parse):
+for a whole-table total, give every row the same key (`totalKey:
+enum('all') default 'all'`, `immutable totalKey`), group by it and read
+`requestsCount['all']`.
 A role guard (`if exists staff[viewer]:`) does not admit an inline total,
 as it admits a staff page (`guide indexes`): use the view.
 
