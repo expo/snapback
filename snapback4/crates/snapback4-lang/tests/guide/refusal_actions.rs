@@ -55,6 +55,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_SHAPE_JOIN", &["Spread both row arms before joining, or build both arms with the same shape and kind"]),
     ("E_QUARRY_RULE_HOP", &["Each hop costs one prepaid rule probe", "read through .message", "beyond three hops", "Sibling hops are legal and charged"]),
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
+    ("E_QUARRY_RULE_OPERATOR", &["The rewrite moves your comparison into the", "filter the query"]),
+    ("E_QUARRY_RESERVED", &["Rename it at the declaration and each use."]),
     ("E_QUARRY_JOB_SCHEDULE", &["`job sweep every 1h:` with `job sweep():`, keep the indented body"]),
     ("E_QUARRY_KEY_ORDER", &["move all positional components first, then write the named tests"]),
     ("E_QUARRY_WRITE_TESTS", &["This explicit check refuses a hidden or missing row and grants no write authority"]),

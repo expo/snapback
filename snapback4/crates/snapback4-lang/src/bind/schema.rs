@@ -487,7 +487,13 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             }
             "=" | "!=" | ">=" | ">" | "<=" | "<" => {
                 let ordered = !matches!(op.as_str(), "=" | "!=");
-                if ordered && (!bindings.update || bindings.old.is_none()) { return Err(unknown(site, "ordered comparisons belong to update (old, next) transitions", "update (old, next) <- next.readUpTo >= old.readUpTo")); }
+                let transition = bindings.update && bindings.old.is_some();
+                let effect = super::rule_operator::effect_word(bindings.insert, bindings.update, !bindings.hops);
+                // @ref LLP 3000.036#11 — unsupported terms and misplaced ordered comparisons name what rules evaluate and move the author's comparison into the mutation.
+                if let Some(what) = [left.as_ref(), right.as_ref()].into_iter().find_map(super::rule_operator::unsupported_side) {
+                    return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, what));
+                }
+                if ordered && !transition && !bindings.insert { return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, "an ordered comparison")); }
                 let (mut l, mut lt) = rule_term(catalog, info, left, bindings)?;
                 let (mut r, mut rt) = rule_term(catalog, info, right, bindings)?;
                 // `viewer = 'service:ranker'`: a text literal beside the
@@ -513,14 +519,32 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 {
                     return Err(type_error(site, format!("viewer meets {} here; only principal columns compare with viewer", other.name()), "declare the column as principal"));
                 }
-                if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
-                    return Err(type_error(site, "ordered transition terms need matching int or time types", "update (old, next) <- next.readUpTo >= old.readUpTo"));
+                if ordered && !transition {
+                    // An insert rule orders only the new row's own required int/time columns and integer literals.
+                    let own = |term: &RuleTerm| match term { RuleTerm::Field(field) => info.columns.contains_key(field), RuleTerm::Literal(Value::Int(_)) => true, _ => false };
+                    if !own(&l) || !own(&r) || matches!((&l, &r), (RuleTerm::Literal(_), RuleTerm::Literal(_))) {
+                        return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, "an ordered comparison beyond this row's own columns"));
+                    }
+                    let scalar = |ty: &Ty| matches!(ty, Ty::Int | Ty::Time);
+                    let literal = |term: &RuleTerm| matches!(term, RuleTerm::Literal(_));
+                    if !scalar(&lt) || !scalar(&rt) || (lt != rt && !literal(&l) && !literal(&r)) {
+                        let optional = matches!(lt, Ty::Optional(_)) || matches!(rt, Ty::Optional(_));
+                        return Err(type_error(site, format!("an insert-rule ordered comparison joins {} with {}{}", lt.name(), rt.name(), if optional { "; an optional column may be null, which is not ordered" } else { "" }),
+                            if optional { "declare the column required, or check it in the mutation with require" } else { "compare required int or time columns of one type, or a column with an integer literal" }));
+                    }
+                } else if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
+                    let image = |term: &RuleTerm| match term { RuleTerm::OldField(f) => Some(format!("old.{f}")), RuleTerm::NextField(f) => Some(format!("next.{f}")), _ => None };
+                    let example = image(&l).or_else(|| image(&r)).map_or_else(|| "next.count >= old.count".to_owned(), |term| format!("{term} >= {}", term.replacen("next.", "old.", 1)));
+                    return Err(type_error(site, format!("ordered transition terms need matching int or time types; got {} and {}", lt.name(), rt.name()), format!("update (old, next) <- {example}")));
                 }
                 Ok(match op.as_str() { "=" => RuleExpr::Eq(l,r), "!=" => RuleExpr::Ne(l,r),
                     ">=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gte,l,r), ">" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gt,l,r),
                     "<=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Lte,l,r), _ => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Lt,l,r) })
             }
-            other => Err(unknown(site, format!("`{other}` is not a rule operator; rules use and, or, not, =, and !="), "read <- .ownerId = viewer")),
+            other => {
+                let effect = super::rule_operator::effect_word(bindings.insert, bindings.update, !bindings.hops);
+                Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, bindings.update && bindings.old.is_some(), expr, &format!("the operator `{other}`")))
+            }
         },
         Expr::Unary { op, value, .. } if op == "not" => Ok(RuleExpr::Not(Box::new(rule_expr(catalog, info, value, bindings)?))),
         Expr::Member { .. } => {
@@ -540,6 +564,10 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             Ok(RuleExpr::Created { table, index, key, equalities, provenance: KeyProvenance::Shape })
         }
         Expr::Literal { value: Literal::Bool(b), .. } => Ok(if *b { RuleExpr::Allow } else { RuleExpr::Deny }),
+        Expr::Call { .. } => {
+            let effect = super::rule_operator::effect_word(bindings.insert, bindings.update, !bindings.hops);
+            Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, bindings.update && bindings.old.is_some(), expr, "a helper or function call"))
+        }
         other => Err(unknown(site, format!("`{}` is not a rule", crate::print::expression(other)), "read <- exists memberships[.conversationId, viewer]")),
     }
 }

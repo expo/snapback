@@ -622,7 +622,8 @@ pub enum RuleExpr {
     Deny,
     Eq(RuleTerm, RuleTerm),
     Ne(RuleTerm, RuleTerm),
-    /// Ordered comparisons are confined to named update transitions.
+    /// Ordered comparisons are confined to named update transitions and to
+    /// insert rules over the row's own required int/time columns.
     Compare(crate::ir::BinaryOp, RuleTerm, RuleTerm),
     And(Vec<RuleExpr>),
     Or(Vec<RuleExpr>),
@@ -1038,12 +1039,23 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     issues
 }
 
+// @ref LLP 3000.036#11 — an insert rule may order the new row's own required
+// int/time columns and integer literals: one image, no clock, no hop, no null.
+fn insert_order(table: &Table, left: &RuleTerm, right: &RuleTerm) -> bool {
+    let own = |term: &RuleTerm| match term {
+        RuleTerm::Field(field) => table.columns.get(field).is_some_and(|kind| matches!(kind, ColumnType::Int | ColumnType::Time)),
+        RuleTerm::Literal(Value::Int(_)) => true,
+        _ => false,
+    };
+    own(left) && own(right) && !matches!((left, right), (RuleTerm::Literal(_), RuleTerm::Literal(_)))
+}
+
 fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, insert: bool, path: &str, issues: &mut Vec<SchemaIssue>) {
     let check_term = |term: &RuleTerm, issues: &mut Vec<SchemaIssue>| reference::validate_term(schema, table, term, update, path, issues);
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {}
         RuleExpr::Eq(l, r) | RuleExpr::Ne(l, r) | RuleExpr::Compare(_, l, r) => {
-            if matches!(rule, RuleExpr::Compare(..)) && (!update || !table.update_transition) { issues.push(SchemaIssue { path: path.into(), message: "ordered comparisons require a named update transition".into() }); }
+            if matches!(rule, RuleExpr::Compare(..)) && !(update && table.update_transition) && !(insert && insert_order(table, l, r)) { issues.push(SchemaIssue { path: path.into(), message: "ordered comparisons require a named update transition, or an insert rule over the row's own required int or time columns".into() }); }
             check_term(l, issues);
             check_term(r, issues);
         }

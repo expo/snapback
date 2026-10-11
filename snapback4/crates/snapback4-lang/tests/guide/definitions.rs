@@ -191,6 +191,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),
     ("E_QUARRY_RULE_HOP", "E_QUARRY_RULE_HOP means a known relationship cannot be traversed in this rule position"),
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
+    ("E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_OPERATOR names a term a table rule does not evaluate"),
+    ("E_QUARRY_RESERVED", "E_QUARRY_RESERVED names a Quarry keyword used as a name, at its declaration"),
     ("E_QUARRY_JOB_SCHEDULE", "E_QUARRY_JOB_SCHEDULE separates work from its clock"),
     ("E_QUARRY_KEY_ORDER", "E_QUARRY_KEY_ORDER means a positional component followed a named one"),
     ("E_QUARRY_WRITE_TESTS", "E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique key"),

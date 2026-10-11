@@ -14,6 +14,7 @@ mod views;
 mod maintains;
 mod timeline;
 mod expected;
+mod reserved;
 mod programs;
 mod actions;
 mod routes;
@@ -194,6 +195,10 @@ impl Parser {
 
     fn table_line(&mut self, table: &mut TableDecl) -> Fallible<()> {
         let token = self.peek().clone();
+        // @ref LLP 3000.036#11 — a table keyword spelled as a column names the reserved word.
+        if self.peek_at(1).value == ":" && token.kind == Kind::Word && reserved::TABLE_WORDS.contains(&token.value.as_str()) {
+            return Err(reserved::column(&token.site, &token.value));
+        }
         match token.value.as_str() {
             "receipts" if self.peek_at(1).value != ":" => {
                 let site = self.take("receipts")?.site;
@@ -338,7 +343,12 @@ impl Parser {
                 self.take("insert")?;
                 let value = self.parse_focal_rule_value("after insert", &site)?;
                 if !matches!(value, Expr::Exists { .. }) {
-                    return Err(syntax(value.site(), "after insert requires exactly one exists predicate"));
+                    return Err(syntax_with(value.site(), "after insert requires exactly one exists predicate; it states what the same mutation must also insert",
+                        "after insert <- exists memberships[conversation = .id, principal = .creator]  -- other conditions belong in the insert rule or in the mutation's require"));
+                }
+                if self.at("else") {
+                    let code = self.peek_at(1).value.clone();
+                    return Err(crate::bind::rule_operator::rule_else(&self.peek().site.clone(), "after insert", &value, &code));
                 }
                 self.newline()?;
                 table.final_exists.push((value, site));
@@ -789,6 +799,10 @@ impl Parser {
         } else {
             value = self.parse_focal_rule_value(effect.word(), &effect_token.site)?;
         }
+        if self.at("else") {
+            let code = self.peek_at(1).value.clone();
+            return Err(crate::bind::rule_operator::rule_else(&self.peek().site.clone(), effect.word(), &value, &code));
+        }
         self.newline()?;
         current_rule(&value)?;
         Ok(RuleDecl { effect, bindings, value, site: effect_token.site })
@@ -859,6 +873,15 @@ impl Parser {
         Ok(())
     }
 
+    /// A parameter, local or loop variable: a keyword cannot be one.
+    fn local_name(&mut self) -> Fallible<String> {
+        if self.peek().kind == Kind::Word && reserved::BINDING_WORDS.contains(&self.peek().value.as_str()) {
+            let token = self.peek().clone();
+            return Err(reserved::binding(&token.site, &token.value));
+        }
+        self.binding_name()
+    }
+
     fn binding_name(&mut self) -> Fallible<String> {
         let token = self.word()?;
         if token.value == "until-revoked" || token.value == "delivered-history" {
@@ -872,7 +895,7 @@ impl Parser {
         let mut args = Vec::new();
         while !self.at(")") {
             let name = self.peek().clone();
-            let binding = self.binding_name()?;
+            let binding = self.local_name()?;
             self.take(":")?;
             let type_site = self.peek().site.clone();
             let type_ = self.parse_type(false).map_err(|mut d| {
@@ -1045,6 +1068,9 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Fallible<Stmt> {
         let token = self.peek().clone();
+        if token.kind == Kind::Word && self.peek_at(1).value == "=" && self.peek_at(2).value != "=" && reserved::BINDING_WORDS.contains(&token.value.as_str()) {
+            return Err(reserved::binding(&token.site, &token.value));
+        }
         match token.value.as_str() {
             "while" => return Err(unsupported(&token.site, "while", "use a bounded for domain or walk")),
             "break" => {
@@ -1094,7 +1120,7 @@ impl Parser {
         }
         if self.at_kind(Kind::Word) && self.peek_at(1).value == "=" {
             let name = self.peek().clone();
-            let binding = self.binding_name()?;
+            let binding = self.local_name()?;
             self.take("=")?;
             let value = self.expression(0, &["<newline>"])?;
             if !matches!(value, Expr::Merge(_)) {
@@ -1104,9 +1130,9 @@ impl Parser {
         }
         if self.at("(") && self.tuple_binding_ahead() {
             let site = self.take("(")?.site;
-            let mut names = vec![self.binding_name()?];
+            let mut names = vec![self.local_name()?];
             while self.maybe(",") {
-                names.push(self.binding_name()?);
+                names.push(self.local_name()?);
             }
             self.take(")")?;
             self.take("=")?;
@@ -1147,7 +1173,7 @@ impl Parser {
 
     fn parse_for(&mut self) -> Fallible<Stmt> {
         let site = self.take("for")?.site;
-        let name = self.binding_name()?;
+        let name = self.local_name()?;
         self.take("in")?;
         let domain = self.expression(0, &[":"])?;
         self.take(":")?;

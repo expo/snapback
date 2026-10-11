@@ -20,7 +20,7 @@ Write rules and `after insert` keys allow three live hops: `.reaction.message.co
 Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`.
 Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered.
 Insert uses the new image; an unnamed `update <- R` must hold for both the row before and the row after the write (pair `update <- .owner = viewer` with `immutable owner`); a named `update (old, next)` judges exactly what it names; delete uses its pre-delete image; final obligations resolve at transaction end. Read-through capture/lifetimes stay unchanged. Null guards narrow only the same term and image.
-Beyond three hops, private/maintained fields and ephemeral targets refuse E_QUARRY_RULE_HOP with concrete mutation `require` checks.
+Beyond three hops, private/maintained fields and ephemeral targets refuse E_QUARRY_RULE_HOP with concrete mutation `require` checks. A rule says `=`/`!=` over `.col`, `viewer` and literals, `exists`/`created` probes and `and`/`or`/`not`; it orders (`<`, `>=`) only an insert row's own required int/time columns (`.stars >= 1`) and `update (old, next)` images. The clock, arithmetic, helper calls and `else CODE` are E_QUARRY_RULE_OPERATOR: a `require … else CODE` in the mutation (`snapback4 why E_QUARRY_RULE_OPERATOR` prints the table of rule forms).
 
 ```quarry
 table orgs:
@@ -163,8 +163,8 @@ equalities may cover a total unique key and check extra columns on that one row,
 for both `exists` and `created`, without an extra index. A full positional unique
 key may come first, followed by named extra-column tests, as in
 `docs[.docId, ownerId = viewer]`. Every focal field used
-by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Read, insert and delete rules
-compare with `=` and `!=` alone: a rule that varies with time is not an
+by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Read and delete rules
+compare with `=` and `!=` alone, insert rules order only the row's own required int/time columns: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
 sync). The system principal consults no rules, so `system` is never a rule word.

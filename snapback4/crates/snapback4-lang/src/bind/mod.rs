@@ -9,6 +9,8 @@ mod first_paste;
 mod maintains;
 mod own_keys;
 mod refusals;
+pub(crate) mod rule_operator;
+mod pin_rewrite;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;

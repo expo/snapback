@@ -493,7 +493,7 @@ impl Parser {
             let prefix = keys.into_iter().map(|key| key.value).collect();
             let mut loop_ = None;
             if self.maybe("for") {
-                let name = self.binding_name()?;
+                let name = self.local_name()?;
                 self.take("in")?;
                 let domain = self.expression(0, &["<newline>"])?;
                 if matches!(domain, Expr::Walk { .. }) {
