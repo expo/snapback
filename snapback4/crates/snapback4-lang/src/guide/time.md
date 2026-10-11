@@ -77,12 +77,41 @@ mutation checkIn():
 - `schedule nightly every 1d at 03:00: digest` fires once per period of the server's clock, in UTC;
   periods are `every 2m`, `1h` or `1d [at HH:MM]` (`guide jobs`).
 - `expire at .expiresAt` ends a row's life at a time; a null time never expires (`guide expire`).
+- Catch-up: a schedule fires once per boundary, never twice. Boundaries it missed (the server was
+  down, or `clock advance` jumped past them) coalesce into one run for the latest period once
+  the server is back; `periodStart`/`periodEnd` describe that last period only. A schedule
+  first seen fires from its next boundary.
+- So a job that sweeps exactly `[periodStart, periodEnd)` never visits rows that fell due in the
+  skipped periods. Sweep back from `periodEnd` and skip rows already handled, so one run catches up:
+
+```quarry
+table trains:
+  name: text <=40
+  departsAt: time
+  open: bool default true
+  immutable departsAt
+  public 'the departures board'
+  insert <- allow
+  online only
+
+job closeDeparted(periodStart: time, periodEnd: time):
+  for t in trains where .departsAt >= periodEnd - 7d and .departsAt < periodEnd by .departsAt:
+    if t.open:
+      update trains[t.id] { open: false }
+
+schedule closer every 1m: closeDeparted
+```
+
+- Where the decision is made by a caller, compare with `now` instead and need no job:
+  `require t.departsAt > now else DEPARTED`. `guide recipes --section schedules` has both together.
+- A period you still need runs by hand: `snapback4 run closeDeparted '{"periodStart":…,"periodEnd":…}'`.
 
 ## The dev clock
 
 - `snapback4 dev --clock-offset +25h` starts the dev server 25 hours ahead; mutations stamp `now` from it.
 - `snapback4 clock advance 2m [--port N]` moves a running dev forward, sweeps expiry and runs due
-  schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`.
+  schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`. An advance across
+  many boundaries runs each schedule once, and its reply names the period and `skippedPeriods`.
 - The offset belongs to the process: restart with `dev --resume-clock` to continue from the store's
   newest stamp. `GET /dev/status` reports `now` and `clockOffsetMs`.
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.
