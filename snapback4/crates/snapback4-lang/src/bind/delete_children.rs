@@ -14,11 +14,15 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) fn notes(catalog: &mut Catalog) {
     // parent table -> [(child table, reference column)]
     let mut children: BTreeMap<&str, Vec<(&str, &str)>> = BTreeMap::new();
+    // A child counted through a recorded path (`count likes by .postId.authorId`)
+    // is kept on purpose: its contribution outlives the target (guide maintains).
+    let recorded = |child: &str, column: &str| catalog.maintains.values().any(|m| m.source == child
+        && m.by.iter().any(|key| key.trim_start_matches('.').starts_with(&format!("{column}."))));
     for (name, info) in &catalog.tables {
         if info.maintained.is_some() || info.decl.ephemeral.is_some() { continue; }
         for (column, ty) in &info.columns {
             let TypeKind::Ref { table: parent } = &ty.kind else { continue };
-            if info.through.as_ref().is_some_and(|through| &through.reference == column) { continue; }
+            if info.through.as_ref().is_some_and(|through| &through.reference == column) || recorded(name, column) { continue; }
             if parent != name { children.entry(parent.as_str()).or_default().push((name.as_str(), column.as_str())); }
         }
     }

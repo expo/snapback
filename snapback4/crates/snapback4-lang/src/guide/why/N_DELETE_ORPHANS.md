@@ -1,0 +1,3 @@
+# N_DELETE_ORPHANS
+
+N_DELETE_ORPHANS means a mutation or job deletes a row that another table references, and neither reads nor writes that table. A reference is a typed id with no cascade: the referencing rows stay, name a deleted row, and read it through the reference as null. `check` states this; it does not change it. Delete or retarget the children in the same mutation first (a loop over `child where .ref = id`; `check` names the bound and admission it needs), or keep the parent and mark it (`update parent[id] { cancelled: true }`) when the children should stay readable. A `read through` child refuses the delete instead (E_PARENT_HAS_CHILDREN). Whether a parent delete should refuse or cascade is an open design question.

@@ -16,11 +16,7 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
-`upsert` inserts/patches; `delete` removes the row, NOT_FOUND when it is missing
-or hidden. A delete does not cascade: rows that reference it stay and name a
-deleted row (a read through them gives null); `check` notes it
-(N_DELETE_ORPHANS) when the mutation writes none of them. Delete them first or
-mark the parent instead; a `read through` child refuses E_PARENT_HAS_CHILDREN.
+`upsert` inserts/patches; `delete` removes it, never cascading (N_DELETE_ORPHANS).
 An omitted optional argument is null, the same as an explicit null: `x = null`
 is true either way, and no test tells them apart. So a patch `{ c: x }` clears `c` when `x` is omitted: write
 `x ?? row.c` to keep it, and pass a flag when clearing is meant (Details).
@@ -30,7 +26,7 @@ Owned/sequence/receipt fields keep their projection and settlement rules.
 E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
 Refusals roll back the mutation. Mutation writes pass table rules as the caller;
 only jobs run as the system.
-Retry an intent with its original minted write id.
+Retry an intent with its minted write id.
 
 Receipt gaps: `guide sequences`.
 
@@ -61,7 +57,7 @@ mutation confirm(d: doses, dose: int ?, clear: bool ?):
 
 Bound results charge heap, steps, output and rule probes: the `result-cost`
 regression measures 1 probe, 2,316 heap bytes, 20 steps, 70 output bytes
-in both interpreters. Defaults use actual sizes; discarded inserts skip completion.
+in both. Defaults use actual sizes; discarded inserts skip completion.
 
 If `messageId` in `writeForms` addresses retained history from a room the
 writer has left, the call still predicts. Reads hide the updated message
