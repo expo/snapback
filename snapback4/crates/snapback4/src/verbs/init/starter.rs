@@ -5,6 +5,10 @@
 use serde_json::{Value, json};
 
 const SCHEMA: &str = include_str!("starter/schema.q");
+const FIXTURES: [(&str, &str); 2] = [
+    ("fixtures/todos.jsonl", include_str!("starter/fixtures/todos.jsonl")),
+    ("fixtures/test.cases.jsonl", include_str!("starter/fixtures/test.cases.jsonl")),
+];
 
 pub(super) fn web_files() -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(include_str!("../../../../../apps/chat/package.json")).unwrap();
@@ -23,7 +27,7 @@ pub(super) fn web_files() -> Vec<(&'static str, String)> {
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", include_str!("starter/web/README.md").to_owned()),
-    ]
+    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
 pub(super) fn expo_files() -> Vec<(&'static str, String)> {
@@ -49,7 +53,7 @@ pub(super) fn expo_files() -> Vec<(&'static str, String)> {
         ("src/native-smoke.ts", include_str!("native-smoke.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", include_str!("starter/expo/README.md").to_owned()),
-    ]
+    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
 pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");

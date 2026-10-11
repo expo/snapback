@@ -18,6 +18,7 @@ returns.
 
 - `snapback/schema.q`: the backend (tables, rules, `sync`, queries, mutations).
   Edit it and `snapback4 dev` re-adopts it; `snapback4 check` regenerates the API.
+- `fixtures/`: seed rows and expected outcomes for `snapback4 test`.
 - `src/client.ts`: one `createApp` for the whole app. A browser app that writes
   passes `device: webDevice()`; a bare `createClient()` in a browser refuses
   mutations with `E_ADMISSION`.
@@ -27,7 +28,9 @@ returns.
 
 - Grow the schema: `npx snapback4 guide language`, then `guide rules`, `guide sync`.
 - Try operations from the terminal: `npx snapback4 run add '{"title":"milk"}' --as alice`.
-- Test with fixtures: `npx snapback4 guide testing`.
+- Test without a server: `npx snapback4 test --fixture fixtures --as alice` loads
+  `fixtures/todos.jsonl` and runs the expectations in `fixtures/test.cases.jsonl`
+  (`npx snapback4 guide testing`).
 - Add email accounts: change `use identity` to `use identity password` and see `guide auth`.
 - Ship: `VITE_SNAPBACK_URL=https://your-backend npm run build` builds `dist/`
   with an offline app shell (`snapback4 web-shell dist`); serve it over HTTPS.

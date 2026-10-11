@@ -583,7 +583,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
             assert!(!dir.0.join(chat).exists(), "{flag}: the small starter carries no chat file {chat}");
         }
         let texts = starter_texts(&dir.0);
-        assert!(texts.len() <= 16, "{flag}: {} files", texts.len());
+        assert!(texts.len() <= 18, "{flag}: {} files", texts.len());
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
@@ -592,6 +592,9 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         for op in ["list", "add", "toggle", "remove"] { assert!(bound.schema.operations.contains_key(op), "{op}"); }
         let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(checked.status.success(), "{checked:?}");
+        let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+        let summary = String::from_utf8_lossy(&tested.stdout);
+        assert!(tested.status.success() && summary.contains("cases: 7 passed, 0 failed"), "{flag}: {tested:?}");
         let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
         for call in ["AppProvider", "auth.guest()", "usePage(api.list", "useMutation(api.add)", "api.toggle", "api.remove"] { assert!(app.contains(call), "{flag}: {call}"); }
         assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("webDevice()"));

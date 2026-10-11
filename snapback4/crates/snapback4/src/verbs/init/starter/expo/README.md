@@ -22,6 +22,7 @@ guest", then add a few todos.
 
 - `snapback/schema.q`: the backend (tables, rules, `sync`, queries, mutations).
   Edit it and `snapback4 dev` re-adopts it; `snapback4 check` regenerates the API.
+- `fixtures/`: seed rows and expected outcomes for `snapback4 test`.
 - `src/client.ts`: one `createApp` for the whole app; it picks the native
   device, the online client (Expo Go) or `webDevice()` (web).
 - `App.tsx`: sign-in, the live list (`usePage`) and writes (`useMutation`).
@@ -54,6 +55,8 @@ app scenario (`npx snapback4 guide witness`).
 
 - Grow the schema: `npx snapback4 guide language`, then `guide rules`, `guide sync`.
 - Try operations from the terminal: `npx snapback4 run add '{"title":"milk"}' --as alice`.
-- Test with fixtures: `npx snapback4 guide testing`.
+- Test without a server: `npx snapback4 test --fixture fixtures --as alice` loads
+  `fixtures/todos.jsonl` and runs the expectations in `fixtures/test.cases.jsonl`
+  (`npx snapback4 guide testing`).
 - Add email accounts: change `use identity` to `use identity password` and see `guide auth`.
 - A complete multi-screen example: `npx snapback4 init <dir> --expo --template chat`.
