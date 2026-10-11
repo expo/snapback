@@ -1537,7 +1537,7 @@ fn guide_prints_a_cards_heading_index_and_one_section() {
     let index = String::from_utf8_lossy(&index.stdout);
     assert!(index.starts_with("language: ") && index.contains("Older spellings that still compile ("), "{index}");
     for keyword in snapback4_lang::guide::KEYWORDS {
-        let card = Command::new(BIN).args(["guide", keyword]).output().unwrap();
+        let card = Command::new(BIN).args(["guide", keyword, "--full"]).output().unwrap();
         let card = String::from_utf8_lossy(&card.stdout).into_owned();
         for (_, heading, _, _) in snapback4_lang::guide::sections(&card) {
             let output = Command::new(BIN).args(["guide", keyword, "--section", &heading]).output().unwrap();
@@ -1552,5 +1552,45 @@ fn guide_prints_a_cards_heading_index_and_one_section() {
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stdout).contains("Limits ("), "{output:?}");
     let listing = Command::new(BIN).arg("guide").output().unwrap();
-    assert!(String::from_utf8_lossy(&listing.stdout).contains("--section <heading>"));
+    let listing = String::from_utf8_lossy(&listing.stdout);
+    assert!(listing.contains("--section <heading or number>") && listing.contains("--full"), "{listing}");
+}
+
+// Wave 3 (LLP 3000.037): 33 lanes lost batched card output to truncation. A card
+// longer than a tool window prints its opening and a numbered index by default.
+#[test]
+fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
+    let guide = |args: &[&str]| { let o = Command::new(BIN).arg("guide").args(args).output().unwrap(); (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned()) };
+    for keyword in snapback4_lang::guide::KEYWORDS {
+        let (code, full) = guide(&[keyword, "--full"]);
+        assert_eq!(code, Some(0), "{keyword}");
+        let card = snapback4_lang::guide::card(keyword).unwrap();
+        assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword} --full prints the whole card");
+        let (_, default) = guide(&[keyword]);
+        if card.lines().count() <= snapback4_lang::guide::FULL_LINES || snapback4_lang::guide::sections(card).is_empty() {
+            assert_eq!(default, full, "{keyword}: a short card prints whole");
+        } else {
+            assert!(default.lines().count() <= 70, "{keyword}: the overview fits a tool window ({} lines)", default.lines().count());
+            assert!(default.starts_with(full.split("\n\n").take(2).collect::<Vec<_>>().join("\n\n").as_str()), "{keyword}: the overview opens with the title and lead");
+            assert!(default.contains(&format!("snapback4 guide {keyword} --section <number or words>")) && default.contains("--full prints all"), "{keyword}: {default}");
+        }
+    }
+    // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
+    let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);
+    for words in ["3", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
+        assert_eq!(guide(&["types", "--section", words]), (Some(0), by_name.clone()), "{words}");
+    }
+    let (code, miss) = guide(&["types", "--section", "Integer"]);
+    assert_eq!(code, Some(1));
+    assert!(miss.contains("Details, line") && miss.contains("an integer within"), "{miss}");
+    let (code, near) = guide(&["types", "--section", "Detials"]);
+    assert_eq!(code, Some(1));
+    assert!(near.contains("nearest heading: 2. Details"), "{near}");
+    let (code, opening) = guide(&["actions", "--section", "opening"]);
+    assert_eq!(code, Some(0));
+    assert!(opening.starts_with("# Actions") && !opening.contains("\n## "), "{opening}");
+    let (code, found) = guide(&["language", "--find", "day("]);
+    assert_eq!(code, Some(0));
+    assert!(found.contains("Details") && found.contains(": query today():"), "{found}");
+    assert_eq!(guide(&["language", "--find", "no such words anywhere"]).0, Some(1));
 }

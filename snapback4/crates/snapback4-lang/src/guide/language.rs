@@ -530,7 +530,7 @@ A maintained count can use another table's row as its key: `view unread: count m
 `snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules in any order. Other `.q` files share its namespace; their operations and scheduled jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name. Comments start with `--`; blocks indent two spaces. The suite compiles every block.
 
 Time arithmetic uses durations: `now + 1m` is one minute from now, and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
-produce UTC calendar ordinals. See `guide jobs` for scheduled work.
+produce UTC calendar ordinals (`guide time`).
 
 `createRoom` above predicts: its room is readable through the membership
 inserted later in the same call. Reads authorize the current provisional
@@ -579,7 +579,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 ## Left out on purpose and idioms
 
-Cards: `snapback4 guide <keyword>`: app, social, from-sql, types, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, ephemeral, sequences,
+Cards: `snapback4 guide <keyword>`: cheatsheet, app, social, from-sql, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, ephemeral, sequences,
 assets, client, wire, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, testing, witness. `why
 <CODE>` explains refusals.

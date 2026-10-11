@@ -178,7 +178,7 @@ fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     for text in ["README.md", "CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "./CLIENT-AND-OPERATIONS.md#8-not-in-this-release", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "cold-offline"] {
         assert!(opening.contains(text), "the first page omits {text}");
     }
-    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets", "actions", "clock", "routes"] {
+    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets", "actions", "time", "routes"] {
         assert!(opening.contains(&format!("guide {card}")), "start path omits {card}");
     }
     assert!(!readme.to_lowercase().contains("there is no other documentation"));
@@ -1245,7 +1245,7 @@ fn language_following_uses_the_declaration() {
 
 #[test]
 fn calibration_guide_words_and_replay_holds_are_discoverable() {
-    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "jobs"), ("replay", "personas"), ("seed", "personas")] {
+    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "time"), ("clock", "time"), ("schedule", "jobs"), ("mutations", "writes"), ("replay", "personas"), ("seed", "personas")] {
         assert_eq!(card(word), card(target), "{word}");
     }
     for word in ["divmod", "immutable", "return", "arithmetic", "a"] {

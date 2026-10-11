@@ -27,7 +27,7 @@ test('published Expo recipe: Strict Mode, withdrawal, denied membership, and acc
   const docs = readFileSync(join(root, 'packages/snapback4/CLIENT-AND-OPERATIONS.md'), 'utf8');
   const recipe = docs.split('### A stable conversation screen')[1].match(/```tsx\n([\s\S]*?)\n```/)[1];
   writeFileSync(join(dir, 'recipe.jsx'), ts.transpileModule(recipe, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).outputText);
-  const guide = spawnSync(process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4'), ['guide', 'social'], {encoding:'utf8'});
+  const guide = spawnSync(process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4'), ['guide', 'social', '--full'], {encoding:'utf8'});
   assert.equal(guide.status, 0, guide.stderr);
   const quote = guide.stdout.match(/```tsx\n\/\/ src\/QuotedMessage.tsx\n([\s\S]*?)```/)[1];
   writeFileSync(join(dir, 'quote.jsx'), ts.transpileModule(quote, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).outputText);

@@ -108,6 +108,8 @@ query messageReactions(message: messages):
 
 Only full sessions report delivery. A read-only reader never marks a message delivered: sign in with `{ scope: "read" }` and use `readOnly: true`, or narrow a full session. See `guide read-only`.
 
+## What the family generates
+
 The named family generates the mapped projection, reporting operations, runs
 and member watermarks. Without overrides, names use the family prefix:
 `chatReceipt`, `chatDelivered`, `chatSeen`, `chatMember`, `chatProgress`,
@@ -144,6 +146,8 @@ layouts keep working and require an explicit data migration before opting in.
 Upgrade engines and devices together; receipt-derived counts require `receipt-derived-prediction-v1`, and complete source prices require `source-write-reservations-v2` (including maintained-column initialization). All-zero source plans omit reservation metadata and stamps; the device proves zero structurally. Other schemas carry the applicable capabilities, including projected maintained columns; older devices refuse them. Upgraded engines accept the previous capability set in kept backends and databases, preserve queued writes and delivery debt, and can then adopt the new schema. This prediction revision does not change delivery fingerprints. Receipt v4 changes the capability and delivery
 fingerprint, retiring old SDK debt for recollection.
 
+## Migrating from useReceipts
+
 The older `useReceipts` history-walking hook does not scale to a large group:
 automatic paging and receipt writes can stall sends and hit the examined-row
 ceiling. Migrate it to the SDK reporter and the visible-screen hook below.
@@ -173,6 +177,8 @@ stays local.
 
 The manual recipe's contiguous intervals assume no deletion or expiry; the
 generated form includes bounded gap compaction.
+
+## Recipients and delivered ordinals
 
 Every message takes the conversation's next ordinal, and a member records the
 last ordinal when they join. So commit order, not the clock, decides a
@@ -205,6 +211,8 @@ for a manifest. The mutation merges a run with every run it meets, and folds it 
 when it reaches it. So whatever a client fetched is delivered once its report
 is recorded, however many gaps lie between, and a receipt never claims a
 message the client did not fetch, nor moves back.
+
+## SDK delivery reports
 
 The SDK reports delivered positions for the signed-in client, even with no
 conversation mounted. The local client collects confirmed, held, unexpired
@@ -264,6 +272,8 @@ clears before then; an already committed report becomes a no-op.
 `progress` stays available for explicit catch-up. Its `ahead` rows count as
 deliveries, so mounting it continuously acquires the next page whenever the
 prefix advances. The ordinary screen below reads its member separately.
+
+## Seen reporting: useSeen
 
 `useSeen` from `snapback4/react` packages visible seen reporting. The compiler
 emits `api.receiptFamilies.chat` from the clause above: `member` is

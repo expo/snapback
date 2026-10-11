@@ -64,9 +64,9 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{listing, nearest, section, section_index, sections};
+pub use discovery::{FULL_LINES, find, listing, nearest, overview, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -84,10 +84,16 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("existence", "client"), ("what does a missing row mean", "client"),
     ("loading or absent", "client"), ("unknown membership offline", "offline-interactions"),
     ("typing", "ephemeral"),
-    ("clock", "jobs"), ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
+    // @ref LLP 3000.007#20.1 — `clock` used to open the 386-line jobs card; time words open the short time card.
+    ("clock", "time"), ("dev clock", "time"), ("date", "time"), ("dates", "time"), ("now", "time"), ("day", "time"),
+    ("duration", "time"), ("durations", "time"), ("calendar", "time"), ("timezone", "time"), ("time zone", "time"),
+    ("cheat sheet", "cheatsheet"), ("cheat", "cheatsheet"), ("quick reference", "cheatsheet"), ("quickref", "cheatsheet"),
+    ("exports", "api"), ("imports", "api"), ("subpaths", "api"), ("api reference", "api"), ("signatures", "api"),
+    ("mutation", "writes"), ("mutations", "writes"),
+    ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
-    ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
+    ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"),
     ("aggregate", "totals"), ("sum", "totals"), ("sums", "totals"), ("count", "totals"), ("counts", "totals"),
     ("total", "totals"), ("rollup", "totals"), ("counters-aggregates", "totals"),
     ("replay", "personas"), ("replay adapter", "personas"), ("seed", "personas"),
@@ -154,9 +160,14 @@ pub use templates::{TEMPLATE, TEMPLATE_ONLINE};
 mod language_card;
 pub use language_card::LANGUAGE;
 
+/// The card a word names: a keyword, or an alias's target (any case).
+pub fn resolve(word: &str) -> Option<&'static str> {
+    ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word)).map(|(_, target)| *target)
+        .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(word)))
+}
+
 pub fn card(keyword: &str) -> Option<&'static str> {
-    let keyword = ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(keyword)).map(|(_, target)| *target)
-        .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(keyword)))?;
+    let keyword = resolve(keyword)?;
     Some(match keyword {
         "start" => start::card(),
         "language" => LANGUAGE,
@@ -168,6 +179,9 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
         "types" => types::CARD,
+        "time" => include_str!("guide/time.md"),
+        "cheatsheet" => include_str!("guide/cheatsheet.md"),
+        "api" => include_str!("guide/api.md"),
         "sequences" => include_str!("guide/sequences.md"),
         "indexes" => indexes::CARD,
         "maintains" => include_str!("guide/maintains.md"),
