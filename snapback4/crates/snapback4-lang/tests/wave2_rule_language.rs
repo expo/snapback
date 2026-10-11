@@ -160,8 +160,8 @@ fn every_read_hop_rewrite_compiles_as_printed() {
     let cases = [
         // 055: two hops on an online-only table: copy the reference, probe one hop.
         ("availability", availability("", ".volunteer = viewer or .slot.ministry.coordinator = viewer", "online only"), "exists ministries[.ministry, coordinator = viewer]"),
-        // One hop: probe the parent directly, no copy.
-        ("availability", availability("  ministry: ministries\n", ".volunteer = viewer or .ministry.coordinator = viewer", "online only"), "exists ministries[.ministry, coordinator = viewer]"),
+        // One hop on an online-only table compiles as that probe (LLP 3000.036 §14.3; see wave4_rule_language).
+        ("availability", availability("  ministry: ministries\n", ".volunteer = viewer or .ministry.coordinator = viewer", "online only"), ""),
         // A synced table copies the deciding principal (a column audience).
         ("availability", availability("", ".slot.ministry.coordinator = viewer", "sync"), ".coordinator = viewer"),
         ("availability", availability("  ministry: ministries\n", ".ministry.coordinator = viewer", "sync"), ".coordinator = viewer"),
@@ -171,6 +171,7 @@ fn every_read_hop_rewrite_compiles_as_printed() {
         ("availability", availability("", ".slot.ministry.coordinator = 'service:audit'", "online only"), "coordinator = 'service:audit'"),
     ];
     for (table, source, expected) in cases {
+        if expected.is_empty() { clean(&source); continue; }
         let d = first(&source, "E_QUARRY_RULE_HOP");
         assert!(d.rewrite.contains(expected), "{source}\n{d}");
         assert_not_identical(&source, &d);
@@ -518,7 +519,7 @@ fn a_two_party_list_prints_the_authors_query_once_per_party_and_it_compiles() {
         let source = format!("{table}{query}");
         let b = bound(&source);
         let n = b.notes.iter().find(|n| n.code == "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
-        let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1;
+        let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1.split("\n\n").next().unwrap();
         assert!(declarations.contains("query mineAsOwner(") && declarations.contains("query mineAsAssignee("), "{n}");
         let repaired = format!("{table}{declarations}\n");
         let b = clean(&repaired);

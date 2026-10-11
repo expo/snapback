@@ -1235,6 +1235,21 @@ impl Parser {
     fn parse_require(&mut self) -> Fallible<Stmt> {
         let site = self.take("require")?.site;
         let condition = self.expression(0, &["else"])?;
+        // @ref LLP 3000.036#14.5 — `require url like 'https://%' else BAD_URL` (wave 4 #20): name the
+        // operator Quarry lacks, not a missing code the author already wrote.
+        // `url like 'x'` parses as the shape use `url like`, then a string.
+        let pattern = match &condition {
+            Expr::ShapeUse { base, name, site } if TEXT_PATTERN_WORDS.contains(&name.to_ascii_lowercase().as_str()) => Some((name.clone(), print::expression(base), site.clone())),
+            _ => {
+                let next = self.peek();
+                (next.kind == Kind::Word && TEXT_PATTERN_WORDS.contains(&next.value.to_ascii_lowercase().as_str()))
+                    .then(|| (next.value.clone(), print::expression(&condition), next.site.clone()))
+            }
+        };
+        if let Some((word, operand, at)) = pattern {
+            return Err(syntax_with(&at, format!("Quarry has no `{word}` operator; `{operand} {word} …` is not a condition"),
+                format!("compare whole text with `=` or `!=`; bound its length in the type (`{operand}: text 3..80`); declare a link `text <=200 format url` (http or https; anything else refuses E_INPUT before the program runs) or a handle `format handle`; or check the pattern in the client")).guide("types"));
+        }
         if !self.at("else") {
             return Err(syntax_with(&site, "require needs a refusal code: require <condition> else CODE", format!("require {} else NOT_ALLOWED", print::expression(&condition))));
         }
@@ -1405,6 +1420,9 @@ impl Parser {
 }
 
 /// `system` is never a rule word: the system principal consults no rules.
+/// Text-pattern words from SQL and other languages that Quarry does not have.
+const TEXT_PATTERN_WORDS: &[&str] = &["like", "ilike", "starts", "startswith", "starts_with", "ends", "endswith", "ends_with", "contains", "matches", "regexp", "glob", "similar"];
+
 fn current_rule(expr: &Expr) -> Fallible<()> {
     match expr {
         Expr::Name { name, site } if name == "system" => Err(unsupported(site, "the system principal in a rule", "deny")),

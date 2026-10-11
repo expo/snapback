@@ -96,7 +96,8 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             } else if ordered_columns(query_index, scan.prefix.len()) != columns {
                 format!("the order differs: the page reads by {query_order}, the window by {window_order}; write `last {take} by {window_order}`")
             } else if scan.order != ir::Order::Desc {
-                format!("only the direction differs: the page reads oldest first; write `last {take} by {query_order}` (newest first, as the window keeps)")
+                // @ref LLP 3000.036#14.4 — a direction is a product choice (a deadline list reads oldest first), not a defect.
+                format!("only the direction differs, which is a product choice: the page reads oldest first and the window keeps the newest {}. If oldest first is the order you want, no action — the read goes to the server when the device cannot prove it; to answer it offline, write `last {take} by {query_order}` and reverse it in the client", window.last)
             } else {
                 format!("only the index differs: the page reads {} and the window {} (same columns, different declarations); name one index for both (check --verbose)", bracket(query_index), bracket(index))
             };

@@ -113,9 +113,11 @@ rule clause and its line, the `unique` or `cap` clause a hidden row filled, or t
 
 A lookup is a read. `p = pets[pet] ! else NOT_FOUND` sees only rows the viewer's read rule admits,
 so for another owner's row the lookup refuses `NOT_FOUND`, and a later
-`require p.owner = viewer else NOT_YOURS` never runs. Likewise a `unique` or `cap` group holding a
-row the viewer cannot read refuses `E_RULE`, not your `else CODE`, since your code would disclose that
-row. Write the case for what the viewer actually gets:
+`require p.owner = viewer else NOT_YOURS` never runs. Likewise a `unique` key held by a row the
+viewer cannot read refuses `E_RULE`, not your `else CODE`, since your code would disclose that row. A
+full `cap` counts every row, readable or not, and refuses `E_CONSTRAINT` naming only the cap (on a
+table with a `sequence`, a hidden occupant refuses `E_RULE` first). Write the case for what the viewer
+actually gets:
 
 ```jsonl
 {"as":"bob","op":"withdraw","args":{"pet":"pet-alice"},"expect":"NOT_FOUND","label":"alice's pet is invisible to bob"}

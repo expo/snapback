@@ -17,7 +17,9 @@ pub(super) fn authored(catalog: &Catalog, diagnostics: &mut [Diagnostic]) {
             if !diagnostic.message.contains(name) && !diagnostic.rewrite.contains(name) { continue; }
             let qualified = |table: &TableInfo| format!("{}.{}", table.decl.name, name);
             let by = |table: &TableInfo| format!("{} by {name}", table.decl.name);
-            let selected = candidates.iter().find(|(table, _)| diagnostic.message.contains(&qualified(table)) || diagnostic.message.contains(&by(table)))
+            // N_NEVER_COMPLETE spells its page `table[..] by name`.
+            let page = |table: &TableInfo| format!("{}[..] by {name}", table.decl.name);
+            let selected = candidates.iter().find(|(table, _)| diagnostic.message.contains(&qualified(table)) || diagnostic.message.contains(&by(table)) || diagnostic.message.contains(&page(table)))
                 .or_else(|| candidates.iter().find(|(_, index)| index.site == diagnostic.site));
             let description = selected.map(|(table, index)| label(table, index)).unwrap_or_else(|| candidates.iter().map(|(table, index)| label(table, index)).collect::<Vec<_>>().join(" or "));
             if diagnostic.rewrite.contains(name) { diagnostic.mechanical = false; }
@@ -25,7 +27,7 @@ pub(super) fn authored(catalog: &Catalog, diagnostics: &mut [Diagnostic]) {
             // diagnostic refers to identical definitions on several tables.
             for (table, index) in candidates {
                 let target = label(table, index);
-                diagnostic.message = diagnostic.message.replace(&qualified(table), &target).replace(&by(table), &target);
+                diagnostic.message = diagnostic.message.replace(&page(table), &format!("{}[..] by {target}", table.decl.name)).replace(&qualified(table), &target).replace(&by(table), &target);
                 diagnostic.rewrite = diagnostic.rewrite.replace(&qualified(table), &target);
             }
             diagnostic.message = diagnostic.message.replace(name, &description);

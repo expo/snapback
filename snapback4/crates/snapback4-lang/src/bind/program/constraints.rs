@@ -65,7 +65,11 @@ impl BoundProgram {
             format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused. A point read of a full unique key (`exists {name}[…]`) is not refused, but it too sees only readable rows",
                 self.program.name, scan.table, table.rules.read.quarry(), scan.table),
             format!("use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() { String::new() } else {
-                format!("For a count or capacity, keep a count whose read rule covers the writers (it discloses only the count): `view {name}Count: count {name} by {group}` with `read <- allow`, then `require {name}Count[{key}] < limit else FULL` (guide indexes, \"Private lists\"). ")
+                // @ref LLP 3000.036#14.6 — wave 4 #15: the count view and the author's own capacity check, as code.
+                let check = capacity_require(&self.program.body, site).map_or_else(|| format!("require {name}Count[{key}] < limit else FULL"),
+                    |(op, bound, code)| format!("require {name}Count[{key}] {op} {bound} else {code}"));
+                let by = pins.iter().map(|(column, _)| format!(".{column}")).collect::<Vec<_>>().join(", ");
+                format!("For a count or capacity, keep a count whose read rule covers the writers (it discloses only the count per {group}, never who): `view {name}Count: count {name} by {by}` with `read <- allow`, then in `{}` `{check}` before the insert; the insert itself keeps the count current (guide indexes, \"Private lists\"). ", self.program.name)
             }))
             .guide("writes"))
     }
@@ -88,5 +92,32 @@ fn capped_scope_decides(schema: &Schema, scan: &Scan) -> bool {
         let mut candidate = pinned.clone();
         for column in group { candidate.entry(column.clone()).or_insert_with(|| ir::var("$constraint_scope")); }
         rules::prefix_visibility(&scan.table, table, &table.rules.read, &candidate.iter().collect()).uniform
+    })
+}
+
+/// The `require count(page) OP bound else CODE` that consumes the refused
+/// page, with `bound` printed when it is a local, a field of one, or a literal.
+fn capacity_require(body: &[ir::Stmt], site: &str) -> Option<(&'static str, String, String)> {
+    fn print(expr: &Expr) -> Option<String> {
+        match expr {
+            Expr::Variable(name) if !name.starts_with('$') => Some(name.clone()),
+            // A local is renamed `$s2` for `s`; compiler temporaries are not locals.
+            Expr::Variable(name) => {
+                let local = name.strip_prefix('$')?.trim_end_matches(|c: char| c.is_ascii_digit());
+                (!local.is_empty() && !["present", "probe", "bool", "row", "tmp", "pureCall"].contains(&local)).then(|| local.to_owned())
+            }
+            Expr::Field { base, name } => Some(format!("{}.{name}", print(base)?)),
+            Expr::Literal(Value::Int(n)) => Some(n.to_string()),
+            _ => None,
+        }
+    }
+    let counts = |expr: &Expr| matches!(expr, Expr::Builtin { builtin: ir::Builtin::Count | ir::Builtin::CountCapped, args } if matches!(args.as_slice(), [Expr::Scan(scan)] if scan.site == site));
+    body.iter().find_map(|statement| match statement {
+        ir::Stmt::Require { condition: Expr::Binary { op, left, right }, code, .. } if counts(left) => {
+            let op = match op { ir::BinaryOp::Lt => "<", ir::BinaryOp::Lte => "<=", _ => return None };
+            Some((op, print(right)?, code.clone()))
+        }
+        ir::Stmt::If { then_body, else_body, .. } => capacity_require(then_body, site).or_else(|| capacity_require(else_body, site)),
+        _ => None,
     })
 }

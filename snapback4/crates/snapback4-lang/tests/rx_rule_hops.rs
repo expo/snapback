@@ -69,13 +69,15 @@ fn refusals_explain_private_maintained_ephemeral_and_read_positions() {
     // @ref LLP 3000.036#11 — a read rule's repair is table-rule syntax (copy the
     // immutable deciding value, check it at insert, probe one hop), never a
     // mutation `require`, which would not guard reads.
+    // LLP 3000.036 §12: one hop on a table that does not sync probes the parent directly;
+    // §14.3: the hop itself now compiles as exactly that probe.
     let b = compile(&[("schema.q".into(),format!("{}  read <- .message.owner = viewer\n",TABLES.trim_end_matches("  public\n")))]);
-    let d = b.diagnostics.iter().find(|d| d.code=="E_QUARRY_RULE_HOP").expect(&format!("{:?}",b.diagnostics));
-    assert!(d.message.contains("read through"),"{d:?}");
-    // LLP 3000.036 §12: one hop on a table that does not sync probes the parent directly.
-    assert!(d.rewrite.contains("read through .message") && d.rewrite.contains("read <- exists messages[.message, owner = viewer]") && !d.rewrite.contains("require "),"{d:?}");
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let repaired = compile(&[("schema.q".into(),format!("{}  read <- exists messages[.message, owner = viewer]\n",TABLES.trim_end_matches("  public\n")))]);
     assert!(repaired.diagnostics.is_empty(), "{:?}", repaired.diagnostics);
+    for table in b.schema.tables.keys() {
+        assert_eq!(b.schema.tables[table].rules.read, repaired.schema.tables[table].rules.read, "{table}");
+    }
 }
 
 #[test]

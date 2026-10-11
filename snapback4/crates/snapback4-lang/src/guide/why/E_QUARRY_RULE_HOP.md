@@ -14,7 +14,9 @@ all parents and authority witnesses; missing coverage withholds prediction.
 
 Final `after insert` keys resolve these hops at transaction end. A missing or
 hidden parent rolls back the mutation. Read rules still inherit their whole
-parent's authority with `read through .message`, including its lifetime.
+parent's authority with `read through .message`, including its lifetime; on a
+table that does not sync, a one-hop equality in a read rule is the probe of
+that row (`.goal.owner = viewer` is `exists goals[.goal, owner = viewer]`).
 Private fields, maintained values, ephemeral targets and chains beyond three hops
 refuse. The located diagnostic supplies a mutation check using the actual
 names: bind each parent with `! else FORBIDDEN`, then `require` the predicate

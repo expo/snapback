@@ -11,6 +11,10 @@ pub(super) struct Requests {
     indexes: BTreeMap<(String, String), IndexDecl>,
     errors: Vec<Diagnostic>,
     contexts: super::intent_aggregates::Contexts,
+    /// Reads that are a merge's lanes (or planned as one): their order is
+    /// the merge's shared order, so an equality on it stays a seek.
+    merged: std::collections::BTreeSet<String>,
+    lane: bool,
 }
 
 // @ref LLP 3000.013#2.1 — intrinsic id resolves every table-local tie.
@@ -113,6 +117,17 @@ impl Requests {
             split(*predicate, &mut conjuncts);
             for predicate in conjuncts {
                 if let Some((column, value)) = equality(&predicate, table) {
+                    // @ref LLP 3000.036#14.1 — a page that pins its first order column
+                    // (`where .tester = viewer … by .tester`) reads that prefix: its rule is
+                    // decided by the pin, as `by .id` already was. A merge lane or an
+                    // extremum keeps the seek, so every lane shares one order; so does a view
+                    // (a ranking pinned by its value is refused as it was).
+                    let site = read.site.to_string();
+                    let own_order = !self.lane && table.maintained.is_none() && !self.merged.contains(&site) && !self.contexts.extrema.contains_key(&site);
+                    if own_order && read.order_keys.first() == Some(&column) && column != "id" && read.matching.is_none() && !pins.contains_key(&column) {
+                        pins.insert(column.clone(), KeyPart { column: Some(column), value, site: predicate.site().clone() });
+                        continue;
+                    }
                     // Keep the full ordered suffix in every projected branch,
                     // even when the predicate fixes one of its order fields.
                     if read.order_keys.contains(&column) || column == "id" {
@@ -200,7 +215,16 @@ impl Requests {
             self.errors.push(crate::diag::ambiguous(&read.site, format!("{} has several declared indexes covering this predicate read", read.table),
                 format!("choose `by {}` explicitly or keep one definition", candidates[0].name)));
         }
-        read.index = Some(if let Some(index) = selected.or(extremum_index).or_else(|| candidates.first().copied()) { index.name.clone() }
+        // @ref LLP 3000.036#14.4 — a total unique key and the window's `[key, id]` order the rows
+        // identically (`unique week` under `sync … last 100 by .week`). When planning already
+        // requested that exact index (the sync window), read it, so a device can prove the page.
+        let twin = (selected.is_none() && extremum_index.is_none() && candidates.iter().all(|index| index.columns != columns)
+            && candidates.iter().all(|index| index.unique && table.total_unique(index)))
+            .then(|| self.indexes.iter().find(|((name, _), index)| name == &table.decl.name && index.columns == columns
+                && index.words == words && computed_descriptor(table, &index.computed) == computed).map(|((_, token), _)| token.clone()))
+            .flatten();
+        read.index = Some(if let Some(token) = twin { token }
+            else if let Some(index) = selected.or(extremum_index).or_else(|| candidates.first().copied()) { index.name.clone() }
             else { self.index_computed(table, columns, words, read.computed.clone(), &read.site, true) });
     }
     // @ref LLP 3000.028#3.2 — an explicit index has the same coverage as
@@ -251,7 +275,15 @@ impl Requests {
 pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let contexts = super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
-    let mut requests = Requests { contexts, ..Default::default() };
+    // Reads already inside a merge (a union view's branches) are its lanes.
+    let mut merged = std::collections::BTreeSet::new();
+    for doc in &mut catalog.documents {
+        walk::document(doc, &mut |value| if let Expr::Merge(_) = value {
+            let mut copy = value.clone();
+            walk::expression(&mut copy, &mut |inner| if let Expr::Read(read) = inner { merged.insert(read.site.to_string()); });
+        });
+    }
+    let mut requests = Requests { contexts, merged, ..Default::default() };
     // Resolve against declared provenance before requests add any access index.
     let mut audiences: BTreeMap<_, _> = tables.iter().filter(|(_, table)| table.decl.sync.is_some())
         .map(|(name, table)| (name.clone(), super::intent_sync::need(table, catalog))).collect();
@@ -331,6 +363,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                 && !requests.contexts.domains.contains(&read.site.to_string())
                 && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
                 let mut candidate = requests.clone();
+                candidate.lane = true;
                 for lane in &mut merge.lanes {
                     if let Some(read) = &mut lane.planned { candidate.read(&tables, read, false); }
                     if let Some((column, read)) = &mut lane.nulls {
@@ -348,6 +381,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     }); }
                 }
                 if super::intent_lanes::prefixes_decide_rules(&tables, &merge) {
+                    candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }

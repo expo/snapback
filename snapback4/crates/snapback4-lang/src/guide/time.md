@@ -71,6 +71,12 @@ mutation checkIn():
   and in range filters (`.at >= day(now) * 1d` is "since midnight UTC").
 - A `time` column accepts any integer, so storing `day(now)` there type-checks and reads as January 1970.
   Store `day(now) * 1d`, or keep the day number in an `int` column.
+- There is no `month(t)` or `year(t)`: a calendar month has no fixed length, and `bucket(t, 30d)` is
+  not one. Keep the month the client computes in an `int` column (`202610`, from
+  `d.getUTCFullYear() * 100 + d.getUTCMonth() + 1`) and key or group by it (`unique person, month`,
+  `view … by .person, .month`). For a range, pass the month's first instant and the next month's as
+  `time` arguments (`.at >= start and .at < end`). When the key must match the clock, check the bounds
+  you were given: `require start <= now and now < end and end - start <= 31d else BAD_MONTH`.
 
 ## Schedules and expiry
 

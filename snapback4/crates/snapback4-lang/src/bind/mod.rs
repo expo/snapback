@@ -287,9 +287,47 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             "API name receiptFamilies collides with the generated receipt-family namespace",
             "rename the operation or module receiptFamilies").guide("receipts"));
     }
+    internal_names(&mut diagnostics);
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
     Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
+}
+
+/// A read-through child binds its parent's rule over hidden captures
+/// (`.$enrollment.dancer`); those names never parse. A problem that spells one
+/// and, read through the parent (`.dancer`), repeats another problem is the
+/// parent's refusal again: it is dropped. Otherwise the capture reads as the
+/// reference it copies (`.enrollment.dancer`).
+// @ref LLP 3000.036#14.3 — wave 4 #8 (064 080): never print `$`-prefixed internals in a problem.
+fn internal_names(diagnostics: &mut Vec<Diagnostic>) {
+    let internal = |d: &Diagnostic| capture_spelling(&d.message).is_some() || capture_spelling(&d.rewrite).is_some();
+    let through_parent = |text: &str| {
+        let mut text = text.to_owned();
+        while let Some(at) = capture_spelling(&text) {
+            let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
+            text.replace_range(at..at + name + 2, "");
+        }
+        text
+    };
+    let plain: Vec<(String, String)> = diagnostics.iter().filter(|d| !internal(d)).map(|d| (d.code.clone(), d.message.clone())).collect();
+    diagnostics.retain(|d| !internal(d) || !plain.contains(&(d.code.clone(), through_parent(&d.message))));
+    for d in diagnostics.iter_mut().filter(|d| internal(d)) {
+        while let Some(at) = capture_spelling(&d.message) { d.message.remove(at); }
+        while let Some(at) = capture_spelling(&d.rewrite) { d.rewrite.remove(at); }
+        d.mechanical = false;
+    }
+    // The child's copy of the parent's refusal, reported at the parent's own site.
+    let own: Vec<(crate::Site, String)> = diagnostics.iter().filter(|d| d.cascade_of.as_ref() != Some(&d.site)).map(|d| (d.site.clone(), d.code.clone())).collect();
+    diagnostics.retain(|d| d.cascade_of.as_ref() != Some(&d.site) || !own.contains(&(d.site.clone(), d.code.clone())));
+}
+
+/// The byte offset of the `$` in a captured-parent spelling `.$reference.field`.
+fn capture_spelling(text: &str) -> Option<usize> {
+    let bytes = text.as_bytes();
+    (1..bytes.len()).find(|&at| bytes[at] == b'$' && bytes[at - 1] == b'.' && {
+        let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
+        name > 0 && bytes.get(at + 1 + name) == Some(&b'.')
+    })
 }
 
 fn operation_name(module: &str, name: &str) -> String {
@@ -591,18 +629,28 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         let grant = snapback4_core::engine::rules::grant_decision(schema, scan);
                         // @ref LLP 3000.036#13.2 — the one line says what a test and a client do with the verdict, and where the complete form is.
                         let parties = table.rules.read.disjuncts().iter().filter(|d| matches!(d, snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Field(c), snapback4_core::schema::RuleTerm::Viewer) | snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Viewer, snapback4_core::schema::RuleTerm::Field(c)) if unpinned.contains(c))).count();
-                        let complete_form = if parties >= 2 { "one query per party" } else { "the pin" };
+                        // @ref LLP 3000.036#14.1 — a disjunct the pins decide is not a grant: say so, so a guard on it is not read as a proof.
+                        let decided = if grant.is_none() { pin_rewrite::prefix_decided(scan, table, &pinned) } else { Vec::new() };
+                        let decided_clause = decided.first().map_or_else(String::new, |d| format!("; `{}` is decided by the scan's pins, but the server decides a page only from a disjunct that reads no column of the row, so the page is `complete: false` for its holders too, whatever `require` or `if` guards it", d.quarry()));
+                        let complete_form = if parties >= 2 { "one query per party" } else if grant.is_some() && parties == 1 { "`if` on the grant, pinning the owner otherwise" } else if !decided.is_empty() { "a copy of the deciding principal on the row" } else { "the pin" };
                         let treatment = if search_rewrite.is_some() { String::new() } else { match &grant {
                             Some(grant) => format!("; test.cases.jsonl: run it as a caller `{}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form for everyone is {complete_form} (check --verbose)", grant.quarry()),
                             None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is {complete_form} (check --verbose)"),
                         } };
-                        format!("{} {}: {}the page over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index,
+                        format!("{} {}: {}the page over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index,
                         grant.as_ref().map_or_else(String::new, |grant| format!(" except for callers `{}` admits", grant.quarry())),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     held_rewrite.or(search_rewrite.clone()).unwrap_or_else(|| {
                         let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
-                        match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) { Some(pin) => format!("{base}. As code: {pin}"), None => base }
+                        let page = bound.sources.get(&scan.site).map(|(_, text)| text.as_str());
+                        let copy = (grant_free(schema, scan)).then(|| pin_rewrite::prefix_decided(scan, table, &pinned).iter().find_map(|d| pin_rewrite::copy_recipe(&scan.table, table, d, page))).flatten();
+                        let base = match copy { Some(copy) => format!("{copy}; otherwise {base}"), None => base };
+                        match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {
+                            Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}"),
+                            Some((None, pin)) => format!("{base}. As code: {pin}"),
+                            None => base,
+                        }
                     }),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),
@@ -610,6 +658,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         }
     }
     notes
+}
+
+fn grant_free(schema: &Schema, scan: &snapback4_core::ir::Scan) -> bool {
+    snapback4_core::engine::rules::grant_decision(schema, scan).is_none()
 }
 
 fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, table: &snapback4_core::schema::Table) -> Option<String> {
