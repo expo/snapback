@@ -51,7 +51,7 @@ mod tests {
 
     fn returned() -> Stmt { Stmt::Return(Expr::Literal(Value::Int(0))) }
     fn refused() -> Stmt {
-        Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "STOP".into(), site: None }
+        Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "STOP".into(), site: None, message: None }
     }
     fn maybe(body: Vec<Stmt>) -> Stmt {
         Stmt::If { condition: Expr::Variable("stop".into()), then_body: body, else_body: vec![] }

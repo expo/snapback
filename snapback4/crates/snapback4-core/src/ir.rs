@@ -119,7 +119,15 @@ pub enum Stmt {
     Push { target: String, value: Expr },
     If { condition: Expr, then_body: Vec<Stmt>, else_body: Vec<Stmt> },
     For { binding: String, domain: LoopDomain, body: Vec<Stmt> },
-    Require { condition: Expr, code: String, #[serde(default, skip_serializing_if = "Option::is_none")] site: Option<String> },
+    Require {
+        condition: Expr,
+        code: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        site: Option<String>,
+        /// The author's text for the refusal (`require … else CODE 'message'`); the code stays the contract.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
     /// A false predicate rolls the transaction back and re-reads `current`.
     Check { condition: Expr, current: Read },
     /// A unique clash yields absence, never the conflicting row.

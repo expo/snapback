@@ -318,7 +318,7 @@ impl Runner<'_> {
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, table)?;
         let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
-            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
+            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned(), message: None });
         };
         if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
             self.refusing_clause(table_name, "read rule");

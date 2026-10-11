@@ -240,7 +240,7 @@ fn device_refuses_job_builtins_before_evaluating_their_arguments() {
         let query = b.programs.iter_mut().find(|p| p.program.name == "ordinary").unwrap();
         let builtin = match all { None => Builtin::JobAs, Some(all) => Builtin::JobQuery { program: Box::new(query.program.clone()), cursor: None, all } };
         query.program.body = vec![Stmt::Return(Expr::Builtin { builtin, args: vec![Expr::Block {
-            body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "ARGUMENT_EXECUTED".into(), site: None }],
+            body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "ARGUMENT_EXECUTED".into(), site: None, message: None }],
             value: Box::new(Expr::Literal(Value::Null)),
         }; if all.is_none() { 2 } else { 1 }] })];
         if loop_domain {

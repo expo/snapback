@@ -1164,8 +1164,10 @@ impl Parser {
         }
         self.take("else")?;
         let code = self.word()?.value;
+        // @ref LLP 3000.036#11 — the same optional message `unique … else CODE 'message'` takes.
+        let message = if self.at_kind(Kind::Str) { Some(self.take_kind(Kind::Str)?.value) } else { None };
         self.newline()?;
-        Ok(Stmt::Require { condition, code, site })
+        Ok(Stmt::Require { condition, code, message, site })
     }
 
     fn tuple_binding_ahead(&self) -> bool {

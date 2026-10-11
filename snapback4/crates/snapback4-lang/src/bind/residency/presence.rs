@@ -128,7 +128,7 @@ impl Flow<'_> {
                         if *env == before { break; }
                     }
                 }
-                Stmt::Require { condition, code, site: location } => {
+                Stmt::Require { condition, code, site: location, .. } => {
                     self.sink(condition, env, control, &format!("a require {code}"), location.as_deref().unwrap_or(&site));
                 }
                 Stmt::Check { condition, current } => {

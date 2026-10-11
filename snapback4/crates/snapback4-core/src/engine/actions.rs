@@ -126,7 +126,7 @@ pub fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
     }
     if program.kind != ProgramKind::Action { return Err(unknown()); }
     let allowed = match program.body.as_slice() { [Stmt::Require { condition, .. }] => value(condition, viewer) == Some(Value::Bool(true)), _ => false };
-    if !allowed { return Err(RuntimeError::Require { code: "E_RULE".into(), site: Some(format!("actions.{}", program.name)) }); }
+    if !allowed { return Err(RuntimeError::Require { code: "E_RULE".into(), site: Some(format!("actions.{}", program.name)), message: None }); }
     Ok(())
 }
 

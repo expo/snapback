@@ -546,9 +546,9 @@ impl<'a> Runner<'a> {
                     }
                     result
                 }
-                Stmt::Require { condition, code, site: authored } => {
+                Stmt::Require { condition, code, site: authored, message } => {
                     if !self.expr(condition)?.as_bool()? {
-                        return Err(RuntimeError::Require { code: code.clone(), site: authored.clone().or(Some(site)) });
+                        return Err(RuntimeError::Require { code: code.clone(), site: authored.clone().or(Some(site)), message: message.clone() });
                     }
                     Flow::Next
                 }

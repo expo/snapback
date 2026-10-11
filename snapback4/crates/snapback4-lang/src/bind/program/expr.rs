@@ -208,12 +208,12 @@ impl Binder<'_> {
                 self.exists_read(read, out)
             }
             A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
-            A::Assert { value, code, .. } => {
+            A::Assert { value, code, message, .. } => {
                 validate_code(site, code)?;
                 let (e, t) = self.expr(value, out)?;
                 let tmp = self.temp("present");
                 out.push(Stmt::Let { name: tmp.clone(), value: e });
-                out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()) });
+                out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()), message: message.clone() });
                 Ok((ir::var(&tmp), t.required()))
             }
             A::Shape { base, fields, .. } => self.shape(base, fields, site, out),

@@ -928,7 +928,7 @@ mod adapter {
 
     #[test]
     fn refusal_state_mapping_preserves_application_rejection_and_engine_refusal() {
-        let application = snapback4_core::RuntimeError::Require { code: "MISSING".into(), site: None }.refusal();
+        let application = snapback4_core::RuntimeError::Require { code: "MISSING".into(), site: None, message: None }.refusal();
         assert_eq!(refused(application.clone(), false).state, LocalState::Denied);
         assert_eq!(refused(application, true).state, LocalState::Rejected);
         let engine = snapback4_core::RuntimeError::Constraint("full".into()).refusal();

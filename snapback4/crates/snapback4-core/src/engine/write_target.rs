@@ -87,7 +87,7 @@ impl Runner<'_> {
     }
 
     pub(in crate::engine) fn no_write_target(&self) -> RuntimeError {
-        RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".into() }
+        RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".into(), message: None }
     }
 
     // @ref LLP 3000.007#8 — item 7: an unheld write target without an absence proof queues.

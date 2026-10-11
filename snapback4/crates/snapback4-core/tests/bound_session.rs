@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 
 fn program() -> Program {
     Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
-        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
+        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None, message: None }] }
 }
 fn engine() -> Engine { Engine::memory(Schema::default(), [program()]).unwrap() }
 fn admit(engine: &mut Engine, id: &str, at: i64) {

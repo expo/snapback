@@ -42,7 +42,7 @@ impl RouteSpec {
         Program { name: format!("{ACTION_PREFIX}{name}"), kind: ProgramKind::Action,
             args: BTreeMap::from([("request".into(), ArgType::Json { max_bytes: ENVELOPE_BYTES })]),
             read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
-            body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "E_ROUTE_PRIVATE".into(), site: None }] }
+            body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "E_ROUTE_PRIVATE".into(), site: None, message: None }] }
     }
 
     pub fn action_spec(&self) -> ActionSpec { ActionSpec { returns: None, work: self.work.clone() } }

@@ -111,7 +111,7 @@ fn system_search_keeps_the_original_evaluator() {
     let mut engine = setup(2);
     let mut original = bound(SOURCE);
     original.programs.iter_mut().find(|p| p.program.name == "ordinary").unwrap().program.body.insert(0,
-        snapback4_core::ir::Stmt::Require { condition: snapback4_core::ir::Expr::Literal(Value::Bool(true)), code: "CONTROL".into(), site: None });
+        snapback4_core::ir::Stmt::Require { condition: snapback4_core::ir::Expr::Literal(Value::Bool(true)), code: "CONTROL".into(), site: None, message: None });
     let mut original = setup_bound(original, 2);
     let mut cursor = None;
     let mut count = 0;

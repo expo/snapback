@@ -300,7 +300,8 @@ impl Parser {
                     return Err(syntax_with(&assertion, "presence assertions require a refusal code", format!("{} ! else NOT_FOUND", print::expression(&value))));
                 }
                 let code = self.word()?.value;
-                value = Expr::Assert { value: Box::new(value), code, site: assertion };
+                let message = if self.at_kind(Kind::Str) { Some(self.take_kind(Kind::Str)?.value) } else { None };
+                value = Expr::Assert { value: Box::new(value), code, message, site: assertion };
             } else if self.at("{") {
                 let site = self.take("{")?.site;
                 let table = expression_table(&value).map(str::to_owned).unwrap_or_default();
