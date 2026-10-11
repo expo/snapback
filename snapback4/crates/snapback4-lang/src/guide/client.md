@@ -38,7 +38,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 `denied` always blocks. `existence(member) === "absent"` blocks only when fresh and non-revalidating. Stale absence queues; `loading`/`partial` never disable.
 
 `waitSeconds: 0` returns at custody; `inFlight` covers admission, ungated by acquisition after session readiness. Identity I/O: 15s excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Resumes FIFO; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
-Refusals: restore/Edit/Dismiss. Predictions: “Sending…”.
+Predictions: “Sending…”.
 Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite`: “Saving…” during submission, “Checking…” while `restoring`; afterward undefined means unknown. Never auto-resend. Dismiss after lookup. New attempts: new ids; replay omits historical results. Web/Expo starters journal this.
 
 `usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md); non-JS hosts: “The device reply”.
@@ -46,6 +46,7 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
 `matchRead` (no type arguments) requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)`: the read, for omitted loading/absent/present; denied/partial stay explicit. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
+Types: `RowOf`/`ResultOf`/`ArgsOf`. [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
 
 | Meaning | UI decision |
 | --- | --- |
@@ -74,7 +75,7 @@ Overlay: `useInspection(import.meta.env.DEV)` (`snapback4/react`; Expo: `useInsp
 `nativeDevice`/`webDevice()`; Expo Go online. Acquisition/Workers: `guide sync`.
 Every milestone: `npm run export:ios`; proof in the background: `witness status --wait`. Rebuild: `npm run native:smoke`. Acquisition/offline reopen/reconnect/write replay: `guide witness`.
 
-`readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`. Sign in or narrow again.
+`readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`. Sign in or re-narrow.
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions; separate retained history/live decorations.

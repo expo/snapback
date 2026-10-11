@@ -225,8 +225,15 @@ export type Signal<R = unknown> =
   | { readonly state: "sent"; readonly id: string; readonly result: R }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 export type Action<Args, Result = unknown> = Op<Args, Result> & { readonly kind: "action" };
+/** An operation's argument object: `ArgsOf<typeof api.send>`. */
 export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
+/** An operation's whole result: `ResultOf<typeof api.thread>` is the row array a
+ * page query returns, `ResultOf<typeof api.send>` a mutation's `result`. */
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
+/** One row of a query: a list or page query's element (a `usePage` item), or a
+ * point query's non-null row. `RowOf<typeof api.thread>` for a list item's props. */
+// @ref LLP 3000.013#6.3 — named row and result types instead of the private __result phantom.
+export type RowOf<O> = NonNullable<ResultOf<O>> extends readonly (infer E)[] ? E : NonNullable<ResultOf<O>>;
 
 /** Omitted and true: retain during plain revalidation without a timeout, marked
  * revalidating. Change evidence bounds both by one non-renewable second;
@@ -345,20 +352,29 @@ export interface Client {
   close(): Promise<void>;
 }
 
-export function isReady<T>(read: Read<T>): read is Extract<Read<T>, { data: T }> {
+// The guards are generic over the read itself, not its row type, so one guard
+// takes a union or an array of reads of different queries:
+// `[rooms.read, mine].find(isDenied)`, `reads.some(isLoading)`.
+// @ref LLP 3000.013#6.3 — guards accept mixed reads; narrowing keeps each read's arms.
+export function isReady<R extends Read<unknown>>(read: R): read is Extract<R, { readonly data: unknown }> {
   return "data" in read;
 }
-export function isLoading<T>(read: Read<T>): read is { readonly loading: true } {
+export function isLoading<R extends Read<unknown>>(read: R): read is Extract<R, { readonly loading: true }> {
   return "loading" in read;
 }
-export function isDenied<T>(read: Read<T>): read is { readonly denied: Refusal } {
+export function isDenied<R extends Read<unknown>>(read: R): read is Extract<R, { readonly denied: Refusal }> {
   return "denied" in read;
+}
+/** A failed write, signal or action outcome; accepts a hook's `last` (undefined
+ * before the first run), so `[add.last, remove.last].find(isFailed)?.why` types. */
+export function isFailed<W extends Write<unknown> | Signal<unknown> | Act<unknown> | null | undefined>(outcome: W): outcome is Extract<W, { readonly state: "failed" }> {
+  return outcome != null && "state" in outcome && outcome.state === "failed";
 }
 
 /** The five UI meanings; narrow on read.existence after isReady for typed data. */
-export function existence<T>(read: SettledRead<T>): "denied" | "present" | "absent" | "partial";
-export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial";
-export function existence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
+export function existence(read: SettledRead<unknown>): "denied" | "present" | "absent" | "partial";
+export function existence(read: Read<unknown>): "loading" | "denied" | "present" | "absent" | "partial";
+export function existence(read: Read<unknown>): "loading" | "denied" | "present" | "absent" | "partial" {
   return "loading" in read ? "loading" : "denied" in read ? "denied" : read.existence;
 }
 
@@ -426,7 +442,7 @@ export interface ReadPresentation {
  * or narrow read.data; use matchRead for typed rendering, or isReady/read.existence.
  * @ref LLP 3000.031#7 — a pure presentation adapter over the existing read contract.
  */
-export function readPresentation<T>(read: Read<T>): ReadPresentation {
+export function readPresentation(read: Read<unknown>): ReadPresentation {
   const state = existence(read);
   return {
     existence: state,

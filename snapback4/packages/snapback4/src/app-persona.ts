@@ -7,7 +7,7 @@
 // client, which refuses browser writes exactly as a bare createClient does.
 // @ref LLP 3000.013#6.1 — loopback is checked here for a clear refusal; dev's
 // socket/Host/Origin check and serve's refusal of the header remain the boundary.
-import type { App, AppOptions, AppResult, AuthSnapshot, AppAuth } from "./app.ts";
+import type { App, AppOptions, AppResult, AuthSnapshot, AppAuth, LiveAuth } from "./app.ts";
 import { onlineView, type Online } from "./app-online-arm.ts";
 import { createClient, mintId } from "./client.ts";
 import { defaultFetch } from "#fetch";
@@ -117,7 +117,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
   })();
   const refuseSignIn = (): Promise<SignIn> => Promise.resolve({ ok: false,
     why: personaOnly(`this app acts as development persona ${viewer}; it has no sign-in`) });
-  const auth: AppAuth = {
+  const live: LiveAuth = {
     get state() { return snapshot.state; },
     get viewer() { return snapshot.viewer; },
     get why() { return snapshot.why; },
@@ -135,6 +135,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     logoutEverywhere: (): Promise<SessionRevocation> => Promise.resolve({ ok: false,
       why: personaOnly(`development persona ${viewer} has no sessions to revoke`) }),
   };
+  const auth = live as AppAuth;
   let closing: Promise<void> | undefined;
   return {
     auth, ready,

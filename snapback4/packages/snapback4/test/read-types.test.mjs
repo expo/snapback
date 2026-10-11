@@ -297,3 +297,69 @@ function useBoth() {
 `);
   assert.deepEqual(result.codes, [], result.text);
 });
+// Wave-2 app farm lanes 038 040 056 064 069 081 084 092: the exact shapes that failed.
+test('guards take mixed reads and writes; op helpers name rows; React imports the App types; signed-in narrows the viewer', () => {
+  const result = check(`import { isDenied, isLoading, isReady, isFailed, existence, readPresentation, matchRead, useAuth, type Read, type Write, type ArgsOf, type ResultOf, type RowOf, type App, type AppOptions, type AuthSnapshot, type Cursor, type Principal, type Refusal } from './dist/react.js';
+import { createApp } from './dist/app.js';
+import type { Query, Mutation, Ephemeral, Act, Signal } from './dist/contract.js';
+import type { RowOf as ClientRowOf } from './dist/client.js';
+type Lot = { id: string; name: string };
+declare const api: { lots: Query<{ c?: Cursor | null }, Lot[]>; lot: Query<{ id: string }, Lot | null>; maybe: Query<{}, Lot[] | null>;
+  count: Query<{}, number>; add: Mutation<{ name: string }, string>; remove: Mutation<{ id: string }, null>; typing: Ephemeral<{}, null> };
+declare const clients: Read<Lot[]>, crew: Read<{ who: string } | null>, total: Read<number>;
+const reads = [clients, crew, total];
+const denied = reads.find(isDenied);
+if (denied) { const message: string = denied.denied.message; }
+const loading: boolean = reads.some(isLoading);
+for (const ready of reads.filter(isReady)) { const complete: boolean = ready.complete; const data: Lot[] | { who: string } | null | number = ready.data; }
+const shared: Read<unknown>[] = reads;
+shared.find(isDenied)?.denied.message;
+declare const mixed: Read<Lot[]> | Read<number>;
+if (isReady(mixed)) { const data: Lot[] | number = mixed.data; }
+else if (isDenied(mixed)) { const why: Refusal = mixed.denied; }
+else { const waiting: true = mixed.loading; }
+const state: 'loading' | 'denied' | 'present' | 'absent' | 'partial' = existence(mixed);
+readPresentation(mixed).incomplete;
+if (isReady(clients)) { const rows: Lot[] = clients.data; }
+else if (isLoading(clients)) { const waiting: true = clients.loading; }
+else { const why: string = clients.denied.message; }
+if (!isLoading(crew) && !isDenied(crew)) { const who: { who: string } | null = crew.data; }
+matchRead(clients, { denied: why => why.message, partial: rows => rows.length, otherwise: () => 0 });
+declare const added: Write<string> | undefined, removed: Write<null> | undefined, signal: Signal<null> | undefined, acted: Act<{ n: number }> | null;
+const failed = [added, removed, signal, acted].find(isFailed);
+if (failed) { const message: string = failed.why.message; const failedState: 'failed' = failed.state; }
+if (isFailed(added)) { const id: string = added.id; }
+else if (added?.state === 'sent' && !added.replayed) { const result: string = added.result; }
+// @ts-expect-error a read is not a write outcome
+isFailed(clients);
+const row: RowOf<typeof api.lots> = { id: 'a', name: 'n' };
+const point: RowOf<typeof api.lot> = row;
+const nullablePage: RowOf<typeof api.maybe> = row;
+const clientRow: ClientRowOf<typeof api.lots> = row;
+const all: ResultOf<typeof api.lots> = [row];
+const maybeOne: ResultOf<typeof api.lot> = null;
+const args: ArgsOf<typeof api.lot> = { id: 'a' };
+const count: ResultOf<typeof api.count> = 1;
+const id: ResultOf<typeof api.add> = 'id';
+const nothing: ResultOf<typeof api.typing> = null;
+// @ts-expect-error RowOf keeps the row's fields required
+const partialRow: RowOf<typeof api.lots> = { id: 'a' };
+// @ts-expect-error ArgsOf keeps argument names
+const wrongArgs: ArgsOf<typeof api.add> = { title: 'x' };
+const options: AppOptions = { url: 'http://127.0.0.1:4400', persona: 'alice' };
+const app: App = createApp(options);
+const snapshot: AuthSnapshot = app.auth.getSnapshot();
+if (snapshot.state === 'signed-in') { const who: Principal = snapshot.viewer; }
+else { const none: null = snapshot.viewer; }
+if (app.auth.state === 'signed-in') { const who: string = app.auth.viewer; }
+// @ts-expect-error outside signed-in there is no viewer
+if (app.auth.state === 'restoring') { const who: string = app.auth.viewer; }
+function Account() {
+  const auth = useAuth();
+  if (auth.state !== 'signed-in') return auth.why?.message ?? null;
+  const who: Principal = auth.viewer;
+  return who;
+}
+`);
+  assert.deepEqual(result.codes, [], result.text);
+});

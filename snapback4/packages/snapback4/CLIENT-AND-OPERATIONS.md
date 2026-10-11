@@ -1483,11 +1483,11 @@ a promise; an effect cleanup must return nothing, so write `() => { void client.
 `snapback4/react`, and `Client` also from `snapback4/client`.
 
 ```tsx
-import { isDenied, isLoading, isReady, matchRead, useMutation, useQuery, type UseMutation, type Write } from "snapback4/react";
+import { isDenied, isFailed, isLoading, isReady, matchRead, useMutation, useQuery, type RowOf, type UseMutation, type Write } from "snapback4/react";
 import { createClient, type Client } from "snapback4/client";
 import { useEffect, useState } from "react";
 import { api } from "../snapback/generated/api";
-type Message = { id: string; body: string | null };
+type Message = RowOf<typeof api.thread>;
 function Bodies({ rows }: { rows: readonly Message[] }) { return <ul>{rows.map(row => <li key={row.id}>{row.body}</li>)}</ul>; }
 export function Thread({ conversationId }: { conversationId: string }) {
   const read = useQuery(api.thread, { conversationId });
@@ -1495,13 +1495,26 @@ export function Thread({ conversationId }: { conversationId: string }) {
   return <>{matchRead(read, {
     denied: why => <p role="alert">{why.message}</p>,
     partial: rows => <><Bodies rows={rows} /><p>Results may be incomplete</p></>,
+Name an operation's types from the generated `api`, never from its private `__result` field:
+`RowOf<typeof api.thread>` is one row of a list or page query (a `usePage` item) or a point
+query's non-null row, `ResultOf<typeof api.thread>` the whole result (the row array; for a
+mutation, its `result`), and `ArgsOf<typeof api.send>` the argument object. `Rows["messages"]`
+in the generated module is a table's row; a projected query's rows are not table rows and carry
+no `id` unless the projection names one. `isReady`, `isLoading` and `isDenied` take any read,
+so one guard covers reads of different queries: `[thread, me].find(isDenied)` or
+`reads.some(isLoading)` types without annotating `Read<unknown>[]`. `isFailed` does the same for
+outcomes, including a hook's `last` (undefined before the first run). `App`, `AppOptions` and
+`AuthSnapshot` are also exported here for components that take the app; `createApp` itself
+imports from `snapback4/app`. After `auth.state === "signed-in"`, `auth.viewer` is a
+`Principal`, never null.
+
     present: rows => <Bodies rows={rows} />,
     otherwise: read => isReady(read) ? <p>No messages yet</p> : <p>Loading…</p>,
   })}<Composer conversationId={conversationId} send={send} /></>;
 }
 function Composer({ conversationId, send }: { conversationId: string; send: UseMutation<typeof api.send> }) {
   const [note, setNote] = useState("");
-  const settle = (write: Write<{ id: string }>) => setNote(write.state === "failed" ? write.why.message
+  const settle = (write: Write<{ id: string }>) => setNote(isFailed(write) ? write.why.message
     : write.state === "pending" ? "Sending…" : write.replayed ? "Already sent" : `Sent ${write.result.id}`);
   return <><button onClick={() => void send.run({ conversationId, body: "hi" }).then(settle)}>Send</button>{note}</>;
 }
@@ -1524,6 +1537,15 @@ export function useOwnClient(url: string, persona: string): Client | null {
 
 #### Personas in a React UI
 
+export function Notices({ conversationId }: { conversationId: string }) {
+  const thread = useQuery(api.thread, { conversationId }), me = useQuery(api.myProfile, {});
+  const send = useMutation(api.send), like = useMutation(api.setLike);
+  const reads = [thread, me];
+  const denied = reads.find(isDenied), failed = [send.last, like.last].find(isFailed);
+  return <>{denied && <p role="alert">{denied.denied.message}</p>}
+    {reads.some(isLoading) && <p>Loading…</p>}
+    {failed && <p role="alert">Not saved: {failed.why.message}</p>}</>;
+}
 A development UI can act as a declared persona (`use personas alice, bob`) behind the same
 `AppProvider`, `useAuth` and `app.mutate` it uses for accounts: `createApp({ url, persona: "bob",
 device })` acts as `dev:bob` with no session. `app.auth.state` goes `restoring` → `signed-in`;

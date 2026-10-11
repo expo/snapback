@@ -21,7 +21,7 @@ import { personaApp } from "./app-persona.ts";
 import { ownOnline, onlineView, type Online } from "./app-online-arm.ts";
 import { armRefusal, requestArm } from "./online-arm-fence.ts";
 export type { Online } from "./app-online-arm.ts";
-export type { Client, Principal, Refusal, Write, Read } from "./contract.ts";
+export type { Client, Principal, Refusal, Write, Read, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 import { sessionRevocations } from "./app-revocations.ts";
 import { mergeFences, type SessionOrigin } from "./app-global.ts";
 import { signup, login, guest, keepSession, restoreSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
@@ -29,12 +29,18 @@ import type { Client, Principal, Refusal, Session, SessionRevocation, SignIn } f
 
 export type AuthState = "restoring" | "signed-out" | "signed-in";
 export type AppResult = { readonly ok: true } | { readonly ok: false; readonly why: Refusal };
-export interface AuthSnapshot {
-  readonly state: AuthState;
-  readonly viewer: Principal | null;
-  readonly why?: Refusal | undefined;
-}
-export interface AppAuth extends AuthSnapshot {
+/** Signed in has a viewer; restoring and signed out have none, so
+ * `auth.state === "signed-in"` narrows `auth.viewer` to `Principal`. A signed-in
+ * `why` is a warning (a failed save or replacement) beside the live account. */
+// @ref LLP 3000.013#6.3 — the snapshot is a discriminated union; publishers keep state and viewer together.
+export type AuthSnapshot =
+  | { readonly state: "signed-in"; readonly viewer: Principal; readonly why?: Refusal | undefined }
+  | { readonly state: "restoring" | "signed-out"; readonly viewer: null; readonly why?: Refusal | undefined };
+export type AppAuth = AuthSnapshot & AppAuthMethods;
+/** The live auth object as its implementations build it: getters over the
+ * current snapshot, which every publisher keeps discriminated. */
+export type LiveAuth = { readonly state: AuthState; readonly viewer: Principal | null; readonly why?: Refusal | undefined } & AppAuthMethods;
+export interface AppAuthMethods {
   signup(email: string, password: string): Promise<SignIn>;
   login(email: string, password: string): Promise<SignIn>;
   guest(): Promise<SignIn>;
@@ -258,7 +264,8 @@ export function createApp(options: AppOptions): App {
   let cancelSignIn: (() => void) | undefined;
   let recoveryAbort: AbortController | undefined;
   const publish = (state: AuthState, viewer: Principal | null, why?: Refusal) => {
-    snapshot = { state, viewer, ...(why ? { why } : {}) };
+    // Every signed-in publication passes the opened client's viewer.
+    snapshot = { state, viewer, ...(why ? { why } : {}) } as AuthSnapshot;
     notifyOnline();
     for (const listener of listeners) { try { listener(); } catch (error) { console.error("snapback4 auth listener:", error); } }
   };
@@ -742,7 +749,7 @@ export function createApp(options: AppOptions): App {
       }
     });
   };
-  const auth: AppAuth = {
+  const live: LiveAuth = {
     get state() { return snapshot.state; },
     get viewer() { return snapshot.viewer; },
     get why() { return snapshot.why; },
@@ -828,6 +835,7 @@ export function createApp(options: AppOptions): App {
       });
     },
   };
+  const auth = live as AppAuth;
   const ready = enqueue(async (): Promise<AppResult> => {
     const expected = 0;
     try {
