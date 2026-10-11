@@ -33,8 +33,9 @@ roll back with it. In order (each step verified against the engine):
    `require … else CODE` refuses where it stands; each write is checked when it
    runs, so a `require` after a refused write never runs.
 3. **Inside one write.** The target: an update, delete or upsert patch of a
-   missing or unreadable row is `NOT_FOUND`. Then the table's write rule:
-   `E_RULE`. Then `unique` keys: your `else CODE`, or `E_CONSTRAINT` naming the
+   missing row is `NOT_FOUND`. Then the table's write rule, which judges the
+   row even when the caller cannot read it: it refuses `E_RULE` on a readable
+   row and `NOT_FOUND` on a hidden one. Then `unique` keys: your `else CODE`, or `E_CONSTRAINT` naming the
    index; a clash with a row the caller cannot read is `E_RULE`. Then `cap`:
    `E_CONSTRAINT`. Then `immutable`: `E_CONSTRAINT` naming the column.
 4. **After the last statement.** `after insert` obligations: `E_CONSTRAINT`
@@ -56,7 +57,8 @@ the viewer cannot read is NOT_FOUND at the lookup, and a later `require … else
 NOT_YOURS` or the table's delete rule never runs for it. A write target is
 judged by its own rule instead: `delete posts[post]` with no lookup before it
 runs the delete rule even on a row the viewer cannot read, and refuses
-NOT_FOUND only when that rule does. A moderator who removes other people's
+NOT_FOUND only when that rule refuses (step 3; a table with `read through`
+children also needs the row readable). A moderator who removes other people's
 posts must therefore either be admitted by the read rule, as here, or delete
 by id without looking the row up first:
 

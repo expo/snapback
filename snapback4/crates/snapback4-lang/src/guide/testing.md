@@ -125,8 +125,9 @@ actually gets:
 ```
 
 `NOT_YOURS` can fire only for a viewer who can read the row: admit the sitter in the read rule (as
-`guide refusals` does for a moderator), or write by id with no lookup first
-(`update pets[pet] { .. }` alone), so the table's own update or delete rule decides. When a `NOT_FOUND`
+`guide refusals` does for a moderator). A write by id with no lookup first (`update pets[pet] { .. }`
+alone) lets the table's update or delete rule admit a viewer who cannot read the row; when that rule
+refuses, a hidden row still answers `NOT_FOUND` and a readable one `E_RULE`. When a `NOT_FOUND`
 case fails, `test` (and dev's refusal log) say whether the lookup's row was hidden by its read rule.
 
 ## An acceptance script over HTTP

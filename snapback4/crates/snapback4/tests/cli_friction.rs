@@ -467,17 +467,20 @@ fn cases_follow_check_verdicts_name_refusing_layers_and_refuse_undeclared_person
         "{\"as\":\"bob\",\"op\":\"setQty\",\"args\":{\"item\":\"I1\",\"qty\":1},\"expect\":\"NOT_YOURS\"}\n",
         "{\"as\":\"bob\",\"op\":\"book\",\"args\":{\"slot\":1},\"expect\":\"SEAT_TAKEN\"}\n",
         "{\"as\":\"eve\",\"op\":\"page\",\"expect\":\"E_AUTH\"}\n",
-        "{\"as\":\"eve\",\"op\":\"page\"}\n"));
+        "{\"as\":\"eve\",\"op\":\"page\"}\n",
+        "{\"as\":\"bob\",\"op\":\"drop\",\"args\":{\"item\":\"I1\"},\"expect\":\"sent\"}\n"));
     let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
     let out = text(&output);
     assert_eq!(output.status.code(), Some(1), "{out}");
-    assert!(out.contains("cases: 2 passed, 4 failed"), "{out}");
+    assert!(out.contains("cases: 2 passed, 5 failed"), "{out}");
     assert!(out.contains("ok   test.cases.jsonl:1 page (alice) → capped") && out.contains("capped is this query's check verdict: page is never complete (N_NEVER_COMPLETE at schema.q:"), "{out}");
     assert!(out.contains("FAIL test.cases.jsonl:2 page (alice) → capped: expected complete, got capped") && out.contains("add \"expect\":\"capped\""), "{out}");
     assert!(out.contains("NOT_FOUND is the program's own refusal at `i = items[item] ! else NOT_FOUND` (schema.q:")
         && out.contains("the items read rule `read <- .owner = viewer`") && out.contains("a later `require … else NOT_YOURS` never ran"), "{out}");
     assert!(out.contains("seats refused it: unique slot, at `unique slot else SEAT_TAKEN` (schema.q:") && out.contains("a row with this `unique slot` key exists that this viewer cannot read"), "{out}");
     assert!(out.contains("ok   test.cases.jsonl:5 page (eve) → E_AUTH"), "{out}");
+    // Wave 5 (I4): a write target's NOT_FOUND is not "the program's own refusal" when the program names no NOT_FOUND there.
+    assert!(out.contains("NOT_FOUND is the write target's answer at `delete items[item]` (schema.q:") && !out.contains("own refusal at drop"), "{out}");
     assert!(out.contains("FAIL test.cases.jsonl:6 page (eve) → E_AUTH") && out.contains("persona eve is not declared; `use personas alice, bob`"), "{out}");
 
     for args in [&["test", "--fixture", "fx", "--as", "eve"][..], &["test", "--fixture", "fx", "--as", "dev:eve"]] {

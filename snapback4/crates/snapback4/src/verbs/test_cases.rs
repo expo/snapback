@@ -160,8 +160,20 @@ fn refusal_evidence(trace: &RefusalTrace, refusal: &Refusal, bound: &Bound, sour
         // hid a row in this operation, the row exists but reads as absent to
         // this viewer: a later `require` never ran.
         cause => if let Some(site) = refusal.site.as_deref().filter(|_| refusal.rule.as_deref() == Some(refusal.code.as_str())) {
-            let line = super::run_refusal::quote(site, &lookup);
-            let shown = line.as_ref().map(|line| format!("`{line}` ({site})")).unwrap_or_else(|| site.to_owned());
+            // An engine write-target refusal carries an operation-relative site
+            // (`removeSale:2`); resolve it to the source line the program wrote.
+            let resolved = operation_site(bound, site);
+            let line = super::run_refusal::quote(resolved.as_deref().unwrap_or(site), &lookup);
+            let shown = match (&line, &resolved) {
+                (Some(line), Some(at)) => format!("`{line}` ({})", at.trim_end_matches(":1")),
+                (Some(line), None) => format!("`{line}` ({site})"),
+                (None, _) => site.to_owned(),
+            };
+            // @ref LLP 3000.007#20.1 — wave 5: a NOT_FOUND the program never names is the write target's answer, not "the program's own refusal".
+            if refusal.code == "NOT_FOUND" && !line.as_ref().is_some_and(|line| line.contains("else NOT_FOUND")) {
+                out.push(format!("NOT_FOUND is the write target's answer at {shown}: the row is missing, or this viewer cannot read it and the table's write rule refused (a hidden row answers NOT_FOUND, never E_RULE; guide refusals)"));
+                return out;
+            }
             let hidden = cause.filter(|cause| !cause.terminal && cause.phase == "read rule"
                 && bound.refusal_sites.contains_key(&(cause.table.clone(), format!("lookup {site}"))));
             match hidden {
@@ -177,6 +189,14 @@ fn refusal_evidence(trace: &RefusalTrace, refusal: &Refusal, bound: &Bound, sour
         },
     }
     out
+}
+
+/// `op:N` (line N of an operation, its header line 1) as `file:line:1`.
+fn operation_site(bound: &Bound, site: &str) -> Option<String> {
+    let (op, line) = site.rsplit_once(':')?;
+    let line: u32 = line.parse().ok()?;
+    let program = bound.programs.iter().find(|p| p.program.name == op)?;
+    Some(format!("{}:{}:1", program.site.file, program.site.line + line.checked_sub(1)?))
 }
 
 /// `"$name"` is a saved answer (a saved row's id); `"$name.field"` (any depth) one of its fields.
