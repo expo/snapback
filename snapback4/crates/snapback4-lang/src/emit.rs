@@ -77,7 +77,12 @@ pub fn typescript(bound: &Bound) -> String {
                 .collect::<Vec<_>>();
             if !bounds.is_empty() { comment.push_str(&format!(" Bounds: {}.", bounds.join("; "))); }
             if fact.held { comment.push_str(" Held: device only; server refuses E_QUERY_HELD; no server fallback."); }
-            if program.program.kind == ProgramKind::Query { comment.push_str(" Read.cut: meter | words | null, beside complete."); }
+            if program.program.kind == ProgramKind::Query {
+                comment.push_str(" Read.cut: meter | words | null, beside complete.");
+                // Which React hook takes this query: `usePage` needs a cursor argument named `c`.
+                let paged = program.args.iter().any(|(name, ty)| name == "c" && ty_ts(ty).starts_with("Cursor"));
+                comment.push_str(if kind == "FollowingQuery" { HOOK_FOLLOWING } else if paged { HOOK_PAGE } else { HOOK_QUERY });
+            }
             if fact.connected_effects_only { comment.push_str(&format!(" {}.", crate::bind::residency::CONNECTED_EFFECTS)); }
             if program.program.kind == ProgramKind::Mutation && !fact.ephemeral { comment.push_str(" Call client.mutate(op, args, { id }) to retry an intent with its original write id; replay returns a receipt without historical results."); }
             out.push_str(&format!("{indent}/** {} */\n", comment.replace("*/", "* /")));
@@ -158,6 +163,11 @@ fn arg_bound(ty: &snapback4_core::ir::ArgType) -> String {
         _ => arg_as_column(ty).expect("scalar argument has a column form").to_string(),
     }
 }
+
+/// The React hook a generated query's comment names, so pageability is visible before a type error.
+pub const HOOK_FOLLOWING: &str = " React: useFollowing.";
+pub const HOOK_PAGE: &str = " React: usePage (declares c) or useQuery.";
+pub const HOOK_QUERY: &str = " React: useQuery (usePage needs c: cursor ?).";
 
 fn args_ts(args: &[(String, Ty)]) -> String {
     if args.is_empty() {

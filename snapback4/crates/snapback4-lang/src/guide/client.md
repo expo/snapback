@@ -46,7 +46,7 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
 `matchRead` (no type arguments) requires five point/page states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)`: the read, for omitted loading/absent/present; denied/partial stay explicit. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
-Types: `RowOf`/`ResultOf`/`ArgsOf`. [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
+Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()` ([lists/scalars](CLIENT-AND-OPERATIONS.md#lists-and-single-values-with-usequery)). [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
 
 | Meaning | UI decision |
 | --- | --- |
@@ -69,7 +69,7 @@ Eight active; eight queued observation attempts start/turn; direct queries and t
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
 Flashes: `inspect(client)` (`snapback4/inspection`): `queued`/`inFlight`, `revalidating`/`withdrawn`, `recentWithdrawals`. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max, 256 attempts; 64 withdrawals. Includes linger; excludes direct/presence.
-Overlay: `useInspection(import.meta.env.DEV)` (`snapback4/react`; Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
+Overlay: `useInspection(import.meta.env.DEV)` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
 `nativeDevice`/`webDevice()`; Expo Go online. Acquisition/Workers: `guide sync`.

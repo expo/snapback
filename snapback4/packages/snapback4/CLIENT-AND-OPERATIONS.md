@@ -844,7 +844,9 @@ There is no `pending`, sequence, replay, prediction, outbox entry, admission
 journal, `write(id)` receipt or `onWrite` event. The id correlates this call;
 it does not deduplicate it. Ephemeral calls take no mutation options.
 `useMutation(op)` keeps `{ run, last, inFlight }`, with a `Signal<R>` result;
-`usePendingWrite` accepts only durable mutations.
+`usePendingWrite` accepts only durable mutations. A durable mutation's outcome is
+`Write<R>`, which can be `pending`; a helper for it takes `Write<R>`, not `Signal<R>`,
+and `UseMutation<typeof api.op>` picks the right one for a prop.
 
 Each client sends ephemeral calls in one ordered lane, one request at a time.
 Only operations the compiler proves to be renewals (`renews: true`) coalesce:
@@ -1481,6 +1483,32 @@ export function App({ client, conversationId }: { client: Client; conversationId
 }
 ```
 
+#### The React entry at a glance
+
+Every function `snapback4/react` exports, with its result. `op` is a generated `api.*` handle;
+the `Use*` types name a hook's result for a prop. Hover any name for its full comment.
+
+| Function | Returns |
+| --- | --- |
+| `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
+| `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
+| `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
+| `useQuery(op, args, { keep }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards |
+| `usePage(op, args)` | `{ items, hasMore, read, loadMore }` (`UsePage<typeof op>`, a `PageHook<R>`); `op` declares `c: cursor ?` |
+| `useFollowing(op, args)` | Following history: the snapshot plus `loadMore`, `retry`, `refresh` (`guide feeds`) |
+| `useMutation(op)` | `{ run(args, options?), last, inFlight }` (`UseMutation<typeof op>`): `Write<R>`, or `Signal<R>` for an ephemeral `op` |
+| `usePendingWrite(op, id?)` | `useMutation`'s shape plus `pending` and `restoring`, for a saved mutation id |
+| `usePendingWrites(op?)`, `usePendingItems(options)`, `usePendingState(op, options)` | admitted writes; rows merged with intent cards; the latest admitted set-state intent |
+| `useAction(op)` | `{ run(args, options?), last, inFlight }` (`UseAction<typeof op>`) with `Act<R>` outcomes |
+| `useViewer()`, `useSignedInViewer()` | `Principal \| null`; `Principal`, throwing `E_AUTH` outside a signed-in gate |
+| `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
+| `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
+| `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`), `denied` or `error` (`why`) |
+| `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
+| `useInspection(enabled?)` | development overlay samples, or null when disabled |
+| `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
+| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any outcome); the state name; notice flags |
+
 #### Narrowing reads and writes in TypeScript
 
 `matchRead` takes no type arguments: the row type comes from the read, and the handlers'
@@ -1492,8 +1520,11 @@ decides what an uncertain page shows. A `Write` is `pending`, `sent` or `failed`
 `sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it. The
 online client can return `pending` too, while offline or with `waitSeconds: 0`. `close()` returns
 a promise; an effect cleanup must return nothing, so write `() => { void client.close(); }`.
-`UseMutation<typeof api.op>` names a hook's type for a prop; every name here imports from
-`snapback4/react`, and `Client` also from `snapback4/client`.
+`UseQuery<typeof api.op>`, `UsePage<typeof api.op>`, `UseMutation<typeof api.op>` and
+`UseAction<typeof api.op>` name each hook's result for a prop; every name here imports from
+`snapback4/react`, and `Client` also from `snapback4/client`. A guard or `matchRead` takes a
+page's `page.read`, never the page: `isDenied(page)` fails with "`PageHook<…>` is not assignable
+to `Read<unknown>`".
 
 Name an operation's types from the generated `api`, never from its private `__result` field:
 `RowOf<typeof api.thread>` is one row of a list or page query (a `usePage` item) or a point
@@ -1506,8 +1537,10 @@ so one guard covers reads of different queries: `[thread, me].find(isDenied)` or
 outcomes, including a hook's `last` (undefined before the first run). `App`, `AppOptions` and
 `AuthSnapshot` are also exported here for components that take the app; `createApp` itself
 imports from `snapback4/app`. After `auth.state === "signed-in"`, `auth.viewer` is a
-`Principal`, never null; `useViewer()` gives the same string to any component under the
-provider. An optional argument (`status: text ?`) is typed `status?: string | null`: omitting it
+`Principal`, never null. Below that gate, `useSignedInViewer()` gives any component the same
+`Principal`, never null: it reads the auth snapshot the gate narrowed (the client's viewer under
+`SnapbackProvider`), and rendered with nobody signed in it throws `E_AUTH`, a missing gate.
+`useViewer()` stays `Principal | null` for a component that also renders signed out. An optional argument (`status: text ?`) is typed `status?: string | null`: omitting it
 and passing `null` mean the same. A `principal` argument takes the stored principal string, as
 `auth.viewer` returns it (`dev:alice` for a development persona, also in fixtures and cases).
 
@@ -1557,6 +1590,57 @@ export function useOwnClient(url: string, persona: string): Client | null {
     return () => { void opened.close(); };
   }, [url, persona]);
   return client;
+}
+```
+
+#### Lists and single values with `useQuery`
+
+`usePage` is only for a query that declares `c: cursor ?` and reads `after c`; every other
+query, including a short list, uses `useQuery`. Its result is the read itself, not
+`{ data, status }`: `members.data` does not type-check until the read is narrowed, so render
+it with `matchRead` (or `isReady` and `read.existence`). A list's `present` and `partial`
+receive the rows, and `absent` is the proven-empty list. A scalar query (`bool`, `int`) is
+the same read: `false` and `0` are `present` data, and `absent` means the query answered `null`.
+`readPresentation(read)` gives the notice flags (`pending`, `incomplete`, `stale`,
+`revalidating`, `why`) for a banner beside either; it never narrows `data`.
+
+```tsx
+import { matchRead, readPresentation, useAuth, usePage, useQuery, useSignedInViewer, type RowOf, type UsePage, type UseQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+type Member = RowOf<typeof api.members>;
+function MemberList({ rows }: { rows: readonly Member[] }) { return <ul>{rows.map(row => <li key={row.id}>{row.id}</li>)}</ul>; }
+export function Members({ conversationId }: { conversationId: string }) {
+  const members = useQuery(api.members, { conversationId }), notice = readPresentation(members);
+  return <>{matchRead(members, {
+    loading: () => <p>Loading…</p>,
+    denied: why => <p role="alert">{why.message}</p>,
+    absent: () => <p>No members yet</p>,
+    partial: rows => <MemberList rows={rows} />,
+    present: rows => <MemberList rows={rows} />,
+  })}{notice.incomplete && <p>Results may be incomplete</p>}{notice.stale && <p>Offline: showing saved results</p>}</>;
+}
+export function HandleCheck({ handle }: { handle: string }) {
+  const free = useQuery(api.handleAvailable, { handle }), unread = useQuery(api.unreadCount, {});
+  return <p>{matchRead(free, {
+    denied: why => why.message, partial: () => "Checking…",
+    present: available => available ? "Available" : "Taken",
+    otherwise: () => "Checking…",
+  })} · {matchRead(unread, { denied: () => "", partial: n => `${n}+ unread`, present: n => `${n} unread`, otherwise: () => "" })}</p>;
+}
+function ProfileLine({ me }: { me: UseQuery<typeof api.myProfile> }) {
+  return <p>{matchRead(me, { denied: why => why.message, partial: () => "…", present: profile => profile.handle, otherwise: () => "No profile" })}</p>;
+}
+function MoreButton({ page }: { page: UsePage<typeof api.inbox> }) {
+  return <button disabled={!page.hasMore} onClick={page.loadMore}>More ({page.items.length} shown)</button>;
+}
+function MyThreads() {
+  const me = useSignedInViewer(), inbox = usePage(api.inbox, {}), profile = useQuery(api.myProfile, {});
+  const mine = matchRead(profile, { denied: () => false, partial: () => false, present: row => row.principal === me, otherwise: () => false });
+  return <>{mine && <ProfileLine me={profile} />}<MoreButton page={inbox} /></>;
+}
+export function Home() {
+  const auth = useAuth();
+  return auth.state === "signed-in" ? <MyThreads /> : <p>{auth.why?.message ?? "Sign in to continue"}</p>;
 }
 ```
 

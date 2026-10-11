@@ -5,10 +5,10 @@ import { join, resolve } from 'node:path';
 import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '..');
-function check(source, fixture) {
+function check(source, fixture, extension = 'ts') {
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile);
   const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
-  const file = fixture ? join(root, 'test/fixtures/read-types', fixture) : join(root, '__read_types.ts');
+  const file = fixture ? join(root, 'test/fixtures/read-types', fixture) : join(root, `__read_types.${extension}`);
   const host = ts.createCompilerHost(options), read = host.readFile.bind(host);
   if (source) host.readFile = path => path === file ? source : read(path);
   const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram([file], options, host));
@@ -362,4 +362,62 @@ function Account() {
 }
 `);
   assert.deepEqual(result.codes, [], result.text);
+});
+// Wave-3 app farm lanes 001 053 063 089: hook results named for props, a
+// non-null viewer under a signed-in gate, and a page passed to a guard.
+test('UseQuery, UsePage and UseAction name hook results for props; useSignedInViewer is never null', () => {
+  for (const entry of ['./src/react.tsx', './dist/react.js']) {
+    const result = check(`import { usePage, useQuery, useAction, useViewer, useSignedInViewer, matchRead, isReady, type UsePage, type UseQuery, type UseAction, type PageHook, type ActionHook, type Read, type Act, type Principal, type Cursor } from '${entry}';
+import type { Query, FollowingQuery, Mutation, Ephemeral, Action } from './dist/contract.js';
+type Row = { id: string; owner: string };
+declare const api: { list: Query<{ room: string; c?: Cursor | null }, Row[]>; feed: FollowingQuery<{ c?: Cursor | null }, Row[]>;
+  members: Query<{ room: string }, Row[]>; one: Query<{ id: string }, Row | null>; free: Query<{ handle: string }, boolean>; unread: Query<{}, number>;
+  invite: Action<{ email: string }, { principal: string }>; send: Mutation<{ body: string }, { id: string }>; typing: Ephemeral<{}, null> };
+function More({ page }: { page: UsePage<typeof api.list> }) {
+  const rows: Row[] = page.items, more: boolean = page.hasMore, read: Read<Row[]> = page.read;
+  return <button disabled={!more} onClick={page.loadMore}>{rows.length}</button>;
+}
+function Header({ me }: { me: UseQuery<typeof api.one> }) {
+  return matchRead(me, { denied: why => why.message, partial: () => '', present: row => row.owner, otherwise: () => '' });
+}
+function Free({ free }: { free: UseQuery<typeof api.free> }) { return isReady(free) && free.existence === 'present' && free.data ? 'yes' : 'no'; }
+function Invite({ invite }: { invite: UseAction<typeof api.invite> }) {
+  void invite.run({ email: 'a@b.c' }, { waitSeconds: 0 }).then((outcome: Act<{ principal: string }>) => outcome);
+  const last: Act<{ principal: string }> | undefined = invite.last, busy: boolean = invite.inFlight;
+  // @ts-expect-error arguments stay typed through the named hook
+  void invite.run({ address: 'x' });
+  return null;
+}
+export function Screen() {
+  const page = usePage(api.list, { room: 'r' });
+  const named: UsePage<typeof api.list> = page, back: typeof page = named, hook: PageHook<Row[]> = page;
+  const feed: UsePage<typeof api.feed> = page;
+  const members: UseQuery<typeof api.members> = useQuery(api.members, { room: 'r' });
+  const unread: UseQuery<typeof api.unread> = useQuery(api.unread, {});
+  const count: Read<number> = unread;
+  const invite = useAction(api.invite), action: ActionHook<{ email: string }, { principal: string }> = invite;
+  const maybe: Principal | null = useViewer();
+  const me: Principal = useSignedInViewer();
+  const mine = page.items.filter(row => row.owner === me);
+  // @ts-expect-error useViewer stays nullable for components that render signed out
+  const sure: Principal = useViewer();
+  // @ts-expect-error a page query's hook result is not a read
+  const notRead: UseQuery<typeof api.list> = page;
+  // @ts-expect-error a point query has no page
+  const notPage: UsePage<typeof api.one> = page;
+  const noQuery: [UseQuery<typeof api.send>, UsePage<typeof api.send>, UseAction<typeof api.send>, UseQuery<typeof api.typing>] = [] as unknown as [never, never, never, never];
+  return <><More page={page} /><Header me={useQuery(api.one, { id: 'a' })} /><Free free={useQuery(api.free, { handle: 'h' })} /><Invite invite={invite} />{mine.length}{members && count && maybe}</>;
+}
+`, undefined, 'tsx');
+    assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
+  }
+});
+test('a page passed to a guard fails in one line that names the page type', () => {
+  const result = check(`import { isDenied, usePage, type Cursor } from './dist/react.js';
+import type { Query } from './dist/contract.js';
+declare const api: { list: Query<{ c?: Cursor | null }, { id: string }[]> };
+export function Inbox() { const page = usePage(api.list, {}); return isDenied(page) ? null : page.items.length; }
+`);
+  assert.deepEqual(result.codes, [2345], result.text);
+  assert.match(result.text, /'PageHook<\{ id: string; \}\[\]>' is not assignable to parameter of type 'Read<unknown>'/);
 });

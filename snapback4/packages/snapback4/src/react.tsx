@@ -13,7 +13,7 @@ export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // Read hooks return the client card vocabulary; inspection is an opt-in diagnostic.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, ResultOf, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot, Online } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
@@ -148,6 +148,24 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOption
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
+/** What `useQuery(op, args)` returns, named by the operation, for props:
+ * `function Header({ me }: { me: UseQuery<typeof api.myProfile> })`. A hook
+ * result is the read itself; narrow it with `matchRead` or the guards. */
+// @ref LLP 3000.013#6.4 — hook results are named by the operation, like UseMutation.
+export type UseQuery<O> = O extends Query<any, any> ? Read<ResultOf<O>> : never;
+/** What `usePage` returns: the rows of every requested page (deduplicated by
+ * row id), whether another page exists, the combined read, and `loadMore`.
+ * Guards and `matchRead` take `page.read`, never the page. */
+export interface PageHook<R extends readonly unknown[]> {
+  items: R[number][];
+  hasMore: boolean;
+  read: Read<R>;
+  loadMore: () => void;
+}
+/** What `usePage(op, args)` returns, named by the operation, for props:
+ * `function More({ page }: { page: UsePage<typeof api.thread> })`. */
+export type UsePage<O> = O extends Query<any, any> ? ResultOf<O> extends readonly unknown[] ? PageHook<ResultOf<O>> : never : never;
+
 /** A query `usePage` can page: it takes its cursor as `c` (`c: cursor ?` in
  * the schema) and reads `after c`. Any other query names the fix in its error. */
 type PagedQuery<A, R> = Query<A, R> & ("c" extends keyof A ? unknown
@@ -158,7 +176,7 @@ type PagedQuery<A, R> = Query<A, R> & ("c" extends keyof A ? unknown
  * outside that child and bound point-reader IDs to requested pages/visible rows.
  * See the bounded screen recipe in CLIENT-AND-OPERATIONS.md.
  */
-export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
+export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ObserveOptions): PageHook<R> {
   const client = useClient();
   const key = readKey(op, args);
   const paged = op as Query<A & { c?: Cursor | null }, R>;
@@ -357,7 +375,14 @@ export function useAcquisition(): Acquisition {
 
 /** A worker action. `run` returns its outcome; pass a pending id again to
  * collect it. Concurrent calls keep `last` on the most recently started. */
-export function useAction<A, R>(op: Action<A, R>) {
+/** What `useAction(op)` returns; `UseAction<typeof api.invite>` names it for props. */
+export interface ActionHook<A, R> {
+  run(args: A, options?: ActOptions): Promise<Act<R>>;
+  last: Act<R> | undefined;
+  inFlight: boolean;
+}
+export type UseAction<O> = O extends Action<infer A, infer R> ? ActionHook<A, R> : never;
+export function useAction<A, R>(op: Action<A, R>): ActionHook<A, R> {
   const client = useClient();
   const [last, setLast] = useState<Act<R> | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
@@ -393,10 +418,36 @@ export function useLink(): Link {
   return useSyncExternalStore(subscribe, client.link, client.link);
 }
 
+/** The client's viewer, or null while none is signed in. Use it where signed
+ * out is a state the component renders; under a signed-in gate use
+ * `useSignedInViewer()`, which is never null. */
 export function useViewer(): Principal | null {
   const client = useClient();
   const subscribe = useCallback((notify: () => void) => client.onViewer(() => notify()), [client]);
   return useSyncExternalStore(subscribe, client.viewer, client.viewer);
+}
+
+const noAuth = () => () => {};
+const noSnapshot = () => null;
+/** The signed-in viewer, never null, for a component rendered only under a
+ * signed-in gate (`if (auth.state !== "signed-in") return <SignIn />`). Under
+ * `<AppProvider>` it reads the same auth snapshot `useAuth()` narrows, so it
+ * agrees with the gate above it; under `<SnapbackProvider>` it reads the
+ * client's viewer. Rendered with no signed-in viewer it throws `E_AUTH`: that
+ * is a missing gate, not a state to show. Where signed out is a state the
+ * component renders, use `useViewer()` or `useAuth()`. */
+// @ref LLP 3000.013#6.4 — a non-null viewer hook that reads the gate's own snapshot.
+export function useSignedInViewer(): Principal {
+  const app = useContext(AppContext);
+  const auth = useSyncExternalStore(app ? app.auth.onChange : noAuth, app ? app.auth.getSnapshot : noSnapshot, app ? app.auth.getSnapshot : noSnapshot);
+  const clientViewer = useViewer();
+  const viewer = app ? (auth?.state === "signed-in" ? auth.viewer : null) : clientViewer;
+  if (viewer === null) {
+    const why: Refusal = { code: "E_AUTH", family: "auth", message: `useSignedInViewer: no signed-in viewer${auth ? ` (auth.state is "${auth.state}")` : ""}.`,
+      rewrite: 'render this component only under `auth.state === "signed-in"` (useAuth), or call useViewer() where signed out is a state to show' };
+    throw Object.assign(new Error(`E_AUTH: ${why.message} Render it only under a signed-in gate, or use useViewer().`), { why });
+  }
+  return viewer;
 }
 
 /** The session the local-first client holds, or null once it ended (after
