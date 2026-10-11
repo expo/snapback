@@ -1606,8 +1606,21 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     assert!(opening.starts_with("# Actions") && !opening.contains("\n## "), "{opening}");
     let (code, found) = guide(&["language", "--find", "day("]);
     assert_eq!(code, Some(0));
-    assert!(found.contains("Details") && found.contains(": query today():"), "{found}");
+    assert!(found.contains("Views and calendar keys") && found.contains(": query today():"), "{found}");
     assert_eq!(guide(&["language", "--find", "no such words anywhere"]).0, Some(1));
+    // Wave 5: words find lines holding all of them, unquoted words continue the search,
+    // `OR` is `|`, a plural finds its singular, and the language program's parts have headings.
+    let (code, all) = guide(&["types", "--find", "integer", "range"]);
+    assert_eq!(code, Some(0), "{all}");
+    assert!(all.starts_with("guide types: 1 line mentions \"integer range\"") && all.contains(": - Values and arithmetic must fit the integer range: E_OVERFLOW."), "{all}");
+    assert_eq!(guide(&["types", "--find", "E_OVERFLOW OR E_DIV_ZERO"]), (Some(0), either.replace("E_OVERFLOW|E_DIV_ZERO", "E_OVERFLOW OR E_DIV_ZERO")));
+    let (code, any) = guide(&["types", "--find", "enum time principal"]);
+    assert_eq!(code, Some(1), "no line holds all three: {any}");
+    assert!(any.starts_with("no line of guide types mentions all of \"enum time principal\"; ") && any.contains("kind: enum(") && any.contains("owner: principal"), "{any}");
+    let (code, loops) = guide(&["language", "--section", "loops"]);
+    assert_eq!(code, Some(0), "{loops}");
+    assert!(loops.contains("### Loops") && loops.contains("continue") && loops.lines().count() < 60, "{loops}");
+    assert_eq!(guide(&["queries"]), guide(&["reads"]));
 }
 
 // Wave 4: the recipes card's cases are what `test` answers against its schemas.

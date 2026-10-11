@@ -54,7 +54,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
-  guide [keyword] [--full|--sections|--section <words|N>|--find <words>]  list cards and aliases, or print one card (over 130 lines: its opening and numbered index; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that mention words (a|b: either)
+  guide [keyword] [--full|--sections|--section <words|N>|--find <words>]  list cards and aliases, or print one card (over 130 lines: its opening and numbered index; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
@@ -130,9 +130,13 @@ fn main() -> ExitCode {
         "witness" => verbs::witness::run(&args[1..]),
         "device" => verbs::device(&options),
         "guide" => {
-            let phrase = options.positionals.join(" ");
-            let keyword = if guide::card(&phrase).is_some() { Some(phrase.as_str()) }
-                else { options.positionals.first().map(String::as_str) };
+            // The longest leading words that name a card; with --find or
+            // --section, unquoted words after it continue the search words.
+            let named = (1..=options.positionals.len()).rev().find(|&n| guide::card(&options.positionals[..n].join(" ")).is_some()).unwrap_or(1);
+            let phrase = options.positionals[..named.min(options.positionals.len())].join(" ");
+            let keyword = (!options.positionals.is_empty()).then_some(phrase.as_str());
+            let rest = options.positionals.get(named..).unwrap_or_default().join(" ");
+            let words_of = |flag: &str| options.flags.get(flag).map(|words| if rest.is_empty() { words.clone() } else { format!("{words} {rest}") });
             match keyword {
                 None => println!("{}", guide::listing()),
                 Some(keyword) => match guide::card(keyword) {
@@ -142,8 +146,8 @@ fn main() -> ExitCode {
                         let name = guide::resolve(keyword).unwrap_or(keyword);
                         let chosen = if options.flags.contains_key("full") { Ok(card.clone()) }
                             else if options.flags.contains_key("sections") { Ok(guide::section_index(name, &card)) }
-                            else if let Some(words) = options.flags.get("section") { guide::section(name, &card, words) }
-                            else if let Some(words) = options.flags.get("find") { guide::find(name, &card, words) }
+                            else if let Some(words) = words_of("section") { guide::section(name, &card, &words) }
+                            else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
                             else { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) };
                         match chosen {
                             Ok(text) => println!("{text}"),

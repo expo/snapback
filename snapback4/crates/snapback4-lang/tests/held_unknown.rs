@@ -189,7 +189,8 @@ fn held_word_directory_does_not_get_order_advice_but_other_pages_still_do() {
 fn guides_own_held_examples_have_no_unknown_note() {
     for name in guide::KEYWORDS {
         for source in guide::quarry(guide::card(name).unwrap()).into_iter().filter(|source| source.contains(" held:")) {
-            let source = if source.lines().any(|line| line.starts_with("table ")) { source } else { format!("{}\n{source}", guide::language()) };
+            let source = if guide::language_part(&source) { guide::language() }
+                else if source.lines().any(|line| line.starts_with("table ")) { source } else { format!("{}\n{source}", guide::language()) };
             let bound = bound(&source);
             assert!(notes(&bound).is_empty(), "card {name}: {:?}", bound.notes);
         }

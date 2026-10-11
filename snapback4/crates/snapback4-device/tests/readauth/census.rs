@@ -43,7 +43,9 @@ fn authoring_census() {
     for name in guide::KEYWORDS {
         for (n, block) in guide::quarry(guide::card(name).unwrap()).iter().enumerate() {
             let source = guide_context::source(block);
-            collect(&format!("card/{name}/{}",n+1),vec![("schema.q".into(),source)],&mut seen,&mut private);
+            // The language card prints one program in headed parts; census it once.
+            let label = if guide::language_part(block) { format!("card/{name}/program") } else { format!("card/{name}/{}",n+1) };
+            collect(&label,vec![("schema.q".into(),source)],&mut seen,&mut private);
         }
     }
     for (name,source) in [("template/local",guide::TEMPLATE),("template/online",guide::TEMPLATE_ONLINE),

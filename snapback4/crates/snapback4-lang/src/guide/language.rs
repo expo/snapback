@@ -55,18 +55,17 @@ query repeatedFilters(roomId: rooms, c: cursor ?):
 
 Quarry defines your tables, access rules and backend operations. Queries and eligible mutations can run on devices that hold their inputs. N_SHAPE_METER: `groupedMessages` rejects unbounded candidates; query separately.
 
+### Tables and rules
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
 use personas alice, bob, carol        -- a development cast: `--as alice` and the persona header act as dev:alice
 effect notify                         -- a name a mutation or job may `emit` under; a worker with a service token performs it (guide effects)
-
 table folders:
   owner: principal
   immutable owner
   read <- .owner = viewer
   insert <- .owner = viewer
   sync last 500 by .id
-
 table documents:
   folder: folders
   body: text
@@ -74,7 +73,6 @@ table documents:
   read through .folder             -- the whole read rule; captures its immutable parent's audience and lifetime
   insert <- allow
   sync last 500 by .id              -- infers the captured owner audience
-
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
@@ -88,7 +86,6 @@ table rooms:
   delete <- deny
   after insert <- exists members[roomId = .id, principal = .ownerId, role = 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
   sync to members[.id]                -- each row reaches every principal with a members row whose roomId is this row's id
-
 table members:
   roomId: rooms
   principal: principal
@@ -101,7 +98,10 @@ table members:
   insert <- exists members[.roomId, viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
   delete <- .principal = viewer or exists members[.roomId, viewer, role = 'admin']
   sync to members[.roomId]
+```
 
+### Messages, uploads and expiry
+```quarry
 table messages:
   roomId: rooms
   ordinal: sequence by roomId         -- engine-assigned; provisional while the row is pending
@@ -121,19 +121,20 @@ table messages:
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
   expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count live rows
   sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
-
 table receipts:
   message: messages
   state: int ?
   public 'delivery status is public in this example'
   online only
-
 fn receiptState(m: messages):
   return min(receipts where .message = m.id, 2 if .state = 2 else 1) ?? 2
 query receiptStatus(messageId: messages):
   m = messages[messageId] ! else NOT_FOUND
   return { slowest: receiptState(m), fastest: max(receipts where .message = m.id, .state) }
+```
 
+### Public tables and money
+```quarry
 table posts:
   authorId: principal
   immutable authorId
@@ -204,12 +205,14 @@ table likes:
   sync public last 2000 by .at with own keys .principal
 view receivedLikes: count likes by .postId.authorId -- one immutable hop to a public target; attribution is recorded by the engine
   online only
+```
 
+### Views and calendar keys
+```quarry
 view messageCounts: count messages by .roomId       -- maintained count by group; missing groups return 0
                                                      -- read inherits membership through roomId
 view scoreTotals: sum posts of .score by .authorId  -- count, or sum of an int, decimal or money column
   online only                         -- mutations reading this view never predict
-
 view originalPostCounts: count posts where .parentId = null by .authorId
   online only
 view dailyPosts: count posts where .parentId = null by .authorId, day(.at)
@@ -227,7 +230,6 @@ view reactionCounts: count reactions by .principal, .postId, emoji
 view postLikes: count reactions where .direction > 0 by .postId
   read <- deny
   online only
-
 query daily(c: cursor ?):
   return dailyPosts where .authorId = viewer first 7 by .day after c { day, count: .value }
 query today():
@@ -242,7 +244,10 @@ query mostLiked(c: cursor ?):
   return postLikes last 10 by .value after c { postId, count: .value }
 query chips(postId: posts, c: cursor ?):
   return reactionCounts where .principal = viewer and .postId = postId first 50 by .emoji after c { emoji, count: .value }
+```
 
+### Helpers, shapes and spreads
+```quarry
 fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
 shape messageCard = { *, room: rooms[.roomId], count: messageCounts[.roomId] }
 shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- named shape: `.` denotes the row; use `row card` or `page card`
@@ -253,7 +258,6 @@ fn messageById(m: messages):
 fn expiryTtl(setting: text): 60000 if setting = 'short' else null
 query expiration(setting: text):
   return now + expiryTtl(setting) if expiryTtl(setting) != null else null  -- repeated pure calls narrow (guide types)
-
 fn isBrief(ttl: int ?): ttl != null                                  -- expanded at each call
 fn stamp(roomId: rooms):                                             -- inherits caller write authority; falling through returns null
   update rooms[roomId] { createdAt: now }
@@ -262,10 +266,8 @@ fn tally(n: int):
   for i in range(0, 1 + 1):
     total = total + n
   return total
-
 query familiarLengths():
   return { characters: len('é🙂'), items: length([1, 2]) }
-
 fn profileLabel(label: text): label
 query spreadProfile(h: text 3..20 format handle, extra: text):
   p = profiles[handle = h] ! else NOT_FOUND
@@ -276,28 +278,29 @@ query spreadObjects():
 query spreadChoice(h: text 3..20 format handle, flag: bool):
   p = profiles[handle = h] ! else NOT_FOUND
   return ({ ...p } if flag else { ...(p { * }) }) { handle: 'override', * }  -- spread both arms so their wildcard rules agree
+```
 
+### Queries: rows, pages, walks
+```quarry
 query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
   return rooms[roomId] card
-
 query room(roomId: rooms):            -- result type inferred onto api.ts
   return rooms[roomId] card           -- unique lookup, null if absent/hidden; applies card
-
 query helperRows(messageId: messages):
   m = messages[messageId] ! else NOT_FOUND
   return { body: messageBody(m), byId: messageById(messageId) }
-
 query thread(roomId: rooms, c: cursor ?):                            -- optional page cursor; omitted means null
   require exists members[roomId, viewer] else NOT_MEMBER              -- application refusal code
   return messages where .roomId = roomId and .body != null and exists members[.roomId, viewer] last 50 by .at after c messageCard   -- messageCard shapes the page after authorization
-
 query inbox(c: cursor ?):
   return members where .principal = viewer first 50 by .roomId after c { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
-
 query ancestors(roomId: rooms):
   chain = walk rooms[roomId] up .parentId depth 8                   -- seed plus at most eight parents
   return chain { id, name }
+```
 
+### Loops, conditionals, arithmetic
+```quarry
 query digest(roomId: rooms):
   require exists members[roomId, viewer] else NOT_MEMBER
   page = messages where .roomId = roomId and .at >= now - 1d last 100 by .at                     -- named page for aggregates, slices, sorting and shapes
@@ -327,53 +330,48 @@ query digest(roomId: rooms):
   smallest = min([{ state: null }, { state: 1 }], .state)
   grouped = group(page, 'authorId') { author: .key, count: count(.items) }
   return { sum, earliest, latest, smallest, grouped, first: first(page), last: last(page), at: at(page, 1), total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
+```
 
+### Text, search and presence
+```quarry
 query mentions(body: text <=4000):
   return tokens(body)                 -- the @mentions in a text, without the @, at most 64: a bounded list
-
 query tokenDigest(token: text <=200):
   return sha256(token)                -- lowercase SHA-256 of the exact UTF-8 bytes: text <=64
-
 query search(roomId: rooms, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   return messages where .roomId = roomId matching q last 50 by .at after c   -- word-prefix search: uniform expansion bounded by the meter; admitted non-uniform scopes keep 32 words; newest first
-
 query everywhere(q: text <=100, c: cursor ?):
   return messages matching q where exists members[.roomId, viewer] last 50 by .at after c
-
 query wholeRoster(roomId: rooms):
   return members where .roomId = roomId                         -- the schema cap is the ascending whole-group bound
-
 query memberTotal():
   n = 0
   for m in members where .principal = viewer:                                        -- a uniform prefix under the query meter
     n = n + 1
   return n
-
 query hasMessages(roomId: rooms):
   return exists messages where .roomId = roomId                                  -- first visible match; no page/cursor
-
 query groupedMessages(q: text <=100, c: cursor ?):
   return members where .principal = viewer and exists (messages[roomId = .roomId] matching q) first 20 by .roomId after c { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at }
-
 query online(p: principal):
   return connected[p]                 -- server connection count; `exists connected[p]` tests (guide presence)
+```
 
+### Mutations and writes
+```quarry
 mutation pagePass(roomId: rooms): server
   n = 0
   for row in members where .roomId = roomId first 10 by .principal:
     n = n + 1
   return n
-
 mutation registerProfile(handle: text 3..20 format handle):
   return insert profiles { principal: viewer, handle }
-
 mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
   room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints; omitting id also mints
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
   upsert rooms[room.id] { createdAt: now }                            -- patches createdAt; other fields stay
   return room card
-
 mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- lazy conditional; ttl narrows in the present arm
@@ -385,32 +383,30 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
     if not exists connected[p]:
       emit notify { targetUserId: p, roomId, senderHandle: profiles[principal = viewer].handle, preview: slice(body ?? '', 0, 80) }   -- the profile read feeds only the effect: server-only, still predicts
   return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` supplies the null fallback
-
 mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:
   msg = messages[messageId] ! else NOT_FOUND                         -- the row, or refuse with the code; `msg` is present from here on
   require msg.authorId = viewer else NOT_AUTHOR
   update msg { body, editedAt: now } if .body = expected             -- a row as the key (`delete msg` too); `if` makes the update conditional: E_CONFLICT with the current row when false
   return null                                                        -- same as bare `return`
-
 mutation join(roomId: rooms, principal: principal):
   require exists members[roomId = roomId, principal = viewer, role = 'admin'] else NOT_ADMIN
   return insert members { roomId, principal, role: 'member', joinedAt: now } if absent   -- the row, or null on a unique clash
-
 mutation leave(roomId: rooms):
   delete members[roomId = roomId, principal = viewer]                -- a key may name its columns; a full unique key names one row, NOT_FOUND when it is missing
   return null
-
 mutation react(postId: posts, direction: int):
   require direction = 1 or direction = -1 else BAD_DIRECTION         -- =, !=, <, <=, >, >=, +, -, *, unary -, not, and, or
   upsert reactions[postId, viewer] { direction }                     -- predicts only an update of a held row; a missing row queues without a prediction
-
 mutation post(bodies: [text <=500] <=10):
   for body in bodies:                                                -- a loop over a bounded list; `for row in page:` and `for i in range(0, 10):` are the other domains
     insert posts { authorId: viewer, body, score: 0, at: now }
   return count(bodies)
-
 mutation split(total: int, people: [principal] 1..8):
   insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
+```
+
+### Jobs and schedules
+```quarry
 job nightly(periodStart: time, periodEnd: time):                    -- system sweeps; one chunk per commit
   end = periodEnd                                                   -- replayed per chunk
   for r in rooms:                                -- the index's columns are id or immutable, so nothing moves under the cursor
@@ -426,27 +422,30 @@ schedule everyNight every 1d at 03:00: nightly                       -- once per
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
 effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
+```
+
+### Calendar windows
+```quarry
 table roomEntries:
   roomId: id
   at: time
   public 'Room entries are public.'
-
 table checkins:
   principal: principal
   at: time
   unique principal, day(at) else ALREADY_CHECKED_IN 'One check-in per day.'
   read <- .principal = viewer
   insert <- .principal = viewer
-
 query roomHour(roomId: id, c: cursor ?):
   return roomEntries where .roomId = roomId and .at >= (hour(now) - 3) * 1h and .at < (hour(now) - 2) * 1h last 10 by .at after c
-
 query roomWindow(roomId: id, c: cursor ?):
   return roomEntries where .roomId = roomId and .at >= (hour(now) - 3) * 1h and .at < (hour(now) + 1) * 1h last 10 by .at after c
-
 mutation checkin():
   return insert checkins { principal: viewer, at: now }
+```
 
+### Planned reads and unions
+```quarry
 table subjects:
   at: time
   voteCount: count votes
@@ -525,6 +524,7 @@ query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?
   return intentIssues where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .at after c
 ```
 
+### Notes
 A maintained count can use another table's row as its key: `view unread: count messages by members m where .conversationId = m.conversationId and .ordinal > m.readUpTo`. Read `unread[m.id]` under the member's read rule; a large mark change reports `complete: false` while its recount settles. The complete, compiled Clique recipe is on `guide maintains`.
 
 `snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules in any order. Other `.q` files share its namespace; their operations and scheduled jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name. Comments start with `--`; blocks indent two spaces. The suite compiles every block.

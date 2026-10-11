@@ -2,7 +2,7 @@
 use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index: guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints matching lines (a|b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index: guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
 }
 
 fn distance(a: &str, b: &str) -> usize {
@@ -167,22 +167,46 @@ fn section_of(found: &[(usize, String, usize, usize)], line: usize) -> (usize, &
         .map(|(n, s)| (n + 1, s.1.as_str())).unwrap_or((0, "Opening"))
 }
 
-/// Line numbers (0-based) whose text holds the phrase, or else every one of its
-/// words; `a|b` is either alternative (wave 4 searched `sum|outer|column`).
+/// The alternatives of a search: `a|b` and `a OR b` (wave 5 wrote both).
+fn alternatives(words: &str) -> Vec<String> {
+    words.split('|').flat_map(|part| part.split(" OR ")).map(|alternative| alternative.trim().to_owned()).filter(|alternative| !alternative.is_empty()).collect()
+}
+
+/// A word as written, and its singular (`loops` finds "loop", `queries` "query").
+fn forms(word: &str) -> Vec<String> {
+    let mut forms = vec![word.to_owned()];
+    if let Some(stem) = word.strip_suffix("ies").filter(|stem| stem.len() > 2) { forms.push(format!("{stem}y")); }
+    else if let Some(stem) = word.strip_suffix('s').filter(|stem| stem.len() > 2 && !stem.ends_with('s')) { forms.push(stem.to_owned()); }
+    forms
+}
+
+// @ref LLP 3000.007#20.1 — wave 5: `--find a b` is every word on one line; `a|b` and `a OR b` are either.
+/// Line numbers (0-based) whose text holds an alternative: its phrase, or
+/// every one of its words (each as written or singular).
 fn mentions(card: &str, words: &str) -> Vec<usize> {
-    if words.contains('|') {
-        let mut found: Vec<usize> = words.split('|').flat_map(|alternative| mentions(card, alternative)).collect();
-        found.sort_unstable();
-        found.dedup();
-        return found;
-    }
-    let phrase = words.trim().to_lowercase();
-    if phrase.is_empty() { return Vec::new(); }
     let lines: Vec<String> = card.lines().map(str::to_lowercase).collect();
-    let exact: Vec<usize> = (0..lines.len()).filter(|&i| lines[i].contains(&phrase)).collect();
-    if !exact.is_empty() { return exact; }
-    let each: Vec<String> = words_of(&phrase).split(' ').map(str::to_owned).collect();
-    (0..lines.len()).filter(|&i| { let line = words_of(&lines[i]); each.iter().all(|w| line.contains(w.as_str())) }).collect()
+    let mut found = Vec::new();
+    for alternative in alternatives(words) {
+        let phrase = alternative.to_lowercase();
+        let each: Vec<Vec<String>> = words_of(&phrase).split_whitespace().map(forms).collect();
+        found.extend((0..lines.len()).filter(|&i| {
+            if lines[i].contains(&phrase) { return true; }
+            let line = words_of(&lines[i]);
+            !each.is_empty() && each.iter().all(|forms| forms.iter().any(|w| line.contains(w.as_str())))
+        }));
+    }
+    found.sort_unstable();
+    found.dedup();
+    found
+}
+
+/// Lines holding any one of several words (connectives dropped), for a
+/// search whose words no single line holds together.
+fn any_mentions(card: &str, words: &str) -> Vec<usize> {
+    if alternatives(words).len() != 1 { return Vec::new(); }
+    let each: Vec<&str> = words.split_whitespace().filter(|w| !["or", "and", "OR", "AND"].contains(w)).collect();
+    if each.len() < 2 { return Vec::new(); }
+    mentions(card, &each.join("|"))
 }
 
 /// `guide <card> --section <words>`: the title line and one section, found by
@@ -266,13 +290,19 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
 const FIND_LINES: usize = 80;
 
 /// `guide <card> --find <words>`: every line holding the words (the phrase, or
-/// else each word), with a line of context, under its section's number and heading.
+/// each word on one line; `a|b` either), with a line of context, under its
+/// section's number and heading. When no line holds every word, the lines
+/// holding any of them print and the result is still an error (exit 1).
 pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     let found = sections(card);
     let lines: Vec<&str> = card.lines().collect();
-    let hits = mentions(card, words);
+    let mut hits = mentions(card, words);
+    // No line holds every word: print the lines holding any of them, still exiting 1.
+    let mut any = false;
     if hits.is_empty() {
-        return Err(format!("no line of guide {name} mentions {words:?}\n{}", section_index(name, card)));
+        hits = any_mentions(card, words);
+        if hits.is_empty() { return Err(format!("no line of guide {name} mentions {words:?}\n{}", section_index(name, card))); }
+        any = true;
     }
     // Merge each hit's one line of context into ranges.
     let mut ranges: Vec<(usize, usize)> = Vec::new();
@@ -280,7 +310,9 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
         let (start, end) = (i.saturating_sub(1), (i + 2).min(lines.len()));
         match ranges.last_mut() { Some(last) if start <= last.1 => last.1 = end, _ => ranges.push((start, end)) }
     }
-    let mut out = format!("guide {name}: {} line{} mention {words:?}\n", hits.len(), if hits.len() == 1 { "" } else { "s" });
+    let mut out = if any {
+        format!("no line of guide {name} mentions all of {words:?}; {} {} one of them (a|b searches for either; words with spaces must share a line)\n", hits.len(), if hits.len() == 1 { "line mentions" } else { "lines mention" })
+    } else { format!("guide {name}: {} {} {words:?}\n", hits.len(), if hits.len() == 1 { "line mentions" } else { "lines mention" }) };
     let (mut printed, mut shown, mut current) = (0, 0, usize::MAX);
     for (start, end) in ranges {
         if printed >= FIND_LINES { break; }
@@ -295,5 +327,5 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     }
     if shown < hits.len() { out.push_str(&format!("… {} more; narrow the words or read one section with --section <number>\n", hits.len() - shown)); }
     out.push_str(&format!("Whole sections: snapback4 guide {name} --section <number>"));
-    Ok(out)
+    if any { Err(out) } else { Ok(out) }
 }

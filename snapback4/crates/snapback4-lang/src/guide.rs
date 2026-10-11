@@ -106,6 +106,10 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
+    // @ref LLP 3000.007#20.1 — wave 5: words builders tried (`guide queries`, `language --section loops`).
+    ("query", "reads"), ("queries", "reads"), ("loop", "language"), ("loops", "language"),
+    ("insert", "writes"), ("update", "writes"), ("upsert", "writes"), ("delete", "writes"),
+    ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("reports", "receipts"), ("delivery", "receipts"), ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
@@ -152,8 +156,23 @@ pub fn quarry(text: &str) -> Vec<String> {
 }
 
 /// The language card's core program; its server opt-in block is separate.
+/// The program is printed in parts under `###` headings in Details (so
+/// `--section loops` finds its part); the parts, in order, are one program.
+// @ref LLP 3000.007#20.1 — wave 5: the 470-line program is split under findable headings and reassembled here.
 pub fn language() -> String {
-    quarry(LANGUAGE).into_iter().find(|block| block.contains("query heldRoom(")).expect("the language card has a core block")
+    let details = LANGUAGE.split_once("\n## Details\n").expect("the language card has Details").1;
+    let details = details.split_once("\n## With `use server`").expect("Details ends at the server opt-in").0;
+    let program = details.split_once("\n### ").expect("the program starts at Details' first subsection").1;
+    let parts = quarry(program);
+    assert!(parts.iter().any(|block| block.contains("query heldRoom(")), "the language card has a core program");
+    parts.concat()
+}
+
+/// One part of the language card's core program (a block that compiles only
+/// as [`language()`]).
+pub fn language_part(block: &str) -> bool {
+    let program = language();
+    block.len() < program.len() && program.contains(block) && quarry(LANGUAGE).iter().any(|part| part == block)
 }
 
 #[path = "guide/templates.rs"]

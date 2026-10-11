@@ -18,6 +18,8 @@ pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &
 // This is an explicit context list, not an exemption from binding or note checks.
 pub fn source(block: &str) -> String {
     if TEMPLATE.contains(block.trim()) { return TEMPLATE.to_owned(); }
+    // The language card prints its one core program in parts under findable headings.
+    if snapback4_lang::guide::language_part(block) { return snapback4_lang::guide::language(); }
     for name in ["maintains", "rules", "search", "feeds"] {
         let text = card(name).unwrap();
         let (opening, reference) = text.split_once("\n## Reference").unwrap();
