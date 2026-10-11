@@ -71,6 +71,7 @@ mutation removeItem(item: items):
 - Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`.
   `t[a, b]` takes a declared unique key's values in column order; `t[col = x]` names a column; inside
   brackets a bare name is a local or argument, and in rules the row's own column is `.col`.
+- Pages: `where` is optional; `return pieces first 50 by .id after c` pages a whole readable table.
 - Shapes: `t[x] { id, name: .title }` copies `id` and renames `title`; `name: title` would read a local.
 - Writes: `insert t { .. }`, `update t[id] { .. }`, `upsert t[k] { .. }`, `delete t[id]` (`guide writes`).
   A missing target refuses NOT_FOUND, `delete` too: `if exists t[id]: delete t[id]` is idempotent.

@@ -110,6 +110,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("query", "reads"), ("queries", "reads"), ("loop", "language"), ("loops", "language"),
     ("insert", "writes"), ("update", "writes"), ("upsert", "writes"), ("delete", "writes"),
     ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
+    ("persona", "personas"), ("persona picker", "personas"), ("switch persona", "personas"), ("picker", "personas"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("reports", "receipts"), ("delivery", "receipts"), ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
