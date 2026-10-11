@@ -92495,3 +92495,13 @@ int/time columns (capability `insert-rule-order`), which the device judges
 and predicts like the server, and the optional author message on
 `require`/`!` refusals. The budget is now 647,972 B (this measurement +
 500 B headroom), with the reason in `metrics/wasm-budget.json`.
+
+## 2026-10-11 — 0.4.18: the wasm budget rises 1,352 B for the wave-2 rule fixes
+
+The integrated 0.4.18 tree measures 2,147,358 B raw / 648,824 B gzip on
+Linux, 852 B over 647,972. The device's share of the wave-2 fixes (LLP
+3000.037 §6): minor-unit ordering of money/decimal in insert rules
+(capability `insert-rule-order-units`), a reference's field read through its
+row, and `delete row`/`update row`. The staff-grant page verdict is server
+only. Budget 649,324 B (measurement + 500 B), reason in
+`metrics/wasm-budget.json`.
