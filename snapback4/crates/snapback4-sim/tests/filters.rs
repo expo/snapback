@@ -28,8 +28,8 @@ fn context(cursor: Option<&str>) -> Context {
 
 #[test]
 fn uniform_filtered_pages_advance_past_more_rejections_than_the_ceiling() {
-    // n is indexed; adding `and true` deliberately keeps this a filter, not a seek.
-    let mut engine = fixture("allow", ".n >= 23 and true", 2, 7);
+    // n is indexed; a true test that reads the row (never hoisted out of the page) keeps this a filter, not a seek.
+    let mut engine = fixture("allow", ".n >= 23 and .owner != 'dev:nobody'", 2, 7);
     seed(&mut engine, 27, |_| false);
     let mut cursor = None;
     let mut matched = Vec::new();
