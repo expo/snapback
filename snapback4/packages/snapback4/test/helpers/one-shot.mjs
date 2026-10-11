@@ -88,7 +88,10 @@ export async function setup(t, tier, { fetch: intercept, device: wrap, changes, 
   let client, app;
   if (tier.startsWith('app-')) {
     const sessionStore = memorySessionStore(); await keepSession(f.url, session, sessionStore);
-    app = createApp({ ...options, sessionStore });
+    // The app tiers act as dev:bob through the kept session: createApp's
+    // persona option would open the session-less persona app instead.
+    const { persona: _persona, ...appOptions } = options;
+    app = createApp({ ...appOptions, sessionStore });
     assert.equal((await app.ready).ok, true); client = app.client;
   } else client = device ? await createLocalClient(options) : createClient(options);
   t.after(async () => { delete globalThis[key]; await (app ?? client).close(); });

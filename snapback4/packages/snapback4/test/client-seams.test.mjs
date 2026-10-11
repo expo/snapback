@@ -586,7 +586,9 @@ test("createApp forwards local waitSeconds while retaining app-owned identity", 
   const f = await fixture(t), waits = [];
   const options = { url: f.url, device: f.device, sessionStore: memorySessionStore(), waitSeconds: 30,
     // Excess properties from an untyped caller must not bypass app.auth.
-    persona: "bob", guest: true, session: { principal: "dev:bob", token: "untrusted", kind: "user", expiresAt: Date.now() + 86400000 },
+    // (persona is a declared createApp option since 0.4.17: it opens the
+    // development-persona app instead, covered by app-persona.test.mjs.)
+    guest: true, session: { principal: "dev:bob", token: "untrusted", kind: "user", expiresAt: Date.now() + 86400000 },
     fetch: (input, init) => {
       const url = new URL(input);
       if (url.pathname === "/changes") waits.push(url.searchParams.get("wait"));
