@@ -1501,13 +1501,15 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `usePendingWrites(op?)`, `usePendingItems(options)`, `usePendingState(op, options)` | admitted writes; rows merged with intent cards; the latest admitted set-state intent |
 | `useAction(op)` | `{ run(args, options?), last, inFlight }` (`UseAction<typeof op>`) with `Act<R>` outcomes |
 | `useViewer()`, `useSignedInViewer()` | `Principal \| null`; `Principal`, throwing `E_AUTH` outside a signed-in gate |
+| `usePersonaApp(persona, open)` | the `App` for a development persona, or null: opens it with `open(persona)`, closes it on switch and unmount |
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
 | `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`), `denied` or `error` (`why`) |
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
-| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any outcome or hook); the state name; notice flags |
+| `otherwiseAll(fallback)` | spread into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included |
+| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
 | `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
 
 #### Narrowing reads and writes in TypeScript
@@ -1518,9 +1520,10 @@ arguments"). `present` and `partial` receive `data`; `otherwise` receives the **
 absent or present, even when one of those also has a handler), so narrow it with `isReady` before
 touching `.data`. `denied` and `partial` stay explicit beside `otherwise`, so a list still
 decides what an uncertain page shows; leaving one out fails with "Property 'denied' is missing
-… `otherwise skips denied: add denied: why => …`". To send them to the same fallback, name a
-zero-argument function and pass it three times:
-`const wait = () => "…"; matchRead(read, { present: rows => rows.length, otherwise: wait, denied: wait, partial: wait })`. A `Write` is `pending`, `sent` or `failed`, and a replayed
+… `otherwise skips denied: add denied: why => …`". To send them to the same fallback, say so
+with one spread: `matchRead(read, { present: rows => rows.length, ...otherwiseAll(() => "…") })`.
+The fallback receives the read (`readPresentation(read).why` is a refusal); a `denied` written
+after the spread wins, and one written before it fails to compile. A `Write` is `pending`, `sent` or `failed`, and a replayed
 `sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it, or
 let `sentResult(write)` do both (below). The
 online client can return `pending` too, while offline or with `waitSeconds: 0`. `close()` returns
@@ -1556,7 +1559,10 @@ so one guard covers reads of different queries: `[thread, me].find(isDenied)` or
 `reads.some(isLoading)` types without annotating `Read<unknown>[]`. `isFailed` does the same for
 outcomes, including a hook's `last` (undefined before the first run), and takes a mutation or
 action hook itself, testing its `last`: `[add.last, remove.last].find(isFailed)?.why` and
-`[add, remove].find(isFailed)?.last.why` both type. `App`, `AppOptions` and
+`[add, remove].find(isFailed)?.last.why` both type. `Outcome` (any `Write`, `Signal` or `Act`)
+types a shared status helper, and `isFailed` narrows an `unknown` too (an awaited
+`Promise<unknown>`): `function FailText({ of }: { of: (Outcome | undefined)[] }) { return
+of.find(isFailed)?.why.message ?? null; }`. `App`, `AppOptions` and
 `AuthSnapshot` are also exported here for components that take the app; `createApp` itself
 imports from `snapback4/app`. After `auth.state === "signed-in"`, `auth.viewer` is a
 `Principal`, never null. Below that gate, `useSignedInViewer()` gives any component the same
@@ -1567,7 +1573,7 @@ and passing `null` mean the same. A `principal` argument takes the stored princi
 `auth.viewer` returns it (`dev:alice` for a development persona, also in fixtures and cases).
 
 ```tsx
-import { isDenied, isFailed, isLoading, isReady, matchRead, useMutation, useQuery, type RowOf, type UseMutation, type Write } from "snapback4/react";
+import { isDenied, isFailed, isLoading, isReady, matchRead, otherwiseAll, readPresentation, useMutation, useQuery, type Outcome, type RowOf, type UseMutation, type Write } from "snapback4/react";
 import { createClient, type Client } from "snapback4/client";
 import { useEffect, useState } from "react";
 import { api } from "../snapback/generated/api";
@@ -1604,6 +1610,11 @@ export function Notices({ conversationId }: { conversationId: string }) {
     {reads.some(isLoading) && <p>Loading…</p>}
     {failed && <p role="alert">Not saved: {failed.why.message}</p>}</>;
 }
+// One fallback for every state the call does not name, denial included; a status line for any outcome.
+export function Count({ conversationId }: { conversationId: string }) {
+  return <p>{matchRead(useQuery(api.thread, { conversationId }), { present: rows => `${rows.length} messages`, ...otherwiseAll(read => readPresentation(read).why?.message ?? "…") })}</p>;
+}
+export function FailText({ of }: { of: (Outcome | undefined)[] }) { return <p role="alert">{of.find(isFailed)?.why.message}</p>; }
 export function useOwnClient(url: string, persona: string): Client | null {
   const [client, setClient] = useState<Client | null>(null);
   useEffect(() => {
@@ -1677,8 +1688,9 @@ leaves the persona's queued writes on its device for its next app. The url must 
 carries the header; `snapback4 dev` still checks the socket, `Host` and `Origin`, and `serve`
 refuses personas, which the app also reports as `E_AUTH`. A browser writes only with a device, as for
 any `createApp`: without one, `app.mutate` refuses `E_ADMISSION` and names
-`createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app; close the
-old one in the effect cleanup. One tab is one device per store, and each persona has its own store.
+`createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app:
+`usePersonaApp(persona, openApp)` opens one per persona and closes the old one on switch and
+unmount (or close it in your own effect's cleanup). One tab is one device per store, and each persona has its own store.
 
 A schema with `use personas` and no `use identity` has no account to sign into: the starter's
 `auth.guest()` refuses `E_AUTH` there, so open a persona app instead of calling it. Each recipe
@@ -1747,10 +1759,10 @@ keep `127.0.0.1`. A physical phone cannot use personas: `dev` admits the header 
 socket.
 
 ```tsx
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAuth, usePersonaApp } from "snapback4/react";
 import { createApp, type App } from "snapback4/app";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Text, View } from "react-native";
 
 const url = "http://127.0.0.1:4400"; // the iOS simulator reaches this machine's loopback
@@ -1759,13 +1771,7 @@ const openApp = (persona: string): App =>
   createApp({ url, persona, device: nativeAvailable() ? nativeDevice : undefined });
 export function PersonaRoot({ children }: { children: ReactNode }) {
   const [persona, setPersona] = useState<string | null>(null);
-  const [app, setApp] = useState<App | null>(null);
-  useEffect(() => {
-    if (!persona) return;
-    const opened = openApp(persona);
-    setApp(opened);
-    return () => { setApp(null); void opened.close(); };
-  }, [persona]);
+  const app = usePersonaApp(persona, openApp); // null until the chosen persona's app exists
   if (!persona || !app) return <View>{personas.map(name =>
     <Button key={name} title={`Act as ${name}`} onPress={() => setPersona(name)} />)}</View>;
   return <AppProvider app={app}><Signed leave={() => setPersona(null)}>{children}</Signed></AppProvider>;
@@ -2989,7 +2995,7 @@ try {
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
-  (`guide <E_CODE>` explains a code). A card over 130 lines prints its opening and a numbered section index;
+  (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). A card over 130 lines prints its opening and a numbered section index (piped, also its first section);
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),
   `--find <words>` prints the lines that mention them (`a|b` for either), and `--full` prints the whole card. Natural words

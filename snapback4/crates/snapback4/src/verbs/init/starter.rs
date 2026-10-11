@@ -130,6 +130,40 @@ fn compose(head: &str, body: &str) -> String {
     format!("{imports}\n{head_code}\n{body_code}")
 }
 
+const GUEST_SIGN_IN: &str = "Choose \"Continue as a guest\" to sign in (`use identity`); `npx snapback4 guide personas`\nadds password accounts and development personas.";
+const PERSONA_SIGN_IN: &str = "The first screen (on the web also `?as=<name>`) acts as a persona your schema declares with\n`use personas`: `usePersonaApp` opens one app per persona and closes the old one on a switch.\nPersonas act only on `snapback4 dev`: add `use identity` and a sign-in screen before you\ndeploy (`npx snapback4 guide personas`).";
+
+/// The starter README for a screen: the Todos README describes the starter's
+/// own schema and screen; beside a project's schema (the neutral `Home`) the
+/// README is named after the directory and describes that schema's sign-in.
+// @ref LLP 3000.011.003.000#7.4 — wave 6 (042): an adapted starter kept a README about todos and guest sign-in.
+pub(super) fn readme(platform: Platform, title: &str, body: &Body, personas: bool) -> String {
+    let todos = match platform { Platform::Web => include_str!("starter/web/README.md"), Platform::Expo => include_str!("starter/expo/README.md") };
+    if *body == Body::Todos { return todos.to_owned(); }
+    let home = match platform { Platform::Web => include_str!("starter/web/README.home.md"), Platform::Expo => include_str!("starter/expo/README.home.md") };
+    let text = home.replacen("# TITLE", &format!("# {title}"), 1).replace("SIGN_IN", if personas { PERSONA_SIGN_IN } else { GUEST_SIGN_IN });
+    if platform == Platform::Web { return text; }
+    // The Expo toolchain notes are the Todos README's own, word for word.
+    let advisories = todos.split_once("\n> ").map(|(_, rest)| format!("> {}", rest.split_once("\n\n").expect("the advisory box ends").0)).expect("the Expo README has its advisory box");
+    let toolchain = todos.split_once("\nKeep the Expo and").map(|(_, rest)| format!("Keep the Expo and{}", rest.split_once("## Next steps").expect("the Expo README has next steps").0)).expect("the Expo README has its toolchain notes");
+    text.replacen("ADVISORIES", &advisories, 1).replacen("TOOLCHAIN\n", &toolchain, 1)
+}
+
+/// The Expo app's `app.json` ids, named after the directory's title: a slug
+/// (`bake-sale`), a URL scheme and a bundle id that start with a letter
+/// (`bakesale`, `dev.snapback4.bakesale`).
+pub(super) fn app_ids(title: &str) -> (String, String, String) {
+    let words: Vec<String> = title.split(|c: char| !c.is_ascii_alphanumeric()).filter(|word| !word.is_empty()).map(str::to_ascii_lowercase).collect();
+    let slug = if words.is_empty() { "app".to_owned() } else { words.join("-") };
+    let mut scheme = words.concat();
+    if !scheme.starts_with(|c: char| c.is_ascii_alphabetic()) { scheme = format!("app{scheme}"); }
+    let bundle = format!("dev.snapback4.{scheme}");
+    (slug, scheme, bundle)
+}
+
+/// What 0.4.21 and earlier wrote into every Expo starter's `app.json`.
+pub(super) const TODO_IDS: [(&str, &str); 3] = [("slug", "snapback4-todos"), ("scheme", "snapback4todos"), ("bundle", "dev.snapback4.todos")];
+
 pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(include_str!("../../../../../apps/chat/package.json")).unwrap();
     package["name"] = json!("snapback4-web-starter");
@@ -148,7 +182,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/client.ts", client),
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
-        ("README.md", include_str!("starter/web/README.md").to_owned()),
+        ("README.md", readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some())),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
@@ -161,10 +195,12 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     package["name"] = json!("snapback4-expo-starter");
     let mut config: Value = serde_json::from_str(include_str!("../../../../../apps/chat-expo/app.json")).unwrap();
     config["expo"]["name"] = json!(shape.title);
-    config["expo"]["slug"] = json!("snapback4-todos");
-    config["expo"]["scheme"] = json!("snapback4todos");
-    config["expo"]["ios"]["bundleIdentifier"] = json!("dev.snapback4.todos");
-    config["expo"]["android"]["package"] = json!("dev.snapback4.todos");
+    // @ref LLP 3000.011.003.000#7.4 — wave 6 (067): ids named after the directory, never the todo starter's.
+    let (slug, scheme, bundle) = app_ids(&shape.title);
+    config["expo"]["slug"] = json!(slug);
+    config["expo"]["scheme"] = json!(scheme);
+    config["expo"]["ios"]["bundleIdentifier"] = json!(bundle);
+    config["expo"]["android"]["package"] = json!(bundle);
     let (app, client) = screens(Platform::Expo, shape.personas.as_deref(), &shape.body);
     vec![
         ("package.json", super::pretty(&package)),
@@ -179,7 +215,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/client.ts", client),
         ("src/native-smoke.ts", include_str!("native-smoke.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
-        ("README.md", include_str!("starter/expo/README.md").to_owned()),
+        ("README.md", readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some())),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 

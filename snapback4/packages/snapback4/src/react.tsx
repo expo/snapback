@@ -20,8 +20,8 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadPresentation } from "./contract.ts";
-export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
+export { matchRead, otherwiseAll, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadPresentation } from "./contract.ts";
+export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 // React apps name the app they hand to <AppProvider> here; `createApp` itself
 // stays in snapback4/app so this entry never imports the session runtime.
 export type { App, AppOptions, AppAuth, AuthSnapshot, AuthState, AppResult, Online } from "./app.ts";
@@ -451,6 +451,32 @@ export function useSignedInViewer(): Principal {
     throw Object.assign(new Error(`E_AUTH: ${why.message} Render it only under a signed-in gate, or use useViewer().`), { why });
   }
   return viewer;
+}
+
+/** The app for a development persona (`use personas`), owned by this
+ * component: `open(persona)` runs in an effect when `persona` changes (pass
+ * your own `createApp({ url, persona, device })`), the previous app closes in
+ * that effect's cleanup and on unmount, and the result is `null` while no
+ * persona is chosen and until the chosen persona's app exists, never the
+ * previous persona's app. Render `<AppProvider app={app}>` from it and gate
+ * on `useAuth().state` inside, as for any app. `open` is read when the persona
+ * changes, so an inline arrow does not reopen the app on every render.
+ * `const app = usePersonaApp(persona, name => createApp({ url, persona: name, device: webDevice() }))` */
+// @ref LLP 3000.013#6.7 — wave 6: persona switching owned an App lifecycle every UI rewrote; one hook owns open/close.
+export function usePersonaApp(persona: string | null, open: (persona: string) => App): App | null {
+  const [current, setCurrent] = useState<{ readonly persona: string; readonly app: App } | null>(null);
+  const opener = useRef(open);
+  opener.current = open;
+  useEffect(() => {
+    if (!persona) return;
+    const app = opener.current(persona);
+    setCurrent({ persona, app });
+    return () => {
+      setCurrent(previous => previous?.app === app ? null : previous);
+      void app.close();
+    };
+  }, [persona]);
+  return current !== null && current.persona === persona ? current.app : null;
 }
 
 /** The session the local-first client holds, or null once it ended (after

@@ -5,7 +5,13 @@ Rust interpreter as the server. The package carries the TypeScript client and th
 
 ## Start here: a new app in five steps
 
-Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). Every Quarry example in this README and in `snapback4 guide` compiles in the suite; `npx snapback4 guide start` lists eight short patterns.
+Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases: `sql`, `convex`, `rosetta`). Every Quarry example in this README and in `snapback4 guide` compiles in the suite; `npx snapback4 guide start` lists eight short patterns. **Backend first** (schema → check → test, then the client; a starter written after your schema fits it, so there is nothing to adapt):
+```sh
+npm install --save-exact snapback4 && npx snapback4 init   # writes only snapback/schema.q: edit it (guide cheatsheet)
+npx snapback4 check                                        # until clean; notes carry rewrites; writes snapback/generated/api.ts
+npx snapback4 test --fixture fixtures --as alice           # your fixtures/<table>.jsonl rows and fixtures/test.cases.jsonl
+npx snapback4 init --web                                   # or --expo: sign-in (or persona picker) and a Home for your schema
+```
 
 1. **Install and scaffold.** In a new directory:
    ```sh
@@ -288,9 +294,9 @@ Public feeds share an activity union: Following delivers it to each reader; Tren
 
 ## Reference map: open only what the feature needs
 
-`snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
-cards and aliases; `guide cheatsheet` is one screen of the common forms. A card over 130 lines prints its opening
-and a numbered section index: `--section <number or words>` prints one, `--find <words>` greps it, `--full` prints all.
+`snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` indexes the cards; `guide aliases`
+lists words that open a card or one section (`guide pagination`). A card over 130 lines prints its opening, a section index
+and, piped, its first section: `--section <number or words>` prints one, `--find <words>` greps it, `--full` prints all.
 Every refusal names a code, site and rewrite.
 Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
 | Need | One reference lookup |

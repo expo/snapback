@@ -7,7 +7,7 @@ fn headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card() {
     let auth = card("auth").unwrap();
     for alias in ["seed", "replay", "headless", "signup", "sign-up", "register", "replay adapter"] {
         assert_eq!(card(alias), Some(auth), "{alias}");
-        assert!(snapback4_lang::guide::listing().contains(alias), "{alias}");
+        assert!(snapback4_lang::guide::aliases().contains(alias), "{alias}");
     }
     assert!(auth.lines().count() <= 118, "{} lines", auth.lines().count());
     assert!(auth.contains("## Seed accounts headlessly"));
@@ -29,7 +29,7 @@ fn client_aliases_keep_typing_on_ephemeral() {
     assert!(client.contains("direct queries and timed presence refreshes use separate paths"));
     for alias in ["client", "react", "hooks", "composer", "unread", "readPresentation", "read-presentation"] {
         assert_eq!(card(alias), Some(client));
-        assert!(snapback4_lang::guide::listing().contains(alias));
+        assert!(snapback4_lang::guide::aliases().contains(alias));
     }
     assert_eq!(card("typing"), card("ephemeral"));
 }

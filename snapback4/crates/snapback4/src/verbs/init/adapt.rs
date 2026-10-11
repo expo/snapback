@@ -44,7 +44,58 @@ pub(crate) fn leftovers(dir: &Path) -> (Vec<Leftover>, Vec<String>) {
     for platform in [Platform::Web, Platform::Expo] {
         screens(dir, platform, &own, todos, &mut found, &mut advice);
     }
+    readme(dir, &own, todos, &mut found);
+    app_json(dir, &mut found);
     (found, advice)
+}
+
+/// The starter README, while it is still one init wrote (for either screen,
+/// at the ports it names), when it describes another screen than the schema
+/// now gets: the Todos README beside a project's schema, or the reverse.
+// @ref LLP 3000.011.003.000#7.4 — wave 6 (042): adapt rewrote the screen but left a README about todos and guest sign-in.
+fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>) {
+    let platform = if dir.join("src/App.tsx").is_file() { Platform::Web } else if dir.join("App.tsx").is_file() { Platform::Expo } else { return };
+    let title = super::title(dir);
+    let personas = own.identity.is_none() && !own.personas.is_empty();
+    let wanted_body = if todos { Body::Todos } else { Body::Home(None) };
+    for path in ["README.md", "README.snapback.md"] {
+        let Some(text) = read(dir, path) else { continue };
+        let port = number_after(&text, "127.0.0.1:");
+        let web_port = number_after(&text, "localhost:");
+        let ports = [(port, web_port), (None, web_port), (port, None), (None, None)];
+        let matched = ports.into_iter().find(|&(port, web_port)| {
+            [(Body::Todos, false), (Body::Home(None), false), (Body::Home(None), true)].iter()
+                .any(|(body, personas)| text == super::localize(path, &super::without_design_references(&starter::readme(platform, &title, body, *personas)), port, web_port))
+        });
+        let Some((port, web_port)) = matched else { continue };
+        let wanted = super::localize(path, &super::without_design_references(&starter::readme(platform, &title, &wanted_body, personas)), port, web_port);
+        if wanted == text { continue; }
+        let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
+        let why = format!("the unmodified starter README describes {}; adapt rewrites it to describe {about}", if text.starts_with("# Todos") { "the todo starter (its todos table and guest sign-in)" } else { "the Home screen for another schema" });
+        found.push(Leftover { path, why, rewrite: Some(wanted) });
+    }
+}
+
+/// An Expo `app.json` that still carries the todo starter's slug, scheme and
+/// bundle ids (written by 0.4.21 and earlier): adapt names them after the
+/// directory and changes nothing else in the file.
+// @ref LLP 3000.011.003.000#7.4 — wave 6 (067): adapted Expo apps kept dev.snapback4.todos.
+fn app_json(dir: &Path, found: &mut Vec<Leftover>) {
+    let Some(text) = read(dir, "app.json") else { return };
+    let Ok(config) = serde_json::from_str::<serde_json::Value>(&text) else { return };
+    let expo = &config["expo"];
+    let [(_, slug), (_, scheme), (_, bundle)] = starter::TODO_IDS;
+    if expo["slug"] != slug || expo["scheme"] != scheme || expo["ios"]["bundleIdentifier"] != bundle || expo["android"]["package"] != bundle { return; }
+    let (new_slug, new_scheme, new_bundle) = starter::app_ids(&super::title(dir));
+    let quoted = |value: &str| format!("\"{value}\"");
+    let rewrite = text.replace(&quoted(bundle), &quoted(&new_bundle)).replace(&quoted(slug), &quoted(&new_slug)).replace(&quoted(scheme), &quoted(&new_scheme));
+    found.push(Leftover { path: "app.json", why: format!("the todo starter's ids (slug {slug}, scheme {scheme}, bundle id {bundle}); adapt names them after this directory ({new_slug}, {new_scheme}, {new_bundle})"), rewrite: Some(rewrite) });
+}
+
+fn number_after(text: &str, prefix: &str) -> Option<u16> {
+    let at = text.find(prefix)? + prefix.len();
+    let digits: String = text[at..].chars().take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
 }
 
 /// The sign-in a schema admits, as the starter screen it needs: the guest

@@ -91,6 +91,7 @@ pub fn init(options: &Options) -> i32 {
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
         body: match own.as_ref() { Some(own) if !adapt::fits_todos(own) => starter::Body::Home(own.reads.first().cloned()), _ => starter::Body::Todos },
     };
+    let home = matches!(shape.body, starter::Body::Home(_));
     let mut files = if social { social::files() }
         else if chat && web { web::files() } else if chat { expo_files() }
         else if web { starter::web_files(&shape) } else if expo { starter::expo_files(&shape) }
@@ -113,10 +114,7 @@ pub fn init(options: &Options) -> i32 {
         // Starters copied from the reference apps keep their design notes in
         // this repository; a new project gets the explanation alone.
         if *name != "package.json" { *text = without_design_references(text); }
-        if let Some(port) = port { *text = text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
-        if let Some(web_port) = web_port {
-            *text = text.replace("port: 5173", &format!("port: {web_port}")).replace("port: 4173", &format!("port: {web_port}")).replace("localhost:5173", &format!("localhost:{web_port}"));
-        }
+        *text = localize(name, text, port, web_port);
     }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it
@@ -237,7 +235,9 @@ pub fn init(options: &Options) -> i32 {
     let install = if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
     let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
     let kind = if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
-        else if expo { "Expo todos: native when available, online in Expo Go" } else if web { "Vite + React todos, offline-capable" }
+        else if expo && home { "Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go" }
+        else if expo { "Expo todos: native when available, online in Expo Go" }
+        else if web && home { "Vite + React app: sign-in and a Home screen for your snapback/*.q, offline-capable" } else if web { "Vite + React todos, offline-capable" }
         else if online { "online-only" } else { "local-first" };
     println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
@@ -330,7 +330,22 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
 }
 
 /// The page and app name: the directory's, as words ("bake-sale" → "Bake Sale").
-fn title(dir: &Path) -> String {
+/// A starter file with init's ports: the backend's (`--port`) and the Vite
+/// page's (`--web-port`). A README's `npx snapback4 dev` names the port too.
+// @ref LLP 3000.011.003.000#7.4 — wave 6 (042): the README said plain `snapback4 dev` beside a client on another port.
+pub(super) fn localize(name: &str, text: &str, port: Option<u16>, web_port: Option<u16>) -> String {
+    let mut text = text.to_owned();
+    if let Some(port) = port {
+        text = text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}"));
+        if name.starts_with("README") { text = text.replace("npx snapback4 dev  ", &format!("npx snapback4 dev --port {port}  ")); }
+    }
+    if let Some(web_port) = web_port {
+        text = text.replace("port: 5173", &format!("port: {web_port}")).replace("port: 4173", &format!("port: {web_port}")).replace("localhost:5173", &format!("localhost:{web_port}"));
+    }
+    text
+}
+
+pub(super) fn title(dir: &Path) -> String {
     let path = std::fs::canonicalize(dir).unwrap_or_else(|_| std::path::absolute(dir).unwrap_or_else(|_| dir.to_path_buf()));
     let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
     let words: Vec<String> = name.split(|c: char| c == '-' || c == '_' || c == '.' || c.is_whitespace()).filter(|word| !word.is_empty())

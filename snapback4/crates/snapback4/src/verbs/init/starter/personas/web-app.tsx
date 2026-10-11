@@ -1,18 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
-import type { App as SnapbackApp } from "snapback4/app";
-import { AppProvider, useAuth } from "snapback4/react";
+import { useState, type ReactNode } from "react";
+import { AppProvider, useAuth, usePersonaApp } from "snapback4/react";
 import { openApp, personas } from "./client.ts";
 
 // `?as=bob` acts as the declared persona dev:bob; the picker switches it.
 export function App() {
   const [persona, setPersona] = useState(() => new URLSearchParams(location.search).get("as"));
-  const [app, setApp] = useState<SnapbackApp | null>(null);
-  useEffect(() => {
-    if (!persona) return;
-    const opened = openApp(persona);
-    setApp(opened);
-    return () => { setApp(null); void opened.close(); };
-  }, [persona]);
+  // One app (and device store) per persona: opened on choice, closed on switch and unmount.
+  const app = usePersonaApp(persona, openApp);
   const choose = (next: string | null) => {
     const address = new URL(location.href);
     if (next) address.searchParams.set("as", next); else address.searchParams.delete("as");

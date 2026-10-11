@@ -802,10 +802,24 @@ fn guide_lists_aliases_and_resolves_them_on_stdout() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("cards: language, from-sql, app, types"), "{stdout}");
-    assert!(stdout.contains("offline -> prediction"), "{stdout}");
+    // Wave 6 (098): the alias list moved behind `guide aliases`; the listing is one screen.
+    assert!(stdout.contains("snapback4 guide aliases") && !stdout.contains("offline -> prediction") && stdout.lines().count() <= 10, "{stdout}");
+    let output = Command::new(BIN).args(["guide", "aliases"]).output().unwrap();
+    assert!(output.status.success() && output.stderr.is_empty(), "{output:?}");
+    let aliases = String::from_utf8_lossy(&output.stdout);
+    assert!(aliases.lines().any(|line| line == "offline -> prediction") && aliases.contains("pagination -> reads --section"), "{aliases}");
     let output = Command::new(BIN).args(["guide", "pagination"]).output().unwrap();
     assert!(output.status.success());
-    assert!(String::from_utf8_lossy(&output.stdout).starts_with("# Reads"));
+    // Wave 6 (074): an alias that names a section prints that section, under the card's title.
+    let pagination = String::from_utf8_lossy(&output.stdout);
+    assert!(pagination.starts_with("# Reads\n(pagination -> guide reads, section ") && pagination.contains("### Pages and cursors") && pagination.lines().count() < 30, "{pagination}");
+    for (args, needle) in [(&["recipes", "--find", "capacity"][..], "## Booking"), (&["reads", "--section", "pagination"], "### Pages and cursors"), (&["capacity"], "## Booking"), (&["roles"], "## Roles"), (&["two", "party"], "## Two parties")] {
+        let output = Command::new(BIN).arg("guide").args(args).output().unwrap();
+        let text = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success() && text.contains(needle), "guide {args:?}: {text}");
+    }
+    let full = Command::new(BIN).args(["guide", "pagination", "--full"]).output().unwrap();
+    assert_eq!(full.stdout, Command::new(BIN).args(["guide", "reads", "--full"]).output().unwrap().stdout, "--full still prints the whole card");
 }
 
 // L12 final-check omitted all prediction-loss notes once residency.json caught up.
@@ -1570,7 +1584,11 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         if card.lines().count() <= snapback4_lang::guide::FULL_LINES || snapback4_lang::guide::sections(card).is_empty() {
             assert_eq!(default, full, "{keyword}: a short card prints whole");
         } else {
-            assert!(default.lines().count() <= 70, "{keyword}: the overview fits a tool window ({} lines)", default.lines().count());
+            // Piped, as here and in agents' tools, the overview also prints section 1 (wave 6);
+            // the terminal form is the index-only overview (`guide::overview`, under 70 lines).
+            assert!(default.lines().count() <= 150, "{keyword}: the overview fits a tool window ({} lines)", default.lines().count());
+            let first = &snapback4_lang::guide::sections(card)[0];
+            assert!(default.contains(card.lines().nth(first.2).unwrap()) && default.contains(&format!("\n\nSections of guide {keyword}:\n")), "{keyword}: piped, the first section prints before the index: {default}");
             // Wave 4: the title, then how to read more (a short opening once read as the whole card), then the lead.
             let (title, rest) = full.split_once('\n').unwrap();
             let (hint, rest_of_default) = default.strip_prefix(&format!("{title}\n")).and_then(|d| d.split_once('\n')).unwrap_or_else(|| panic!("{keyword}: the overview opens with the title: {default}"));
