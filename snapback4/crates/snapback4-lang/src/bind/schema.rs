@@ -620,6 +620,15 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                     // @ref LLP 3000.036#13.6 — wave 3 I4: one ordering rule for insert rules and named updates.
                     let scalar = |ty: &Ty| matches!(ty.required(), Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..));
                     let literal = |term: &RuleTerm| matches!(term, RuleTerm::Literal(Value::Int(_)));
+                    // A private (`written by`) decimal or money input stays refused: the disclosure
+                    // suite verifies ordered private transitions at runtime for int and time only.
+                    let private = |term: &RuleTerm| matches!(term, RuleTerm::OldField(f) | RuleTerm::NextField(f)
+                        if info.decl.columns.iter().any(|c| &c.name == f && c.written_by.is_some() && !c.readable_by_audience));
+                    let units = |ty: &Ty| matches!(ty.required(), Ty::Decimal(_) | Ty::Money(..));
+                    if (units(&lt) || units(&rt)) && (private(&l) || private(&r)) {
+                        return Err(type_error(site, format!("ordered transition terms over a private decimal or money field are not evaluated in rules; got {} and {}", lt.name(), rt.name()),
+                            super::rule_operator::transition_require(&info.decl.name, expr)));
+                    }
                     if !scalar(&lt) || !scalar(&rt) || (lt.required() != rt.required() && !literal(&l) && !literal(&r)) {
                         // Never a rewrite that changes the policy: the same comparison, in the mutation.
                         return Err(type_error(site, format!("ordered transition terms need one int, time, decimal or money type (or an integer literal); got {} and {}", lt.name(), rt.name()),
