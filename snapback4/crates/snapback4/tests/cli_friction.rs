@@ -551,3 +551,27 @@ query reportPage(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     assert_eq!(output.status.code(), Some(0), "{}", text(&output));
     assert!(text(&output).contains("cases: 1 passed, 0 failed"), "{}", text(&output));
 }
+
+/// Wave 5 (#8, #26): a farm assigns each builder a port range, and agents
+/// wrote their own scanners (two hung). `dev --port A-B` binds the first free
+/// port of the range and prints it as stdout's first line.
+#[test]
+fn dev_binds_the_first_free_port_of_a_range() {
+    let project = Project::new("table notes:\n  owner: principal\n  read <- .owner = viewer\n  online only\n");
+    let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let taken = held.local_addr().unwrap().port();
+    let high = taken.saturating_add(30);
+    let mut child = Command::new(BIN).current_dir(&project.0)
+        .args(["dev", "--port", &format!("{taken}-{high}"), "--fresh", "--no-watch"])
+        .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    let mut line = String::new();
+    BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    let _dev = Dev(child);
+    let port: u16 = line.trim().rsplit(':').next().unwrap().parse().unwrap_or_else(|_| panic!("{line:?}"));
+    assert!(port > taken && port <= high, "the first free port after the taken one: {line:?}");
+    let (status, body) = http(line.trim(), "GET", "/dev/status", None, "");
+    assert_eq!(status, 200, "{body}");
+    // Every port taken: E_ADDRINUSE at once, naming the range.
+    let output = project.run(&["dev", "--port", &format!("{taken}-{taken}"), "--fresh", "--no-watch"]);
+    assert!(!output.status.success() && text(&output).contains(&format!("every port in {taken}-{taken}")), "{}", text(&output));
+}

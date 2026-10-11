@@ -72,7 +72,7 @@ Output:
 snapback4 why <CODE> explains any problem or note; snapback4 why <op> one
 operation's cost. Exit 0 ok (notes or not), 1 problems, 2 cannot run.";
 
-const DEV: &str = "snapback4 dev [--port N] [--bind IP] [--fresh|--memory] [--no-watch] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [--verbose]
+const DEV: &str = "snapback4 dev [--port N|A-B] [--bind IP] [--fresh|--memory] [--no-watch] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [--verbose]
 
 Serves snapback/*.q on http://127.0.0.1:4400 and re-adopts the schema on every
 save (a save with problems keeps the previous generation serving).
@@ -89,7 +89,9 @@ Readiness and ownership:
   the binary's and wrapperPid the wrapper's; a signal to either stops the
   server, and so does a SIGKILL to the wrapper (the binary exits when the
   wrapper that launched it is gone). A taken port refuses the start at once (E_ADDRINUSE, naming
-  the holder); --port 0 picks a free port.
+  the holder); --port 0 picks a free port; --port A-B binds the first free
+  port of that inclusive range (E_ADDRINUSE only when every one is taken),
+  for a host that assigns each builder a range. Read the URL from stdout.
 
 Store:
   (default)        .snapback4/store.sqlite, kept across runs; one host at a

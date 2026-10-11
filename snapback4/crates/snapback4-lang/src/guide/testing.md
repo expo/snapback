@@ -140,7 +140,8 @@ the platform binary, so the child's PID is the server's. The `node_modules/.bin/
 works: it forwards `SIGTERM`/`SIGINT`, and the server stops when the wrapper dies, even by `SIGKILL`.
 Never spawn `npx` (npm and a shell sit in between). `--port 0` takes a free port and `--memory` keeps no
 store, so parallel runs never contend; a fixed port that is taken refuses at once (`E_ADDRINUSE`, naming
-the holder). Readiness: stdout's first line is the URL; host diagnostics go to stderr, so read stdout
+the holder). On a host that assigns you a port range, pass it: `--port 20100-20109` binds the first free
+port in it (`E_ADDRINUSE` only when all are taken), so no port-scanning loop is needed. Readiness: stdout's first line is the URL; host diagnostics go to stderr, so read stdout
 alone, or, reading both streams together, match the stderr line `SNAPBACK4_READY … url=… pid=…`.
 `GET /dev/status` names the server's `pid` (and `wrapperPid` through the wrapper). `snapback4 dev --help`
 has the lifecycle.
