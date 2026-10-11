@@ -43,3 +43,8 @@ What to do with a page that stays incomplete: in `test.cases.jsonl` the
 query's default expectation passes either answer (`"expect": "capped"` pins
 it; run it as a grant holder to expect `complete`). In a client, show the
 rows and treat `complete: false` as "there may be more", not as an error.
+
+An `exists` over such a scan answers `true` (still `complete: false`) when a
+row the caller may read matches; with none the server has no answer (the
+client shows `loading`), never `false`, since hidden rows could match. Pin the
+deciding column to get `false`; in a mutation the form is `E_STRUCTURAL_FANOUT`.

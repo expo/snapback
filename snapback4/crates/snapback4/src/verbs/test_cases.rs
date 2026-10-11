@@ -87,11 +87,12 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let trace = RefusalTrace::default();
         let context = Context::new(principal, args).with_refusal_trace(trace.clone());
         // (outcome word, answer) or a refusal
+        let mut unavailable = false;
         let got: Result<(&str, Json), Refusal> = if let Some(why) = undeclared_persona(persona, &bound.personas) {
             Err(Refusal::new("E_AUTH", "auth", why))
         } else { match program.kind {
             ProgramKind::Query => match engine.query(op, context) {
-                Ok(outcome) => Ok((if outcome.complete { "complete" } else { "capped" }, wire::to_json(&outcome.data))),
+                Ok(outcome) => { unavailable = outcome.unavailable; Ok((if outcome.complete { "complete" } else { "capped" }, wire::to_json(&outcome.data))) },
                 Err(refusal) => Err(refusal),
             },
             ProgramKind::Job => return Err(format!("{at}: {op} is a job; cases run queries and mutations")),
@@ -113,7 +114,11 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
                     if admitted && explicit.is_none() && verdicts_shown.insert(op.to_owned()) { notes.push(format!("capped is this query's check verdict: {note}")); }
                     if !admitted { notes.push(format!("hint: {note}; a capped answer still holds every row you may read: add \"expect\":\"capped\" (or drop \"expect\"), or pin the page as the note's rewrite says (snapback4 check --verbose)")); }
                 }
-                if let Some(data) = case.get("data") && data != answer { problems.push(format!("data differs: got {answer}")); }
+                if let Some(data) = case.get("data") && data != answer {
+                    problems.push(format!("data differs: got {answer}"));
+                    // @ref LLP 3000.036#15.12 — an unavailable answer is not a null value: say why it has none.
+                    if unavailable { notes.push("null here is no answer (a client shows `loading`), not a null value: a ceiling cut it, or an `exists` over rows this viewer only partly reads found no row it may read, which cannot prove absence (snapback4 check --verbose)".into()); }
+                }
                 if let Some(count) = case.get("count").and_then(Json::as_u64) {
                     let length = answer.as_array().map(|a| a.len()).or_else(|| answer.get("items").and_then(Json::as_array).map(|a| a.len()));
                     if length != Some(count as usize) { problems.push(format!("expected {count} rows, got {}", length.map(|n| n.to_string()).unwrap_or_else(|| "a non-list".into()))); }

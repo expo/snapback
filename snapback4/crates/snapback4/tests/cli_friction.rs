@@ -514,6 +514,24 @@ fn cases_follow_check_verdicts_name_refusing_layers_and_refuse_undeclared_person
     }
 }
 
+/// Wave 5 lane 017 (LLP 3000.036 §15.11): `test` reports the search `exists`
+/// over a per-row rule as it answers: `true` for the owner of a readable
+/// match, and for another persona no value, said as such rather than `null`.
+#[test]
+fn a_search_exists_case_reports_a_readable_match_and_an_unavailable_answer() {
+    let project = Project::new("use personas amy, bob\ntable applications:\n  owner: principal\n  status: enum('draft', 'submitted')\n  read <- .owner = viewer\n  online only\nquery plain():\n  return exists applications where .status = 'submitted'\n");
+    project.write("fx/applications.jsonl", "{\"id\":\"a1\",\"owner\":\"dev:amy\",\"status\":\"submitted\"}\n");
+    project.write("fx/test.cases.jsonl", concat!(
+        "{\"as\":\"amy\",\"op\":\"plain\",\"data\":true}\n",
+        "{\"as\":\"bob\",\"op\":\"plain\",\"data\":false}\n"));
+    let output = project.run(&["test", "--fixture", "fx"]);
+    let out = text(&output);
+    assert!(out.contains("ok   test.cases.jsonl:1 plain (amy) → capped"), "{out}");
+    assert!(out.contains("FAIL test.cases.jsonl:2 plain (bob) → capped: data differs: got null")
+        && out.contains("null here is no answer (a client shows `loading`), not a null value"), "{out}");
+    assert!(out.contains("cases: 1 passed, 1 failed"), "{out}");
+}
+
 /// Wave 5 (lane 059): an argument-free query refused by its own `require` was
 /// `denied` and failed the run, while the same body with `c: cursor ?` was
 /// "refused on derived arguments" and passed. Both are the program's gate.
