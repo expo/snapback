@@ -24,19 +24,73 @@ table announcements:
   sync last 200 by .at
 ```
 
+- `online only` is the first answer to a rule with several readers: the rule stays as written, queries answer from the server and mutations never predict (offline they queue). Never make private rows public to enable sync.
 - `E_SYNC`: a read rule joining two audiences with `or`, or a membership insert branch that proves no grant; the rewrite prints the recipe below against your tables.
-- `online only` keeps any rule as written, without offline reads or prediction; never make private rows public to enable sync.
 
 ## Reference
 
 A synced table's read rule must be exactly one audience: `public`, one
-`.column = viewer`, or one `exists members[.group..., viewer]` probe. Two
-readers joined by `or` are a union of two audiences. Sync does not deliver
-unions: a device would have to keep a row while any one of its audiences
-still grants it, through owner changes, group moves and leaves. These
-recipes keep every reader offline with one audience per table. A members
-row read under `.principal = viewer or exists members[.group, viewer]` is its
-own witness, so that rule syncs as the probe alone.
+`.column = viewer`, or one `exists members[.group..., viewer]` probe. A rule
+naming two kinds of reader (an owner or staff, a buyer or a seller, anyone who
+joins) leaves two choices:
+
+1. **Keep the rule and write `online only` instead of `sync`.** Any rule works
+   as written. The cost is offline: the rows never reach a device, so queries
+   over the table answer from the server (offline, the last server answer or
+   `E_OFFLINE`), and mutations that read or write it never predict; offline
+   they queue, and the server accepts or refuses them on reconnect. Start
+   here for staff consoles, admin screens and apps that are online anyway.
+2. **Give each table one audience** to keep every reader's rows offline: the
+   recipes after the online one.
+
+Sync does not deliver unions: a device would have to keep a row while any one
+of its audiences still grants it, through owner changes, group moves and
+leaves. A members row read under `.principal = viewer or exists
+members[.group, viewer]` is its own witness, so that rule syncs as the probe
+alone.
+
+### Online: any rule, as written
+
+**A staff console, online.** When the app is online, one table can say
+`.tenant = viewer or exists staff[viewer]`. A staff member's page is decided
+once by the grant and answers `complete: true`, as long as each staff member
+can read their own `staff` row; start the console query with the same
+`require`, and a staff-only mutation can walk every row of a group the same
+way (`: server` alone does not lift a page the rule does not decide). Tenants
+pin their own column. Sync does not deliver this union: offline needs the
+tables below. `guide recipes --section roles` adds admins who grant roles.
+
+```quarry
+table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+
+table tickets:
+  tenant: principal
+  title: text <=200
+  done: bool
+  at: time
+  read <- .tenant = viewer or exists staff[viewer]
+  insert <- .tenant = viewer
+  update <- exists staff[viewer]
+  online only
+
+query queue(c: cursor ?):
+  require exists staff[viewer] else NOT_STAFF
+  return tickets where not .done last 50 by .at after c
+
+query mine(c: cursor ?):
+  return tickets where .tenant = viewer last 50 by .at after c
+
+mutation closeAllFor(tenant: principal):
+  require exists staff[viewer] else NOT_STAFF
+  for t in tickets where .tenant = tenant first 100 by .id:
+    update tickets[t] { done: true }
+```
+
+### An org roster
 
 **An org roster.** A membership table with no group key is one group: the
 read rule `exists staff[viewer]` infers `sync`, and every member's device holds
@@ -73,6 +127,8 @@ mutation announce(body: text <=500):
 query recent(c: cursor ?):
   return announcements last 20 by .at after c
 ```
+
+### A team the owner manages
 
 **A team the owner manages, and children of the team.** Each member row
 grants its principal every row of its team, so every insert branch of
@@ -154,6 +210,8 @@ query teamComments(team: teams, c: cursor ?):
   return comments where .team = team last 50 by .at after c
 ```
 
+### Two parties
+
 **Two parties (buyer and seller).** `.buyer = viewer or .seller = viewer` is
 two audiences. Give the row a parties table with one row per reader and read
 through it; both parties' devices hold the order, and each can predict writes
@@ -189,6 +247,8 @@ mutation placeOrder(seller: principal, item: text <=200):
   insert orderParties { orderId: o.id, party: seller }
   return o
 ```
+
+### An owner plus staff, offline
 
 **An owner plus staff.** `.tenant = viewer or exists staff[viewer]` is a
 private audience plus a role; every staff device holding every tenant's rows
@@ -249,42 +309,102 @@ mutation setStatus(request: id, status: enum('open', 'doing', 'done')):
   return null
 ```
 
-**A staff console, online.** When the app is online, one table can say
-`.tenant = viewer or exists staff[viewer]`. A staff member's page is decided
-once by the grant and answers `complete: true`, as long as each staff member
-can read their own `staff` row; start the console query with the same
-`require`, and a staff-only mutation can walk every row of a group the same
-way (`: server` alone does not lift a page the rule does not decide). Tenants
-pin their own column. Sync does not deliver this union: offline needs the
-tables above.
+
+### Anyone may join (open groups)
+
+**Open groups.** A membership anyone may insert for themselves
+(`insert <- .member = viewer`) cannot grant a private synced audience: `E_SYNC`
+refuses it, since joining would be the only check on reading. If anyone may
+join, anyone may read, so say so: the group's rows are `public`, synced as a
+public window, and membership gates writing. Each device holds its own joins
+and the latest posts of every group, and filters a group's page in the client
+(a server query may filter by group).
 
 ```quarry
-table staff:
-  principal: principal
-  unique principal
-  read <- .principal = viewer
-  online only
+table clubs:
+  founder: principal
+  name: text 1..80
+  immutable founder
+  public 'anyone may browse and join a club'
+  insert <- .founder = viewer
+  sync public last 200 by .id
 
-table tickets:
-  tenant: principal
-  title: text <=200
-  done: bool
+table joins:
+  club: clubs
+  member: principal
+  unique club, member
+  immutable club, member
+  cap 500 by club
+  read <- .member = viewer
+  insert <- .member = viewer
+  delete <- .member = viewer
+  sync
+
+table posts:
+  club: clubs
+  author: principal
+  body: text 1..500
   at: time
-  read <- .tenant = viewer or exists staff[viewer]
-  insert <- .tenant = viewer
-  update <- exists staff[viewer]
+  immutable club, author
+  public 'anyone may join, so a post is as public as its club'
+  insert <- .author = viewer and exists joins[.club, viewer]
+  sync public last 500 by .at
+
+mutation join(club: clubs):
+  return insert joins { club, member: viewer } if absent
+
+mutation leave(club: clubs):
+  delete joins[club = club, member = viewer]
+
+mutation post(club: clubs, body: text 1..500):
+  return insert posts { club, author: viewer, body, at: now }
+
+query myClubs(c: cursor ?):
+  return joins where .member = viewer first 50 by .id after c { club: clubs[.club] }
+
+query latest(c: cursor ?):
+  return posts last 50 by .at after c
+```
+
+When a group's rows must stay private to its members yet anyone may join,
+keep the membership rule and make the tables `online only`:
+
+```quarry
+table clubs:
+  founder: principal
+  name: text 1..80
+  immutable founder
+  public 'anyone may browse and join a club'
+  insert <- .founder = viewer
+  sync public last 200 by .id
+
+table joins:
+  club: clubs
+  member: principal
+  unique club, member
+  immutable club, member
+  read <- .member = viewer or exists joins[.club, viewer]
+  insert <- .member = viewer
+  delete <- .member = viewer
   online only
 
-query queue(c: cursor ?):
-  require exists staff[viewer] else NOT_STAFF
-  return tickets where not .done last 50 by .at after c
+table notices:
+  club: clubs
+  author: principal
+  body: text 1..500
+  at: time
+  immutable club, author
+  read <- exists joins[.club, viewer]
+  insert <- .author = viewer and exists joins[.club, viewer]
+  online only
 
-query mine(c: cursor ?):
-  return tickets where .tenant = viewer last 50 by .at after c
+mutation join(club: clubs):
+  return insert joins { club, member: viewer } if absent
 
-mutation closeAllFor(tenant: principal):
-  require exists staff[viewer] else NOT_STAFF
-  for t in tickets where .tenant = tenant first 100 by .id:
-    update tickets[t] { done: true }
+mutation notice(club: clubs, body: text 1..500):
+  return insert notices { club, author: viewer, body, at: now }
+
+query clubNotices(club: clubs, c: cursor ?):
+  return notices where .club = club last 20 by .at after c
 ```
 "##;

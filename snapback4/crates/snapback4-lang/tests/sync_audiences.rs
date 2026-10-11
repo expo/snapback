@@ -190,13 +190,19 @@ fn union_read_rules_get_the_recipe_for_their_shape() {
 #[test]
 fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
     let card = snapback4_lang::guide::card("sharing").unwrap();
-    for recipe in ["**An org roster.**", "**A team the owner manages, and children of the team.**", "**Two parties (buyer and seller).**", "**An owner plus staff.**", "**A staff console, online.**"] {
+    for recipe in ["**An org roster.**", "**A team the owner manages, and children of the team.**", "**Two parties (buyer and seller).**", "**An owner plus staff.**", "**A staff console, online.**", "**Open groups.**"] {
         assert!(card.contains(recipe), "{recipe}");
     }
-    // The opening example and the five recipes (LLP 3000.036 §12.1 adds the
-    // online staff console); tests/guide.rs compiles every card's blocks too.
+    // Wave 4: `online only` and its cost lead, before the recipes that keep rows offline.
+    let reference = card.split_once("## Reference").unwrap().1;
+    assert!(reference.find("online only").unwrap() < reference.find("**An org roster.**").unwrap());
+    assert!(reference.find("**A staff console, online.**").unwrap() < reference.find("**An org roster.**").unwrap());
+    assert!(reference.contains("never predict") && reference.contains("E_OFFLINE"));
+    // The opening example and the six recipes (LLP 3000.036 §12.1 adds the
+    // online staff console; wave 4 the open group, synced public and online);
+    // tests/guide.rs compiles every card's blocks too.
     let blocks = snapback4_lang::guide::quarry(card);
-    assert_eq!(blocks.len(), 6);
+    assert_eq!(blocks.len(), 8);
     for block in &blocks { clean(block); }
     // The sync card and the code's explanation point here.
     assert!(snapback4_lang::guide::card("sync").unwrap().contains("`guide sharing`"));
