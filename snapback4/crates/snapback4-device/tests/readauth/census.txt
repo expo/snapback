@@ -45,7 +45,6 @@ card/assets/1:sendClip | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | 
 card/assets/1:sendClip | eligible
 card/assets/1:sendPhotos | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/assets/1:sendPhotos | eligible
-card/bounds/2:signUp | never
 card/effects/1:send | eligible
 card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/effects/2:send | eligible
@@ -96,7 +95,8 @@ card/from-sql/2:add | never
 card/from-sql/2:remove | never
 card/from-sql/3:createRoom | never
 card/from-sql/3:setReminder | never
-card/indexes/2:checkin | never
+card/indexes/2:signUp | never
+card/indexes/3:checkin | never
 card/language/11:react | eligible
 card/language/11:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:addNote | eligible

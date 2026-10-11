@@ -92455,3 +92455,11 @@ decisions are recorded in LLP 3000.036 §11.
 - **What was hard:** existing tests pin some wording on purpose (the
   constraint rewrite must not infer booking intent from column names), so the
   new renderings add to that text rather than replace it.
+
+## 2026-10-11 — Workstream B follow-up: "Private lists" lives on `guide indexes`
+
+The entry above names `guide bounds` for the private-list recipes. The CLI's
+scale test pins every bounds-card example to its scale classes, so the
+recipes moved to `guide indexes`. The authoring census counts the new
+`signUp` example and the testing card's `addCard`; both are online-only and
+never predict.

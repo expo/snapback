@@ -65,7 +65,7 @@ impl BoundProgram {
             format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused. A point read of a full unique key (`exists {name}[…]`) is not refused, but it too sees only readable rows",
                 self.program.name, scan.table, table.rules.read.quarry(), scan.table),
             format!("use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() { String::new() } else {
-                format!("For a count or capacity, keep a count whose read rule covers the writers (it discloses only the count): `view {name}Count: count {name} by {group}` with `read <- allow`, then `require {name}Count[{key}] < limit else FULL` (guide bounds, \"Private lists\"). ")
+                format!("For a count or capacity, keep a count whose read rule covers the writers (it discloses only the count): `view {name}Count: count {name} by {group}` with `read <- allow`, then `require {name}Count[{key}] < limit else FULL` (guide indexes, \"Private lists\"). ")
             }))
             .guide("writes"))
     }
