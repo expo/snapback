@@ -491,3 +491,33 @@ fn constraint_refusals_record_their_clause_for_the_dev_log() {
     assert_eq!(run("add", "i4", &[("name", Value::String("fourth".into())), ("photo", Value::Null)]), ("E_CONSTRAINT".into(), Some(("cap owner".into(), line(9)))));
     assert_eq!(run("rekind", "i5", &[("item", Value::Id("i0".into()))]), ("E_CONSTRAINT".into(), Some(("immutable kind".into(), line(8)))));
 }
+
+// ---- #14: a total over partly readable rows gets a view recipe in the author's names ----
+
+#[test]
+fn a_total_over_partly_readable_rows_renders_a_view_that_compiles_and_counts_every_row() {
+    use snapback4_core::value::object;
+    let schema = "table staff:\n  principal: principal\n  role: text <= 20\n  unique principal\n  read <- .principal = viewer\n  online only\ntable requests:\n  owner: principal\n  dept: text <= 20\n  amount: money USD\n  read <- .owner = viewer or exists staff[principal = viewer, role = 'finance']\n  insert <- .owner = viewer\n  online only\n";
+    for (query, view) in [
+        // 062: a role-based dashboard total.
+        ("query deptTotal(dept: text <= 20):\n  return sum(requests where .dept = dept, .amount)\n", "view requestsTotal: sum requests of .amount by .dept"),
+        // 007: a count.
+        ("query deptTotal(dept: text <= 20):\n  return count(requests where .dept = dept)\n", "view requestsCount: count requests by .dept"),
+    ] {
+        let d = first(&format!("{schema}{query}"), "E_QUARRY_BOUND");
+        let pieces: Vec<&str> = d.rewrite.split('`').skip(1).step_by(2).collect();
+        assert!(pieces.contains(&view), "{d}");
+        let read = pieces.iter().find(|p| p.starts_with("read <- ")).unwrap();
+        let lookup = pieces.iter().find(|p| p.ends_with("[dept]")).unwrap();
+        let repaired = format!("{schema}{view}\n  {read}\nquery deptTotal(dept: text <= 20):\n  return {lookup}\n");
+        let b = clean(&repaired);
+        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let request = |id: &str, owner: &str, amount: i64| ("requests".to_owned(), object([("id", Value::Id(id.into())), ("owner", Value::Id(owner.into())), ("dept", Value::String("ops".into())), ("amount", Value::Int(amount))]));
+        engine.seed([
+            ("staff".to_owned(), object([("id", Value::Id("s1".into())), ("principal", Value::Id("fran".into())), ("role", Value::String("finance".into()))])),
+            request("r1", "ann", 100), request("r2", "bob", 250),
+        ]).unwrap();
+        let total = engine.query("deptTotal", Context::new("fran", args(&[("dept", Value::String("ops".into()))]))).unwrap();
+        assert_eq!(total.data, Value::Int(if view.contains("sum") { 350 } else { 2 }), "finance reads the whole department's total:\n{repaired}");
+    }
+}

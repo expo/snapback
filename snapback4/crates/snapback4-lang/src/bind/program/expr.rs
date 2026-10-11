@@ -662,7 +662,10 @@ impl Binder<'_> {
             "count" => {
                 arity(1, "count(list)")?;
                 if let Some(read) = self.aggregate_domain(&args[0]) && self.is_page(&read, ReadMode::FilteredPoint)? {
-                    let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+                    let saved = self.total.replace(("count", None));
+                    let scanned = self.scan_at(&read, out, prefix::Position::Aggregate);
+                    self.total = saved;
+                    let (scan, _) = scanned?;
                     self.shape_meter_note(&scan, &read);
                     return Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }, Ty::Int));
                 }
@@ -728,7 +731,10 @@ impl Binder<'_> {
             }
             "sum" if args.len() == 2 => {
                 let source = if let Some(read) = self.aggregate_domain(&args[0]) {
-                    let (scan, _) = self.scan_at(&read, out, prefix::Position::Aggregate)?;
+                    let saved = self.total.replace(("sum", Some(print::expression(&args[1]))));
+                    let scanned = self.scan_at(&read, out, prefix::Position::Aggregate);
+                    self.total = saved;
+                    let (scan, _) = scanned?;
                     self.shape_meter_note(&scan, &read);
                     if scan.take == Bound::Meter {
                         let saved = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));

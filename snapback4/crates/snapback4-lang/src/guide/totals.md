@@ -81,6 +81,46 @@ one day. When the job only needs a number a screen shows, a view is usually
 simpler than a job: `view perDay: sum readings of .value by .owner, day(.at)`
 read as `perDay[viewer, day(now)]`.
 
+## Rows the caller partly reads
+
+An inline total counts only what its caller may read, so `check` refuses one
+whose read rule its pins do not decide (`E_QUARRY_BOUND`, or
+`E_STRUCTURAL_FANOUT` in a mutation): it would be a different number for
+each caller, and a capacity check would miss hidden rows. Three exact forms:
+pin the deciding column (`.owner = viewer`: the caller's own total); or keep
+the total in a view whose read rule names who sees it (the view discloses the
+total, never the rows); or, in a mutation, `require` below a view's count.
+
+```quarry
+table staff:
+  principal: principal
+  role: text <=20
+  unique principal
+  read <- .principal = viewer
+  online only
+table requests:
+  owner: principal
+  dept: text <=20
+  amount: money USD
+  read <- .owner = viewer or exists staff[principal = viewer, role = 'finance']
+  insert <- .owner = viewer
+  online only
+view requestsTotal: sum requests of .amount by .dept
+  read <- exists staff[principal = viewer, role = 'finance']
+view requestsByOwner: sum requests of .amount by .owner, .dept
+  read <- .owner = viewer
+
+query deptTotal(dept: text <=20):
+  return requestsTotal[dept]
+query myDeptTotal(dept: text <=20):
+  return requestsByOwner[viewer, dept]
+```
+
+Finance reads every department's total; each requester reads their own.
+`E_QUARRY_BOUND`'s rewrite prints this view for your table, column and group.
+A role guard (`if exists staff[viewer]:`) does not admit an inline total,
+as it admits a staff page (`guide indexes`): use the view.
+
 ## Choosing
 
 - A total a screen shows on every visit: a view. It is maintained on each
