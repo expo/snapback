@@ -140,3 +140,108 @@ fn each_verb_has_its_own_help() {
     assert!(data.starts_with("  data <table>") && !data.contains("  dev ["), "{data}");
     assert!(full.contains("snapback4 <verb> --help"), "{full}");
 }
+
+/// `use personas` is the cast: dev refuses an undeclared persona with 401
+/// E_AUTH naming the declaration (lane 035 expected exactly this), and a
+/// schema without the declaration still admits any well-formed name.
+#[test]
+fn dev_refuses_an_undeclared_persona() {
+    let project = Project::new("use personas alice, bob\nquery whoAmI():\n  return viewer\n");
+    let (_dev, url) = project.dev(0);
+    let (status, body) = http(&url, "POST", "/q/whoAmI", Some("alice"), "{}");
+    assert_eq!((status, body["data"].as_str()), (200, Some("dev:alice")), "{body}");
+    let (status, body) = http(&url, "POST", "/q/whoAmI", Some("intruder"), "{}");
+    assert_eq!(status, 401, "{body}");
+    assert_eq!(body["denied"]["code"], "E_AUTH", "{body}");
+    let message = body["denied"]["message"].as_str().unwrap();
+    assert!(message.contains("persona intruder is not declared") && message.contains("use personas alice, bob"), "{message}");
+    let (status, body) = http(&url, "POST", "/m/nothing", Some("intruder"), "{}");
+    assert_eq!((status, &body["denied"]["code"]), (401, &serde_json::json!("E_AUTH")), "{body}");
+
+    let open = Project::new("query whoAmI():\n  return viewer\n");
+    let (_dev, url) = open.dev(0);
+    let (status, body) = http(&url, "POST", "/q/whoAmI", Some("anyone"), "{}");
+    assert_eq!((status, body["data"].as_str()), (200, Some("dev:anyone")), "{body}");
+}
+
+const FIXTURE_SCHEMA: &str = "use personas alice, bob
+
+table lists:
+  owner: principal
+  title: text 1..80
+  done: bool default false
+  n: int default 7
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  cap 50 by owner
+  sync to .owner
+
+table items:
+  list: lists
+  pos: sequence by list
+  text: text 1..80
+  immutable list
+  read through .list
+  insert <- .list.owner = viewer
+  cap 50 by list
+
+query flags(list: lists):
+  l = lists[list] ! else NOT_FOUND
+  return { done: l.done, n: l.n }
+
+query kids(list: lists):
+  return items where .list = list first 50 by .pos
+";
+
+/// Fixture rows load as inserts do: column defaults filled, sequences
+/// assigned in file order. Anything that keeps the fixture from loading
+/// (a supplied sequence, a bare principal, a file naming no table) exits
+/// non-zero with nothing run (lane 050 saw an error and exit 0).
+#[test]
+fn fixture_rows_load_as_inserts_and_a_bad_fixture_fails_the_run() {
+    let project = Project::new(FIXTURE_SCHEMA);
+    project.write("fx/lists.jsonl", "{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Home\"}\n");
+    project.write("fx/items.jsonl", "{\"id\":\"I1\",\"list\":\"L1\",\"text\":\"a\"}\n{\"id\":\"I2\",\"list\":\"L1\",\"text\":\"b\"}\n");
+    project.write("fx/test.cases.jsonl", concat!(
+        "{\"as\":\"alice\",\"op\":\"flags\",\"args\":{\"list\":\"L1\"},\"data\":{\"done\":false,\"n\":7}}\n",
+        "{\"as\":\"alice\",\"op\":\"kids\",\"args\":{\"list\":\"L1\"},\"data\":[{\"id\":\"I1\",\"list\":\"L1\",\"pos\":1,\"text\":\"a\"},{\"id\":\"I2\",\"list\":\"L1\",\"pos\":2,\"text\":\"b\"}]}\n"));
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("cases: 2 passed, 0 failed"), "{}", text(&output));
+
+    for (file, row, expect) in [
+        ("fx/items.jsonl", "{\"id\":\"I1\",\"list\":\"L1\",\"text\":\"a\",\"pos\":4}\n", "E_SEQUENCE_SUPPLIED"),
+        ("fx/lists.jsonl", "{\"id\":\"L1\",\"owner\":\"alice\",\"title\":\"Home\"}\n", "is not a principal"),
+        ("fx/list.jsonl", "{\"id\":\"L2\",\"owner\":\"dev:alice\",\"title\":\"Typo\"}\n", "list.jsonl names no table"),
+    ] {
+        let bad = Project::new(FIXTURE_SCHEMA);
+        bad.write("fx/lists.jsonl", "{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Home\"}\n");
+        bad.write(file, row);
+        for args in [&["test", "--fixture", "fx"][..], &["test", "--fixture", "fx", "--residency"], &["check", "--residency", "--fixture", "fx", "--as", "alice"]] {
+            let output = bad.run(args);
+            assert_eq!(output.status.code(), Some(1), "{args:?} with {file}: {}", text(&output));
+            assert!(text(&output).contains(expect), "{args:?}: {}", text(&output));
+        }
+    }
+}
+
+/// `/seed` is an upsert by id: a reseed updates mutable columns, and a changed
+/// immutable column says so instead of reading like a rule problem (lane 094).
+#[test]
+fn seed_upserts_by_id_and_names_an_immutable_change() {
+    let project = Project::new(FIXTURE_SCHEMA);
+    let (_dev, url) = project.dev(0);
+    let seed = |rows: &str| http(&url, "POST", "/seed", None, rows);
+    assert_eq!(seed("{\"table\":\"lists\"}").0, 400);
+    let (status, body) = seed("[{\"table\":\"lists\",\"row\":{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Home\"}},{\"table\":\"items\",\"row\":{\"id\":\"I1\",\"list\":\"L1\",\"text\":\"a\"}}]");
+    assert_eq!((status, &body["seeded"]), (200, &serde_json::json!(2)), "{body}");
+    let (status, body) = seed("[{\"table\":\"lists\",\"row\":{\"id\":\"L1\",\"owner\":\"dev:alice\",\"title\":\"Renamed\"}}]");
+    assert_eq!((status, &body["seeded"]), (200, &serde_json::json!(1)), "{body}");
+    let (_, flags) = http(&url, "POST", "/q/flags", Some("alice"), "{\"args\":{\"list\":\"L1\"}}");
+    assert_eq!(flags["data"], serde_json::json!({"done": false, "n": 7}), "defaults apply to seeded rows: {flags}");
+    let (status, body) = seed("[{\"table\":\"lists\",\"row\":{\"id\":\"L1\",\"owner\":\"dev:bob\",\"title\":\"Home\"}}]");
+    assert_eq!((status, &body["denied"]["code"]), (200, &serde_json::json!("E_CONSTRAINT")), "{body}");
+    let message = body["denied"]["message"].as_str().unwrap();
+    assert!(message.contains("lists.owner is immutable") && message.contains("upsert by id"), "{message}");
+}

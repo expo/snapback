@@ -37,8 +37,11 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
             rows.push((table.to_owned(), row));
         }
     }
-    if !unknown.is_empty() && !options.json {
-        eprintln!("test: ignored {} (no table with that name in snapback/*.q)", unknown.join(", "));
+    // A misspelled file name would otherwise load nothing and still pass.
+    if !unknown.is_empty() {
+        let tables: Vec<&str> = bound.schema.visible_tables().map(|(name, _)| name.as_str()).collect();
+        return Err(format!("{fixture}: {} name{} no table in snapback/*.q; nothing was run\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
+            unknown.join(", "), if unknown.len() == 1 { "s" } else { "" }, tables.join(", "), super::test_cases::FILE));
     }
     let loaded = engine.load(rows).map_err(|error| {
         let text = error.to_string();

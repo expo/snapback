@@ -64,7 +64,14 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
             shared.durable_committed(&lock(&shared.engine));
             respond_timed(request, shared, 200, json!({ "seeded": count }));
         }
-        Err(error) => respond_timed(request, shared, 200, json!({ "denied": refusal_json(&error.refusal()) })),
+        Err(error) => {
+            let mut refusal = error.refusal();
+            // Reseeding with changed immutable values reads like a rule problem; say what happened.
+            if refusal.code == "E_CONSTRAINT" && refusal.message.ends_with(" is immutable") {
+                refusal.message.push_str("; /seed is an upsert by id, and a row with that id already exists with a different value in that column. Reseed it with its original value, give the row a new id, or restart dev with --memory for an empty store");
+            }
+            respond_timed(request, shared, 200, json!({ "denied": refusal_json(&refusal) }))
+        }
     }
 }
 

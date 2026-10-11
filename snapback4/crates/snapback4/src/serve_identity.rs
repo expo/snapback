@@ -39,6 +39,16 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
     }
     if let Some(persona) = persona {
         if shared.personas {
+            // `use personas` is the cast: a test expecting an outsider to be
+            // refused must not see it signed in. A schema with no declaration
+            // keeps admitting any well-formed name. (Taken briefly; the engine
+            // guard, when held, is always acquired before this one.)
+            let declared = lock(&shared.bound).personas.clone();
+            if !declared.is_empty() && !declared.contains(&persona) {
+                return Err(Refusal::new("E_AUTH", "auth", format!(
+                    "persona {persona} is not declared; `use personas {}` is this project's cast. Add {persona} to it (dev re-adopts on save) or send a declared persona", declared.join(", ")))
+                    .rewrite(format!("use personas {}, {persona}", declared.join(", "))).guide("personas"));
+            }
             return Ok((persona_principal(&persona), "persona".into(), snapback4_core::identity::SessionScope::Full));
         }
         return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
