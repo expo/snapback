@@ -2,7 +2,7 @@
 use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index: guide <card> --section <heading or number> prints one, --find <words> prints matching lines, --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index: guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints matching lines (a|b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
 }
 
 fn distance(a: &str, b: &str) -> usize {
@@ -118,9 +118,11 @@ fn index_lines(card: &str, found: &[(usize, String, usize, usize)]) -> String {
     out
 }
 
-/// `guide <card>` for a card over [`FULL_LINES`]: its opening, cut at a
-/// paragraph boundary, then the numbered section index and how to read more.
-/// `None` when the card prints whole.
+/// `guide <card>` for a card over [`FULL_LINES`]: its title, then how to read
+/// more, then its opening cut at a paragraph boundary, then the numbered
+/// section index (and the ways to read more again). `None` when the card
+/// prints whole.
+// @ref LLP 3000.007#20.1 — the run-on hint sits under the title, so a short opening never reads as the whole card (wave 4).
 pub fn overview(name: &str, card: &str) -> Option<String> {
     let total = card.lines().count();
     let found = sections(card);
@@ -138,8 +140,13 @@ pub fn overview(name: &str, card: &str) -> Option<String> {
         cut = boundaries.iter().copied().filter(|&b| b <= OPENING_LINES).max().unwrap_or(first);
         if let Some(&lead_end) = boundaries.get(1) { cut = cut.max(lead_end.min(first)); }
     }
-    let mut out = lines[..cut].join("\n").trim_end().to_owned();
-    out.push_str(&format!("\n\nguide {name} is {total} lines; cards over {FULL_LINES} lines print this opening and index.\n"));
+    // The title line, then the hint in the same paragraph, then the rest of the opening.
+    let hint = format!("(This is the opening and section index of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
+    let mut out = match lines.first().filter(|line| line.starts_with("# ")) {
+        Some(title) => format!("{title}\n{hint}\n{}", lines[1..cut].join("\n")),
+        None => format!("{hint}\n\n{}", lines[..cut].join("\n")),
+    }.trim_end().to_owned();
+    out.push_str(&format!("\n\nSections of guide {name}:\n"));
     out.push_str(&index_lines(card, &found));
     out.push_str(&format!("More: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all {total} lines"));
     Some(out)
@@ -160,8 +167,15 @@ fn section_of(found: &[(usize, String, usize, usize)], line: usize) -> (usize, &
         .map(|(n, s)| (n + 1, s.1.as_str())).unwrap_or((0, "Opening"))
 }
 
-/// Line numbers (0-based) whose text holds the phrase, or else every one of its words.
+/// Line numbers (0-based) whose text holds the phrase, or else every one of its
+/// words; `a|b` is either alternative (wave 4 searched `sum|outer|column`).
 fn mentions(card: &str, words: &str) -> Vec<usize> {
+    if words.contains('|') {
+        let mut found: Vec<usize> = words.split('|').flat_map(|alternative| mentions(card, alternative)).collect();
+        found.sort_unstable();
+        found.dedup();
+        return found;
+    }
     let phrase = words.trim().to_lowercase();
     if phrase.is_empty() { return Vec::new(); }
     let lines: Vec<String> = card.lines().map(str::to_lowercase).collect();
@@ -171,16 +185,13 @@ fn mentions(card: &str, words: &str) -> Vec<usize> {
     (0..lines.len()).filter(|&i| { let line = words_of(&lines[i]); each.iter().all(|w| line.contains(w.as_str())) }).collect()
 }
 
-fn clip(line: &str, width: usize) -> String {
-    let line = line.trim();
-    if line.chars().count() <= width { line.to_owned() } else { format!("{}…", line.chars().take(width).collect::<String>()) }
-}
-
 /// `guide <card> --section <words>`: the title line and one section, found by
 /// its number in the index (`0` or `opening` for the text before the first
 /// heading), its heading (any case, punctuation ignored), a unique prefix, a
-/// unique substring, or headings holding every word. A miss names the nearest
-/// headings and the lines that mention the words.
+/// unique substring, or headings holding every word. When no heading matches
+/// but the words occur, the section holding most of their mentions prints, or
+/// every mention when they spread; only words no line mentions refuse, naming
+/// the nearest heading by spelling.
 pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
     let found = sections(card);
     let lines: Vec<&str> = card.lines().collect();
@@ -213,8 +224,33 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
             many => return Err(format!("{words:?} matches {} sections of guide {name}: {}; pick one by number: snapback4 guide {name} --section {}", many.len(), many.iter().map(|(n, s, _)| format!("{n}. {}", s.1)).collect::<Vec<_>>().join(" · "), many[0].0)),
         }
     }
-    // A miss: the nearest headings by spelling, then the lines that mention the words.
-    let mut out = format!("no section of guide {name} is named {words:?}");
+    // No heading matches. When the words occur, print the section holding most
+    // of their mentions, or every mention when no section holds most of them.
+    // @ref LLP 3000.007#20.1 — a topic word (audience, React, Reference) prints what it names instead of failing (wave 4).
+    let hits = mentions(card, words);
+    if !hits.is_empty() {
+        let mut counts: Vec<(usize, usize)> = Vec::new();
+        for &i in &hits {
+            let (n, _) = section_of(&found, i);
+            match counts.iter_mut().find(|(section, _)| *section == n) { Some(entry) => entry.1 += 1, None => counts.push((n, 1)) }
+        }
+        let &(best, count) = counts.iter().max_by_key(|(n, count)| (*count, std::cmp::Reverse(*n))).expect("a hit has a section");
+        if count * 2 > hits.len() {
+            let (heading, start, end) = if best == 0 { ("Opening", 0, opening) } else { let s = &found[best - 1]; (s.1.as_str(), s.2, s.3) };
+            let share = match (hits.len(), count == hits.len()) {
+                (1, _) => "the one line that mentions it".to_owned(),
+                (total, true) => format!("all {total} lines that mention it"),
+                (total, false) => format!("{count} of the {total} lines that mention it (--find {words:?} prints them all)"),
+            };
+            let note = format!("No heading of guide {name} is named {words:?}; {best}. {heading} holds {share}.");
+            let body = if best == 0 { lines[start..end].join("\n").trim_end().to_owned() } else { print(start, end) };
+            return Ok(format!("{note}\n\n{body}"));
+        }
+        let note = format!("No heading of guide {name} is named {words:?}, and its mentions span {} sections; here they are:\n", counts.len());
+        return find(name, card, words).map(|lines| format!("{note}{lines}"));
+    }
+    // A miss: the nearest heading by spelling (a typo), and the index.
+    let mut out = format!("no section of guide {name} is named {words:?}, and no line mentions it");
     let mut near: Vec<(usize, usize, &str)> = numbered.iter().map(|(n, s, heading)| {
         let best = heading.split(' ').map(|h| distance(&wanted, h)).chain([distance(&wanted, heading)]).min().unwrap_or(usize::MAX);
         (best, *n, s.1.as_str())
@@ -223,16 +259,7 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
     if let Some(&(_, n, heading)) = near.first().filter(|(best, _, _)| *best <= wanted.chars().count().div_ceil(2)) {
         out.push_str(&format!("; nearest heading: {n}. {heading}"));
     }
-    let hits = mentions(card, words);
-    if !hits.is_empty() {
-        out.push_str(&format!("\n{} line{} mention it (snapback4 guide {name} --find {words:?} prints them in context):\n", hits.len(), if hits.len() == 1 { "" } else { "s" }));
-        for &i in hits.iter().take(6) {
-            let (n, heading) = section_of(&found, i);
-            out.push_str(&format!("  {}. {heading}, line {}: {}\n", n, i + 1, clip(lines[i], 90)));
-        }
-        if hits.len() > 6 { out.push_str(&format!("  … and {} more\n", hits.len() - 6)); }
-    }
-    Err(format!("{}\n{}", out.trim_end(), section_index(name, card)))
+    Err(format!("{out}\n{}", section_index(name, card)))
 }
 
 /// The most lines `--find` prints before it summarizes the rest.

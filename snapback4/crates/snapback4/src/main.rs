@@ -54,7 +54,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
-  guide [keyword] [--full|--sections|--section <words|N>|--find <words>]  list cards and aliases, or print one card (over 130 lines: its opening and numbered index; --full: all of it), its index, one section, or the lines that mention words
+  guide [keyword] [--full|--sections|--section <words|N>|--find <words>]  list cards and aliases, or print one card (over 130 lines: its opening and numbered index; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that mention words (a|b: either)
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation

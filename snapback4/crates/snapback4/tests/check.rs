@@ -1571,21 +1571,36 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
             assert_eq!(default, full, "{keyword}: a short card prints whole");
         } else {
             assert!(default.lines().count() <= 70, "{keyword}: the overview fits a tool window ({} lines)", default.lines().count());
-            assert!(default.starts_with(full.split("\n\n").take(2).collect::<Vec<_>>().join("\n\n").as_str()), "{keyword}: the overview opens with the title and lead");
+            // Wave 4: the title, then how to read more (a short opening once read as the whole card), then the lead.
+            let (title, rest) = full.split_once('\n').unwrap();
+            let (hint, rest_of_default) = default.strip_prefix(&format!("{title}\n")).and_then(|d| d.split_once('\n')).unwrap_or_else(|| panic!("{keyword}: the overview opens with the title: {default}"));
+            assert!(hint.contains(&format!("snapback4 guide {keyword} --section <number or words> prints one section")) && hint.contains("--find") && hint.contains("--full"), "{keyword}: the second line says how to read more: {hint}");
+            assert!(rest_of_default.starts_with(rest.split("\n\n").next().unwrap()), "{keyword}: the overview continues with the lead");
             assert!(default.contains(&format!("snapback4 guide {keyword} --section <number or words>")) && default.contains("--full prints all"), "{keyword}: {default}");
         }
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
     let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);
-    for words in ["3", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
+    for words in ["6", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
         assert_eq!(guide(&["types", "--section", words]), (Some(0), by_name.clone()), "{words}");
     }
-    let (code, miss) = guide(&["types", "--section", "Integer"]);
-    assert_eq!(code, Some(1));
-    assert!(miss.contains("Details, line") && miss.contains("an integer within"), "{miss}");
+    // Wave 4: a topic word no heading names prints the section holding most of
+    // its mentions, or every mention when they spread; only an unmentioned word refuses.
+    let (code, topic) = guide(&["types", "--section", "Integer"]);
+    assert_eq!(code, Some(0), "{topic}");
+    assert!(topic.starts_with("No heading of guide types is named \"Integer\"; ") && topic.contains("an integer within") && !topic.contains("## Tables"), "{topic}");
+    let (code, audience) = guide(&["sync", "--section", "audience"]);
+    assert_eq!(code, Some(0), "{audience}");
+    assert!(audience.contains("\n\n# Sync") && audience.contains("audience"), "{audience}");
+    let (code, spread) = guide(&["client", "--section", "React"]);
+    assert_eq!(code, Some(0), "{spread}");
+    assert!(spread.contains("its mentions span") && spread.contains("snapback4/react") && !spread.contains("nearest heading"), "{spread}");
     let (code, near) = guide(&["types", "--section", "Detials"]);
     assert_eq!(code, Some(1));
-    assert!(near.contains("nearest heading: 2. Details"), "{near}");
+    assert!(near.contains("nearest heading: 2. Details") && near.contains("no line mentions it"), "{near}");
+    let (code, either) = guide(&["types", "--find", "E_OVERFLOW|E_DIV_ZERO"]);
+    assert_eq!(code, Some(0));
+    assert!(either.contains("E_OVERFLOW") && either.contains("E_DIV_ZERO"), "{either}");
     let (code, opening) = guide(&["actions", "--section", "opening"]);
     assert_eq!(code, Some(0));
     assert!(opening.starts_with("# Actions") && !opening.contains("\n## "), "{opening}");
