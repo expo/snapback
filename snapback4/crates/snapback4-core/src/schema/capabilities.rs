@@ -67,6 +67,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),
     // @ref LLP 3000.036#11 — an older decoder refuses ordered insert rules rather than misjudging them.
     ("insert-rule-order", |s| s.tables.values().any(|t| ordered(&t.rules.insert))),
+    // @ref LLP 3000.036#12 — a decoder that orders only int/time in insert rules refuses a money or decimal order by name.
+    ("insert-rule-order-units", |s| s.tables.values().any(|t| ordered_units(t, &t.rules.insert))),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
@@ -78,6 +80,16 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];
+
+fn ordered_units(table: &Table, rule: &RuleExpr) -> bool {
+    let units = |term: &RuleTerm| matches!(term, RuleTerm::Field(f) if matches!(table.columns.get(f), Some(ColumnType::Decimal { .. } | ColumnType::Money { .. })));
+    match rule {
+        RuleExpr::Compare(_, l, r) => units(l) || units(r),
+        RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(|item| ordered_units(table, item)),
+        RuleExpr::Not(inner) => ordered_units(table, inner),
+        _ => false,
+    }
+}
 
 fn ordered(rule: &RuleExpr) -> bool {
     match rule {
