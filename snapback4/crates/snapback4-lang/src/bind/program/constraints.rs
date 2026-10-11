@@ -61,14 +61,17 @@ impl BoundProgram {
         let group = pins.iter().map(|(column, _)| column.clone()).collect::<Vec<_>>().join(", ");
         let key = pins.iter().map(|(_, value)| value.clone()).collect::<Vec<_>>().join(", ");
         let example = format!("declare one row per reserved unit with `unique resource, unit else TAKEN`, then insert those rows inside `{}`", self.program.name);
+        // @ref LLP 3000.036#16.2 — wave 6 R2: `require not exists children…` before a delete is a zero count, not a capacity.
+        let by = pins.iter().map(|(column, _)| format!(".{column}")).collect::<Vec<_>>().join(", ");
+        let absence = (!pins.is_empty()).then(|| absence_require(&self.program.body, site)).flatten().map(|code| format!(
+            "an absence check over every {name} row, whoever may read it, is a zero count (it discloses only the count per {group}, never who): declare `view {name}Count: count {name} by {by}` with `read <- allow`, then in `{}` write `require {name}Count[{key}] = 0 else {code}` in place of the `not exists` (before a delete of the parent, this guard also silences N_DELETE_ORPHANS; guide recipes, \"Booking\", `removeSlot`). Otherwise, ", self.program.name)).unwrap_or_default();
         Some(Diagnostic::new(source, "E_STRUCTURAL_FANOUT",
             format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused. A point read of a full unique key (`exists {name}[…]`) is not refused, but it too sees only readable rows",
                 self.program.name, scan.table, table.rules.read.quarry(), scan.table),
-            format!("use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() { String::new() } else {
+            format!("{absence}use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() || !absence.is_empty() { String::new() } else {
                 // @ref LLP 3000.036#14.6 — wave 4 #15: the count view and the author's own capacity check, as code.
                 let check = capacity_require(&self.program.body, site).map_or_else(|| format!("require {name}Count[{key}] < limit else FULL"),
                     |(op, bound, code)| format!("require {name}Count[{key}] {op} {bound} else {code}"));
-                let by = pins.iter().map(|(column, _)| format!(".{column}")).collect::<Vec<_>>().join(", ");
                 format!("For a count or capacity, keep a count whose read rule covers the writers (it discloses only the count per {group}, never who): `view {name}Count: count {name} by {by}` with `read <- allow`, then in `{}` `{check}` before the insert; the insert itself keeps the count current (guide indexes, \"Private lists\"). ", self.program.name)
             }))
             .guide("writes"))
@@ -118,6 +121,26 @@ fn capacity_require(body: &[ir::Stmt], site: &str) -> Option<(&'static str, Stri
             Some((op, print(right)?, code.clone()))
         }
         ir::Stmt::If { then_body, else_body, .. } => capacity_require(then_body, site).or_else(|| capacity_require(else_body, site)),
+        _ => None,
+    })
+}
+
+/// The refusal code of a `require not exists …` whose existence test reads
+/// the refused page (`require not exists sightings[cat = cat] else HAS`).
+fn absence_require(body: &[ir::Stmt], site: &str) -> Option<String> {
+    fn reads(expr: &Expr, site: &str) -> bool {
+        match expr {
+            Expr::Scan(scan) => scan.site == site,
+            Expr::Unary { value, .. } => reads(value, site),
+            Expr::Binary { left, right, .. } => reads(left, site) || reads(right, site),
+            Expr::Builtin { args, .. } => args.iter().any(|arg| reads(arg, site)),
+            Expr::Block { value, body } => reads(value, site) || body.iter().any(|statement| matches!(statement, ir::Stmt::Let { value, .. } if reads(value, site))),
+            _ => false,
+        }
+    }
+    body.iter().find_map(|statement| match statement {
+        ir::Stmt::Require { condition: Expr::Unary { op: ir::UnaryOp::Not, value }, code, .. } if reads(value, site) => Some(code.clone()),
+        ir::Stmt::If { then_body, else_body, .. } => absence_require(then_body, site).or_else(|| absence_require(else_body, site)),
         _ => None,
     })
 }

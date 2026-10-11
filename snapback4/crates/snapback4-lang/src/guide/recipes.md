@@ -224,6 +224,7 @@ table slots:
   public 'the timetable and its occupancy are public'
   insert <- .host = viewer
   update <- .host = viewer
+  delete <- .host = viewer
   sync public last 500 by .startsAt
 
 table bookings:
@@ -259,9 +260,23 @@ mutation book(slot: slots):
 
 mutation cancel(booking: bookings):
   delete bookings[booking]
+
+mutation removeSlot(slot: slots):
+  s = slots[slot] ! else NOT_FOUND
+  require s.host = viewer else NOT_HOST
+  require taken[slot] = 0 else HAS_BOOKINGS 'Guests hold seats; they cancel first.'
+  delete slots[slot]
 ```
 
-Cases (with a one-seat slot `s1` in the slots fixture):
+A delete does not cascade: a removed slot would leave its bookings naming
+a deleted row (N_DELETE_ORPHANS). `removeSlot` refuses while any booking
+exists, by the public count: `require not exists bookings[slot = slot]` is
+refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
+bookings, and a count is the one fact about them the host may see. The
+`require taken[slot] = 0` guard is what silences N_DELETE_ORPHANS; any
+unfiltered `count child by .ref` view does the same for its child table.
+
+Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 
 ```jsonl
 {"as":"bob","op":"book","args":{"slot":"s1"},"save":"b"}
@@ -269,6 +284,7 @@ Cases (with a one-seat slot `s1` in the slots fixture):
 {"as":"carol","op":"book","args":{"slot":"s1"},"expect":"FULL"}
 {"as":"bob","op":"cancel","args":{"booking":"$b"}}
 {"as":"carol","op":"book","args":{"slot":"s1"}}
+{"as":"alice","op":"removeSlot","args":{"slot":"s1"},"expect":"HAS_BOOKINGS","label":"alice hosts s1; carol still holds its seat"}
 ```
 
 ## Schedules: close at a time, remind ahead, catch up
