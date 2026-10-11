@@ -525,7 +525,7 @@
     "id": "language-11",
     "card": "language",
     "home": "E_INIT_CONFLICT",
-    "text": "E_INIT_CONFLICT means `init` found files or package entries it would\noverwrite, and wrote nothing. To add a starter beside your own files, rerun\nwith `--skip-existing`: every existing file (including `snapback/*.q`) is kept\nexactly as it is and only the missing files are written. Starter screens call\nthe starter schema's operations; adapt them to your schema after `check`.\nOtherwise rename the listed files, then rerun `snapback4 init --web` (or\n`--expo`). Reconcile named package.json entries in either case. Never init\ninto another directory and copy it over yours: that overwrites your schema.\nUnrelated files and symlinks can stay. An existing README.md stays intact;\nthe starter writes its setup instructions to README.snapback.md instead."
+    "text": "E_INIT_CONFLICT means `init` found files or package entries it would\noverwrite, and wrote nothing. To add a starter beside your own files, rerun\nwith `--skip-existing`: every existing file (including `snapback/*.q`) is kept\nexactly as it is and only the missing files are written. Beside a schema\nwithout the starter's operations, the screen behind the sign-in is a `Home`\nthat compiles against any schema; replace it after `check`.\nOtherwise rename the listed files, then rerun `snapback4 init --web` (or\n`--expo`). Reconcile named package.json entries in either case. Never init\ninto another directory and copy it over yours: that overwrites your schema.\nUnrelated files and symlinks can stay. An existing README.md stays intact;\nthe starter writes its setup instructions to README.snapback.md instead."
   },
   {
     "id": "language-12",
