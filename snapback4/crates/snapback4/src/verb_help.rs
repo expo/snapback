@@ -178,6 +178,9 @@ States:
                                 argument test derived from the data (the first
                                 row, the persona); not a failure: give it real
                                 arguments in test.cases.jsonl
+  refused CODE by its own require   an argument-free query's require refused
+                                the persona; not a failure: pin the refusal
+                                as an expect case in test.cases.jsonl
   denied CODE                   a refusal: a failure
   not run                       an argument test cannot derive
 

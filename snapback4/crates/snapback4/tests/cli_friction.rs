@@ -510,3 +510,44 @@ fn cases_follow_check_verdicts_name_refusing_layers_and_refuse_undeclared_person
         assert_eq!(record["hiddenBy"]["table"].as_str(), hidden.then_some("items"), "{record}");
     }
 }
+
+/// Wave 5 (lane 059): an argument-free query refused by its own `require` was
+/// `denied` and failed the run, while the same body with `c: cursor ?` was
+/// "refused on derived arguments" and passed. Both are the program's gate.
+/// And an unknown case key (`"rows":0`) passed silently against one row: every
+/// line is now checked before any runs, naming the eight valid keys.
+#[test]
+fn an_argument_free_require_is_reported_like_a_derived_one_and_unknown_case_keys_refuse() {
+    let schema = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\n\
+table notes:\n  owner: principal\n  read <- .owner = viewer or exists staff[viewer]\n  online only\n\
+query report():\n  require exists staff[viewer] else NOT_STAFF\n  return staff[viewer]\n\
+query reportPage(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n  return notes first 20 by .id after c\n";
+    let project = Project::new(schema);
+    project.write("fx/staff.jsonl", "{\"id\":\"S1\",\"principal\":\"dev:alice\"}\n");
+    project.write("fx/notes.jsonl", "{\"id\":\"N1\",\"owner\":\"dev:bob\"}\n");
+    let output = project.run(&["test", "--fixture", "fx", "--as", "bob"]);
+    let out = text(&output);
+    assert_eq!(output.status.code(), Some(0), "the program's own gate is not a failure:\n{out}");
+    assert!(out.contains("report (bob)") && out.contains("refused NOT_STAFF by its own require") && out.contains("\"expect\":\"NOT_STAFF\""), "{out}");
+    assert!(out.contains("reportPage (bob)") && out.contains("refused NOT_STAFF on derived arguments"), "{out}");
+    assert!(out.contains("2 refused by their own require") && out.contains("0 denied"), "{out}");
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output));
+    assert!(text(&output).contains("0 refused by their own require"), "{}", text(&output));
+
+    project.write("fx/test.cases.jsonl", concat!(
+        "{\"as\":\"bob\",\"op\":\"report\",\"expect\":\"NOT_STAFF\"}\n",
+        "{\"as\":\"alice\",\"op\":\"reportPage\",\"rows\":0}\n"));
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    let out = text(&output);
+    assert_eq!(output.status.code(), Some(1), "{out}");
+    assert!(out.contains("test.cases.jsonl:2: unknown key `rows` (did you mean `count`?); a case takes only `as`, `op`, `args`, `expect`, `data`, `count`, `save`, `label`"), "{out}");
+    assert!(!out.contains("ok   test.cases.jsonl:1"), "no line runs before every line is valid:\n{out}");
+    project.write("fx/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"reportPage\",\"expect\":{\"data\":[]}}\n");
+    let out = text(&project.run(&["test", "--fixture", "fx", "--as", "alice"]));
+    assert!(out.contains("test.cases.jsonl:1: `expect` is a string") && out.contains("`data`"), "{out}");
+    project.write("fx/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"reportPage\",\"count\":1,\"label\":\"staff sees bob's note\"}\n");
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output));
+    assert!(text(&output).contains("cases: 1 passed, 0 failed"), "{}", text(&output));
+}

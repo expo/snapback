@@ -1171,12 +1171,20 @@ pub fn test(options: &Options) -> i32 {
                     }
                     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
                 }
-                Err(refusal) if refusal.family == "rule" && derived => {
-                    // A program's own `require` refusing a derived argument
-                    // is information, not a failure: the persona is not in
-                    // that group. Run it with yours to see the meters.
+                Err(refusal) if refusal.family == "rule" => {
+                    // A program's own `require` refusing this persona is
+                    // information, not a failure: the persona is not in that
+                    // group. The caller chose nothing on this pass, whether
+                    // the arguments were derived or there are none (wave 5
+                    // lane 059: an argument-free gate counted as denied).
+                    // @ref LLP 3000.036#15.2 — the derived pass never fails on the program's own require.
                     refused_derived += 1;
-                    println!("      {:<28} refused {} on derived arguments{shown} — give it yours in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"args\":{{..}}}}", format!("{} ({persona})", program.program.name), refusal.code, test_cases::FILE, program.program.name);
+                    let name = format!("{} ({persona})", program.program.name);
+                    if derived {
+                        println!("      {name:<28} refused {} on derived arguments{shown} — give it yours in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"args\":{{..}}}}", refusal.code, test_cases::FILE, program.program.name);
+                    } else {
+                        println!("      {name:<28} refused {} by its own require (not a failure: {persona} is not admitted) — pin it in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"expect\":\"{}\"}}", refusal.code, test_cases::FILE, program.program.name, refusal.code);
+                    }
                 }
                 Err(refusal) => {
                     failures += 1;
@@ -1200,7 +1208,7 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    println!("test: {complete} complete, {capped} capped, {refused_derived} refused on derived arguments, {} not run, {failures} denied{}",
+    println!("test: {complete} complete, {capped} capped, {refused_derived} refused by their own require (on derived or no arguments), {} not run, {failures} denied{}",
         skipped.len(), if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }
