@@ -66,6 +66,17 @@ pub(super) fn curl(base: &str, call: &Call) -> String {
 pub(super) fn forward(store: &Path, busy: &str, call: &Call) -> Result<i32, String> {
     let store = store.canonicalize().unwrap_or_else(|_| store.to_owned());
     let Some(address) = crate::store_owner::inspector_address(&store) else { return Err(busy.to_owned()) };
+    forward_to(address, busy, call)
+}
+
+/// `run --port N`: the dev on that loopback port, whichever store it serves
+/// (a `dev --fresh` keeps a temporary store no local `run` can open).
+pub(super) fn forward_port(port: u16, call: &Call) -> Result<i32, String> {
+    let address = SocketAddr::from(([127, 0, 0, 1], port));
+    forward_to(address, &format!("run --port {port}: nothing was run"), call)
+}
+
+fn forward_to(address: SocketAddr, busy: &str, call: &Call) -> Result<i32, String> {
     let base = format!("http://{address}");
     let alternative = |why: &str| format!("{busy}\nrun: not forwarded to the live dev at {base}: {why}.\n  to run it now beside dev: {}{}",
         curl(&base, call), if call.kind == ProgramKind::Job { "\n  a scheduled job also fires on `snapback4 clock advance <duration>`" } else { "" });
@@ -81,7 +92,7 @@ pub(super) fn forward(store: &Path, busy: &str, call: &Call) -> Result<i32, Stri
         Err(error) => return Err(alternative(&format!("its listener did not answer GET /dev/status ({error})"))),
     }
     let route = path(call);
-    eprintln!("run: the store is live under snapback4 dev at {base}; forwarding to POST {route}{} on its dev clock", persona.map(|p| format!(" as x-snapback-persona: {p}")).unwrap_or_default());
+    eprintln!("run: forwarding to the live snapback4 dev at {base}: POST {route}{} on its dev clock and store", persona.map(|p| format!(" as x-snapback-persona: {p}")).unwrap_or_default());
     // A job runs whole before the reply; the read waits as a local run would.
     let baseline = call.project.filter(|_| call.kind != ProgramKind::Job).and_then(|project| super::run_refusal::baseline(&project.data_dir()));
     let (status, reply) = exchange(address, "POST", &route, persona, &body(call), Duration::from_secs(3600))

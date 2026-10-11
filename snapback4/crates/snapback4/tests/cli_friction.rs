@@ -110,3 +110,33 @@ fn dev_refuses_a_taken_port_and_names_the_holder() {
     assert!(!output.status.success(), "{log}");
     assert!(log.contains("E_ADDRINUSE") && log.contains(&format!("a running snapback4 dev (pid {})", first.0.id())) && log.contains(&format!("kill {}", first.0.id())), "{log}");
 }
+
+/// `snapback4 test --help` is about test (lane 054): its columns, its states,
+/// its exit codes and where the testing card is; every verb gets its own page.
+#[test]
+fn each_verb_has_its_own_help() {
+    let help = |args: &[&str]| {
+        let output = Command::new(BIN).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let full = help(&["--help"]);
+    let test = help(&["test", "--help"]);
+    assert_ne!(test, full);
+    for term in ["examined", "entries", "probes", "capped", "complete: false", "on derived arguments", "not run", "Exit 1", "guide testing"] {
+        assert!(test.contains(term), "test --help explains {term}:\n{test}");
+    }
+    let dev = help(&["dev", "--help"]);
+    for term in ["/dev/status", "pid", "E_ADDRINUSE", "--port 0", "--fresh", "--memory", "E_STORE_BUSY", "use personas", "SIGTERM"] {
+        assert!(dev.contains(term), "dev --help explains {term}:\n{dev}");
+    }
+    let run = help(&["run", "--help"]);
+    assert!(run.contains("--port N") && run.contains("dev --fresh"), "{run}");
+    let check = help(&["check", "--help"]);
+    assert!(check.contains("advisory") && check.contains("by design") && check.contains("Exit 0"), "{check}");
+    assert!(help(&["init", "--help"]).contains("without overwriting"));
+    // Verbs without a page print their own lines from the full help.
+    let data = help(&["data", "--help"]);
+    assert!(data.starts_with("  data <table>") && !data.contains("  dev ["), "{data}");
+    assert!(full.contains("snapback4 <verb> --help"), "{full}");
+}

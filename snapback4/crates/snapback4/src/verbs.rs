@@ -577,8 +577,19 @@ pub fn run(options: &Options) -> i32 {
         Some(principal) => principal.clone(),
         None => persona_principal("alice"),
     };
+    if let Some(port) = options.flags.get("port") {
+        let Ok(port) = port.parse::<u16>() else { eprintln!("run: --port takes the dev's port number (snapback4 dev --port N)"); return 2; };
+        let call = run_forward::Call { op, kind: program.kind, args: &args_json, r#as: options.flags.get("as").map(String::as_str),
+            personas: &bound.personas, pinned_now: options.flags.contains_key("now"), json: options.json, project: Some(&project) };
+        return run_forward::forward_port(port, &call).unwrap_or_else(|text| { eprintln!("{text}"); 2 });
+    }
     let _owner = match crate::store_owner::command(&project.store_path()) {
-        Ok(owner) => owner,
+        Ok(owner) => {
+            // Say which store answered: a `dev --fresh` serves a separate temporary one.
+            eprintln!("run: on the local store {} (no dev owns it; a dev --fresh/--memory keeps its own: reach it with run --port N)",
+                project.store_path().strip_prefix(&project.root).unwrap_or(&project.store_path()).display());
+            owner
+        }
         // @ref LLP 3000.019#3.4 — beside a live dev host, run goes through that server rather than open a second writer.
         Err(error) if error.starts_with("E_STORE_BUSY ") => {
             let call = run_forward::Call { op, kind: program.kind, args: &args_json, r#as: options.flags.get("as").map(String::as_str),
