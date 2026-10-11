@@ -138,6 +138,11 @@ server. Readiness is the first stdout line: the URL. `GET /dev/status` names
 the server's `pid`; `snapback4 dev --help` has the lifecycle.
 `resolveBinary()` from `snapback4/bin-path` returns the platform binary itself, with no Node wrapper.
 
+Each scenario starts from state you know. Earlier steps change what later ones read (bob's list grows
+when alice invites him), so assert every persona's baseline before the first write, and give each
+scenario its own rows: distinct ids and owners per scenario, or a fresh `dev --memory` per scenario
+(each start is an empty store). `/seed` is an upsert, so reseeding does not remove rows a scenario added.
+
 ```js
 // node scripts/acceptance.mjs
 import { spawn } from "node:child_process";
@@ -151,6 +156,7 @@ try {
   const post = async (path, body, persona) => (await fetch(url + path, { method: "POST", body: JSON.stringify(body),
     headers: { "content-type": "application/json", ...(persona && { "x-snapback-persona": persona }) } })).json();
   assert.equal((await post("/seed", [{ table: "boards", row: { id: "b1", owner: "dev:alice", title: "Groceries" } }])).seeded, 1);
+  assert.equal((await post("/q/cardsOn", { args: { board: "b1" } }, "alice")).data.length, 0); // baseline first
   assert.equal((await post("/m/addCard", { args: { board: "b1", text: "milk" } }, "alice")).state, "sent");
   const refused = await post("/m/addCard", { args: { board: "b1", text: "spam" } }, "bob");
   assert.equal(refused.state, "failed"); // refused.why.code is "E_RULE"
@@ -158,9 +164,20 @@ try {
 } finally { dev.kill("SIGTERM"); }
 ```
 
-Queries answer `{data, complete, ..}` or `{denied}`; mutations `{state: "sent", result}` or
-`{state: "failed", why}`; both are HTTP 200 (`guide wire`), while a request that does not decode
-(a wrong JSON type, an unknown argument) is 400. `/seed` takes a JSON array, writes as the system and
+Every route answers JSON; read the field for the route (`guide wire` has the rest):
+
+| Request | HTTP | Body | Read |
+|---|---|---|---|
+| `POST /q/<query>` answered | 200 | `{data, complete, cut, next, seq, tables, viewer}` | `body.data`: a list, a row, a shape, or a scalar (a keyed view read such as `totals[owner]` is just the number) |
+| `POST /q/<query>` refused | 200 | `{denied: {code, message, site?, rule?}}` | `body.denied.code` |
+| `POST /m/<mutation>` sent | 200 | `{state: "sent", id, seq, result}` | `body.result`: what the mutation returns (an inserted row, so its id is `body.result.id`); top-level `id` is the write id you sent, `null` without one |
+| `POST /m/<mutation>` refused | 200 | `{state: "failed", id, why: {code, message, site?, rule?}, current?}` | `body.why.code`: `E_RULE`, `NOT_FOUND`, `E_CONSTRAINT`, your `require`/`unique` code, `E_INPUT` for a value checked while running |
+| a request that does not decode (bad JSON type, unknown argument) | 400 | `{denied: {code: "E_INPUT"}}` | `body.denied.code` |
+| an undeclared persona, no credential | 401 | `{denied: {code: "E_AUTH"}}` | `body.denied.code` |
+| `POST /seed` | 200 | `{seeded: N}`, or `{denied}` with nothing written | `body.seeded` |
+
+A `unique ... else CODE` refuses with your code; without one, a clash is `E_CONSTRAINT` naming the index.
+`/seed` takes a JSON array, writes as the system and
 skips rules, with fixture-row semantics (defaults, sequences); seed parents and children in one call.
 It is an upsert by `id`: a reseed updates mutable columns, and changing an `immutable` one refuses
 `E_CONSTRAINT` (use a new id, or restart with `--memory`). Personas and `/seed` exist only under `dev`,

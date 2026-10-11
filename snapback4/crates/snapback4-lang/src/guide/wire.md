@@ -26,10 +26,13 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
 ## Operations
 
 - `/q/<op>` with `{"args":{..}}` answers `{data, complete, cut, next, seq, tables, viewer}`
-  or `{denied}`. Page by passing `next` back as the query's cursor argument.
+  or `{denied}`. `data` is what the query returns, as is: a list, a row, a shape,
+  or a scalar (a keyed view read `totals[owner]` answers the number itself).
+  Page by passing `next` back as the query's cursor argument.
 - `/m/<op>` with `{"id"?, "args":{..}}` answers `{state:"sent", id, seq, result}` or
   `{state:"failed", id, why, current?}`, both HTTP 200 (see Refusals for the
-  status codes). With an `id` (a unique string the caller mints once per
+  status codes). `result` is what the mutation returns (an inserted row's id is
+  `result.id`); the top-level `id` is the write id you sent, `null` without one. With an `id` (a unique string the caller mints once per
   intended write), a retry of the same call applies at most once and answers
   `replayed: true`; the same `id` with another operation or other arguments is
   `{state:"failed", why:{code:"E_ID_REUSED"}}`. Without an `id`, every POST is a
