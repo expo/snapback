@@ -25,6 +25,7 @@ pub(crate) mod unique_bound;
 mod point_key;
 mod index_diagnostics;
 mod mixed_keys;
+mod page_shapes;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -97,6 +98,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
     catalog.feed_views = feeds;
+    page_shapes::hoist(&mut catalog);
     mixed_keys::normalize(&mut catalog);
     intent::table_order(&mut catalog);
     intent_aggregates::remember_domains(&mut catalog);
