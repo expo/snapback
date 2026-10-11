@@ -148,6 +148,21 @@ impl Parser {
                     value = token.value.parse::<i64>().ok().and_then(|n| n.checked_mul(multiplier))
                         .filter(|n| *n <= snapback4_core::value::I53_MAX)
                         .ok_or_else(|| syntax_with(&token.site, "duration exceeds the representable integer range", "use a smaller integer duration, such as 24h"))?.to_string();
+                } else if self.peek().kind == Kind::Word && self.peek().site.line == token.site.line && self.peek().site.col == token.site.col + token.value.len() as u32 {
+                    let unit = self.peek().clone();
+                    let n = token.value.parse::<i64>().unwrap_or(1);
+                    let suggestion = match unit.value.as_str() {
+                        "w" | "wk" | "wks" | "week" | "weeks" => format!("{}d", n.saturating_mul(7)),
+                        "y" | "yr" | "yrs" | "year" | "years" => format!("{}d", n.saturating_mul(365)),
+                        "mo" | "month" | "months" => format!("{}d (months vary; use a time column for calendar months)", n.saturating_mul(30)),
+                        "min" | "mins" | "minute" | "minutes" => format!("{n}m"),
+                        "sec" | "secs" | "second" | "seconds" => format!("{n}s"),
+                        "hr" | "hrs" | "hour" | "hours" => format!("{n}h"),
+                        "day" | "days" => format!("{n}d"),
+                        "msec" | "millis" => format!("{n}ms"),
+                        _ => format!("{n}d"),
+                    };
+                    return Err(syntax_with(&unit.site, format!("`{}{}` is not a duration: durations are integer milliseconds written with ms, s, m, h or d", token.value, unit.value), format!("write {suggestion}")));
                 }
                 Expr::Literal { value: Literal::Number(value), site: token.site }
             }
@@ -415,7 +430,22 @@ impl Parser {
                 _ => {
                     if self.maybe(".") {
                         read.order_keys.push(self.word()?.value);
-                        while self.maybe(",") { self.take(".")?; read.order_keys.push(self.word()?.value); }
+                        // @ref LLP 3000.036#11 — inside an object a comma may end the page: `{ notes: t where … by .at, votes: v }`.
+                        while self.at(",") {
+                            let next = self.peek_at(1).clone();
+                            if next.value == "." {
+                                self.take(",")?;
+                                self.take(".")?;
+                                read.order_keys.push(self.word()?.value);
+                            } else if next.kind == Kind::Word && matches!(self.peek_at(2).value.as_str(), ":" | "," | "}") {
+                                break;
+                            } else if next.kind == Kind::Word {
+                                let keys = read.order_keys.iter().map(|key| format!(".{key}")).chain(std::iter::once(format!(".{}", next.value))).collect::<Vec<_>>().join(", ");
+                                return Err(syntax_with(&next.site, format!("each order key starts with a dot; got `{}`", next.value), format!("by {keys}")));
+                            } else {
+                                break;
+                            }
+                        }
                     } else {
                         let candidate = self.word()?.value;
                         if read.index.is_none() { read.index = Some(candidate); }

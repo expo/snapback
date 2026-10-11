@@ -334,6 +334,8 @@ impl<'a> Binder<'a> {
             return bound;
         }
         if let Some(shaped) = self.page_shape(read) { return self.expr(&shaped, out); }
+        // @ref LLP 3000.036#11 — a bound row of this table addresses itself, as in `update t[row]`.
+        if let Some(by_id) = self.row_as_key(read) { return self.read(&by_id, out); }
         if self.is_page(read, ReadMode::FilteredPoint)? {
             let (scan, take) = self.scan(read, out)?;
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
@@ -504,7 +506,7 @@ impl<'a> Binder<'a> {
                 self.job_bound_helpers.insert(self.call_chain.last().unwrap().0.clone());
             }
         }
-        if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
+        if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan, position == prefix::Position::Aggregate)?; }
         if position != prefix::Position::Aggregate { self.shape_meter_note(&scan, read); }
         Ok((scan, range.take))
     }
@@ -1053,6 +1055,18 @@ impl<'a> Binder<'a> {
                 Ok(valued.then(|| (Expr::Literal(Value::Null), Ty::Null)))
             }
         }
+    }
+
+    /// `t[row]` where `row` is a present row of `t`: the same read as `t[row.id]`.
+    fn row_as_key(&self, read: &ReadExpr) -> Option<ReadExpr> {
+        if read.keys.len() != 1 || read.keys[0].column.is_some() || read.range.is_some() || read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty() || read.index.is_some() || !read.order_keys.is_empty() { return None; }
+        let key = &read.keys[0].value;
+        if !matches!(key, A::Name { .. }) { return None; }
+        let (_, ty) = self.clone().expr(key, &mut setup::Body::default()).ok()?;
+        if !matches!(ty, Ty::Row(ref table) | Ty::WriteRow(ref table) if *table == read.table) { return None; }
+        let mut by_id = read.clone();
+        by_id.keys[0].value = A::Member { base: Box::new(key.clone()), name: "id".into(), site: key.site().clone() };
+        Some(by_id)
     }
 
     fn write_key(&mut self, info: &'a TableInfo, keys: &[ast::KeyPart], site: &Site, out: &mut setup::Body) -> Fallible<WriteKey> {

@@ -59,7 +59,6 @@ fn refusals_explain_private_maintained_ephemeral_and_read_positions() {
         ("table parents:\n  total: count sources by parent\n  public\ntable sources:\n  parent: parents\n  public\ntable children:\n  parent: parents\n  public\n  insert <- .parent.total = 0\n".into(), "maintained", "parents[id = parent]"),
         ("table sources:\n  owner: principal\n  public\nview totals: count sources by .owner\ntable children:\n  total: totals\n  public\n  insert <- .total.value = 0\n".into(), "maintained", "totals[owner = owner]"),
         ("table presence:\n  owner: principal\n  public\n  cap 10 by owner\n  ephemeral 4s\ntable children:\n  presence: presence\n  public\n  insert <- .presence.owner = viewer\n".into(), "ephemeral", "presence[id = presence]"),
-        (format!("{}  read <- .message.owner = viewer\n",TABLES.trim_end_matches("  public\n")), "read through", "messages[id = message]"),
     ] {
         let b = compile(&[("schema.q".into(),source)]);
         let d = b.diagnostics.iter().find(|d| d.code=="E_QUARRY_RULE_HOP").expect(&format!("{:?}",b.diagnostics));
@@ -67,6 +66,13 @@ fn refusals_explain_private_maintained_ephemeral_and_read_positions() {
         assert!(d.rewrite.contains(lookup) && d.rewrite.contains("require ") && d.rewrite.contains("! else FORBIDDEN"),"{d:?}");
         assert!(!d.rewrite.contains("table[") && !d.rewrite.contains(".ref"),"{d:?}");
     }
+    // @ref LLP 3000.036#11 — a read rule's repair is table-rule syntax (copy the
+    // immutable deciding value, check it at insert, probe one hop), never a
+    // mutation `require`, which would not guard reads.
+    let b = compile(&[("schema.q".into(),format!("{}  read <- .message.owner = viewer\n",TABLES.trim_end_matches("  public\n")))]);
+    let d = b.diagnostics.iter().find(|d| d.code=="E_QUARRY_RULE_HOP").expect(&format!("{:?}",b.diagnostics));
+    assert!(d.message.contains("read through"),"{d:?}");
+    assert!(d.rewrite.contains("read through .message") && d.rewrite.contains("read <- .owner = viewer") && !d.rewrite.contains("require "),"{d:?}");
 }
 
 #[test]

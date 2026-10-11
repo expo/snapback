@@ -49,6 +49,9 @@ A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.
 
+A bound row addresses itself: after `s = slots[slot] ! else NOT_FOUND`,
+`slots[s]` reads, updates and deletes that row, as `slots[s.id]` does.
+
 ## Operations
 
 Run `snapback4 check --cost` for chosen and synthesized indexes and the reads

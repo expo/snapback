@@ -412,7 +412,12 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
         let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
-        if error.code == "E_QUARRY_RULE_HOP" { error.rewrite = reference::reference_rewrite(catalog, info, &rule.value); }
+        if error.code == "E_QUARRY_RULE_HOP" {
+            error.rewrite = match rule.effect {
+                Effect::Read => reference::read_hop_rewrite(catalog, info, &rule.value).unwrap_or_else(|| "a read rule probes one hop: copy the deciding value onto this row (immutable, checked against the parent by the insert rule), or use read through .parent".into()),
+                _ => reference::reference_rewrite(catalog, info, &rule.value),
+            };
+        }
         error
     })
 }
@@ -645,6 +650,22 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if catalog.tables.get(&read.table).is_some_and(|t| t.decl.ephemeral.is_some()) {
         return Err(Diagnostic::new(site, "E_QUARRY_EPHEMERAL", format!("a rule or after insert cannot probe ephemeral table {}", read.table), "probe a durable table instead").guide("ephemeral"));
     }
+    // `exists pieces[.id = .piece, …]`: a comparison where a key belongs. Name
+    // the column (`id = .piece`) or give the full unique key by position first.
+    // @ref LLP 3000.036#11 — app-farm pattern 27: the positional unique-key form.
+    for key in &read.keys {
+        if let Expr::Binary { op, left, right, .. } = &key.value && op == "="
+            && let Expr::Member { base, name, .. } = left.as_ref() && matches!(base.as_ref(), Expr::Focal { .. }) {
+            let others: Vec<String> = read.keys.iter().filter(|other| !std::ptr::eq(*other, key)).map(|other| match &other.column {
+                Some(column) => format!("{column} = {}", crate::print::expression(&other.value)),
+                None => crate::print::expression(&other.value),
+            }).collect();
+            let value = crate::print::expression(right);
+            let positional = if name == "id" { std::iter::once(value.clone()).chain(others.iter().cloned()).collect::<Vec<_>>().join(", ") } else { std::iter::once(format!("{name} = {value}")).chain(others.iter().cloned()).collect::<Vec<_>>().join(", ") };
+            return Err(unknown(&key.site, format!("`.{name} = {value}` is a comparison inside a probe key; in {}[..] a key names a column without a dot (`{name} = {value}`), or gives a full unique key by position first", read.table),
+                format!("exists {}[{positional}]", read.table)).guide("rules"));
+        }
+    }
     let mixed = read.keys.iter().any(|key| key.column.is_some()) && read.keys.iter().any(|key| key.column.is_none());
     let types = if mixed { Some(read.keys.iter().take_while(|key| key.column.is_none()).map(|key| rule_term(catalog, info, &key.value, bindings)
         .map(|(term, ty)| (ty, matches!(term, RuleTerm::Literal(Value::String(_)))))).collect::<Fallible<Vec<_>>>()?) } else { None };
@@ -719,7 +740,13 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         })
         .collect();
     if extras && named.is_some() {
-        if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() { candidates.retain(|i| target.total_unique(i) && i.columns.len() == width); }
+        if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() {
+            candidates.retain(|i| target.total_unique(i) && i.columns.len() == width);
+            // @ref LLP 3000.036#11 — named equalities covering two total unique keys
+            // test one row either way (the other key's columns are extra
+            // equalities on it), so the first declared key decides; no ambiguity.
+            candidates.truncate(1);
+        }
         else if candidates.iter().any(|i| i.unique) { candidates.retain(|i| i.unique); }
     }
     if named.is_none() {

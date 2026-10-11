@@ -391,7 +391,7 @@ impl Parser {
     /// `sync to table[.a, .b] [by .principal] [last N by index]`.
     fn parse_sync(&mut self) -> Fallible<SyncDecl> {
         let site = self.take("sync")?.site;
-        let rewrite = "sync to memberships[.conversationId] last 500 by .at";
+        let rewrite = "sync public, sync to .ownerColumn, or sync to members[.groupColumn]; then optionally last N by .column, .id";
         let audience = if self.maybe("public") {
             SyncAudience::Public
         } else if self.at("last") || self.at("by") || self.at_kind(Kind::Newline) || self.at_kind(Kind::Eof) {
@@ -457,7 +457,23 @@ impl Parser {
                     return Err(syntax_with(&column.site, format!("window order names .{} twice", column.value), format!("last {n} by {order}")).guide("sync"));
                 }
                 order
-            } else { SyncOrder::Index(self.word()?.value) };
+            } else {
+                let index = self.word()?;
+                if self.at(",") {
+                    // `by createdAt, id`: columns written without their dots.
+                    let mut columns = vec![index.value.clone()];
+                    let mut at = 0;
+                    while self.peek_at(at).value == "," && matches!(self.peek_at(at + 1).kind, Kind::Word | Kind::Symbol) {
+                        let next = self.peek_at(at + 1);
+                        let column = if next.value == "." { self.peek_at(at + 2).value.clone() } else { next.value.clone() };
+                        columns.push(column);
+                        at += if next.value == "." { 3 } else { 2 };
+                    }
+                    return Err(syntax_with(&index.site, format!("a window names one index, or columns each with a leading dot; `{}` is followed by an unexpected comma", index.value),
+                        format!("last {n} by {}", SyncOrder::Columns(columns))).guide("sync"));
+                }
+                SyncOrder::Index(index.value)
+            };
             horizon = Some((n, order));
         }
         let own_keys = if self.maybe("with") {
@@ -467,7 +483,15 @@ impl Parser {
             Some(self.word()?.value)
         } else { None };
         if !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) {
-            return Err(syntax_with(&site, format!("unexpected {} after the sync line", self.peek().value), rewrite));
+            let audience_text = match &audience {
+                SyncAudience::Public => "sync public".to_owned(),
+                SyncAudience::Inferred { principal: None } => "sync".to_owned(),
+                SyncAudience::Inferred { principal: Some(column) } => format!("sync by .{column}"),
+                SyncAudience::Column(column) => format!("sync to .{column}"),
+                SyncAudience::Target { table, prefix, principal } => format!("sync to {table}[{}]{}", prefix.iter().map(|p| format!(".{p}")).collect::<Vec<_>>().join(", "), principal.as_ref().map(|p| format!(" by .{p}")).unwrap_or_default()),
+            };
+            let written = format!("{audience_text}{}", horizon.as_ref().map(|(n, order)| format!(" last {n} by {order}")).unwrap_or_default());
+            return Err(syntax_with(&self.peek().site.clone(), format!("unexpected {} after `{written}`", self.peek().value), format!("end the sync line after `{written}`; a window is `last N by .column, .id` or `last N by indexName`")));
         }
         self.newline()?;
         Ok(SyncDecl { audience, horizon, own_keys, site })
@@ -642,7 +666,8 @@ impl Parser {
     }
 
     fn parse_maintain(&mut self) -> Fallible<MaintainDecl> {
-        let site = self.word()?.site;
+        let keyword = self.word()?;
+        let site = keyword.site.clone();
         let name = self.binding_name()?;
         self.take(":")?;
         let aggregate = self.word()?;
@@ -651,6 +676,19 @@ impl Parser {
         }
         let source = self.word()?.value;
         let mut column = None;
+        if aggregate.value == "sum" && self.at("where") {
+            // `sum t where … of .x`: count's clause order; a sum names its value first.
+            let where_site = self.take("where")?.site;
+            let start = self.position;
+            while !self.at("of") && !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) { self.position += 1; }
+            let predicate = (self.position > start).then(|| self.source_text(start, self.position));
+            let of = if self.maybe("of") { self.maybe("."); self.word().ok().map(|t| t.value) } else { None };
+            let rest_start = self.position;
+            while !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) { self.position += 1; }
+            let rest = if self.position > rest_start { self.source_text(rest_start, self.position) } else { "by …".to_owned() };
+            return Err(syntax_with(&where_site, "a sum names its value before its filter: sum source of .column where predicate by keys",
+                format!("{} {name}: sum {source} of .{} where {} {rest}", keyword.value, of.as_deref().unwrap_or("column"), predicate.as_deref().unwrap_or("…"))));
+        }
         if aggregate.value == "sum" {
             self.take("of")?;
             self.maybe(".");
@@ -1251,6 +1289,20 @@ impl Parser {
             return Err(syntax_with(&token.site, "decimal and money scales must be integers from 0 through 12", format!("use {rewrite}")));
         }
         Ok(scale as u8)
+    }
+
+    /// The tokens `[from, to)` of one line as written, spacing kept by column.
+    fn source_text(&self, from: usize, to: usize) -> String {
+        let mut text = String::new();
+        let mut end: Option<u32> = None;
+        for token in &self.tokens[from..to.min(self.tokens.len())] {
+            if matches!(token.kind, Kind::Newline | Kind::Indent | Kind::Dedent | Kind::Eof) { break; }
+            if end.is_some_and(|end| token.site.col > end) { text.push(' '); }
+            let written = if token.kind == Kind::Str { print::quote(&token.value) } else { token.value.clone() };
+            end = Some(token.site.col + written.chars().count() as u32);
+            text.push_str(&written);
+        }
+        text
     }
 
     fn word(&mut self) -> Fallible<Token> {
