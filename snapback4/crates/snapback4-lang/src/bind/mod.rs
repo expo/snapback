@@ -28,6 +28,7 @@ mod mixed_keys;
 mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
+mod delete_children;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -109,6 +110,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     intent_views::expand(&mut catalog, &mut diagnostics);
     // After argument-presence variants: `x = null or …` stays theirs (cursor validation across variants).
     where_guards::lower(&mut catalog);
+    delete_children::notes(&mut catalog);
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     schema.authored_indexes = snapback4_core::schema::inspection::AuthoredIndexes(Some(authored_indexes));

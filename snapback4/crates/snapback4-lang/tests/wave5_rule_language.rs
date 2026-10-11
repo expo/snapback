@@ -305,3 +305,35 @@ mutation add(n: int):\n  require n >= 1 and n <= 10 else OUT_OF_RANGE\n  return 
     let d = first("table items:\n  m: int <=5 ?\n  public 'x'\n  online only\n", "E_QUARRY_SYNTAX");
     assert!(d.rewrite.starts_with("declare `m: int ?`") && d.rewrite.contains("(.m = null or .m <= 5)"), "{d:#?}");
 }
+
+// ---- #22: a parent delete does not cascade (noted, not changed) ----
+
+/// Lane 081: `delete screenings[s]` returned sent and kept its RSVPs. The
+/// semantics stay (an open design question, LLP 3000.036 §15.8); `check` now
+/// says so where a mutation deletes a referenced row and handles no child.
+#[test]
+fn a_parent_delete_that_leaves_children_is_noted_and_unchanged() {
+    let schema = "table screenings:\n  host: principal\n  public 'screenings'\n  delete <- .host = viewer\n  online only\n\
+table rsvps:\n  screening: screenings\n  guest: principal\n  public 'rsvps'\n  insert <- .guest = viewer\n  delete <- .guest = viewer or exists screenings[.screening, host = viewer]\n  online only\n";
+    let cancel = "mutation cancel(s: screenings):\n  delete screenings[s]\n  return null\nquery roster(s: screenings, c: cursor ?):\n  return rsvps where .screening = s first 50 by .id after c\n";
+    let source = format!("{schema}{cancel}");
+    let b = clean(&source);
+    let n = note(&b, "N_DELETE_ORPHANS").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.starts_with("mutation cancel: `delete screenings[…]` keeps the rows that reference it (rsvps.screening)"), "{n:#?}");
+    let mut engine = engine(&source, vec![
+        ("screenings", vec![("id", id("s1")), ("host", id("hal"))]),
+        ("rsvps", vec![("id", id("r1")), ("screening", id("s1")), ("guest", id("gil"))]),
+    ]);
+    let outcome = engine.mutate("cancel", None, Context::new("hal", args(&[("s", id("s1"))]))).unwrap();
+    assert!(matches!(outcome.state, snapback4_core::WriteState::Sent { .. }), "{outcome:?}");
+    let roster = engine.query("roster", Context::new("gil", args(&[("s", id("s1")), ("c", Value::Null)]))).unwrap();
+    assert_eq!(roster.data.as_array().unwrap().len(), 1, "unchanged: the child stays");
+    // A mutation that handles the children (a guard or a cleanup) is not noted.
+    for handled in [
+        "mutation cancel(s: screenings):\n  require not exists rsvps where .screening = s else HAS_GUESTS\n  delete screenings[s]\n  return null\n",
+        "mutation cancel(s: screenings):\n  for row in rsvps where .screening = s:\n    delete rsvps[row.id]\n  delete screenings[s]\n  return null\n",
+    ] {
+        let b = bound(&format!("{schema}{handled}"));
+        assert!(note(&b, "N_DELETE_ORPHANS").is_none(), "{handled}\n{:#?}", b.notes);
+    }
+}

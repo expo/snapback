@@ -16,7 +16,11 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
-`upsert` inserts/patches; `delete` removes the row.
+`upsert` inserts/patches; `delete` removes the row, NOT_FOUND when it is missing
+or hidden. A delete does not cascade: rows that reference it stay and name a
+deleted row (a read through them gives null); `check` notes it
+(N_DELETE_ORPHANS) when the mutation writes none of them. Delete them first or
+mark the parent instead; a `read through` child refuses E_PARENT_HAS_CHILDREN.
 An omitted optional argument is null, the same as an explicit null: `x = null`
 is true either way, and no test tells them apart. So a patch `{ c: x }` clears `c` when `x` is omitted: write
 `x ?? row.c` to keep it, and pass a flag when clearing is meant (Details).
