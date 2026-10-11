@@ -4,19 +4,23 @@
 //! live dev. The wire refusal is unchanged and never names the clause.
 // @ref LLP 3000.015#2.1 — the clause is developer evidence, separate from Refusal.
 use serde_json::{Value as Json, json};
-use snapback4_core::engine::refusal_trace::RefusalTrace;
+use snapback4_core::engine::refusal_trace::{RefusalTrace, RefusingClause};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
 /// A local run's trace, in the shape of a dev refusal record.
 pub(super) fn local(trace: &RefusalTrace, sites: &BTreeMap<(String, String), String>) -> Option<Json> {
-    let cause = trace.take().filter(|cause| cause.terminal)?;
+    trace.take().filter(|cause| cause.terminal).map(|cause| record(&cause, sites))
+}
+
+/// One recorded cause in the shape of a dev refusal record (`test` cases too).
+pub(super) fn record(cause: &RefusingClause, sites: &BTreeMap<(String, String), String>) -> Json {
     let clause = sites.get(&(cause.table.clone(), cause.phase.clone()))
         .or_else(|| sites.get(&(cause.table.clone(), cause.clause.clone())));
     let site = clause.or_else(|| sites.get(&(cause.table.clone(), "table".into())));
-    Some(json!({"table": cause.table, "clause": cause.clause, "phase": cause.phase, "site": site,
-        "siteKind": if clause.is_some() { "clause" } else if site.is_some() { "table" } else { "" }, "executionSite": cause.site}))
+    json!({"table": cause.table, "clause": cause.clause, "phase": cause.phase, "site": site,
+        "siteKind": if clause.is_some() { "clause" } else if site.is_some() { "table" } else { "" }, "executionSite": cause.site})
 }
 
 /// The live dev's instance and newest response sequence, read before sending,
@@ -97,6 +101,9 @@ fn code(line: &str) -> &str {
     }
     line
 }
+
+/// The source line a `file:line:col` site points at, without its comment.
+pub(super) fn quote(site: &str, source: &dyn Fn(&str) -> Option<String>) -> Option<String> { source_line(site, source) }
 
 fn source_line(site: &str, source: &dyn Fn(&str) -> Option<String>) -> Option<String> {
     let mut parts = site.rsplitn(3, ':');

@@ -26,6 +26,31 @@ pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
     out
 }
 
+/// `(table, "lookup <site>")` → site for each `t[x] ! else CODE`: development
+/// evidence can then say a program refusal at that site was a lookup of `t`,
+/// so a row its read rule hid in the same request reads as absent there.
+pub(super) fn lookup_sites(programs: &[super::BoundProgram]) -> BTreeMap<(String, String), String> {
+    use snapback4_core::ir::{Expr, Stmt};
+    fn walk(body: &[Stmt], out: &mut BTreeMap<(String, String), String>) {
+        for pair in body.windows(2) {
+            if let [Stmt::Let { name, value: Expr::Get(read) }, Stmt::Require { condition: Expr::Binary { left, .. }, site: Some(site), .. }] = pair
+                && matches!(&**left, Expr::Variable(var) if var == name) {
+                out.insert((read.table.clone(), format!("lookup {site}")), site.clone());
+            }
+        }
+        for stmt in body {
+            match stmt {
+                Stmt::If { then_body, else_body, .. } => { walk(then_body, out); walk(else_body, out); }
+                Stmt::For { body, .. } => walk(body, out),
+                _ => {}
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    for program in programs { walk(&program.program.body, &mut out); }
+    out
+}
+
 // @ref LLP 3000.015#2.1 — created parent identity is not a proof about its shared counter.
 pub(super) fn sequence_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let mut out = Vec::new();

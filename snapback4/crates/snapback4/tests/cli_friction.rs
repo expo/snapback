@@ -260,3 +260,171 @@ fn run_port_reaches_a_fresh_dev_and_a_local_run_names_its_store() {
     let local = project.run(&["run", "whoAmI", "--json"]);
     assert!(local.status.success() && String::from_utf8_lossy(&local.stderr).contains("run: on the local store .snapback4/store.sqlite"), "{}", text(&local));
 }
+
+const PARITY_SCHEMA: &str = "use personas alice, bob
+
+table items:
+  owner: principal
+  qty: int
+  done: bool default false
+  n: int default 7
+  at: time default now
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  delete <- .owner = viewer
+  cap 50 by owner
+
+table seats:
+  slot: int
+  who: principal
+  unique slot else SEAT_TAKEN
+  read <- .who = viewer
+  insert <- .who = viewer
+  cap 5 by who
+
+view qtyByOwner: sum items of .qty by .owner
+  read <- allow
+
+view countByOwner: count items by .owner
+  read <- allow
+
+query item(item: items):
+  i = items[item] ! else NOT_FOUND
+  return { done: i.done, n: i.n, stamped: i.at > 0 }
+
+query totals(owner: principal):
+  return { qty: qtyByOwner[owner], count: countByOwner[owner] }
+
+mutation setQty(item: items, qty: int):
+  i = items[item] ! else NOT_FOUND
+  require i.owner = viewer else NOT_YOURS
+  return update items[item] { qty }
+
+mutation drop(item: items):
+  delete items[item]
+  return true
+
+mutation book(slot: int):
+  return insert seats { slot, who: viewer }
+";
+
+/// Fixture rows and `/seed` take one insert path (wave 2, R2 and R4): the same
+/// rows answer the same in `test --fixture` and over a dev's `/seed` — omitted
+/// columns take their defaults, maintained views count the loaded rows and
+/// follow later updates and deletes (no negative group), and a duplicate
+/// `unique` refuses with the author's code instead of loading.
+#[test]
+fn fixture_rows_and_seed_rows_answer_alike() {
+    let items = [r#"{"id":"I1","owner":"dev:alice","qty":2}"#, r#"{"id":"I2","owner":"dev:alice","qty":3}"#];
+    let seats = r#"{"id":"S1","slot":1,"who":"dev:alice"}"#;
+    // (persona, operation, args, the answer both paths must give)
+    let steps: [(&str, &str, &str, serde_json::Value); 7] = [
+        ("alice", "item", r#"{"item":"I1"}"#, serde_json::json!({"done": false, "n": 7, "stamped": true})),
+        ("alice", "totals", r#"{"owner":"dev:alice"}"#, serde_json::json!({"qty": 5, "count": 2})),
+        ("alice", "setQty", r#"{"item":"I1","qty":10}"#, serde_json::Value::Null),
+        ("alice", "totals", r#"{"owner":"dev:alice"}"#, serde_json::json!({"qty": 13, "count": 2})),
+        ("alice", "drop", r#"{"item":"I2"}"#, serde_json::json!(true)),
+        ("alice", "totals", r#"{"owner":"dev:alice"}"#, serde_json::json!({"qty": 10, "count": 1})),
+        ("alice", "totals", r#"{"owner":"dev:bob"}"#, serde_json::json!({"qty": 0, "count": 0})),
+    ];
+    let project = Project::new(PARITY_SCHEMA);
+    project.write("fx/items.jsonl", &format!("{}\n{}\n", items[0], items[1]));
+    project.write("fx/seats.jsonl", &format!("{seats}\n"));
+    let cases: String = steps.iter().map(|(who, op, args, data)| {
+        let data = if data.is_null() { String::new() } else { format!(",\"data\":{data}") };
+        format!("{{\"as\":\"{who}\",\"op\":\"{op}\",\"args\":{args}{data}}}\n")
+    }).collect();
+    project.write("fx/test.cases.jsonl", &cases);
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("cases: 7 passed, 0 failed"), "{}", text(&output));
+
+    let (_dev, url) = project.dev(0);
+    let rows: Vec<String> = items.iter().map(|row| format!("{{\"table\":\"items\",\"row\":{row}}}")).chain([format!("{{\"table\":\"seats\",\"row\":{seats}}}")]).collect();
+    let (status, body) = http(&url, "POST", "/seed", None, &format!("[{}]", rows.join(",")));
+    assert_eq!((status, &body["seeded"]), (200, &serde_json::json!(3)), "{body}");
+    for (who, op, args, data) in &steps {
+        let route = if matches!(*op, "item" | "totals") { format!("/q/{op}") } else { format!("/m/{op}") };
+        let (status, body) = http(&url, "POST", &route, Some(who), &format!("{{\"args\":{args}}}"));
+        assert_eq!(status, 200, "{op}: {body}");
+        let answer = if route.starts_with("/q/") { &body["data"] } else { assert_eq!(body["state"], "sent", "{op}: {body}"); &body["result"] };
+        if !data.is_null() { assert_eq!(answer, data, "{op} {args} over /seed answers as the fixture run did"); }
+    }
+
+    // A duplicate unique key refuses with the author's code on both paths.
+    let duplicate = r#"{"id":"S2","slot":1,"who":"dev:bob"}"#;
+    let bad = Project::new(PARITY_SCHEMA);
+    bad.write("fx/seats.jsonl", &format!("{seats}\n{duplicate}\n"));
+    let output = bad.run(&["test", "--fixture", "fx"]);
+    assert_eq!(output.status.code(), Some(1), "{}", text(&output));
+    assert!(text(&output).contains("SEAT_TAKEN"), "{}", text(&output));
+    let (_dev, url) = bad.dev(0);
+    let (status, body) = http(&url, "POST", "/seed", None, &format!("[{{\"table\":\"seats\",\"row\":{seats}}},{{\"table\":\"seats\",\"row\":{duplicate}}}]"));
+    assert_eq!((status, &body["denied"]["code"]), (200, &serde_json::json!("SEAT_TAKEN")), "{body}");
+}
+
+/// `test.cases.jsonl` (wave 2): a query that `check` notes is never complete
+/// passes capped by default and says why; an explicit "complete" fails with a
+/// hint naming the note. A refused case names the refusing layer: a lookup
+/// whose row the read rule hid (the later `require` never ran), or a unique key
+/// held by a row the viewer cannot read. `test` and `run` refuse an undeclared
+/// persona as dev does (R10).
+#[test]
+fn cases_follow_check_verdicts_name_refusing_layers_and_refuse_undeclared_personas() {
+    let schema = format!("{PARITY_SCHEMA}\nquery page(c: cursor ?):\n  return items first 20 by .id after c\n");
+    let project = Project::new(&schema);
+    let check = project.run(&["check", "--verbose"]);
+    assert!(text(&check).contains("N_NEVER_COMPLETE"), "{}", text(&check));
+    project.write("fx/items.jsonl", "{\"id\":\"I1\",\"owner\":\"dev:alice\",\"qty\":2}\n");
+    project.write("fx/seats.jsonl", "{\"id\":\"S1\",\"slot\":1,\"who\":\"dev:alice\"}\n");
+    project.write("fx/test.cases.jsonl", concat!(
+        "{\"as\":\"alice\",\"op\":\"page\",\"count\":1}\n",
+        "{\"as\":\"alice\",\"op\":\"page\",\"count\":1,\"expect\":\"complete\"}\n",
+        "{\"as\":\"bob\",\"op\":\"setQty\",\"args\":{\"item\":\"I1\",\"qty\":1},\"expect\":\"NOT_YOURS\"}\n",
+        "{\"as\":\"bob\",\"op\":\"book\",\"args\":{\"slot\":1},\"expect\":\"SEAT_TAKEN\"}\n",
+        "{\"as\":\"eve\",\"op\":\"page\",\"expect\":\"E_AUTH\"}\n",
+        "{\"as\":\"eve\",\"op\":\"page\"}\n"));
+    let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
+    let out = text(&output);
+    assert_eq!(output.status.code(), Some(1), "{out}");
+    assert!(out.contains("cases: 2 passed, 4 failed"), "{out}");
+    assert!(out.contains("ok   test.cases.jsonl:1 page (alice) → capped") && out.contains("capped is this query's check verdict: page is never complete (N_NEVER_COMPLETE at schema.q:"), "{out}");
+    assert!(out.contains("FAIL test.cases.jsonl:2 page (alice) → capped: expected complete, got capped") && out.contains("add \"expect\":\"capped\""), "{out}");
+    assert!(out.contains("NOT_FOUND is the program's own refusal at `i = items[item] ! else NOT_FOUND` (schema.q:")
+        && out.contains("the items read rule `read <- .owner = viewer`") && out.contains("a later `require … else NOT_YOURS` never ran"), "{out}");
+    assert!(out.contains("seats refused it: unique slot, at `unique slot else SEAT_TAKEN` (schema.q:") && out.contains("a row with this `unique slot` key exists that this viewer cannot read"), "{out}");
+    assert!(out.contains("ok   test.cases.jsonl:5 page (eve) → E_AUTH"), "{out}");
+    assert!(out.contains("FAIL test.cases.jsonl:6 page (eve) → E_AUTH") && out.contains("persona eve is not declared; `use personas alice, bob`"), "{out}");
+
+    for args in [&["test", "--fixture", "fx", "--as", "eve"][..], &["test", "--fixture", "fx", "--as", "dev:eve"]] {
+        let output = project.run(args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}: {}", text(&output));
+        assert!(text(&output).contains("persona eve is not declared") && !text(&output).contains("cases:"), "{args:?}: {}", text(&output));
+    }
+    // A local run keeps taking principal ids, and says a bare undeclared name is not dev:<name>.
+    let run = project.run(&["run", "page", "--as", "eve", "--json"]);
+    assert!(run.status.success(), "{}", text(&run));
+    assert!(String::from_utf8_lossy(&run.stderr).contains("run --as eve: not a declared persona (`use personas alice, bob`), so this local run acts as the principal id \"eve\", not dev:eve"), "{}", text(&run));
+
+    // Dev's refusal record names the same hidden-lookup layer; a missing row does not.
+    let (_dev, url) = project.dev(0);
+    let (_, body) = http(&url, "POST", "/seed", None, "[{\"table\":\"items\",\"row\":{\"id\":\"I1\",\"owner\":\"dev:alice\",\"qty\":2}}]");
+    assert_eq!(body["seeded"], 1, "{body}");
+    for (item, hidden) in [("I1", true), ("I9", false)] {
+        let (_, body) = http(&url, "POST", "/m/setQty", Some("bob"), &format!("{{\"args\":{{\"item\":\"{item}\",\"qty\":1}}}}"));
+        assert_eq!(body["why"]["code"], "NOT_FOUND", "{body}");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let record = loop {
+            let why = project.run(&["why", "recent"]);
+            let recent: serde_json::Value = serde_json::from_slice(&why.stdout).unwrap_or_default();
+            let found = recent["records"].as_array().into_iter().flatten().filter(|r| r["operation"] == "setQty").count();
+            if found == if hidden { 1 } else { 2 } { break recent["records"].as_array().unwrap().iter().rev().find(|r| r["operation"] == "setQty").unwrap().clone(); }
+            assert!(Instant::now() < deadline, "{recent}");
+            std::thread::sleep(Duration::from_millis(20));
+        };
+        assert_eq!(record["clause"], "program refusal", "{record}");
+        assert_eq!(record["hiddenBy"]["table"].as_str(), hidden.then_some("items"), "{record}");
+    }
+}

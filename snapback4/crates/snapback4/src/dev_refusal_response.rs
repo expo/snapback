@@ -50,7 +50,15 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         let evidence = c.as_mut()?;
         let body: Value = serde_json::from_slice(bytes).ok()?;
         let code = body.get("denied").or_else(|| body.get("why")).and_then(|v| v.get("code")).and_then(Value::as_str);
-        let cause = evidence.trace.take().filter(|cause| {
+        let traced = evidence.trace.take();
+        let why = body.get("denied").or_else(|| body.get("why"));
+        // The one filtered read that is evidence about a program refusal: the
+        // refusing `t[x] ! else CODE` lookup itself, whose read rule hid the row.
+        let hidden = traced.as_ref().filter(|cause| !cause.terminal && cause.phase == "read rule").and_then(|cause| {
+            let site = why?.get("site")?.as_str()?;
+            evidence.sites.contains_key(&(cause.table.clone(), format!("lookup {site}"))).then(|| (cause.table.clone(), evidence.sites.get(&(cause.table.clone(), "read rule".into())).cloned()))
+        });
+        let cause = traced.filter(|cause| {
             // A filtered read earlier in a program is not evidence about a
             // later uninstrumented terminal refusal in that same request.
             code.is_none() || cause.terminal
@@ -71,12 +79,14 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         // A program's own `require … else CODE` (or `! else CODE`) carries
         // its source site in the refusal itself: the response's own
         // evidence, not an older trace, so the log can name the line.
-        let why = body.get("denied").or_else(|| body.get("why"));
         if cause.is_none() && let Some(why) = why
             && why.get("rule").and_then(Value::as_str) == Some(code) && let Some(site) = why.get("site").and_then(Value::as_str) {
             record["clause"] = json!("program refusal");
             record["site"] = json!(site);
             record["siteKind"] = json!("program");
+            if let Some((table, rule)) = &hidden {
+                record["hiddenBy"] = json!({"table": table, "readRuleSite": rule});
+            }
         }
         if empty_answer {
             record["emptyRead"] = json!(true);
