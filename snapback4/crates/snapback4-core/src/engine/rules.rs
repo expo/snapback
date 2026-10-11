@@ -155,7 +155,7 @@ pub fn deciding_fields(table_name: &str, table: &Table, rule: &RuleExpr) -> BTre
     used
 }
 
-fn self_probe_absorbs(table_name: &str, table: &Table, disjunct: &RuleExpr, other: &RuleExpr) -> bool {
+pub(crate) fn self_probe_absorbs(table_name: &str, table: &Table, disjunct: &RuleExpr, other: &RuleExpr) -> bool {
     let column = match disjunct {
         RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => column,
         _ => return false,
