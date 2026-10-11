@@ -40,6 +40,14 @@ async function stop(server, closed) {
   } finally { clearTimeout(timer); }
 }
 
+// A failed assertion must not leave open clients polling a stopped dev: the
+// file would never exit (one such failure hung for the whole runner budget).
+function clients() {
+  const opened = [];
+  return { open: async options => { const client = await createLocalClient(options); opened.push(client); return client; },
+    close: () => Promise.allSettled(opened.map(client => client.close())) };
+}
+
 test("two devices converge through the partition stream", { timeout: hangBudget(18) }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
@@ -50,6 +58,7 @@ test("two devices converge through the partition stream", { timeout: hangBudget(
   server.stdout.on("data", (d) => { output += d; log += d; });
   server.stderr.on("data", (d) => (log += d));
   const kept = device();
+  const opened = clients();
   try {
     const url = await ready(server, () => output, () => log);
     const seeded = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify([
@@ -62,8 +71,8 @@ test("two devices converge through the partition stream", { timeout: hangBudget(
     // A switchable fetch models the link.
     let offline = false;
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
-    const alice = await createLocalClient({ url, persona: "alice", device: kept, fetch: gated, waitSeconds: 2 });
-    const bob = await createLocalClient({ url, persona: "bob", device: kept, waitSeconds: 2 });
+    const alice = await opened.open({ url, persona: "alice", device: kept, fetch: gated, waitSeconds: 2 });
+    const bob = await opened.open({ url, persona: "bob", device: kept, waitSeconds: 2 });
 
     // Bob's replica holds the conversation from the snapshot.
     const bobInbox = bob.observe(api.inbox, {});
@@ -106,14 +115,17 @@ test("two devices converge through the partition stream", { timeout: hangBudget(
     assert.equal(alice.link(), "online");
 
     // A stranger's local read is denied by the author's code, offline or on.
-    const mallory = await createLocalClient({ url, persona: "mallory", device: kept, waitSeconds: 2 });
-    const denied = await mallory.query(api.thread, { conversationId: "c1" });
+    // charlie is in the chat cast (`use personas`; dev refuses undeclared
+    // personas) but holds no membership in c1.
+    const stranger = await opened.open({ url, persona: "charlie", device: kept, waitSeconds: 2 });
+    const denied = await stranger.query(api.thread, { conversationId: "c1" });
     assert.equal(denied.denied?.code, "MEMBERSHIP_REQUIRED");
-    await Promise.all([alice.close(), bob.close(), mallory.close()]);
+    await Promise.all([alice.close(), bob.close(), stranger.close()]);
   } catch (error) {
     console.error(log);
     throw error;
   } finally {
+    await opened.close();
     await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }
@@ -297,6 +309,7 @@ test("an upload is placed once and served by the home row's read rule", { timeou
   server.stdout.on("data", (d) => { output += d; log += d; });
   server.stderr.on("data", (d) => (log += d));
   const kept = device();
+  const opened = clients();
   try {
     const assetUrl = await ready(server, () => output, () => log);
     await fetch(`${assetUrl}/seed`, { method: "POST", body: JSON.stringify([
@@ -304,9 +317,10 @@ test("an upload is placed once and served by the home row's read rule", { timeou
       { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
       { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
     ]) });
-    const alice = await createLocalClient({ url: assetUrl, persona: "alice", device: kept, waitSeconds: 2 });
-    const bob = await createLocalClient({ url: assetUrl, persona: "bob", device: kept, waitSeconds: 2 });
-    const mallory = await createLocalClient({ url: assetUrl, persona: "mallory", device: kept, waitSeconds: 2 });
+    const alice = await opened.open({ url: assetUrl, persona: "alice", device: kept, waitSeconds: 2 });
+    const bob = await opened.open({ url: assetUrl, persona: "bob", device: kept, waitSeconds: 2 });
+    // A declared persona (dev refuses undeclared ones) with no membership in c1.
+    const stranger = await opened.open({ url: assetUrl, persona: "charlie", device: kept, waitSeconds: 2 });
     // A 2x3 PNG: signature, IHDR, and nothing more (the server reads the header).
     const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 2, 0, 0, 0, 3, 8, 6, 0, 0, 0, 0, 0, 0, 0]);
     const refused = await alice.upload(new TextEncoder().encode("not an image"));
@@ -329,7 +343,7 @@ test("an upload is placed once and served by the home row's read rule", { timeou
     assert.equal(served.type, "image/png");
     assert.equal(served.bytes, png.length);
     served.revoke();
-    assert.equal((await mallory.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
+    assert.equal((await stranger.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
     // A second home is refused.
     const twice = await alice.mutate({ kind: "mutation", name: "sendPhoto" }, { conversationId: "c1", photo: { id: uploaded.asset.id } });
     assert.equal(twice.state, "failed");
@@ -339,11 +353,12 @@ test("an upload is placed once and served by the home row's read rule", { timeou
     assert.equal(gone.state, "sent");
     assert.equal((await bob.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
     assert.equal((await alice.asset(uploaded.asset.id)).denied.code, "E_ASSET_UNKNOWN");
-    await alice.close(); await bob.close(); await mallory.close();
+    await alice.close(); await bob.close(); await stranger.close();
   } catch (error) {
     error.message += `\n--- server log ---\n${log}`;
     throw error;
   } finally {
+    await opened.close();
     await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }
