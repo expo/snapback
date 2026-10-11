@@ -79,6 +79,7 @@ fn main() -> ExitCode {
     };
     if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
+    quiet_broken_pipe(verb);
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
         println!("{HELP}");
         return ExitCode::SUCCESS;
@@ -167,6 +168,19 @@ fn main() -> ExitCode {
         }
     };
     ExitCode::from(code as u8)
+}
+
+/// `snapback4 test | head`: Rust ignores SIGPIPE, so a closed reader turns the
+/// next `println!` into a panic, and the production build (panic = abort) dumps
+/// core. A one-shot verb takes the Unix default instead and ends quietly with
+/// the pipe. Hosts keep ignoring it: `dev`, `serve` and the device answer on
+/// sockets and child pipes that may close under them, and their diagnostics
+/// writer already discards a failed write; `deploy`/`rollback`/`token` change
+/// state and are left to finish.
+fn quiet_broken_pipe(verb: &str) {
+    if matches!(verb, "dev" | "serve" | "device" | "witness" | "deploy" | "rollback" | "token") { return; }
+    // SAFETY: process entry, before any thread or child is started.
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }
 
 fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String> {
