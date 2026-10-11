@@ -39,6 +39,17 @@ read decides the page once for that holder, so staff pages are complete.
 `check` prints no note for a page only holders reach: after `require` of the
 grant, inside `if` of it, or after an early `if not …: return`.
 
+For a rule with several readers (an owner, a helper, a parent's owner, a
+grant) the printed form has one `if` arm per grant, one per disjunct the
+page's pins decide (`if exists cats[cat, owner = viewer]:` under `.cat =
+cat`), then the remaining party pinned, or one query per party; `check`
+prints it only after proving the printed queries return exactly the rows the
+rule admits, and otherwise says there is no single complete form. An arm on
+a pin-decided parent probe returns its holders' rows but stays `complete:
+false`: the server decides a page only from a disjunct that reads no row
+column, whatever `require` or `if` guards it. Copying the deciding principal
+onto the row (the note prints how) makes that page complete.
+
 What to do with a page that stays incomplete: in `test.cases.jsonl` the
 query's default expectation passes either answer (`"expect": "capped"` pins
 it; run it as a grant holder to expect `complete`). In a client, show the

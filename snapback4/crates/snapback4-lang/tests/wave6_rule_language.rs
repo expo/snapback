@@ -300,3 +300,34 @@ fn r2_a_not_exists_guard_over_private_children_prints_the_zero_count_and_it_runs
     assert_eq!(mutate(&mut engine, "removeCat", "olive", &[("cat", id("tom"))]), "HAS_SIGHTINGS", "rae's sighting is hidden from olive and still counts");
     assert_eq!(mutate(&mut engine, "removeCat", "olive", &[("cat", id("kit"))]), "ok");
 }
+
+// ---- #1c: a branch on a pin-decided parent probe is not a page guard; check says so ----
+
+#[test]
+fn a_parent_probe_guard_beside_a_grant_is_named_unfollowed_and_the_runtime_agrees() {
+    // Lane 088: staff, the garden's owner (a parent hop) and the visitor, with
+    // the owner's arm written as an `if` on the identical keyed probe.
+    let schema = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable gardens:\n  owner: principal\n  immutable owner\n  read <- allow\n  online only\ntable checkins:\n  garden: gardens\n  visitor: principal\n  at: time\n  immutable garden, visitor\n  read <- .visitor = viewer or .garden.owner = viewer or exists staff[viewer]\n  online only\n";
+    let query = "query gardenVisits(garden: gardens, c: cursor ?):\n  if exists staff[viewer]:\n    return checkins where .garden = garden first 50 by .at after c\n  if exists gardens[garden, owner = viewer]:\n    return checkins where .garden = garden first 50 by .at after c\n  return checkins where .garden = garden and .visitor = viewer first 50 by .at after c\n";
+    let source = format!("{schema}{query}");
+    let b = clean(&source);
+    let found = notes(&b, "N_NEVER_COMPLETE");
+    assert_eq!(found.len(), 1, "only the owner's arm: {found:#?}");
+    let n = found[0];
+    assert!(n.message.contains("`exists gardens[.garden, owner = viewer]` is decided by the scan's pins") && n.message.contains("whatever `require` or `if` guards it"), "beside a grant too: {n}");
+    assert!(n.rewrite.contains("copy the deciding principal onto checkins"), "the complete repair is printed: {n}");
+    let rows = || -> Rows {
+        vec![
+            ("staff", vec![("id", id("st1")), ("principal", id("sam"))]),
+            ("gardens", vec![("id", id("g1")), ("owner", id("gwen"))]),
+            ("checkins", vec![("id", id("k1")), ("garden", id("g1")), ("visitor", id("vic")), ("at", Value::Int(1))]),
+            ("checkins", vec![("id", id("k2")), ("garden", id("g1")), ("visitor", id("val")), ("at", Value::Int(2))]),
+        ]
+    };
+    let mut engine = engine(&source, rows());
+    let pairs = [("garden", id("g1")), ("c", Value::Null)];
+    assert_eq!(page(&mut engine, "gardenVisits", "sam", &pairs).0, true, "the grant decides the staff page");
+    let (complete, ids) = page(&mut engine, "gardenVisits", "gwen", &pairs);
+    assert_eq!((complete, ids.len()), (false, 2), "the owner reads every row, capped, as the note says");
+    assert_eq!(page(&mut engine, "gardenVisits", "vic", &pairs), (true, BTreeSet::from(["k1".to_owned()])));
+}
