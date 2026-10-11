@@ -1506,7 +1506,10 @@ so one guard covers reads of different queries: `[thread, me].find(isDenied)` or
 outcomes, including a hook's `last` (undefined before the first run). `App`, `AppOptions` and
 `AuthSnapshot` are also exported here for components that take the app; `createApp` itself
 imports from `snapback4/app`. After `auth.state === "signed-in"`, `auth.viewer` is a
-`Principal`, never null.
+`Principal`, never null; `useViewer()` gives the same string to any component under the
+provider. An optional argument (`status: text ?`) is typed `status?: string | null`: omitting it
+and passing `null` mean the same. A `principal` argument takes the stored principal string, as
+`auth.viewer` returns it (`dev:alice` for a development persona, also in fixtures and cases).
 
 ```tsx
 import { isDenied, isFailed, isLoading, isReady, matchRead, useMutation, useQuery, type RowOf, type UseMutation, type Write } from "snapback4/react";
