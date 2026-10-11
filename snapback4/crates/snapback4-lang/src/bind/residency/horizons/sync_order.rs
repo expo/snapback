@@ -84,8 +84,24 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
                     rewrite = format!("{declaration}use `{page}`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order");
                 }
             }
+            // @ref LLP 3000.036#13.3 — say which of the two differs, with its one-line fix (lanes 057 081 089).
+            let query_pins = query_index.columns().into_iter().take(scan.prefix.len()).collect::<Vec<_>>();
+            let bracket = |index: &snapback4_core::schema::Index| format!("[{}]", index.components.iter().filter_map(order_component).collect::<Vec<_>>().join(", ").replace('.', ""));
+            let take = scan.take.maximum();
+            let difference = if query_pins != audience_columns {
+                let extra = query_pins.iter().filter(|column| !audience_columns.contains(column)).map(|column| format!(".{column}")).collect::<Vec<_>>();
+                let extra = if extra.is_empty() { "other columns".to_owned() } else { extra.join(", ") };
+                format!("the index prefix differs: the page pins {extra} {} and the window orders the whole sync group {}, so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the {extra} filter and filter in the client",
+                    bracket(query_index), bracket(index))
+            } else if ordered_columns(query_index, scan.prefix.len()) != columns {
+                format!("the order differs: the page reads by {query_order}, the window by {window_order}; write `last {take} by {window_order}`")
+            } else if scan.order != ir::Order::Desc {
+                format!("only the direction differs: the page reads oldest first; write `last {take} by {query_order}` (newest first, as the window keeps)")
+            } else {
+                format!("only the index differs: the page reads {} and the window {} (same columns, different declarations); name one index for both (check --verbose)", bracket(query_index), bracket(index))
+            };
             notes.push(Diagnostic::new(location, "N_SYNC_ORDER",
-                format!("query {}{spelling} reads {} by {query_order}, {direction}{}; its sync window is last {} by {window_order}, newest first{}; {outcome}",
+                format!("query {}{spelling}: {difference} — it reads {} by {query_order}, {direction}{}; its sync window is last {} by {window_order}, newest first{}; {outcome}",
                     bound.program.name, scan.table, describe(&scan.index, query_index), window.last, describe(&window.by, index)), rewrite)
                 .guide("sync"));
         }

@@ -16,10 +16,11 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_WRITE_DENIED" | "N_NEVER_COMPLETE" | "N_NO_CURSOR" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_WRITE_DENIED" | "N_NEVER_COMPLETE" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
-        "N_SYNC_ORDER" | "N_NO_HORIZON" | "N_MAINTAIN_SYNCED" | "N_TIMELINE_COMPAT" => Tier::Design,
+        // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
+        "N_SYNC_ORDER" | "N_NO_HORIZON" | "N_MAINTAIN_SYNCED" | "N_TIMELINE_COMPAT" | "N_NO_CURSOR" => Tier::Design,
         _ => Tier::Performance,
     }
 }
@@ -93,14 +94,14 @@ mod tests {
             note("schema.q:71:1", "N_MAINTAIN_SYNCED", "2 synced maintains"),
             note("schema.q:78:10", "N_SYNC_ORDER", "query a reads by .id; the client needs the server"),
             note("schema.q:87:10", "N_SYNC_ORDER", "query b `t first 5 by .at` reads by .at; the client needs the server"),
-            note("schema.q:104:1", "N_NO_CURSOR", "query rangers returns a page with no cursor"),
-            note("schema.q:104:1", "N_NO_CURSOR", "query rangers returns a page with no cursor"),
+            note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
+            note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
         ]);
         assert!(lines[0].starts_with("5 advisory notes — check passed; notes never block"), "{lines:?}");
         let body: Vec<&str> = lines[1..].iter().map(String::as_str).collect();
         assert_eq!(body, [
             "review — can cost correctness or completeness:",
-            "note: schema.q:104:1 — N_NO_CURSOR: query rangers returns a page with no cursor (×2 at this site)",
+            "note: schema.q:104:1 — N_WRITE_DENIED: mutation rangers inserts rows no caller may insert (×2 at this site)",
             "performance — costs speed, meter headroom or offline coverage:",
             "note: schema.q:95:1 — N_WIDE_MERGE: query feed: read cost grows",
             "by design — what a declaration implies; no action needed for online use:",

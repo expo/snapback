@@ -144,3 +144,129 @@ fn an_if_guarded_staff_pass_is_admitted_and_runs_for_staff() {
     assert_eq!(run(&mut engine, "alice"), Value::Int(0));
     assert_eq!(run(&mut engine, "tess"), Value::Int(3), "staff walk every row");
 }
+
+// ---- #3b: an owner-or-X list says what a test and a client do with it ----
+
+#[test]
+fn a_never_complete_note_says_how_tests_and_clients_treat_the_page() {
+    let two_party = "table tasks:\n  owner: principal\n  assignee: principal\n  at: time\n  read <- .owner = viewer or .assignee = viewer\n  insert <- .owner = viewer\n  online only\nquery mine(c: cursor ?):\n  return tasks last 20 by .at after c\n";
+    let b = bound(two_party);
+    let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    for words in ["test.cases.jsonl", "the default passes it", "\"there may be more\", not an error", "one query per party"] {
+        assert!(n.message.contains(words), "{words}: {n}");
+    }
+    // The per-party rewrite is still printed in full and still compiles.
+    let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1;
+    let repaired = format!("{}{declarations}\n", two_party.split("query mine").next().unwrap());
+    assert!(note(&clean(&repaired), "N_NEVER_COMPLETE").is_none(), "{repaired}");
+    // With a grant, the line says who expects `complete`.
+    let staffed = desk("exists staff[viewer]", "query q(c: cursor ?):\n  return items last 50 by .at, .id after c\n");
+    let b = bound(&staffed);
+    let n = note(&b, "N_NEVER_COMPLETE").unwrap();
+    assert!(n.message.contains("run it as a caller `exists staff[viewer]` admits to expect `complete`") && n.message.contains("the complete form for everyone is the pin"), "{n}");
+}
+
+// ---- #4: the page rewrite and the horizon rewrite agree ----
+
+/// Apply an `E_QUARRY_BOUND` page rewrite: the quoted page replaces the
+/// bare read, and the query declares the cursor.
+fn apply_page_rewrite(source: &str, d: &Diagnostic) -> String {
+    let page = d.rewrite.split('`').skip(1).step_by(2).find(|piece| piece.contains(" after c")).unwrap_or_else(|| panic!("no page in {d}"));
+    let line = source.lines().nth(d.site.line as usize - 1).unwrap();
+    let read = line.trim().strip_prefix("return ").unwrap();
+    let repaired = source.replace(line, &line.replace(read, page));
+    let header = repaired.lines().rev().skip_while(|l| !l.contains(page)).find(|l| l.starts_with("query ")).unwrap().to_owned();
+    let with_cursor = if header.contains("()") { header.replace("()", "(c: cursor ?)") } else { header.replace("):", ", c: cursor ?):") };
+    repaired.replace(&header, &with_cursor)
+}
+
+/// Apply an `N_NO_HORIZON` rewrite: its sync line replaces the table's.
+fn apply_horizon_rewrite(source: &str, n: &Diagnostic) -> String {
+    let line = n.rewrite.split(", and read").next().unwrap().trim();
+    let sync = source.lines().find(|l| l.trim_start().starts_with("sync") && line.starts_with(l.trim())).unwrap_or_else(|| panic!("{n}"));
+    source.replace(sync, &format!("  {line}"))
+}
+
+#[test]
+fn applying_the_page_rewrite_and_the_horizon_rewrite_in_either_order_draws_no_sync_order_note() {
+    let tables = [
+        ("table posts:\n  author: principal\n  body: text <= 200\n  public 'posts are public'\n  insert <- .author = viewer\n  sync public\n", "query feed():\n  return posts\n"),
+        ("table posts:\n  author: principal\n  at: time\n  public 'posts are public'\n  insert <- .author = viewer\n  sync public\n", "query feed():\n  return posts\n"),
+        ("table notes:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\n", "query mine():\n  return notes where .owner = viewer\n"),
+    ];
+    for (table, query) in tables {
+        let source = format!("{table}{query}");
+        // Page first, then the window.
+        let paged = apply_page_rewrite(&source, &first(&source, "E_QUARRY_BOUND"));
+        let b = bound(&paged);
+        assert!(b.diagnostics.is_empty(), "{paged}\n{:#?}", b.diagnostics);
+        let windowed = apply_horizon_rewrite(&paged, note(&b, "N_NO_HORIZON").unwrap_or_else(|| panic!("{paged}\n{:#?}", b.notes)));
+        let b = clean(&windowed);
+        assert!(note(&b, "N_SYNC_ORDER").is_none() && note(&b, "N_NO_HORIZON").is_none(), "{windowed}\n{:#?}", b.notes);
+        // Window first (as the note asks of the bare table), then the page.
+        let bare = format!("{table}query probe(c: cursor ?):\n  return {} last 5 by .id after c\n", if table.contains("notes") { "notes where .owner = viewer" } else { "posts" });
+        let window = note(&bound(&bare), "N_NO_HORIZON").unwrap().clone();
+        let windowed = apply_horizon_rewrite(&source, &window);
+        let paged = apply_page_rewrite(&windowed, &first(&windowed, "E_QUARRY_BOUND"));
+        let b = clean(&paged);
+        assert!(note(&b, "N_SYNC_ORDER").is_none(), "{paged}\n{:#?}", b.notes);
+    }
+}
+
+#[test]
+fn a_sync_order_note_says_which_side_differs_with_its_fix() {
+    let table = "table prices:\n  item: text\n  loggedAt: time\n  public 'p'\n  insert <- allow\n  sync public last 500 by .loggedAt\n";
+    let cases = [
+        ("query q(c: cursor ?):\n  return prices first 50 by .loggedAt after c\n", "only the direction differs", Some("query q(c: cursor ?):\n  return prices last 50 by .loggedAt after c\n")),
+        ("query q(c: cursor ?):\n  return prices last 50 by .id after c\n", "the order differs", Some("query q(c: cursor ?):\n  return prices last 50 by .loggedAt, .id after c\n")),
+        ("query q(item: text, c: cursor ?):\n  return prices where .item = item last 50 by .loggedAt after c\n", "the index prefix differs: the page pins .item", None),
+    ];
+    for (query, says, fixed) in cases {
+        let source = format!("{table}{query}");
+        let b = bound(&source);
+        let n = note(&b, "N_SYNC_ORDER").unwrap_or_else(|| panic!("{source}\n{:#?}", b.notes));
+        assert!(n.message.contains(says), "{says}: {n}");
+        if let Some(fixed) = fixed {
+            let quoted = n.message.split('`').skip(1).step_by(2).find(|piece| piece.starts_with("last ")).unwrap_or_else(|| panic!("{n}"));
+            assert!(fixed.contains(quoted.trim_end_matches(", .id")), "the one-line fix `{quoted}`: {n}");
+            assert!(note(&clean(&format!("{table}{fixed}")), "N_SYNC_ORDER").is_none(), "{fixed}");
+        }
+    }
+    // An ascending page: the horizon rewrite also says to read it newest first.
+    let source = "table prices:\n  item: text\n  loggedAt: time\n  public 'p'\n  insert <- allow\n  sync public\nquery q(c: cursor ?):\n  return prices first 50 by .loggedAt after c\n";
+    let n = note(&bound(source), "N_NO_HORIZON").unwrap().clone();
+    assert!(n.rewrite.starts_with("sync public last 500 by .loggedAt, and read q newest first"), "{n}");
+}
+
+// ---- #7: a unique-key equality is a bound; a covering bound needs no cursor ----
+
+#[test]
+fn a_pinned_unique_key_bounds_a_page_and_needs_no_cursor() {
+    let schema = "table results:\n  challenge: text <= 40\n  winner: principal\n  unique challenge\n  public 'p'\n  online only\ntable subscriptions:\n  subscriber: principal\n  topic: enum('news', 'events', 'offers')\n  unique subscriber, topic\n  read <- .subscriber = viewer\n  insert <- .subscriber = viewer\n  online only\n";
+    for query in [
+        // 098: a unique key, at most one row.
+        "query r(challenge: text):\n  return results where .challenge = challenge\n",
+        // 058: the row's id.
+        "query r(result: results):\n  return results where .id = result\n",
+        // 041: a unique key over a three-value enum: three rows per subscriber.
+        "query r():\n  return subscriptions where .subscriber = viewer\n",
+        // A page at or above the bound needs no cursor either.
+        "query r():\n  return subscriptions where .subscriber = viewer first 3 by .topic\n",
+    ] {
+        let source = format!("{schema}{query}");
+        let b = clean(&source);
+        assert!(note(&b, "N_NO_CURSOR").is_none(), "{source}\n{:#?}", b.notes);
+    }
+    // The bound is exact on the engine: every subscription comes back, complete.
+    use snapback4_core::value::object;
+    let b = clean(&format!("{schema}query r():\n  return subscriptions where .subscriber = viewer\n"));
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let sub = |id: &str, topic: &str| ("subscriptions".to_owned(), object([("id", Value::Id(id.into())), ("subscriber", Value::Id("ann".into())), ("topic", Value::String(topic.into()))]));
+    engine.seed([sub("s1", "news"), sub("s2", "events"), sub("s3", "offers")]).unwrap();
+    let outcome = engine.query("r", Context::new("ann", args(&[]))).unwrap();
+    assert!(outcome.complete && outcome.data.as_array().unwrap().len() == 3, "{outcome:?}");
+    // A smaller page still notes the missing cursor, and a nullable key bounds nothing.
+    assert!(note(&clean(&format!("{schema}query r():\n  return subscriptions where .subscriber = viewer first 2 by .topic\n")), "N_NO_CURSOR").is_some());
+    let nullable = "table tags:\n  owner: principal\n  slug: text <= 40 ?\n  unique slug\n  public 'p'\n  online only\nquery r(slug: text):\n  return tags where .slug = slug\n";
+    first(nullable, "E_QUARRY_BOUND");
+}

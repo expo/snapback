@@ -35,5 +35,11 @@ fallback. Otherwise keep the server query and its incomplete absence verdict.
 Its rewrite renders the pin as code: the equality to add, the parent read that
 supplies its value, or one query per party for a two-party rule (guide indexes,
 "Private lists"). A row-independent grant (`exists staff[viewer]`) whose row its holder may
-read decides the page once for that holder, so staff pages are complete; a
-`require` guard is not used.
+read decides the page once for that holder, so staff pages are complete.
+`check` prints no note for a page only holders reach: after `require` of the
+grant, inside `if` of it, or after an early `if not …: return`.
+
+What to do with a page that stays incomplete: in `test.cases.jsonl` the
+query's default expectation passes either answer (`"expect": "capped"` pins
+it; run it as a grant holder to expect `complete`). In a client, show the
+rows and treat `complete: false` as "there may be more", not as an error.

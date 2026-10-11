@@ -21,6 +21,7 @@ mod actions;
 mod routes;
 mod server;
 mod key_bound;
+pub(crate) mod unique_bound;
 mod point_key;
 mod index_diagnostics;
 mod mixed_keys;
@@ -422,7 +423,19 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     || table.columns.get(column.as_str()) == Some(&snapback4_core::schema::ColumnType::Time)
             })
         };
-        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.is_plain() && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone());
+        // @ref LLP 3000.036#13.3 — prefer the index the group's own pages already read, so the window and the pages agree.
+        let group_pages: Vec<(&str, &snapback4_core::ir::Scan)> = programs.iter().filter(|bound| bound.program.kind == snapback4_core::ir::ProgramKind::Query)
+            .flat_map(|bound| snapback4_core::ir::scans(&bound.program).into_iter().map(move |scan| (bound.program.name.as_str(), scan)))
+            .filter(|(_, scan)| scan.table == *name && !scan.existence && scan.prefix.len() == prefix.len()
+                && table.index(&scan.index).is_some_and(|index| index.is_plain() && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(&index)))
+            .collect();
+        let mut read_by: Vec<(usize, &str)> = Vec::new();
+        for (_, scan) in &group_pages {
+            match read_by.iter_mut().find(|(_, index)| *index == scan.index) { Some((count, _)) => *count += 1, None => read_by.push((1, scan.index.as_str())) }
+        }
+        read_by.sort_by_key(|(count, _)| std::cmp::Reverse(*count));
+        let ordered = read_by.first().map(|(_, index)| (*index).to_owned())
+            .or_else(|| table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.is_plain() && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone()));
         // A `cap` over columns that are not the sync group bounds rows per group, not
         // what a device acquires. An author who wrote one has already tried to bound
         // this table and will read an unqualified note as not having noticed.
@@ -431,10 +444,18 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             _ => None,
         });
         let site = catalog.site_for(&format!("tables.{name}"));
-        let rewrite = match ordered {
+        let window_index = ordered.clone().unwrap_or_else(|| "byId".into());
+        let mut rewrite = match ordered {
             Some(ref index) => format!("{} last 500 by .{}", sync.line(), table.indexes[index].columns()[prefix.len()]),
             None => format!("{} last 500 by .id", sync.line()),
         };
+        // A horizon keeps the newest rows; a page over it reads newest first, or N_SYNC_ORDER follows.
+        let ascending: Vec<&str> = group_pages.iter().filter(|(_, scan)| scan.index == window_index && scan.order == snapback4_core::ir::Order::Asc).map(|(query, _)| *query).collect();
+        if !ascending.is_empty() {
+            let mut queries = ascending.clone();
+            queries.dedup();
+            rewrite.push_str(&format!(", and read {} newest first (`last N` in place of `first N`): a horizon keeps the newest rows", queries.join(", ")));
+        }
         let affected = residency::incompatible_horizon_pages(schema, programs, name, ordered.as_deref());
         let rewrite = if affected.is_empty() { rewrite } else {
             format!("a horizon would cost these mutations their prediction: {}; keep `{}`", affected.join(", "), sync.line())
@@ -453,16 +474,20 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         let mut noted = std::collections::BTreeSet::new();
         for page in snapback4_core::ir::scans(&bound.program) {
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
-            let pinned = schema.tables[&page.table].indexes[&page.index].columns().into_iter().take(page.prefix.len()).collect::<Vec<_>>();
+            let columns = schema.tables[&page.table].indexes[&page.index].columns();
+            let mut pinned = columns.iter().take(page.prefix.len()).cloned().collect::<Vec<_>>();
+            // `.id = x` plans as the closed range `x ..= x` on the next column: an equality too.
+            if let Some(range) = &page.range && range.gt.is_none() && range.lt.is_none() && range.gte.is_some() && range.gte == range.lte
+                && let Some(next) = columns.get(page.prefix.len()) { pinned.push(next.clone()); }
             // A lane cap does not bound the union of a merge. Quarry page takes are literals.
             // @ref LLP 3000.007#5.6 — a meter-cut page still needs continuation; a plain scan charges one examined unit per candidate.
-            let group_complete = page.merge_site.is_none() && schema.group_bound(&page.table, &pinned).is_some_and(|n| {
+            let group_complete = page.merge_site.is_none() && unique_bound::group_bound(schema, &page.table, &pinned).is_some_and(|n| {
                 u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
             });
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
                 // @ref LLP 3000.027#3 — continuation advice does not question a top-N answer's completeness.
-                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor, so the page cannot continue", bound.program.kind.word(), bound.program.name), format!("if the screen pages, declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order", bound.program.name)).guide("reads"));
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor, so the page cannot continue: rows past the first {take} are not reachable. Fine for a top-{take} list, or a list that stays under {take} rows; a pinned unique key or a `cap` at or under {take} silences this", bound.program.kind.word(), bound.program.name), format!("if the screen pages, declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order", bound.program.name)).guide("reads"));
             }
         }
         // Wide merges still pay for lane discovery and authorization, even
@@ -562,8 +587,17 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     &bound.site,
                     "N_NEVER_COMPLETE",
                     if held_rewrite.is_some() { format!("query {}: this lookup does not pin an authorized row's id; matching a name does not prove uniqueness or absence. The server may return matches but cannot certify complete. The held replacement (check --verbose) keeps the same matches and shape on the device; it requires acquired coverage and has no server fallback. Keep the original query if server lookup is required", bound.program.name) }
-                    else { format!("{} {}: {}the page over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index,
-                        snapback4_core::engine::rules::grant_decision(schema, scan).map_or_else(String::new, |grant| format!(" except for callers `{}` admits", grant.quarry())),
+                    else {
+                        let grant = snapback4_core::engine::rules::grant_decision(schema, scan);
+                        // @ref LLP 3000.036#13.2 — the one line says what a test and a client do with the verdict, and where the complete form is.
+                        let parties = table.rules.read.disjuncts().iter().filter(|d| matches!(d, snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Field(c), snapback4_core::schema::RuleTerm::Viewer) | snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Viewer, snapback4_core::schema::RuleTerm::Field(c)) if unpinned.contains(c))).count();
+                        let complete_form = if parties >= 2 { "one query per party" } else { "the pin" };
+                        let treatment = match &grant {
+                            Some(grant) => format!("; test.cases.jsonl: run it as a caller `{}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form for everyone is {complete_form} (check --verbose)", grant.quarry()),
+                            None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is {complete_form} (check --verbose)"),
+                        };
+                        format!("{} {}: {}the page over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index,
+                        grant.as_ref().map_or_else(String::new, |grant| format!(" except for callers `{}` admits", grant.quarry())),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     held_rewrite.or(search_rewrite.clone()).unwrap_or_else(|| {
                         let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));

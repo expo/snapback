@@ -38,7 +38,15 @@ impl Binder<'_> {
         let pinned = &index.columns[..read.keys.len()];
         // One group per distinct source key: a parent-scoped source cap bounds
         // its aggregate rows too, without copying a constraint onto the view.
-        let cap = self.schema.group_bound(&read.table, pinned).or_else(|| {
+        // A pinned unique key bounds the group as a cap does (wave 3 #7); `.id = x`
+        // plans as the closed seek `.id >= x and .id <= x` on the next column.
+        let mut equal = pinned.to_vec();
+        if let Some(next) = index.columns.get(read.keys.len()) {
+            let printed = |op: &str| read.seeks.iter().filter(|seek| &seek.column == next && seek.op == op).map(|seek| crate::print::expression(&seek.value)).collect::<Vec<_>>();
+            let (low, high) = (printed(">="), printed("<="));
+            if read.seeks.len() == 2 && low.len() == 1 && low == high { equal.push(next.clone()); }
+        }
+        let cap = self.schema.group_bound(&read.table, pinned).into_iter().chain(crate::bind::unique_bound::unique_bound(self.schema, &read.table, &equal)).min().or_else(|| {
             let m = self.schema.maintain_for(&read.table)?;
             let parent = m.parent_key.as_ref()?;
             pinned.contains(&parent.reference).then(|| self.schema.group_bound(&m.source, &[parent.reference.clone()])).flatten()
@@ -56,8 +64,17 @@ impl Binder<'_> {
             let columns = if pinned.is_empty() { String::new() } else { format!(" by {}", pinned.join(", ")) };
             let mut page = read.clone();
             page.index = Some(index.name.clone());
-            page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
-            let suggestion = format!("page with `first N` and a cursor: `{}` (declare `c: cursor ?`)", self.catalog.source.expression(&A::Read(page.clone())));
+            // @ref LLP 3000.036#13.3 — a synced table's horizon keeps the newest rows, so its page reads newest first:
+            // the page rewrite and N_NO_HORIZON's window then agree, and applying both draws no N_SYNC_ORDER.
+            let window = self.schema.table(&read.table).and_then(|table| table.sync.as_ref()).map(|sync| sync.horizon.as_ref().map(|window| window.by.clone()));
+            if let Some(Some(by)) = &window
+                && let Some(horizon) = self.catalog.tables.get(&read.table).and_then(|info| info.indexes.iter().find(|candidate| &candidate.name == by))
+                && horizon.words.is_none() && horizon.columns.len() > pinned.len() && horizon.columns[..pinned.len()] == *pinned {
+                page.index = Some(horizon.name.clone());
+            }
+            let order = if window.is_some() { ast::Order::Desc } else { ast::Order::Asc };
+            page.range = Some(ast::RangeSpec { order, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
+            let suggestion = format!("page with `{} N` and a cursor: `{}` (declare `c: cursor ?`)", if window.is_some() { "last" } else { "first" }, self.catalog.source.expression(&A::Read(page.clone())));
             // A filter pinning a whole unique key names at most one row: offer the one-row read first.
             let one = (index.unique && index.words.is_none() && !pinned.is_empty() && pinned.len() == index.columns.len()).then(|| {
                 let mut one = page.clone();
