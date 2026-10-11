@@ -1591,7 +1591,7 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     assert!(topic.starts_with("No heading of guide types is named \"Integer\"; ") && topic.contains("an integer within") && !topic.contains("## Tables"), "{topic}");
     let (code, audience) = guide(&["sync", "--section", "audience"]);
     assert_eq!(code, Some(0), "{audience}");
-    assert!(audience.contains("\n\n# Sync") && audience.contains("audience"), "{audience}");
+    assert!(audience.contains("# Sync") && audience.contains("sync to .col") && audience.lines().count() < 80, "one short section: {audience}");
     let (code, spread) = guide(&["client", "--section", "React"]);
     assert_eq!(code, Some(0), "{spread}");
     assert!(spread.contains("its mentions span") && spread.contains("snapback4/react") && !spread.contains("nearest heading"), "{spread}");

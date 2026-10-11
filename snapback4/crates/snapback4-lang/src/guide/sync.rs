@@ -97,6 +97,7 @@ parent with no `sync`, or `connected[...]` server presence, including reads
 inside helpers and shapes: move the read to its own query,
 or drop `held`. A horizon or word index alone does not cause this note.
 
+### Audiences: who holds a row
 ```text
 sync [last N by .at]                           audience inferred from the read rule
 sync public [last N by .at]                    everyone holds the same rows
@@ -130,6 +131,7 @@ boundary by key; crossing it returns only the known suffix with `complete: false
 and unknown coverage, so the online client asks the server. Without a boundary
 the group is unknown.
 
+### Horizons, order and coverage
 Ascending reads and other indexes have unknown coverage.
 N_SYNC_ORDER notes these query orders at their source sites and names the
 window's order for ordinary pages, including calendar-index pages. A printed
@@ -165,6 +167,7 @@ only to inherit the whole parent audience. Mismatched sync audiences get a
 schema-specific repair; see the sync-declaration refusal below.
 See `guide language` for a compiled example and `guide rules` for lifetime details.
 
+### Acquisition and its boundary
 An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
 A put moving above the boundary joins the suffix. Continuous renewal keeps the
@@ -195,6 +198,7 @@ Snapshot replies echo `after`; the device checks every
 continuation and requires the terminal page before catch-up publishes coverage.
 Empty groups consume page room too, so even a page with no rows can continue.
 
+### Window indexes, unbounded groups and the sync wire
 `last N by .a, .b` creates an ordinary index with the audience columns first,
 then the listed order and an `id` tiebreaker if not already listed. A named index still works if it leads with the audience columns; on a read-through audience the compiler puts the inherited group first, then the named index's columns. Repeating a listed column or an audience column is
 E_QUARRY_SYNTAX: keep each order column once and omit the audience pins.
@@ -233,11 +237,9 @@ IDs intact. This refusal is never applied
 as a delivered page: its watermark is head evidence, not delivered progress, and
 never moves the cursor. Retry only from the position adoption produced.
 Omitting `generation` preserves ordinary page behavior.
-Against 0.2.32, the client retries without the field once on that server's exact
-HTTP 400 sync-input refusal. This transport omits `generation` for that server
-origin only after a stripped retry returns a successful (2xx) response.
-Anything else leaves discovery enabled, so the next attempt probes again;
-another origin or transport still sends the field.
+Against 0.2.32, the client retries once without the field on that server's exact
+HTTP 400 sync-input refusal, and omits it for that origin only after such a
+retry succeeds (2xx); any other outcome probes again next time.
 An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
 `store_id` and `watermark` from that page. The client checks identity before
 shrinking its limit; a refusal's watermark is never applied as delivered data.
@@ -258,6 +260,7 @@ Change polls echo `store_id` and return immediately on a mismatch or a lower
 head. Reconnect probes carry the identity and head, checked before local
 freshness returns; a matching identity needs no extra sync.
 
+### Device versions, own keys and online only
 Backends using maintained columns, recorded attribution or declared timelines require 0.3 devices.
 The engine derives their capability requirements from the schema. Published
 0.2.33 devices refuse installation, generation adoption and kept-backend reopening
@@ -266,8 +269,6 @@ these stored schemas. Update devices before deploying such a backend. Current
 engines and devices refuse unknown requirements with `E_SCHEMA_CAPABILITY`,
 including when an explicit backend would replace an unsupported kept backend.
 Downgrading a device below the store's version is unsupported.
-Backends without these forms keep their existing encoding and remain compatible
-with 0.2.33 devices.
 
 `with own keys .principal` after a public window acquires all of this viewer's
 immutable unique keys. See `guide feeds`. Only non-expiring public sources
