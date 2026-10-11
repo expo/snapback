@@ -386,7 +386,7 @@ fn web_chat_template_embeds_reference_and_keeps_default_schema_only() {
     let dir = Dir::new();
     let output = dir.init(&["--web", "--template", "chat"]);
     assert!(output.status.success(), "{output:?}");
-    for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "src/client.ts", "vite.config.ts", "index.html", "README.md"] {
+    for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "src/client.ts", "vite.config.mts", "index.html", "README.md"] {
         assert!(dir.0.join(file).is_file(), "{file}");
     }
     let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
@@ -574,7 +574,7 @@ fn starter_texts(root: &std::path::Path) -> Vec<(PathBuf, String)> {
 
 #[test]
 fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
-    for (flag, screens) in [("--web", &["src/App.tsx", "src/client.ts", "src/main.tsx", "index.html", "vite.config.ts"][..]), ("--expo", &["App.tsx", "src/client.ts", "expo-env.d.ts", "metro.config.js"])] {
+    for (flag, screens) in [("--web", &["src/App.tsx", "src/client.ts", "src/main.tsx", "src/styles.css", "index.html", "vite.config.mts"][..]), ("--expo", &["App.tsx", "src/client.ts", "expo-env.d.ts", "metro.config.js"])] {
         let dir = Dir::new();
         let output = dir.run(flag);
         assert!(output.status.success(), "{output:?}");
@@ -603,7 +603,11 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         if flag == "--web" {
             assert_eq!(package["type"], "module", "a fresh directory keeps Vite's ESM package type");
             assert!(package["scripts"]["build"].as_str().unwrap().ends_with("snapback4 web-shell dist"));
-            assert!(fs::read_to_string(dir.0.join("vite.config.ts")).unwrap().contains("strictPort: true"));
+            assert!(fs::read_to_string(dir.0.join("vite.config.mts")).unwrap().contains("strictPort: true"));
+            assert!(!dir.0.join("vite.config.ts").exists(), "an .mts config loads as ESM whatever the package type");
+            assert!(fs::read_to_string(dir.0.join("tsconfig.json")).unwrap().contains("\"vite.config.mts\""));
+            let html = fs::read_to_string(dir.0.join("index.html")).unwrap();
+            assert!(!html.contains("<style") && !html.contains("<title>Todos</title>"), "{html}");
         } else {
             assert_eq!(fs::read_to_string(dir.0.join("expo-env.d.ts")).unwrap().trim(), "/// <reference types=\"expo/types\" />");
             assert_eq!(package["scripts"]["typecheck"], "tsc -p tsconfig.json --noEmit");
@@ -661,6 +665,15 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     assert!(stdout.contains("kept 1 existing file unchanged: snapback/schema.q") && stdout.contains("adapt them to your schema"), "{stdout}");
     assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), mine);
     for file in ["src/App.tsx", "src/client.ts", "package.json", "README.md", "snapback/generated/package.json"] { assert!(dir.0.join(file).is_file(), "{file}"); }
+    // The starter's todos rows and cases would fail `test` beside this schema.
+    assert!(!dir.0.join("fixtures").exists(), "the todo starter's fixtures stay out of a project with its own schema");
+    assert!(stdout.contains("skipped the todo starter's fixtures/todos.jsonl and fixtures/test.cases.jsonl"), "{stdout}");
+    // `use personas carol` and no `use identity`: nobody can sign in as a guest.
+    assert!(stdout.contains("picks a persona"), "{stdout}");
+    let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+    assert!(client.contains(r#"personas: readonly string[] = ["carol"]"#) && client.contains("createApp({ url, persona, device: webDevice() })"), "{client}");
+    let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
+    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)") && app.contains("function Todos()"), "{app}");
     // Rerunning skips everything it wrote and still never touches the schema.
     let again = dir.init(&["--web", "--skip-existing"]);
     assert!(again.status.success(), "{again:?}");
@@ -687,4 +700,118 @@ fn init_port_sets_the_backend_url_and_next_step() {
     let dir = Dir::new();
     assert_eq!(dir.init(&["--web", "--port", "http"]).status.code(), Some(2));
     assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+}
+
+#[test]
+fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
+    for flag in ["--web", "--expo"] {
+        let dir = Dir::new();
+        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+        fs::create_dir_all(dir.0.join("fixtures")).unwrap();
+        fs::write(dir.0.join("snapback/schema.q"), "use identity\nuse personas alice\ntable notes:\n  body: text <=100\n  ownerId: principal\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\nquery mine(c: cursor ?):\n  return notes where .ownerId = viewer after c first 50 by .id\n").unwrap();
+        fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\",\"ownerId\":\"dev:alice\"}\n").unwrap();
+        fs::write(dir.0.join("fixtures/test.cases.jsonl"), "{\"as\":\"alice\",\"op\":\"mine\",\"args\":{},\"count\":1}\n").unwrap();
+        let output = dir.init(&[flag, "--skip-existing"]);
+        assert!(output.status.success(), "{flag}: {output:?}");
+        assert!(!dir.0.join("fixtures/todos.jsonl").exists(), "{flag}");
+        assert_eq!(fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap(), "{\"as\":\"alice\",\"op\":\"mine\",\"args\":{},\"count\":1}\n");
+        // With `use identity` the guest screen stays.
+        let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
+        assert!(app.contains("auth.guest()"), "{flag}");
+        let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+        assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{flag}: {tested:?}");
+    }
+    // A stray starter file from an earlier init names the starter as its source.
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    fs::write(dir.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+    let starter = Dir::new();
+    assert!(starter.run("--web").status.success());
+    fs::create_dir_all(dir.0.join("fixtures")).unwrap();
+    fs::copy(starter.0.join("fixtures/todos.jsonl"), dir.0.join("fixtures/todos.jsonl")).unwrap();
+    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+    assert!(!tested.status.success());
+    assert!(String::from_utf8_lossy(&tested.stderr).contains("todo starter's sample"), "{tested:?}");
+}
+
+#[test]
+fn every_q_file_is_the_projects_schema() {
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    fs::write(dir.0.join("snapback/app.q"), "use identity password\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+    let refused = dir.run("--web");
+    assert_eq!(refused.status.code(), Some(1));
+    let diagnostic = String::from_utf8_lossy(&refused.stderr);
+    assert!(diagnostic.contains("app.q already declares your schema") && diagnostic.lines().next().unwrap().contains("--skip-existing"), "{diagnostic}");
+    assert!(!dir.0.join("src").exists());
+    let output = dir.init(&["--web", "--skip-existing"]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(!dir.0.join("snapback/schema.q").exists() && !dir.0.join("fixtures").exists());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("auth.signup"), "{output:?}");
+}
+
+#[test]
+fn init_web_port_moves_vite_with_the_backend() {
+    let dir = Dir::new();
+    let output = dir.init(&["--web", "--port", "50540"]);
+    assert!(output.status.success(), "{output:?}");
+    let config = fs::read_to_string(dir.0.join("vite.config.mts")).unwrap();
+    assert!(config.contains("server: { port: 50541, strictPort: true }") && config.contains("preview: { port: 50541, strictPort: true }"), "{config}");
+    assert!(fs::read_to_string(dir.0.join("README.md")).unwrap().contains("http://localhost:50541"));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("http://127.0.0.1:50540") && stdout.contains("http://localhost:50541"), "{stdout}");
+    for args in [&["--web", "--web-port", "4600"][..], &["--web", "--template", "chat", "--web-port", "4600"]] {
+        let dir = Dir::new();
+        assert!(dir.init(args).status.success(), "{args:?}");
+        let config = fs::read_to_string(dir.0.join("vite.config.mts")).unwrap();
+        assert!(config.contains("port: 4600") && !config.contains("5173"), "{args:?}: {config}");
+        assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("127.0.0.1:4400"));
+    }
+    for args in [&["--expo", "--web-port", "4600"][..], &["--web", "--web-port", "0"], &["--web", "--port", "4500", "--web-port", "4500"]] {
+        let dir = Dir::new();
+        assert_eq!(dir.init(args).status.code(), Some(2), "{args:?}");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0, "{args:?}");
+    }
+}
+
+#[test]
+fn frontend_starters_ignore_builds_and_take_the_directorys_name() {
+    for flag in ["--web", "--expo"] {
+        let parent = Dir::new();
+        let dir = parent.0.join("bake-sale");
+        fs::create_dir_all(&dir).unwrap();
+        let output = Command::new(BIN).args(["init", flag]).current_dir(&dir).output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert!(fs::read_to_string(dir.join(".gitignore")).unwrap().lines().any(|line| line == "dist/"), "{flag}");
+        if flag == "--web" { assert!(fs::read_to_string(dir.join("index.html")).unwrap().contains("<title>Bake Sale</title>")); }
+        else { assert_eq!(serde_json::from_slice::<Value>(&fs::read(dir.join("app.json")).unwrap()).unwrap()["expo"]["name"], "Bake Sale"); }
+    }
+    let dir = Dir::new();
+    assert!(dir.run("--online").status.success());
+    assert!(!fs::read_to_string(dir.0.join(".gitignore")).unwrap().contains("dist/"));
+}
+
+#[test]
+fn package_scripts_compare_as_commands() {
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), r#"{"type":"commonjs","scripts":{"typecheck":"tsc --noEmit   -p tsconfig.json"}}"#).unwrap();
+    let output = dir.run("--expo");
+    assert!(output.status.success(), "{output:?}");
+    let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+    assert_eq!(package["scripts"]["typecheck"], "tsc --noEmit   -p tsconfig.json", "the existing spelling is kept");
+    // `npm init -y && npm i snapback4` saves a caret range of the same version.
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), json!({"type":"commonjs","dependencies":{"snapback4":format!("^{}", env!("CARGO_PKG_VERSION"))}}).to_string()).unwrap();
+    let output = dir.run("--web");
+    assert!(output.status.success(), "{output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("pinned package.json dependencies.snapback4"), "{output:?}");
+    let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+    assert_eq!(package["dependencies"]["snapback4"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(package["type"], "commonjs", "the package keeps its type; vite.config.mts is ESM regardless");
+    // A different command still refuses.
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), r#"{"scripts":{"typecheck":"tsc --noEmit -p other.json"}}"#).unwrap();
+    let output = dir.run("--expo");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("scripts.typecheck"));
 }

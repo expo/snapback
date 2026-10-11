@@ -2,7 +2,7 @@
 use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nLarge cards: guide <card> --sections lists headings; guide <card> --section <heading> prints one.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
 }
 
 fn distance(a: &str, b: &str) -> usize {
@@ -68,3 +68,52 @@ each failed successor step is E_ADOPT at its column, index or table, with
 a rewrite. `dev` refuses that step on save and keeps the previous generation.
 A green check means the current rows fit; a later write can change that.
 Without a store, check only compiles. This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;
+
+/// A card's `##`/`###` headings outside code fences: (level, heading, first line, end line).
+pub fn sections(card: &str) -> Vec<(usize, String, usize, usize)> {
+    let lines: Vec<&str> = card.lines().collect();
+    let mut fenced = false;
+    let mut found: Vec<(usize, String, usize, usize)> = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        if line.trim_start().starts_with("```") { fenced = !fenced; continue; }
+        if fenced { continue; }
+        let level = line.chars().take_while(|c| *c == '#').count();
+        if !(2..=3).contains(&level) || !line[level..].starts_with(' ') { continue; }
+        found.push((level, line[level..].trim().to_owned(), index, lines.len()));
+    }
+    // A section runs to the next heading at its level or above.
+    for i in 0..found.len() {
+        let level = found[i].0;
+        if let Some(next) = found[i + 1..].iter().find(|next| next.0 <= level) { found[i].3 = next.2; }
+    }
+    found
+}
+
+/// `guide <card> --sections`: the heading index, one line per section.
+pub fn section_index(name: &str, card: &str) -> String {
+    let found = sections(card);
+    if found.is_empty() { return format!("{name}: one section ({} lines); print it with snapback4 guide {name}", card.lines().count()); }
+    let mut out = format!("{name}: {} lines; snapback4 guide {name} --section <heading> prints one\n", card.lines().count());
+    for (level, heading, start, end) in &found {
+        out.push_str(&format!("{}{heading} ({} lines)\n", "  ".repeat(level - 2), end - start));
+    }
+    out.trim_end().to_owned()
+}
+
+/// `guide <card> --section <heading>`: the title line and the one section whose
+/// heading equals the words (any case), or else uniquely contains them.
+pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
+    let found = sections(card);
+    let wanted = words.trim().to_lowercase();
+    let exact: Vec<_> = found.iter().filter(|s| s.1.to_lowercase() == wanted).collect();
+    let matches = if exact.is_empty() { found.iter().filter(|s| !wanted.is_empty() && s.1.to_lowercase().contains(&wanted)).collect() } else { exact };
+    match matches.as_slice() {
+        [(_, _, start, end)] => {
+            let lines: Vec<&str> = card.lines().collect();
+            let title = lines.first().filter(|line| line.starts_with("# ")).map(|line| format!("{line}\n\n")).unwrap_or_default();
+            Ok(format!("{title}{}", lines[*start..*end].join("\n").trim_end()))
+        }
+        [] => Err(format!("no section of guide {name} matches {words:?}\n{}", section_index(name, card))),
+        many => Err(format!("{words:?} matches {} sections of guide {name}: {}; use more of the heading", many.len(), many.iter().map(|s| s.1.as_str()).collect::<Vec<_>>().join(" · "))),
+    }
+}

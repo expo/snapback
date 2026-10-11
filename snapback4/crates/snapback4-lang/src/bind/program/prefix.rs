@@ -58,7 +58,13 @@ impl Binder<'_> {
             page.index = Some(index.name.clone());
             page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
             let suggestion = format!("page with `first N` and a cursor: `{}` (declare `c: cursor ?`)", self.catalog.source.expression(&A::Read(page.clone())));
-            let rewrite = if cap.is_none() { format!("declare `cap N{columns}` on {}, or {suggestion}", read.table) } else { suggestion };
+            // A filter pinning a whole unique key names at most one row: offer the one-row read first.
+            let one = (index.unique && index.words.is_none() && !pinned.is_empty() && pinned.len() == index.columns.len()).then(|| {
+                let mut one = page.clone();
+                one.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 1, cursor: None, site: read.site.clone() });
+                format!("`unique {}` makes this at most one row: `{}`; or ", pinned.join(", "), self.catalog.source.expression(&A::Read(one)))
+            }).unwrap_or_default();
+            let rewrite = if cap.is_none() { format!("{one}declare `cap N{columns}` on {}, or {suggestion}", read.table) } else { suggestion };
             let message = match cap {
                 Some(cap) => format!("{}'s whole group has cap {cap}, above the {ceiling} examined ceiling; one read cannot examine the whole group", read.table),
                 None => format!("{} has no cap over this prefix; this position needs a bounded page", read.table),

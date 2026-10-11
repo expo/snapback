@@ -64,7 +64,7 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{listing, nearest};
+pub use discovery::{listing, nearest, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
 pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start"];
 

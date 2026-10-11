@@ -52,15 +52,56 @@ pub fn init(options: &Options) -> i32 {
     let online = options.flags.contains_key("online");
     let expo = social || options.flags.contains_key("expo");
     let web = options.flags.contains_key("web");
+    // The Vite page's own port: explicit, or the one after the backend's so a
+    // project confined to a port range stays inside it.
+    let web_port = match options.flags.get("web-port").map(|port| port.parse::<u16>()) {
+        _ if options.flags.contains_key("web-port") && !web => {
+            eprintln!("E_INPUT at init --web-port: only the Vite starters (--web) serve a page of their own; Expo's web runs on `npx expo start --port N`\n  rewrite: snapback4 init --web --port 4401 --web-port 4402");
+            return 2;
+        }
+        Some(Ok(port)) if port > 0 => Some(port),
+        Some(_) => {
+            eprintln!("E_INPUT at init --web-port: expected a port number from 1 to 65535\n  rewrite: snapback4 init --web --port 4401 --web-port 4402");
+            return 2;
+        }
+        None if web => port.and_then(|port| port.checked_add(1)),
+        None => None,
+    };
+    if web_port.is_some() && web_port == port {
+        eprintln!("E_INPUT at init --web-port: the page and the backend need different ports\n  rewrite: snapback4 init --web --port {} --web-port {}", port.unwrap(), port.unwrap().wrapping_add(1).max(1));
+        return 2;
+    }
+    // @ref LLP 3000.011.003.000#7.1 — any snapback/*.q is the project's schema: no starter fixtures beside it; its sign-in picks the screen.
+    let own = match own_schema(dir) {
+        Ok(own) => own,
+        Err(error) => { eprintln!("init: {error}"); return 2; }
+    };
+    let shape = starter::Shape {
+        title: title(dir),
+        personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
+    };
     let mut files = if social { social::files() }
         else if chat && web { web::files() } else if chat { expo_files() }
-        else if web { starter::web_files() } else if expo { starter::expo_files() }
+        else if web { starter::web_files(&shape) } else if expo { starter::expo_files(&shape) }
         else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    // The starter's rows and cases test its own todos schema; beside a
+    // project's schema they name a table it lacks and fail `snapback4 test`.
+    let mut skipped = Vec::new();
+    if own.is_some() {
+        files.retain(|(name, _)| {
+            let starter = starter::FIXTURES.iter().any(|(fixture, _)| fixture == name);
+            if starter { skipped.push(*name); }
+            !starter
+        });
+    }
     for (name, text) in &mut files {
         // Starters copied from the reference apps keep their design notes in
         // this repository; a new project gets the explanation alone.
         if *name != "package.json" { *text = without_design_references(text); }
         if let Some(port) = port { *text = text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
+        if let Some(web_port) = web_port {
+            *text = text.replace("port: 5173", &format!("port: {web_port}")).replace("port: 4173", &format!("port: {web_port}")).replace("localhost:5173", &format!("localhost:{web_port}"));
+        }
     }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it
@@ -71,9 +112,10 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
+    let mut pinned = Vec::new();
     for (name, text) in &mut files {
         if *name == "package.json" && dir.join(*name).exists() {
-            match merge_package(&dir.join(*name), text) {
+            match merge_package(&dir.join(*name), text, &mut pinned) {
                 Ok(merged) => *text = merged,
                 Err(error) => conflicts.push(error),
             }
@@ -111,6 +153,10 @@ pub fn init(options: &Options) -> i32 {
         if let Some(alternate) = alternate.filter(|name| dir.join(name).symlink_metadata().is_ok()) {
             present.push(format!("{} already exists", dir.join(alternate).display()));
         }
+        // Any snapback/*.q is the project's schema; the starter's would join it.
+        if *name == "snapback/schema.q" {
+            if let Some(own) = &own { present.extend(own.files.iter().filter(|file| *file != "schema.q").map(|file| format!("{} already declares your schema", dir.join("snapback").join(file).display()))); }
+        }
         if *name != "package.json" {
             match dir.join(*name).symlink_metadata() {
                 Ok(_) => present.push(format!("{} already exists", dir.join(*name).display())),
@@ -134,7 +180,8 @@ pub fn init(options: &Options) -> i32 {
     if !conflicts.is_empty() {
         conflicts.sort(); conflicts.dedup();
         let recipe = if skippable { "rerun with --skip-existing to keep every existing file as it is and write only the missing ones (snapback/*.q is never overwritten), or rename the listed files and rerun; " } else { "" };
-        eprintln!("E_INIT_CONFLICT: no files written\n  {}\n  rewrite: {recipe}reconcile any listed package.json entries first. Do not init into another directory and copy it over: that overwrites your files", conflicts.join("\n  "));
+        let first = if skippable { "; rerun with --skip-existing to keep your files and write the rest" } else { "" };
+        eprintln!("E_INIT_CONFLICT: no files written{first}\n  {}\n  rewrite: {recipe}reconcile any listed package.json entries first. Do not init into another directory and copy it over: that overwrites your files", conflicts.join("\n  "));
         return 1;
     }
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
@@ -155,7 +202,7 @@ pub fn init(options: &Options) -> i32 {
         }
         let gitignore = dir.join(".gitignore");
         let existing = match std::fs::read_to_string(&gitignore) { Ok(text) => text, Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(), Err(e) => return Err(e) };
-        let ignores = format!("{GITIGNORE}{}", if expo { ".snapback4-witness/\nartifacts/native-smoke/\n" } else { "" });
+        let ignores = format!("{GITIGNORE}{}{}", if expo || web { "dist/\n" } else { "" }, if expo { ".snapback4-witness/\nartifacts/native-smoke/\n" } else { "" });
         let missing = ignores.lines().filter(|line| !existing.lines().any(|old| old == *line)).collect::<Vec<_>>().join("\n");
         if !missing.is_empty() { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
         Ok(())
@@ -175,13 +222,87 @@ pub fn init(options: &Options) -> i32 {
         else if expo { "Expo todos: native when available, online in Expo Go" } else if web { "Vite + React todos, offline-capable" }
         else if online { "online-only" } else { "local-first" };
     println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
+    if web {
+        let page = web_port.unwrap_or(5173);
+        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page} (`init --web-port N` picks another)", port.unwrap_or(4400));
+    }
+    if !pinned.is_empty() {
+        println!("init: pinned package.json {} (the starter's exact versions)", pinned.join(", "));
+    }
     if !kept.is_empty() {
         println!("init: kept {} existing file{} unchanged: {}", kept.len(), if kept.len() == 1 { "" } else { "s" }, kept.join(", "));
-        if kept.contains(&"snapback/schema.q") && files.iter().any(|(name, _)| name.starts_with("src/") || name.starts_with("App.")) {
-            println!("init: your snapback/schema.q was kept; the starter screens call its own operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
+    }
+    if !skipped.is_empty() {
+        println!("init: skipped the todo starter's {}: they test its todos schema, not yours", skipped.join(" and "));
+    }
+    let screens = files.iter().any(|(name, _)| name.starts_with("src/") || name.starts_with("App."));
+    if let Some(own) = own.as_ref().filter(|_| screens && (web || expo) && !chat && !social) {
+        println!("init: your snapback/*.q was kept; the starter screens call the todo starter's operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
+        match own.identity {
+            None if shape.personas.is_some() => println!("init: your schema declares `use personas` and no `use identity`, so the screen picks a persona instead of signing in (development only; `snapback4 guide personas`)"),
+            None => println!("init: your schema declares no `use identity`: add `use identity` for the starter's guest sign-in (`snapback4 guide personas`)"),
+            Some((_, false)) => println!("init: your schema declares `use identity password`, which has no guests: replace the starter's `auth.guest()` with `auth.signup`/`auth.login` (`snapback4 guide personas`)"),
+            Some(_) => {},
         }
     }
     0
+}
+
+/// The project's own schema: every `snapback/*.q` already in the directory.
+struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String> }
+
+fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
+    let folder = dir.join("snapback");
+    let entries = match std::fs::read_dir(&folder) {
+        Ok(entries) => entries,
+        Err(error) if matches!(error.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => return Ok(None),
+        Err(error) => return Err(format!("{}: {error}", folder.display())),
+    };
+    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new() };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !name.ends_with(".q") { continue; }
+        // An unreadable or unparsable file still counts as the project's; its
+        // declarations are whatever parsed.
+        let source = std::fs::read_to_string(entry.path()).unwrap_or_default();
+        let (document, _) = snapback4_lang::parse_document(&name, &source);
+        own.identity = own.identity.or(document.identity);
+        own.personas.extend(document.personas);
+        own.files.push(name);
+    }
+    own.files.sort();
+    Ok((!own.files.is_empty()).then_some(own))
+}
+
+/// The page and app name: the directory's, as words ("bake-sale" → "Bake Sale").
+fn title(dir: &Path) -> String {
+    let path = std::fs::canonicalize(dir).unwrap_or_else(|_| std::path::absolute(dir).unwrap_or_else(|_| dir.to_path_buf()));
+    let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    let words: Vec<String> = name.split(|c: char| c == '-' || c == '_' || c == '.' || c.is_whitespace()).filter(|word| !word.is_empty())
+        .map(|word| { let mut chars = word.chars(); chars.next().map(|first| first.to_uppercase().chain(chars).collect()).unwrap_or_default() }).collect();
+    if words.is_empty() { "My app".into() } else { words.join(" ") }
+}
+
+/// Vite's config is `vite.config.mts`, so the reference tsconfig names that.
+fn esm_vite_config(tsconfig: &str) -> String { tsconfig.replace("\"vite.config.ts\"", "\"vite.config.mts\"") }
+
+/// npm scripts compare as commands: the same program and subcommand, then the
+/// same options in any order ("tsc --noEmit -p x" is "tsc -p x --noEmit").
+fn same_command(left: &str, right: &str) -> bool {
+    fn shape(script: &str) -> Vec<(Vec<&str>, Vec<Vec<&str>>)> {
+        script.split("&&").map(|step| {
+            let mut head = Vec::new();
+            let mut options: Vec<Vec<&str>> = Vec::new();
+            for word in step.split_whitespace() {
+                if word.starts_with('-') { options.push(vec![word]); }
+                else if let Some(option) = options.last_mut() { option.push(word); }
+                else { head.push(word); }
+            }
+            options.sort();
+            (head, options)
+        }).collect()
+    }
+    shape(left) == shape(right)
 }
 
 fn preflight_parents(path: &Path) -> Result<(), String> {
@@ -263,7 +384,7 @@ fn replace_file(path: &Path, text: &str) -> std::io::Result<()> {
     result
 }
 
-fn merge_package(path: &Path, starter: &str) -> Result<String, String> {
+fn merge_package(path: &Path, starter: &str, pinned: &mut Vec<String>) -> Result<String, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut existing: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     let object = existing.as_object_mut().ok_or("package.json must be an object")?;
@@ -276,8 +397,16 @@ fn merge_package(path: &Path, starter: &str) -> Result<String, String> {
                 continue;
             };
             for (name, needed) in value.as_object().unwrap() {
+                let equivalent = |old: &Value| key == "scripts" && old.as_str().zip(needed.as_str()).is_some_and(|(old, needed)| same_command(old, needed));
+                // `npm i snapback4` saves "^0.4.17"; the starter pins the exact
+                // version its binary and client were built together at.
+                let admits = |old: &Value| key != "scripts" && old.as_str().zip(needed.as_str()).is_some_and(|(old, needed)| old.strip_prefix(['^', '~']) == Some(needed));
                 match group.get(name) {
-                    Some(old) if old != needed => conflicts.push(format!("package.json conflict at {key}.{name}: existing {old}, required {needed}")),
+                    Some(old) if admits(old) => {
+                        pinned.push(format!("{key}.{name} {old} → \"{}\"", needed.as_str().unwrap()));
+                        group.insert(name.clone(), needed.clone());
+                    }
+                    Some(old) if old != needed && !equivalent(old) => conflicts.push(format!("package.json conflict at {key}.{name}: existing {old}, required {needed}")),
                     Some(_) => {},
                     None => { group.insert(name.clone(), needed.clone()); }
                 }

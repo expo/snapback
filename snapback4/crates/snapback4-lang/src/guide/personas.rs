@@ -65,8 +65,8 @@ See `guide services` for diagnostic limits and `guide jobs` for isolated time-tr
 ## Operations
 `use personas alice, bob` declares a development cast. `snapback4 run send '{..}' --as alice` (the default
 persona is alice) and the `x-snapback-persona: alice` header in development act as `dev:alice`; `persona: "alice"` on the client sends the header. A React/Expo dev UI keeps `AppProvider` and `useAuth` with
-`createApp({ url, persona: "alice", device })` (a `?as=` picker: "Personas in a React UI" in CLIENT-AND-OPERATIONS.md);
-it has no session, so `app.auth` sign-in refuses `E_AUTH`.
+`createApp({ url, persona: "alice", device })`, one app per persona (web `?as=` and React Native pickers: "Personas in a React UI" in CLIENT-AND-OPERATIONS.md;
+`init --web`/`--expo --skip-existing` writes one beside a schema without `use identity`). No session: `app.auth` sign-in, `auth.guest()` too, refuses `E_AUTH`.
 The declaration is the cast: dev refuses a persona it does not name with 401 E_AUTH, naming the line to extend, so
 an acceptance test can expect an outsider to be refused (a schema without `use personas` admits any name). Personas are a development door: the socket peer, `Host`, and optional
 browser `Origin` must all be literal loopback/local http(s) values. Foreign, opaque, malformed and duplicate

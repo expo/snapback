@@ -10,6 +10,10 @@ npx snapback4 dev        # serves http://127.0.0.1:4400 and reloads on save
 npm run dev              # in a second terminal: http://localhost:5173
 ```
 
+`snapback4 init --web --port 4401` points the client at that backend and serves
+the page on the next port (4402); `--web-port N` picks the page's port, which
+`vite.config.mts` holds for both `npm run dev` and `vite preview`.
+
 Choose "Continue as a guest", then add a few todos. Open a second tab to see
 live updates; stop the backend to see writes queue offline and settle when it
 returns.
@@ -23,6 +27,11 @@ returns.
   passes `device: webDevice()`; a bare `createClient()` in a browser refuses
   mutations with `E_ADMISSION`.
 - `src/App.tsx`: sign-in, the live list (`usePage`) and writes (`useMutation`).
+  `usePage` passes the query's cursor itself: a paged query takes `c: cursor ?`
+  and reads `after c` (`npx snapback4 guide reads`).
+- `src/styles.css`, `index.html` (titled after this directory) and
+  `vite.config.mts`: yours to change; `.mts` keeps Vite's config ESM even when
+  package.json says `"type": "commonjs"`.
 
 ## Next steps
 

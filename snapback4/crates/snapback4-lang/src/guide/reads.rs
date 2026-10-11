@@ -25,7 +25,7 @@ Repeated `where` clauses combine with `and` in order.
 ## Limits
 
 - A positional key names one row; use `where` for populations: E_QUARRY_POSITIONAL_SCAN.
-- Add a cursor if the screen pages: N_NO_CURSOR.
+- Add a cursor if the screen pages: N_NO_CURSOR. React's `usePage` passes it as `c`: declare `c: cursor ?`, read `after c`.
 - A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
 - N_SHAPE_METER: maintained totals (guide views), previews, or queries.
@@ -119,10 +119,10 @@ chats list. The expiring-rows recipe above is for durable disappearing messages.
 
 Mounted reads wake from `/changes`, sync and re-evaluate affected queries, including parent and authorization dependencies.
 2026-09-29 round-1 loopback measurements (20 repetitions/flow, 20 mounted message rows, Linux debug server): commit-to-answer p95 24–75 ms with Chromium wasm, 39–128 ms with the process device.
-Four CPUs plus three busy workers: 32–74 ms and 50–181 ms. This reduced chat fixture is not a service guarantee.
+Four CPUs plus three busy workers: 32–74 ms and 50–181 ms. This fixture is no service guarantee.
 Measure two signed-in clients with queries mounted: record sender invocation, `sent` acknowledgement, changed `observe` snapshot, React `useLayoutEffect` and image `onLoad` separately.
 Acknowledgement follows commit; `waitSeconds: 0` measures custody. Inspect `/changes`, `/sync` and query requests in Network to separate transport from application work.
-Measure media upload, download and decoding separately. Repeat at least 20 times, idle and under CPU contention on your target.
+Measure media separately; repeat 20+ times, idle and loaded.
 
 ## Nullable predicates and enum lanes
 

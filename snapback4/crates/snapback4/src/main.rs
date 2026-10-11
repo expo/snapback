@@ -33,7 +33,7 @@ use std::process::ExitCode;
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
   init [dir] [--online|--expo|--web]  start a project: a schema; --web a Vite + React todos app; --expo an Expo todos app; --online a schema and an online client
-       [--template chat] [--port N] [--skip-existing]  --web or --expo with --template chat: the full reference chat app; --port: the backend port the client calls; --skip-existing: keep existing files, write only missing ones
+       [--template chat] [--port N] [--web-port N] [--skip-existing]  --web or --expo with --template chat: the full reference chat app; --port: the backend port the client calls; --web-port: the Vite page's port (default: the next port); --skip-existing: keep existing files, write only missing ones
   new <dir> --template social|chat   social: Expo Router social starter (feed, chats, search, profile); chat: add --web or --expo
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason
@@ -52,7 +52,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
-  guide [keyword]                  list cards and aliases, or print one card
+  guide [keyword] [--sections|--section <heading>]  list cards and aliases, or print one card, its heading index, or one section
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
@@ -133,7 +133,17 @@ fn main() -> ExitCode {
                 None => println!("{}", guide::listing()),
                 Some(keyword) => match guide::card(keyword) {
                     // Cards embed starter sources; print them as init installs them.
-                    Some(card) => println!("{}", verbs::without_design_references(card)),
+                    Some(card) => {
+                        let card = verbs::without_design_references(card);
+                        let name = options.positionals.join(" ");
+                        if options.flags.contains_key("sections") { println!("{}", guide::section_index(&name, &card)); }
+                        else if let Some(words) = options.flags.get("section") {
+                            match guide::section(&name, &card, words) {
+                                Ok(text) => println!("{text}"),
+                                Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
+                            }
+                        } else { println!("{card}"); }
+                    }
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),
                         None => {

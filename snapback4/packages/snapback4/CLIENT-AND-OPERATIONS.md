@@ -1628,49 +1628,45 @@ function Who() {
 }
 ```
 
-In Expo there is no address bar: the persona is React state and the picker is a row of buttons.
-The device follows the starter's choice (`webDevice()` on web, `nativeDevice` in a development
-build, none in Expo Go, which writes through the online tier's journal). The iOS simulator and
-Expo web reach `snapback4 dev` on the host's `127.0.0.1`; an Android emulator's host alias
-`10.0.2.2` is not literal loopback, so run `adb reverse tcp:4400 tcp:4400` and keep `127.0.0.1`.
-A physical phone cannot use personas: `dev` admits the header only from a loopback socket.
+A schema with `use personas` and no `use identity` has no sign-in at all, so `auth.guest()` refuses
+`E_AUTH`: `snapback4 init --web --skip-existing` (or `--expo`) beside such a schema writes this
+picker instead of the guest screen. In React Native there is no `location`: keep the persona in
+state, one app per persona as above (`nativeDevice` in development builds, none in Expo Go, where
+the app is online-only):
+
+The iOS simulator and Expo web reach `snapback4 dev` on the host's `127.0.0.1`; an Android
+emulator's host alias `10.0.2.2` is not literal loopback, so run `adb reverse tcp:4400 tcp:4400` and
+keep `127.0.0.1`. A physical phone cannot use personas: `dev` admits the header only from a loopback
+socket.
 
 ```tsx
-import { AppProvider, useAuth, type App } from "snapback4/react";
-import { createApp } from "snapback4/app";
-import { webDevice } from "snapback4/web";
+import { AppProvider, useAuth } from "snapback4/react";
+import { createApp, type App } from "snapback4/app";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
-import { useEffect, useState } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Button, Text, View } from "react-native";
 
-const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
+const url = "http://127.0.0.1:4400"; // the iOS simulator reaches this machine's loopback
 const personas = ["alice", "bob"];
-/** One app per persona; each persona keeps its own device store. */
-export function openApp(persona: string): App {
-  const device = Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined;
-  return createApp({ url, persona, device });
-}
-export function Root() {
-  const [persona, setPersona] = useState(personas[0]!);
+const openApp = (persona: string): App =>
+  createApp({ url, persona, device: nativeAvailable() ? nativeDevice : undefined });
+export function PersonaRoot({ children }: { children: ReactNode }) {
+  const [persona, setPersona] = useState<string | null>(null);
   const [app, setApp] = useState<App | null>(null);
   useEffect(() => {
+    if (!persona) return;
     const opened = openApp(persona);
     setApp(opened);
-    return () => { void opened.close(); };
+    return () => { setApp(null); void opened.close(); };
   }, [persona]);
-  if (!app) return null;
-  return <AppProvider app={app}>
-    <View style={{ flexDirection: "row", gap: 8 }}>{personas.map(name =>
-      <Pressable key={name} accessibilityRole="button" accessibilityState={{ selected: name === persona }} onPress={() => setPersona(name)}>
-        <Text style={{ fontWeight: name === persona ? "700" : "400" }}>{name}</Text>
-      </Pressable>)}</View>
-    <Who />
-  </AppProvider>;
+  if (!persona || !app) return <View>{personas.map(name =>
+    <Button key={name} title={`Act as ${name}`} onPress={() => setPersona(name)} />)}</View>;
+  return <AppProvider app={app}><Signed leave={() => setPersona(null)}>{children}</Signed></AppProvider>;
 }
-function Who() {
+function Signed({ leave, children }: { leave: () => void; children: ReactNode }) {
   const auth = useAuth();
-  if (auth.state !== "signed-in") return <Text>{auth.why?.message ?? "Opening…"}</Text>;
-  return <Text>Acting as {auth.viewer}</Text>;
+  if (auth.state === "signed-in") return children;
+  return <View><Text>{auth.why?.message ?? "Opening…"}</Text><Button title="Choose a persona" onPress={leave} /></View>;
 }
 ```
 

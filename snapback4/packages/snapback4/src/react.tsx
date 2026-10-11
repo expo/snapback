@@ -148,15 +148,21 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOption
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
+/** A query `usePage` can page: it takes its cursor as `c` (`c: cursor ?` in
+ * the schema) and reads `after c`. Any other query names the fix in its error. */
+type PagedQuery<A, R> = Query<A, R> & ("c" extends keyof A ? unknown
+  : { readonly "usePage needs a query that declares `c: cursor ?` and reads `after c`; see `snapback4 guide reads`": true });
+
 /** Own the current requested cursor chain. A changed/withdrawn cursor releases
  * its old suffix. Mount this hook in an active route child; keep the composer
  * outside that child and bound point-reader IDs to requested pages/visible rows.
  * See the bounded screen recipe in CLIENT-AND-OPERATIONS.md.
  */
-export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
+export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
   const client = useClient();
   const key = readKey(op, args);
-  const pages = useMemo(() => new Pages(client, op, args as A, options), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
+  const paged = op as Query<A & { c?: Cursor | null }, R>;
+  const pages = useMemo(() => new Pages(client, paged, args as A & { c?: Cursor | null }, options), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
 }

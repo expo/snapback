@@ -45,7 +45,11 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     // A misspelled file name would otherwise load nothing and still pass.
     if !unknown.is_empty() {
         let tables: Vec<&str> = bound.schema.visible_tables().map(|(name, _)| name.as_str()).collect();
-        return Err(format!("{fixture}: {} name{} no table in snapback/*.q; nothing was run\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
+        // 0.4.17's init wrote the todo starter's rows beside a project's own schema.
+        let starter = unknown.iter().any(|name| name == "todos.jsonl")
+            && std::fs::read_to_string(std::path::Path::new(fixture).join("todos.jsonl")).is_ok_and(|text| text.contains("\"id\":\"todo-milk\""));
+        let starter = if starter { format!("\n  hint: todos.jsonl is the todo starter's sample that `snapback4 init` wrote; delete it, and the starter's list/add/toggle/remove lines in {}", super::test_cases::FILE) } else { String::new() };
+        return Err(format!("{fixture}: {} name{} no table in snapback/*.q; nothing was run{starter}\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
             unknown.join(", "), if unknown.len() == 1 { "s" } else { "" }, tables.join(", "), super::test_cases::FILE));
     }
     // Fixture rows take `/seed`'s insert path (defaults, sequences, unique with the author's codes, caps, maintained views), not the trusted bulk import.
