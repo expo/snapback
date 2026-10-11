@@ -163,7 +163,8 @@ fn grant_probe_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, crate::ir:
 }
 
 /// The compiler lowers a short-circuit `a and b` (`a or b`) to a temporary:
-/// `$bool1 = a`, then `if $bool1: $bool1 = b` (`if not $bool1: …`). Each such
+/// `$bool1 = a`, then `if $bool1: $bool1 = b` (`if not $bool1: …`, or
+/// `if $bool1:` with the assignment in its `else`). Each such
 /// temporary, assigned only there, stands for the whole condition.
 fn short_circuit_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, Expr> {
     use crate::ir::{BinaryOp, Stmt, UnaryOp};
@@ -180,16 +181,22 @@ fn short_circuit_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, Expr> {
     fn collect(body: &[Stmt], counts: &BTreeMap<String, usize>, out: &mut BTreeMap<String, Expr>) {
         for pair in body.windows(2) {
             let [Stmt::Let { name, value: first }, Stmt::If { condition, then_body, else_body }] = pair else { continue };
-            if !name.starts_with('$') || counts.get(name) != Some(&2) || !else_body.is_empty() { continue; }
+            if !name.starts_with('$') || counts.get(name) != Some(&2) { continue; }
+            // `if $b: $b = second` (and), `if not $b: $b = second` or
+            // `if $b: (nothing) else: $b = second` (or).
+            let tested = |negated: bool| match condition {
+                Expr::Variable(tested) => !negated && tested == name,
+                Expr::Unary { op: UnaryOp::Not, value } => negated && matches!(value.as_ref(), Expr::Variable(tested) if tested == name),
+                _ => false,
+            };
+            let (op, body) = if else_body.is_empty() && tested(false) { (BinaryOp::And, then_body) }
+                else if else_body.is_empty() && tested(true) { (BinaryOp::Or, then_body) }
+                else if then_body.is_empty() && tested(false) { (BinaryOp::Or, else_body) }
+                else { continue };
             // The second operand's own setup (a probe's `$probe2 = t[key]`) precedes the assignment.
-            let Some((Stmt::Assign { name: assigned, value: second }, setup)) = then_body.split_last() else { continue };
+            let Some((Stmt::Assign { name: assigned, value: second }, setup)) = body.split_last() else { continue };
             if !setup.iter().all(|statement| matches!(statement, Stmt::Let { .. } | Stmt::Const { .. })) { continue; }
             if assigned != name { continue; }
-            let op = match condition {
-                Expr::Variable(tested) if tested == name => BinaryOp::And,
-                Expr::Unary { op: UnaryOp::Not, value } if matches!(value.as_ref(), Expr::Variable(tested) if tested == name) => BinaryOp::Or,
-                _ => continue,
-            };
             out.insert(name.clone(), Expr::Binary { op, left: Box::new(first.clone()), right: Box::new(second.clone()) });
         }
         for statement in body {
@@ -216,33 +223,40 @@ struct Guard<'a> {
 
 /// One fact a condition establishes: `left op right` with `op` `=`/`!=`, or
 /// an `exists` probe that holds.
+#[derive(Clone, Copy)]
 enum Fact<'a> { Exists(&'a crate::ir::Read), Compare(bool, &'a Expr, &'a Expr) }
 
 impl Guard<'_> {
-    /// Facts true whenever `condition` is true (`None`: none we can name).
-    fn when_true<'e>(&'e self, condition: &'e Expr, out: &mut Vec<Fact<'e>>) {
+    /// The alternatives `condition` being true establishes, each a set of
+    /// facts that hold together (disjunctive normal form): `a or b` is two
+    /// alternatives, `a and b` one with the facts of both. A part we cannot
+    /// name contributes no fact, so an alternative built on it proves nothing.
+    // @ref LLP 3000.036#14.1 — a guard `if exists A or exists B:` holds a grant on each alternative.
+    fn when_true<'e>(&'e self, condition: &'e Expr) -> Vec<Vec<Fact<'e>>> {
         use crate::ir::{BinaryOp, UnaryOp};
         match condition {
-            Expr::Variable(name) if self.conditions.contains_key(name) => self.when_true(&self.conditions[name], out),
-            Expr::Binary { op: BinaryOp::And, left, right } => { self.when_true(left, out); self.when_true(right, out); }
-            Expr::Binary { op: BinaryOp::Eq, left, right } => out.push(Fact::Compare(true, left, right)),
-            Expr::Binary { op: BinaryOp::Ne, left, right } => out.push(Fact::Compare(false, left, right)),
-            Expr::Unary { op: UnaryOp::Not, value } => self.when_false(value, out),
-            Expr::Exists(read) => out.push(Fact::Exists(read)),
-            _ => {}
+            Expr::Variable(name) if self.conditions.contains_key(name) => self.when_true(&self.conditions[name]),
+            Expr::Binary { op: BinaryOp::And, left, right } => product(self.when_true(left), self.when_true(right)),
+            Expr::Binary { op: BinaryOp::Or, left, right } => union(self.when_true(left), self.when_true(right)),
+            Expr::Binary { op: BinaryOp::Eq, left, right } => vec![vec![Fact::Compare(true, left, right)]],
+            Expr::Binary { op: BinaryOp::Ne, left, right } => vec![vec![Fact::Compare(false, left, right)]],
+            Expr::Unary { op: UnaryOp::Not, value } => self.when_false(value),
+            Expr::Exists(read) => vec![vec![Fact::Exists(read)]],
+            _ => vec![Vec::new()],
         }
     }
 
-    /// Facts true whenever `condition` is false.
-    fn when_false<'e>(&'e self, condition: &'e Expr, out: &mut Vec<Fact<'e>>) {
+    /// The alternatives `condition` being false establishes.
+    fn when_false<'e>(&'e self, condition: &'e Expr) -> Vec<Vec<Fact<'e>>> {
         use crate::ir::{BinaryOp, UnaryOp};
         match condition {
-            Expr::Variable(name) if self.conditions.contains_key(name) => self.when_false(&self.conditions[name], out),
-            Expr::Binary { op: BinaryOp::Or, left, right } => { self.when_false(left, out); self.when_false(right, out); }
-            Expr::Binary { op: BinaryOp::Eq, left, right } => out.push(Fact::Compare(false, left, right)),
-            Expr::Binary { op: BinaryOp::Ne, left, right } => out.push(Fact::Compare(true, left, right)),
-            Expr::Unary { op: UnaryOp::Not, value } => self.when_true(value, out),
-            _ => {}
+            Expr::Variable(name) if self.conditions.contains_key(name) => self.when_false(&self.conditions[name]),
+            Expr::Binary { op: BinaryOp::Or, left, right } => product(self.when_false(left), self.when_false(right)),
+            Expr::Binary { op: BinaryOp::And, left, right } => union(self.when_false(left), self.when_false(right)),
+            Expr::Binary { op: BinaryOp::Eq, left, right } => vec![vec![Fact::Compare(false, left, right)]],
+            Expr::Binary { op: BinaryOp::Ne, left, right } => vec![vec![Fact::Compare(true, left, right)]],
+            Expr::Unary { op: UnaryOp::Not, value } => self.when_true(value),
+            _ => vec![Vec::new()],
         }
     }
 
@@ -277,17 +291,28 @@ impl Guard<'_> {
         }
     }
 
+    /// Every alternative under which `condition` is true implies a grant.
     fn holds_when_true(&self, condition: &Expr) -> bool {
-        let mut facts = Vec::new();
-        self.when_true(condition, &mut facts);
-        self.implies(&facts)
+        self.when_true(condition).iter().all(|facts| self.implies(facts))
     }
 
     fn holds_when_false(&self, condition: &Expr) -> bool {
-        let mut facts = Vec::new();
-        self.when_false(condition, &mut facts);
-        self.implies(&facts)
+        self.when_false(condition).iter().all(|facts| self.implies(facts))
     }
+}
+
+/// More alternatives than this and a guard proves nothing (the sound default).
+const MAX_ALTERNATIVES: usize = 32;
+
+fn union<'e>(mut a: Vec<Vec<Fact<'e>>>, b: Vec<Vec<Fact<'e>>>) -> Vec<Vec<Fact<'e>>> {
+    a.extend(b);
+    if a.len() > MAX_ALTERNATIVES { return vec![Vec::new()]; }
+    a
+}
+
+fn product<'e>(a: Vec<Vec<Fact<'e>>>, b: Vec<Vec<Fact<'e>>>) -> Vec<Vec<Fact<'e>>> {
+    if a.len() * b.len() > MAX_ALTERNATIVES { return vec![Vec::new()]; }
+    a.iter().flat_map(|left| b.iter().map(move |right| left.iter().chain(right).cloned().collect())).collect()
 }
 
 struct Dominance<'s> { scan: &'s Scan, found: usize, guarded: usize }
