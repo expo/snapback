@@ -164,6 +164,10 @@ impl Binder<'_> {
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.
     pub(super) fn exists_read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        self.exists_probe(read, out).map_err(|error| super::super::bracket_ranges::refusal(read, false, error))
+    }
+
+    fn exists_probe(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if !self.is_page(read, ReadMode::Exists)? { return Ok((self.read_value(read, ReadMode::Exists, out)?, Ty::Bool)); }
         let (scan, _) = self.scan_at(read, out, Position::Exists)?;
         Ok((Expr::Binary { op: BinaryOp::Gt, left: Box::new(Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }), right: Box::new(Expr::Literal(Value::Int(0))) }, Ty::Bool))

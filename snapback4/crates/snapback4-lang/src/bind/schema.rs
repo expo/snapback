@@ -668,7 +668,7 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             Ok(RuleExpr::Eq(term,RuleTerm::Literal(Value::Bool(true))))
         }
         Expr::Exists { read, site } => {
-            let (table, index, key, equalities) = probe(catalog, info, read, site, bindings, true)?;
+            let (table, index, key, equalities) = probe(catalog, info, read, site, bindings, true).map_err(|error| super::bracket_ranges::refusal(read, true, error))?;
             Ok(RuleExpr::Exists { table, index, key, equalities, provenance: KeyProvenance::Shape })
         }
         Expr::Created { read, site } => {

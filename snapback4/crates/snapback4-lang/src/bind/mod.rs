@@ -27,6 +27,7 @@ mod index_diagnostics;
 mod mixed_keys;
 mod page_shapes;
 pub(crate) mod where_guards;
+mod bracket_ranges;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -254,6 +255,15 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
                     if !programs.iter().any(|p| p.program.name == decl.target)
                         && let Some(failed) = catalog.documents.iter().flat_map(|doc| doc.programs.iter()).find(|p| p.name == target || decl.target.ends_with(&format!(".{}", p.name))) {
                         diagnostic.cascade_of = Some(failed.site.clone());
+                        // @ref LLP 3000.036#15.7 — lane 039: the job's own problem is the one to fix;
+                        // this follows from it, so it reads as a cascade and hides beside its cause.
+                        let end = catalog.documents.iter().flat_map(|doc| doc.programs.iter())
+                            .filter(|p| p.site.file == failed.site.file && p.site.line > failed.site.line).map(|p| p.site.line).min().unwrap_or(u32::MAX);
+                        if let Some(cause) = diagnostics.iter().find(|d| d.site.file == failed.site.file && (failed.site.line..end).contains(&d.site.line) && d.cascade_of.is_none()) {
+                            diagnostic.message = format!("schedule {} names {}, which did not compile (its problem is at {})", decl.name, decl.target, cause.site);
+                            diagnostic.rewrite = "fix this Quarry line and rerun snapback4 check".into();
+                            diagnostic.cascade_of = Some(cause.site.clone());
+                        }
                     }
                     diagnostics.push(diagnostic)
                 }

@@ -712,11 +712,25 @@ impl Parser {
             Some((self.word()?.value, self.word()?.value))
         } else { None };
         let mut keys = Vec::new();
+        let keys_start = self.position;
         while row_key.is_none() {
-            let mut key = self.expression(0, &[",", "<newline>"])?;
+            let mut key = self.expression(0, &[",", "<newline>", "where"])?;
             views::unfocal_key(&mut key);
             keys.push(key);
             if !self.maybe(",") { break; }
+        }
+        // @ref LLP 3000.036#15.7 — lane 034: `sum drives of .minutes by .teen where …` reported
+        // two E_QUARRY_MAINTAIN causes; the fault is clause order, so name it with the reordered view.
+        if row_key.is_none() && self.at("where") {
+            let by = self.source_text(keys_start, self.position);
+            let where_site = self.take("where")?.site;
+            let start = self.position;
+            while !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) { self.position += 1; }
+            let predicate = self.source_text(start, self.position);
+            let value = column.as_ref().map(|column| format!(" of .{column}")).unwrap_or_default();
+            let earlier = filter.as_ref().map(|_| "; keep one where").unwrap_or_default();
+            return Err(syntax_with(&where_site, format!("a view's where comes before its group keys: {} source{} where predicate by keys{earlier}", aggregate.value, if aggregate.value == "sum" { " of .column" } else { "" }),
+                format!("{} {name}: {} {source}{value} where {} by {}", keyword.value, aggregate.value, predicate.trim(), by.trim())));
         }
         if row_key.is_some() {
             if self.maybe("where") { filter = Some(self.filtered_predicate(&source, &[], true)?); }
@@ -1056,6 +1070,9 @@ impl Parser {
                 "cursor" => TypeKind::Cursor,
                 "id" => TypeKind::Id,
                 "principal" => TypeKind::Principal,
+                "int" if self.at_kind(Kind::Number) || matches!(self.peek().value.as_str(), "<=" | ">=" | "<" | ">" | "-") => {
+                    return Err(self.int_range(&name.site, column));
+                }
                 "int" => TypeKind::Int,
                 "time" => TypeKind::Time,
                 "bool" => TypeKind::Bool,
@@ -1090,6 +1107,39 @@ impl Parser {
         }
         let optional = self.maybe("?");
         Ok(ScalarType { kind, optional })
+    }
+
+    /// `n: int 1..10`: ints take no bound in the type (text's `1..80` is a
+    /// length). Name the supported forms with the author's bound, instead of
+    /// "expected the end of the line, got 1" (wave 5 #5, 11 lanes).
+    // @ref LLP 3000.036#15.7 — a bounded int is a require or a rule, not a type (see §15.7 for why).
+    fn int_range(&mut self, site: &Site, column: bool) -> Diagnostic {
+        let name = (self.position >= 3 && self.tokens[self.position - 2].value == ":" && self.tokens[self.position - 3].kind == Kind::Word)
+            .then(|| self.tokens[self.position - 3].value.clone()).unwrap_or_else(|| "n".into());
+        let start = self.position;
+        while !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) && !matches!(self.peek().value.as_str(), "," | ")" | "?" | ":") { self.position += 1; }
+        let bound = self.source_text(start, self.position).split_whitespace().collect::<String>();
+        let (low, high) = match bound.split_once("..") {
+            Some((low, high)) => (Some(low.to_owned()), Some(high.to_owned())),
+            None if bound.starts_with("<=") => (None, Some(bound[2..].to_owned())),
+            None if bound.starts_with(">=") => (Some(bound[2..].to_owned()), None),
+            None if bound.starts_with('<') => (None, bound[1..].parse::<i64>().ok().map(|n| (n - 1).to_string())),
+            None if bound.starts_with('>') => (bound[1..].parse::<i64>().ok().map(|n| (n + 1).to_string()), None),
+            None => (None, None),
+        };
+        let optional = self.at("?");
+        let test = |prefix: &str| {
+            let test = [low.as_ref().map(|low| format!("{prefix}{name} >= {low}")), high.as_ref().map(|high| format!("{prefix}{name} <= {high}"))]
+                .into_iter().flatten().collect::<Vec<_>>().join(" and ");
+            if optional { format!("({prefix}{name} = null or {test})") } else { test }
+        };
+        let ty = if optional { "int ?" } else { "int" };
+        let rewrite = if column {
+            format!("declare `{name}: {ty}` and bound it in the table's rules (`insert <- … and {}`, `update (old, next) <- … and {}`) and in each mutation that writes it (`require {} else OUT_OF_RANGE`)", test("."), test("next."), test(""))
+        } else {
+            format!("declare `{name}: {ty}` and refuse other values first in the body: `require {} else OUT_OF_RANGE`", test(""))
+        };
+        syntax_with(site, format!("int takes no range in its type (`text 1..80` bounds a length); `{bound}` is a check on the value"), rewrite).guide("types")
     }
 
     fn parse_block(&mut self) -> Fallible<Vec<Stmt>> {

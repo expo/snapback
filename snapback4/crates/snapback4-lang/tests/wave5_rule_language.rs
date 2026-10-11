@@ -205,3 +205,103 @@ fn no_problem_or_note_prints_a_dollar_internal() {
     let repaired = rescue.replace("  read through .report\n", "  read <- exists reports[.report, caller = viewer] or exists reports[.report, assignedTo = viewer] or exists roles[viewer, role = 'dispatcher']\n");
     clean(&repaired);
 }
+
+// ---- #13, #17, #5: keyed lookups, clause order, int ranges ----
+
+const APPLICATIONS: &str = "table applications:
+  owner: principal
+  status: enum('draft', 'submitted')
+  totalPoints: int
+  read <- .owner = viewer
+  online only
+";
+
+/// Lanes 017 039: an ordered test in brackets read as a key-type error, and a
+/// job's failure cascaded into "schedule names no job". The refusal now says
+/// what brackets take, and the printed search compiles.
+#[test]
+fn an_ordered_test_in_brackets_names_the_search_form_and_hides_the_schedule_cascade() {
+    let probe = "exists applications[status = 'submitted', totalPoints > app.totalPoints]";
+    let source = format!("{APPLICATIONS}query better(a: applications):\n  app = applications[a] ! else NOT_FOUND\n  return {probe}\n");
+    let d = first(&source, "E_QUARRY_TYPE");
+    assert!(d.message.starts_with("brackets take key equalities; `totalPoints > app.totalPoints` is an ordered test"), "{d:#?}");
+    let search = "exists applications where .status = 'submitted' and .totalPoints > app.totalPoints";
+    assert_eq!(d.rewrite, format!("for a search, write `{search}`"));
+    // (A public table: over a per-row rule a query's search `exists` answers
+    // unknown (null) unless decided, and a mutation's is E_STRUCTURAL_FANOUT.)
+    let public = source.replace("  read <- .owner = viewer\n", "  public 'applications'\n");
+    let mut engine = engine(&public.replace(probe, search), vec![
+        ("applications", vec![("id", id("a1")), ("owner", id("amy")), ("status", Value::String("submitted".into())), ("totalPoints", Value::Int(5))]),
+        ("applications", vec![("id", id("a2")), ("owner", id("amy")), ("status", Value::String("draft".into())), ("totalPoints", Value::Int(2))]),
+    ]);
+    assert_eq!(engine.query("better", Context::new("amy", args(&[("a", id("a2"))]))).unwrap().data, Value::Bool(true));
+    assert_eq!(engine.query("better", Context::new("amy", args(&[("a", id("a1"))]))).unwrap().data, Value::Bool(false));
+    // In a rule the probe names one row: the rewrite moves the order into the mutation.
+    let rule = bound(&format!("{APPLICATIONS}table flags:\n  owner: principal\n  read <- exists applications[status = 'submitted', totalPoints > 3]\n  online only\n"));
+    let d = rule.diagnostics.iter().find(|d| d.code == "E_QUARRY_TYPE").unwrap_or_else(|| panic!("{:#?}", rule.diagnostics));
+    assert!(d.rewrite.contains("require exists applications where .status = 'submitted' and .totalPoints > 3 else CODE"), "{d:#?}");
+    // A job that failed to bind: the schedule's complaint is that problem's hidden cascade.
+    let job = bound(&format!("{APPLICATIONS}job sweep():\n  for row in applications:\n    if exists applications[status = 'submitted', totalPoints > row.totalPoints]:\n      update applications[row.id] {{ totalPoints: 0 }}\nschedule nightly every 1d: sweep\n"));
+    let schedule = job.diagnostics.iter().find(|d| d.message.starts_with("schedule nightly")).unwrap_or_else(|| panic!("{:#?}", job.diagnostics));
+    assert!(schedule.message.contains("which did not compile") && schedule.rewrite == "fix this Quarry line and rerun snapback4 check" && schedule.cascade_of.is_some(), "{schedule:#?}");
+}
+
+/// Lane 057: named equalities covering two unique keys were ambiguous although
+/// either key names the same row; lane 020: `budgets['general']` matched the id
+/// and the unique name, and the printed choice led with the id.
+#[test]
+fn named_keys_over_two_unique_keys_read_one_row_and_a_text_literal_leads_with_the_named_key() {
+    let source = "table telescopes:\n  name: text 1..40\n  public 'scopes'\n  online only\ntable loans:\n  borrower: principal\n  telescope: telescopes\n  unique borrower\n  unique telescope\n  read <- .borrower = viewer\n  online only\n\
+query has(telescope: telescopes):\n  return exists loans[borrower = viewer, telescope = telescope]\n\
+query loan(telescope: telescopes):\n  return loans[telescope = telescope, borrower = viewer]\n";
+    let mut engine = engine(source, vec![
+        ("telescopes", vec![("id", id("t1")), ("name", Value::String("Dob".into()))]),
+        ("telescopes", vec![("id", id("t2")), ("name", Value::String("Refractor".into()))]),
+        ("loans", vec![("id", id("l1")), ("borrower", id("amy")), ("telescope", id("t1"))]),
+        ("loans", vec![("id", id("l2")), ("borrower", id("bo")), ("telescope", id("t2"))]),
+    ]);
+    for (viewer, telescope, held) in [("amy", "t1", true), ("amy", "t2", false), ("bo", "t2", true), ("bo", "t1", false)] {
+        assert_eq!(engine.query("has", Context::new(viewer, args(&[("telescope", id(telescope))]))).unwrap().data, Value::Bool(held), "{viewer} {telescope}");
+        assert_eq!(engine.query("loan", Context::new(viewer, args(&[("telescope", id(telescope))]))).unwrap().data != Value::Null, held, "{viewer} {telescope}");
+    }
+    let d = first("table budgets:\n  name: text 1..40\n  amount: int\n  unique name\n  public 'budgets'\n  online only\nquery general():\n  return budgets['general']\n", "E_QUARRY_POSITIONAL_SCAN");
+    assert!(d.message.ends_with("choose a named form: budgets[name = 'general'] or budgets[id = 'general']"), "{d:#?}");
+    assert_eq!(d.rewrite, "budgets[name = 'general']");
+}
+
+/// Lane 034: a view with `where` after `by` reported two E_QUARRY_MAINTAIN
+/// causes; the fault is the clause order, and the reordered view compiles.
+#[test]
+fn a_view_with_where_after_by_names_the_clause_order() {
+    let table = "table items:\n  owner: principal\n  minutes: int\n  verified: bool\n  read <- .owner = viewer\n  online only\n";
+    for (view, fixed) in [
+        ("view v: sum items of .minutes by .owner where .verified = true\n", "view v: sum items of .minutes where .verified = true by .owner"),
+        ("view w: count items by .owner, .verified where .minutes > 3\n", "view w: count items where .minutes > 3 by .owner, .verified"),
+    ] {
+        let source = format!("{table}{view}");
+        let b = bound(&source);
+        assert_eq!(b.diagnostics.len(), 1, "{:#?}", b.diagnostics);
+        assert!(b.diagnostics[0].message.starts_with("a view's where comes before its group keys"), "{:#?}", b.diagnostics);
+        assert_eq!(b.diagnostics[0].rewrite, fixed);
+        clean(&format!("{table}{fixed}\n"));
+    }
+}
+
+/// Wave 5 #5 (11 lanes): `int 1..N` failed "expected the end of the line, got 1".
+/// The targeted refusal prints the require (and rule) forms, which compile.
+#[test]
+fn an_int_range_names_the_require_and_rule_forms() {
+    let d = first("mutation add(k: int 1..7200):\n  return k\n", "E_QUARRY_SYNTAX");
+    assert!(d.message.starts_with("int takes no range in its type"), "{d:#?}");
+    assert_eq!(d.rewrite, "declare `k: int` and refuse other values first in the body: `require k >= 1 and k <= 7200 else OUT_OF_RANGE`");
+    clean("mutation add(k: int):\n  require k >= 1 and k <= 7200 else OUT_OF_RANGE\n  return k\n");
+    let d = first("table items:\n  owner: principal\n  n: int 1..10\n  read <- .owner = viewer\n  online only\n", "E_QUARRY_SYNTAX");
+    assert!(d.rewrite.contains("insert <- … and .n >= 1 and .n <= 10") && d.rewrite.contains("update (old, next) <- … and next.n >= 1 and next.n <= 10"), "{d:#?}");
+    let source = "table items:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  insert <- .owner = viewer and .n >= 1 and .n <= 10\n  update (old, next) <- next.owner = viewer and next.n >= 1 and next.n <= 10\n  online only\n\
+mutation add(n: int):\n  require n >= 1 and n <= 10 else OUT_OF_RANGE\n  return insert items { owner: viewer, n }\n";
+    let mut engine = engine(source, vec![]);
+    let sent = |engine: &mut Engine, n: i64| matches!(engine.mutate("add", None, Context::new("amy", args(&[("n", Value::Int(n))]))).map(|o| o.state), Ok(snapback4_core::WriteState::Sent { .. }));
+    assert!(sent(&mut engine, 4) && !sent(&mut engine, 11) && !sent(&mut engine, 0));
+    let d = first("table items:\n  m: int <=5 ?\n  public 'x'\n  online only\n", "E_QUARRY_SYNTAX");
+    assert!(d.rewrite.starts_with("declare `m: int ?`") && d.rewrite.contains("(.m = null or .m <= 5)"), "{d:#?}");
+}

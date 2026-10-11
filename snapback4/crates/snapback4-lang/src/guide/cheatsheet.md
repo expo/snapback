@@ -61,7 +61,7 @@ mutation removeItem(item: items):
 ## Quarry
 
 - Comments start with `--` (never `//`); blocks indent two spaces; `snapback/*.q` share one namespace.
-- Types: `text <=N`, `text M..N`, `int`, `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
+- Types: `text <=N`, `text M..N` (a length), `int` (no range: bound it with `require n >= 1 and n <= 10 else CODE`), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
   `json <=N`, `bytes <=N`, `[text <=20] <=8`, `image <=N`, a table name (a reference); `T ?` is optional (`guide types`).
 - Durations are milliseconds: `500ms 30s 15m 24h 7d`; `now + 1h`; `day(now)` is a UTC day number (`guide time`).
 - Operators: `= != < <= > >=`, `and or not`, `+ - * /`, `x ?? fallback`, `a if cond else b`, `exists t[k]`.
