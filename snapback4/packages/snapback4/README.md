@@ -23,7 +23,7 @@ Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases:
    |---|---|---|
    | A Node script, seed or test | `createClient({ url, persona: "alice" })` from `snapback4/client` | Personas are development-only; for real users call `signup`/`login` from `snapback4/auth` and pass `{ url, session }`. |
    | A browser app | `createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })` under `AppProvider` | **A bare `createClient()` in a browser refuses every mutation with `E_ADMISSION`.** Browser writes need `createApp` with a device; the `init --web` starter's `src/client.ts` is the pattern. `webDevice()` fetches about 2.1 MB raw (~650 KB gzip) of wasm plus a ~24 KB worker; a page that never writes needs no device. |
-   | An Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })` | The `init --expo` starter's `src/client.ts` also selects `webDevice()` on web. Expo Go runs online. |
+   | An Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })` | The `init --expo` starter's `src/client.ts` also selects `webDevice()` on web. Expo Go runs online. `npm install` reports about 15 high advisories in Expo's development toolchain (`braces`, `node-forge`; no patched release exists, neither ships in the app): do not run `npm audit fix --force`, which downgrades Expo to SDK 44. |
 
 ## Tutorial: your first working account screen
 

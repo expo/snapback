@@ -5,6 +5,12 @@ one live query and three mutations. Development and production builds open the
 native device and work offline; Expo Go uses the online client; web uses the
 wasm device.
 
+> **`npm install` takes a few minutes and reports about 15 high-severity
+> advisories. They are expected; do not run `npm audit fix --force`** (it
+> "fixes" them by downgrading Expo to SDK 44). All come from two packages in
+> Expo's development toolchain with no patched release; neither is in the app
+> bundle. Details under [Audit findings](#audit-findings).
+
 ```sh
 npm install
 npx snapback4 check      # compiles snapback/schema.q, writes snapback/generated/api.ts
@@ -40,6 +46,8 @@ guest", then add a few todos.
 
 Keep the Expo and `babel-preset-expo` major versions together; mixing them can
 fail Hermes compilation.
+
+## Audit findings
 
 `package.json`'s `overrides` moves the config plugins' `xcode` from the
 deprecated `uuid@7` to `uuid@11` (GHSA-w5hq-g745-h8pq). `npm audit` still

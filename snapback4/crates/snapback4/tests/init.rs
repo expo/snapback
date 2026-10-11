@@ -973,6 +973,18 @@ fn expo_starters_override_the_config_plugins_uuid() {
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
         assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("SDK 44"), "{flags:?}");
     }
+    // Wave 4 (15 lanes): the advisories are named before the install reports them,
+    // in init's output and above the starter README's first command.
+    let dir = Dir::new();
+    let output = dir.init(&["--expo"]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("about 15 high advisories") && stdout.contains("do not run `npm audit fix --force`"), "{stdout}");
+    let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
+    let notice = readme.find("do not run `npm audit fix --force`").expect("the README names the advisories");
+    assert!(notice < readme.find("npm install\n").unwrap(), "{readme}");
+    let web = Dir::new();
+    let output = web.init(&["--web"]);
+    assert!(output.status.success() && !String::from_utf8_lossy(&output.stdout).contains("advisories"), "{output:?}");
     // An existing package's own overrides are its own.
     let dir = Dir::new();
     fs::write(dir.0.join("package.json"), r#"{"overrides":{"left-pad":"1.3.0"}}"#).unwrap();

@@ -241,6 +241,10 @@ pub fn init(options: &Options) -> i32 {
         else if online { "online-only" } else { "local-first" };
     println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
+    // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
+    if expo && files.iter().any(|(name, _)| *name == "package.json") {
+        println!("init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
+    }
     if web {
         let page = web_port.unwrap_or(5173);
         println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page} (`init --web-port N` picks another)", port.unwrap_or(4400));
