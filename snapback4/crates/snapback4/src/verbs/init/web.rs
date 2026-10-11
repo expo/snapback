@@ -22,12 +22,13 @@ createRoot(document.getElementById("root")!).render(<App />);
         ("src/state.ts", include_str!("../../../../../apps/chat/src/state.ts").to_owned()),
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("index.html", include_str!("../../../../../apps/chat/index.html").to_owned()),
-        ("vite.config.ts", r#"import { defineConfig } from "vite";
+        ("vite.config.mts", r#"import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+// `.mts` loads this config as ESM whatever package.json's "type" says.
 // strictPort: a busy port fails loudly instead of moving the app elsewhere.
 export default defineConfig({ plugins: [react()], server: { port: 5173, strictPort: true }, build: { target: "es2022", sourcemap: false } });
 "#.to_owned()),
-        ("tsconfig.json", include_str!("../../../../../apps/chat/tsconfig.json").to_owned()),
+        ("tsconfig.json", super::esm_vite_config(include_str!("../../../../../apps/chat/tsconfig.json"))),
         ("snapback/schema.q", include_str!("../../../../../apps/chat/snapback/schema.q").to_owned()),
         ("snapback/worker.ts", include_str!("../../../../../apps/chat/snapback/worker.ts").to_owned()),
         ("README.md", include_str!("web-readme.md").to_owned()),

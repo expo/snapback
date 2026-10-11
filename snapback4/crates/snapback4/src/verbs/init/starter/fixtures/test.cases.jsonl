@@ -1,4 +1,4 @@
-// `snapback4 test --fixture fixtures --as alice` runs these in order; `snapback4 guide testing`.
+// The todo starter's cases over todos.jsonl: `snapback4 test --fixture fixtures --as alice` runs them in order. Replace both with your own tables' rows and cases; `snapback4 guide testing`.
 {"as":"alice","op":"list","args":{},"count":1}
 {"as":"alice","op":"add","args":{"title":"Call mom"},"save":"call"}
 {"as":"alice","op":"toggle","args":{"todoId":"$call"}}

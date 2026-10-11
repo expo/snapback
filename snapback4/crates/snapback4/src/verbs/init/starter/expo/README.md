@@ -14,7 +14,8 @@ npm run typecheck
 ```
 
 `npm run ios:dev` builds the native development build. The iOS simulator
-reaches http://127.0.0.1:4400 on this machine; for a physical phone set
+reaches http://127.0.0.1:4400 on this machine (`init --expo --port N` writes
+that port; `EXPO_PUBLIC_SNAPBACK_URL` overrides it); for a physical phone set
 `EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment. Choose "Continue as a
 guest", then add a few todos.
 
@@ -26,6 +27,8 @@ guest", then add a few todos.
 - `src/client.ts`: one `createApp` for the whole app; it picks the native
   device, the online client (Expo Go) or `webDevice()` (web).
 - `App.tsx`: sign-in, the live list (`usePage`) and writes (`useMutation`).
+  `usePage` passes the query's cursor itself: a paged query takes `c: cursor ?`
+  and reads `after c` (`npx snapback4 guide reads`).
 - `expo-env.d.ts`: Expo's types, including `process.env.EXPO_PUBLIC_*`.
 - `metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then
   ships the web device's wasm and skips the local `.snapback4/` store.

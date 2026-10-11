@@ -2,20 +2,31 @@
 //! verbs agents script against have a page; any other verb prints its lines
 //! from the full help.
 
-const INIT: &str = "snapback4 init [dir] [--online|--expo|--web]
+const INIT: &str = "snapback4 init [dir] [--online|--expo|--web] [--template chat] [--port N] [--web-port N] [--skip-existing]
 
 Starts a project in dir (default: here) without overwriting anything: an
-existing file is kept, an existing package.json has the starter's
-dependencies and scripts merged in, and a conflicting value refuses before any
-file is written.
+existing package.json has the starter's dependencies and scripts merged in
+(a caret range of the starter's own version is pinned to it; scripts compare
+as commands, so option order does not matter), and an existing file or a
+conflicting value refuses before any file is written.
 
-  (no flag)   snapback/schema.q: the local-first todo schema, and .gitignore
-  --online    plus an online client, package.json and README
-  --web       a Vite web app on the client
-  --expo      the Expo chat starter with its backend
+  (no flag)        snapback/schema.q: the local-first todo schema, and .gitignore
+  --online         plus an online client, package.json and README
+  --web            a Vite + React todos app (vite.config.mts, src/App.tsx)
+  --expo           an Expo todos app
+  --template chat  with --web or --expo: the full reference chat app
+  --port N         the backend port the client calls (default 4400)
+  --web-port N     the Vite page's port for dev and preview (--web only;
+                   default 5173, or the port after --port)
+  --skip-existing  keep every existing file and write only the missing ones
+
+A project's own snapback/*.q is never overwritten, and the todo starter's
+fixtures are written only beside the starter's own schema. Beside a schema
+that declares `use personas` and no `use identity`, the screen picks a
+persona instead of signing in as a guest.
 
 Next: npm install (when a package.json was written), snapback4 check, then
-snapback4 dev. Exit 0 when written, 2 on a conflict or bad flags.
+snapback4 dev. Exit 0 when written, 1 on a conflict, 2 on bad flags.
 snapback4 guide start walks the first schema.";
 
 const CHECK: &str = "snapback4 check [--verbose] [--json] [--cost] [--residency [--fixture dir --as p]] [--fix] [--store path]
