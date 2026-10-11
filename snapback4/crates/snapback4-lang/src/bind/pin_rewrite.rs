@@ -7,8 +7,11 @@ use snapback4_core::ir::{ArgType, Expr, Program, Scan};
 use snapback4_core::schema::{ColumnType, RuleExpr, RuleTerm, Schema, Table};
 
 /// The concrete repair for a page whose read rule reads `unpinned`, or None
-/// when no rendering beats the generic advice.
-pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table: &Table, unpinned: &[String], declaration: Option<&str>) -> Option<String> {
+/// when no rendering beats the generic advice: the code to paste first (the
+/// author's query split by role or by party, when it can be rendered from the
+/// declaration), then the rest of the advice.
+// @ref LLP 3000.036#14.2 — the role branch or per-party split leads the note, as code that compiles.
+pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table: &Table, unpinned: &[String], declaration: Option<&str>) -> Option<(Option<String>, String)> {
     let rule = &table.rules.read;
     let disjuncts = rule.disjuncts();
     let viewer_column = |rule: &RuleExpr| match rule {
@@ -17,16 +20,26 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
     };
     let parties: Vec<String> = disjuncts.iter().filter_map(|d| viewer_column(d)).collect();
     let name = &scan.table;
+    let grant = snapback4_core::engine::rules::grant_decision(schema, scan);
+    let mut code = None;
     let mut out = Vec::new();
     if parties.len() >= 2 && unpinned.iter().all(|column| parties.contains(column)) {
         let queries = parties.iter().map(|column| format!("`{name} where .{column} = viewer …`")).collect::<Vec<_>>().join(" and ");
         // @ref LLP 3000.036#12 — wave 2 #11: print the author's own query once per party, ready to paste.
         let pasted = declaration.and_then(|text| party_declarations(text, name, &parties));
         match pasted {
-            Some(declarations) => out.push(format!("`{}` admits either party, so one page cannot certify both (an `or` of the two pins in `where` is still one scan). Replace this query with one per party, each pinned and complete, and show both lists or merge them by their order in the client:\n{declarations}", rule.quarry())),
+            Some(declarations) => {
+                code = Some(format!("Replace this query with one per party, each pinned and complete, and show both lists or merge them by their order in the client:\n{declarations}"));
+                out.push(format!("`{}` admits either party, so one page cannot certify both (an `or` of the two pins in `where` is still one scan)", rule.quarry()));
+            }
             None => out.push(format!("`{}` admits either party, so one page cannot certify both. Declare one query per party, each pinned and complete: {queries} (same order, page and cursor), and show or merge them in the client", rule.quarry())),
         }
     } else {
+        // An owner plus a readable grant: branch on the grant, pin the owner otherwise.
+        if let (Some(grant), [party]) = (&grant, unpinned) && parties.contains(party)
+            && let Some(branched) = declaration.and_then(|text| role_branch(text, name, party, &grant.quarry())) {
+            code = Some(format!("Branch on the grant and pin the owner for everyone else; both pages are complete:\n{branched}"));
+        }
         let mut setup = Vec::new();
         let mut pins = Vec::new();
         for column in unpinned {
@@ -38,26 +51,44 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
         out.push(format!("{first}add `and {}` to the page's where (keeping its current pins); this narrows the answer to that scope", pins.join(" and ")));
     }
     // @ref LLP 3000.036#12 — the engine decides a page once for a caller whose readable grant holds.
-    if let Some(used) = snapback4_core::engine::rules::grant_decision(schema, scan) {
+    if let Some(used) = &grant {
         out.push(format!("for callers `{}` admits (staff), this page is decided once and answers `complete: true`; everyone else pages their own rows with complete: false — in test.cases.jsonl run it as staff to expect complete, and expect `capped` for the others", used.quarry()));
     } else if let Some(grant) = disjuncts.iter().find(|d| row_independent(d)) {
         out.push(format!("the grant `{}` reads no row field, but its holders cannot read the row that grants it, so it does not decide the page (that would disclose the hidden row): they receive every row with complete: false. Let each holder read their own grant row (`read <- .principal = viewer` on the probed table) to make their pages complete", grant.quarry()));
     }
-    Some(out.join("; "))
+    Some((code, out.join("; ")))
 }
 
-/// The query declaration `text` (one `return` of a page over `table`) once
-/// per party: named `{query}As{Party}`, its `where` without the parties'
-/// disjunction and with `.party = viewer` added, everything else as written.
-fn party_declarations(text: &str, table: &str, parties: &[String]) -> Option<String> {
+/// The page statement of a one-statement query declaration: its `return`'s
+/// read over `table`, with the rest of the declaration's header.
+fn single_page(text: &str, table: &str) -> Option<(String, crate::ast::ProgramDecl, crate::ast::Expr)> {
     use crate::ast::{Expr as A, Stmt as S};
     let (document, errors) = crate::parser::parse_document("query.q", text);
     if !errors.is_empty() { return None; }
     let [decl] = document.programs.as_slice() else { return None };
     let [S::Return { value, .. }] = decl.body.as_slice() else { return None };
     if !decl.prelude.is_empty() { return None; }
+    let read = match value {
+        A::Read(read) => read,
+        A::Shape { base, .. } | A::ShapeUse { base, .. } => match base.as_ref() { A::Read(read) => read, _ => return None },
+        _ => return None,
+    };
+    if read.table != table || !read.keys.is_empty() || read.matching.is_some() || read.index.is_some() { return None; }
     let (header, _) = text.split_once('\n')?;
-    let at = header.find(&format!(" {}(", decl.name))? + 1;
+    Some((header.to_owned(), decl.clone(), value.clone()))
+}
+
+/// `value` (a page over `table`, maybe shaped) with its `where` keeping every
+/// conjunct but the parties' pins and their disjunction, and `.party = viewer` first.
+fn pinned_to(value: &crate::ast::Expr, parties: &[String], party: &str) -> Option<crate::ast::Expr> {
+    use crate::ast::Expr as A;
+    let mut value = value.clone();
+    let read = match &mut value {
+        A::Read(read) => read,
+        A::Shape { base, .. } | A::ShapeUse { base, .. } => match base.as_mut() { A::Read(read) => read, _ => return None },
+        _ => return None,
+    };
+    let site = read.site.clone();
     let pin = |column: &str, site: &crate::Site| A::Binary { op: "=".into(), left: Box::new(A::Member { base: Box::new(A::Focal { site: site.clone() }), name: column.into(), site: site.clone() }), right: Box::new(A::Name { name: "viewer".into(), site: site.clone() }), site: site.clone() };
     let party_only = |expr: &A| {
         fn disjuncts<'a>(e: &'a A, out: &mut Vec<&'a A>) { match e { A::Binary { op, left, right, .. } if op == "or" => { disjuncts(left, out); disjuncts(right, out); }, other => out.push(other) } }
@@ -65,28 +96,39 @@ fn party_declarations(text: &str, table: &str, parties: &[String]) -> Option<Str
         disjuncts(expr, &mut parts);
         parts.len() > 1 && parts.iter().all(|part| matches!(part, A::Binary { op, left, right, .. } if op == "=" && matches!(right.as_ref(), A::Name { name, .. } if name == "viewer") && matches!(left.as_ref(), A::Member { base, .. } if matches!(base.as_ref(), A::Focal { .. }))))
     };
+    let mut conjuncts = Vec::new();
+    fn split(e: A, out: &mut Vec<A>) { match e { A::Binary { op, left, right, .. } if op == "and" => { split(*left, out); split(*right, out); }, other => out.push(other) } }
+    if let Some(filter) = read.filter.take() { split(*filter, &mut conjuncts); }
+    conjuncts.retain(|part| !party_only(part) && !matches!(part, A::Binary { op, left, .. } if op == "=" && matches!(left.as_ref(), A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) && parties.iter().any(|p| p == name))));
+    let filter = conjuncts.into_iter().fold(pin(party, &site), |acc, part| A::Binary { op: "and".into(), left: Box::new(acc), right: Box::new(part), site: site.clone() });
+    read.filter = Some(Box::new(filter));
+    Some(value)
+}
+
+/// The query declaration `text` (one `return` of a page over `table`) once
+/// per party: named `{query}As{Party}`, its `where` without the parties'
+/// disjunction and with `.party = viewer` added, everything else as written.
+fn party_declarations(text: &str, table: &str, parties: &[String]) -> Option<String> {
+    let (header, decl, value) = single_page(text, table)?;
+    let at = header.find(&format!(" {}(", decl.name))? + 1;
     let mut out = Vec::new();
     for party in parties {
-        let mut value = value.clone();
-        let read = match &mut value {
-            A::Read(read) => read,
-            A::Shape { base, .. } | A::ShapeUse { base, .. } => match base.as_mut() { A::Read(read) => read, _ => return None },
-            _ => return None,
-        };
-        if read.table != table || !read.keys.is_empty() || read.matching.is_some() || read.index.is_some() { return None; }
-        let site = read.site.clone();
-        let mut conjuncts = Vec::new();
-        fn split(e: A, out: &mut Vec<A>) { match e { A::Binary { op, left, right, .. } if op == "and" => { split(*left, out); split(*right, out); }, other => out.push(other) } }
-        if let Some(filter) = read.filter.take() { split(*filter, &mut conjuncts); }
-        conjuncts.retain(|part| !party_only(part) && !matches!(part, A::Binary { op, left, .. } if op == "=" && matches!(left.as_ref(), A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) && parties.contains(name))));
-        let filter = conjuncts.into_iter().fold(pin(party, &site), |acc, part| A::Binary { op: "and".into(), left: Box::new(acc), right: Box::new(part), site: site.clone() });
-        read.filter = Some(Box::new(filter));
+        let value = pinned_to(&value, parties, party)?;
         let mut name: Vec<char> = party.chars().collect();
         name[0] = name[0].to_ascii_uppercase();
         let header = format!("{}{}As{}{}", &header[..at], decl.name, name.into_iter().collect::<String>(), &header[at + decl.name.len()..]);
         out.push(format!("{header}\n  return {}", crate::print::with_source(&value, &|_| None)));
     }
     Some(out.join("\n"))
+}
+
+/// The query declaration `text` branched on `grant`: the grant's holders read
+/// the page as written, everyone else the page pinned to `.party = viewer`.
+fn role_branch(text: &str, table: &str, party: &str, grant: &str) -> Option<String> {
+    let (header, _, value) = single_page(text, table)?;
+    let pinned = pinned_to(&value, &[party.to_owned()], party)?;
+    let print = |value: &crate::ast::Expr| crate::print::with_source(value, &|_| None);
+    Some(format!("{header}\n  if {grant}:\n    return {}\n  return {}", print(&value), print(&pinned)))
 }
 
 /// `exists staff[viewer]` or `viewer = 'service:x'`: the same for every row.
@@ -140,5 +182,46 @@ fn contains_viewer_eq(rule: &RuleExpr, column: &str) -> bool {
         RuleExpr::Eq(RuleTerm::Field(c), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(c)) => c == column,
         RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(|item| contains_viewer_eq(item, column)),
         _ => false,
+    }
+}
+
+/// Disjuncts of the read rule that read row columns, all of which the scan
+/// pins (`exists rides[.ride, leader = viewer]` under `.ride = ride`). They
+/// decide the rule for this page and this caller, but the server only decides
+/// a page from a disjunct that reads no column of the row (`grant_decision`),
+/// so the page stays `complete: false` for their holders too.
+pub(super) fn prefix_decided(scan: &Scan, table: &Table, pinned: &std::collections::BTreeSet<String>) -> Vec<RuleExpr> {
+    let _ = scan;
+    if !matches!(table.rules.read, RuleExpr::Or(_)) { return Vec::new(); }
+    table.rules.read.disjuncts().into_iter().filter(|disjunct| {
+        let mut fields = std::collections::BTreeSet::new();
+        disjunct.fields(&mut fields);
+        !fields.is_empty() && fields.iter().all(|field| pinned.contains(field))
+    }).cloned().collect()
+}
+
+/// The repair that makes a prefix-decided parent grant complete: copy the
+/// deciding principal onto the row (immutable, checked against the parent at
+/// insert), read it as a column, and pin it in the holders' page.
+// @ref LLP 3000.036#14.1 — lane 039: the leader's roster is complete once the leader is on the row.
+pub(super) fn copy_recipe(name: &str, table: &Table, disjunct: &RuleExpr, page: Option<&str>) -> Option<String> {
+    let RuleExpr::Exists { table: parent, key, equalities, .. } = disjunct else { return None };
+    let ([RuleTerm::Field(reference)], [(column, RuleTerm::Viewer)]) = (key.as_slice(), equalities.as_slice()) else { return None };
+    if !matches!(table.columns.get(reference).map(ColumnType::required), Some(ColumnType::Ref { table }) if table == parent) { return None; }
+    let copy = match table.columns.get(column).map(ColumnType::required) {
+        None | Some(ColumnType::Principal) => column.clone(),
+        Some(_) => format!("{reference}{}{}", column[..1].to_ascii_uppercase(), &column[1..]),
+    };
+    let declare = if table.columns.contains_key(&copy) { String::new() } else { format!("`{copy}: principal`, ") };
+    let rule = table.rules.read.disjuncts().iter().map(|d| if *d == disjunct { format!(".{copy} = viewer") } else { d.quarry() }).collect::<Vec<_>>().join(" or ");
+    let pinned = page.map(|page| format!("; the holders' page then pins it and is complete: `{}`", add_pin(page, &copy))).unwrap_or_default();
+    Some(format!("to make the page complete for `{}`'s holders, copy the deciding principal onto {name}: declare {declare}`immutable {reference}, {copy}`, add `and exists {parent}[.{reference}, {column} = .{copy}]` to the insert rule (the inserting mutation sets `{copy}` from the {parent} row), and read it as a column: `read <- {rule}`{pinned} (the copy is checked at insert, so it holds while {parent}.{column} cannot change)", disjunct.quarry()))
+}
+
+/// `t where … first …` with `.column = viewer` added to its where.
+fn add_pin(page: &str, column: &str) -> String {
+    match page.split_once(" where ") {
+        Some((table, rest)) => format!("{table} where .{column} = viewer and {rest}"),
+        None => match page.split_once(' ') { Some((table, rest)) => format!("{table} where .{column} = viewer {rest}"), None => format!("{page} where .{column} = viewer") },
     }
 }

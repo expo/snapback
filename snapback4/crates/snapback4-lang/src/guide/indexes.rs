@@ -141,7 +141,10 @@ A grant row its holder cannot read decides nothing; the note says when a
 grant is not used. The run never needs a guard, but `check` follows one: a
 page that only grant holders reach (`require exists staff[viewer] else …`,
 `if exists staff[viewer]:` around it, or `if not exists staff[viewer]: return
-[]` before it) gets no note, as it is `complete` for every caller who runs it.
+[]` before it; several grants may share one guard with `or`) gets no note, as
+it is `complete` for every caller who runs it. A disjunct that reads a row
+column the scan pins (`exists rides[.ride, leader = viewer]` under `.ride =
+ride`) is not a grant, guarded or not: copy the leader onto the row and pin it.
 
 A page that stays `complete: false` still holds every row the caller may
 read. In `test.cases.jsonl` the default expectation passes it (write
