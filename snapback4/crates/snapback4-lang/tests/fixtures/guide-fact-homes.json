@@ -135,7 +135,7 @@
     "id": "reads-22",
     "card": "reads",
     "home": "Details",
-    "text": "`exists messages where .roomId = roomId` stops at a visible match. It accepts\npredicates and seeks, but no page clause or cursor. A visible or held witness\nproves existence (`true`); absence needs complete coverage: an interrupted or\nundecided scan has no answer. Mutations keep their ordinary scan\nadmission; rule probes keep exact-key semantics."
+    "text": "`exists messages where .roomId = roomId` stops at a visible match. It accepts\npredicates and seeks, but no page clause or cursor. A visible or held witness\nproves existence (`true`); absence needs full coverage: an interrupted or\nundecided scan answers nothing. Mutations keep their ordinary scan\nadmission; rule probes keep exact-key semantics."
   },
   {
     "id": "reads-23",

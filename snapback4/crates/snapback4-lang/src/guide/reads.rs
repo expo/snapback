@@ -183,8 +183,8 @@ authorized total or null on interruption. Scan admission remains unchanged.
 
 `exists messages where .roomId = roomId` stops at a visible match. It accepts
 predicates and seeks, but no page clause or cursor. A visible or held witness
-proves existence (`true`); absence needs complete coverage: an interrupted or
-undecided scan has no answer. Mutations keep their ordinary scan
+proves existence (`true`); absence needs full coverage: an interrupted or
+undecided scan answers nothing. Mutations keep their ordinary scan
 admission; rule probes keep exact-key semantics.
 
 A resumable read-meter cut after every required head is known can carry `next`
