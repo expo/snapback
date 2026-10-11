@@ -2696,7 +2696,7 @@ step.
   Otherwise, and for fatal signals such as `SIGBUS`, termination is immediate with the OS
   signal status. `SIGKILL`, power loss and an unwritable stderr cannot be reported from inside the process.
   `snapback4 why SNAPBACK4_SIGNAL` explains the code.
-- **Scripts that spawn `dev`.** `resolveBinary()` from `snapback4/bin-path` returns the binary the
+- **Scripts that spawn `dev`.** `resolveBinary()` from `snapback4/bin-path` (file: `dist/bin-path.js`) returns the binary the
   `snapback4` shim runs: `SNAPBACK4_BIN`, then the installed platform package, then a repository build.
   Spawning it directly puts no npm, shell or Node wrapper between the script and the server, so the child's
   PID is the server's and `kill()` stops it. Wait for the first stdout line (the listening URL), then
@@ -3168,8 +3168,9 @@ server and device defaults remain unchanged.
 ## 7. Expo
 
 `npx snapback4 init --expo` writes `metro.config.js` and
-`metro-wasm-transformer.cjs` (the config is `metro.config.cjs` in an existing
-ESM package): wasm is a Metro asset, and the transformer
+`metro-wasm-transformer.cjs`, and prints every file it wrote (`init: files: …`); only inside an
+existing package whose `package.json` says `"type": "module"` does it name the CommonJS configs `.cjs`.
+Wasm is a Metro asset, and the transformer
 turns the web device's module-relative wasm URL into an asset dependency.
 On web, `webDevice()` then finds the emitted wasm URL without a manual
 `wasm` option, in development and in an Expo web export. Keep both generated

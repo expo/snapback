@@ -815,3 +815,37 @@ fn package_scripts_compare_as_commands() {
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("scripts.typecheck"));
 }
+
+// Wave 3 (LLP 3000.037): 36 lanes guessed `vite.config.ts` or `metro.config.cjs`.
+// init names every file it wrote, and each named file exists.
+#[test]
+fn init_lists_the_files_it_wrote() {
+    for (args, expected) in [(&["--web"][..], &["vite.config.mts", "src/{", "App.tsx"][..]), (&["--expo"], &["metro.config.js", "metro-wasm-transformer.cjs", "App.tsx"])] {
+        let dir = Dir::new();
+        let output = dir.init(args);
+        assert!(output.status.success(), "{output:?}");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let listed = stdout.lines().find_map(|line| line.strip_prefix("init: files: ")).unwrap_or_else(|| panic!("{args:?}: {stdout}"));
+        for name in expected { assert!(listed.contains(name), "{args:?}: {listed}"); }
+        assert!(!listed.contains("vite.config.ts") && !listed.contains("metro.config.cjs"), "{listed}");
+        // Expand `dir/{a, b}` and check every listed file exists.
+        let mut names = Vec::new();
+        let mut rest = listed;
+        while !rest.is_empty() {
+            let (item, tail) = match (rest.find(", "), rest.find('{')) {
+                (_, Some(open)) if rest.find(", ").is_none_or(|comma| open < comma) => {
+                    let close = rest.find('}').unwrap();
+                    (&rest[..=close], rest[close + 1..].trim_start_matches(", "))
+                }
+                (Some(comma), _) => (&rest[..comma], &rest[comma + 2..]),
+                (None, _) => (rest, ""),
+            };
+            match item.split_once("/{") {
+                Some((dir_name, members)) => names.extend(members.trim_end_matches('}').split(", ").map(|m| format!("{dir_name}/{m}"))),
+                None => names.push(item.to_owned()),
+            }
+            rest = tail;
+        }
+        for name in names { assert!(dir.0.join(&name).exists(), "{args:?}: listed {name} does not exist ({listed})"); }
+    }
+}
