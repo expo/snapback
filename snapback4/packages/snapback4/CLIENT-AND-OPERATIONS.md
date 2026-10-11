@@ -1629,8 +1629,9 @@ function Who() {
 ```
 
 A schema with `use personas` and no `use identity` has no sign-in at all, so `auth.guest()` refuses
-`E_AUTH`: `snapback4 init --web --skip-existing` (or `--expo`) beside such a schema writes this
-picker instead of the guest screen. In React Native there is no `location`: keep the persona in
+`E_AUTH`: `snapback4 init --web` (or `--expo`) beside such a schema writes this
+picker instead of the guest screen, and when the starter came first, `snapback4 init --adapt`
+rewrites its unmodified guest screen into this picker. In React Native there is no `location`: keep the persona in
 state, one app per persona as above (`nativeDevice` in development builds, none in Expo Go, where
 the app is online-only):
 

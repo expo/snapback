@@ -86,7 +86,7 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), before);
         assert!(!dir.0.join("snapback").exists());
     }
-    for name in ["src/client.ts", "metro.config.js", "snapback/schema.q", "snapback/generated/package.json"] {
+    for name in ["src/client.ts", "metro.config.js", "snapback/generated/package.json"] {
         let dir = Dir::new();
         let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "kept").unwrap();
         fs::write(dir.0.join("package.json"), "{}").unwrap();
@@ -94,6 +94,12 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(&path).unwrap(), "kept");
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), "{}");
     }
+    // A snapback/*.q is the project's schema, never a conflict: kept as written.
+    let dir = Dir::new();
+    let path = dir.0.join("snapback/schema.q"); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "kept").unwrap();
+    fs::write(dir.0.join("package.json"), "{}").unwrap();
+    assert!(dir.run("--expo").status.success());
+    assert_eq!(fs::read_to_string(&path).unwrap(), "kept");
 }
 
 #[cfg(unix)]
@@ -127,9 +133,10 @@ fn init_reports_all_conflicts_before_writing() {
     let output = dir.run("--expo");
     assert_eq!(output.status.code(), Some(1));
     let diagnostic = String::from_utf8_lossy(&output.stderr);
-    for conflict in ["E_INIT_CONFLICT", "dependencies.snapback4", "scripts.start", "conflict at main", "devDependencies must be an object", "snapback/schema.q", "App.tsx", "README.snapback.md", "rewrite:"] {
+    for conflict in ["E_INIT_CONFLICT", "dependencies.snapback4", "scripts.start", "conflict at main", "devDependencies must be an object", "App.tsx", "README.snapback.md", "rewrite:"] {
         assert!(diagnostic.contains(conflict), "{diagnostic}");
     }
+    assert!(!diagnostic.contains("schema.q already exists"), "the project's schema is never a conflict: {diagnostic}");
     assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), package);
     assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), "kept");
     assert!(!dir.0.join("app.json").exists());
@@ -145,8 +152,12 @@ fn init_refuses_owned_symlinks_but_allows_an_unwritten_package_link() {
         let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::os::unix::fs::symlink(&target, &path).unwrap();
         let output = dir.run("--web");
-        assert_eq!(output.status.code(), Some(1), "{output:?}");
-        assert!(String::from_utf8_lossy(&output.stderr).contains(name));
+        // A linked schema is the project's schema: kept, never written through.
+        if name == "snapback/schema.q" { assert!(output.status.success(), "{output:?}"); }
+        else {
+            assert_eq!(output.status.code(), Some(1), "{output:?}");
+            assert!(String::from_utf8_lossy(&output.stderr).contains(name));
+        }
         assert_eq!(fs::read_to_string(&target).unwrap(), "{}\n");
         assert_eq!(fs::read_link(path).unwrap(), target);
     }
@@ -654,12 +665,9 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     let mine = "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n  insert <- allow\n";
     fs::create_dir_all(dir.0.join("snapback")).unwrap();
     fs::write(dir.0.join("snapback/schema.q"), mine).unwrap();
-    let refused = dir.run("--web");
-    assert_eq!(refused.status.code(), Some(1));
-    let diagnostic = String::from_utf8_lossy(&refused.stderr);
-    for text in ["E_INIT_CONFLICT", "snapback/schema.q already exists", "--skip-existing", "copy it over"] { assert!(diagnostic.contains(text), "{diagnostic}"); }
-    assert!(!dir.0.join("src").exists());
-    let output = dir.init(&["--web", "--skip-existing"]);
+    // The project's own schema is never a conflict (wave 3: init after the
+    // schema refused E_INIT_CONFLICT naming only snapback/schema.q).
+    let output = dir.init(&["--web"]);
     assert!(output.status.success(), "{output:?}");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("kept 1 existing file unchanged: snapback/schema.q") && stdout.contains("adapt them to your schema"), "{stdout}");
@@ -736,18 +744,17 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
 
 #[test]
 fn every_q_file_is_the_projects_schema() {
-    let dir = Dir::new();
-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    fs::write(dir.0.join("snapback/app.q"), "use identity password\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
-    let refused = dir.run("--web");
-    assert_eq!(refused.status.code(), Some(1));
-    let diagnostic = String::from_utf8_lossy(&refused.stderr);
-    assert!(diagnostic.contains("app.q already declares your schema") && diagnostic.lines().next().unwrap().contains("--skip-existing"), "{diagnostic}");
-    assert!(!dir.0.join("src").exists());
-    let output = dir.init(&["--web", "--skip-existing"]);
-    assert!(output.status.success(), "{output:?}");
-    assert!(!dir.0.join("snapback/schema.q").exists() && !dir.0.join("fixtures").exists());
-    assert!(String::from_utf8_lossy(&output.stdout).contains("auth.signup"), "{output:?}");
+    for flags in [&["--web"][..], &["--web", "--skip-existing"]] {
+        let dir = Dir::new();
+        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+        fs::write(dir.0.join("snapback/app.q"), "use identity password\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+        let output = dir.init(flags);
+        assert!(output.status.success(), "{flags:?}: {output:?}");
+        assert!(!dir.0.join("snapback/schema.q").exists() && !dir.0.join("fixtures").exists());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("auth.signup") && stdout.contains("kept 1 existing file unchanged: snapback/app.q"), "{flags:?}: {stdout}");
+        assert!(dir.0.join("src/App.tsx").is_file());
+    }
 }
 
 #[test]
@@ -814,4 +821,110 @@ fn package_scripts_compare_as_commands() {
     let output = dir.run("--expo");
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("scripts.typecheck"));
+}
+
+/// Wave 3 (0.4.18): agents run `init --web` first, then replace the schema,
+/// and are left with the todo starter's fixtures and a guest screen the schema
+/// cannot sign in to. `check` names those files and `init --adapt` fits them,
+/// judging each by the starter's original bytes.
+#[test]
+fn init_first_then_schema_leftovers_are_named_and_adapted() {
+    let check = |dir: &Dir| Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+    let check_json = |dir: &Dir| -> Value { serde_json::from_slice(&Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap().stdout).unwrap() };
+    let dir = Dir::new();
+    assert!(dir.init(&["--web", "--port", "4517"]).status.success());
+    // The untouched starter fits its own schema: nothing to report.
+    let fresh = check(&dir);
+    assert!(fresh.status.success() && !String::from_utf8_lossy(&fresh.stdout).contains("starter:"), "{fresh:?}");
+    assert!(check_json(&dir)["starterLeftovers"].is_null());
+    let personas = "use personas carol, dave\ntable notes:\n  body: text <=100\n  public 'shared'\n  insert <- allow\n";
+    fs::write(dir.0.join("snapback/schema.q"), personas).unwrap();
+    let named = check(&dir);
+    assert!(named.status.success(), "{named:?}");
+    let stdout = String::from_utf8_lossy(&named.stdout);
+    for text in ["starter: 4 files left", "fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx: the unmodified starter screen shows the guest sign-in", "src/client.ts", "fix: snapback4 init --adapt"] {
+        assert!(stdout.contains(text), "{text}: {stdout}");
+    }
+    let json = check_json(&dir);
+    assert_eq!(json["starterLeftovers"]["fix"], "snapback4 init --adapt");
+    assert_eq!(json["starterLeftovers"]["files"].as_array().unwrap().iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>(), ["fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx", "src/client.ts"]);
+    // `test` points at the same command.
+    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "carol"]).current_dir(&dir.0).output().unwrap();
+    assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("snapback4 init --adapt"), "{tested:?}");
+    // A second init over the first one's starter names --adapt first.
+    let again = dir.init(&["--web"]);
+    assert_eq!(again.status.code(), Some(1));
+    let refusal = String::from_utf8_lossy(&again.stderr);
+    assert!(refusal.lines().next().unwrap().contains("snapback4 init --adapt") && !refusal.contains("schema.q already exists"), "{refusal}");
+    let adapted = dir.init(&["--adapt"]);
+    assert!(adapted.status.success(), "{adapted:?}");
+    let stdout = String::from_utf8_lossy(&adapted.stdout);
+    assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts"), "{stdout}");
+    assert!(!dir.0.join("fixtures").exists());
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), personas);
+    let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
+    let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)"), "{app}");
+    assert!(client.contains(r#"personas: readonly string[] = ["carol", "dave"]"#) && client.contains("127.0.0.1:4517") && !client.contains("4400"), "{client}");
+    // Exactly what schema-first init writes for the same schema and port.
+    let schema_first = Dir::new();
+    fs::create_dir_all(schema_first.0.join("snapback")).unwrap();
+    fs::write(schema_first.0.join("snapback/schema.q"), personas).unwrap();
+    assert!(schema_first.init(&["--web", "--port", "4517"]).status.success());
+    for file in ["src/App.tsx", "src/client.ts"] {
+        assert_eq!(fs::read_to_string(dir.0.join(file)).unwrap(), fs::read_to_string(schema_first.0.join(file)).unwrap(), "{file}");
+    }
+    // Adapted: no files left over; the screen's todo calls remain advice.
+    let json = check_json(&dir);
+    assert!(json["starterLeftovers"]["files"].as_array().unwrap().is_empty() && json["starterLeftovers"]["fix"].is_null(), "{json}");
+    assert!(String::from_utf8_lossy(&check(&dir).stdout).contains("its Todos screen still calls"));
+    // New personas rewrite the picker's list; `use identity` brings the guest screen back.
+    fs::write(dir.0.join("snapback/schema.q"), personas.replace("carol, dave", "erin")).unwrap();
+    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains(r#"= ["erin"];"#));
+    fs::write(dir.0.join("snapback/schema.q"), format!("use identity\n{personas}")).unwrap();
+    assert!(dir.init(&["--adapt"]).status.success());
+    let guest = Dir::new();
+    assert!(guest.init(&["--web", "--port", "4517"]).status.success());
+    for file in ["src/App.tsx", "src/client.ts"] {
+        assert_eq!(fs::read_to_string(dir.0.join(file)).unwrap(), fs::read_to_string(guest.0.join(file)).unwrap(), "{file}");
+    }
+    // A second adapt has nothing to do.
+    let idle = dir.init(&["--adapt"]);
+    assert!(idle.status.success() && String::from_utf8_lossy(&idle.stdout).contains("nothing to adapt"), "{idle:?}");
+}
+
+#[test]
+fn adapt_never_touches_a_file_the_project_changed() {
+    let dir = Dir::new();
+    assert!(dir.init(&["--expo"]).status.success());
+    fs::write(dir.0.join("snapback/schema.q"), "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+    // The project edited its screen and its cases; the rows are still the starter's.
+    let app = format!("{}\n// mine\n", fs::read_to_string(dir.0.join("App.tsx")).unwrap());
+    fs::write(dir.0.join("App.tsx"), &app).unwrap();
+    let cases = format!("{}{{\"as\":\"carol\",\"op\":\"list\",\"args\":{{}}}}\n", fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap());
+    fs::write(dir.0.join("fixtures/test.cases.jsonl"), &cases).unwrap();
+    let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+    let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+    let stdout = String::from_utf8_lossy(&checked.stdout);
+    assert!(stdout.contains("starter: 1 file left") && stdout.contains("fixtures/todos.jsonl") && !stdout.contains("App.tsx"), "{stdout}");
+    let adapted = dir.init(&["--adapt"]);
+    assert!(adapted.status.success(), "{adapted:?}");
+    assert!(!dir.0.join("fixtures/todos.jsonl").exists());
+    assert_eq!(fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap(), cases);
+    assert_eq!(fs::read_to_string(dir.0.join("App.tsx")).unwrap(), app);
+    assert_eq!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap(), client);
+    assert!(!String::from_utf8_lossy(&adapted.stdout).contains("rewrote"), "{adapted:?}");
+    // An unmodified Expo screen adapts like the web one.
+    let dir = Dir::new();
+    assert!(dir.init(&["--expo"]).status.success());
+    fs::write(dir.0.join("snapback/schema.q"), "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(fs::read_to_string(dir.0.join("App.tsx")).unwrap().contains("openApp(persona)"));
+    assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains(r#"= ["carol"];"#));
+    // --adapt takes no starter flags and needs a schema.
+    assert_eq!(dir.init(&["--adapt", "--port", "1"]).status.code(), Some(2));
+    let empty = Dir::new();
+    assert_eq!(empty.init(&["--adapt"]).status.code(), Some(1));
+    assert_eq!(fs::read_dir(&empty.0).unwrap().count(), 0);
 }

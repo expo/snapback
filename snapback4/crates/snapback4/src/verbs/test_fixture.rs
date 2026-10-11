@@ -48,7 +48,7 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
         // 0.4.17's init wrote the todo starter's rows beside a project's own schema.
         let starter = unknown.iter().any(|name| name == "todos.jsonl")
             && std::fs::read_to_string(std::path::Path::new(fixture).join("todos.jsonl")).is_ok_and(|text| text.contains("\"id\":\"todo-milk\""));
-        let starter = if starter { format!("\n  hint: todos.jsonl is the todo starter's sample that `snapback4 init` wrote; delete it, and the starter's list/add/toggle/remove lines in {}", super::test_cases::FILE) } else { String::new() };
+        let starter = if starter { format!("\n  hint: todos.jsonl is the todo starter's sample that `snapback4 init` wrote; `snapback4 init --adapt` removes it and the starter's {} while they are unmodified (or delete them, and the starter's list/add/toggle/remove lines, yourself)", super::test_cases::FILE) } else { String::new() };
         return Err(format!("{fixture}: {} name{} no table in snapback/*.q; nothing was run{starter}\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
             unknown.join(", "), if unknown.len() == 1 { "s" } else { "" }, tables.join(", "), super::test_cases::FILE));
     }

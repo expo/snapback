@@ -46,7 +46,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections"];
+            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -273,7 +273,7 @@ pub fn check(options: &Options) -> i32 {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": true, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if options.flags.contains_key("verbose") {
@@ -339,6 +339,8 @@ pub fn check(options: &Options) -> i32 {
             if options.json { eprintln!("{report}"); } else { println!("{report}"); }
         }
     }
+    // @ref LLP 3000.011.003.000#7.2 — init-first projects keep the todo starter's files; name them and the one command that fits them.
+    if !options.json && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
     0
 }
 

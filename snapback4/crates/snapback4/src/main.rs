@@ -34,6 +34,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
 
   init [dir] [--online|--expo|--web]  start a project: a schema; --web a Vite + React todos app; --expo an Expo todos app; --online a schema and an online client
        [--template chat] [--port N] [--web-port N] [--skip-existing]  --web or --expo with --template chat: the full reference chat app; --port: the backend port the client calls; --web-port: the Vite page's port (default: the next port); --skip-existing: keep existing files, write only missing ones
+  init [dir] --adapt               fit the starter init wrote to the schema written since: remove its unmodified todo fixtures, rewrite its unmodified screen for the schema's sign-in
   new <dir> --template social|chat   social: Expo Router social starter (feed, chats, search, profile); chat: add --web or --expo
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason

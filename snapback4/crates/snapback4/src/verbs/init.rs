@@ -8,10 +8,20 @@ use std::{io::Write, path::Path};
 mod web;
 mod social;
 mod starter;
+mod adapt;
+pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
-const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web]";
+const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web]\n       snapback4 init [dir] --adapt";
 
 pub fn init(options: &Options) -> i32 {
+    // @ref LLP 3000.011.003.000#7.2 — the init-first path: fit the starter already written to the schema written since.
+    if options.flags.contains_key("adapt") {
+        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo")) {
+            eprintln!("usage: snapback4 init [dir] --adapt\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
+            return 2;
+        }
+        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")));
+    }
     let template = options.flags.get("template").map(String::as_str);
     let modes = ["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count();
     // `--template social` is a whole app; `--template chat` is the reference
@@ -87,12 +97,16 @@ pub fn init(options: &Options) -> i32 {
     // The starter's rows and cases test its own todos schema; beside a
     // project's schema they name a table it lacks and fail `snapback4 test`.
     let mut skipped = Vec::new();
-    if own.is_some() {
+    // The project's schema is never a conflict: the starter's schema.q stays
+    // out, whether or not --skip-existing was given.
+    let mut kept: Vec<String> = Vec::new();
+    if let Some(own) = &own {
         files.retain(|(name, _)| {
             let starter = starter::FIXTURES.iter().any(|(fixture, _)| fixture == name);
             if starter { skipped.push(*name); }
-            !starter
+            !starter && *name != "snapback/schema.q"
         });
+        kept.extend(own.files.iter().map(|file| format!("snapback/{file}")));
     }
     for (name, text) in &mut files {
         // Starters copied from the reference apps keep their design notes in
@@ -144,7 +158,6 @@ pub fn init(options: &Options) -> i32 {
     files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into()));
     // Check every destination before writing any starter file. An existing
     // file is a conflict, or with --skip-existing is kept exactly as it is.
-    let mut kept = Vec::new();
     let mut existing = Vec::new();
     for (name, _) in &files {
         if let Err(error) = preflight_parents(&dir.join(name)) { conflicts.push(error); }
@@ -152,10 +165,6 @@ pub fn init(options: &Options) -> i32 {
         let mut present = Vec::new();
         if let Some(alternate) = alternate.filter(|name| dir.join(name).symlink_metadata().is_ok()) {
             present.push(format!("{} already exists", dir.join(alternate).display()));
-        }
-        // Any snapback/*.q is the project's schema; the starter's would join it.
-        if *name == "snapback/schema.q" {
-            if let Some(own) = &own { present.extend(own.files.iter().filter(|file| *file != "schema.q").map(|file| format!("{} already declares your schema", dir.join("snapback").join(file).display()))); }
         }
         if *name != "package.json" {
             match dir.join(*name).symlink_metadata() {
@@ -165,9 +174,9 @@ pub fn init(options: &Options) -> i32 {
             }
         }
         if present.is_empty() { continue; }
-        if skip_existing { kept.push(*name); } else { existing.extend(present); }
+        if skip_existing { kept.push((*name).to_owned()); } else { existing.extend(present); }
     }
-    files.retain(|(name, _)| !kept.contains(name));
+    files.retain(|(name, _)| !kept.iter().any(|kept| kept == name));
     let skippable = !existing.is_empty();
     conflicts.extend(existing);
     if let Err(error) = preflight_parents(&dir.join(".gitignore")) { conflicts.push(error); }
@@ -180,7 +189,11 @@ pub fn init(options: &Options) -> i32 {
     if !conflicts.is_empty() {
         conflicts.sort(); conflicts.dedup();
         let recipe = if skippable { "rerun with --skip-existing to keep every existing file as it is and write only the missing ones (snapback/*.q is never overwritten), or rename the listed files and rerun; " } else { "" };
-        let first = if skippable { "; rerun with --skip-existing to keep your files and write the rest" } else { "" };
+        // A second init over the first one's starter: --adapt is what fits it to the schema.
+        let refit = skippable && !adapt::leftovers(dir).0.is_empty();
+        let recipe = if refit { format!("{recipe}to fit the starter already here to your snapback/*.q, run `snapback4 init --adapt` instead; ") } else { recipe.to_owned() };
+        let first = if refit { "; the starter is already here: `snapback4 init --adapt` fits it to your snapback/*.q" }
+            else if skippable { "; rerun with --skip-existing to keep your files and write the rest" } else { "" };
         eprintln!("E_INIT_CONFLICT: no files written{first}\n  {}\n  rewrite: {recipe}reconcile any listed package.json entries first. Do not init into another directory and copy it over: that overwrites your files", conflicts.join("\n  "));
         return 1;
     }
@@ -235,6 +248,11 @@ pub fn init(options: &Options) -> i32 {
     if !skipped.is_empty() {
         println!("init: skipped the todo starter's {}: they test its todos schema, not yours", skipped.join(" and "));
     }
+    // Files an earlier init wrote, kept above, may not fit the schema written since.
+    let stale = if own.is_some() { adapt::leftovers(dir).0 } else { Vec::new() };
+    if !stale.is_empty() {
+        println!("init: kept starter files that do not fit your snapback/*.q: {}; `snapback4 init --adapt` fits them", stale.iter().map(|leftover| leftover.path).collect::<Vec<_>>().join(", "));
+    }
     let screens = files.iter().any(|(name, _)| name.starts_with("src/") || name.starts_with("App."));
     if let Some(own) = own.as_ref().filter(|_| screens && (web || expo) && !chat && !social) {
         println!("init: your snapback/*.q was kept; the starter screens call the todo starter's operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
@@ -249,7 +267,7 @@ pub fn init(options: &Options) -> i32 {
 }
 
 /// The project's own schema: every `snapback/*.q` already in the directory.
-struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String> }
+struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String>, tables: Vec<String>, operations: Vec<String> }
 
 fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
     let folder = dir.join("snapback");
@@ -258,7 +276,7 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
         Err(error) if matches!(error.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => return Ok(None),
         Err(error) => return Err(format!("{}: {error}", folder.display())),
     };
-    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new() };
+    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new(), tables: Vec::new(), operations: Vec::new() };
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
         if !name.ends_with(".q") { continue; }
@@ -268,6 +286,8 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
         let (document, _) = snapback4_lang::parse_document(&name, &source);
         own.identity = own.identity.or(document.identity);
         own.personas.extend(document.personas);
+        own.tables.extend(document.tables.into_iter().map(|table| table.name));
+        own.operations.extend(document.programs.into_iter().map(|program| program.name));
         own.files.push(name);
     }
     own.files.sort();

@@ -3,6 +3,7 @@
 //! from the full help.
 
 const INIT: &str = "snapback4 init [dir] [--online|--expo|--web] [--template chat] [--port N] [--web-port N] [--skip-existing]
+snapback4 init [dir] --adapt
 
 Starts a project in dir (default: here) without overwriting anything: an
 existing package.json has the starter's dependencies and scripts merged in
@@ -20,10 +21,20 @@ conflicting value refuses before any file is written.
                    default 5173, or the port after --port)
   --skip-existing  keep every existing file and write only the missing ones
 
-A project's own snapback/*.q is never overwritten, and the todo starter's
-fixtures are written only beside the starter's own schema. Beside a schema
-that declares `use personas` and no `use identity`, the screen picks a
-persona instead of signing in as a guest.
+A project's own snapback/*.q is never overwritten and never a conflict, and
+the todo starter's fixtures are written only beside the starter's own schema.
+Beside a schema that declares `use personas` and no `use identity`, the
+screen picks a persona instead of signing in as a guest.
+
+Init first, schema second: once you replace the starter's schema, `check`
+names the starter files that no longer fit it, and --adapt fits them:
+
+  --adapt          remove the todo starter's fixtures and cases when the
+                   schema has no todos table and its operations; rewrite the
+                   starter screen and client for the schema's sign-in (guest
+                   sign-in, or a persona picker for `use personas` without
+                   `use identity`), keeping the backend port. Only files whose
+                   bytes still match what init wrote are touched.
 
 Next: npm install (when a package.json was written), snapback4 check, then
 snapback4 dev. Exit 0 when written, 1 on a conflict, 2 on bad flags.

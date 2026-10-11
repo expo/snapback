@@ -28,19 +28,42 @@ fn with_persona_session(head: &str, guest: &str, personas: &[String]) -> (String
     (format!("{head}{}", &guest[todos..]), format!("[{list}]"))
 }
 
+/// Which starter screen pair: the guest sign-in, or the persona picker.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Platform { Web, Expo }
+
+impl Platform {
+    /// Where the starter writes its screen and its client.
+    pub(super) fn paths(self) -> (&'static str, &'static str) {
+        match self { Platform::Web => ("src/App.tsx", "src/client.ts"), Platform::Expo => ("App.tsx", "src/client.ts") }
+    }
+}
+
+/// The starter's screen and client for a schema: the guest sign-in, or, with
+/// `personas`, the persona picker around the same `Todos` screen. The texts
+/// are as the starter ships them, before init's port rewrite.
+pub(super) fn screens(platform: Platform, personas: Option<&[String]>) -> (String, String) {
+    let (guest_app, guest_client, persona_app, persona_client) = match platform {
+        Platform::Web => (include_str!("starter/web/App.tsx"), include_str!("starter/web/client.ts"), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts")),
+        Platform::Expo => (include_str!("starter/expo/App.tsx"), include_str!("starter/expo/client.ts"), include_str!("starter/personas/expo-app.tsx"), include_str!("starter/personas/expo-client.ts")),
+    };
+    let (app, client) = match personas {
+        None => (guest_app.to_owned(), guest_client.to_owned()),
+        Some(personas) => {
+            let (app, list) = with_persona_session(persona_app, guest_app, personas);
+            (app, persona_client.replace("PERSONAS", &list))
+        }
+    };
+    (super::without_design_references(&app), super::without_design_references(&client))
+}
+
 pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(include_str!("../../../../../apps/chat/package.json")).unwrap();
     package["name"] = json!("snapback4-web-starter");
     package["version"] = json!("0.1.0");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
     package["scripts"]["build"] = json!("vite build && snapback4 web-shell dist");
-    let (app, client) = match &shape.personas {
-        None => (include_str!("starter/web/App.tsx").to_owned(), include_str!("starter/web/client.ts").to_owned()),
-        Some(personas) => {
-            let (app, list) = with_persona_session(include_str!("starter/personas/web-app.tsx"), include_str!("starter/web/App.tsx"), personas);
-            (app, include_str!("starter/personas/web-client.ts").replace("PERSONAS", &list))
-        }
-    };
+    let (app, client) = screens(Platform::Web, shape.personas.as_deref());
     vec![
         ("package.json", super::pretty(&package)),
         ("index.html", include_str!("starter/web/index.html").replace("TITLE", &html_text(&shape.title))),
@@ -69,13 +92,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!("snapback4todos");
     config["expo"]["ios"]["bundleIdentifier"] = json!("dev.snapback4.todos");
     config["expo"]["android"]["package"] = json!("dev.snapback4.todos");
-    let (app, client) = match &shape.personas {
-        None => (include_str!("starter/expo/App.tsx").to_owned(), include_str!("starter/expo/client.ts").to_owned()),
-        Some(personas) => {
-            let (app, list) = with_persona_session(include_str!("starter/personas/expo-app.tsx"), include_str!("starter/expo/App.tsx"), personas);
-            (app, include_str!("starter/personas/expo-client.ts").replace("PERSONAS", &list))
-        }
-    };
+    let (app, client) = screens(Platform::Expo, shape.personas.as_deref());
     vec![
         ("package.json", super::pretty(&package)),
         ("app.json", super::pretty(&config)),
