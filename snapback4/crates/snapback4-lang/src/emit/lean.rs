@@ -784,6 +784,7 @@ impl<'a> Scope<'a> {
 
     fn write(&self, e: &Expr) -> R<Json> {
         let Expr::Write { op, table, keys, fields, if_absent, condition, .. } = e else { unreachable!() };
+        if *op != WriteOp::Insert && keys.is_empty() { return no("row-variable-write", crate::print::expression(e)); }
         let t = self.table(table)?;
         Ok(match op {
             WriteOp::Insert => {

@@ -61,9 +61,9 @@ In the first example, table and shape names are the language card's. A shape ove
 a bounded loop; its fields are the row's columns by bare name, `*` for all
 of them, `...shape` for a named shape's fields, and `name: expr` with `.`
 as the row. There is no `select` spelling.
-A table-typed helper accepts that table's row or reference. A reference has no
-fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
-implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
+A table-typed helper accepts that table's row or reference. A reference's
+field reads its row: `.slot.day` is `slots[.slot].day`, null when missing or
+hidden; `slots[.slot] ! else NOT_FOUND` refuses instead. Shapes are projections,
 not declared helper-argument types.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent

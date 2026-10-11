@@ -251,8 +251,9 @@ impl Rename {
             Expr::Shape { base, fields, .. } => { self.expr(base); self.shape(fields); }
             Expr::Walk { table, seed, site, .. } => { self.name(site, table, 1); self.expr(seed); }
             Expr::If { then, condition, otherwise, .. } => { self.expr(then); self.expr(condition); self.expr(otherwise); }
-            Expr::Write { table, keys, fields, condition, site, .. } => {
-                self.name(site, table, 1);
+            Expr::Write { op, table, keys, fields, condition, site, .. } => {
+                // `delete row` names a row variable, not a table.
+                if *op == WriteOp::Insert || !keys.is_empty() { self.name(site, table, 1); }
                 for key in keys { self.expr(&key.value); }
                 self.fields(fields);
                 if let Some(condition) = condition { self.expr(condition); }

@@ -2,8 +2,9 @@
 
 E_QUARRY_TYPE means the expression's type does not fit its position.
 The diagnostic names the expected and actual types and the source location.
-A table reference is that table's typed id, not its row: read `table[id]`
-before selecting fields. Narrow an optional value with `if x != null:`,
+A table reference is that table's typed id, not its row: `ref.field` reads
+the row (`table[ref].field`, null when missing or hidden), and `table[id] !
+else NOT_FOUND` refuses instead. Narrow an optional value with `if x != null:`,
 `x ! else CODE` or `x ?? default` before using it where a present value is
 required. Use the declared enum type when its variants cannot all widen
 to the helper's text bound; changing a type never converts stored values.

@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 // inverse transformation proving no other IR changed.
 use snapshot::{NL_REFUSED, NL_SOURCE};
 
-const GOLDEN: &str = concat!(include_str!("lowering/ce15819ad.sha256"), include_str!("lowering/intent-shape-overrides.sha256"), include_str!("lowering/first-paste-admissions.sha256"), include_str!("lowering/maintenance-scope-overrides.sha256"));
+const GOLDEN: &str = concat!(include_str!("lowering/ce15819ad.sha256"), include_str!("lowering/intent-shape-overrides.sha256"), include_str!("lowering/first-paste-admissions.sha256"), include_str!("lowering/maintenance-scope-overrides.sha256"), include_str!("lowering/reference-field-admissions.sha256"));
 
 fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
     let schema = snapback4_lang::bind::schema::bind_schema(catalog, diagnostics);

@@ -265,3 +265,78 @@ query beds(c: cursor ?):
     assert!(why.contains("drop a `where` that every row passes") && !why.contains("E_TIMELINE_IMPORT"), "{why}");
 }
 
+// ---- #10: references and rows in programs ----
+
+const LESSONS: &str = "table slots:
+  day: text
+  teacher: principal
+  hidden: bool
+  read <- not .hidden
+  insert <- .teacher = viewer
+  online only
+table lessons:
+  slot: slots
+  student: principal
+  read <- .student = viewer
+  insert <- .student = viewer
+  delete <- .student = viewer
+  update <- .student = viewer
+  online only
+query mine(c: cursor ?):
+  return lessons where .student = viewer first 20 by .id after c { id, day: .slot.day }
+query teacherOf(id: lessons):
+  k = lessons[id] ! else NOT_FOUND
+  return k.slot.teacher
+mutation cancel(id: lessons):
+  k = lessons[id] ! else NOT_FOUND
+  require k.slot.day != 'mon' else TOO_LATE
+  delete k
+mutation move(id: lessons, to: slots):
+  k = lessons[id] ! else NOT_FOUND
+  update k { slot: to }
+";
+
+#[test]
+fn a_reference_field_reads_its_row_and_a_row_variable_is_a_write_target() {
+    use snapback4_core::value::object;
+    let b = clean(LESSONS);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let slot = |id: &str, day: &str, hidden: bool| ("slots".to_owned(), object([("id", Value::Id(id.into())), ("day", Value::String(day.into())), ("teacher", Value::Id("tess".into())), ("hidden", Value::Bool(hidden))]));
+    let lesson = |id: &str, slot: &str| ("lessons".to_owned(), object([("id", Value::Id(id.into())), ("slot", Value::Id(slot.into())), ("student", Value::Id("alice".into()))]));
+    engine.seed([slot("s1", "tue", false), slot("s2", "mon", false), slot("s3", "wed", true), lesson("l1", "s1"), lesson("l2", "s2"), lesson("l3", "s3"), lesson("l4", "gone")]).unwrap();
+    let page = engine.query("mine", Context::new("alice", args(&[("c", Value::Null)]))).unwrap().data;
+    let days: BTreeMap<String, Value> = match page { Value::Array(rows) => rows.into_iter().map(|row| (row.field("id").unwrap().clone(), row.field("day").unwrap().clone()))
+        .map(|(id, day)| (match id { Value::Id(id) => id, other => panic!("{other:?}") }, day)).collect(), other => panic!("{other:?}") };
+    // Readable rows read through; a hidden or missing row reads null, as `slots[.slot].day` does.
+    assert_eq!(days["l1"], Value::String("tue".into()));
+    assert_eq!(days["l3"], Value::Null, "a hidden slot discloses nothing");
+    assert_eq!(days["l4"], Value::Null);
+    let teacher = engine.query("teacherOf", Context::new("alice", args(&[("id", Value::Id("l1".into()))]))).unwrap().data;
+    assert_eq!(teacher, Value::Id("tess".into()));
+    let run = |engine: &mut Engine, op: &str, pairs: &[(&str, Value)]| match engine.mutate(op, None, Context::new("alice", args(pairs))).unwrap().state {
+        WriteState::Sent { .. } => "sent".to_owned(), WriteState::Failed { why, .. } => why.code };
+    assert_eq!(run(&mut engine, "cancel", &[("id", Value::Id("l2".into()))]), "TOO_LATE");
+    assert_eq!(run(&mut engine, "cancel", &[("id", Value::Id("l1".into()))]), "sent");
+    assert_eq!(run(&mut engine, "cancel", &[("id", Value::Id("l1".into()))]), "NOT_FOUND");
+    assert_eq!(run(&mut engine, "move", &[("id", Value::Id("l2".into())), ("to", Value::Id("s1".into()))]), "sent");
+    // Another student's delete is refused by the delete rule, as `delete lessons[k]` is.
+    assert_eq!(match engine.mutate("cancel", None, Context::new("bob", args(&[("id", Value::Id("l2".into()))]))).unwrap().state {
+        WriteState::Sent { .. } => "sent".to_owned(), WriteState::Failed { why, .. } => why.code }, "NOT_FOUND");
+}
+
+#[test]
+fn a_row_variable_write_that_is_not_a_row_names_the_spelling_that_works() {
+    let base = "table tasks:\n  owner: principal\n  read <- .owner = viewer\n  delete <- .owner = viewer\n  online only\n";
+    for (body, says) in [
+        ("  delete tasks\n", "delete tasks[id]"),
+        ("  delete id\n", "delete t[id]"),
+        ("  delete nothing\n", "row = t[id] ! else NOT_FOUND"),
+        ("  k = tasks[id]\n  delete k\n", "k = tasks[id] ! else NOT_FOUND"),
+    ] {
+        let source = format!("{base}mutation drop(id: tasks):\n{body}");
+        let d = first(&source, "E_QUARRY_UNKNOWN");
+        assert!(d.rewrite.contains(says), "{body}: {d}");
+        assert_not_identical(&source, &d);
+    }
+}
+

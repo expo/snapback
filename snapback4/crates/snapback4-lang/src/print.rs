@@ -75,7 +75,8 @@ fn render(expr: &Expr, minimum: u8, source: &Source<'_>) -> String {
         Expr::If { then, condition, otherwise, .. } => format!("{} if {} else {}", render(then, 1, source), render(condition, 1, source), sub(otherwise)),
         Expr::Write { op, table, keys, fields, if_absent, condition, .. } => {
             let mut out = format!("{} {table}", op.word());
-            if *op != WriteOp::Insert { out.push_str(&format!("[{}]", keys.iter().map(|k| key_part(k, source)).collect::<Vec<_>>().join(", "))); }
+            // `delete row` / `update row { … }` keep their row-variable spelling.
+            if *op != WriteOp::Insert && !keys.is_empty() { out.push_str(&format!("[{}]", keys.iter().map(|k| key_part(k, source)).collect::<Vec<_>>().join(", "))); }
             if *op != WriteOp::Delete { out.push_str(&format!(" {{ {} }}", object_fields(fields, source))); }
             if *if_absent { out.push_str(" if absent"); }
             if let Some(condition) = condition { out.push_str(&format!(" if {}", sub(condition))); }
