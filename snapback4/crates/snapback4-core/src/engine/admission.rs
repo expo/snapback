@@ -110,7 +110,7 @@ pub fn check_detail_with_statements(schema: &Schema, program: &Program, statemen
     }
     let (scans, has_merge) = crate::ir::read_structure(program);
     if program.kind == ProgramKind::Mutation {
-        require_uniform_mutation_pages(schema, &scans)?;
+        require_uniform_mutation_pages(schema, program, &scans)?;
         // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
         if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
         // @ref LLP 3000.025#3-proposed-rule — an entire read-only statement prefix precedes every effect, including hidden and indirect writes.
@@ -127,7 +127,7 @@ pub fn check_detail_with_statements(schema: &Schema, program: &Program, statemen
                 return Err(expiry_problem(program, scan, prefix_len..effect_end, never, in_prefix));
             }
         }
-        let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
+        let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !decided(schema, program, s)).map(|s| (*s).clone());
         let mut bindings = BTreeMap::new();
         collect(&program.body, true, &mut bindings);
         let env = program.args.keys().map(|name| (name.clone(), if bindings.contains_key(name) { Origin::Unknown(vec![]) } else { Origin::Other })).collect();
@@ -345,7 +345,7 @@ impl Flow<'_> {
     fn page_problem(&self, scan: &Scan) -> Option<String> {
         let Some(table) = self.schema.table(&scan.table) else { return Some(format!("missing table {}", scan.table)); };
         let Some(index) = table.index(&scan.index) else { return Some(format!("missing index {}.{}", scan.table, scan.index)); };
-        if !scan_visibility(self.schema, scan).uniform { return Some("the read rule is not uniform over the prefix".into()); }
+        if !decided(self.schema, self.program, scan) { return Some("the read rule is not uniform over the prefix".into()); }
         if self.nonuniform.is_some() { return Some("another non-uniform scan can truncate this mutation's population".into()); }
         // @ref LLP 3000.007#5.9 — a never-predicting pass drops completeness, never uniformity.
         if self.schema.operations.get(&self.program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
@@ -356,7 +356,7 @@ impl Flow<'_> {
         let pinned: Vec<_> = index.columns().into_iter().take(scan.prefix.len()).collect();
         let cap = self.schema.group_bound(&scan.table, &pinned);
         let Some(cap) = cap else { return Some(format!("{} has no cap over the selected group", scan.table)); };
-        if !scan_visibility(self.schema, scan).uniform { return Some("the read rule is not uniform over the prefix".into()); }
+        if !decided(self.schema, self.program, scan) { return Some("the read rule is not uniform over the prefix".into()); }
         if !matches!(scan.take, Bound::Literal(n) if n >= cap) { return Some(format!("the literal page bound must cover the schema cap {cap}")); }
         if scan.after.is_some() || scan.before.is_some() || scan.range.is_some() { return Some("a cursor or key range cuts the population".into()); }
         if self.nonuniform.is_some() { return Some("another non-uniform scan can truncate this mutation's population".into()); }
@@ -492,13 +492,20 @@ fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
 }
 
 // @ref LLP 3000.007#14 — ruling 17 (c): binding a page has the same abort channel as looping over it.
-fn require_uniform_mutation_pages(schema: &Schema, scans: &[&Scan]) -> Result<(), Problem> {
+fn require_uniform_mutation_pages(schema: &Schema, program: &Program, scans: &[&Scan]) -> Result<(), Problem> {
     for scan in scans {
-        if schema.table(&scan.table).and_then(|table| table.index(&scan.index)).is_some() && !scan_visibility(schema, scan).uniform {
+        if schema.table(&scan.table).and_then(|table| table.index(&scan.index)).is_some() && !decided(schema, program, scan) {
             return Err(fanout(Some(scan), &scan.site, "the mutation page's read rule is not uniformly decided by its prefix", &uniform_rewrite(schema, scan)));
         }
     }
     Ok(())
+}
+
+/// The page's verdict is one for every row: its prefix decides the read rule,
+/// or a dominating `require` of a readable grant does (`rules::grant_dominated`).
+// @ref LLP 3000.036#12 — a staff-only pass after `require exists staff[viewer]` reads every row it walks.
+fn decided(schema: &Schema, program: &Program, scan: &Scan) -> bool {
+    scan_visibility(schema, scan).uniform || crate::engine::rules::grant_dominated(schema, program, scan)
 }
 
 fn fanout(scan: Option<&Scan>, site: &str, reason: &str, rewrite: &str) -> Problem {
@@ -531,5 +538,13 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
         let keys = fields.iter().map(|field| format!("{field} = row.{field}")).collect::<Vec<_>>().join(", ");
         rewrite.push_str(&format!("; inside that loop use `{}[{keys}]` with an index leading on those columns; or read the page in a query", scan.table));
     }
+    // @ref LLP 3000.036#12 — a staff-only pass: the readable grant, required first, decides every row.
+    if let Some(grant) = crate::engine::rules::grant_decision(schema, scan) {
+        let probe = grant.disjuncts().into_iter().find(|probe| matches!(probe, crate::schema::RuleExpr::Exists { equalities, .. } if equalities.is_empty()));
+        if let Some(probe) = probe {
+            rewrite = format!("for staff-only work, put `require {} else FORBIDDEN` at the top of the mutation, before this loop (the grant then decides every row it walks); or {rewrite}", probe.quarry());
+        }
+    }
+    rewrite.push_str("; `: server` does not lift this: the read rule, not where the mutation runs, decides the page");
     rewrite
 }

@@ -197,6 +197,20 @@ impl<'r> Runner<'r> {
         Ok((admitted, if uniform && admitted { expiry.defer() } else { Default::default() }))
     }
 
+    /// A row-independent grant, judged once for the caller (`rules::grant_decision`).
+    /// It charges the read rule's static probe count on either verdict, and
+    /// records no filtered clause: a false grant leaves the per-row walk.
+    fn grant_verdict(&mut self, table: &Table, rule: &crate::schema::RuleExpr) -> Result<(bool, super::expiry::Pending), RuntimeError> {
+        let expiry = self.next_expiry.scope();
+        let probe_row = Value::Row(Default::default());
+        let viewer = self.context.viewer.clone();
+        let verdict = self.authorized_scratch(self.rule_scratch(rule), &[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
+            rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner, allowance })
+        })?;
+        let admitted = verdict && !self.read_capped();
+        Ok((admitted, if admitted { expiry.defer() } else { Default::default() }))
+    }
+
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
     pub(super) fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) -> Result<(), RuntimeError> {
         self.aggregate_source_dependency(table);
@@ -895,6 +909,22 @@ impl<'r> Runner<'r> {
         let always_visible = aggregate_parent == Some(true) || !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
         if word.is_none() { self.reserve_delivered_scan(table, visibility, always_visible)?; }
+        // @ref LLP 3000.036#12 — a row-independent grant (a staff role, a
+        // service seat) that holds for this caller makes every row readable:
+        // the page is decided once, as a uniform page is. Its static probe
+        // charge is paid on either verdict; an unproven grant walks as before.
+        let mut grant_expiry = None;
+        let granted = !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
+            && !self.device && !self.context.is_system()
+            && match rules::grant_decision(self.schema, scan) {
+                Some(rule) => {
+                    let (allowed, pending) = self.grant_verdict(table, &rule)?;
+                    if allowed { grant_expiry = Some(pending); }
+                    allowed
+                }
+                None => false,
+            };
+        let always_visible = always_visible || granted;
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
@@ -905,7 +935,7 @@ impl<'r> Runner<'r> {
         let mut capped = false;
         let mut filter_interrupted = false;
         let mut uniform_verdict: Option<bool> = if parent_pinned { word.map(|word| word.admitted) } else { always_visible.then_some(true) };
-        let mut prefix_expiry = if aggregate_parent == Some(true) { aggregate_expiry } else { word.map_or_else(Default::default, |word| word.expiry) };
+        let mut prefix_expiry = if let Some(pending) = grant_expiry { pending } else if aggregate_parent == Some(true) { aggregate_expiry } else { word.map_or_else(Default::default, |word| word.expiry) };
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
@@ -956,7 +986,7 @@ impl<'r> Runner<'r> {
         // Key payload sizes vary: only grow this reservation when a
         // larger key is encountered, before its decode or clone can allocate.
         let mut cursor_heap = 0;
-        let batch = if transient || job_page { 1 } else if visibility.uniform { take + 1 } else { (take + 1).max(32) };
+        let batch = if transient || job_page { 1 } else if visibility.uniform || granted { take + 1 } else { (take + 1).max(32) };
         let mut row_heap = None;
         let mut row_bytes = 0;
         let mut consumed = 0;

@@ -248,4 +248,43 @@ mutation setStatus(request: id, status: enum('open', 'doing', 'done')):
   insert updates { request, tenant: d.tenant, status, at: now }
   return null
 ```
+
+**A staff console, online.** When the app is online, one table can say
+`.tenant = viewer or exists staff[viewer]`. A staff member's page is decided
+once by the grant and answers `complete: true`, as long as each staff member
+can read their own `staff` row; start the console query with the same
+`require`, and a staff-only mutation can walk every row of a group the same
+way (`: server` alone does not lift a page the rule does not decide). Tenants
+pin their own column. Sync does not deliver this union: offline needs the
+tables above.
+
+```quarry
+table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+
+table tickets:
+  tenant: principal
+  title: text <=200
+  done: bool
+  at: time
+  read <- .tenant = viewer or exists staff[viewer]
+  insert <- .tenant = viewer
+  update <- exists staff[viewer]
+  online only
+
+query queue(c: cursor ?):
+  require exists staff[viewer] else NOT_STAFF
+  return tickets where not .done last 50 by .at after c
+
+query mine(c: cursor ?):
+  return tickets where .tenant = viewer last 50 by .at after c
+
+mutation closeAllFor(tenant: principal):
+  require exists staff[viewer] else NOT_STAFF
+  for t in tickets where .tenant = tenant first 100 by .id:
+    update tickets[t] { done: true }
+```
 "##;

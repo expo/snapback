@@ -512,6 +512,7 @@ card/sharing/5:file | requests/insert | {"Eq":[{"Field":"tenant"},"Viewer"]} | r
 card/sharing/5:setStatus | desk/update | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
 card/sharing/5:setStatus | eligible
 card/sharing/5:setStatus | updates/insert | {"Eq":[{"Field":"tenant"},"Viewer"]} | read rule
+card/sharing/6:closeAllFor | never
 card/start/5:add | eligible
 card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/start/5:remove | eligible

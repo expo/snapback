@@ -340,3 +340,190 @@ fn a_row_variable_write_that_is_not_a_row_names_the_spelling_that_works() {
     }
 }
 
+// ---- #3: a staff grant makes a page complete for staff, per caller ----
+
+fn tickets(staff_read: &str, grant: &str) -> String {
+    format!("table staff:
+  principal: principal
+  role: text
+  unique principal
+  {staff_read}
+  online only
+table tickets:
+  owner: principal
+  title: text
+  read <- .owner = viewer or {grant}
+  online only
+query all(c: cursor ?):
+  return tickets first 2 by .id after c
+query everything(c: cursor ?):
+  return tickets first 50 by .id after c
+")
+}
+
+fn seeded(source: &str) -> Engine {
+    use snapback4_core::value::object;
+    let b = clean(source);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let ticket = |id: &str, owner: &str| ("tickets".to_owned(), object([("id", Value::Id(id.into())), ("owner", Value::Id(owner.into())), ("title", Value::String(id.into()))]));
+    engine.seed([
+        ("staff".to_owned(), object([("id", Value::Id("s1".into())), ("principal", Value::Id("tess".into())), ("role", Value::String("manager".into()))])),
+        ("staff".to_owned(), object([("id", Value::Id("s2".into())), ("principal", Value::Id("ian".into())), ("role", Value::String("intern".into()))])),
+        ticket("t1", "alice"), ticket("t2", "bob"), ticket("t3", "alice"), ticket("t4", "carl"),
+    ]).unwrap();
+    engine
+}
+
+fn page(engine: &mut Engine, query: &str, viewer: &str) -> snapback4_core::QueryOutcome {
+    engine.query(query, Context::new(viewer, args(&[("c", Value::Null)]))).unwrap()
+}
+
+#[test]
+fn a_staff_grant_makes_the_page_complete_for_staff_only() {
+    let mut engine = seeded(&tickets("read <- .principal = viewer", "exists staff[viewer]"));
+    // The granted page answers exactly as the same page over readable rows.
+    let mut open = seeded(&tickets("read <- .principal = viewer", "true"));
+    for query in ["all", "everything"] {
+        let staff = page(&mut engine, query, "tess");
+        let all = page(&mut open, query, "tess");
+        assert!(staff.complete, "{query}: staff page is decided once");
+        assert_eq!((&staff.data, staff.complete, &staff.next), (&all.data, all.complete, &all.next), "{query}");
+        // The same walk: only the grant's static probe charge differs.
+        assert_eq!((staff.metered.examined, staff.metered.index_entries), (all.metered.examined, all.metered.index_entries), "{query}");
+        assert_eq!(staff.metered.rule_probes, all.metered.rule_probes + 1, "{query}: one static probe for the grant");
+        // Everyone else walks per row, as before: own rows, never complete.
+        let alice = page(&mut engine, query, "alice");
+        assert!(!alice.complete, "{query}");
+        assert_eq!(alice.data.as_array().unwrap().iter().filter(|row| row.field("owner").unwrap() != &Value::Id("alice".into())).count(), 0);
+    }
+}
+
+#[test]
+fn a_grant_the_caller_cannot_read_is_not_used() {
+    // A hidden roster: whether tess is staff is not hers to learn from `complete`.
+    let mut hidden = seeded(&tickets("read <- deny", "exists staff[viewer]"));
+    let staff = page(&mut hidden, "everything", "tess");
+    assert_eq!(staff.data.as_array().unwrap().len(), 4, "the rule still grants every row");
+    assert!(!staff.complete, "an unreadable grant never decides the page");
+    // A roster readable to its own members, and a role named by an equality.
+    let mut roster = seeded(&tickets("read <- exists staff[viewer]", "exists staff[viewer]"));
+    assert!(page(&mut roster, "everything", "tess").complete);
+    let mut managers = seeded(&tickets("read <- exists staff[principal = viewer]", "exists staff[principal = viewer, role = 'manager']"));
+    assert!(page(&mut managers, "everything", "tess").complete);
+    let intern = page(&mut managers, "everything", "ian");
+    assert!(!intern.complete && intern.data.as_array().unwrap().is_empty());
+    // A negated probe is never a grant.
+    let mut negated = seeded(&tickets("read <- .principal = viewer", "not exists staff[viewer]"));
+    assert!(!page(&mut negated, "everything", "alice").complete);
+}
+
+#[test]
+fn a_service_seat_reads_a_complete_page() {
+    let mut engine = seeded(&tickets("read <- .principal = viewer", "viewer = 'service:audit'"));
+    let service = page(&mut engine, "everything", "service:audit");
+    assert!(service.complete);
+    assert_eq!(service.data.as_array().unwrap().len(), 4);
+    assert!(!page(&mut engine, "everything", "alice").complete);
+}
+
+const KILN: &str = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table firings:
+  name: text
+  public 'p'
+  insert <- exists staff[viewer]
+  online only
+table pieces:
+  owner: principal
+  firing: firings
+  done: bool
+  cap 50 by firing
+  read <- .owner = viewer or exists staff[viewer]
+  update <- .owner = viewer or exists staff[viewer]
+  online only
+query queue(c: cursor ?):
+  require exists staff[viewer] else NOT_STAFF
+  return pieces last 50 by .id after c
+mutation finishFiring(firing: firings): server
+  require exists staff[viewer] else NOT_STAFF
+  for row in pieces where .firing = firing first 50 by .id:
+    update pieces[row] { done: true }
+";
+
+#[test]
+fn a_required_grant_decides_a_staff_console_and_a_staff_only_mutation_pass() {
+    use snapback4_core::value::object;
+    let b = clean(KILN);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "a guarded staff page is complete for every caller that reaches it: {:#?}", b.notes);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let piece = |id: &str, owner: &str, firing: &str| ("pieces".to_owned(), object([("id", Value::Id(id.into())), ("owner", Value::Id(owner.into())), ("firing", Value::Id(firing.into())), ("done", Value::Bool(false))]));
+    engine.seed([
+        ("staff".to_owned(), object([("id", Value::Id("s1".into())), ("principal", Value::Id("tess".into()))])),
+        ("firings".to_owned(), object([("id", Value::Id("f1".into())), ("name", Value::String("bisque".into()))])),
+        piece("p1", "alice", "f1"), piece("p2", "bob", "f1"), piece("p3", "alice", "f2"),
+    ]).unwrap();
+    let queue = page(&mut engine, "queue", "tess");
+    assert!(queue.complete && queue.data.as_array().unwrap().len() == 3);
+    let run = |engine: &mut Engine, viewer: &str| match engine.mutate("finishFiring", None, Context::new(viewer, args(&[("firing", Value::Id("f1".into()))]))).unwrap().state {
+        WriteState::Sent { .. } => "sent".to_owned(), WriteState::Failed { why, .. } => why.code };
+    assert_eq!(run(&mut engine, "alice"), "NOT_STAFF");
+    assert_eq!(run(&mut engine, "tess"), "sent");
+    let done = page(&mut engine, "queue", "tess").data;
+    let done: Vec<_> = done.as_array().unwrap().iter().filter(|row| row.field("done").unwrap() == &Value::Bool(true)).map(|row| row.field("id").unwrap().clone()).collect();
+    assert_eq!(done.len(), 2, "both owners' pieces in the firing, and only those: {done:?}");
+}
+
+#[test]
+fn a_grant_guard_that_does_not_dominate_the_pass_still_refuses_it() {
+    // The guard after the loop, and a program that can revoke its own grant.
+    for (from, to) in [
+        ("  require exists staff[viewer] else NOT_STAFF\n  for row in pieces where .firing = firing first 50 by .id:\n    update pieces[row] { done: true }\n",
+         "  for row in pieces where .firing = firing first 50 by .id:\n    update pieces[row] { done: true }\n  require exists staff[viewer] else NOT_STAFF\n"),
+        ("  require exists staff[viewer] else NOT_STAFF\n  for row",
+         "  require exists staff[viewer] else NOT_STAFF\n  delete staff[principal = viewer]\n  for row"),
+    ] {
+        let source = KILN.replace(from, to).replace("  read <- .principal = viewer\n  online only\ntable firings", "  read <- .principal = viewer\n  delete <- .principal = viewer\n  online only\ntable firings");
+        assert_ne!(source, KILN.replace("  read <- .principal = viewer\n  online only\ntable firings", "  read <- .principal = viewer\n  delete <- .principal = viewer\n  online only\ntable firings"));
+        let d = first(&source, "E_STRUCTURAL_FANOUT");
+        assert!(d.rewrite.contains("does not lift this"), "{d}");
+    }
+    // Without any guard, the refusal names the guard to add.
+    let unguarded = KILN.replace("mutation finishFiring(firing: firings): server\n  require exists staff[viewer] else NOT_STAFF\n", "mutation finishFiring(firing: firings): server\n");
+    let d = first(&unguarded, "E_STRUCTURAL_FANOUT");
+    assert!(d.rewrite.contains("require exists staff[viewer] else FORBIDDEN"), "{d}");
+}
+
+// ---- #11 (analysis #12): owner-or-assignee lists print one query per party ----
+
+#[test]
+fn a_two_party_list_prints_the_authors_query_once_per_party_and_it_compiles() {
+    let table = "table tasks:
+  owner: principal
+  assignee: principal
+  title: text
+  done: bool
+  at: time
+  read <- .owner = viewer or .assignee = viewer
+  insert <- .owner = viewer
+  online only
+";
+    for query in [
+        "query mine(c: cursor ?):\n  return tasks where .owner = viewer or .assignee = viewer last 20 by .at after c\n",
+        "query mine(c: cursor ?):\n  return tasks last 20 by .at after c\n",
+        "query mine(open: bool, c: cursor ?):\n  return tasks where .done = open and (.owner = viewer or .assignee = viewer) last 20 by .at after c { id, title }\n",
+    ] {
+        let source = format!("{table}{query}");
+        let b = bound(&source);
+        let n = b.notes.iter().find(|n| n.code == "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
+        let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1;
+        assert!(declarations.contains("query mineAsOwner(") && declarations.contains("query mineAsAssignee("), "{n}");
+        let repaired = format!("{table}{declarations}\n");
+        let b = clean(&repaired);
+        assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{repaired}\n{:#?}", b.notes);
+        assert_eq!(b.programs.len(), 2);
+    }
+}
+
