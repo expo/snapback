@@ -304,3 +304,15 @@ export function awaitBoundary() {
 // all 162 delivery sites and recipes unchanged. one-shot-bounds and the full
 // online model cover race/deadline exhaustion; one-shot-discovery-auth's
 // unchanged-row wakeup control proves the repeated asynchronous approval.
+
+// 0.4.17 (createApp persona, browser write warnings): app-persona.ts's twelve
+// awaits open the tier's own client (createLocalClient, whose delivery sites
+// above are unchanged), probe /probe for a refused persona before signed-in,
+// read that refusal's body, and await close()/ready on retirement. None admits,
+// dispatches, persists or settles a write: persona writes route to the opened
+// client's mutate and reach the classified local/online delivery sites as any
+// other app's do. app-persona.test.mjs covers the loopback/name/serve refusals,
+// the device and online tiers, and refused writes after logout. app.ts's prepareClient
+// await only wraps the same synchronous createClient in sdkOwned (a counter
+// that suppresses the bare-client browser warning); its count is unchanged.
+// bin-path.ts has no awaits. No delivery site, classification or recipe changes.
