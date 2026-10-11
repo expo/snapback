@@ -576,8 +576,15 @@ pub fn run(options: &Options) -> i32 {
     }
     let principal = match options.flags.get("as") {
         Some(name) if bound.personas.contains(name) => persona_principal(name),
-        Some(principal) => principal.clone(),
-        None => persona_principal("alice"),
+        // A local run takes any principal id (scale data names thousands), but
+        // a bare name dev would refuse as a persona is said to be one, not dev:<name>.
+        Some(principal) => {
+            if program.kind != ProgramKind::Job && options.flags.get("port").is_none() && !principal.contains(':') && test_cases::undeclared_persona(principal, &bound.personas).is_some() {
+                eprintln!("run --as {principal}: not a declared persona (`use personas {}`), so this local run acts as the principal id \"{principal}\", not dev:{principal}; dev refuses the persona {principal} with E_AUTH (401)", bound.personas.join(", "));
+            }
+            principal.clone()
+        }
+        None => persona_principal(test_cases::default_persona(&bound.personas)),
     };
     if let Some(port) = options.flags.get("port") {
         let Ok(port) = port.parse::<u16>() else { eprintln!("run: --port takes the dev's port number (snapback4 dev --port N)"); return 2; };
@@ -1084,6 +1091,15 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
+    // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
+    // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.
+    if let Some(why) = options.flags.get("as").and_then(|name| test_cases::undeclared_persona(name, &bound.personas)) {
+        if !options.flags.contains_key("residency") {
+            eprintln!("test --as: {why}");
+            return 1;
+        }
+        eprintln!("test --residency --as: measuring an undeclared principal; dev would refuse it as a persona");
+    }
     let _owner = if options.flags.contains_key("fixture") { None } else {
         match crate::store_owner::command(&project.store_path()) {
             Ok(owner) => Some(owner),
@@ -1174,7 +1190,8 @@ pub fn test(options: &Options) -> i32 {
     }
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture") {
-        match test_cases::run(&mut engine, &bound, fixture) {
+        let sources = project.sources().unwrap_or_default();
+        match test_cases::run(&mut engine, &bound, fixture, &sources) {
             Ok((p, f)) => { passed = p; failed_cases = f; }
             Err(error) => { eprintln!("{error}"); return 1; }
         }

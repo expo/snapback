@@ -286,7 +286,9 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             "API name receiptFamilies collides with the generated receipt-family namespace",
             "rename the operation or module receiptFamilies").guide("receipts"));
     }
-    Bound { receipt_members, refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
+    let mut refusal_sites = refusals::sites(&catalog);
+    refusal_sites.extend(refusals::lookup_sites(&programs));
+    Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {

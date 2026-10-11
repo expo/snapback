@@ -103,6 +103,8 @@ Where it runs:
 
   --as alice      a persona declared in `use personas` (default alice), acting
                   as dev:alice; or a principal id such as user:… for a local run
+                  (a bare undeclared name is that id, not dev:<name>: run warns,
+                  and dev refuses it as a persona, 401)
   --now <t>       pin the clock for a local run (milliseconds, or +2h from now)
   --json          one JSON object on stdout
 
@@ -113,14 +115,17 @@ const TEST: &str = "snapback4 test [--fixture dir] [--as persona] [--json] [--re
 
 Runs every query as each persona and prints its meters; with a fixture it
 first loads the rows into a private in-memory store and afterwards runs
-dir/test.cases.jsonl, your own operations with expectations.
+dir/test.cases.jsonl, your own operations with expectations (a query's default
+expectation is its check verdict; a failing refusal names the layer that refused).
 
   --fixture dir   dir/<table>.jsonl, one JSON row per line, loaded as one batch
                   (parents first) exactly as POST /seed writes rows: defaults,
                   sequences, unique (your codes) and caps, maintained views.
                   Without it, test reads the dev store
                   .snapback4/store.sqlite (E_STORE_BUSY while a dev owns it).
-  --as alice      one persona (default: every persona in `use personas`)
+  --as alice      one persona (default: every persona in `use personas`); an
+                  undeclared one is refused, as dev refuses it (--residency
+                  measures any principal)
   --residency     what each persona's device would acquire; --verbose also runs the queries
 
 Columns (one row per query and persona; the ceilings row is each read's limit):

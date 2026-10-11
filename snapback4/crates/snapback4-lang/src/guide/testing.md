@@ -89,13 +89,43 @@ persona against the loaded fixture; mutations change what later lines see.
 {"as":"alice","op":"cardsOn","args":{"board":"board-alice"},"count":2}
 {"as":"bob","op":"addCard","args":{"board":"board-alice","text":"spam"},"expect":"denied","label":"bob cannot write alice's board"}
 {"as":"bob","op":"cardsOn","args":{"board":"board-alice"},"count":0}
+{"as":"alice","op":"myBoards","expect":"complete","count":1}
 ```
 
-- `expect`: `sent` (mutations) or `complete` (queries) by default; `capped`; a code (`E_RULE`,
-  `NOT_FOUND`, your own `require ... else CODE`); or `denied` for any refusal.
+- `expect`: a mutation's default is `sent`. A query's default is its `check` verdict: `complete`, or
+  either `complete` or `capped` when `check` notes the query is never complete (`N_NEVER_COMPLETE`:
+  a capped page still holds every row the viewer may read); `test` prints that verdict once. Write
+  `"expect":"complete"` to insist, `"expect":"capped"` for a page you expect cut, `"ok"` for any
+  answer, a code (`E_RULE`, `NOT_FOUND`, your own `require ... else CODE`), or `denied` for any refusal.
+- `as` is a declared persona (default `alice`, or the first in `use personas` when alice is not
+  declared). An undeclared one refuses `E_AUTH`, as dev's 401 does: an outsider is a declared persona
+  who owns no rows. `test --as eve` refuses to start the same way; a local `run --as eve` warns that it
+  acts as the principal id `eve`, not the persona `dev:eve`.
 - `data` must equal the answer; `count` is the answer's length.
 - `save` names the answer; a later string argument `"$eggs"` is that row's `id`, `"$eggs.text"` a field.
 - `label` is printed beside the result. Lines starting with `//` are skipped.
+
+A failing refusal prints the layer that refused under the FAIL line, as `snapback4 run` does: the
+rule clause and its line, the `unique` or `cap` clause a hidden row filled, or the program's own
+`require`/`!` line. That evidence is for you; the refusal a client sees never names the clause.
+
+### Hidden rows refuse before your own code
+
+A lookup is a read. `p = pets[pet] ! else NOT_FOUND` sees only rows the viewer's read rule admits,
+so for another owner's row the lookup refuses `NOT_FOUND`, and a later
+`require p.owner = viewer else NOT_YOURS` never runs. Likewise a `unique` or `cap` group holding a
+row the viewer cannot read refuses `E_RULE`, not your `else CODE`, since your code would disclose that
+row. Write the case for what the viewer actually gets:
+
+```jsonl
+{"as":"bob","op":"withdraw","args":{"pet":"pet-alice"},"expect":"NOT_FOUND","label":"alice's pet is invisible to bob"}
+{"as":"carol","op":"withdraw","args":{"pet":"pet-alice"},"expect":"NOT_YOURS","label":"a sitter reads it, so her require runs"}
+```
+
+`NOT_YOURS` can fire only for a viewer who can read the row: admit the sitter in the read rule (as
+`guide refusals` does for a moderator), or write by id with no lookup first
+(`update pets[pet] { .. }` alone), so the table's own update or delete rule decides. When a `NOT_FOUND`
+case fails, `test` (and dev's refusal log) say whether the lookup's row was hidden by its read rule.
 
 ## An acceptance script over HTTP
 

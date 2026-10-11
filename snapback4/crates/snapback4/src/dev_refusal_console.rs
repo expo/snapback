@@ -10,7 +10,7 @@ struct Entry { record: Value, count: u64, until: Instant }
 pub(super) struct Console { entries: VecDeque<Entry> }
 
 fn same_cause(a: &Value, b: &Value) -> bool {
-    ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation"]
+    ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation", "hiddenBy"]
         .iter().all(|key| a[key] == b[key])
 }
 impl Console {
@@ -45,7 +45,9 @@ impl Console {
         // the complete line before touching the descriptor, so they cannot
         // splice themselves between this message's formatting fragments.
         let table = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" {t}")).unwrap_or_default();
-        let line = format!("dev refusal: {}:{table} — {} at {}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
+        // A lookup refusal whose row the read rule hid: name that layer, since the author's later `require` never ran.
+        let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the lookup's {t} row is hidden by its read rule at {} (a hidden row reads as absent at a lookup, before any later require)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
+        let line = format!("dev refusal: {}:{table} — {} at {}{hidden}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
             r["operation"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or(""));
         let _ = out.write_all(line.as_bytes());
     }
