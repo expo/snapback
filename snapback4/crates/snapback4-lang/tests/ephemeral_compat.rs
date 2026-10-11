@@ -65,7 +65,7 @@ fn durable_schema_and_types_keep_base_bytes() {
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");
-        assert_eq!(strip_following(&strip_row_keys(&types), &schema), expected[&name].1, "TypeScript bytes: {name}");
+        assert_eq!(strip_following(&strip_row_keys(&strip_hook_hints(&types)), &schema), expected[&name].1, "TypeScript bytes: {name}");
     }
 }
 
@@ -89,6 +89,32 @@ fn strip_update_explanations(text: &str) -> String {
         }
     }
     serde_json::to_string(&schema).unwrap()
+}
+
+/// Wave 3 appends the React hook to each query's comment. Check that every
+/// query comment names exactly one hook matching its declaration, then strip
+/// only that sentence so every other emitted byte stays frozen.
+fn strip_hook_hints(types: &str) -> String {
+    use snapback4_lang::emit::{HOOK_FOLLOWING, HOOK_PAGE, HOOK_QUERY};
+    let lines: Vec<&str> = types.lines().collect();
+    let mut out = String::with_capacity(types.len());
+    for (i, line) in lines.iter().enumerate() {
+        let hint = [HOOK_FOLLOWING, HOOK_PAGE, HOOK_QUERY].into_iter().filter(|hint| line.contains(&format!("beside complete.{hint} */"))).collect::<Vec<_>>();
+        if line.contains("beside complete.") && line.trim_start().starts_with("/**") {
+            assert_eq!(hint.len(), 1, "{line}");
+            let declaration = lines[i + 1];
+            let expected = if declaration.contains(": FollowingQuery<") { HOOK_FOLLOWING }
+                else if declaration.contains("c?: Cursor | null") || declaration.contains("c: Cursor;") || declaration.contains("c: Cursor }") { HOOK_PAGE } else { HOOK_QUERY };
+            assert_eq!(hint[0], expected, "{declaration}");
+            out.push_str(&line.replacen(hint[0], "", 1));
+        } else {
+            assert!(hint.is_empty(), "{line}");
+            out.push_str(line);
+        }
+        out.push('\n');
+    }
+    if !types.ends_with('\n') { out.pop(); }
+    out
 }
 
 /// LLP 3000.028 §3.3 (lane OS) adds `rowKey` to generated query entries in `api`,
