@@ -127,9 +127,10 @@ pub fn init(options: &Options) -> i32 {
     }
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
     let mut pinned = Vec::new();
+    let mut kept_scripts = Vec::new();
     for (name, text) in &mut files {
         if *name == "package.json" && dir.join(*name).exists() {
-            match merge_package(&dir.join(*name), text, &mut pinned) {
+            match merge_package(&dir.join(*name), text, &mut pinned, &mut kept_scripts) {
                 Ok(merged) => *text = merged,
                 Err(error) => conflicts.push(error),
             }
@@ -166,7 +167,10 @@ pub fn init(options: &Options) -> i32 {
         if let Some(alternate) = alternate.filter(|name| dir.join(name).symlink_metadata().is_ok()) {
             present.push(format!("{} already exists", dir.join(alternate).display()));
         }
-        if *name != "package.json" {
+        // `check` and `dev` write snapback/generated/ and rewrite it on every
+        // run: an existing file there is init's to replace, never a conflict.
+        // @ref LLP 3000.011.003.000#7.4 — schema-first init after `check` (wave 4: E_INIT_CONFLICT on check's own package.json).
+        if *name != "package.json" && !regenerable(name) {
             match dir.join(*name).symlink_metadata() {
                 Ok(_) => present.push(format!("{} already exists", dir.join(*name).display())),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
@@ -203,7 +207,7 @@ pub fn init(options: &Options) -> i32 {
         for (name, text) in &files {
             let path = dir.join(*name);
             std::fs::create_dir_all(path.parent().unwrap())?;
-            if *name == "package.json" {
+            if *name == "package.json" || regenerable(name) {
                 let existed = path.symlink_metadata().is_ok();
                 replace_file(&path, text)?;
                 if !existed { created.push(path); }
@@ -243,6 +247,9 @@ pub fn init(options: &Options) -> i32 {
     if !pinned.is_empty() {
         println!("init: pinned package.json {} (the starter's exact versions)", pinned.join(", "));
     }
+    if !kept_scripts.is_empty() {
+        println!("init: kept your package.json {}", kept_scripts.join(", "));
+    }
     if !kept.is_empty() {
         println!("init: kept {} existing file{} unchanged: {}", kept.len(), if kept.len() == 1 { "" } else { "s" }, kept.join(", "));
     }
@@ -266,6 +273,16 @@ pub fn init(options: &Options) -> i32 {
     }
     0
 }
+
+/// The todo starter's fixture file `name` (`todos.jsonl` or `test.cases.jsonl`)
+/// exactly as init writes it, so `test` can tell an unmodified sample from a
+/// project's own file.
+pub(crate) fn starter_fixture(name: &str) -> Option<String> {
+    starter::FIXTURES.iter().find(|(path, _)| path.strip_prefix("fixtures/") == Some(name)).map(|(_, text)| without_design_references(text))
+}
+
+/// Files under `snapback/generated/`, which `check` and `dev` rewrite.
+fn regenerable(name: &str) -> bool { name.starts_with("snapback/generated/") }
 
 /// The project's own schema: every `snapback/*.q` already in the directory.
 struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String>, tables: Vec<String>, operations: Vec<String> }
@@ -309,6 +326,10 @@ fn esm_vite_config(tsconfig: &str) -> String { tsconfig.replace("\"vite.config.t
 
 /// npm scripts compare as commands: the same program and subcommand, then the
 /// same options in any order ("tsc --noEmit -p x" is "tsc -p x --noEmit").
+/// Spellings that run the same thing are the same command: a leading `npx`
+/// (npm scripts already find `node_modules/.bin`), and tsc's default project
+/// (`tsc --noEmit` is `tsc -p tsconfig.json --noEmit`).
+// @ref LLP 3000.011.003.000#7.4 — wave 4 (094): `tsc --noEmit` refused against the starter's `-p tsconfig.json`.
 fn same_command(left: &str, right: &str) -> bool {
     fn shape(script: &str) -> Vec<(Vec<&str>, Vec<Vec<&str>>)> {
         script.split("&&").map(|step| {
@@ -318,6 +339,10 @@ fn same_command(left: &str, right: &str) -> bool {
                 if word.starts_with('-') { options.push(vec![word]); }
                 else if let Some(option) = options.last_mut() { option.push(word); }
                 else { head.push(word); }
+            }
+            if head.first() == Some(&"npx") { head.remove(0); }
+            if head == ["tsc"] {
+                options.retain(|option| !matches!(option.as_slice(), ["-p" | "--project", "tsconfig.json" | "./tsconfig.json" | "." | "./"]));
             }
             options.sort();
             (head, options)
@@ -426,7 +451,7 @@ fn replace_file(path: &Path, text: &str) -> std::io::Result<()> {
     result
 }
 
-fn merge_package(path: &Path, starter: &str, pinned: &mut Vec<String>) -> Result<String, String> {
+fn merge_package(path: &Path, starter: &str, pinned: &mut Vec<String>, kept_scripts: &mut Vec<String>) -> Result<String, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut existing: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     let object = existing.as_object_mut().ok_or("package.json must be an object")?;
@@ -444,6 +469,7 @@ fn merge_package(path: &Path, starter: &str, pinned: &mut Vec<String>) -> Result
                 // version its binary and client were built together at.
                 let admits = |old: &Value| key != "scripts" && old.as_str().zip(needed.as_str()).is_some_and(|(old, needed)| old.strip_prefix(['^', '~']) == Some(needed));
                 match group.get(name) {
+                    Some(old) if old != needed && equivalent(old) => kept_scripts.push(format!("{key}.{name} {old} (the same command as the starter's {needed})")),
                     Some(old) if admits(old) => {
                         pinned.push(format!("{key}.{name} {old} → \"{}\"", needed.as_str().unwrap()));
                         group.insert(name.clone(), needed.clone());

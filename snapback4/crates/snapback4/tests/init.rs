@@ -86,7 +86,7 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), before);
         assert!(!dir.0.join("snapback").exists());
     }
-    for name in ["src/client.ts", "metro.config.js", "snapback/generated/package.json"] {
+    for name in ["src/client.ts", "metro.config.js"] {
         let dir = Dir::new();
         let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "kept").unwrap();
         fs::write(dir.0.join("package.json"), "{}").unwrap();
@@ -94,6 +94,12 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(&path).unwrap(), "kept");
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), "{}");
     }
+    // snapback/generated/ is `check`'s output, rewritten on every run: init
+    // replaces it rather than refusing (wave 4, 1b).
+    let dir = Dir::new();
+    let path = dir.0.join("snapback/generated/package.json"); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "stale").unwrap();
+    assert!(dir.run("--expo").status.success());
+    assert!(serde_json::from_str::<Value>(&fs::read_to_string(&path).unwrap()).is_ok());
     // A snapback/*.q is the project's schema, never a conflict: kept as written.
     let dir = Dir::new();
     let path = dir.0.join("snapback/schema.q"); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "kept").unwrap();
@@ -1011,4 +1017,32 @@ fn adapt_keeps_the_fixture_directory_and_the_projects_own_rows() {
     assert!(dir.init(&["--adapt"]).status.success());
     assert!(dir.0.join("fixtures").is_dir());
     fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
+}
+
+/// Wave 4 (1b, 6 lanes): schema first, `check`, then `init --web` refused
+/// `E_INIT_CONFLICT` on check's own snapback/generated/package.json, and then
+/// on `tsc --noEmit` against the starter's `tsc -p tsconfig.json --noEmit`.
+#[test]
+fn schema_first_init_after_check_replaces_generated_files() {
+    for flag in ["--web", "--expo"] {
+        let dir = Dir::new();
+        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+        fs::write(dir.0.join("snapback/schema.q"), "use identity\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
+        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        assert!(checked.status.success() && dir.0.join("snapback/generated/package.json").is_file() && dir.0.join("snapback/generated/api.ts").is_file(), "{checked:?}");
+        let api = fs::read(dir.0.join("snapback/generated/api.ts")).unwrap();
+        fs::write(dir.0.join("package.json"), r#"{"name":"mine","type":"module","scripts":{"typecheck":"tsc --noEmit"}}"#).unwrap();
+        let output = dir.init(&[flag]);
+        assert!(output.status.success(), "{flag}: {output:?}");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("kept your package.json scripts.typecheck \"tsc --noEmit\""), "{flag}: {stdout}");
+        let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+        assert_eq!(package["scripts"]["typecheck"], "tsc --noEmit");
+        assert_eq!(fs::read(dir.0.join("snapback/generated/api.ts")).unwrap(), api, "init writes only generated/package.json");
+        assert!(serde_json::from_slice::<Value>(&fs::read(dir.0.join("snapback/generated/package.json")).unwrap()).is_ok());
+    }
+    // `npx tsc …` and `--project tsconfig.json` are the same command too; another project is not.
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), r#"{"scripts":{"typecheck":"npx tsc --project ./tsconfig.json --noEmit"}}"#).unwrap();
+    assert!(dir.run("--expo").status.success());
 }
