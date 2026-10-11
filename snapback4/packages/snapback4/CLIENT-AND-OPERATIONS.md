@@ -1495,19 +1495,6 @@ a promise; an effect cleanup must return nothing, so write `() => { void client.
 `UseMutation<typeof api.op>` names a hook's type for a prop; every name here imports from
 `snapback4/react`, and `Client` also from `snapback4/client`.
 
-```tsx
-import { isDenied, isFailed, isLoading, isReady, matchRead, useMutation, useQuery, type RowOf, type UseMutation, type Write } from "snapback4/react";
-import { createClient, type Client } from "snapback4/client";
-import { useEffect, useState } from "react";
-import { api } from "../snapback/generated/api";
-type Message = RowOf<typeof api.thread>;
-function Bodies({ rows }: { rows: readonly Message[] }) { return <ul>{rows.map(row => <li key={row.id}>{row.body}</li>)}</ul>; }
-export function Thread({ conversationId }: { conversationId: string }) {
-  const read = useQuery(api.thread, { conversationId });
-  const send = useMutation(api.send);
-  return <>{matchRead(read, {
-    denied: why => <p role="alert">{why.message}</p>,
-    partial: rows => <><Bodies rows={rows} /><p>Results may be incomplete</p></>,
 Name an operation's types from the generated `api`, never from its private `__result` field:
 `RowOf<typeof api.thread>` is one row of a list or page query (a `usePage` item) or a point
 query's non-null row, `ResultOf<typeof api.thread>` the whole result (the row array; for a
@@ -1521,6 +1508,19 @@ outcomes, including a hook's `last` (undefined before the first run). `App`, `Ap
 imports from `snapback4/app`. After `auth.state === "signed-in"`, `auth.viewer` is a
 `Principal`, never null.
 
+```tsx
+import { isDenied, isFailed, isLoading, isReady, matchRead, useMutation, useQuery, type RowOf, type UseMutation, type Write } from "snapback4/react";
+import { createClient, type Client } from "snapback4/client";
+import { useEffect, useState } from "react";
+import { api } from "../snapback/generated/api";
+type Message = RowOf<typeof api.thread>;
+function Bodies({ rows }: { rows: readonly Message[] }) { return <ul>{rows.map(row => <li key={row.id}>{row.body}</li>)}</ul>; }
+export function Thread({ conversationId }: { conversationId: string }) {
+  const read = useQuery(api.thread, { conversationId });
+  const send = useMutation(api.send);
+  return <>{matchRead(read, {
+    denied: why => <p role="alert">{why.message}</p>,
+    partial: rows => <><Bodies rows={rows} /><p>Results may be incomplete</p></>,
     present: rows => <Bodies rows={rows} />,
     otherwise: read => isReady(read) ? <p>No messages yet</p> : <p>Loading…</p>,
   })}<Composer conversationId={conversationId} send={send} /></>;
@@ -1537,6 +1537,15 @@ export function Header() {
   if (isDenied(me)) return <p role="alert">{me.denied.message}</p>;
   return <p>{me.existence === "present" ? me.data.handle : "No profile"}</p>;
 }
+export function Notices({ conversationId }: { conversationId: string }) {
+  const thread = useQuery(api.thread, { conversationId }), me = useQuery(api.myProfile, {});
+  const send = useMutation(api.send), like = useMutation(api.setLike);
+  const reads = [thread, me];
+  const denied = reads.find(isDenied), failed = [send.last, like.last].find(isFailed);
+  return <>{denied && <p role="alert">{denied.denied.message}</p>}
+    {reads.some(isLoading) && <p>Loading…</p>}
+    {failed && <p role="alert">Not saved: {failed.why.message}</p>}</>;
+}
 export function useOwnClient(url: string, persona: string): Client | null {
   const [client, setClient] = useState<Client | null>(null);
   useEffect(() => {
@@ -1550,15 +1559,6 @@ export function useOwnClient(url: string, persona: string): Client | null {
 
 #### Personas in a React UI
 
-export function Notices({ conversationId }: { conversationId: string }) {
-  const thread = useQuery(api.thread, { conversationId }), me = useQuery(api.myProfile, {});
-  const send = useMutation(api.send), like = useMutation(api.setLike);
-  const reads = [thread, me];
-  const denied = reads.find(isDenied), failed = [send.last, like.last].find(isFailed);
-  return <>{denied && <p role="alert">{denied.denied.message}</p>}
-    {reads.some(isLoading) && <p>Loading…</p>}
-    {failed && <p role="alert">Not saved: {failed.why.message}</p>}</>;
-}
 A development UI can act as a declared persona (`use personas alice, bob`) behind the same
 `AppProvider`, `useAuth` and `app.mutate` it uses for accounts: `createApp({ url, persona: "bob",
 device })` acts as `dev:bob` with no session. `app.auth.state` goes `restoring` → `signed-in`;
@@ -1571,9 +1571,17 @@ any `createApp`: without one, `app.mutate` refuses `E_ADMISSION` and names
 `createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app; close the
 old one in the effect cleanup. One tab is one device per store, and each persona has its own store.
 
+A schema with `use personas` and no `use identity` has no account to sign into: the starter's
+`auth.guest()` refuses `E_AUTH` there, so open a persona app instead of calling it. Each recipe
+below is one file: `openApp` is the only constructor, and `Root` replaces `<AppProvider>`'s app
+when the persona changes. Until `auth.state` is `signed-in` the new app is still opening; gate
+navigation and writes on it rather than on the old app's screen.
+
+On the web, `?as=bob` picks the persona and a picker rewrites it:
+
 ```tsx
-import { AppProvider, useAuth, useQuery } from "snapback4/react";
-import { createApp, type App } from "snapback4/app";
+import { AppProvider, useAuth, useQuery, type App } from "snapback4/react";
+import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
 import { useEffect, useState } from "react";
@@ -1582,10 +1590,12 @@ import { api } from "../snapback/generated/api";
 const url = "http://127.0.0.1:4400";
 const personas = ["alice", "bob"];
 const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
-// `?as=bob` acts as dev:bob on `snapback4 dev`; without it, people sign in.
-const openApp = (persona: string | null): App => persona
-  ? createApp({ url, persona, device: webDevice() })
-  : createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });
+/** One app per persona: `?as=bob` acts as dev:bob on `snapback4 dev`; with no
+ * persona, people sign in (drop that branch for a persona-only schema). */
+export function openApp(persona: string | null): App {
+  if (persona) return createApp({ url, persona, device: webDevice() });
+  return createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });
+}
 export function Root() {
   const [persona, setPersona] = useState(() => new URLSearchParams(location.search).get("as"));
   const [app, setApp] = useState<App | null>(null);
@@ -1612,6 +1622,52 @@ function Who() {
   const me = useQuery(api.myProfile, {});
   if (auth.state !== "signed-in") return <p>{auth.why?.message ?? "Opening…"}</p>;
   return <p>{auth.viewer}: {"data" in me && me.data ? me.data.handle : "no profile yet"}</p>;
+}
+```
+
+In Expo there is no address bar: the persona is React state and the picker is a row of buttons.
+The device follows the starter's choice (`webDevice()` on web, `nativeDevice` in a development
+build, none in Expo Go, which writes through the online tier's journal). The iOS simulator and
+Expo web reach `snapback4 dev` on the host's `127.0.0.1`; an Android emulator's host alias
+`10.0.2.2` is not literal loopback, so run `adb reverse tcp:4400 tcp:4400` and keep `127.0.0.1`.
+A physical phone cannot use personas: `dev` admits the header only from a loopback socket.
+
+```tsx
+import { AppProvider, useAuth, type App } from "snapback4/react";
+import { createApp } from "snapback4/app";
+import { webDevice } from "snapback4/web";
+import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { useEffect, useState } from "react";
+import { Platform, Pressable, Text, View } from "react-native";
+
+const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
+const personas = ["alice", "bob"];
+/** One app per persona; each persona keeps its own device store. */
+export function openApp(persona: string): App {
+  const device = Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined;
+  return createApp({ url, persona, device });
+}
+export function Root() {
+  const [persona, setPersona] = useState(personas[0]!);
+  const [app, setApp] = useState<App | null>(null);
+  useEffect(() => {
+    const opened = openApp(persona);
+    setApp(opened);
+    return () => { void opened.close(); };
+  }, [persona]);
+  if (!app) return null;
+  return <AppProvider app={app}>
+    <View style={{ flexDirection: "row", gap: 8 }}>{personas.map(name =>
+      <Pressable key={name} accessibilityRole="button" accessibilityState={{ selected: name === persona }} onPress={() => setPersona(name)}>
+        <Text style={{ fontWeight: name === persona ? "700" : "400" }}>{name}</Text>
+      </Pressable>)}</View>
+    <Who />
+  </AppProvider>;
+}
+function Who() {
+  const auth = useAuth();
+  if (auth.state !== "signed-in") return <Text>{auth.why?.message ?? "Opening…"}</Text>;
+  return <Text>Acting as {auth.viewer}</Text>;
 }
 ```
 
