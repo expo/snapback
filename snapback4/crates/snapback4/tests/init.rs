@@ -692,7 +692,7 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
     // The schema has none of the todo starter's operations: the screen behind
     // the picker is the neutral Home, which compiles against any schema.
-    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)") && app.contains("function Home()") && !app.contains("api.list"), "{app}");
+    assert!(!app.contains("auth.guest()") && app.contains("openApp(persona)") && app.contains("function Home(") && !app.contains("api.list"), "{app}");
     // Rerunning skips everything it wrote and still never touches the schema.
     let again = dir.init(&["--web", "--skip-existing"]);
     assert!(again.status.success(), "{again:?}");
@@ -904,7 +904,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     }
     // Adapted: the screen behind the picker is the neutral Home, so nothing is
     // left over and no screen calls the starter's operations (wave 4, 1c).
-    assert!(app.contains("function Home()") && app.contains("useSignedInViewer()") && !app.contains("api.list"), "{app}");
+    assert!(app.contains("function Home(") && app.contains("useSignedInViewer()") && !app.contains("api.list"), "{app}");
     assert!(check_json(&dir)["starterLeftovers"].is_null());
     assert!(!String::from_utf8_lossy(&check(&dir).stdout).contains("starter:"));
     // New personas rewrite the picker's list; `use identity` brings the guest screen back.
@@ -1073,7 +1073,14 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             let stdout = String::from_utf8_lossy(&adapted.stdout);
             assert!(stdout.contains(&format!("rewrote {app_path}")) && stdout.contains("replace Home with your own screens"), "{flag} {sign_in}: {stdout}");
             let app = fs::read_to_string(first.0.join(app_path)).unwrap();
-            assert!(app.contains("function Home()") && !app.contains("function Todos()") && app.contains("useSignedInViewer()") && app.contains("Object.keys(api)"), "{flag} {sign_in}: {app}");
+            assert!(app.contains("function Home(") && !app.contains("function Todos()") && app.contains("useSignedInViewer()") && app.contains("Object.keys(api)"), "{flag} {sign_in}: {app}");
+            // Wave 5 (lane 062): behind the persona picker there is no session; Home switches persona.
+            if sign_in.contains("personas") {
+                assert!(app.contains("function Home({ leave }: { leave: () => void })") && app.contains("Switch persona") && !app.contains("Sign out") && !app.contains("auth.logout()"), "{flag}: {app}");
+                assert!(app.contains("<Home leave={"), "{flag}: the picker hands Home its leave: {app}");
+            } else {
+                assert!(app.contains("function Home()") && app.contains("Sign out") && app.contains("auth.logout()"), "{flag}: {app}");
+            }
             for todo in ["api.list", "api.add", "api.toggle", "api.remove", "<Todos />"] { assert!(!app.contains(todo), "{flag} {sign_in}: {todo}"); }
             assert_eq!(app.contains("openApp(persona)"), sign_in.contains("personas"), "{flag} {sign_in}");
             assert_eq!(app.contains("auth.guest()"), sign_in.contains("identity"), "{flag} {sign_in}");

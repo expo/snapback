@@ -57,8 +57,37 @@ pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: Bod
             (persona, persona_client.replace("PERSONAS", &format!("[{list}]")))
         }
     };
-    let app = match body { Body::Todos => compose(head, todos), Body::Home => compose(&head.replace("<Todos />", "<Home />"), home) };
+    let app = match body {
+        Body::Todos => compose(head, todos),
+        Body::Home if personas.is_some() => compose(&persona_head_home(head), &persona_home(home)),
+        Body::Home => compose(&head.replace("<Todos />", "<Home />"), home),
+    };
     (super::without_design_references(&app), super::without_design_references(&client))
+}
+
+/// Behind the persona picker there is no session: "Sign out" (`auth.logout()`)
+/// showed "Signed out" and then a "Choose a persona" button, two steps for a
+/// switch (wave 5 lane 062). The persona Home takes the picker's `leave` and
+/// says "Switch persona"; the guest Home keeps its sign-out.
+// @ref LLP 3000.036#15.10 — the adapted persona Home switches persona; it never signs out.
+fn persona_head_home(head: &str) -> String {
+    let leave = ["() => setPersona(null)", "() => choose(null)"].into_iter().find(|leave| head.contains(&format!("<Account leave={{{leave}}}><Todos /></Account>")))
+        .expect("the persona heads render <Account leave={…}><Todos /></Account>");
+    head.replace(&format!("<Account leave={{{leave}}}><Todos /></Account>"), &format!("<Account leave={{{leave}}}><Home leave={{{leave}}} /></Account>"))
+}
+
+fn persona_home(home: &str) -> String {
+    let replacements = [
+        ("function Home() {", "function Home({ leave }: { leave: () => void }) {"),
+        ("  const auth = useAuth(), link = useLink();", "  const link = useLink();"),
+        (r#"<Button title="Sign out" onPress={() => void auth.logout()} />"#, r#"<Button title="Switch persona" onPress={leave} />"#),
+        (r#"<button onClick={() => void auth.logout()}>Sign out</button>"#, r#"<button onClick={leave}>Switch persona</button>"#),
+        ("// Never null here: Account renders this screen only once signed in.", "// Never null here: Account renders this screen only once the persona's app is open."),
+    ];
+    let mut home = home.to_owned();
+    for (from, to) in replacements { home = home.replace(from, to); }
+    assert!(!home.contains("auth.") && home.contains("Switch persona"), "the persona Home has no session to sign out of");
+    home.replace("import { useAuth, useLink, useSignedInViewer }", "import { useLink, useSignedInViewer }")
 }
 
 /// One module from a sign-in head and a screen body, each written as a whole
