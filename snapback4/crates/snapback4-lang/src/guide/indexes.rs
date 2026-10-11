@@ -137,8 +137,16 @@ A grant that reads no row field, such as `exists staff[viewer]` or
 the caller, and the caller may read the row that grants it (`read <-
 .principal = viewer` on `staff`), the page is decided once: a staff page is
 `complete`, and everyone else pages their own rows with `complete: false`.
-A grant row its holder cannot read, or a `require` guard, decides nothing;
-the note says when a grant is not used.
+A grant row its holder cannot read decides nothing; the note says when a
+grant is not used. The run never needs a guard, but `check` follows one: a
+page that only grant holders reach (`require exists staff[viewer] else …`,
+`if exists staff[viewer]:` around it, or `if not exists staff[viewer]: return
+[]` before it) gets no note, as it is `complete` for every caller who runs it.
+
+A page that stays `complete: false` still holds every row the caller may
+read. In `test.cases.jsonl` the default expectation passes it (write
+`"expect": "capped"` to pin it); a client renders the rows and shows
+`readPresentation(read).incomplete` as "there may be more", not as an error.
 
 ## Operations
 

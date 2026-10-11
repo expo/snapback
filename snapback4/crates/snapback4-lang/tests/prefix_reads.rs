@@ -54,8 +54,9 @@ fn rejected(schema: &str, body: &str, code: &str) -> snapback4_lang::Diagnostic 
 fn prefix_positions_refuse_with_working_page_rewrites() {
     for body in ["query bad():\n  return members[principal = viewer] by byPrincipalRoom\n", "mutation bad():\n  page = members[principal = viewer] by byPrincipalRoom\n  return null\n"] {
         let error = rejected(schema(), body, "E_QUARRY_BOUND");
-        assert!(error.rewrite.contains("cap N by principal") && error.rewrite.contains("first N"));
-        checked(&format!("{}\n{}", schema(), body.replace("bad()", "bad(c: cursor ?)").replace("members[principal = viewer] by byPrincipalRoom", "members[principal = viewer] by byPrincipalRoom after c first 50")));
+        // A synced table's page rewrite reads newest first, as its horizon keeps (LLP 3000.036 §13.3).
+        assert!(error.rewrite.contains("cap N by principal") && error.rewrite.contains("last N"));
+        checked(&format!("{}\n{}", schema(), body.replace("bad()", "bad(c: cursor ?)").replace("members[principal = viewer] by byPrincipalRoom", "members[principal = viewer] after c last 50 by byPrincipalRoom")));
     }
     let helper = "fn total():\n  n = 0\n  for m in members[principal = viewer] by byPrincipalRoom:\n    n = n + m.unread\n  return n\nmutation bad():\n  return total()\n";
     let error = rejected(schema(), helper, "E_QUARRY_PLACEMENT");
@@ -74,7 +75,7 @@ fn prefix_positions_refuse_with_working_page_rewrites() {
 fn oversize_caps_fall_back_to_the_meter_only_in_query_domains() {
     let large = schema().replace("cap 100 by roomId", "cap 50000 by roomId");
     let error = rejected(&large, "query roster(roomId: rooms):\n  return members[roomId = roomId]\n", "E_QUARRY_BOUND");
-    assert!(error.message.contains("50000") && error.rewrite.contains("first N"));
+    assert!(error.message.contains("50000") && error.rewrite.contains("last N"));
     checked(&format!("{large}\nquery roster(roomId: rooms, c: cursor ?):\n  return members[roomId = roomId] after c first 50\n"));
     let bound = checked(&format!("{large}\nquery total(roomId: rooms):\n  n = 0\n  for m in members[roomId = roomId]:\n    n = n + m.unread\n  return n\n"));
     assert_eq!(ir::scans(&bound.programs[0].program)[0].take.maximum(), snapback4_core::Ceilings::default().examined);

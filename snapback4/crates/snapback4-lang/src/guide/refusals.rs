@@ -70,6 +70,19 @@ Omit the literal to use the default `the program refused with HANDLE_TAKEN`.
 Omit the hook to keep the existing `E_CONSTRAINT` message. The indexes card
 shows the declaration; code validation is the same as `require … else CODE`.
 
+Which refusal a caller sees is the first one the program reaches. Statements
+run in order: each `require` and `x ! else CODE` refuses where it stands, and a
+`unique … else CODE` is checked when its `insert` (or `update`, `upsert`) runs.
+So `require joinCount[ride] < r.seats else RIDE_FULL` before `insert joins
+{ ride, rider: viewer }` answers `RIDE_FULL` to a rider already on a full
+ride, not `ALREADY_JOINED`. To answer the duplicate first, check it first:
+`require not exists joins[ride, viewer] else ALREADY_JOINED` (the caller can
+read their own row). Two cases never reach the unique code. `insert … if
+absent` answers null on a clash; add `require j != null else ALREADY_JOINED`
+after it. A clash with a row the caller cannot read is `E_RULE`, whatever the
+`else` says, and `exists` cannot see that row either; the code names a clash
+only on a readable table (a public occupancy table, `guide writes`).
+
 ## Operations
 
 Ordinary empty reads are quiet in `dev` and absent from `why recent`.

@@ -109,47 +109,111 @@ pub(super) fn reference_rewrite(catalog: &Catalog, info: &TableInfo, expr: &Expr
 
 /// A read rule that hops (`.box.season`) cannot be a partition's audience.
 /// The repair is always one that compiles as printed (round-tripped in
-/// `tests/wave2_rule_language.rs`): an online-only table or a view probes the
-/// row that holds the deciding value (`exists parent[.ref, field = viewer]`,
-/// copying the last reference when the chain is longer than one hop); a
-/// synced table compared with `viewer` copies the deciding principal, which
-/// sync can use as a column audience.
+/// `tests/wave2_rule_language.rs` and `tests/wave3_rule_language.rs`): an
+/// online-only table or a view probes the row that holds the deciding value
+/// (`exists parent[.ref, field = viewer]`, copying the last reference when the
+/// chain is longer than one hop); a synced table compared with `viewer`
+/// copies the deciding principal, which sync can use as a column audience.
+/// Every hop in the rule is repaired, not only the first (lane 033).
 // @ref LLP 3000.036#11 — app-farm pattern 33: show a table-rule repair, not mutation syntax.
 // @ref LLP 3000.036#12 — wave 2 R9: skip the intermediate one-hop form that is itself refused.
+// @ref LLP 3000.036#13.5 — wave 3 #17: repair each hop, and say `read through` widens the audience.
 pub(super) fn read_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr) -> Option<String> {
-    /// `.a.b … .f` rooted at the row, outermost first: `[a, b, …, f]`.
-    fn chain(expr: &Expr) -> Option<Vec<String>> {
-        let mut names = Vec::new();
-        let mut at = expr;
-        loop {
-            match at {
-                Expr::Member { base, name, .. } => { names.push(name.clone()); at = base; }
-                Expr::Focal { .. } => break,
-                _ => return None,
-            }
-        }
-        names.reverse();
-        (names.len() >= 2).then_some(names)
+    let first = single_hop_rewrite(catalog, info, rule)?;
+    let quoted = |text: &str| text.split('`').skip(1).step_by(2).map(str::to_owned).collect::<Vec<_>>();
+    let rule_of = |text: &str| -> Option<Expr> {
+        let read = quoted(text).into_iter().find_map(|piece| piece.strip_prefix("read <- ").map(str::to_owned))?;
+        let (document, errors) = crate::parser::parse_document("rule.q", &format!("table {}:\n  read <- {read}\n", info.decl.name));
+        if !errors.is_empty() { return None; }
+        document.tables.first()?.rules.iter().find(|r| r.effect == Effect::Read).map(|r| r.value.clone())
+    };
+    let mut steps = vec![first.clone()];
+    let mut current = rule_of(&first);
+    while let Some(next) = current.as_ref().filter(|next| find(next).is_some()) {
+        if steps.len() >= MAX_RULE_HOPS * 4 { return None; }
+        let step = single_hop_rewrite(catalog, info, next)?;
+        current = rule_of(&step);
+        steps.push(step);
     }
-    /// The first hop chain, with the equality it sits in (`= X`), if any.
-    fn find(expr: &Expr) -> Option<(Vec<String>, Option<(&Expr, String)>)> {
-        if let Some(names) = chain(expr) { return Some((names, Some((expr, "true".into())))); }
-        match expr {
-            Expr::Binary { op, left, right, .. } if op == "=" => match (chain(left), chain(right)) {
-                (Some(names), None) => Some((names, Some((expr, crate::print::expression(right))))),
-                (None, Some(names)) => Some((names, Some((expr, crate::print::expression(left))))),
-                _ => find(left).or_else(|| find(right)),
-            },
-            Expr::Member { base, .. } => find(base).map(|(names, _)| (names, None)),
-            Expr::Binary { left, right, .. } => match (chain(left), chain(right)) {
-                (Some(names), _) | (None, Some(names)) => Some((names, None)),
-                _ => find(left).or_else(|| find(right)),
-            },
-            Expr::Unary { value, .. } => find(value),
-            Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().find_map(|key| find(&key.value)).map(|(names, _)| (names, None)),
-            _ => None,
+    if steps.len() == 1 { return Some(first); }
+    // Several hops name several audiences; sync delivers one (E_SYNC). The
+    // online-only form keeps every reader with a probe per hop.
+    if info.maintained.is_none() && info.decl.sync.is_some() && !info.decl.online_only {
+        let mut online = info.clone();
+        online.decl.sync = None;
+        online.decl.online_only = true;
+        let repair = read_hop_rewrite(catalog, &online, rule)?;
+        return Some(format!("these hops name more than one audience, and a synced table has one (E_SYNC): replace its sync line with `online only`; then {repair}"));
+    }
+    // Merge the steps' declarations, insert checks and view groups into one repair.
+    let (mut declare, mut immutable, mut checks, mut by, mut caveats) = (Vec::<String>::new(), Vec::<String>::new(), Vec::<String>::new(), Vec::<String>::new(), Vec::<String>::new());
+    let mut through = None;
+    for step in &steps {
+        for piece in quoted(step) {
+            if let Some(check) = piece.strip_prefix("insert <- … and ") { if !checks.contains(&check.to_owned()) { checks.push(check.into()); } }
+            else if let Some(columns) = piece.strip_prefix("immutable ") { for column in columns.split(", ") { if !immutable.iter().any(|c| c == column) { immutable.push(column.into()); } } }
+            else if let Some(columns) = piece.strip_prefix("by ") { for column in columns.split(", ") { if !by.iter().any(|c| c == column) { by.push(column.into()); } } }
+            else if piece.starts_with("read through") { through.get_or_insert(piece); }
+            else if piece.split_once(": ").is_some_and(|(name, ty)| name.chars().all(char::is_alphanumeric) && !ty.contains('[')) && !declare.contains(&piece) { declare.push(piece); }
+        }
+        if let Some((_, rest)) = step.split_once("so this holds while ") && let Some((columns, _)) = rest.split_once(" cannot change") {
+            for column in columns.split(" and ") { if !caveats.iter().any(|c| c == column) { caveats.push(column.into()); } }
         }
     }
+    let read = quoted(steps.last()?).into_iter().find(|piece| piece.starts_with("read <- "))?;
+    let table = &info.decl.name;
+    let through = through.map(|through| format!("; `{through}` instead gives {table} the parent's whole audience, which admits more readers than this rule: use it only when every reader of the parent may read these rows")).unwrap_or_default();
+    if declare.is_empty() && checks.is_empty() && by.is_empty() {
+        return Some(format!("a read rule reads no reference hop; probe the rows that decide instead: `{read}`{through}"));
+    }
+    let mut parts = Vec::new();
+    if !by.is_empty() { parts.push(format!("group the view by the columns that name the deciding rows (`by {}`)", by.join(", "))); }
+    if !declare.is_empty() {
+        let names = declare.iter().map(|d| format!("`{d}`")).collect::<Vec<_>>().join(" and ");
+        parts.push(if immutable.is_empty() { format!("declare {names}") } else { format!("declare {names} with `immutable {}`", immutable.join(", ")) });
+    }
+    if !checks.is_empty() { parts.push(format!("check them in the insert rule (`insert <- … and {}`)", checks.join(" and "))); }
+    let caveat = if caveats.is_empty() { String::new() } else { format!(" (the copies are checked at insert, so this holds while {} cannot change)", caveats.join(" and ")) };
+    Some(format!("a read rule reads no reference hop, so repair each hop: {}, then `{read}`{caveat}{through}", parts.join(", ")))
+}
+
+/// `.a.b … .f` rooted at the row, outermost first: `[a, b, …, f]`.
+fn chain(expr: &Expr) -> Option<Vec<String>> {
+    let mut names = Vec::new();
+    let mut at = expr;
+    loop {
+        match at {
+            Expr::Member { base, name, .. } => { names.push(name.clone()); at = base; }
+            Expr::Focal { .. } => break,
+            _ => return None,
+        }
+    }
+    names.reverse();
+    (names.len() >= 2).then_some(names)
+}
+
+/// The first hop chain, with the equality it sits in (`= X`), if any.
+fn find(expr: &Expr) -> Option<(Vec<String>, Option<(&Expr, String)>)> {
+    if let Some(names) = chain(expr) { return Some((names, Some((expr, "true".into())))); }
+    match expr {
+        Expr::Binary { op, left, right, .. } if op == "=" => match (chain(left), chain(right)) {
+            (Some(names), None) => Some((names, Some((expr, crate::print::expression(right))))),
+            (None, Some(names)) => Some((names, Some((expr, crate::print::expression(left))))),
+            _ => find(left).or_else(|| find(right)),
+        },
+        Expr::Member { base, .. } => find(base).map(|(names, _)| (names, None)),
+        Expr::Binary { left, right, .. } => match (chain(left), chain(right)) {
+            (Some(names), _) | (None, Some(names)) => Some((names, None)),
+            _ => find(left).or_else(|| find(right)),
+        },
+        Expr::Unary { value, .. } => find(value),
+        Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().find_map(|key| find(&key.value)).map(|(names, _)| (names, None)),
+        _ => None,
+    }
+}
+
+/// The repair for the rule's first hop chain.
+fn single_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr) -> Option<String> {
     let (names, equality) = find(rule)?;
     let (refs, field) = names.split_at(names.len() - 1);
     let field = &field[0];
@@ -176,7 +240,7 @@ pub(super) fn read_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr)
         let all: Vec<&String> = mutable.iter().chain(extra).collect();
         if all.is_empty() { String::new() } else { format!(" (the copy is checked at insert, so this holds while {} cannot change)", all.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(" and ")) }
     };
-    let through = format!("; or `read through .{first}` when {table} rows share the whole {parent} audience");
+    let through = format!("; `read through .{first}` would instead give {table} the whole {parent} audience, which admits more readers than this rule: use it only when every reader of {parent} may read these rows");
     let replace = |replacement: &str| {
         let (node, _) = equality.as_ref().expect("an equality to replace");
         crate::print::with_source(rule, &|e| std::ptr::eq(e, *node).then(|| (replacement.to_owned(), true)))

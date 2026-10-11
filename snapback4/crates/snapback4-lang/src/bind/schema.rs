@@ -476,6 +476,11 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
         let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
+        // @ref LLP 3000.036#13.6 — the named form of a whole unnamed update rule, so the rewrite keeps every other clause.
+        if error.code == "E_QUARRY_RULE_OPERATOR" && rule.effect == Effect::Update && rule.bindings.is_empty() && error.rewrite.starts_with("name both images") {
+            let comparison = error.message.split('`').nth(1).unwrap_or_default().to_owned();
+            error.rewrite = super::rule_operator::named_update(&info.decl.name, &rule.value, &comparison);
+        }
         if error.code == "E_QUARRY_RULE_HOP" {
             error.rewrite = match rule.effect {
                 Effect::Read => reference::read_hop_rewrite(catalog, info, &rule.value).unwrap_or_else(|| "a read rule probes one hop: copy the deciding value onto this row (immutable, checked against the parent by the insert rule), or use read through .parent".into()),
@@ -608,10 +613,27 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                             else { format!("an insert rule orders int, time, decimal and money columns; check this {} comparison in the mutation with require", if scalar(&lt) { rt.name() } else { lt.name() }) };
                         return Err(type_error(site, format!("an insert-rule ordered comparison joins {} with {}{}", lt.name(), rt.name(), if optional { "; an optional column may be null, which is not ordered" } else { "" }), help));
                     }
-                } else if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
-                    let image = |term: &RuleTerm| match term { RuleTerm::OldField(f) => Some(format!("old.{f}")), RuleTerm::NextField(f) => Some(format!("next.{f}")), _ => None };
-                    let example = image(&l).or_else(|| image(&r)).map_or_else(|| "next.count >= old.count".to_owned(), |term| format!("{term} >= {}", term.replacen("next.", "old.", 1)));
-                    return Err(type_error(site, format!("ordered transition terms need matching int or time types; got {} and {}", lt.name(), rt.name()), format!("update (old, next) <- {example}")));
+                } else if ordered {
+                    // A named transition orders int, time, decimal and money images; an
+                    // integer literal beside decimal or money is minor units, as in an
+                    // insert rule (the engine compares the stored integers).
+                    // @ref LLP 3000.036#13.6 — wave 3 I4: one ordering rule for insert rules and named updates.
+                    let scalar = |ty: &Ty| matches!(ty.required(), Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..));
+                    let literal = |term: &RuleTerm| matches!(term, RuleTerm::Literal(Value::Int(_)));
+                    // A private (`written by`) decimal or money input stays refused: the disclosure
+                    // suite verifies ordered private transitions at runtime for int and time only.
+                    let private = |term: &RuleTerm| matches!(term, RuleTerm::OldField(f) | RuleTerm::NextField(f)
+                        if info.decl.columns.iter().any(|c| &c.name == f && c.written_by.is_some() && !c.readable_by_audience));
+                    let units = |ty: &Ty| matches!(ty.required(), Ty::Decimal(_) | Ty::Money(..));
+                    if (units(&lt) || units(&rt)) && (private(&l) || private(&r)) {
+                        return Err(type_error(site, format!("ordered transition terms over a private decimal or money field are not evaluated in rules; got {} and {}", lt.name(), rt.name()),
+                            super::rule_operator::transition_require(&info.decl.name, expr)));
+                    }
+                    if !scalar(&lt) || !scalar(&rt) || (lt.required() != rt.required() && !literal(&l) && !literal(&r)) {
+                        // Never a rewrite that changes the policy: the same comparison, in the mutation.
+                        return Err(type_error(site, format!("ordered transition terms need one int, time, decimal or money type (or an integer literal); got {} and {}", lt.name(), rt.name()),
+                            super::rule_operator::transition_require(&info.decl.name, expr)));
+                    }
                 }
                 Ok(match op.as_str() { "=" => RuleExpr::Eq(l,r), "!=" => RuleExpr::Ne(l,r),
                     ">=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gte,l,r), ">" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gt,l,r),

@@ -19,6 +19,45 @@ pub(super) fn reference(info: &TableInfo) -> Option<String> {
     }))
 }
 
+/// Whether the table asks to inherit its parent's audience: `read through`
+/// written out, a dotted `sync to` audience, or a read rule that spells the
+/// parent's whole rule through the reference (`exists members[.message.group,
+/// viewer]` under `messages`' `exists members[.group, viewer]`). A hop in any
+/// other read rule names a narrower audience of its own.
+pub(super) fn declares_membership(info: &TableInfo, reference: &str, tables: &BTreeMap<String, TableInfo>) -> bool {
+    let read = info.decl.rules.iter().find(|r| r.effect == Effect::Read);
+    let mut through = false;
+    if let Some(rule) = read {
+        let mut value = rule.value.clone();
+        super::super::intent_walk::expression(&mut value, &mut |expr| {
+            if matches!(expr, Expr::Call { name, .. } if name == "$readThrough") { through = true; }
+        });
+    }
+    let dotted = info.decl.sync.as_ref().is_some_and(|sync| matches!(&sync.audience, SyncAudience::Target { prefix, .. } if prefix.iter().any(|p| p.contains('.'))));
+    if through || dotted { return true; }
+    let Some(rule) = read else { return true };
+    let parent = match info.columns.get(reference) {
+        Some(ScalarType { kind: TypeKind::Ref { table }, .. }) => table,
+        _ => return true,
+    };
+    let Some(parent_info) = tables.get(parent) else { return true };
+    let parent_rule = match parent_info.decl.rules.iter().find(|r| r.effect == Effect::Read) {
+        Some(rule) => rule.value.clone(),
+        None => Expr::Name { name: if parent_info.decl.public.is_some() { "allow" } else { "deny" }.into(), site: rule.site.clone() },
+    };
+    let mut nested = false;
+    let mut expanded = parent_rule;
+    super::super::intent_walk::expression(&mut expanded, &mut |expr| {
+        if matches!(expr, Expr::Call { name, .. } if name == "$readThrough") { nested = true; }
+        if let Expr::Member { base, .. } = expr && matches!(base.as_ref(), Expr::Focal { .. }) {
+            let site = match base.as_ref() { Expr::Focal { site } => site.clone(), _ => unreachable!() };
+            **base = Expr::Member { base: Box::new(Expr::Focal { site: site.clone() }), name: reference.into(), site };
+        }
+    });
+    // An inherited parent spells its rule through captures (`.$message.group`).
+    nested || crate::print::expression(&rule.value) == crate::print::expression(&expanded).replace('$', "")
+}
+
 pub(super) fn repair(decl: &TableDecl, reference: &str) -> String {
     let immutable = if decl.immutable.iter().any(|(fields, _)| fields.iter().any(|f| f == reference)) { String::new() } else { format!("immutable {reference}\n") };
     let sync = decl.sync.as_ref().map(|sync| {
@@ -39,7 +78,7 @@ pub(super) fn check_rule(info: &TableInfo, reference: &str, inherited: &Expr) ->
     });
     if rule.is_some_and(|r| crate::print::expression(&r.value) == crate::print::expression(&expanded)) { return Ok(()); }
     Err(Diagnostic::new(rule.map(|r| &r.site).unwrap_or(&info.decl.site), "E_READ_THROUGH",
-        format!("{}: a membership path must spell the whole parent's read rule: {}; inheriting also adopts the parent's lifetime", info.decl.name, crate::print::expression(&expanded)),
+        format!("{}: a membership path must spell the whole parent's read rule: {}; inheriting also adopts the parent's lifetime. `read through` admits every reader of the parent, which is not this rule's audience: use it only if all of them may read these rows", info.decl.name, crate::print::expression(&expanded)),
         repair(&info.decl, reference)).guide("sync"))
 }
 

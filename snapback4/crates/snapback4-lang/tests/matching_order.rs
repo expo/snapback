@@ -67,7 +67,8 @@ fn valid_named_prefix_without_a_page_bound_requests_a_bound() {
     assert_eq!(refusal.code, "E_QUARRY_BOUND", "{refusal:?}");
     assert!(refusal.message.contains("no cap over this prefix"), "{refusal:?}");
     assert!(refusal.rewrite.contains("cap N by conversation"), "{refusal:?}");
-    assert!(refusal.rewrite.contains("first N"), "{refusal:?}");
+    // A synced table's page rewrite reads newest first, as its horizon keeps (LLP 3000.036 §13.3).
+    assert!(refusal.rewrite.contains("last N"), "{refusal:?}");
     assert_eq!(refusal.guide, "bounds");
 }
 

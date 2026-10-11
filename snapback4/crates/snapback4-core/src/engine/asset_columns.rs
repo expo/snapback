@@ -113,7 +113,11 @@ impl Runner<'_> {
             // in either column order. The home check still fences every release.
             for (claimed, column) in claims {
                 if self.context.is_system() && self.tx.asset(claimed)?.is_none() { continue; }
-                self.tx.claim_asset(claimed, &self.context.viewer, table_name, id, column)?;
+                // @ref LLP 3000.036#13.9 — the dev log names the asset column whose placement refused.
+                if let Err(error) = self.tx.claim_asset(claimed, &self.context.viewer, table_name, id, column) {
+                    if matches!(error, RuntimeError::Asset { .. }) { self.refusing_clause(table_name, &format!("asset {column}")); }
+                    return Err(error);
+                }
             }
             Ok(())
         })();

@@ -22,6 +22,14 @@ pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
         }
         for index in &info.indexes { out.insert((name.clone(), format!("unique {}", index.columns.join(", "))), index.site.to_string()); }
         for cap in &info.decl.caps { out.insert((name.clone(), format!("cap {}", cap.by.join(", "))), cap.site.to_string()); }
+        // @ref LLP 3000.036#13.9 — constraint refusals name their own line in the dev log.
+        for (fields, site) in &info.decl.immutable { for field in fields { out.insert((name.clone(), format!("immutable {field}")), site.to_string()); } }
+        fn asset(kind: &ast::TypeKind) -> bool {
+            match kind { ast::TypeKind::Image { .. } | ast::TypeKind::Video { .. } => true, ast::TypeKind::List { item, .. } => asset(&item.kind), _ => false }
+        }
+        for col in info.decl.columns.iter().filter(|col| asset(&col.type_.kind)) {
+            out.insert((name.clone(), format!("asset {}", col.name)), col.site.to_string());
+        }
     }
     out
 }

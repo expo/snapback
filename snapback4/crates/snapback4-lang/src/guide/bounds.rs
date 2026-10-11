@@ -25,7 +25,9 @@ when the read rule is uniformly decided by that prefix; they read ascending
 until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`
 and `lanes ≤ meter` when no fitting schema cap supplies a static bound.
 A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.
-A returned or bound page instead needs a schema cap or an explicit page bound.
+A returned or bound page instead needs a schema cap, a pinned unique key or an explicit page bound:
+`t where .slug = slug` under `unique slug` holds at most one row, and `unique owner, topic` with a
+three-value `topic` enum bounds `t where .owner = viewer` to three.
 Jobs may iterate uncapped domains under the chunk's meter. Top-level job
 `for` sweeps shrink their transaction size after a meter refusal. Mutation loops
 still need a schema-capped group that fits the examined ceiling. Direct

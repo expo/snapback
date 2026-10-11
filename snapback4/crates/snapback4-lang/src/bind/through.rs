@@ -46,6 +46,14 @@ fn one(
         done.insert(name.into());
         return Ok(());
     };
+    // @ref LLP 3000.036#13.5 — a hop in a read rule that is not the parent's
+    // whole rule (owner-or-organizer, lanes 033 036 060 067) is not a
+    // membership path: `read through` would widen it to the parent's audience.
+    // Leave it to E_QUARRY_RULE_HOP, whose rewrite probes the deciding row.
+    if !paths::declares_membership(&tables[name], &reference, tables) {
+        done.insert(name.into());
+        return Ok(());
+    }
     let info = tables[name].clone();
     let site = info
         .decl

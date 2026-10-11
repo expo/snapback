@@ -461,6 +461,8 @@ impl Runner<'_> {
                         self.refusing_clause(table_name, &format!("unique {}", index.columns().join(", ")));
                         return Err(self.no_write_target());
                     }
+                    // @ref LLP 3000.036#13.9 — the dev log names the `unique` line that refused (wave 3 I3).
+                    self.refusing_clause(table_name, &format!("unique {}", index.columns().join(", ")));
                     let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
                     if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
                         return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });
@@ -490,6 +492,7 @@ impl Runner<'_> {
                         materialize_optional_fields(&mut new_image, table);
                         for field in fields {
                             if old_image.field(field).ok() != new_image.field(field).ok() {
+                                if readable { self.refusing_clause(table_name, &format!("immutable {field}")); }
                                 return Err(if readable { RuntimeError::Constraint(format!("{table_name}.{field} is immutable")) } else { self.no_write_target() });
                             }
                         }
@@ -560,6 +563,7 @@ impl Runner<'_> {
                     if count >= *max as u64 {
                         self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
+                        self.refusing_clause(table_name, &format!("cap {}", by.join(", ")));
                         let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
                         return Err(if table.is_expiring() {
                             RuntimeError::ExpiringCap { message, site: self.statement_site.clone() }

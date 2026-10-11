@@ -38,7 +38,15 @@ impl Binder<'_> {
         let pinned = &index.columns[..read.keys.len()];
         // One group per distinct source key: a parent-scoped source cap bounds
         // its aggregate rows too, without copying a constraint onto the view.
-        let cap = self.schema.group_bound(&read.table, pinned).or_else(|| {
+        // A pinned unique key bounds the group as a cap does (wave 3 #7); `.id = x`
+        // plans as the closed seek `.id >= x and .id <= x` on the next column.
+        let mut equal = pinned.to_vec();
+        if let Some(next) = index.columns.get(read.keys.len()) {
+            let printed = |op: &str| read.seeks.iter().filter(|seek| &seek.column == next && seek.op == op).map(|seek| crate::print::expression(&seek.value)).collect::<Vec<_>>();
+            let (low, high) = (printed(">="), printed("<="));
+            if read.seeks.len() == 2 && low.len() == 1 && low == high { equal.push(next.clone()); }
+        }
+        let cap = self.schema.group_bound(&read.table, pinned).into_iter().chain(crate::bind::unique_bound::unique_bound(self.schema, &read.table, &equal)).min().or_else(|| {
             let m = self.schema.maintain_for(&read.table)?;
             let parent = m.parent_key.as_ref()?;
             pinned.contains(&parent.reference).then(|| self.schema.group_bound(&m.source, &[parent.reference.clone()])).flatten()
@@ -56,8 +64,17 @@ impl Binder<'_> {
             let columns = if pinned.is_empty() { String::new() } else { format!(" by {}", pinned.join(", ")) };
             let mut page = read.clone();
             page.index = Some(index.name.clone());
-            page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
-            let suggestion = format!("page with `first N` and a cursor: `{}` (declare `c: cursor ?`)", self.catalog.source.expression(&A::Read(page.clone())));
+            // @ref LLP 3000.036#13.3 — a synced table's horizon keeps the newest rows, so its page reads newest first:
+            // the page rewrite and N_NO_HORIZON's window then agree, and applying both draws no N_SYNC_ORDER.
+            let window = self.schema.table(&read.table).and_then(|table| table.sync.as_ref()).map(|sync| sync.horizon.as_ref().map(|window| window.by.clone()));
+            if let Some(Some(by)) = &window
+                && let Some(horizon) = self.catalog.tables.get(&read.table).and_then(|info| info.indexes.iter().find(|candidate| &candidate.name == by))
+                && horizon.words.is_none() && horizon.columns.len() > pinned.len() && horizon.columns[..pinned.len()] == *pinned {
+                page.index = Some(horizon.name.clone());
+            }
+            let order = if window.is_some() { ast::Order::Desc } else { ast::Order::Asc };
+            page.range = Some(ast::RangeSpec { order, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
+            let suggestion = format!("page with `{} N` and a cursor: `{}` (declare `c: cursor ?`)", if window.is_some() { "last" } else { "first" }, self.catalog.source.expression(&A::Read(page.clone())));
             // A filter pinning a whole unique key names at most one row: offer the one-row read first.
             let one = (index.unique && index.words.is_none() && !pinned.is_empty() && pinned.len() == index.columns.len()).then(|| {
                 let mut one = page.clone();
@@ -99,7 +116,7 @@ impl Binder<'_> {
             // @ref LLP 3000.036#11 — a total has no first-N repair (app-farm lane 087).
             let deciding = if missing.is_empty() { leading.join(", ") } else { missing.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ") };
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
-                format!("pin {deciding} with where equalities so one verdict covers every summed row; or keep a maintained total (`view {}Total: sum {} of .column by {}`, or `count`, with a read rule over its group keys) and read it by key; or return a `first N` page with a cursor and fold it in the client", scan.table, scan.table, if pinned.is_empty() { "…".to_owned() } else { pinned.iter().cloned().collect::<Vec<_>>().join(", ") })).guide("bounds"));
+                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope); {}; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds"));
         }
         if self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none() {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
@@ -114,6 +131,35 @@ impl Binder<'_> {
         let context = format!("; viewer query caller chain: {chain}. `{authored}` (at {}) does not decide its {rule}; a helper grants no system authority. The replacement is for the entire unused viewer query `{}`: replace lines {}-{end} in {} with the printed comment. Keep the complete scheduled job. A separately named paged preview needs its own cursor; `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, pin {}. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total", read.site, self.call_chain[0].0, query_site.line, query_site.file, leading.join(", "));
         Err(Diagnostic::new(query_site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns{context}", scan.table, scan.index),
             format!("-- {} removed: keep the complete helper under {job}'s chunk meter.", self.call_chain[0].0)).guide("bounds"))
+    }
+
+    /// A maintained view that keeps this total, rendered from the author's own
+    /// table, column and group (lanes 007 062 067: "hard to map to this schema").
+    // @ref LLP 3000.036#13.10 — a total over partly readable rows: the view discloses the total, never the rows.
+    fn total_view_recipe(&self, read: &ReadExpr, scan: &Scan) -> String {
+        use crate::bind::intent::{column, split};
+        let table = &scan.table;
+        let (kind, of) = self.total.clone().unwrap_or(("count", None));
+        // The group: the read's equalities, in its index order.
+        let mut groups: Vec<(String, String)> = read.keys.iter().filter_map(|key| key.column.clone().map(|column| (column, print::expression(&key.value)))).collect();
+        let mut filters = Vec::new();
+        if let Some(filter) = read.filter.clone() { split(*filter, &mut filters); }
+        for filter in &filters {
+            if let A::Binary { op, left, right, .. } = filter && op == "=" && let Some(col) = column(left)
+                && super::super::intent::independent(right) && !groups.iter().any(|(c, _)| c == col) {
+                groups.push((col.to_owned(), print::expression(right)));
+            }
+        }
+        let suffix = if kind == "count" { "Count" } else { "Total" };
+        let name = format!("{table}{suffix}");
+        let aggregate = match &of { Some(column) => format!("sum {table} of {column}"), None => format!("count {table}") };
+        let by = if groups.is_empty() { String::new() } else { format!(" by {}", groups.iter().map(|(c, _)| format!(".{c}")).collect::<Vec<_>>().join(", ")) };
+        let lookup = if groups.is_empty() { format!("{name}[]") } else { format!("{name}[{}]", groups.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>().join(", ")) };
+        let (readers, who) = match snapback4_core::engine::rules::grant_decision(self.schema, scan) {
+            Some(grant) => (grant.quarry(), "the callers that grant admits"),
+            None => ("allow".to_owned(), "everyone; narrow it to the readers the total is for"),
+        };
+        format!("or keep the total in a view, which discloses the total, never the rows: `view {name}: {aggregate}{by}` with `read <- {readers}` ({who}), then read `{lookup}`")
     }
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.
