@@ -41,7 +41,7 @@ fn build_refuses_linux_before_any_native_helper_runs() {
 #[test]
 fn witness_card_is_published_under_builder_words() {
     for word in ["witness", "simulator", "offline proof"] {
-        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word]).output().unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word, "--full"]).output().unwrap();
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
         assert!(String::from_utf8_lossy(&output.stdout).contains("snapback4 witness ios"));
     }

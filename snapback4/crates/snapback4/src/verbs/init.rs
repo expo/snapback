@@ -235,6 +235,7 @@ pub fn init(options: &Options) -> i32 {
         else if expo { "Expo todos: native when available, online in Expo Go" } else if web { "Vite + React todos, offline-capable" }
         else if online { "online-only" } else { "local-first" };
     println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
+    println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
     if web {
         let page = web_port.unwrap_or(5173);
         println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page} (`init --web-port N` picks another)", port.unwrap_or(4400));
@@ -370,6 +371,27 @@ fn has_scripts(dir: &Path, depth: usize) -> bool {
 
 /// A starter is the user's code: keep each comment's explanation and drop the
 /// annotation pointing into this repository's design records.
+// @ref LLP 3000.007#20.1 — wave 3: agents guessed `vite.config.ts` and `metro.config.cjs`; init names what it wrote.
+/// The files init wrote, compactly: top-level names, then each directory's
+/// files in braces (a directory of more than twelve shows its count).
+fn written_files(names: &[&str]) -> String {
+    let mut groups: Vec<(&str, Vec<&str>)> = Vec::new();
+    for name in names {
+        let (dir, rest) = name.split_once('/').unwrap_or(("", name));
+        match groups.iter_mut().find(|(group, _)| *group == dir) {
+            Some((_, members)) => members.push(rest),
+            None => groups.push((dir, vec![rest])),
+        }
+    }
+    groups.sort_by_key(|(dir, _)| !dir.is_empty());
+    groups.iter().map(|(dir, members)| match (*dir, members.len()) {
+        ("", _) => members.join(", "),
+        (dir, 1) => format!("{dir}/{}", members[0]),
+        (dir, n) if n > 12 => format!("{dir}/ ({n} files)"),
+        (dir, _) => format!("{dir}/{{{}}}", members.join(", ")),
+    }).collect::<Vec<_>>().join(", ")
+}
+
 pub(crate) fn without_design_references(text: &str) -> String {
     const POINTER: &str = concat!("@", "ref LLP ");
     text.split_inclusive('\n').map(|line| {

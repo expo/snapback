@@ -14,7 +14,7 @@ Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases:
    npm install
    ```
    Each starter is one screen over one table: a todo list with guest sign-in, a live query and three mutations. `init` never replaces a file (it only adds missing `package.json` entries) and never counts your `snapback/*.q` as a conflict; add `--skip-existing` to keep your other files and write only the missing ones. After you replace the starter's schema, `npx snapback4 check` names starter files that no longer fit it (the todo fixtures, a guest screen for a persona-only schema), and `npx snapback4 init --adapt` removes or rewrites them, never a file you changed. The full reference chat app is `init --web --template chat` (or `--expo`); a messaging app is `npx snapback4 new my-social --template social` (`guide social`).
-2. **Write the schema.** Edit `snapback/schema.q`: tables with rules and `sync`, then queries and mutations. Start from `npx snapback4 guide language`, then `guide rules` and `guide sync`.
+2. **Write the schema.** Edit `snapback/schema.q`: tables with rules and `sync`, then queries and mutations. Start from `npx snapback4 guide cheatsheet` (one screen), then `guide language`, `guide rules` and `guide sync`; a card over 130 lines prints its opening and a numbered index, so read one part with `--section <number>` or everything with `--full`.
 3. **Check and serve.** `npx snapback4 check` names each problem with a rewrite (`npx snapback4 why <code>` explains one) and writes the typed `snapback/generated/api.ts`. `npx snapback4 dev` serves http://127.0.0.1:4400 and re-adopts the schema on every save; run the app beside it with `npm run dev` (web) or `npm start` (Expo). Call an operation as a development persona: `npx snapback4 run add '{"title":"milk"}' --as alice`.
 4. **Seed and test.** Rows live in `fixtures/<table>.jsonl` and expected outcomes in `fixtures/test.cases.jsonl` (the starters ship both); `npx snapback4 test --fixture fixtures --as alice` runs them with no server. `npx snapback4 guide testing` shows both formats and an acceptance script over HTTP.
 5. **Choose the client.** One constructor per kind of program; React hooks (`useQuery`, `usePage`, `useMutation`, `useAuth`) come from `snapback4/react` (`guide client`). `usePage(api.list, args)` passes the cursor itself, so a paged query declares `c: cursor ?` and reads `after c` (`query list(c: cursor ?): return todos where .ownerId = viewer after c first 100 by .id`); `useQuery` reads a query without one. A schema with `use personas` and no `use identity` has no sign-in: act as a persona with `createApp({ url, persona: "alice", device })` (`guide personas`).
@@ -289,23 +289,23 @@ Public feeds share an activity union: Following delivers it to each reader; Tren
 ## Reference map: open only what the feature needs
 
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
-cards and aliases; `guide language` prints the language card. A large card truncates in agent tools: read one
-card per command, `guide <card> --sections` lists its headings and `--section <heading>` prints one.
+cards and aliases; `guide cheatsheet` is one screen of the common forms. A card over 130 lines prints its opening
+and a numbered section index: `--section <number or words>` prints one, `--find <words>` greps it, `--full` prints all.
 Every refusal names a code, site and rewrite.
 Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
 | Need | One reference lookup |
 |---|---|
-| Quarry grammar | `guide language` |
+| Quarry grammar | `guide cheatsheet` (one screen) / `guide language` |
 | Complete chat example / chat starters | `guide app` / [`init --web --template chat`](./CLIENT-AND-OPERATIONS.md#offline-web-starter) |
 | Fields / indexes / rules / aggregates / totals (`count`, `sum`) | `guide types` / `guide indexes` / `guide rules` / `guide maintains` / `guide totals` |
 | Reads / shapes / writes / helpers / chat receipts | `guide reads` / `guide shapes` / `guide writes` / `guide programs` / `guide receipts` |
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
 | Following: `view following` / Global: planned view / Trending: predicate read / search | `guide feeds` / `guide search` |
-| Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
+| Identity / media / expiry / seeds / time and the dev clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide time` |
 | Typing / scoped presence | `guide ephemeral` / [Ephemeral writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes) |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
-| Client patterns / auth / React list | `guide client` / [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
+| Client patterns / exports by subpath / auth / React list | `guide client` / `guide api` / [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
 | Development and wire | [§5](./CLIENT-AND-OPERATIONS.md#5-development) |
 | Release | [§6](./CLIENT-AND-OPERATIONS.md#6-release) |
 | Expo | [§7](./CLIENT-AND-OPERATIONS.md#7-expo) |

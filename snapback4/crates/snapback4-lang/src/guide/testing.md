@@ -129,17 +129,15 @@ case fails, `test` (and dev's refusal log) say whether the lookup's row was hidd
 
 ## An acceptance script over HTTP
 
-Spawn the package's `node_modules/.bin/snapback4` rather than `npx` (npm and a
-shell sit in between); it forwards signals to the server and stops it if your
-script dies. `--port 0` takes a free port and `--memory` keeps no store, so
-parallel runs never contend; a fixed port that is taken refuses at once
-(`E_ADDRINUSE`, naming the holder) instead of leaving you talking to an older
-server. Readiness is the first stdout line: the URL (read stdout alone; host
-diagnostics go to stderr first). Reading both streams together, match the
-stderr line `SNAPBACK4_READY … url=… pid=…` instead. `GET /dev/status` names
-the server's `pid` and, through the wrapper, `wrapperPid`; a SIGKILL to the
-wrapper stops the server too. `snapback4 dev --help` has the lifecycle.
-`resolveBinary()` from `snapback4/bin-path` returns the platform binary itself, with no Node wrapper.
+Spawn the binary itself: `resolveBinary()` from `snapback4/bin-path` (file `dist/bin-path.js`) returns
+the platform binary, so the child's PID is the server's. The `node_modules/.bin/snapback4` wrapper also
+works: it forwards `SIGTERM`/`SIGINT`, and the server stops when the wrapper dies, even by `SIGKILL`.
+Never spawn `npx` (npm and a shell sit in between). `--port 0` takes a free port and `--memory` keeps no
+store, so parallel runs never contend; a fixed port that is taken refuses at once (`E_ADDRINUSE`, naming
+the holder). Readiness: stdout's first line is the URL; host diagnostics go to stderr, so read stdout
+alone, or, reading both streams together, match the stderr line `SNAPBACK4_READY … url=… pid=…`.
+`GET /dev/status` names the server's `pid` (and `wrapperPid` through the wrapper). `snapback4 dev --help`
+has the lifecycle.
 
 Each scenario starts from state you know. Earlier steps change what later ones read (bob's list grows
 when alice invites him), so assert every persona's baseline before the first write, and give each
@@ -149,13 +147,27 @@ scenario its own rows: distinct ids and owners per scenario, or a fresh `dev --m
 ```js
 // node scripts/acceptance.mjs
 import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
-const dev = spawn("node_modules/.bin/snapback4", ["dev", "--port", "0", "--memory"], { stdio: ["ignore", "pipe", "inherit"] });
+import { resolveBinary } from "snapback4/bin-path";
+
+// Stop a child for certain: SIGTERM, up to graceMs to exit, then SIGKILL. Safe after it exited.
+async function stopChild(child, graceMs = 5000) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = once(child, "exit");
+  child.kill("SIGTERM");
+  const timer = setTimeout(() => child.kill("SIGKILL"), graceMs);
+  await exited;
+  clearTimeout(timer);
+}
+
+const dev = spawn(resolveBinary(), ["dev", "--port", "0", "--memory"], { stdio: ["ignore", "pipe", "inherit"] });
 try {
-  const url = await new Promise((resolve, reject) => {
-    dev.stdout.once("data", chunk => resolve(String(chunk).split("\n")[0].trim()));
-    dev.once("exit", code => reject(new Error(`dev exited ${code}`)));
-  });
+  const died = once(dev, "exit").then(([code]) => { throw new Error(`dev exited ${code} before its URL`); });
+  died.catch(() => {}); // only the race below reports it
+  const [line] = await Promise.race([once(createInterface({ input: dev.stdout }), "line"), died]);
+  const url = line.trim();
   const post = async (path, body, persona) => (await fetch(url + path, { method: "POST", body: JSON.stringify(body),
     headers: { "content-type": "application/json", ...(persona && { "x-snapback-persona": persona }) } })).json();
   assert.equal((await post("/seed", [{ table: "boards", row: { id: "b1", owner: "dev:alice", title: "Groceries" } }])).seeded, 1);
@@ -164,8 +176,11 @@ try {
   const refused = await post("/m/addCard", { args: { board: "b1", text: "spam" } }, "bob");
   assert.equal(refused.state, "failed"); // refused.why.code is "E_RULE"
   assert.equal((await post("/q/cardsOn", { args: { board: "b1" } }, "alice")).data.length, 1);
-} finally { dev.kill("SIGTERM"); }
+} finally { await stopChild(dev); }
 ```
+
+The same `stopChild` stops a frontend server: spawn `node_modules/.bin/vite` (not `npx vite`) and
+strip ANSI colors before matching its `Local:` line.
 
 Every route answers JSON; read the field for the route (`guide wire` has the rest):
 

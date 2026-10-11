@@ -54,7 +54,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
-  guide [keyword] [--sections|--section <heading>]  list cards and aliases, or print one card, its heading index, or one section
+  guide [keyword] [--full|--sections|--section <words|N>|--find <words>]  list cards and aliases, or print one card (over 130 lines: its opening and numbered index; --full: all of it), its index, one section, or the lines that mention words
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
@@ -139,14 +139,16 @@ fn main() -> ExitCode {
                     // Cards embed starter sources; print them as init installs them.
                     Some(card) => {
                         let card = verbs::without_design_references(card);
-                        let name = options.positionals.join(" ");
-                        if options.flags.contains_key("sections") { println!("{}", guide::section_index(&name, &card)); }
-                        else if let Some(words) = options.flags.get("section") {
-                            match guide::section(&name, &card, words) {
-                                Ok(text) => println!("{text}"),
-                                Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
-                            }
-                        } else { println!("{card}"); }
+                        let name = guide::resolve(keyword).unwrap_or(keyword);
+                        let chosen = if options.flags.contains_key("full") { Ok(card.clone()) }
+                            else if options.flags.contains_key("sections") { Ok(guide::section_index(name, &card)) }
+                            else if let Some(words) = options.flags.get("section") { guide::section(name, &card, words) }
+                            else if let Some(words) = options.flags.get("find") { guide::find(name, &card, words) }
+                            else { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) };
+                        match chosen {
+                            Ok(text) => println!("{text}"),
+                            Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
+                        }
                     }
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),

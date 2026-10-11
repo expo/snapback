@@ -265,7 +265,9 @@ fn advance_drains_expiry_across_multiple_bounded_sweeps() {
 
 #[test]
 fn clock_alias_and_refusals_are_discoverable() {
-    assert_eq!(snapback4_lang::guide::card("clock"), snapback4_lang::guide::card("jobs"));
+    // Wave 3 (LLP 3000.037): `clock` opened the 386-line jobs card; it opens the time card, which names the dev clock.
+    assert_eq!(snapback4_lang::guide::card("clock"), snapback4_lang::guide::card("time"));
+    assert!(snapback4_lang::guide::card("clock").unwrap().contains("snapback4 clock advance 2m"));
     for code in ["E_CLOCK_INPUT", "E_CLOCK_DEV_ONLY"] { assert!(snapback4_lang::guide::explain_code(code).is_some()); }
     let help = Command::new(BIN).arg("--help").output().unwrap();
     let help = String::from_utf8(help.stdout).unwrap();

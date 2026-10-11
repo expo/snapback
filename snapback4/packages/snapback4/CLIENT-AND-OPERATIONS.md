@@ -2786,7 +2786,7 @@ step.
   Otherwise, and for fatal signals such as `SIGBUS`, termination is immediate with the OS
   signal status. `SIGKILL`, power loss and an unwritable stderr cannot be reported from inside the process.
   `snapback4 why SNAPBACK4_SIGNAL` explains the code.
-- **Scripts that spawn `dev`.** `resolveBinary()` from `snapback4/bin-path` returns the binary the
+- **Scripts that spawn `dev`.** `resolveBinary()` from `snapback4/bin-path` (file: `dist/bin-path.js`) returns the binary the
   `snapback4` shim runs: `SNAPBACK4_BIN`, then the installed platform package, then a repository build.
   Spawning it directly puts no npm, shell or Node wrapper between the script and the server, so the child's
   PID is the server's and `kill()` stops it. Wait for the first stdout line (the listening URL), then
@@ -2967,9 +2967,11 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: language, app, types, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
-  (`guide <E_CODE>` explains a code); Natural words
-  resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  (`guide <E_CODE>` explains a code). A card over 130 lines prints its opening and a numbered section index;
+  `--section <number or words>` prints one section (any case, a unique prefix or the heading's words),
+  `--find <words>` prints the lines that mention them, and `--full` prints the whole card. Natural words
+  resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects, `clock` → time.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.
 
@@ -3256,8 +3258,9 @@ server and device defaults remain unchanged.
 ## 7. Expo
 
 `npx snapback4 init --expo` writes `metro.config.js` and
-`metro-wasm-transformer.cjs` (the config is `metro.config.cjs` in an existing
-ESM package): wasm is a Metro asset, and the transformer
+`metro-wasm-transformer.cjs`, and prints every file it wrote (`init: files: …`); only inside an
+existing package whose `package.json` says `"type": "module"` does it name the CommonJS configs `.cjs`.
+Wasm is a Metro asset, and the transformer
 turns the web device's module-relative wasm URL into an asset dependency.
 On web, `webDevice()` then finds the emitted wasm URL without a manual
 `wasm` option, in development and in an Expo web export. Keep both generated

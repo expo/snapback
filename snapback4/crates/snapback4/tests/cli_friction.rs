@@ -67,7 +67,7 @@ fn http(url: &str, method: &str, path: &str, persona: Option<&str>, body: &str) 
 #[test]
 fn a_closed_pipe_ends_a_one_shot_verb_without_a_panic() {
     let project = Project::new("use personas alice\nquery alive():\n  return true\n");
-    for args in [&["guide", "language"][..], &["--help"], &["check"], &["test"]] {
+    for args in [&["guide", "language", "--full"][..], &["--help"], &["check"], &["test"]] {
         let mut child = Command::new(BIN).current_dir(&project.0).args(args)
             .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
         // Close the read end before the verb writes (or while it does).
