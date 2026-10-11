@@ -33,7 +33,7 @@ function generated(t, held, fetcher, address = url) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-secure-adapter-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
-  const init = spawnSync(binary, ["init", "--expo"], { cwd: dir, encoding: "utf8" });
+  const init = spawnSync(binary, ["init", "--expo", "--template", "chat"], { cwd: dir, encoding: "utf8" });
   assert.equal(init.status, 0, init.stdout + init.stderr);
   const js = ts.transpileModule(readFileSync(join(dir, "src/client.ts"), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const context = { exports: {}, process: { env: { EXPO_PUBLIC_SNAPBACK_URL: address } }, require(name) {

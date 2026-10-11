@@ -9,6 +9,7 @@ impl Dir {
         fs::create_dir_all(&path).unwrap(); Self(path)
     }
     fn run(&self, flag: &str) -> std::process::Output { Command::new(BIN).args(["init", flag]).current_dir(&self.0).output().unwrap() }
+    fn init(&self, flags: &[&str]) -> std::process::Output { Command::new(BIN).arg("init").args(flags).current_dir(&self.0).output().unwrap() }
 }
 impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
@@ -40,11 +41,13 @@ console.log('Metro: 2 configs, 3 Expo blockList shapes, store paths excluded and
 }
 #[test]
 fn init_merges_packages_and_preserves_unrelated_metadata() {
-    for flag in ["--online", "--expo", "--web"] {
+    for flags in [&["--online"][..], &["--expo"], &["--web"], &["--expo", "--template", "chat"], &["--web", "--template", "chat"]] {
+        let flag = flags[0];
+        let chat = flags.len() > 1;
         let dir = Dir::new();
         let before = json!({"name":"my-app", "private":false, "type":"module", "description":"kept", "dependencies":{"unrelated":"1", "snapback4":env!("CARGO_PKG_VERSION")}, "devDependencies":{"my-tool":"2"}, "scripts":{"test":"my-tests"}});
         fs::write(dir.0.join("package.json"), before.to_string()).unwrap();
-        let output = dir.run(flag);
+        let output = dir.init(flags);
         assert!(output.status.success(), "{output:?}");
         let after: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
         for key in ["name", "private", "type", "description"] { assert_eq!(after[key], before[key]); }
@@ -53,7 +56,8 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
         assert_eq!(after["scripts"]["test"], "my-tests");
         if flag == "--expo" { assert_eq!(after["scripts"]["start"], "expo start"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
         assert!(dir.0.join("snapback/schema.q").exists());
-        if flag == "--expo" {
+        if flag == "--expo" { assert!(dir.0.join("expo-env.d.ts").is_file(), "Expo's types declare process.env for the starter's typecheck"); }
+        if flag == "--expo" && chat {
             for file in ["src/intents.ts", "src/intent-store.ts", "src/intent-store.web.ts", "src/intent-store.native.ts"] {
                 assert!(dir.0.join(file).exists(), "{file}");
             }
@@ -62,6 +66,8 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
             assert!(!web_store.contains("expo-sqlite"));
             let native_store = fs::read_to_string(dir.0.join("src/intent-store.native.ts")).unwrap();
             assert!(native_store.contains("expo-sqlite/kv-store"));
+        }
+        if flag == "--expo" {
             assert!(dir.0.join("metro.config.cjs").exists());
             assert!(dir.0.join("babel.config.cjs").exists());
             assert!(!dir.0.join("metro.config.js").exists());
@@ -178,7 +184,7 @@ fn calibration_commonjs_expo_imports_generated_api_from_node_esm() {
     let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
     assert!(check.status.success(), "{check:?}");
     fs::create_dir_all(dir.0.join("scripts")).unwrap();
-    fs::write(dir.0.join("scripts/seed.mjs"), "import {api} from '../snapback/generated/api.ts';\nif (!api.send) throw new Error('missing send');\nconsole.log('api import: ok');\n").unwrap();
+    fs::write(dir.0.join("scripts/seed.mjs"), "import {api} from '../snapback/generated/api.ts';\nif (!api.add) throw new Error('missing add');\nconsole.log('api import: ok');\n").unwrap();
     let output = Command::new("node").arg("scripts/seed.mjs").current_dir(&dir.0).output().unwrap();
     println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     assert!(output.status.success(), "{output:?}");
@@ -211,7 +217,7 @@ fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
         if flag == "--expo" {
             assert!(!dir.0.join("snapback/worker.mts").exists(), "the core starter has no invitation action or worker");
         }
-        let operation = if flag == "--expo" { "send" } else { "add" };
+        let operation = "add";
         fs::write(dir.0.join("import.mjs"), "import {api} from './snapback/generated/api.ts';\nif (!api.OP) throw new Error('missing operation');\nconsole.log('generated api ESM import: ok');\n".replace("OP", operation)).unwrap();
         let output = Command::new("node").arg("import.mjs").current_dir(&dir.0).output().unwrap();
         println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
@@ -376,9 +382,9 @@ fn w13e_removed_search_recipe_is_an_ordinary_unknown_recipe() {
 }
 
 #[test]
-fn web_starter_embeds_reference_and_keeps_default_schema_only() {
+fn web_chat_template_embeds_reference_and_keeps_default_schema_only() {
     let dir = Dir::new();
-    let output = dir.run("--web");
+    let output = dir.init(&["--web", "--template", "chat"]);
     assert!(output.status.success(), "{output:?}");
     for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "src/client.ts", "vite.config.ts", "index.html", "README.md"] {
         assert!(dir.0.join(file).is_file(), "{file}");
@@ -409,7 +415,7 @@ fn web_starter_refuses_conflicts_before_writing() {
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
-    for file in ["src/client.ts", "src/state.ts", "index.html"] {
+    for file in ["src/client.ts", "src/App.tsx", "index.html"] {
         let dir = Dir::new();
         let path = dir.0.join(file);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -513,13 +519,13 @@ fn usage_stderr_never_recommends_the_retired_installer() {
 
 #[test]
 fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
-    for flag in ["", "--online", "--expo", "--web"] {
+    for flags in [&[""][..], &["--online"], &["--expo"], &["--web"], &["--expo", "--template", "chat"], &["--web", "--template", "chat"]] {
         let dir = Dir::new();
-        assert!(dir.run(flag).status.success());
+        assert!(dir.init(flags).status.success());
         let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let (document, errors) = snapback4_lang::parse_document("schema.q", &source);
         assert!(errors.is_empty());
-        if flag == "--web" {
+        if flags == ["--web", "--template", "chat"] {
             assert!(document.server && !document.actions.is_empty());
         } else {
             assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
@@ -560,4 +566,125 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         }
         assert!(!readme.contains("SNAPBACK4_NATIVE_SMOKE=off"));
     }
+}
+
+fn starter_texts(root: &std::path::Path) -> Vec<(PathBuf, String)> {
+    snapshot(root).into_iter().filter_map(|(path, bytes)| bytes.map(|bytes| (path, String::from_utf8(bytes).unwrap()))).collect()
+}
+
+#[test]
+fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
+    for (flag, screens) in [("--web", &["src/App.tsx", "src/client.ts", "src/main.tsx", "index.html", "vite.config.ts"][..]), ("--expo", &["App.tsx", "src/client.ts", "expo-env.d.ts", "metro.config.js"])] {
+        let dir = Dir::new();
+        let output = dir.run(flag);
+        assert!(output.status.success(), "{output:?}");
+        for file in screens { assert!(dir.0.join(file).is_file(), "{flag}: {file}"); }
+        for chat in ["src/Inbox.tsx", "src/Thread.tsx", "src/intents.ts", "src/state.ts", "snapback/worker.ts", "snapback/worker.mts"] {
+            assert!(!dir.0.join(chat).exists(), "{flag}: the small starter carries no chat file {chat}");
+        }
+        let texts = starter_texts(&dir.0);
+        assert!(texts.len() <= 18, "{flag}: {} files", texts.len());
+        let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
+        let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
+        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+        assert_eq!(bound.schema.tables.len(), 1);
+        assert!(bound.schema.auth.guests, "the starter screen signs in as a guest");
+        for op in ["list", "add", "toggle", "remove"] { assert!(bound.schema.operations.contains_key(op), "{op}"); }
+        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        assert!(checked.status.success(), "{checked:?}");
+        let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+        let summary = String::from_utf8_lossy(&tested.stdout);
+        assert!(tested.status.success() && summary.contains("cases: 7 passed, 0 failed"), "{flag}: {tested:?}");
+        let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
+        for call in ["AppProvider", "auth.guest()", "usePage(api.list", "useMutation(api.add)", "api.toggle", "api.remove"] { assert!(app.contains(call), "{flag}: {call}"); }
+        assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("webDevice()"));
+        let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+        assert_eq!(package["dependencies"]["snapback4"], env!("CARGO_PKG_VERSION"));
+        if flag == "--web" {
+            assert_eq!(package["type"], "module", "a fresh directory keeps Vite's ESM package type");
+            assert!(package["scripts"]["build"].as_str().unwrap().ends_with("snapback4 web-shell dist"));
+            assert!(fs::read_to_string(dir.0.join("vite.config.ts")).unwrap().contains("strictPort: true"));
+        } else {
+            assert_eq!(fs::read_to_string(dir.0.join("expo-env.d.ts")).unwrap().trim(), "/// <reference types=\"expo/types\" />");
+            assert_eq!(package["scripts"]["typecheck"], "tsc -p tsconfig.json --noEmit");
+        }
+        let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
+        assert!(readme.contains(&format!("init <dir> {flag} --template chat")), "{flag}: the README names the full example");
+    }
+}
+
+#[test]
+fn every_starter_is_free_of_repository_history() {
+    let starters: [&[&str]; 7] = [&["init"], &["init", "--online"], &["init", "--web"], &["init", "--expo"], &["init", "--web", "--template", "chat"], &["init", "--expo", "--template", "chat"], &["new", "app", "--template", "social"]];
+    for args in starters {
+        let dir = Dir::new();
+        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        for (path, text) in starter_texts(&dir.0) {
+            for stale in ["@ref", "LLP ", "week 2", "Snapback 2", "nothing compiles", "beauty test"] {
+                assert!(!text.contains(stale), "{args:?}: {} mentions {stale:?}", path.display());
+            }
+        }
+    }
+}
+
+#[test]
+fn chat_template_is_explicit_and_needs_one_client() {
+    for (args, code) in [(&["init", "--template", "chat"][..], 2), (&["init", "--online", "--template", "chat"], 2), (&["init", "--web", "--expo", "--template", "chat"], 2), (&["new", "app", "--template", "nope"], 2), (&["new", "app"], 2)] {
+        let dir = Dir::new();
+        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
+        assert_eq!(output.status.code(), Some(code), "{args:?}: {output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--template chat"), "{args:?}: {output:?}");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0, "{args:?} wrote files");
+    }
+    let dir = Dir::new();
+    let output = Command::new(BIN).args(["new", "chat", "--template", "chat", "--expo"]).current_dir(&dir.0).output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(dir.0.join("chat/src/Inbox.tsx").is_file() && dir.0.join("chat/src/Thread.tsx").is_file());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Expo chat app"));
+}
+
+#[test]
+fn skip_existing_keeps_files_and_writes_the_rest() {
+    let dir = Dir::new();
+    let mine = "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n  insert <- allow\n";
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    fs::write(dir.0.join("snapback/schema.q"), mine).unwrap();
+    let refused = dir.run("--web");
+    assert_eq!(refused.status.code(), Some(1));
+    let diagnostic = String::from_utf8_lossy(&refused.stderr);
+    for text in ["E_INIT_CONFLICT", "snapback/schema.q already exists", "--skip-existing", "copy it over"] { assert!(diagnostic.contains(text), "{diagnostic}"); }
+    assert!(!dir.0.join("src").exists());
+    let output = dir.init(&["--web", "--skip-existing"]);
+    assert!(output.status.success(), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("kept 1 existing file unchanged: snapback/schema.q") && stdout.contains("adapt them to your schema"), "{stdout}");
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), mine);
+    for file in ["src/App.tsx", "src/client.ts", "package.json", "README.md", "snapback/generated/package.json"] { assert!(dir.0.join(file).is_file(), "{file}"); }
+    // Rerunning skips everything it wrote and still never touches the schema.
+    let again = dir.init(&["--web", "--skip-existing"]);
+    assert!(again.status.success(), "{again:?}");
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), mine);
+    // Package conflicts are not files to keep: they still refuse.
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), r#"{"dependencies":{"snapback4":"0.0.1"}}"#).unwrap();
+    let output = dir.init(&["--web", "--skip-existing"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("dependencies.snapback4"));
+    assert!(!dir.0.join("snapback").exists());
+}
+
+#[test]
+fn init_port_sets_the_backend_url_and_next_step() {
+    for flag in ["--web", "--expo", "--online"] {
+        let dir = Dir::new();
+        let output = dir.init(&[flag, "--port", "4517"]);
+        assert!(output.status.success(), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stdout).contains("`snapback4 dev --port 4517`"), "{output:?}");
+        let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+        assert!(client.contains("127.0.0.1:4517") && !client.contains("4400"), "{flag}: {client}");
+    }
+    let dir = Dir::new();
+    assert_eq!(dir.init(&["--web", "--port", "http"]).status.code(), Some(2));
+    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
 }

@@ -2,8 +2,8 @@ import { matchRead } from "snapback4/contract";
 import { useMutation, usePage, useViewer } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
-// The beauty test (LLP 2000.000 §8): a screen is a query plus JSX. Every word
-// it reads is on the card: data, complete, fresh, since, next, pending.
+// A screen is a query plus JSX. Every field it reads is on the read:
+// data, complete, fresh, since, next, pending (`snapback4 guide client`).
 export function Thread({ conversationId }: { conversationId: string }) {
   const viewer = useViewer();
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });

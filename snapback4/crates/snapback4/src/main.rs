@@ -29,8 +29,9 @@ use std::process::ExitCode;
 
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
-  init [dir] [--online|--expo|--web]  start a project
-  new <dir> --template social       Expo Router social starter (feed, chats, search, profile)
+  init [dir] [--online|--expo|--web]  start a project: a schema; --web a Vite + React todos app; --expo an Expo todos app; --online a schema and an online client
+       [--template chat] [--port N] [--skip-existing]  --web or --expo with --template chat: the full reference chat app; --port: the backend port the client calls; --skip-existing: keep existing files, write only missing ones
+  new <dir> --template social|chat   social: Expo Router social starter (feed, chats, search, profile); chat: add --web or --expo
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason
   types                            compile and write snapback/generated/api.ts
@@ -98,7 +99,7 @@ fn main() -> ExitCode {
             0
         }
         "new" if !options.flags.contains_key("template") => {
-            eprintln!("Choose a template: social\nusage: snapback4 new <dir> --template social\nFor schema-only setup use snapback4 init <dir>.");
+            eprintln!("Choose a template: social or chat\nusage: snapback4 new <dir> --template social\n       snapback4 new <dir> --template chat --web|--expo\nFor a small starter use snapback4 init <dir> --web (or --expo); for schema-only setup use snapback4 init <dir>.");
             2
         }
         "init" | "new" => verbs::init(&options),

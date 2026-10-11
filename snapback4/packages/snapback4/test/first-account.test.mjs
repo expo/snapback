@@ -65,7 +65,6 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
   };
   run(["init", "--expo"]);
   writeFileSync(join(dir, "snapback/schema.q"), schema);
-  for (const file of ["src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts", "snapback/worker.mts"]) rmSync(join(dir, file), { force: true });
   // Compile the README entry against its freshly generated API and actual package types.
   for (const { file, text } of examples) writeFileSync(join(dir, file), text);
   const checked = JSON.parse(run(["check", "--json"]));

@@ -1,12 +1,12 @@
 -- Sync last N bounds the device's working set, not server history: history queries with cursors page from the server beyond it, offline only within what the device has acquired.
 use server
--- The chat backend as Snapback 4 wants to read it. This file is the desired
--- authoring surface (LLP 2000 §4: write the application in the interface we
--- wish to provide); nothing compiles it until week 2. It is the Snapback 2
--- chat schema with one word changed per table: `sync` (LLP 2000.000 §7.1)
--- says which rows reach a viewer's device and how far back. Everything the
--- certifier keeps — rules, indexes, caps, `deliver`'s audience computation —
--- is unchanged in meaning.
+-- The chat backend: profiles, conversations, memberships, messages and read
+-- markers. Each table's rules say who may read and write a row; `sync` says
+-- which rows reach a viewer's device and how far back (`snapback4 guide sync`).
+-- `snapback4 check` checks rules, indexes and caps, and `check --cost`
+-- certifies each operation's work.
+-- Delete what your app does not need; `check` names anything left dangling.
+-- `snapback4 guide language` is the grammar.
 
 use identity -- This starter mints guests; an email-and-password product declares `use identity password`.
 use personas alice, bob, charlie

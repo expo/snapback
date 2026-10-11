@@ -1,7 +1,7 @@
 # Offline web chat starter
 
-Create this Vite/React starter with `npx snapback4 init --web`. Default `init`
-still writes only a schema. Run `npm install`, `npx snapback4 check`, then
+Create this Vite/React chat app with `npx snapback4 init --web --template chat`;
+plain `init --web` writes a one-screen todos starter instead. Run `npm install`, `npx snapback4 check`, then
 `npx snapback4 dev` in one terminal and `npm run dev` in another. Choose Continue as a guest; `createApp` restores that session on reopen.
 The inbox starts empty; seed conversations and memberships through `POST /seed`
 in development. A deployed app uses guest sessions and needs its own onboarding.

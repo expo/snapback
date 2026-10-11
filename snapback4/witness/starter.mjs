@@ -1,4 +1,4 @@
-// Actual `init --web` output in fresh Chromium realms, served at a subpath.
+// Actual `init --web --template chat` output in fresh Chromium realms, served at a subpath.
 // Run after the binary, package and wasm builds; intentionally outside test.sh.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -109,7 +109,7 @@ async function saved(page, principal = aliceSession.principal) {
   return page.evaluate(({ api, principal }) => JSON.parse(localStorage.getItem(`snapback4-chat:${JSON.stringify([api, principal])}`)), { api, principal });
 }
 try {
-  const init = spawnSync(binary(), ["init", app, "--web"], { encoding: "utf8" });
+  const init = spawnSync(binary(), ["init", app, "--web", "--template", "chat"], { encoding: "utf8" });
   assert.equal(init.status, 0, init.stdout + init.stderr);
   // Reuse the qualified workspace packages; no registry or provider is needed.
   linkDependencies();

@@ -144,9 +144,10 @@ test("init keeps the local default and makes a compiled online starter without s
   assert.equal(read(join(dir, "occupied/package.json")), "kept");
 });
 
-test("Expo starter copies reference pins, parses configs, and carries both client tiers", (t) => {
+for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.length ? "chat " : ""}starter copies reference pins, parses configs, and carries both client tiers`, (t) => {
   const { dir, run } = fixture(t);
-  run("init", "--expo");
+  const chat = template.length > 0;
+  run("init", "--expo", ...template);
   const reference = join(root, "apps/chat-expo");
   const expected = json(join(reference, "package.json")), actual = json(join(dir, "package.json"));
   for (const group of ["dependencies", "devDependencies"]) {
@@ -157,7 +158,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   const require = createRequire(join(reference, "package.json"));
   assert.equal(actual.devDependencies["babel-preset-expo"], require("babel-preset-expo/package.json").version);
   const starterConfig = json(join(reference, "app.json"));
-  assert.deepEqual(json(join(dir, "app.json")), starterConfig);
+  if (chat) assert.deepEqual(json(join(dir, "app.json")), starterConfig);
+  else assert.deepEqual(json(join(dir, "app.json")).expo.plugins, starterConfig.expo.plugins);
+  assert.equal(read(join(dir, "expo-env.d.ts")), '/// <reference types="expo/types" />\n');
   assert.deepEqual(json(join(dir, "tsconfig.json")), json(join(reference, "tsconfig.json")));
   assert.equal(read(join(dir, "babel.config.js")), read(join(reference, "babel.config.js")));
   const babel = { module: { exports: {} } };
@@ -185,7 +188,8 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assert.doesNotMatch(schema, /^\s*schedule\b.*:\s*invite\b/m);
   assert.match(read(join(dir, "src/client.ts")), /nativeAvailable\(\) \? "native" : "online"/);
   assert.doesNotMatch(read(join(dir, "App.tsx")), /runWitness|EXPO_PUBLIC_WITNESS/);
-  for (const screen of ["Inbox", "Thread"]) assert.match(read(join(dir, `src/${screen}.tsx`)), /\.\.\/snapback\/generated\/api/);
+  if (chat) for (const screen of ["Inbox", "Thread"]) assert.match(read(join(dir, `src/${screen}.tsx`)), /\.\.\/snapback\/generated\/api/);
+  else assert.match(read(join(dir, "App.tsx")), /\.\/snapback\/generated\/api/);
   run("check");
   function assertCoreTree(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -200,9 +204,9 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   assertCoreTree(dir);
 });
 
-for (const starter of ["expo", "web"]) test(`${starter} fresh template and generated server typecheck with only declared dependencies`, (t) => {
+for (const starter of ["expo", "web"]) for (const template of [[], ["--template", "chat"]]) test(`${starter} ${template.length ? "chat " : ""}fresh template and generated server typecheck with only declared dependencies`, (t) => {
   const { dir, run } = fixture(t);
-  run("init", `--${starter}`); run("check");
+  run("init", `--${starter}`, ...template); run("check");
   const reference = join(root, "apps", starter === "expo" ? "chat-expo" : "chat");
   const packageJson = json(join(dir, "package.json"));
   const require = createRequire(join(reference, "package.json"));

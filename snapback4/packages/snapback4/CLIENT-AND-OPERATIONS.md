@@ -19,12 +19,14 @@ function hostCheckedHandlers(handlers: ServerHandlers, signal: AbortSignal) {
 
 ## Offline web starter
 
-`npx snapback4 init --web` copies the maintained Vite chat reference, including
-its production app shell, account-bound saved route and write IDs. Default
-`init` remains schema-only. Run `npm install`, `npx snapback4 check`, then
+`npx snapback4 init --web` writes a one-screen Vite + React todos app on
+`createApp` with `webDevice()`; `npx snapback4 init --web --template chat`
+copies the maintained Vite chat reference, including its production app shell,
+account-bound saved route and write IDs. Default `init` remains schema-only.
+Run `npm install`, `npx snapback4 check`, then
 `npx snapback4 dev` and `npm run dev` in separate terminals. Build with
 `VITE_SNAPBACK_URL=https://your-backend npm run build`; serve `dist/` over HTTPS.
-Routes use `#room=<id>`.
+The chat's routes use `#room=<id>`.
 
 The build ends with `snapback4 web-shell dist`. Navigations use the active
 worker's cached HTML even online, so its HTML and lazy assets stay together
@@ -60,6 +62,17 @@ production offline-reopen journey; fixture residency remains
 **Constructor compatibility:** ready `Read<T>` values now require `existence`. Readers keep `isReady`/`isLoading`/`isDenied`; custom clients and mocks must classify their published value as `present`, `absent` or `partial`. No wire field was added. See `guide client` for the rules and point-read narrowing.
 
 `createApp` is the ordinary entry point. Construct it once outside React render.
+
+| Program | Constructor |
+|---|---|
+| Node script, seed, test or worker | `createClient({ url, persona })` from `snapback4/client` in development; `createClient({ url, session })` after `signup`/`login` from `snapback4/auth` |
+| Browser app | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider` |
+| Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })`; `webDevice()` on web |
+
+**Browser writes need `createApp` with a device.** A bare `createClient()` in a
+browser, or `createApp` without a durable device, has no synchronous write
+journal and refuses every mutation with `E_ADMISSION`; reads still work. This
+holds for online-only schemas too: pass `webDevice()` even with no `sync`.
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
 guest return `SignIn`; refusals are `{ ok: false, why }`. Logout clears local

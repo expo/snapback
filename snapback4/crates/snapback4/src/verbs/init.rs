@@ -7,13 +7,27 @@ use std::{io::Write, path::Path};
 
 mod web;
 mod social;
+mod starter;
+
+const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web]";
 
 pub fn init(options: &Options) -> i32 {
-    let social = options.flags.get("template").is_some_and(|name| name == "social");
-    if options.flags.contains_key("template") && (!social || ["online", "expo", "web", "recipe"].iter().any(|flag| options.flags.contains_key(*flag))) {
-        eprintln!("usage: snapback4 new <dir> --template social");
+    let template = options.flags.get("template").map(String::as_str);
+    let modes = ["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count();
+    // `--template social` is a whole app; `--template chat` is the reference
+    // chat app for one client, `--web` or `--expo`.
+    let template_ok = match template {
+        None => true,
+        Some("social") => modes == 0,
+        Some("chat") => modes == 1 && !options.flags.contains_key("online"),
+        Some(_) => false,
+    };
+    if !template_ok || (template.is_some() && options.flags.contains_key("recipe")) {
+        eprintln!("usage: snapback4 new <dir> --template social\n       snapback4 init [dir] --web --template chat\n       snapback4 init [dir] --expo --template chat");
         return 2;
     }
+    let social = template == Some("social");
+    let chat = template == Some("chat");
     // @ref LLP 3000.007.003#7 — new apps declare timelines; installed recipes retain their library support.
     let retired = ["prefix", "authors", "edges", "public-profiles", "public-posts", "public-follows", "public-reposts"];
     if options.flags.get("recipe").is_some_and(|name| name == "feeds")
@@ -21,15 +35,33 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  use a fresh feed name; dev adopts retained sources and deploy requires --allow-feed-adoption; see snapback4 guide feeds");
         return 2;
     }
-    if options.positionals.len() > 1 || (["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count() > 1) || options.flags.contains_key("recipe") {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo|--web]");
+    if options.positionals.len() > 1 || modes > 1 || options.flags.contains_key("recipe") {
+        eprintln!("{USAGE}");
         return 2;
     }
+    let port = match options.flags.get("port").map(|port| port.parse::<u16>()) {
+        None => None,
+        Some(Ok(port)) if port > 0 => Some(port),
+        Some(_) => {
+            eprintln!("E_INPUT at init --port: expected a port number from 1 to 65535\n  rewrite: snapback4 init --web --port 4401");
+            return 2;
+        }
+    };
+    let skip_existing = options.flags.contains_key("skip-existing");
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
     let expo = social || options.flags.contains_key("expo");
     let web = options.flags.contains_key("web");
-    let mut files = if social { social::files() } else if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    let mut files = if social { social::files() }
+        else if chat && web { web::files() } else if chat { expo_files() }
+        else if web { starter::web_files() } else if expo { starter::expo_files() }
+        else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    for (name, text) in &mut files {
+        // Starters copied from the reference apps keep their design notes in
+        // this repository; a new project gets the explanation alone.
+        if *name != "package.json" { *text = without_design_references(text); }
+        if let Some(port) = port { *text = text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
+    }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it
     // and place our setup instructions beside it, still without overwriting.
@@ -47,10 +79,13 @@ pub fn init(options: &Options) -> i32 {
             }
         } else if *name == "package.json" && dir.is_dir() {
             match inherited_package_type(dir) {
+                // A directory with no package above it and no scripts of its
+                // own keeps the starter's module type (Vite expects ESM).
+                Ok(None) if !has_scripts(dir, 0) => {},
                 Ok(kind) => {
                     let mut package: Value = serde_json::from_str(text).unwrap();
                     package.as_object_mut().unwrap().remove("type");
-                    if let Some(kind) = kind { package["type"] = kind; }
+                    if let Some(kind) = kind.flatten() { package["type"] = kind; }
                     *text = pretty(&package);
                 }
                 Err(error) => conflicts.push(error),
@@ -65,21 +100,30 @@ pub fn init(options: &Options) -> i32 {
     }
     // @ref LLP 3000.007#20.2 — scope generated ESM to its artifacts, preserving existing application scripts' module interpretation.
     files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into()));
-    // Check every destination before writing any starter file.
+    // Check every destination before writing any starter file. An existing
+    // file is a conflict, or with --skip-existing is kept exactly as it is.
+    let mut kept = Vec::new();
+    let mut existing = Vec::new();
     for (name, _) in &files {
         if let Err(error) = preflight_parents(&dir.join(name)) { conflicts.push(error); }
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
+        let mut present = Vec::new();
         if let Some(alternate) = alternate.filter(|name| dir.join(name).symlink_metadata().is_ok()) {
-            conflicts.push(format!("{} already exists", dir.join(alternate).display()));
+            present.push(format!("{} already exists", dir.join(alternate).display()));
         }
         if *name != "package.json" {
             match dir.join(*name).symlink_metadata() {
-                Ok(_) => conflicts.push(format!("{} already exists", dir.join(*name).display())),
+                Ok(_) => present.push(format!("{} already exists", dir.join(*name).display())),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
                 Err(error) => conflicts.push(format!("{}: {error}", dir.join(*name).display())),
             }
         }
+        if present.is_empty() { continue; }
+        if skip_existing { kept.push(*name); } else { existing.extend(present); }
     }
+    files.retain(|(name, _)| !kept.contains(name));
+    let skippable = !existing.is_empty();
+    conflicts.extend(existing);
     if let Err(error) = preflight_parents(&dir.join(".gitignore")) { conflicts.push(error); }
     for name in ["package.json", ".gitignore"] {
         if name == "package.json" && !files.iter().any(|(file, _)| *file == name) { continue; }
@@ -89,7 +133,8 @@ pub fn init(options: &Options) -> i32 {
     }
     if !conflicts.is_empty() {
         conflicts.sort(); conflicts.dedup();
-        eprintln!("E_INIT_CONFLICT: no files written\n  {}\n  rewrite: rename the listed files or reconcile the listed package.json entries, then rerun snapback4 init", conflicts.join("\n  "));
+        let recipe = if skippable { "rerun with --skip-existing to keep every existing file as it is and write only the missing ones (snapback/*.q is never overwritten), or rename the listed files and rerun; " } else { "" };
+        eprintln!("E_INIT_CONFLICT: no files written\n  {}\n  rewrite: {recipe}reconcile any listed package.json entries first. Do not init into another directory and copy it over: that overwrites your files", conflicts.join("\n  "));
         return 1;
     }
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
@@ -125,7 +170,17 @@ pub fn init(options: &Options) -> i32 {
     // A starter that wrote package.json dependencies needs them installed before
     // its typecheck, build or `npm start` can run.
     let install = if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
-    println!("init: wrote {} files in {} — {} — next: {install}`snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, readme.map(|name| format!("; see {name}")).unwrap_or_default());
+    let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
+    let kind = if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
+        else if expo { "Expo todos: native when available, online in Expo Go" } else if web { "Vite + React todos, offline-capable" }
+        else if online { "online-only" } else { "local-first" };
+    println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
+    if !kept.is_empty() {
+        println!("init: kept {} existing file{} unchanged: {}", kept.len(), if kept.len() == 1 { "" } else { "s" }, kept.join(", "));
+        if kept.contains(&"snapback/schema.q") && files.iter().any(|(name, _)| name.starts_with("src/") || name.starts_with("App.")) {
+            println!("init: your snapback/schema.q was kept; the starter screens call its own operations (list, add, toggle, remove) — adapt them to your schema after `snapback4 check`");
+        }
+    }
     0
 }
 
@@ -144,7 +199,7 @@ fn preflight_parents(path: &Path) -> Result<(), String> {
 
 // A new package boundary in an existing directory inherits the nearest
 // package's type, including its absence, rather than reinterpreting scripts.
-fn inherited_package_type(dir: &Path) -> Result<Option<Value>, String> {
+fn inherited_package_type(dir: &Path) -> Result<Option<Option<Value>>, String> {
     let absolute = std::fs::canonicalize(dir).map_err(|e| e.to_string())?;
     for ancestor in absolute.ancestors().skip(1) {
         let path = ancestor.join("package.json");
@@ -154,9 +209,36 @@ fn inherited_package_type(dir: &Path) -> Result<Option<Value>, String> {
             Err(error) => return Err(format!("{}: {error}", path.display())),
         };
         let package: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
-        return Ok(package.get("type").cloned());
+        return Ok(Some(package.get("type").cloned()));
     }
     Ok(None)
+}
+
+// Existing JavaScript keeps its module interpretation: only a directory
+// without scripts can take the starter's `"type"`.
+fn has_scripts(dir: &Path, depth: usize) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else { return false };
+    entries.flatten().any(|entry| {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        let path = entry.path();
+        if path.is_dir() { depth < 4 && name != "node_modules" && !name.starts_with('.') && has_scripts(&path, depth + 1) }
+        else { name.ends_with(".js") }
+    })
+}
+
+/// A starter is the user's code: keep each comment's explanation and drop the
+/// annotation pointing into this repository's design records.
+fn without_design_references(text: &str) -> String {
+    const POINTER: &str = concat!("@", "ref LLP ");
+    text.split_inclusive('\n').map(|line| {
+        let Some(start) = line.find(POINTER) else { return line.to_owned() };
+        let rest = &line[start..];
+        match rest.find(" — ") {
+            Some(gloss) => format!("{}{}", &line[..start], &rest[gloss + " — ".len()..]),
+            None => line.to_owned(),
+        }
+    }).collect()
 }
 
 // @ref LLP 3000.007#20.2 — merge an installed package without losing it on a partial write.
@@ -225,7 +307,7 @@ const TWO_WAYS: &str = "Two ways to run: the default `snapback4 init` declares `
 fn pretty(value: &Value) -> String { format!("{}\n", serde_json::to_string_pretty(value).unwrap()) }
 
 // @ref LLP 3000.007#8 — the Expo reference app owns the starter's toolchain and tier selection
-fn expo_files() -> Vec<(&'static str, String)> {
+fn expo_package() -> String {
     let mut package: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/package.json")).unwrap();
     package["name"] = json!("snapback4-expo-starter");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
@@ -240,6 +322,12 @@ fn expo_files() -> Vec<(&'static str, String)> {
     package["scripts"]["build:web"] = json!("expo export -p web && snapback4 web-shell dist");
     package["dependencies"]["react-dom"] = json!("19.2.3");
     package["dependencies"]["react-native-web"] = json!("~0.21.0");
+    pretty(&package)
+}
+
+fn expo_files() -> Vec<(&'static str, String)> {
+    let mut package: Value = serde_json::from_str(&expo_package()).unwrap();
+    package["name"] = json!("snapback4-expo-chat");
     let app = include_str!("init/expo-app.tsx").to_owned();
     // @ref LLP 3000.030#13 — copy the reference lifecycle configuration exactly once.
     let config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
@@ -256,13 +344,14 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("metro-wasm-transformer.cjs", include_str!("init/metro-wasm-transformer.cjs").to_owned()),
         ("index.js", include_str!("../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
+        ("expo-env.d.ts", starter::EXPO_ENV.to_owned()),
         ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/native-smoke.ts", include_str!("init/native-smoke.ts").to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
         ("src/intents.ts", include_str!("../../../../apps/chat-expo/src/intents.ts").to_owned()),
         ("src/intent-store.ts", include_str!("../../../../apps/chat-expo/src/intent-store.ts").to_owned()),
         ("src/intent-store.web.ts", include_str!("../../../../apps/chat-expo/src/intent-store.web.ts").to_owned()),
         ("src/intent-store.native.ts", include_str!("../../../../apps/chat-expo/src/intent-store.native.ts").to_owned()),
         ("snapback/schema.q", schema),
-        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\nFor password accounts in Node seed scripts and replay adapters, see `snapback4 guide auth`.\nCall `signup`/`login` from `snapback4/auth`, then open one\n`createClient({{ url, session }})` per user; no browser or borrowed UI token is needed.\nThe schema already enables passwords.\n\nAt every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.\nNative proof runs in the background at background QoS, so you can keep building\nwithout waiting for Xcode or the simulator. A newer export supersedes pending proof.\nThe next export and `npx snapback4 doctor` print its result; for your final report\nrun `npx snapback4 witness status --wait`. Receipts and logs stay in\n`artifacts/native-smoke/<timestamp>`. Failures are reported there and in status,\nwithout failing a successful export. Unavailable native hosts report a skip.\nBackground preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.\n`npm run native:smoke` explicitly waits for a full Release build and smoke.\nThe starter uses normal guest sign-in when smoke needs an account.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`.\n")),
+        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n`npm install` reports audit findings and a deprecated `uuid@7` from Expo's\nbuild-time toolchain (Metro, the Expo CLI, config plugins); they are not in the\napp bundle. Do not run `npm audit fix --force`: it downgrades Expo to SDK 44.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\nFor password accounts in Node seed scripts and replay adapters, see `snapback4 guide auth`.\nCall `signup`/`login` from `snapback4/auth`, then open one\n`createClient({{ url, session }})` per user; no browser or borrowed UI token is needed.\nThe schema already enables passwords.\n\nAt every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.\nNative proof runs in the background at background QoS, so you can keep building\nwithout waiting for Xcode or the simulator. A newer export supersedes pending proof.\nThe next export and `npx snapback4 doctor` print its result; for your final report\nrun `npx snapback4 witness status --wait`. Receipts and logs stay in\n`artifacts/native-smoke/<timestamp>`. Failures are reported there and in status,\nwithout failing a successful export. Unavailable native hosts report a skip.\nBackground preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.\n`npm run native:smoke` explicitly waits for a full Release build and smoke.\nThe starter uses normal guest sign-in when smoke needs an account.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`.\n")),
     ]
 }
 

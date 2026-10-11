@@ -1,0 +1,8 @@
+// `snapback4 test --fixture fixtures --as alice` runs these in order; `snapback4 guide testing`.
+{"as":"alice","op":"list","args":{},"count":1}
+{"as":"alice","op":"add","args":{"title":"Call mom"},"save":"call"}
+{"as":"alice","op":"toggle","args":{"todoId":"$call"}}
+{"as":"alice","op":"list","args":{},"count":2}
+{"as":"bob","op":"toggle","args":{"todoId":"todo-milk"},"expect":"NOT_FOUND","label":"bob cannot see alice's todo"}
+{"as":"bob","op":"remove","args":{"todoId":"todo-milk"},"expect":"denied","label":"bob cannot delete it either"}
+{"as":"bob","op":"list","args":{},"count":1}
