@@ -1508,6 +1508,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
 | `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any outcome); the state name; notice flags |
+| `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
 
 #### Narrowing reads and writes in TypeScript
 
@@ -1517,7 +1518,8 @@ arguments"). `present` and `partial` receive `data`; `otherwise` receives the **
 absent or present, even when one of those also has a handler), so narrow it with `isReady` before
 touching `.data`. `denied` and `partial` stay explicit beside `otherwise`, so a list still
 decides what an uncertain page shows. A `Write` is `pending`, `sent` or `failed`, and a replayed
-`sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it. The
+`sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it, or
+let `sentResult(write)` do both (below). The
 online client can return `pending` too, while offline or with `waitSeconds: 0`. `close()` returns
 a promise; an effect cleanup must return nothing, so write `() => { void client.close(); }`.
 `UseQuery<typeof api.op>`, `UsePage<typeof api.op>`, `UseMutation<typeof api.op>` and
@@ -1525,6 +1527,21 @@ a promise; an effect cleanup must return nothing, so write `() => { void client.
 `snapback4/react`, and `Client` also from `snapback4/client`. A guard or `matchRead` takes a
 page's `page.read`, never the page: `isDenied(page)` fails with "`PageHook<…>` is not assignable
 to `Read<unknown>`".
+
+```tsx
+import { isFailed, sentResult, useMutation } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+// Open the new profile once the server confirms it. sentResult is undefined while the write is
+// pending (offline, or `waitSeconds: 0`), after a refusal, and for a replayed receipt.
+export function CreateProfile({ open }: { open: (id: string) => void }) {
+  const create = useMutation(api.createProfile);
+  const submit = async (handle: string) => {
+    const created = sentResult(await create.run({ handle }));
+    if (created) open(created.id);
+  };
+  return <button onClick={() => void submit("alice")}>{isFailed(create.last) ? create.last.why.message : "Create"}</button>;
+}
+```
 
 Name an operation's types from the generated `api`, never from its private `__result` field:
 `RowOf<typeof api.thread>` is one row of a list or page query (a `usePage` item) or a point

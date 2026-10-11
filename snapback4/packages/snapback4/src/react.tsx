@@ -20,7 +20,7 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, isReady, isLoading, isDenied, isFailed, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadPresentation } from "./contract.ts";
+export { matchRead, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadPresentation } from "./contract.ts";
 export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 // React apps name the app they hand to <AppProvider> here; `createApp` itself
 // stays in snapback4/app so this entry never imports the session runtime.
@@ -204,6 +204,9 @@ export interface MutationHook<A, Outcome> {
  * returns at custody and `{ id }` submits under an id the app saved first. */
 export interface WriteHook<A, R> {
   run(args: A, options?: MutateOptions): Promise<Write<R>>;
+  /** Undefined before the first run. `isFailed(last)` narrows to the refusal
+   * (`last.why`); `sentResult(last)` is the fresh result, if any (a replayed
+   * receipt has none). */
   last: Write<R> | undefined;
   inFlight: boolean;
 }

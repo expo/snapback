@@ -299,7 +299,7 @@ function useBoth() {
 });
 // Wave-2 app farm lanes 038 040 056 064 069 081 084 092: the exact shapes that failed.
 test('guards take mixed reads and writes; op helpers name rows; React imports the App types; signed-in narrows the viewer', () => {
-  const result = check(`import { isDenied, isLoading, isReady, isFailed, existence, readPresentation, matchRead, useAuth, type Read, type Write, type ArgsOf, type ResultOf, type RowOf, type App, type AppOptions, type AuthSnapshot, type Cursor, type Principal, type Refusal } from './dist/react.js';
+  const result = check(`import { isDenied, isLoading, isReady, isFailed, sentResult, existence, readPresentation, matchRead, useAuth, type Read, type Write, type ArgsOf, type ResultOf, type RowOf, type App, type AppOptions, type AuthSnapshot, type Cursor, type Principal, type Refusal } from './dist/react.js';
 import { createApp } from './dist/app.js';
 import type { Query, Mutation, Ephemeral, Act, Signal } from './dist/contract.js';
 import type { RowOf as ClientRowOf } from './dist/client.js';
@@ -332,6 +332,15 @@ if (isFailed(added)) { const id: string = added.id; }
 else if (added?.state === 'sent' && !added.replayed) { const result: string = added.result; }
 // @ts-expect-error a read is not a write outcome
 isFailed(clients);
+// Wave 4 (066, 073): \`state === 'sent'\` alone leaves \`result\` optional (a replay has none); sentResult names the narrowing.
+const fresh: string | undefined = sentResult(added);
+const cleared: null | undefined = sentResult(removed);
+declare const created: Write<{ id: string }>;
+const createdId: string | undefined = sentResult(created)?.id;
+// @ts-expect-error the result may be absent (pending, failed, replayed)
+const certain: string = sentResult(added);
+// @ts-expect-error a signal is not a durable write
+sentResult(signal);
 const row: RowOf<typeof api.lots> = { id: 'a', name: 'n' };
 const point: RowOf<typeof api.lot> = row;
 const nullablePage: RowOf<typeof api.maybe> = row;
@@ -420,4 +429,14 @@ export function Inbox() { const page = usePage(api.list, {}); return isDenied(pa
 `);
   assert.deepEqual(result.codes, [2345], result.text);
   assert.match(result.text, /'PageHook<\{ id: string; \}\[\]>' is not assignable to parameter of type 'Read<unknown>'/);
+});
+
+test('sentResult returns a fresh sent result and undefined for every other outcome', async () => {
+  const { sentResult } = await import('../dist/contract.js');
+  const why = { code: 'E_RULE', family: 'rule', message: 'no' };
+  assert.deepEqual(sentResult({ state: 'sent', id: 'w', seq: 1, result: { id: 'r' } }), { id: 'r' });
+  assert.equal(sentResult({ state: 'sent', id: 'w', seq: 1, result: null }), null);
+  for (const write of [undefined, null, { state: 'pending', id: 'w' }, { state: 'failed', id: 'w', why }, { state: 'sent', id: 'w', seq: 1, replayed: true }]) {
+    assert.equal(sentResult(write), undefined);
+  }
 });

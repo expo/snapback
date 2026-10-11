@@ -371,6 +371,19 @@ export function isFailed<W extends Write<unknown> | Signal<unknown> | Act<unknow
   return outcome != null && "state" in outcome && outcome.state === "failed";
 }
 
+/** A write's fresh server result, or `undefined`: while it is pending, after
+ * it failed (read the refusal with `isFailed(write)` and `write.why`), before
+ * a hook's first run (`last` is undefined), and for a replayed `sent`
+ * receipt, which confirms execution but carries no historical result
+ * (`replayed: true`). `write.state === "sent"` alone does not narrow
+ * `result` for that reason. A mutation that returns null gives null here, so
+ * test `!== undefined`:
+ * `const created = sentResult(await create.run(args)); if (created) select(created.id);` */
+// @ref LLP 3000.013#6.5 — the replay arm stays honest; the helper names the common narrowing.
+export function sentResult<R>(write: Write<R> | null | undefined): R | undefined {
+  return write != null && write.state === "sent" && write.replayed !== true ? write.result : undefined;
+}
+
 /** The five UI meanings; narrow on read.existence after isReady for typed data. */
 export function existence(read: SettledRead<unknown>): "denied" | "present" | "absent" | "partial";
 export function existence(read: Read<unknown>): "loading" | "denied" | "present" | "absent" | "partial";
