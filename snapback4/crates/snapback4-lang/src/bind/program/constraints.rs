@@ -50,11 +50,23 @@ impl BoundProgram {
         if rules::scan_visibility(schema, scan).uniform || capped_scope_decides(schema, scan) { return None; }
         let table = schema.table(&scan.table)?;
         let source = &self.sources.get(site)?.0;
+        // @ref LLP 3000.036#11 — render the repairs against the author's own table and pins (app-farm patterns 6, 19).
+        let pins: Vec<(String, String)> = table.index(&scan.index).map(|index| index.components.iter().zip(&scan.prefix)
+            .filter_map(|(part, key)| {
+                let column = part.column()?.clone();
+                let value = match key.scalar()? { Expr::Variable(name) if !name.starts_with('$') => name.clone(), _ => column.clone() };
+                Some((column, value))
+            }).collect()).unwrap_or_default();
+        let name = &scan.table;
+        let group = pins.iter().map(|(column, _)| column.clone()).collect::<Vec<_>>().join(", ");
+        let key = pins.iter().map(|(_, value)| value.clone()).collect::<Vec<_>>().join(", ");
         let example = format!("declare one row per reserved unit with `unique resource, unit else TAKEN`, then insert those rows inside `{}`", self.program.name);
         Some(Diagnostic::new(source, "E_STRUCTURAL_FANOUT",
-            format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused",
+            format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused. A point read of a full unique key (`exists {name}[…]`) is not refused, but it too sees only readable rows",
                 self.program.name, scan.table, table.rules.read.quarry(), scan.table),
-            format!("use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. See `snapback4 guide writes` for the per-night example"))
+            format!("use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() { String::new() } else {
+                format!("For a count or capacity, keep a count whose read rule covers the writers (it discloses only the count): `view {name}Count: count {name} by {group}` with `read <- allow`, then `require {name}Count[{key}] < limit else FULL` (guide indexes, \"Private lists\"). ")
+            }))
             .guide("writes"))
     }
 }

@@ -184,3 +184,28 @@ fn event_slots_fence_projection_and_standalone_columns_but_not_legacy_timelines(
     }
     assert!(serde_json::from_value::<Schema>(wire).unwrap_err().to_string().contains("E_SCHEMA_CAPABILITY"));
 }
+
+// @ref LLP 3000.036#11 — ordered insert rules travel behind a capability, and
+// the core admits them only over the row's own required int/time columns.
+#[test]
+fn ordered_insert_rules_require_their_capability_and_own_columns() {
+    use snapback4_core::schema::{RuleExpr, RuleTerm, validate};
+    use snapback4_core::{ir::BinaryOp, value::Value};
+    let schema = compile("table ratings:\n  owner: principal\n  stars: int\n  note: int ?\n  read <- .owner = viewer\n  insert <- .owner = viewer and .stars >= 1\n  online only\n");
+    assert!(schema.required_capabilities().contains("insert-rule-order"));
+    assert!(validate(&schema).is_empty(), "{:?}", validate(&schema));
+    let bytes = serde_json::to_string(&schema).unwrap();
+    assert_eq!(serde_json::from_str::<Schema>(&bytes).unwrap(), schema);
+    for (left, right) in [
+        (RuleTerm::Field("note".into()), RuleTerm::Literal(Value::Int(1))),
+        (RuleTerm::Viewer, RuleTerm::Literal(Value::Int(1))),
+        (RuleTerm::Literal(Value::Int(2)), RuleTerm::Literal(Value::Int(1))),
+    ] {
+        let mut refused = schema.clone();
+        refused.tables.get_mut("ratings").unwrap().rules.insert = RuleExpr::Compare(BinaryOp::Gte, left.clone(), right.clone());
+        assert!(validate(&refused).iter().any(|issue| issue.message.contains("ordered comparisons")), "{left:?} {right:?}");
+    }
+    let mut read = schema.clone();
+    read.tables.get_mut("ratings").unwrap().rules.read = RuleExpr::Compare(BinaryOp::Gte, RuleTerm::Field("stars".into()), RuleTerm::Literal(Value::Int(1)));
+    assert!(validate(&read).iter().any(|issue| issue.message.contains("ordered comparisons")));
+}

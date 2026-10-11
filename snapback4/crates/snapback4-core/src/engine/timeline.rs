@@ -51,11 +51,11 @@ pub(crate) fn restored_sequence(schema: &crate::schema::Schema, table: &str, row
 fn field(row: &Value, name: &str) -> Result<Value, RuntimeError> { Ok(row.field(name)?.clone()) }
 fn text(row: &Value, name: &str) -> Result<String, RuntimeError> { Ok(row.field(name)?.as_str()?.to_owned()) }
 fn require(condition: bool, code: &str) -> Result<(), RuntimeError> {
-    if condition { Ok(()) } else { Err(RuntimeError::Require { site: None, code: code.into() }) }
+    if condition { Ok(()) } else { Err(RuntimeError::Require { site: None, code: code.into(), message: None }) }
 }
 
 fn required(value: Option<Value>, code: &str) -> Result<Value, RuntimeError> {
-    value.ok_or_else(|| RuntimeError::Require { site: None, code: code.into() })
+    value.ok_or_else(|| RuntimeError::Require { site: None, code: code.into(), message: None })
 }
 
 impl Runner<'_> {

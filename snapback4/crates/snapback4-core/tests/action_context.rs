@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 fn program() -> Program {
     Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
-        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
+        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None, message: None }] }
 }
 fn schema(policy: WorkPolicy) -> Schema {
     Schema { action_specs: BTreeMap::from([("work".into(), ActionSpec {

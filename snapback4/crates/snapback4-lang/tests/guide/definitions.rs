@@ -156,6 +156,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_JOB_VIEWER_FLOW", "return cannot leave an as block"),
     ("E_SYSTEM_PRINCIPAL_WRITE", "into a principal column is refused at `check` with `E_SYSTEM_PRINCIPAL_WRITE`"),
     ("N_WRITE_DENIED", "A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system."),
+    ("N_READ_DENIED", "looks up an aggregate by key whose read rule is `deny`"),
     ("E_JOB_VIEWER_QUERY", "a job viewer call requires a declared durable Quarry query"),
     ("E_JOB_VIEWER_READ", "the viewer query is unavailable or cannot certify exhaustion"),
 
@@ -191,6 +192,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_SHAPE_JOIN", "E_QUARRY_SHAPE_JOIN refuses joining different row kinds"),
     ("E_QUARRY_RULE_HOP", "E_QUARRY_RULE_HOP means a known relationship cannot be traversed in this rule position"),
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
+    ("E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_OPERATOR names a term a table rule does not evaluate"),
+    ("E_QUARRY_RESERVED", "E_QUARRY_RESERVED names a Quarry keyword used as a name, at its declaration"),
     ("E_QUARRY_JOB_SCHEDULE", "E_QUARRY_JOB_SCHEDULE separates work from its clock"),
     ("E_QUARRY_KEY_ORDER", "E_QUARRY_KEY_ORDER means a positional component followed a named one"),
     ("E_QUARRY_WRITE_TESTS", "E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique key"),

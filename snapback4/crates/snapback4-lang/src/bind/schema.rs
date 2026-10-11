@@ -476,7 +476,12 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
         let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
-        if error.code == "E_QUARRY_RULE_HOP" { error.rewrite = reference::reference_rewrite(catalog, info, &rule.value); }
+        if error.code == "E_QUARRY_RULE_HOP" {
+            error.rewrite = match rule.effect {
+                Effect::Read => reference::read_hop_rewrite(catalog, info, &rule.value).unwrap_or_else(|| "a read rule probes one hop: copy the deciding value onto this row (immutable, checked against the parent by the insert rule), or use read through .parent".into()),
+                _ => reference::reference_rewrite(catalog, info, &rule.value),
+            };
+        }
         error
     })
 }
@@ -551,7 +556,13 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             }
             "=" | "!=" | ">=" | ">" | "<=" | "<" => {
                 let ordered = !matches!(op.as_str(), "=" | "!=");
-                if ordered && (!bindings.update || bindings.old.is_none()) { return Err(unknown(site, "ordered comparisons belong to update (old, next) transitions", "update (old, next) <- next.readUpTo >= old.readUpTo")); }
+                let transition = bindings.update && bindings.old.is_some();
+                let effect = super::rule_operator::effect_word(bindings.insert, bindings.update, !bindings.hops);
+                // @ref LLP 3000.036#11 — unsupported terms and misplaced ordered comparisons name what rules evaluate and move the author's comparison into the mutation.
+                if let Some(what) = [left.as_ref(), right.as_ref()].into_iter().find_map(super::rule_operator::unsupported_side) {
+                    return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, what));
+                }
+                if ordered && !transition && !bindings.insert { return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, "an ordered comparison")); }
                 let (mut l, mut lt) = rule_term(catalog, info, left, bindings)?;
                 let (mut r, mut rt) = rule_term(catalog, info, right, bindings)?;
                 // `viewer = 'service:ranker'`: a text literal beside the
@@ -577,14 +588,32 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 {
                     return Err(type_error(site, format!("viewer meets {} here; only principal columns compare with viewer", other.name()), "declare the column as principal"));
                 }
-                if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
-                    return Err(type_error(site, "ordered transition terms need matching int or time types", "update (old, next) <- next.readUpTo >= old.readUpTo"));
+                if ordered && !transition {
+                    // An insert rule orders only the new row's own required int/time columns and integer literals.
+                    let own = |term: &RuleTerm| match term { RuleTerm::Field(field) => info.columns.contains_key(field), RuleTerm::Literal(Value::Int(_)) => true, _ => false };
+                    if !own(&l) || !own(&r) || matches!((&l, &r), (RuleTerm::Literal(_), RuleTerm::Literal(_))) {
+                        return Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, transition, expr, "an ordered comparison beyond this row's own columns"));
+                    }
+                    let scalar = |ty: &Ty| matches!(ty, Ty::Int | Ty::Time);
+                    let literal = |term: &RuleTerm| matches!(term, RuleTerm::Literal(_));
+                    if !scalar(&lt) || !scalar(&rt) || (lt != rt && !literal(&l) && !literal(&r)) {
+                        let optional = matches!(lt, Ty::Optional(_)) || matches!(rt, Ty::Optional(_));
+                        return Err(type_error(site, format!("an insert-rule ordered comparison joins {} with {}{}", lt.name(), rt.name(), if optional { "; an optional column may be null, which is not ordered" } else { "" }),
+                            if optional { "declare the column required, or check it in the mutation with require" } else { "compare required int or time columns of one type, or a column with an integer literal" }));
+                    }
+                } else if ordered && (!matches!(lt.required(), Ty::Int | Ty::Time) || lt != rt) {
+                    let image = |term: &RuleTerm| match term { RuleTerm::OldField(f) => Some(format!("old.{f}")), RuleTerm::NextField(f) => Some(format!("next.{f}")), _ => None };
+                    let example = image(&l).or_else(|| image(&r)).map_or_else(|| "next.count >= old.count".to_owned(), |term| format!("{term} >= {}", term.replacen("next.", "old.", 1)));
+                    return Err(type_error(site, format!("ordered transition terms need matching int or time types; got {} and {}", lt.name(), rt.name()), format!("update (old, next) <- {example}")));
                 }
                 Ok(match op.as_str() { "=" => RuleExpr::Eq(l,r), "!=" => RuleExpr::Ne(l,r),
                     ">=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gte,l,r), ">" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Gt,l,r),
                     "<=" => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Lte,l,r), _ => RuleExpr::Compare(snapback4_core::ir::BinaryOp::Lt,l,r) })
             }
-            other => Err(unknown(site, format!("`{other}` is not a rule operator; rules use and, or, not, =, and !="), "read <- .ownerId = viewer")),
+            other => {
+                let effect = super::rule_operator::effect_word(bindings.insert, bindings.update, !bindings.hops);
+                Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, bindings.update && bindings.old.is_some(), expr, &format!("the operator `{other}`")))
+            }
         },
         Expr::Unary { op, value, .. } if op == "not" => Ok(RuleExpr::Not(Box::new(rule_expr(catalog, info, value, bindings)?))),
         Expr::Member { .. } => {
@@ -604,6 +633,10 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             Ok(RuleExpr::Created { table, index, key, equalities, provenance: KeyProvenance::Shape })
         }
         Expr::Literal { value: Literal::Bool(b), .. } => Ok(if *b { RuleExpr::Allow } else { RuleExpr::Deny }),
+        Expr::Call { .. } => {
+            let effect = super::rule_operator::effect_word(bindings.insert, bindings.update, !bindings.hops);
+            Err(super::rule_operator::diagnostic(site, &info.decl.name, effect, bindings.update && bindings.old.is_some(), expr, "a helper or function call"))
+        }
         other => Err(unknown(site, format!("`{}` is not a rule", crate::print::expression(other)), "read <- exists memberships[.conversationId, viewer]")),
     }
 }
@@ -681,6 +714,22 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if catalog.tables.get(&read.table).is_some_and(|t| t.decl.ephemeral.is_some()) {
         return Err(Diagnostic::new(site, "E_QUARRY_EPHEMERAL", format!("a rule or after insert cannot probe ephemeral table {}", read.table), "probe a durable table instead").guide("ephemeral"));
     }
+    // `exists pieces[.id = .piece, …]`: a comparison where a key belongs. Name
+    // the column (`id = .piece`) or give the full unique key by position first.
+    // @ref LLP 3000.036#11 — app-farm pattern 27: the positional unique-key form.
+    for key in &read.keys {
+        if let Expr::Binary { op, left, right, .. } = &key.value && op == "="
+            && let Expr::Member { base, name, .. } = left.as_ref() && matches!(base.as_ref(), Expr::Focal { .. }) {
+            let others: Vec<String> = read.keys.iter().filter(|other| !std::ptr::eq(*other, key)).map(|other| match &other.column {
+                Some(column) => format!("{column} = {}", crate::print::expression(&other.value)),
+                None => crate::print::expression(&other.value),
+            }).collect();
+            let value = crate::print::expression(right);
+            let positional = if name == "id" { std::iter::once(value.clone()).chain(others.iter().cloned()).collect::<Vec<_>>().join(", ") } else { std::iter::once(format!("{name} = {value}")).chain(others.iter().cloned()).collect::<Vec<_>>().join(", ") };
+            return Err(unknown(&key.site, format!("`.{name} = {value}` is a comparison inside a probe key; in {}[..] a key names a column without a dot (`{name} = {value}`), or gives a full unique key by position first", read.table),
+                format!("exists {}[{positional}]", read.table)).guide("rules"));
+        }
+    }
     let mixed = read.keys.iter().any(|key| key.column.is_some()) && read.keys.iter().any(|key| key.column.is_none());
     let types = if mixed { Some(read.keys.iter().take_while(|key| key.column.is_none()).map(|key| rule_term(catalog, info, &key.value, bindings)
         .map(|(term, ty)| (ty, matches!(term, RuleTerm::Literal(Value::String(_)))))).collect::<Fallible<Vec<_>>>()?) } else { None };
@@ -755,7 +804,13 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         })
         .collect();
     if extras && named.is_some() {
-        if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() { candidates.retain(|i| target.total_unique(i) && i.columns.len() == width); }
+        if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() {
+            candidates.retain(|i| target.total_unique(i) && i.columns.len() == width);
+            // @ref LLP 3000.036#11 — named equalities covering two total unique keys
+            // test one row either way (the other key's columns are extra
+            // equalities on it), so the first declared key decides; no ambiguity.
+            candidates.truncate(1);
+        }
         else if candidates.iter().any(|i| i.unique) { candidates.retain(|i| i.unique); }
     }
     if named.is_none() {

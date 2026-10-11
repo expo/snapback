@@ -106,3 +106,34 @@ pub(super) fn reference_rewrite(catalog: &Catalog, info: &TableInfo, expr: &Expr
     lines.push(format!("require {predicate} else FORBIDDEN"));
     lines.join("\n")
 }
+
+/// A read rule that hops (`.box.season`) cannot be a partition's audience.
+/// The table-rule repair copies the immutable deciding value onto the row,
+/// checks it against the parent at insert, and probes one hop.
+// @ref LLP 3000.036#11 — app-farm pattern 33: show a table-rule repair, not mutation syntax.
+pub(super) fn read_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr) -> Option<String> {
+    fn find(expr: &Expr) -> Option<(String, String)> {
+        match expr {
+            Expr::Member { base, name, .. } => match base.as_ref() {
+                Expr::Member { base: focal, name: reference, .. } if matches!(focal.as_ref(), Expr::Focal { .. }) => Some((reference.clone(), name.clone())),
+                other => find(other),
+            },
+            Expr::Binary { left, right, .. } => find(left).or_else(|| find(right)),
+            Expr::Unary { value, .. } => find(value),
+            Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().find_map(|key| find(&key.value)),
+            _ => None,
+        }
+    }
+    let (reference, field) = find(rule)?;
+    let parent = match Ty::from_scalar(info.columns.get(&reference)?).required() { Ty::Ref(parent) => parent, _ => return None };
+    let parent_info = catalog.tables.get(&parent)?;
+    let declared = match column_ty(parent_info, &field)?.required() {
+        Ty::Ref(table) => table,
+        Ty::Principal => "principal".into(),
+        other => other.name(),
+    };
+    let printed = crate::print::expression(rule);
+    let one_hop = printed.replace(&format!(".{reference}.{field}"), &format!(".{field}"));
+    let one_hop = one_hop.strip_prefix('(').and_then(|text| text.strip_suffix(')')).unwrap_or(&one_hop).to_owned();
+    Some(format!("a read rule probes one hop, so copy the deciding value onto {table}: declare `{field}: {declared}` with `immutable {reference}, {field}`, check it against the parent in the insert rule (`insert <- … and exists {parent}[.{reference}, {field} = .{field}]`), then `read <- {one_hop}`; or `read through .{reference}` when {table} rows share the whole {parent} audience", table = info.decl.name))
+}

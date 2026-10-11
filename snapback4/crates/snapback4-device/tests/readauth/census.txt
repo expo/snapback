@@ -95,7 +95,8 @@ card/from-sql/2:add | never
 card/from-sql/2:remove | never
 card/from-sql/3:createRoom | never
 card/from-sql/3:setReminder | never
-card/indexes/2:checkin | never
+card/indexes/2:signUp | never
+card/indexes/3:checkin | never
 card/language/11:react | eligible
 card/language/11:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:addNote | eligible
@@ -495,6 +496,7 @@ card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read r
 card/start/5:remove | eligible
 card/start/5:toggle | eligible
 card/start/5:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
+card/testing/1:addCard | never
 card/types/1:createProfile | never
 card/wire/1:addExpense | never
 card/writes/1:checkin | never

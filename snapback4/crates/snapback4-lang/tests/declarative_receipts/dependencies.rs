@@ -145,6 +145,7 @@ fn pending_membership<H: Host>(host: &mut H, expression: &str) {
                     },
                     code: "NOT_SETTLED".into(),
                     site: None,
+                    message: None,
                 }),
                 Stmt::If {
                     then_body,

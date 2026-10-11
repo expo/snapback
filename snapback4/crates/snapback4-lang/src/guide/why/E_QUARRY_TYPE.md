@@ -42,3 +42,7 @@ no tables or clocks and write nothing. Other optional calls still need a
 local: bind once, then guard it.
 Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
 lists are heap-bound; a write still validates their actual column lengths.
+
+Inside a nested `where`, `.` is that predicate's own row: in a contests shape,
+`entries where .contest = .id` compares two entries fields. A named key reads
+the enclosing row: `entries[contest = .id] first 10 by .id`.

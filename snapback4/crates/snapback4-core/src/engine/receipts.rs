@@ -130,6 +130,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Require {
                 code: "NOT_MEMBER".into(),
                 site: None,
+                message: None,
             });
         }
         Ok(())
@@ -245,6 +246,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Require {
                 code: "NOT_FOUND".into(),
                 site: None,
+                message: None,
             });
         }
         // point_image() proves row authority but projects private fields. Preserve the
@@ -253,6 +255,7 @@ impl Runner<'_> {
             .ok_or_else(|| RuntimeError::Require {
                 code: "NOT_FOUND".into(),
                 site: None,
+                message: None,
             })
     }
 
@@ -317,6 +320,7 @@ impl Runner<'_> {
                 .ok_or_else(|| RuntimeError::Require {
                     code: "NOT_FOUND".into(),
                     site: None,
+                    message: None,
                 })?;
             // @ref LLP 3000.007#5.4 — total ordinary fields and assigned
             // receipt ints share this already-reserved full result map copy.

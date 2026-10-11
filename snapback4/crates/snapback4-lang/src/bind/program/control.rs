@@ -138,14 +138,14 @@ impl Binder<'_> {
                 }
                 Ok(())
             }
-            S::Require { condition, code, site } => {
+            S::Require { condition, code, message, site } => {
                 validate_code(site, code)?;
                 let (expr, ty) = self.expr(condition, out)?;
                 if !ty.is_bool() {
                     return Err(type_error(condition.site(), format!("require needs a bool condition, got {}", ty.name()), bool_condition_rewrite(&ty, "require x {} else CODE")));
                 }
                 self.narrow(condition, true);
-                out.push(Stmt::Require { condition: expr, code: code.clone(), site: Some(site.to_string()) });
+                out.push(Stmt::Require { condition: expr, code: code.clone(), site: Some(site.to_string()), message: message.clone() });
                 Ok(())
             }
             S::Emit { effect, payload, once, site } => {
@@ -241,7 +241,7 @@ impl Binder<'_> {
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
                 if self.caller_kind == ProgramKind::Job && self.loops + self.caller_loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
                     let after = self.visible_bindings();
-                    if let Some((name, _)) = before.iter().find(|(name, old)| after.get(*name).is_some_and(|new| old.revision != new.revision)) {
+                    if let Some((name, _)) = before.iter().find(|(name, old)| !name.starts_with('$') && after.get(*name).is_some_and(|new| old.revision != new.revision)) {
                         return Err(placement(site, format!("automatic sweep carries local {name} across iterations, but chunks commit independently"), format!("declare {name} inside the `for row in table:` body for per-item work, or store cross-chunk progress in a table")).guide("jobs"));
                     }
                 }
@@ -559,7 +559,7 @@ impl Binder<'_> {
             if !ty.assignable_to(&expected) {
                 return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), match (ty.required(), expected.required()) {
                     (Ty::Enum(variants), Ty::Text(max)) if variants.iter().any(|variant| variant.chars().count() > max as usize) => format!("change {name}'s parameter to `{}: {}`; not every variant fits text <={max}", declared.name, ty.name()),
-                    _ if ty.is_optional() && !expected.is_optional() => self.parent_rewrite(given).unwrap_or_else(|| format!("{} — require this argument once before calling {name}; absent or hidden rows refuse NOT_FOUND", print::expression(&A::Assert { value: Box::new(given.clone()), code: "NOT_FOUND".into(), site: given.site().clone() }))),
+                    _ if ty.is_optional() && !expected.is_optional() => self.parent_rewrite(given).unwrap_or_else(|| format!("{} — require this argument once before calling {name}; absent or hidden rows refuse NOT_FOUND", print::expression(&A::Assert { value: Box::new(given.clone()), code: "NOT_FOUND".into(), message: None, site: given.site().clone() }))),
                     _ => format!("pass {} for {}", expected.name(), declared.name),
                 }));
             }

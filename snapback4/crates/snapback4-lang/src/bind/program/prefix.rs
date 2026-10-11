@@ -73,7 +73,7 @@ impl Binder<'_> {
         Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))
     }
 
-    pub(super) fn check_meter_prefix(&self, read: &ReadExpr, scan: &Scan) -> Fallible<()> {
+    pub(super) fn check_meter_prefix(&self, read: &ReadExpr, scan: &Scan, aggregate: bool) -> Fallible<()> {
         if scan.take != Bound::Meter || snapback4_core::engine::rules::scan_visibility(self.schema, scan).uniform { return Ok(()); }
         let table = &self.schema.tables[&scan.table];
         let index = &table.indexes[&scan.index];
@@ -89,6 +89,12 @@ impl Binder<'_> {
             .map(|(helper, _)| self.helper_job_callers(helper)).unwrap_or_default();
         let query_site = &self.call_chain[0].1;
         let declaration = self.catalog.source.declarations.get(&query_site.to_string());
+        if aggregate && (self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none()) {
+            // @ref LLP 3000.036#11 — a total has no first-N repair (app-farm lane 087).
+            let deciding = if missing.is_empty() { leading.join(", ") } else { missing.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ") };
+            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
+                format!("pin {deciding} with where equalities so one verdict covers every summed row; or keep a maintained total (`view {}Total: sum {} of .column by {}`, or `count`, with a read rule over its group keys) and read it by key; or return a `first N` page with a cursor and fold it in the client", scan.table, scan.table, if pinned.is_empty() { "…".to_owned() } else { pinned.iter().cloned().collect::<Vec<_>>().join(", ") })).guide("bounds"));
+        }
         if self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none() {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
                 format!("use `first N`: `{}` (declare `c: cursor ?` and follow its cursor); for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", self.catalog.source.expression(&A::Read(page)), leading.join(", "))).guide("bounds"));

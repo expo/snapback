@@ -65,6 +65,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("owner-key-coverage", |s| s.maintains.iter().any(|m| m.own_keys.is_some())),
     ("ephemeral", |s| s.tables.values().any(|t| t.ephemeral.is_some())),
     ("field-authority", |s| s.tables.values().any(|t| !t.written_by.is_empty() || t.update_transition)),
+    // @ref LLP 3000.036#11 — an older decoder refuses ordered insert rules rather than misjudging them.
+    ("insert-rule-order", |s| s.tables.values().any(|t| ordered(&t.rules.insert))),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
@@ -76,6 +78,15 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];
+
+fn ordered(rule: &RuleExpr) -> bool {
+    match rule {
+        RuleExpr::Compare(..) => true,
+        RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(ordered),
+        RuleExpr::Not(inner) => ordered(inner),
+        _ => false,
+    }
+}
 
 impl Schema {
     fn has_receipt_columns(&self) -> bool {

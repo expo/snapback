@@ -190,7 +190,7 @@ impl Parser {
                 continue;
             }
             let site = self.take("chunk")?.site;
-            let name = self.binding_name()?;
+            let name = self.local_name()?;
             self.take("in")?;
             let start = self.position;
             let table = self.word()?;

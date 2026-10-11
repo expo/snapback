@@ -68,7 +68,7 @@ fn render(expr: &Expr, minimum: u8, source: &Source<'_>) -> String {
         Expr::Merge(merge) => format!("merge {}{}{} {} {} by {}{}:", merge.table, merge.matching.as_ref().map_or(String::new(), |q| format!(" matching {}", sub(q))), merge.cursor.as_ref().map_or(String::new(), |c| format!(" after {}", sub(c))), if merge.order == Order::Asc { "first" } else { "last" }, merge.take, merge.index, merge.filter.as_ref().map_or(String::new(), |p| format!(" where {}", sub(p)))),
         Expr::Exists { read, .. } => format!("exists {}", read_with(read, source)),
         Expr::Created { read, .. } => format!("created {}", read_with(read, source)),
-        Expr::Assert { value, code, .. } => format!("{} ! else {code}", render(value, 8, source)),
+        Expr::Assert { value, code, message, .. } => format!("{} ! else {code}{}", render(value, 8, source), message.as_deref().map(|m| format!(" {}", quote(m))).unwrap_or_default()),
         Expr::ShapeUse { base, name, .. } => format!("{} {name}", render(base, 8, source)),
         Expr::Shape { base, fields, .. } => format!("{} {{ {} }}", render(base, 8, source), shape_with(fields, source)),
         Expr::Walk { table, seed, column, depth, .. } => format!("walk {table}[{}] up .{column} depth {depth}", sub(seed)),

@@ -106,7 +106,7 @@ pub enum RuntimeError {
     #[error("E_RULE: authorization could not be established")]
     AuthorizationBudget { table: String, effect: Effect },
     #[error("{code}: the program refused")]
-    Require { code: String, site: Option<String> },
+    Require { code: String, site: Option<String>, message: Option<String> },
     #[error("E_CONFLICT: the row no longer matches the update condition")]
     Conflict { current: crate::ir::Read },
     #[error("E_CONSTRAINT: {0}")]
@@ -272,10 +272,10 @@ impl RuntimeError {
                 refusal.detail = Some(detail.clone());
                 refusal.guide = Some("indexes".into());
             }
-            Self::Require { code, site } => {
+            Self::Require { code, site, message } => {
                 refusal.rule = Some(code.clone());
                 refusal.site = site.clone();
-                refusal.message = format!("the program refused with {code}");
+                refusal.message = message.clone().unwrap_or_else(|| format!("the program refused with {code}"));
                 refusal.guide = Some("programs".into());
             }
             #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]

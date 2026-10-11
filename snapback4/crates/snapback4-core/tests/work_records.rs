@@ -76,7 +76,7 @@ fn action() -> Program {
     Program { name: "nullable".into(), kind: ProgramKind::Action,
         args: BTreeMap::from([("required".into(), ArgType::Scalar), ("optional".into(), ArgType::Optional(Box::new(ArgType::Int)))]),
         read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
-        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
+        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None, message: None }] }
 }
 
 #[test]

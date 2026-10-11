@@ -47,7 +47,7 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
         let compare=|e| Expr::Binary {op:BinaryOp::Eq,left:Box::new(e),right:Box::new(Expr::Literal(Value::Null))};
         let mut bodies=vec![
             vec![Stmt::Return(compare(status.clone()))],
-            vec![Stmt::Const {name:"row".into(),value:row.clone()},Stmt::Const {name:"alias".into(),value:field_expr(Expr::Variable("row".into()),&field)},Stmt::Require {condition:Expr::Variable("alias".into()),code:"NO".into(),site:None}],
+            vec![Stmt::Const {name:"row".into(),value:row.clone()},Stmt::Const {name:"alias".into(),value:field_expr(Expr::Variable("row".into()),&field)},Stmt::Require {condition:Expr::Variable("alias".into()),code:"NO".into(),site:None,message:None}],
             vec![Stmt::Return(Expr::Block {body:vec![Stmt::Const {name:"helper".into(),value:status.clone()}],value:Box::new(compare(Expr::Variable("helper".into())))})],
             vec![Stmt::Return(compare(Expr::Block {body:vec![Stmt::Return(status.clone())],value:Box::new(Expr::Literal(Value::Null))}))],
             vec![Stmt::If {condition:status.clone(),then_body:vec![],else_body:vec![]}],
@@ -114,7 +114,7 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
     }
     for (name,stmt) in [
         ("condition",Stmt::If {condition:row.clone(),then_body:vec![],else_body:vec![]}),
-        ("require",Stmt::Require {condition:row.clone(),code:"NO".into(),site:None}),
+        ("require",Stmt::Require {condition:row.clone(),code:"NO".into(),site:None,message:None}),
         ("insert",Stmt::Insert {table:"gates".into(),row:nested.clone()}),
         ("emit",Stmt::Emit {effect:"probe".into(),payload:nested,once:None}),
     ] {

@@ -157,7 +157,9 @@ impl Binder<'_> {
                 let (e, t) = self.expr(value, out)?;
                 if op == "not" {
                     if !t.is_bool() {
-                        return Err(type_error(site, format!("not needs a bool, got {}", t.name()), "compare the value first"));
+                        let operand = print::expression(value);
+                        return Err(type_error(site, format!("not needs a bool, got {} — `not` binds tighter than a comparison, so `not {operand} = x` reads as `(not {operand}) = x`", t.name()),
+                            format!("write `{operand} != x`, or parenthesize: `not ({operand} = x)`")));
                     }
                     Ok((Expr::Unary { op: UnaryOp::Not, value: Box::new(e) }, Ty::Bool))
                 } else {
@@ -208,12 +210,12 @@ impl Binder<'_> {
                 self.exists_read(read, out)
             }
             A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
-            A::Assert { value, code, .. } => {
+            A::Assert { value, code, message, .. } => {
                 validate_code(site, code)?;
                 let (e, t) = self.expr(value, out)?;
                 let tmp = self.temp("present");
                 out.push(Stmt::Let { name: tmp.clone(), value: e });
-                out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()) });
+                out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()), message: message.clone() });
                 Ok((ir::var(&tmp), t.required()))
             }
             A::Shape { base, fields, .. } => self.shape(base, fields, site, out),
@@ -459,6 +461,9 @@ impl Binder<'_> {
             }
             "=" | "!=" => {
                 if !lt.comparable(&rt) {
+                    if let Some(rewrite) = self.inner_row_rewrite(left, right, &lt, &rt) {
+                        return Err(type_error(site, format!("{op} compares {} with {}: inside a predicate, `.` is the predicate's own row, not the enclosing one", lt.name(), rt.name()), rewrite));
+                    }
                     return Err(type_error(site, format!("{op} compares {} with {}", lt.name(), rt.name()), "compare values of one type"));
                 }
                 if op == "=" { BinaryOp::Eq } else { BinaryOp::Ne }
@@ -836,4 +841,23 @@ fn aggregate_path(expr: &A) -> Option<(&A, String)> {
     if fields.len() < 2 || !matches!(root, A::Focal { .. } | A::Name { .. }) { return None; }
     fields.reverse();
     Some((root, fields.join(".")))
+}
+
+impl Binder<'_> {
+    /// `entries where .contest = .id` inside a contests shape: both dots are
+    /// the inner row. Name the column on the inner table and bind the outer
+    /// value through a named key, which reads the enclosing row.
+    // @ref LLP 3000.036#11 — lexical scope of `.` in nested projections (app-farm pattern 44).
+    fn inner_row_rewrite(&self, left: &A, right: &A, lt: &Ty, rt: &Ty) -> Option<String> {
+        self.focal.as_ref()?;
+        let (Ty::Ref(a), Ty::Ref(b)) = (lt.required(), rt.required()) else { return None };
+        let dotted = |expr: &A| match expr { A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) => Some(name.clone()), _ => None };
+        let (column, other_field, inner) = match (dotted(left), dotted(right)) {
+            (Some(l), Some(r)) if r == "id" => (l, r, b.clone()),
+            (Some(l), Some(r)) if l == "id" => (r, l, a.clone()),
+            _ => return None,
+        };
+        let outer = if inner == a { b } else { a };
+        Some(format!("`.{other_field}` here is the {inner} row's own id; to match the enclosing {outer} row, use a named key, which reads the enclosing row: `{inner}[{column} = .{other_field}]` (keep the same order and page after it, e.g. `{inner}[{column} = .{other_field}] first 20 by .id`), or bind the outer value to a local before the nested read"))
+    }
 }
