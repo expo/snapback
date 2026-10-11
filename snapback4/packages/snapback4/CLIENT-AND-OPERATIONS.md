@@ -66,13 +66,26 @@ production offline-reopen journey; fixture residency remains
 | Program | Constructor |
 |---|---|
 | Node script, seed, test or worker | `createClient({ url, persona })` from `snapback4/client` in development; `createClient({ url, session })` after `signup`/`login` from `snapback4/auth` |
-| Browser app | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider` |
+| Browser app | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider`; the device is about 650 KB gzip of wasm, also with no `sync` (below) |
 | Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })`; `webDevice()` on web |
 
 **Browser writes need `createApp` with a device.** A bare `createClient()` in a
 browser, or `createApp` without a durable device, has no synchronous write
 journal and refuses every mutation with `E_ADMISSION`; reads still work. This
 holds for online-only schemas too: pass `webDevice()` even with no `sync`.
+
+**Budget for the device before choosing the browser app.** `webDevice()` is the
+whole local interpreter compiled to wasm: about 2.1 MB raw, 650 KB gzip (a
+release budget caps the gzip size), plus a 24 KB worker, on top of the app's
+JavaScript. A Vite production build emits it as its own asset, and the
+device fetches it when it opens at restore or sign-in. With no synced table it
+holds no rows and every read goes to the server, but it still journals each
+click: a write survives a reload or a same-turn navigation, and the server runs
+it at most once. There is no lighter durable browser tier in this release. A browser page that never writes needs no device: every client
+reads, and `readOnly: true` silences the write warning (`guide read-only`). An
+Expo app pays nothing on phones (the native module, or Expo Go's online tier)
+and the same wasm on Expo web.
+
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
 guest return `SignIn`; refusals are `{ ok: false, why }`. Logout clears local
