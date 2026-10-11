@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 // @ref LLP 3000.028#8 — one integrated app carries the three client recipes.
 pub(super) fn files() -> Vec<(&'static str, String)> {
     let mut files = super::expo_files();
-    files.retain(|(name, _)| matches!(*name, "package.json" | "src/native-smoke.ts" | "babel.config.js" | "metro.config.js" | "metro-wasm-transformer.cjs" | "src/intent-store.ts" | "src/intent-store.web.ts" | "src/intent-store.native.ts"));
+    files.retain(|(name, _)| matches!(*name, "package.json" | "src/native-smoke.ts" | "babel.config.js" | "metro.config.js" | "metro-wasm-transformer.cjs" | "src/intent-store.ts" | "src/intent-store.web.ts" | "src/intent-store.native.ts" | "expo-env.d.ts"));
     let package = files.iter_mut().find(|(name, _)| *name == "package.json").unwrap();
     let mut value: Value = serde_json::from_str(&package.1).unwrap();
     value["name"] = json!("snapback4-social-starter");
@@ -44,7 +44,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
         ("app/(tabs)/search.tsx", "export { default } from '../../src/Search';\n".to_owned()),
         ("app/(tabs)/profile.tsx", "export { default } from '../../src/Profile';\n".to_owned()),
         ("app/search-chat/[id].tsx", "import { useLocalSearchParams } from 'expo-router';\nimport Search from '../../src/Search';\nexport default function ChatSearch() { const { id } = useLocalSearchParams<{ id: string }>(); return <Search key={id} conversation={id} />; }\n".to_owned()),
-        ("tsconfig.json", super::pretty(&json!({ "extends": "expo/tsconfig.base", "compilerOptions": { "strict": true, "jsx": "react-jsx", "moduleResolution": "bundler", "module": "esnext", "allowImportingTsExtensions": true, "noEmit": true, "skipLibCheck": true }, "include": ["app/**/*.tsx", "src/**/*", "snapback/generated/api.ts"] }))),
+        ("tsconfig.json", super::pretty(&json!({ "extends": "expo/tsconfig.base", "compilerOptions": { "strict": true, "jsx": "react-jsx", "moduleResolution": "bundler", "module": "esnext", "allowImportingTsExtensions": true, "noEmit": true, "skipLibCheck": true }, "include": ["app/**/*.tsx", "src/**/*", "snapback/generated/api.ts", "expo-env.d.ts"] }))),
         ("app.json", super::pretty(&json!({ "expo": { "name": "Small social", "slug": "small-social", "scheme": "smallsocial", "newArchEnabled": true, "ios": { "bundleIdentifier": "dev.snapback4.social" }, "android": { "package": "dev.snapback4.social" }, "web": { "bundler": "metro" }, "plugins": ["expo-router", "expo-sqlite", "expo-secure-store", "expo-image-picker", "snapback4-expo/plugin"] } }))),
     ]);
     files

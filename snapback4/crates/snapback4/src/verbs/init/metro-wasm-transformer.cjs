@@ -1,4 +1,4 @@
-// @ref LLP 3000.007#20.2 — Metro must discover the web device's wasm as an asset, including web exports.
+// Lets Metro emit the web device's wasm as an asset, in development and in web exports.
 const upstream = require("@expo/metro-config/babel-transformer");
 module.exports.transform = function (args) {
   // Expo's web asset transformer returns a URL string for wasm. Native

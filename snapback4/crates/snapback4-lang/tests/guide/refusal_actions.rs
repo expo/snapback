@@ -58,7 +58,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_JOB_SCHEDULE", &["`job sweep every 1h:` with `job sweep():`, keep the indented body"]),
     ("E_QUARRY_KEY_ORDER", &["move all positional components first, then write the named tests"]),
     ("E_QUARRY_WRITE_TESTS", &["This explicit check refuses a hidden or missing row and grants no write authority"]),
-    ("E_INIT_CONFLICT", &["Rename the listed files or reconcile the named package.json entries, then rerun `snapback4 init --expo` (or `--web`).", "An existing README.md stays intact"]),
+    ("E_INIT_CONFLICT", &["rerun with `--skip-existing`", "Never init into another directory and copy it over yours", "An existing README.md stays intact"]),
     ("E_JOB_SWEEP", &["both their domains and bodies are write-free and emit-free", "They run again under each chunk's meter", "Rebind unsupported work as ordinary sweeps and queue the job again"]),
     ("N_OPTIONAL_FILTER_LIMIT", &["reset the cursor when filters change", "residual filters, which can stay metered or move into separate queries", "a presence-selected read cannot supply that loop domain"]),
     ("DIGEST_CHAT_BOUND", &["Replace its paged count with `count(messages where .conversationId = conversationId and .at >= periodStart and .at < periodEnd)`", "its marker with `emit … once`"]),

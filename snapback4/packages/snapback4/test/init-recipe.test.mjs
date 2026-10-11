@@ -76,7 +76,7 @@ for (const starter of ["expo", "web"]) test(`CCP ${starter} generated intent tra
   const ts = (await import("typescript")).default;
   const dir = mkdtempSync(join(tmpdir(), `ccp-${starter}-`));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const result = spawnSync(binary, ["init", `--${starter}`], { cwd: dir, encoding: "utf8" });
+  const result = spawnSync(binary, ["init", `--${starter}`, "--template", "chat"], { cwd: dir, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   const source = readFileSync(join(dir, "src/intents.ts"), "utf8");
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
