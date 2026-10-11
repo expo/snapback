@@ -97,6 +97,6 @@ query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2
     assert!(text.contains("    query queue(c: cursor ?):\n      if exists staff[viewer]:\n        return tickets last 50 by .at after c\n      return tickets where .owner = viewer last 50 by .at after c"), "{text}");
     assert_eq!(text.matches("  rewrite: Replace this query with one per party").count(), 1, "{text}");
     assert!(text.contains("query mySessionsAsTutor(c: cursor ?)") && text.contains("query mySessionsAsLearner(c: cursor ?)"), "{text}");
-    assert!(text.contains("pinning the owner otherwise (below)"), "{text}");
+    assert!(text.contains("pinning `.owner` otherwise (below)"), "{text}");
     fs::remove_dir_all(dir).unwrap();
 }
