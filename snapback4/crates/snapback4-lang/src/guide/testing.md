@@ -74,8 +74,9 @@ read looked at (not rows returned), `entries` index entries walked, `probes`
 rule lookups, `steps`, `heap B`, `output B`; the `ceilings` row is the limit
 for each. `complete` is the whole answer; `capped` is a partial one
 (`complete: false`: a ceiling, or a page that cannot prove completeness on the
-server), not a refusal. A derived argument the rules refuse is reported, not
-failed. The last line counts complete, capped, refused, not-run and denied
+server), not a refusal. A query's own `require` refusing the persona is
+reported, not failed, whether its arguments were derived or it takes none: the
+persona chose nothing, so it is the program's gate (pin it with an `expect` case). The last line counts complete, capped, refused, not-run and denied
 queries and the cases below; the exit code is 1 when a query is denied, a case
 fails or the fixture does not load. `snapback4 test --help` prints this legend.
 
@@ -104,6 +105,9 @@ persona against the loaded fixture; mutations change what later lines see.
 - `data` must equal the answer; `count` is the answer's length.
 - `save` names the answer; a later string argument `"$eggs"` is that row's `id`, `"$eggs.text"` a field.
 - `label` is printed beside the result. Lines starting with `//` are skipped.
+- Those eight keys (`as`, `op`, `args`, `expect`, `data`, `count`, `save`, `label`) are the whole
+  vocabulary: `test` checks every line before running any, and an unknown key (`"rows":0`) or an
+  object `expect` refuses the run, naming the line and the key, instead of passing unchecked.
 
 A failing refusal prints the layer that refused under the FAIL line, as `snapback4 run` does: the
 rule clause and its line, the `unique` or `cap` clause a hidden row filled, or the program's own
@@ -137,7 +141,8 @@ the platform binary, so the child's PID is the server's. The `node_modules/.bin/
 works: it forwards `SIGTERM`/`SIGINT`, and the server stops when the wrapper dies, even by `SIGKILL`.
 Never spawn `npx` (npm and a shell sit in between). `--port 0` takes a free port and `--memory` keeps no
 store, so parallel runs never contend; a fixed port that is taken refuses at once (`E_ADDRINUSE`, naming
-the holder). Readiness: stdout's first line is the URL; host diagnostics go to stderr, so read stdout
+the holder). On a host that assigns you a port range, pass it: `--port 20100-20109` binds the first free
+port in it (`E_ADDRINUSE` only when all are taken), so no port-scanning loop is needed. Readiness: stdout's first line is the URL; host diagnostics go to stderr, so read stdout
 alone, or, reading both streams together, match the stderr line `SNAPBACK4_READY … url=… pid=…`.
 `GET /dev/status` names the server's `pid` (and `wrapperPid` through the wrapper). `snapback4 dev --help`
 has the lifecycle.

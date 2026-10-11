@@ -589,6 +589,18 @@ impl<'a> Binder<'a> {
         if named && matches!(mode, ReadMode::FilteredPoint | ReadMode::Exists) {
             if let Some(width) = candidates.iter().filter(|i| info.total_unique(i)).map(|i| i.columns.len()).min() {
                 candidates.retain(|i| info.total_unique(i) && i.columns.len() == width);
+                // @ref LLP 3000.036#15.7 — named equalities covering two total unique keys
+                // (`loans[borrower = viewer, telescope = t]`, lane 057) test one row either
+                // way, the other key's columns being extra equalities on it; the first
+                // declared key decides, as a rule probe already does (§11).
+                // Same-column keys in two orders (`unique pair: low, high` and `unique
+                // inverse: high, low`) still need an explicit `by` (guide indexes).
+                let mut sets = candidates.iter().map(|index| { let mut columns = index.columns.clone(); columns.sort(); columns }).collect::<Vec<_>>();
+                sets.dedup();
+                if candidates.len() > 1 && sets.len() == candidates.len() {
+                    selection = "first declared unique key the named equalities cover";
+                    candidates.truncate(1);
+                }
             } else if candidates.iter().any(|i| i.unique) {
                 // Exact nullable unique keys still select points. A competing
                 // nonunique index must not turn an exists probe into a tie.

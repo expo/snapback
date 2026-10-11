@@ -25,6 +25,10 @@ pub(super) fn refusal(info: &TableInfo, read: &ReadExpr, candidates: &[&IndexDec
     let alternatives = if candidates.is_empty() && read.index.is_some() {
         info.indexes.iter().filter(|index| !catalog.synthesized.contains(&(read.table.clone(), index.name.clone()))).collect::<Vec<_>>()
     } else { candidates.to_vec() };
+    // @ref LLP 3000.036#15.7 — `budgets['general']` (lane 020): a text value names the declared
+    // text key far more often than a row id, so that named form leads (and is --fix's choice).
+    let mut alternatives = alternatives;
+    alternatives.sort_by_key(|index| index.columns.iter().any(|column| column == "id"));
     let mut changes = Vec::new();
     for index in &alternatives {
         // Same-column opposite-order indexes need the explicit name as well.

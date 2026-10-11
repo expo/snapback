@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_WRITE_DENIED" | "N_NEVER_COMPLETE" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_WRITE_DENIED" | "N_DELETE_ORPHANS" | "N_NEVER_COMPLETE" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -33,7 +33,25 @@ fn heading(tier: Tier) -> &'static str {
     }
 }
 
-pub(crate) struct Note { pub site: String, pub code: String, pub summary: String }
+pub(crate) struct Note {
+    pub site: String,
+    pub code: String,
+    pub summary: String,
+    /// A compiled complete form (`N_NEVER_COMPLETE`'s branched or per-party
+    /// query): its lead line and the code. Printed under the first note of
+    /// each lead, so the default output carries the fix, not only `--verbose`.
+    pub form: Option<(String, String)>,
+}
+
+/// The compiled form leading a note's rewrite: the text before "Otherwise:",
+/// when it holds code (a lead line ending in `:` and the declaration under it).
+// @ref LLP 3000.036#15.5 — the compiled owner-or-X rewrite prints by default, once per form.
+pub(crate) fn compiled_form(code: &str, rewrite: &str) -> Option<(String, String)> {
+    if code != "N_NEVER_COMPLETE" { return None; }
+    let head = rewrite.split("\n\nOtherwise:").next()?;
+    let (lead, body) = head.split_once('\n')?;
+    (lead.ends_with(':') && body.trim_start().starts_with("query ")).then(|| (lead.to_owned(), body.trim_end().to_owned()))
+}
 
 /// The ranked block printed after `check: ok`; empty for no notes.
 pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
@@ -55,6 +73,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
         if total == 1 { "" } else { "s" })];
     let mut current = None;
     let mut shown_codes = Vec::new();
+    let mut shown_forms = Vec::new();
     for i in order {
         let (note, count) = &unique[i];
         let group = tier(&note.code);
@@ -64,8 +83,15 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             // A repeat of a code already explained above: its site and subject only.
             lines.push(format!("note: {} — {}: (as above) {}{times}", note.site, note.code, short(&note.summary)));
         } else {
-            lines.push(format!("note: {} — {}: {}{times}", note.site, note.code, note.summary));
+            let below = note.form.as_ref().is_some_and(|(lead, _)| !shown_forms.contains(lead));
+            let summary = match note.summary.strip_suffix(" (check --verbose)") { Some(text) if below => format!("{text} (below)"), _ => note.summary.clone() };
+            lines.push(format!("note: {} — {}: {summary}{times}", note.site, note.code));
             shown_codes.push(note.code.clone());
+        }
+        if let Some((lead, code)) = &note.form && !shown_forms.contains(lead) {
+            lines.push(format!("  rewrite: {lead}"));
+            lines.extend(code.lines().map(|line| format!("    {line}")));
+            shown_forms.push(lead.clone());
         }
     }
     lines
@@ -85,7 +111,27 @@ fn short(summary: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into() } }
+    fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None } }
+
+    #[test]
+    fn a_compiled_complete_form_prints_once_per_lead_by_default() {
+        let rewrite = "Branch on the grant and pin the owner for everyone else; both pages are complete:\nquery q(c: cursor ?):\n  if exists staff[viewer]:\n    return t last 50 by .at after c\n  return t where .owner = viewer last 50 by .at after c\n\nOtherwise: pin .owner";
+        let form = compiled_form("N_NEVER_COMPLETE", rewrite);
+        assert_eq!(form.as_ref().map(|(lead, _)| lead.as_str()), Some("Branch on the grant and pin the owner for everyone else; both pages are complete:"));
+        assert!(compiled_form("N_NEVER_COMPLETE", "pin .owner with where equalities").is_none());
+        assert!(compiled_form("N_SYNC_ORDER", rewrite).is_none());
+        let with = |site: &str| Note { form: form.clone(), ..note(site, "N_NEVER_COMPLETE", "query q: never complete") };
+        let lines = render(vec![with("schema.q:1:1"), with("schema.q:9:1")]);
+        assert_eq!(lines[2..8], [
+            "note: schema.q:1:1 — N_NEVER_COMPLETE: query q: never complete".to_owned(),
+            "  rewrite: Branch on the grant and pin the owner for everyone else; both pages are complete:".into(),
+            "    query q(c: cursor ?):".into(),
+            "      if exists staff[viewer]:".into(),
+            "        return t last 50 by .at after c".into(),
+            "      return t where .owner = viewer last 50 by .at after c".into(),
+        ], "{lines:#?}");
+        assert_eq!(lines.len(), 9, "the second note of the same form is the short repeat: {lines:#?}");
+    }
 
     #[test]
     fn notes_rank_by_consequence_and_collapse_repeats() {

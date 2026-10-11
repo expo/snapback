@@ -208,7 +208,7 @@ pub(super) fn adapt(dir: &Path) -> i32 {
         let why = found.iter().find(|leftover| leftover.rewrite.is_some()).map(|leftover| leftover.why.as_str()).unwrap_or_default();
         println!("init --adapt: rewrote {} — {why}", rewritten.join(" and "));
     }
-    if found.iter().any(|leftover| leftover.rewrite.as_deref().is_some_and(|text| text.contains("function Home()"))) {
+    if found.iter().any(|leftover| leftover.rewrite.as_deref().is_some_and(|text| text.contains("function Home("))) {
         println!("init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)");
     }
     for line in advice { println!("init --adapt: {line}"); }

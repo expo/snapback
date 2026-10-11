@@ -170,9 +170,14 @@ fn one(
                     .iter()
                     .any(|(fs, _)| fs.contains(field));
             if !immutable {
+                // @ref LLP 3000.036#15.6 — lane 082: a reassignable audience column cannot be
+                // captured; an online-only child can probe the live parent row instead.
+                let probes = (info.decl.sync.is_none()).then(|| parent_probes(&parent_read.value, &parent, &reference)).flatten()
+                    .map(|rule| format!("; or, when {field} must change (an online-only table reads it live), replace `read through .{reference}` with `read <- {rule}`"))
+                    .unwrap_or_default();
                 errors.push(fail(
                     format!("{parent}.{field} is captured by {name} and must be immutable"),
-                    format!("immutable {field}  -- on table {parent}"),
+                    format!("immutable {field}  -- on table {parent}{probes}"),
                 ));
             }
             let ty = if field == "id" {
@@ -264,4 +269,36 @@ fn one(
     visiting.remove(name);
     done.insert(name.into());
     Ok(())
+}
+
+/// The parent's read rule as probes of the parent row through `reference`:
+/// `.caller = viewer or .assignedTo = viewer` becomes `exists reports[.report,
+/// caller = viewer] or exists reports[.report, assignedTo = viewer]`, the
+/// one-hop form an online-only table accepts on a mutable column. Disjuncts
+/// that read no row column are kept; any other shape has no such rewrite.
+fn parent_probes(rule: &Expr, parent: &str, reference: &str) -> Option<String> {
+    fn disjuncts<'a>(value: &'a Expr, out: &mut Vec<&'a Expr>) {
+        match value { Expr::Binary { op, left, right, .. } if op == "or" => { disjuncts(left, out); disjuncts(right, out); } other => out.push(other) }
+    }
+    fn focal(value: &Expr) -> bool {
+        match value {
+            Expr::Focal { .. } => true,
+            Expr::Member { base, .. } | Expr::Unary { value: base, .. } => focal(base),
+            Expr::Binary { left, right, .. } => focal(left) || focal(right),
+            Expr::Exists { read, .. } => read.keys.iter().any(|key| focal(&key.value)),
+            _ => false,
+        }
+    }
+    let mut parts = Vec::new();
+    disjuncts(rule, &mut parts);
+    let probes = parts.into_iter().map(|part| match part {
+        Expr::Binary { op, left, right, .. } if op == "=" => match (left.as_ref(), right.as_ref()) {
+            (Expr::Member { base, name, .. }, Expr::Name { name: viewer, .. }) | (Expr::Name { name: viewer, .. }, Expr::Member { base, name, .. })
+                if viewer == "viewer" && matches!(base.as_ref(), Expr::Focal { .. }) => Some(format!("exists {parent}[.{reference}, {name} = viewer]")),
+            _ => None,
+        },
+        other if !focal(other) => Some(crate::print::expression(other)),
+        _ => None,
+    }).collect::<Option<Vec<_>>>()?;
+    Some(probes.join(" or "))
 }

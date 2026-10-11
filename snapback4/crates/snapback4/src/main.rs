@@ -185,8 +185,8 @@ fn main() -> ExitCode {
                 }
                 eprintln!("clock     --resume-clock: offset {clock_offset:+}ms from the store's newest commit stamp or schedule boundary");
             }
-            let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
             let bind = development_bind(&options)?;
+            let (port, inherited) = dev_port(options.flags.get("port").map(String::as_str), bind, inherited)?;
             let capacity = host_limits::Capacity::from_options(&options.flags, |name| std::env::var(name).ok())?;
             serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
         }),
@@ -211,6 +211,37 @@ fn quiet_broken_pipe(verb: &str) {
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }
 
+/// `dev --port N`, or `--port A-B`: the first free port of an inclusive range
+/// (a farm or CI host assigns each builder a range; agents wrote their own
+/// scanners, two of which hung). The range is held from the first free probe
+/// to the server: a loopback listener is handed to the server as bound, so no
+/// other process can take the port in between. The URL stays stdout's first line.
+// @ref LLP 3000.036#15.9 — a port range binds its first free port; every port taken is E_ADDRINUSE.
+fn dev_port(flag: Option<&str>, bind: std::net::IpAddr, inherited: Option<std::net::TcpListener>) -> Result<(u16, Option<std::net::TcpListener>), String> {
+    let Some(text) = flag else { return Ok((4400, inherited)); };
+    let Some((low, high)) = text.split_once('-') else {
+        return text.trim().parse::<u16>().map(|port| (port, inherited))
+            .map_err(|_| format!("dev --port takes a port (0 picks a free one) or a range A-B (the first free port in it), not {text:?}"));
+    };
+    let range = |part: &str| part.trim().parse::<u16>().ok().filter(|port| *port > 0);
+    let (Some(low), Some(high)) = (range(low), range(high)) else {
+        return Err(format!("dev --port {text}: a range is two ports from 1 to 65535, low-high, for example --port 20100-20109"));
+    };
+    if low > high { return Err(format!("dev --port {text}: the range runs from low to high; write --port {high}-{low}")); }
+    if inherited.is_some() { return Err("dev --port A-B cannot combine with an inherited listener".into()); }
+    for port in low..=high {
+        match std::net::TcpListener::bind((bind, port)) {
+            // A loopback listener is handed over bound; a wildcard bind keeps the
+            // server's own listen path (it refuses an inherited non-loopback socket).
+            Ok(listener) if bind.is_loopback() => return Ok((port, Some(listener))),
+            Ok(listener) => { drop(listener); return Ok((port, None)); }
+            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse || error.kind() == std::io::ErrorKind::PermissionDenied => continue,
+            Err(error) => return Err(format!("dev --port {text}: cannot listen on {bind}:{port}: {error}")),
+        }
+    }
+    Err(format!("E_ADDRINUSE: every port in {low}-{high} on {bind} is in use; widen the range, stop a dev you started (GET /dev/status names its pid), or use --port 0"))
+}
+
 fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String> {
     let address = verbs::release_bind(options)?;
     if !address.is_loopback() && !address.is_unspecified() {
@@ -221,6 +252,23 @@ fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_dev_port_range_binds_its_first_free_port_and_refuses_when_full() {
+        let loopback = std::net::IpAddr::from([127, 0, 0, 1]);
+        let held = std::net::TcpListener::bind((loopback, 0)).unwrap();
+        let taken = held.local_addr().unwrap().port();
+        // A range starting at a taken port moves on to a free one (or refuses when none is free).
+        let range = format!("{taken}-{}", taken.saturating_add(20));
+        let (port, listener) = super::dev_port(Some(&range), loopback, None).unwrap();
+        assert!(port > taken && port <= taken.saturating_add(20), "{port}");
+        assert_eq!(listener.unwrap().local_addr().unwrap().port(), port, "the chosen port is held, not probed and dropped");
+        let full = super::dev_port(Some(&format!("{taken}-{taken}")), loopback, None).unwrap_err();
+        assert!(full.starts_with("E_ADDRINUSE: every port in"), "{full}");
+        assert_eq!(super::dev_port(Some("0"), loopback, None).unwrap().0, 0);
+        assert_eq!(super::dev_port(None, loopback, None).unwrap().0, 4400);
+        for bad in ["abc", "20109-20100", "0-5", "1-x"] { assert!(super::dev_port(Some(bad), loopback, None).is_err(), "{bad}"); }
+    }
+
     #[test]
     fn development_binding_preserves_a_loopback_path_for_the_supervised_worker() {
         let parse = |args: &[&str]| super::verbs::parse(&args.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());

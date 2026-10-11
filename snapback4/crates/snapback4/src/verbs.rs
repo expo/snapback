@@ -161,7 +161,8 @@ fn note_reports(notes: &[snapback4_lang::Diagnostic], verbose: bool) -> Vec<Stri
 fn print_prediction(bound: &Bound, verbose: bool) {
     let summary = if verbose { snapback4_lang::bind::residency::prediction_summary(bound) }
         else { snapback4_lang::bind::residency::prediction_overview(bound) };
-    if let Some(summary) = summary { println!("{}", crate::presentation::indexes(&bound.schema, &summary, verbose)); }
+    // Compiler temporaries (`sessions[$reference3]`) never print (LLP 3000.036 §15.6).
+    if let Some(summary) = summary { println!("{}", crate::presentation::indexes(&bound.schema, &snapback4_lang::bind::spell_internals(&summary), verbose)); }
 }
 
 fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
@@ -294,8 +295,9 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
-            let notes = bound.notes.iter().map(|note| crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)) })
-                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary) }))
+            let notes = bound.notes.iter().map(|note| crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
+                form: crate::note_rank::compiled_form(&note.code, &note.rewrite).map(|(lead, code)| (lead, present(&code))) })
+                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None }))
                 .collect();
             for line in crate::note_rank::render(notes) { println!("{line}"); }
         }
@@ -1171,12 +1173,20 @@ pub fn test(options: &Options) -> i32 {
                     }
                     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
                 }
-                Err(refusal) if refusal.family == "rule" && derived => {
-                    // A program's own `require` refusing a derived argument
-                    // is information, not a failure: the persona is not in
-                    // that group. Run it with yours to see the meters.
+                Err(refusal) if refusal.family == "rule" => {
+                    // A program's own `require` refusing this persona is
+                    // information, not a failure: the persona is not in that
+                    // group. The caller chose nothing on this pass, whether
+                    // the arguments were derived or there are none (wave 5
+                    // lane 059: an argument-free gate counted as denied).
+                    // @ref LLP 3000.036#15.2 — the derived pass never fails on the program's own require.
                     refused_derived += 1;
-                    println!("      {:<28} refused {} on derived arguments{shown} — give it yours in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"args\":{{..}}}}", format!("{} ({persona})", program.program.name), refusal.code, test_cases::FILE, program.program.name);
+                    let name = format!("{} ({persona})", program.program.name);
+                    if derived {
+                        println!("      {name:<28} refused {} on derived arguments{shown} — give it yours in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"args\":{{..}}}}", refusal.code, test_cases::FILE, program.program.name);
+                    } else {
+                        println!("      {name:<28} refused {} by its own require (not a failure: {persona} is not admitted) — pin it in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"expect\":\"{}\"}}", refusal.code, test_cases::FILE, program.program.name, refusal.code);
+                    }
                 }
                 Err(refusal) => {
                     failures += 1;
@@ -1200,7 +1210,7 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    println!("test: {complete} complete, {capped} capped, {refused_derived} refused on derived arguments, {} not run, {failures} denied{}",
+    println!("test: {complete} complete, {capped} capped, {refused_derived} refused by their own require (on derived or no arguments), {} not run, {failures} denied{}",
         skipped.len(), if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }

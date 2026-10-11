@@ -155,6 +155,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),
     ("E_JOB_VIEWER_FLOW", "return cannot leave an as block"),
     ("E_SYSTEM_PRINCIPAL_WRITE", "into a principal column is refused at `check` with `E_SYSTEM_PRINCIPAL_WRITE`"),
+    ("N_DELETE_ORPHANS", "A reference is a typed id with no cascade: the referencing rows stay, name a deleted row, and read it through the reference as null."),
     ("N_WRITE_DENIED", "A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system."),
     ("N_READ_DENIED", "looks up an aggregate by key whose read rule is `deny`"),
     ("E_JOB_VIEWER_QUERY", "a job viewer call requires a declared durable Quarry query"),

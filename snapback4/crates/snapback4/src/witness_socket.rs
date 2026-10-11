@@ -46,7 +46,8 @@ pub fn server(bind: &str, port: u16, inherited: Option<TcpListener>, max_connect
     let limits = tiny_http::ConnectionLimits { thread_start: Some(crate::thread_priority::dispatcher), max_connections, ..Default::default() };
     let result = if let Some(listener) = inherited {
         let fd = listener.as_raw_fd();
-        let expected = format!("{bind}:{port}").parse::<std::net::SocketAddr>().map_err(|e| e.to_string())?;
+        // `SocketAddr::new` also spells an IPv6 loopback (`[::1]:port`); `{bind}:{port}` did not.
+        let expected = std::net::SocketAddr::new(bind.parse::<std::net::IpAddr>().map_err(|e| e.to_string())?, port);
         if !expected.ip().is_loopback() || listener.local_addr().map_err(|e| e.to_string())? != expected {
             return Err("inherited witness listener does not match the loopback origin".into());
         }

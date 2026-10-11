@@ -49,10 +49,19 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
     let mut saved = BTreeMap::<String, Json>::new();
     let (mut passed, mut failed) = (0, 0);
     let mut verdicts_shown = std::collections::BTreeSet::new();
-    println!("test: cases from {FILE}");
-    for (index, line) in text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty() && !line.trim_start().starts_with("//")) {
+    let lines: Vec<(usize, &str)> = text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty() && !line.trim_start().starts_with("//")).collect();
+    // Every line is checked before any runs: a misspelled key must not pass
+    // silently (wave 5: `"rows":0` passed against one row), and a typo on the
+    // last line should not wait for every earlier case.
+    let mut cases = Vec::with_capacity(lines.len());
+    for (index, line) in &lines {
         let at = format!("{FILE}:{}", index + 1);
         let case: Json = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
+        validate(&case).map_err(|why| format!("{at}: {why}"))?;
+        cases.push((at, case));
+    }
+    println!("test: cases from {FILE}");
+    for (at, case) in cases {
         let Some(op) = case.get("op").and_then(Json::as_str) else { return Err(format!("{at}: each case names \"op\" (a query or mutation)")) };
         let Some(bound_program) = bound.programs.iter().find(|p| p.program.name == op) else {
             let starter = super::init::starter_fixture(FILE).is_some_and(|starter| starter == text);
@@ -131,6 +140,39 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         for note in notes { println!("           {note}"); }
     }
     Ok((passed, failed))
+}
+
+/// The keys a case line may carry.
+pub const KEYS: [&str; 8] = ["as", "op", "args", "expect", "data", "count", "save", "label"];
+
+// @ref LLP 3000.036#15.3 — an unknown key is refused, never ignored: ignoring it was a false green.
+fn validate(case: &Json) -> Result<(), String> {
+    let Json::Object(fields) = case else { return Err("each case is a JSON object: {\"op\":..,\"as\":..,\"args\":{..},\"expect\":..}".into()) };
+    let valid = KEYS.iter().map(|key| format!("`{key}`")).collect::<Vec<_>>().join(", ");
+    for key in fields.keys() {
+        if KEYS.contains(&key.as_str()) { continue; }
+        let meant = match key.to_ascii_lowercase().as_str() {
+            "rows" | "length" | "len" | "size" | "n" | "total" | "counts" => Some("count"),
+            "arguments" | "params" | "parameters" | "input" | "inputs" | "arg" => Some("args"),
+            "persona" | "viewer" | "user" | "who" | "principal" => Some("as"),
+            "operation" | "query" | "mutation" | "name" => Some("op"),
+            "result" | "answer" | "value" | "rowsequal" | "equals" => Some("data"),
+            "expected" | "expects" | "outcome" | "state" | "code" | "status" => Some("expect"),
+            "description" | "desc" | "comment" | "note" | "title" => Some("label"),
+            _ => None,
+        };
+        let hint = meant.map(|key| format!(" (did you mean `{key}`?)")).unwrap_or_default();
+        return Err(format!("unknown key `{key}`{hint}; a case takes only {valid} (snapback4 guide testing)"));
+    }
+    for key in ["as", "op", "expect", "save", "label"] {
+        if let Some(value) = fields.get(key) && !value.is_string() {
+            let hint = if key == "expect" && value.is_object() { "; compare the answer with `data` (the whole answer) or `count` (its length) beside `expect`" } else { "" };
+            return Err(format!("`{key}` is a string, got {value}{hint}"));
+        }
+    }
+    if let Some(value) = fields.get("count") && value.as_u64().is_none() { return Err(format!("`count` is a non-negative integer, got {value}")); }
+    if let Some(value) = fields.get("args") && !value.is_object() { return Err("\"args\" is an object".into()); }
+    Ok(())
 }
 
 /// The query's N_NEVER_COMPLETE note, as `N_NEVER_COMPLETE at schema.q:L`.

@@ -60,7 +60,14 @@ impl Binder<'_> {
 
     pub(super) fn return_type(&self) -> Fallible<Ty> {
         let mut joined: Option<Ty> = None;
+        // A provably empty list (`return []`) beside pages of one table is an
+        // empty page of it: the result keeps `Page` (and api.ts its `rowKey`),
+        // as in the guard form `if grant: return page` / `return []`.
+        // @ref LLP 3000.036#15.4 — the guard's empty arm keeps the page's row identity.
+        let pages: Vec<&String> = self.returns.iter().filter_map(|(ty, _)| match ty { Ty::Page(table, _) => Some(table), _ => None }).collect();
+        let one_table = !pages.is_empty() && pages.iter().all(|table| *table == pages[0]);
         for (ty, _) in &self.returns {
+            if one_table && matches!(ty, Ty::List(_, 0)) { continue; }
             joined = Some(match joined {
                 Some(prior) => prior.join(ty).map_err(|error| self.join_error_many(error, &self.returns))?,
                 None => ty.clone(),

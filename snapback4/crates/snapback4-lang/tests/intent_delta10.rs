@@ -83,7 +83,10 @@ fn ordered_seek_endpoints_respect_short_circuit_guards_and_narrowing() {
         ("d: int", "d < 9007199254740991 and .at > d + 1", "d", Value::Int(9007199254740991)),
     ] {
         let b = bound(&format!("table t:\n  at: time ?\n  public 't'\nquery q({decl}, c: cursor ?):\n  return t where {predicate} first 50 by .at after c\n"));
-        assert!(snapback4_core::ir::scans(&b.programs[0].program).iter().all(|s| s.range.is_none()));
+        // The guard reads no row, so it is decided once as an `if` (LLP 3000.036 §15.4) and the
+        // seek's endpoint is evaluated only inside its branch; otherwise the endpoint stays a residual.
+        let program = &b.programs[0].program;
+        assert!(matches!(program.body.last(), Some(snapback4_core::ir::Stmt::If { .. })) || snapback4_core::ir::scans(program).iter().all(|s| s.range.is_none()));
         let mut engine = engine(b);
         engine.seed([("null", Value::Null), ("a", Value::Int(1)), ("b", Value::Int(20))].map(|(id, at)| ("t".into(), object([("id", Value::Id(id.into())), ("at", at)])))).unwrap();
         let mut values = args(None); values.insert(arg.into(), value);
