@@ -22,7 +22,7 @@ Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases:
    | You are writing | Use | Notes |
    |---|---|---|
    | A Node script, seed or test | `createClient({ url, persona: "alice" })` from `snapback4/client` | Personas are development-only; for real users call `signup`/`login` from `snapback4/auth` and pass `{ url, session }`. |
-   | A browser app | `createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })` under `AppProvider` | **A bare `createClient()` in a browser refuses every mutation with `E_ADMISSION`.** Browser writes need `createApp` with a device; the `init --web` starter's `src/client.ts` is the pattern. `webDevice()` fetches about 2.1 MB raw (~650 KB gzip) of wasm plus a ~24 KB worker; a page that never writes needs no device. |
+   | A browser app | `createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })` under `AppProvider` | **A browser app that writes always needs a device, local-first or online-only alike; a bare `createClient()` in a browser refuses every mutation with `E_ADMISSION`.** `online only` decides where rows live, not who holds a write until the server takes it. The device is `webDevice()`: about 2.1 MB raw (~650 KB gzip) of wasm plus a ~24 KB worker, fetched when a session opens (sign-in or restore), so it is not on the first-paint path. The `init --web` starter's `src/client.ts` is the pattern; a page that never writes needs no device. |
    | An Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })` | The `init --expo` starter's `src/client.ts` also selects `webDevice()` on web. Expo Go runs online. |
 
 ## Tutorial: your first working account screen

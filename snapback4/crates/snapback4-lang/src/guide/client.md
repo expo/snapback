@@ -61,18 +61,18 @@ Route on `present`/`absent`; follow `useAuth().state` (personas: `guide personas
 Deletes, policy changes and unknown/older evidence start a nonrenewable one-second bound; inserts, non-policy updates and plain revalidation retain through failures. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Scope loss withdraws dependent groups; older replicas await publication. `keep: true`: 30-second subscriber-free linger; `keep: false`: immediate withdrawal. Keys, deadlines, sign-out, credentials/store/schema/generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
-`app.online` / `useOnline()` (AppProvider): server query/observe, ephemeral mutate, act. No bearer/lifecycle; rotation fences/drains. Read-only shares its client. Durable writes: app.mutate. `guide social`/`guide ephemeral`: snapshots/typing/quotes/bounded screens.
+`app.online`/`useOnline()` (AppProvider): server query/observe, ephemeral mutate, act; no bearer/lifecycle; durable writes: app.mutate. `guide social`/`guide ephemeral`: snapshots/typing/quotes/bounded screens.
 
 ## Row queries
 Share/paginate (`usePage` queries take `c: cursor ?` with `after c`); authorization remains dependent.
 Eight active; eight queued observation attempts start/turn; direct queries and timed presence refreshes use separate paths. Local budgets pause while queued, never replenish. Online evidence overtakes ≤8 times; occupied slots can withdraw.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
-Flashes: `inspect(client)` (`snapback4/inspection`): `queued`/`inFlight`, `revalidating`/`withdrawn`, `recentWithdrawals`. `change-timeout`: exhausted budget. `latency`: queue/attempt p50/p95/max, 256 attempts; 64 withdrawals. Includes linger; excludes direct/presence.
+Flashes: `inspect(client)` (`snapback4/inspection`): `queued`/`inFlight`, `revalidating`/`withdrawn`, `recentWithdrawals`. `change-timeout`: exhausted budget. `latency`: queue/attempt percentiles.
 Overlay: `useInspection(import.meta.env.DEV)` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
 
 ## Expo and acquisition
-`nativeDevice`/`webDevice()`; Expo Go online. Acquisition/Workers: `guide sync`.
+Writing browser apps need `createApp`+`webDevice()`, online-only too: ~650 KB gzip wasm at sign-in, not first paint. `nativeDevice`; Expo Go online. Acquisition/Workers: `guide sync`.
 Every milestone: `npm run export:ios`; proof in the background: `witness status --wait`. Rebuild: `npm run native:smoke`. Acquisition/offline reopen/reconnect/write replay: `guide witness`.
 
 `readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`.
