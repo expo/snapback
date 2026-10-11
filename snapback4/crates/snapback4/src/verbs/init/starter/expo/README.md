@@ -36,12 +36,17 @@ guest", then add a few todos.
 Keep the Expo and `babel-preset-expo` major versions together; mixing them can
 fail Hermes compilation.
 
-`npm install` reports about 22 audit findings and a deprecated `uuid@7`. They
-come from Expo's build-time toolchain (`braces` under Metro, `node-forge` under
-the Expo CLI, `uuid` under config plugins), have no fixed release inside Expo
-57, and are not part of the app bundle. Do not run `npm audit fix --force`: it
-"fixes" them by downgrading Expo to SDK 44. `npx expo install --fix` takes Expo
-57 patch releases as they ship.
+`package.json`'s `overrides` moves the config plugins' `xcode` from the
+deprecated `uuid@7` to `uuid@11` (GHSA-w5hq-g745-h8pq). `npm audit` still
+reports about 15 high findings from two advisories in Expo's development
+toolchain, with no patched release of either package in any version:
+`braces` (GHSA-vfj7-8cjw-p6xm, a stack-exhaustion denial of service on deeply
+nested glob patterns; Metro's file watcher through `micromatch`) and
+`node-forge` (GHSA-86w9-cpqp-85rv, RSA signature verification; the Expo CLI's
+code-signing for updates). Neither is part of the app bundle, and the starter
+passes neither untrusted patterns nor signatures to them. Do not run
+`npm audit fix --force`: it "fixes" them by downgrading Expo to SDK 44.
+`npx expo install --fix` takes Expo 57 patch releases as they ship.
 
 ## Native proof
 
