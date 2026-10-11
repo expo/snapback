@@ -156,14 +156,14 @@ fn a_never_complete_note_says_how_tests_and_clients_treat_the_page() {
         assert!(n.message.contains(words), "{words}: {n}");
     }
     // The per-party rewrite is still printed in full and still compiles.
-    let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1;
+    let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1.split("\n\n").next().unwrap();
     let repaired = format!("{}{declarations}\n", two_party.split("query mine").next().unwrap());
     assert!(note(&clean(&repaired), "N_NEVER_COMPLETE").is_none(), "{repaired}");
     // With a grant, the line says who expects `complete`.
     let staffed = desk("exists staff[viewer]", "query q(c: cursor ?):\n  return items last 50 by .at, .id after c\n");
     let b = bound(&staffed);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap();
-    assert!(n.message.contains("run it as a caller `exists staff[viewer]` admits to expect `complete`") && n.message.contains("the complete form for everyone is the pin"), "{n}");
+    assert!(n.message.contains("run it as a caller `exists staff[viewer]` admits to expect `complete`") && n.message.contains("the complete form for everyone is `if` on the grant, pinning the owner otherwise"), "{n}");
 }
 
 // ---- #4: the page rewrite and the horizon rewrite agree ----
@@ -323,9 +323,12 @@ fn a_rule_with_several_hops_gets_one_rewrite_that_compiles_and_keeps_its_readers
         let source = shifts(rule);
         let b = bound(&source);
         assert!(!b.diagnostics.iter().any(|d| d.code == "E_READ_THROUGH"), "a narrower rule is not a membership path, so `read through` is never the repair:\n{:#?}", b.diagnostics);
-        let d = first(&source, "E_QUARRY_RULE_HOP");
-        assert!(d.rewrite.contains("admits more readers than this rule"), "{d}");
-        let repaired = apply_hop_rewrite(&source, "shifts", &d.rewrite);
+        // §14.3: one-hop disjuncts on an online-only table compile as their probes; run them as written.
+        let repaired = if b.diagnostics.is_empty() { source.clone() } else {
+            let d = first(&source, "E_QUARRY_RULE_HOP");
+            assert!(d.rewrite.contains("admits more readers than this rule"), "{d}");
+            apply_hop_rewrite(&source, "shifts", &d.rewrite)
+        };
         let b = clean(&repaired);
         // The repaired rule admits exactly the parties the hops named, and no one else.
         let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();

@@ -27,7 +27,7 @@ table items:
   done: bool default false
   immutable list, owner
   read <- .owner = viewer                 -- `read through .list` would inherit the list's rule, online only
-  insert <- .owner = viewer and .list.owner = viewer
+  insert <- .owner = viewer and .list.owner = viewer   -- a read rule hops once, online only; else exists lists[.list, owner = viewer]
   update <- .owner = viewer
   delete <- .owner = viewer
   cap 500 by list

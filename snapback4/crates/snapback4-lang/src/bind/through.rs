@@ -5,6 +5,7 @@ use crate::{ast::*, diag::Diagnostic};
 use snapback4_core::schema::through::{CHILDREN, DEADLINE, PARENT_DEADLINE, Through};
 use std::collections::{BTreeMap, BTreeSet};
 mod paths;
+mod hops;
 
 pub(super) fn sync_repair(catalog: &super::catalog::Catalog, info: &TableInfo) -> Option<String> {
     // Keep the authored horizon, before planning adds captured audience columns.
@@ -24,6 +25,7 @@ fn reference(info: &TableInfo) -> Option<String> {
 }
 
 pub(super) fn expand(tables: &mut BTreeMap<String, TableInfo>, diagnostics: &mut Vec<Diagnostic>) {
+    hops::lower(tables);
     let names: Vec<_> = tables.keys().cloned().collect();
     let mut done = BTreeSet::new();
     for name in names {

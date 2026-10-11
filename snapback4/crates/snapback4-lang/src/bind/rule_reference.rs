@@ -73,13 +73,17 @@ pub(super) fn reference_rewrite(catalog: &Catalog, info: &TableInfo, expr: &Expr
                 } else { (format!("{image}_{name}"), column_ty(info, name)) }
             }
             Expr::Member { base, name, .. } => {
+                // @ref LLP 3000.036#14.3 — lane 092: a named unique key (`staff[principal = viewer]`) stays named.
+                let mut named = None;
                 let (key, ty) = if let Expr::Read(read) = base.as_ref() {
                     let key = read.keys.first().map(|key| render(catalog, info, &key.value, lines).0).unwrap_or_else(|| "id".into());
+                    named = read.keys.first().and_then(|key| key.column.clone()).filter(|column| column != "id");
                     (key, Some(Ty::Ref(read.table.clone())))
                 } else { render(catalog, info, base, lines) };
                 if let Some(Ty::Ref(table)) = ty.map(|ty| ty.required()) {
                     let local = format!("rule_parent_{}", lines.len());
-                    lines.push(format!("{local} = {} ! else FORBIDDEN", lookup(catalog, &table, &key)));
+                    let target = match &named { Some(column) => format!("{table}[{column} = {key}]"), None => lookup(catalog, &table, &key) };
+                    lines.push(format!("{local} = {target} ! else FORBIDDEN"));
                     if let Some(target) = catalog.tables.get(&table) { private_guard(target, name, &format!("{local}."), lines); }
                     selected(catalog,&table,name,&local)
                 } else { (crate::print::expression(expr), None) }

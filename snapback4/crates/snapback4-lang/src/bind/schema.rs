@@ -487,6 +487,12 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
                 _ => reference::reference_rewrite(catalog, info, &rule.value),
             };
         }
+        // @ref LLP 3000.036#14.3 — a read-through child binds its parent's rule over hidden
+        // captures (`.$enrollment.dancer`): its refusal is the parent's (`internal_names` drops the copy).
+        if rule.effect == Effect::Read && let Some(through) = &info.through {
+            error.rewrite = format!("repair {}'s read rule (its own diagnostic prints the repair); {} reads through it", through.parent, info.decl.name);
+            error.cascade_of = Some(error.site.clone());
+        }
         error
     })
 }

@@ -287,9 +287,47 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             "API name receiptFamilies collides with the generated receipt-family namespace",
             "rename the operation or module receiptFamilies").guide("receipts"));
     }
+    internal_names(&mut diagnostics);
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
     Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
+}
+
+/// A read-through child binds its parent's rule over hidden captures
+/// (`.$enrollment.dancer`); those names never parse. A problem that spells one
+/// and, read through the parent (`.dancer`), repeats another problem is the
+/// parent's refusal again: it is dropped. Otherwise the capture reads as the
+/// reference it copies (`.enrollment.dancer`).
+// @ref LLP 3000.036#14.3 — wave 4 #8 (064 080): never print `$`-prefixed internals in a problem.
+fn internal_names(diagnostics: &mut Vec<Diagnostic>) {
+    let internal = |d: &Diagnostic| capture_spelling(&d.message).is_some() || capture_spelling(&d.rewrite).is_some();
+    let through_parent = |text: &str| {
+        let mut text = text.to_owned();
+        while let Some(at) = capture_spelling(&text) {
+            let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
+            text.replace_range(at..at + name + 2, "");
+        }
+        text
+    };
+    let plain: Vec<(String, String)> = diagnostics.iter().filter(|d| !internal(d)).map(|d| (d.code.clone(), d.message.clone())).collect();
+    diagnostics.retain(|d| !internal(d) || !plain.contains(&(d.code.clone(), through_parent(&d.message))));
+    for d in diagnostics.iter_mut().filter(|d| internal(d)) {
+        while let Some(at) = capture_spelling(&d.message) { d.message.remove(at); }
+        while let Some(at) = capture_spelling(&d.rewrite) { d.rewrite.remove(at); }
+        d.mechanical = false;
+    }
+    // The child's copy of the parent's refusal, reported at the parent's own site.
+    let own: Vec<(crate::Site, String)> = diagnostics.iter().filter(|d| d.cascade_of.as_ref() != Some(&d.site)).map(|d| (d.site.clone(), d.code.clone())).collect();
+    diagnostics.retain(|d| d.cascade_of.as_ref() != Some(&d.site) || !own.contains(&(d.site.clone(), d.code.clone())));
+}
+
+/// The byte offset of the `$` in a captured-parent spelling `.$reference.field`.
+fn capture_spelling(text: &str) -> Option<usize> {
+    let bytes = text.as_bytes();
+    (1..bytes.len()).find(|&at| bytes[at] == b'$' && bytes[at - 1] == b'.' && {
+        let name = text[at + 1..].bytes().take_while(|b| b.is_ascii_alphanumeric() || *b == b'_').count();
+        name > 0 && bytes.get(at + 1 + name) == Some(&b'.')
+    })
 }
 
 fn operation_name(module: &str, name: &str) -> String {

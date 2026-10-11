@@ -368,7 +368,7 @@ principal retains its existing rule bypass.
 Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`,
 `why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.
 
-Membership paths spelling the whole parent rule lower to `read through`; other
-read reference expressions remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate
+Membership paths spelling the whole parent rule lower to `read through`. Without sync, a one-hop read-rule equality (`.author = viewer or .goal.owner = viewer`) is the probe `exists goals[.goal, owner = viewer]`;
+other read reference expressions (two hops, `!=`, a synced table) remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate
 read line proved identical to the parent's rule has a whole-line repair;
 additional conditions remain a modeling choice and are not removed by `--fix`.
