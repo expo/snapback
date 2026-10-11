@@ -122,7 +122,10 @@ pub fn init(options: &Options) -> i32 {
         }
         return 2;
     }
-    println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, readme.map(|name| format!("; see {name}")).unwrap_or_default());
+    // A starter that wrote package.json dependencies needs them installed before
+    // its typecheck, build or `npm start` can run.
+    let install = if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
+    println!("init: wrote {} files in {} — {} — next: {install}`snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, readme.map(|name| format!("; see {name}")).unwrap_or_default());
     0
 }
 
