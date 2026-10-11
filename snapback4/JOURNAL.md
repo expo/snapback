@@ -92408,3 +92408,25 @@ Rebased on main: the R2 security fix `b2036dd821` and the wasm budget raise.
 - **What was hard:** precision of the named exception. Every widening of the
   generator (preludes, `if` branches) found a new way for the "first write"
   to be ambiguous.
+
+## 2026-10-11 — Small default starters, a new-app path, and the README budget (wave 1, workstream A)
+
+- **What changed.** `init --web`/`--expo` now write a one-screen todos app
+  (one table, one live query, three mutations, fixtures and test cases);
+  the chat reference is `--template chat`. Expo starters ship
+  `expo-env.d.ts`. `init --skip-existing` and `--port N` exist. LLP
+  3000.011.003.000 §7 records the decision.
+- **README budget 300 → 320.** The README gains one reader task: starting a
+  new app of your own (five steps ending in a client decision table that
+  states the browser-write rule: a bare `createClient()` in a browser
+  refuses mutations with `E_ADMISSION`). Wave 1's 100 lanes had only the
+  password tutorial, which they deleted their way out of. Duplicated setup
+  in the tutorial's step 1 was folded into the new path; the result is 311
+  physical lines, rounded up to 320. `w14b_first_account_screen_is_self_contained`
+  still passes unchanged.
+- **What felt good:** the starter is checked for real (packed tarballs,
+  `npm install`, typecheck, build or `expo export -p web`, and a Chromium
+  run of the web starter: guest sign-in, add, toggle, reload, delete).
+- **What was hard:** the TS2591 `process` failure only appears once no
+  import loads `expo-modules-core`'s globals, so the shipped starter passed
+  its own typecheck while every app derived from it could fail.
