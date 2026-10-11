@@ -109,34 +109,235 @@ pub fn grant_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     (!grants.is_empty()).then(|| if grants.len() == 1 { grants.into_iter().next().unwrap() } else { RuleExpr::Or(grants) })
 }
 
-/// A top-level `require` of the grant (`require exists staff[viewer] else …`)
-/// before the statement holding `scan`, in a program that never writes the
-/// grant's table: every caller who reaches the page holds the grant, so the
-/// page is fully readable for each of them. Scans compare structurally, so a
-/// copy of a scan before the guard counts as unguarded.
+/// Every caller who reaches `scan` holds the scan's readable grant, in a
+/// program that never writes the grant's table (so the fact cannot change
+/// between the guard and the walk): the page is fully readable for each of
+/// them, which is exactly when the server's walk (`read.rs`) answers
+/// `complete`. The guards followed are the ones authors write:
+///
+/// - `require G else …` before the statement holding the scan;
+/// - `if G:` around it (and the `else` of `if not G:`);
+/// - an early exit, `if not G: return …` (or `if viewer != 'service:x':
+///   return []`), before it.
+///
+/// `G` may be an `exists` probe (with the grant's named equalities, as
+/// `exists staff[principal = viewer, role = 'manager']` lowers them) or a
+/// `viewer = '…'` comparison, and may be one conjunct of a larger condition.
+/// Scans compare structurally, so every copy of the scan must be guarded.
 // @ref LLP 3000.036#12 — require dominance: staff consoles and staff-only mutation passes.
+// @ref LLP 3000.036#13.1 — `if` guards and early exits dominate too, so `check` agrees with the runtime verdict.
 pub fn grant_dominated(schema: &Schema, program: &crate::ir::Program, scan: &Scan) -> bool {
     let Some(grant) = grant_decision(schema, scan) else { return false };
-    let probes: Vec<&RuleExpr> = grant.disjuncts();
     let written: BTreeSet<String> = crate::ir::write_tables(program).into_iter().map(|(table, _)| table).collect();
-    let matches = |condition: &Expr| {
-        let Expr::Exists(read) = condition else { return false };
-        probes.iter().any(|probe| match probe {
-            RuleExpr::Exists { table, index, key, equalities, .. } => equalities.is_empty() && &read.table == table && &read.index == index
-                && !written.contains(table) && read.key.len() == key.len()
-                && read.key.iter().zip(key).all(|(expression, term)| pinned_term(term, expression)),
-            _ => false,
-        })
-    };
-    for (position, statement) in program.body.iter().enumerate() {
-        let (inside, _) = crate::ir::body_read_structure(std::slice::from_ref(statement));
-        if inside.iter().any(|candidate| *candidate == scan) { return false; }
-        if let crate::ir::Stmt::Require { condition, .. } = statement && matches(condition) {
-            let (later, _) = crate::ir::body_read_structure(&program.body[position + 1..]);
-            return later.iter().any(|candidate| *candidate == scan);
+    let mut probes = grant_probe_bindings(&program.body);
+    probes.retain(|_, read| !written.contains(&read.table));
+    let conditions = short_circuit_bindings(&program.body);
+    let guard = Guard { grant: &grant, written: &written, probes: &probes, conditions: &conditions };
+    let mut walk = Dominance { scan, found: 0, guarded: 0 };
+    walk.body(&guard, &program.body, false);
+    walk.found > 0 && walk.found == walk.guarded
+}
+
+/// `name = t[key]` bindings the compiler makes for a probe with named
+/// equalities (`$probe1 = people[viewer]`; `$probe1 != null and
+/// $probe1.role = 'manager'`). A name bound twice or reassigned is dropped.
+fn grant_probe_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, crate::ir::Read> {
+    use crate::ir::Stmt;
+    fn collect(body: &[Stmt], out: &mut BTreeMap<String, Option<crate::ir::Read>>) {
+        for statement in body {
+            match statement {
+                Stmt::Let { name, value } | Stmt::Const { name, value } => {
+                    let read = if let Expr::Get(read) = value { Some(read.clone()) } else { None };
+                    if out.insert(name.clone(), read).is_some() { out.insert(name.clone(), None); }
+                }
+                Stmt::Assign { name, .. } => { out.insert(name.clone(), None); }
+                Stmt::If { then_body, else_body, .. } => { collect(then_body, out); collect(else_body, out); }
+                Stmt::For { binding, body, .. } => { out.insert(binding.clone(), None); collect(body, out); }
+                _ => {}
+            }
         }
     }
-    false
+    let mut out = BTreeMap::new();
+    collect(body, &mut out);
+    out.into_iter().filter_map(|(name, read)| read.map(|read| (name, read))).collect()
+}
+
+/// The compiler lowers a short-circuit `a and b` (`a or b`) to a temporary:
+/// `$bool1 = a`, then `if $bool1: $bool1 = b` (`if not $bool1: …`). Each such
+/// temporary, assigned only there, stands for the whole condition.
+fn short_circuit_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, Expr> {
+    use crate::ir::{BinaryOp, Stmt, UnaryOp};
+    fn assignments(body: &[Stmt], out: &mut BTreeMap<String, usize>) {
+        for statement in body {
+            match statement {
+                Stmt::Let { name, .. } | Stmt::Const { name, .. } | Stmt::Assign { name, .. } => *out.entry(name.clone()).or_default() += 1,
+                Stmt::If { then_body, else_body, .. } => { assignments(then_body, out); assignments(else_body, out); }
+                Stmt::For { binding, body, .. } => { *out.entry(binding.clone()).or_default() += 1; assignments(body, out); }
+                _ => {}
+            }
+        }
+    }
+    fn collect(body: &[Stmt], counts: &BTreeMap<String, usize>, out: &mut BTreeMap<String, Expr>) {
+        for pair in body.windows(2) {
+            let [Stmt::Let { name, value: first }, Stmt::If { condition, then_body, else_body }] = pair else { continue };
+            if !name.starts_with('$') || counts.get(name) != Some(&2) || !else_body.is_empty() { continue; }
+            // The second operand's own setup (a probe's `$probe2 = t[key]`) precedes the assignment.
+            let Some((Stmt::Assign { name: assigned, value: second }, setup)) = then_body.split_last() else { continue };
+            if !setup.iter().all(|statement| matches!(statement, Stmt::Let { .. } | Stmt::Const { .. })) { continue; }
+            if assigned != name { continue; }
+            let op = match condition {
+                Expr::Variable(tested) if tested == name => BinaryOp::And,
+                Expr::Unary { op: UnaryOp::Not, value } if matches!(value.as_ref(), Expr::Variable(tested) if tested == name) => BinaryOp::Or,
+                _ => continue,
+            };
+            out.insert(name.clone(), Expr::Binary { op, left: Box::new(first.clone()), right: Box::new(second.clone()) });
+        }
+        for statement in body {
+            match statement {
+                Stmt::If { then_body, else_body, .. } => { collect(then_body, counts, out); collect(else_body, counts, out); }
+                Stmt::For { body, .. } => collect(body, counts, out),
+                _ => {}
+            }
+        }
+    }
+    let mut counts = BTreeMap::new();
+    assignments(body, &mut counts);
+    let mut out = BTreeMap::new();
+    collect(body, &counts, &mut out);
+    out
+}
+
+struct Guard<'a> {
+    grant: &'a RuleExpr,
+    written: &'a BTreeSet<String>,
+    probes: &'a BTreeMap<String, crate::ir::Read>,
+    conditions: &'a BTreeMap<String, Expr>,
+}
+
+/// One fact a condition establishes: `left op right` with `op` `=`/`!=`, or
+/// an `exists` probe that holds.
+enum Fact<'a> { Exists(&'a crate::ir::Read), Compare(bool, &'a Expr, &'a Expr) }
+
+impl Guard<'_> {
+    /// Facts true whenever `condition` is true (`None`: none we can name).
+    fn when_true<'e>(&'e self, condition: &'e Expr, out: &mut Vec<Fact<'e>>) {
+        use crate::ir::{BinaryOp, UnaryOp};
+        match condition {
+            Expr::Variable(name) if self.conditions.contains_key(name) => self.when_true(&self.conditions[name], out),
+            Expr::Binary { op: BinaryOp::And, left, right } => { self.when_true(left, out); self.when_true(right, out); }
+            Expr::Binary { op: BinaryOp::Eq, left, right } => out.push(Fact::Compare(true, left, right)),
+            Expr::Binary { op: BinaryOp::Ne, left, right } => out.push(Fact::Compare(false, left, right)),
+            Expr::Unary { op: UnaryOp::Not, value } => self.when_false(value, out),
+            Expr::Exists(read) => out.push(Fact::Exists(read)),
+            _ => {}
+        }
+    }
+
+    /// Facts true whenever `condition` is false.
+    fn when_false<'e>(&'e self, condition: &'e Expr, out: &mut Vec<Fact<'e>>) {
+        use crate::ir::{BinaryOp, UnaryOp};
+        match condition {
+            Expr::Variable(name) if self.conditions.contains_key(name) => self.when_false(&self.conditions[name], out),
+            Expr::Binary { op: BinaryOp::Or, left, right } => { self.when_false(left, out); self.when_false(right, out); }
+            Expr::Binary { op: BinaryOp::Eq, left, right } => out.push(Fact::Compare(false, left, right)),
+            Expr::Binary { op: BinaryOp::Ne, left, right } => out.push(Fact::Compare(true, left, right)),
+            Expr::Unary { op: UnaryOp::Not, value } => self.when_true(value, out),
+            _ => {}
+        }
+    }
+
+    /// The facts imply one of the grant's disjuncts.
+    fn implies(&self, facts: &[Fact]) -> bool {
+        self.grant.disjuncts().iter().any(|disjunct| self.implies_rule(disjunct, facts))
+    }
+
+    fn implies_rule(&self, rule: &RuleExpr, facts: &[Fact]) -> bool {
+        let same = |expression: &Expr, term: &RuleTerm| pinned_term(term, expression);
+        match rule {
+            RuleExpr::And(items) => !items.is_empty() && items.iter().all(|item| self.implies_rule(item, facts)),
+            RuleExpr::Eq(a, b) => facts.iter().any(|fact| matches!(fact, Fact::Compare(true, left, right)
+                if (same(left, a) && same(right, b)) || (same(left, b) && same(right, a)))),
+            RuleExpr::Exists { table, index, key, equalities, .. } => {
+                if self.written.contains(table) { return false; }
+                let keyed = |read: &crate::ir::Read| &read.table == table && &read.index == index && read.key.len() == key.len()
+                    && read.key.iter().zip(key).all(|(expression, term)| pinned_term(term, expression));
+                if equalities.is_empty() && facts.iter().any(|fact| matches!(fact, Fact::Exists(read) if keyed(read))) { return true; }
+                // `$probe != null` for a bound point read of the same key, and
+                // `$probe.col = term` for every named equality.
+                self.probes.iter().filter(|(_, read)| keyed(read)).any(|(name, _)| {
+                    let variable = |expression: &Expr| matches!(expression, Expr::Variable(bound) if bound == name);
+                    let present = facts.iter().any(|fact| matches!(fact, Fact::Compare(false, left, right)
+                        if (variable(left) && matches!(right, Expr::Literal(Value::Null))) || (variable(right) && matches!(left, Expr::Literal(Value::Null)))));
+                    let field = |expression: &Expr, column: &str| matches!(expression, Expr::Field { base, name } if name == column && variable(base));
+                    present && equalities.iter().all(|(column, term)| facts.iter().any(|fact| matches!(fact, Fact::Compare(true, left, right)
+                        if (field(left, column) && same(right, term)) || (field(right, column) && same(left, term)))))
+                })
+            }
+            _ => false,
+        }
+    }
+
+    fn holds_when_true(&self, condition: &Expr) -> bool {
+        let mut facts = Vec::new();
+        self.when_true(condition, &mut facts);
+        self.implies(&facts)
+    }
+
+    fn holds_when_false(&self, condition: &Expr) -> bool {
+        let mut facts = Vec::new();
+        self.when_false(condition, &mut facts);
+        self.implies(&facts)
+    }
+}
+
+struct Dominance<'s> { scan: &'s Scan, found: usize, guarded: usize }
+
+impl Dominance<'_> {
+    fn count(&mut self, scans: Vec<&Scan>, guarded: bool) {
+        let n = scans.into_iter().filter(|candidate| *candidate == self.scan).count();
+        self.found += n;
+        if guarded { self.guarded += n; }
+    }
+
+    /// Walks `body` under `guarded`; true when the body always leaves its
+    /// enclosing block (a `return`, `break` or `continue` on every path).
+    fn body(&mut self, guard: &Guard, body: &[crate::ir::Stmt], mut guarded: bool) -> bool {
+        use crate::ir::Stmt;
+        for statement in body {
+            match statement {
+                Stmt::If { condition, then_body, else_body } => {
+                    self.count(crate::ir::expression_scans(condition), guarded);
+                    let then_guarded = guarded || guard.holds_when_true(condition);
+                    let else_guarded = guarded || guard.holds_when_false(condition);
+                    let then_exits = self.body(guard, then_body, then_guarded);
+                    let else_exits = self.body(guard, else_body, else_guarded);
+                    match (then_exits, else_exits) {
+                        (true, true) => return true,
+                        (true, false) => guarded = else_guarded,
+                        (false, true) => guarded = then_guarded,
+                        (false, false) => {}
+                    }
+                }
+                Stmt::For { body: inner, .. } => {
+                    let all = crate::ir::body_read_structure(std::slice::from_ref(statement)).0;
+                    let nested = crate::ir::body_read_structure(inner).0.len();
+                    // The domain's scans come first in the walk order; the body is walked with its own exits.
+                    self.count(all[..all.len() - nested].to_vec(), guarded);
+                    self.body(guard, inner, guarded);
+                }
+                Stmt::Require { condition, .. } => {
+                    self.count(crate::ir::expression_scans(condition), guarded);
+                    guarded = guarded || guard.holds_when_true(condition);
+                }
+                Stmt::Return(_) | Stmt::Break | Stmt::Continue => {
+                    self.count(crate::ir::body_read_structure(std::slice::from_ref(statement)).0, guarded);
+                    return true;
+                }
+                _ => self.count(crate::ir::body_read_structure(std::slice::from_ref(statement)).0, guarded),
+            }
+        }
+        false
+    }
 }
 
 /// Every fact the grant reads is one the caller may read itself.
