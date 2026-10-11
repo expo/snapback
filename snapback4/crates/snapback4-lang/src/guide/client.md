@@ -56,14 +56,14 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 | `partial` | Uncertain empty, never absence or denial; `incomplete` controls “Partial results”. |
 
 `null`/`[]` is empty; `false`/`0`/nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
-Route on `present`/`absent`; follow `useAuth().state`. Reset drafts on account/backend change. Retention grants no authority.
+Route on `present`/`absent`; follow `useAuth().state` (personas: `guide personas`). Reset drafts on account/backend change. Retention grants no authority.
 Deletes, policy changes and unknown/older evidence start a nonrenewable one-second bound; inserts, non-policy updates and plain revalidation retain through failures. Local bounds exclude queueing; online bounds include it. Bounded failure/timeout withdraws. Scope loss withdraws dependent groups; older replicas await publication. `keep: true`: 30-second subscriber-free linger; `keep: false`: immediate withdrawal. Keys, deadlines, sign-out, credentials/store/schema/generation changes withdraw immediately.
 Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (loading), `incomplete` (partial/coverage/cut/continuation), `stale`, `revalidating`, `why?`, `since?`; never permission. Follow `hasMore`/`loadMore`. Unknown counts never hide conversations. [Expo screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen): backend/account/resource shell preserves drafts.
 
-`app.online` / `useOnline()` (AppProvider): server query/observe, ephemeral mutate, act. No bearer/lifecycle; rotation fences/drains. Read-only shares its client. Durable writes: app.mutate. `guide social`: snapshots/typing/quotes/bounded screens.
+`app.online` / `useOnline()` (AppProvider): server query/observe, ephemeral mutate, act. No bearer/lifecycle; rotation fences/drains. Read-only shares its client. Durable writes: app.mutate. `guide social`/`guide ephemeral`: snapshots/typing/quotes/bounded screens.
 
 ## Row queries
-Share/paginate; authorization remains dependent.
+Share/paginate (`usePage` queries take `c: cursor ?` with `after c`); authorization remains dependent.
 Eight active; eight queued observation attempts start/turn; direct queries and timed presence refreshes use separate paths. Local budgets pause while queued, never replenish. Online evidence overtakes ≤8 times; occupied slots can withdraw.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
@@ -74,7 +74,7 @@ Overlay: `useInspection(import.meta.env.DEV)` (`snapback4/react`; Expo: `useInsp
 `nativeDevice`/`webDevice()`; Expo Go online. Acquisition/Workers: `guide sync`.
 Every milestone: `npm run export:ios`; proof in the background: `witness status --wait`. Rebuild: `npm run native:smoke`. Acquisition/offline reopen/reconnect/write replay: `guide witness`.
 
-`readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`. Sign in or narrow again.
+`readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`.
 
 ## Receipts
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions; separate retained history/live decorations.
@@ -109,4 +109,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
   return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;
 }
 ```
-`useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`). Start: `snapback4 new my-social --template social`; `guide social`/`guide ephemeral`.
+`useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`).

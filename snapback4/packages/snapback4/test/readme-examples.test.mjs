@@ -116,6 +116,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
     "snapback4-expo": ["../snapback4-expo/src/index.ts"],
     "snapback4-expo/witness": ["../snapback4-expo/src/witness.ts"],
     "expo-secure-store": [expoRequire.resolve("expo-secure-store/build/SecureStore.d.ts")],
+    "react-native": [expoRequire.resolve("react-native/types/index.d.ts")],
   } });
   const program = ts.createProgram([...blocks.map(b => b.file), ...publicSources.map(s => s.path), join(root, "test/fixtures/client-card.tsx")], options);
   const checker = program.getTypeChecker();

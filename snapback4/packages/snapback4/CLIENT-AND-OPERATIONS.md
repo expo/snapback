@@ -1580,6 +1580,43 @@ function Who() {
 }
 ```
 
+A schema with `use personas` and no `use identity` has no sign-in at all, so `auth.guest()` refuses
+`E_AUTH`: `snapback4 init --web --skip-existing` (or `--expo`) beside such a schema writes this
+picker instead of the guest screen. In React Native there is no `location`: keep the persona in
+state, one app per persona as above (`nativeDevice` in development builds, none in Expo Go, where
+the app is online-only):
+
+```tsx
+import { AppProvider, useAuth } from "snapback4/react";
+import { createApp, type App } from "snapback4/app";
+import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { useEffect, useState, type ReactNode } from "react";
+import { Button, Text, View } from "react-native";
+
+const url = "http://127.0.0.1:4400"; // the iOS simulator reaches this machine's loopback
+const personas = ["alice", "bob"];
+const openApp = (persona: string): App =>
+  createApp({ url, persona, device: nativeAvailable() ? nativeDevice : undefined });
+export function PersonaRoot({ children }: { children: ReactNode }) {
+  const [persona, setPersona] = useState<string | null>(null);
+  const [app, setApp] = useState<App | null>(null);
+  useEffect(() => {
+    if (!persona) return;
+    const opened = openApp(persona);
+    setApp(opened);
+    return () => { setApp(null); void opened.close(); };
+  }, [persona]);
+  if (!persona || !app) return <View>{personas.map(name =>
+    <Button key={name} title={`Act as ${name}`} onPress={() => setPersona(name)} />)}</View>;
+  return <AppProvider app={app}><Signed leave={() => setPersona(null)}>{children}</Signed></AppProvider>;
+}
+function Signed({ leave, children }: { leave: () => void; children: ReactNode }) {
+  const auth = useAuth();
+  if (auth.state === "signed-in") return children;
+  return <View><Text>{auth.why?.message ?? "Opening…"}</Text><Button title="Choose a persona" onPress={leave} /></View>;
+}
+```
+
 Without React, `createLocalClient({ url, persona, device })` and `createClient({ url, persona })`
 take the same option; the online one reads in a browser but refuses durable writes there.
 

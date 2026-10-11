@@ -17,12 +17,12 @@ Use Node 24. Coming from SQL or Convex: `npx snapback4 guide from-sql` (aliases:
 2. **Write the schema.** Edit `snapback/schema.q`: tables with rules and `sync`, then queries and mutations. Start from `npx snapback4 guide language`, then `guide rules` and `guide sync`.
 3. **Check and serve.** `npx snapback4 check` names each problem with a rewrite (`npx snapback4 why <code>` explains one) and writes the typed `snapback/generated/api.ts`. `npx snapback4 dev` serves http://127.0.0.1:4400 and re-adopts the schema on every save; run the app beside it with `npm run dev` (web) or `npm start` (Expo). Call an operation as a development persona: `npx snapback4 run add '{"title":"milk"}' --as alice`.
 4. **Seed and test.** Rows live in `fixtures/<table>.jsonl` and expected outcomes in `fixtures/test.cases.jsonl` (the starters ship both); `npx snapback4 test --fixture fixtures --as alice` runs them with no server. `npx snapback4 guide testing` shows both formats and an acceptance script over HTTP.
-5. **Choose the client.** One constructor per kind of program; React hooks (`useQuery`, `usePage`, `useMutation`, `useAuth`) come from `snapback4/react` (`guide client`):
+5. **Choose the client.** One constructor per kind of program; React hooks (`useQuery`, `usePage`, `useMutation`, `useAuth`) come from `snapback4/react` (`guide client`). `usePage(api.list, args)` passes the cursor itself, so a paged query declares `c: cursor ?` and reads `after c` (`query list(c: cursor ?): return todos where .ownerId = viewer after c first 100 by .id`); `useQuery` reads a query without one. A schema with `use personas` and no `use identity` has no sign-in: act as a persona with `createApp({ url, persona: "alice", device })` (`guide personas`).
 
    | You are writing | Use | Notes |
    |---|---|---|
    | A Node script, seed or test | `createClient({ url, persona: "alice" })` from `snapback4/client` | Personas are development-only; for real users call `signup`/`login` from `snapback4/auth` and pass `{ url, session }`. |
-   | A browser app | `createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })` under `AppProvider` | **A bare `createClient()` in a browser refuses every mutation with `E_ADMISSION`.** Browser writes need `createApp` with a device; the `init --web` starter's `src/client.ts` is the pattern. |
+   | A browser app | `createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })` under `AppProvider` | **A bare `createClient()` in a browser refuses every mutation with `E_ADMISSION`.** Browser writes need `createApp` with a device; the `init --web` starter's `src/client.ts` is the pattern. `webDevice()` fetches about 2.1 MB raw (~650 KB gzip) of wasm plus a ~24 KB worker; a page that never writes needs no device. |
    | An Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })` | The `init --expo` starter's `src/client.ts` also selects `webDevice()` on web. Expo Go runs online. |
 
 ## Tutorial: your first working account screen
@@ -289,7 +289,9 @@ Public feeds share an activity union: Following delivers it to each reader; Tren
 ## Reference map: open only what the feature needs
 
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
-cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite.
+cards and aliases; `guide language` prints the language card. A large card truncates in agent tools: read one
+card per command, `guide <card> --sections` lists its headings and `--section <heading>` prints one.
+Every refusal names a code, site and rewrite.
 Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
 | Need | One reference lookup |
 |---|---|
