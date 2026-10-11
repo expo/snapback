@@ -14,6 +14,15 @@ export const admitNow = (core: DeviceCore, request: Record<string, unknown>) => 
   return capture ? capture(request) : browserAdmission() ? admissionRefusal("the device has no synchronous admission journal", "client.mutate", "open a webDevice() with an exclusive persistence claim before writing") : undefined;
 };
 export const browserAdmission = () => typeof window !== "undefined" && typeof window.location !== "undefined";
+export const BROWSER_WRITE_FIX = "createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })";
+let sdkClients = 0;
+/** Clients createApp opens for its own tiers are not the bare browser client
+ * that createClient's construction warning is about. */
+export function sdkOwned<T>(create: () => T): T {
+  sdkClients++;
+  try { return create(); } finally { sdkClients--; }
+}
+export const sdkOwning = () => sdkClients > 0;
 export function admissionRefusal(message: string, site = "client.mutate", rewrite = "wait for app.ready, restore writable localStorage, then retry with the same id"): Refusal {
   return { code: "E_ADMISSION", family: "store", message, site, rewrite, guide: "writes" };
 }

@@ -1,7 +1,7 @@
 import { sessionRefusal } from "./session-refusal.ts";
 import { refuseReadDevice, validateReadOptions, readOnlyRefusal, verifyReadClient } from "./read-only.ts";
 import { routeMutations } from "./ephemeral.ts";
-import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
+import { admissionRefusal, browserAdmission, failedAdmission, sessionReader, sdkOwned, BROWSER_WRITE_FIX } from "./admission.ts";
 import { prepareAdmissionAuthority } from "./admission-authority.ts";
 import { mintId } from "./client.ts";
 import { serverClock } from "./clock.ts";
@@ -99,6 +99,8 @@ export function createApp(options: AppOptions): App {
     }
     return bytes;
   } };
+  // @ref LLP 3000.013#6.2 — the online browser tier keeps the device's journal; say so at construction.
+  if (!options.device && !readOnly && browserAdmission()) console.warn(`snapback4: createApp without a device refuses browser writes with E_ADMISSION: only a web device journals a click synchronously. Use ${BROWSER_WRITE_FIX}; online-only tables need no sync lines.`);
   if (!options.sessionStore && typeof window !== "undefined") console.info("snapback4: createApp keeps sessions in memory. To restore after a page restart, pass sessionStore: localStorageSessionStore() from snapback4/auth. Scripts on the page can read that persisted token.");
   let persistence: Promise<unknown> = Promise.resolve();
   const persist = <T>(work: () => Promise<T>) => {
@@ -229,7 +231,7 @@ export function createApp(options: AppOptions): App {
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
   const anonymous = (why?: Refusal) => {
-    const client = createClient({ url, fetch: fetcher, readOnly });
+    const client = sdkOwned(() => createClient({ url, fetch: fetcher, readOnly }));
     if (!readOnly && browserAdmission()) client.mutate = routeMutations(client.mutate, (_op, _args, options) => failedAdmission(options?.id ?? mintId(),
       admissionRefusal("session restoration or sign-in is incomplete; mutation was not admitted", "app.mutate", "await app.ready; await app.auth.login(email, password); retry with the same id")));
     return why ? guardClient(client, async () => false, () => false, () => why).client : client;
@@ -408,7 +410,7 @@ export function createApp(options: AppOptions): App {
       return true;
     }
     function admit(): Refusal | undefined {
-      if (!options.device) return admissionRefusal("this browser app has no durable web device", "app.mutate", "createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })");
+      if (!options.device) return admissionRefusal("this browser app has no durable web device; a web device journals browser writes, also for online-only tables", "app.mutate", BROWSER_WRITE_FIX);
       const read = sessionReader(backing);
       if (!read) return admissionRefusal("the session store cannot be checked synchronously", "app.mutate", "use localStorageSessionStore() on the web, then retry with the same id");
       try {
@@ -539,7 +541,7 @@ export function createApp(options: AppOptions): App {
         raw = local.client; startClient = local.start;
       } else {
         const prepared = { url, session, readOnly, ...(readOnly && options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}), fetch: clock.wrap(scopedFetch), ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
-        const online = await prepareClient(prepared, () => createClient(prepared));
+        const online = await prepareClient(prepared, () => sdkOwned(() => createClient(prepared)));
         raw = online.client; startClient = online.start;
         if (readOnly) {
           const why = await verifyReadClient(raw);
@@ -604,11 +606,11 @@ export function createApp(options: AppOptions): App {
         const view = scope.view!;
         let active = true;
         const valid = () => active && scope.valid && scope.view === view && raw!.session()?.token === token;
-        const remote = options.device ? createClient({ url, ...(token ? { token } : {}),
+        const remote = options.device ? sdkOwned(() => createClient({ url, ...(token ? { token } : {}),
           fetch: clock.wrap((input, init) => scopedRequest(input, init, valid)),
           ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),
           ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}),
-        }) : raw!;
+        })) : raw!;
         scope.online = ownOnline(remote, authorized, valid, () => changedStore ?? sessionRefusal(raw!) ?? new SessionEpochChanged().why, !!options.device, () => { active = false; });
         notify?.();
       }

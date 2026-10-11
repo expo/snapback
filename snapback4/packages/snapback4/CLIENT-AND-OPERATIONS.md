@@ -750,7 +750,10 @@ Restoration does not queue an intent for whichever account might sign in later.
 Before store identification, the call waits in memory. After an ordinary
 `E_ADMISSION` storage refusal, repair storage and retry the same id. A bare `createClient()` in a browser has no synchronous journal
 and refuses mutations with `E_ADMISSION`; use the app with a web device for
-browser writes. Node and native online clients retain their existing behavior.
+browser writes, also when every table is online-only (no `sync` lines needed). A non-`readOnly`
+bare `createClient()` and a device-less `createApp()` say so once with `console.warn` when they are
+built in a browser; the clients `createApp` opens for itself never warn. Node and native online
+clients retain their existing behavior.
 Clearing browser storage after admission can still erase its bytes.
 A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
