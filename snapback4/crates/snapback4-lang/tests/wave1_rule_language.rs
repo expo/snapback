@@ -414,5 +414,5 @@ table stints:
 query total(game: games):
   return sum(stints where .game = game, .minutes)
 ", "E_QUARRY_BOUND");
-    assert!(d.message.contains("a total over rows") && d.rewrite.contains("pin .player") && d.rewrite.contains("view stintsTotal: sum stints of .column by game"), "{d}");
+    assert!(d.message.contains("a total over rows") && d.rewrite.contains("pin .player") && d.rewrite.contains("view stintsTotal: sum stints of .minutes by .game") && d.rewrite.contains("stintsTotal[game]"), "{d}");
 }
