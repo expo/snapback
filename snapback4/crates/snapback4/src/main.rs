@@ -4,6 +4,7 @@
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
 mod witness_socket;
+mod listen_refusal;
 mod assets;
 mod host_limits;
 mod auth;

@@ -114,7 +114,8 @@ fn stopped_host(path: &Path) -> bool {
 }
 
 fn busy(path: &Path) -> String {
-    let owner = address(path).unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
+    let owner = address(path).map(|address| match owner_pid(path) { Some(pid) => format!("{address} (pid {pid})"), None => address })
+        .unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
     format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display())
 }
 
@@ -130,6 +131,19 @@ pub(crate) fn address(path: &Path) -> Option<String> {
     let port = lines.next().and_then(|s| s.parse::<u16>().ok());
     lines.next().map(str::to_owned).or_else(|| port.map(|p| format!("http://127.0.0.1:{p}")))
 }
+
+/// The owning host's PID from its address record (`pid N` on the third line).
+#[cfg(unix)]
+fn owner_pid(path: &Path) -> Option<u32> {
+    let record = path.with_file_name("serve.lock");
+    let file = regular(&record, false, path).ok()?;
+    let mut text = String::new();
+    file.take(1024).read_to_string(&mut text).ok()?;
+    text.lines().nth(2)?.strip_prefix("pid ")?.parse().ok()
+}
+
+#[cfg(not(unix))]
+fn owner_pid(_: &Path) -> Option<u32> { None }
 
 #[cfg(not(unix))]
 pub(crate) fn address(_: &Path) -> Option<String> { None }
@@ -169,8 +183,8 @@ pub(crate) fn announce(owner: &mut Owner, address: std::net::SocketAddr) -> Resu
         .map_err(|e| failure(&owner.path, e))?);
     let file = owner.record.as_mut().ok_or("device ownership has no server address record")?;
     file.set_len(0).and_then(|_| file.seek(SeekFrom::Start(0))).map_err(|e| e.to_string())?;
-    // First-line port is retained for the dev inspector.
-    write!(file, "{}\nhttp://{address}\n", address.port()).map_err(|e| e.to_string())
+    // First-line port is retained for the dev inspector; the third line names the owning process.
+    write!(file, "{}\nhttp://{address}\npid {}\n", address.port(), std::process::id()).map_err(|e| e.to_string())
 }
 
 #[cfg(all(test, unix))]

@@ -8,8 +8,9 @@ curl -s -X POST $U/q/mine -H 'x-snapback-persona: alice' -H 'Content-Type: appli
 curl -s -X POST $U/m/add -H 'x-snapback-persona: alice' -H 'Content-Type: application/json' -d '{"args":{"body":"hi"}}'
 ```
 
-`snapback4 dev` serves on that address (choose another with `--port N`; the
-first stdout line is the URL). The JS client (`snapback4/client`) stays the
+`snapback4 dev` serves on that address (choose another with `--port N`, or
+`--port 0` for a free one; the first stdout line is the URL). A taken port
+refuses the start at once with `E_ADDRINUSE`, naming the holder's pid. The JS client (`snapback4/client`) stays the
 paved surface for apps: it adds sync, offline writes and live queries.
 
 ## Identity
@@ -93,7 +94,9 @@ Dev only, same machine; `serve` refuses each one.
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.
-- GET `/dev/status` names the served generation, the dev clock and the personas.
+- GET `/dev/status` (no credential) is the readiness probe: it names the
+  server's `pid`, `project`, whether the store is `temporary`, the served
+  generation, the dev clock and the declared personas.
 - `snapback4 run <op> --as bob` beside a running dev forwards to these routes.
 
 ## Refusals

@@ -2436,7 +2436,13 @@ step.
   adoption does not yet yield bounded writer chunks. A reconnect is never acknowledged only in memory.
   The stderr banner prints `store: temporary — discarded on exit` for either flag, or `store: <SQLite
   path>` for persistent dev. For dev and serve, readiness is the first stdout line: the listening URL, emitted
-  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. For a
+  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. The
+  stderr banner names the server's process (`snapback4 dev: http://127.0.0.1:4400  pid 1234 …`), and `GET
+  /dev/status` answers the same `pid`, so a script that spawned dev (perhaps through npx, npm and a shell) can
+  prove the server it polls is its own. A port that is already taken refuses the start at once with
+  `E_ADDRINUSE`, naming the holder (a running dev's pid and project) and suggesting `--port N`; `--port 0`
+  picks a free port, and the first stdout line names it. A second dev on the same project's store refuses
+  with `E_STORE_BUSY`, naming the owner's address and pid. For a
   replay mode that must not emit notifications, run `snapback4 dev --replay`: new emits are never delivered.
   The startup banner says effects are suppressed and schedules held; `doctor` reports the persisted dev replay
   and schedule policy. The write's transaction keeps only a durable `suppressed` count, shown by `doctor`,

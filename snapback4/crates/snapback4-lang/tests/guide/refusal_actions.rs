@@ -129,6 +129,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_NATIVE_TRAP", &["fix the module and run `snapback4 check`", "inspect the committed chunks before queueing a replacement job", "The failed chunk rolled back"]),
     ("E_NOT_PREDICTABLE", &["Remove the named server dependency to keep `predicts`, or remove that assertion and let the client queue without prediction", "eligibility is not a promise that every call produces a predicted row"]),
     ("E_OFFLINE", &["On E_OFFLINE, show the read as unavailable and reconnect before refreshing the server query", "It never answers an empty device page as server data"]),
+    ("E_ADDRINUSE", &["Stop that process (`kill <pid>`) and rerun, or choose another port with `--port N`", "A script must not go on to test whatever already answers there"]),
     ("E_HTTP_LIMIT", &["use `ulimit -n 1024` and restart dev before a scale run", "raise the shell/container/service NOFILE limit first"]),
     ("E_HTTP_LISTENER", &["E_HTTP_LISTENER names an OS accept failure, including descriptor exhaustion", "Limits are reported, never automatically raised"]),
     ("E_HTTP_RESPONSE", &["An upload's outcome is unknown", "inspect server/proxy logs before retrying"]),

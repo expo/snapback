@@ -132,6 +132,8 @@ pub(crate) fn finish(result: Result<(), String>) -> i32 {
     let signal = SIGNAL.load(Ordering::Acquire);
     if signal != 0 { return 128 + signal; } // The handler already reported the reason, before cleanup.
     let (status, reason) = match result { Ok(()) => (0, "server loop returned".to_owned()), Err(reason) => (1, reason) };
+    // A multi-line refusal (a rewrite under it) reads as written; the exit line below stays one quoted line.
+    if reason.contains('\n') { eprintln!("{reason}"); }
     let mut line = Line::<4096>::new();
     line.prefix("SNAPBACK4_EXIT");
     let _ = write!(line, " status={status} reason={reason:?}");

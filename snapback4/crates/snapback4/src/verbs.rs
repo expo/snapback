@@ -25,7 +25,7 @@ mod test_cases;
 mod adoption;
 mod latency;
 mod run_admission;
-mod run_forward;
+pub(crate) mod run_forward;
 mod run_refusal;
 
 pub struct Options {

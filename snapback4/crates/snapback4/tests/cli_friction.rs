@@ -79,3 +79,34 @@ fn a_closed_pipe_ends_a_one_shot_verb_without_a_panic() {
         assert!(output.status.success() || output.status.signal() == Some(libc::SIGPIPE), "{args:?}: {:?} {stderr}", output.status);
     }
 }
+
+/// A taken port fails the start at once, names the port, the holder and the
+/// way out; a holder that is a dev is named by its PID, which `/dev/status`
+/// reports too, so a script can prove it owns the server it polls.
+#[test]
+fn dev_refuses_a_taken_port_and_names_the_holder() {
+    let project = Project::new("use personas alice\nquery alive():\n  return true\n");
+    // A stranger on the port.
+    let stranger = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = stranger.local_addr().unwrap().port();
+    let started = Instant::now();
+    let output = project.run(&["dev", "--port", &port.to_string(), "--fresh", "--no-watch"]);
+    let log = text(&output);
+    assert!(!output.status.success(), "{log}");
+    assert!(started.elapsed() < Duration::from_secs(20), "a taken port is refused immediately: {log}");
+    assert!(log.contains(&format!("E_ADDRINUSE at 127.0.0.1:{port}")), "{log}");
+    assert!(log.contains("does not answer GET /dev/status") && log.contains(&format!("snapback4 dev --port {}", port + 1)) && log.contains("--port 0"), "{log}");
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("http://"), "a refused start prints no URL: {log}");
+    drop(stranger);
+
+    // A dev on the port: its PID is in /dev/status and in the second dev's refusal.
+    let (first, url) = project.dev(0);
+    let (status, body) = http(&url, "GET", "/dev/status", None, "");
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body["pid"].as_u64(), Some(u64::from(first.0.id())), "{body}");
+    let port = url.rsplit(':').next().unwrap();
+    let output = project.run(&["dev", "--port", port, "--fresh", "--no-watch"]);
+    let log = text(&output);
+    assert!(!output.status.success(), "{log}");
+    assert!(log.contains("E_ADDRINUSE") && log.contains(&format!("a running snapback4 dev (pid {})", first.0.id())) && log.contains(&format!("kill {}", first.0.id())), "{log}");
+}

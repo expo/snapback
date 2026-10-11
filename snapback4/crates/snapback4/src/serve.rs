@@ -287,7 +287,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         Some(crate::store_owner::host(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
-    let server = crate::witness_socket::server(bind, port, inherited, capacity.connections())?;
+    let server = crate::witness_socket::server(bind, port, inherited, capacity.connections(), if dev { "dev" } else { "serve" })?;
     let address = server.server_addr().to_ip().ok_or("HTTP listener has no IP address")?;
     if let Some(file) = &mut host_lock { crate::store_owner::announce(file, address)?; }
     if let Mode::Release { owner, .. } = &mut mode {
@@ -367,8 +367,9 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
     // The URL is stdout's first line; lifecycle and redacted worker logs use stderr.
     snapback4_core::diagnostic_stdout!("http://{address}");
     match &generated {
-        Some(generated) => snapback4_core::diagnostic!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
-        None => snapback4_core::diagnostic!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
+        // The PID lets a script that spawned `dev` (perhaps through npx) prove it owns the server it polls.
+        Some(generated) => snapback4_core::diagnostic!("snapback4 dev: http://{address}  pid {}  (schema: snapback/, types: {})", std::process::id(), generated.display()),
+        None => snapback4_core::diagnostic!("snapback4 serve: http://{address}  pid {}  (release {}, generation {generation}, tokens only)", std::process::id(), project.root.display()),
     }
     if dev {
         match mode {
@@ -972,7 +973,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
         let now = shared.now();
-        return respond_timed(request, shared, 200, json!({"storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
+        return respond_timed(request, shared, 200, json!({"pid":std::process::id(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
     if method == Method::Get && path == "/dev/clock/status" { return maintenance::clock_status(request, shared); }
     if method == Method::Options {

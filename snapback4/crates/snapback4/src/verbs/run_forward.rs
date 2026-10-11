@@ -129,7 +129,7 @@ fn print(call: &Call, reply: &Json) -> i32 {
 
 const REPLY_LIMIT: u64 = 64 << 20;
 
-fn exchange(address: SocketAddr, method: &str, route: &str, persona: Option<&str>, body: &str, wait: Duration) -> std::io::Result<(u16, Json)> {
+pub(crate) fn exchange(address: SocketAddr, method: &str, route: &str, persona: Option<&str>, body: &str, wait: Duration) -> std::io::Result<(u16, Json)> {
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
     stream.set_read_timeout(Some(wait))?;
     stream.set_write_timeout(Some(Duration::from_secs(10)))?;

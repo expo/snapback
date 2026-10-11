@@ -193,6 +193,14 @@ it to finish. The presence of an old lock file alone does not refuse work.
 Leave `<database>-owner` in place: deleting or replacing it while a process runs
 ends exclusion and can admit a second owner without stopping the first.
 
+E_ADDRINUSE at 127.0.0.1:4400 means the port `dev` or `serve` was asked to listen
+on is already taken, so this server did not start and served nothing. The
+message names the holder: a running dev answers `GET /dev/status` with its
+`pid` and project. Stop that process (`kill <pid>`) and rerun, or choose another
+port with `--port N`; `--port 0` picks a free one, and the URL is always stdout's
+first line. A script must not go on to test whatever already answers there: it
+may be an orphaned instance serving an older schema and store.
+
 E_STORE means the database operation failed, such as a SQLite writer lock
 held by another process. For example, starting a second writer during
 adoption may prevent the first host from committing. Inspect the underlying
