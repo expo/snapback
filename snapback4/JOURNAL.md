@@ -92408,3 +92408,50 @@ Rebased on main: the R2 security fix `b2036dd821` and the wasm budget raise.
 - **What was hard:** precision of the named exception. Every widening of the
   generator (preludes, `if` branches) found a new way for the "first write"
   to be ambiguous.
+
+## 2026-10-11 — Workstream B: rule-language friction from the wave 1 app farm (LLP 3000.036 §11)
+
+The 100-lane farm on 0.4.16 (`~/sb4-loop/wave1/analysis/patterns.md`) kept
+hitting the same rule-language walls. This entry is workstream B's pass; the
+decisions are recorded in LLP 3000.036 §11.
+
+- **Rules say what they evaluate.** `E_QUARRY_RULE_OPERATOR` replaces
+  `E_QUARRY_UNKNOWN` ("ordered comparisons belong to update transitions",
+  whose rewrite was the chat app's `readUpTo`). It covers `now`, arithmetic,
+  helper calls and misplaced ordered comparisons, and its rewrite is the
+  author's own comparison as a mutation `require … else INVALID_<FIELD>`.
+  Insert rules may now order the row's own required int/time columns
+  (`.stars >= 1`), behind the `insert-rule-order` capability. `guide rules`
+  opens with a table of rule forms.
+- **Messages and reserved words.** `require … else CODE 'message'` and
+  `! else CODE 'message'` carry the message on the wire refusal, as `unique`
+  does; a table rule's `else CODE` says rules refuse with E_RULE.
+  `E_QUARRY_RESERVED` names `read:`, `by:`, `after:` and `update` as a
+  parameter at the declaration, and `snapback4 why E_QUARRY_RESERVED` lists the reserved words.
+- **Rewrites from the author's line.** Covered:
+  - `N_NEVER_COMPLETE` prints the pin as code: the parent read and
+    `.board = cardRow.board`, or one query per party for a two-party rule. It
+    also says when a staff grant is not used.
+  - The constraint form of `E_STRUCTURAL_FANOUT` offers a count view over the
+    author's own table.
+  - Also: `E_QUARRY_BOUND` on a total, the read-rule hop (table-rule repair
+    rather than mutation syntax), the sync window without dots, sum clause
+    order, `1w`, `not a = b`, the nested-predicate `.` scope, and the
+    `.id = .ref` probe key.
+- **Accepted forms.** Now accepted:
+  - `t[row]` reads by the row's id.
+  - A page inside an object ends at the next `field:`.
+  - Named equalities covering two total unique keys choose the first key.
+- **Defects.** Lane 081's job sweep no longer reports `$pureCallConstants`,
+  and its schedule cascade is hidden. Lane 008's silent 0 from a
+  `read <- deny` maintain is now `N_READ_DENIED`.
+- **Deferred.** A `require`/grant-proven role as a completeness proof (#28):
+  it changes the engine's page verdict, the device and the Lean oracle's
+  `complete`. That is the lead session's call. The note and `guide bounds`
+  ("Private lists") say what staff get instead.
+
+- **What felt good:** most of the friction was rewrite text, fixable in the
+  binder with the source already in hand.
+- **What was hard:** existing tests pin some wording on purpose (the
+  constraint rewrite must not infer booking intent from column names), so the
+  new renderings add to that text rather than replace it.
