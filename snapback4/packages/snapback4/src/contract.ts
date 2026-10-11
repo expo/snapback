@@ -436,53 +436,84 @@ export type ReadMatchFallbackHandlers<T, R = unknown> =
  * accepted for inference only, so the missing decision is named below. */
 type ReadMatchIncomplete<T> = { [K in keyof ReadMatchHandlers<T>]?: ReadMatchHandlers<T>[K] } & Pick<ReadMatchFallbackHandlers<T>, "otherwise">;
 /** The error a fallback without `denied`/`partial` reports: the property's
- * type is the fix. LLP 3000.031 §8 keeps both decisions explicit. */
-type FallbackDecisions<H> = H extends { otherwise: unknown }
+ * type is the fix. LLP 3000.031 §8 keeps both decisions explicit; an
+ * `otherwise` built by `otherwiseAll` is that decision, so it needs neither. */
+type FallbackDecisions<H> = H extends { otherwise: OtherwiseAll<unknown> } ? unknown
+  : H extends { otherwise: unknown }
   ? ("denied" extends keyof H ? unknown : { denied: "otherwise skips denied: add denied: why => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
     & ("partial" extends keyof H ? unknown : { partial: "otherwise skips partial: add partial: data => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
   : unknown;
+
+/** What `matchRead` accepts: a read, or a `usePage` result (it reads `page.read`). */
+type Matchable<T> = Read<T> | { readonly read: Read<T>; readonly loadMore: () => void };
 
 /** Render the current read, preserving its narrowed data and metadata.
  * Pass no type arguments: T comes from the read and the result is the union of
  * the handlers' returns. `present`/`partial` receive data; `otherwise` receives
  * the read itself (narrow with `isReady`). Denied and partial stay explicit:
- * to route them to the fallback too, say so with one spread,
- * `matchRead(read, { present: rows => …, ...otherwiseAll(() => "…") })`.
+ * to route them to the fallback too, say so with one spread, in any position,
+ * `matchRead(read, { ...otherwiseAll(() => "…"), present: rows => … })`; a
+ * handler the call names always wins over it.
  * Pure dispatch: no reclassification, subscription, retention or permission.
- * For pages pass page.read; present pages may still be incomplete.
+ * A `usePage` result may be passed whole (its `read` is matched); present
+ * pages may still be incomplete.
  * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.
  */
 // @ref LLP 3000.013#6.6 — an omitted denied/partial with `otherwise` fails naming the fix, not a Pick<> dump.
 // @ref LLP 3000.013#6.7 — NoInfer wraps the whole handler set, never T inside it: `NoInfer<T> & ({} | undefined)` never simplified, so present rows refused `rows[0]` and `for…of`.
+// @ref LLP 3000.013#6.8 — a page hook is matched by its read: `matchRead(page, …)` was the most common miss.
 export function matchRead<T, H extends NoInfer<ReadMatchHandlers<T> | ReadMatchFallbackHandlers<T> | ReadMatchIncomplete<T>>>(
-  read: Read<T>, handlers: H & FallbackDecisions<H>,
+  read: Matchable<T>, handlers: H & FallbackDecisions<H>,
 ): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
-export function matchRead<T, R>(read: Read<T>, handlers: (ReadMatchHandlers<T, R> & { otherwise?: never }) | ReadMatchFallbackHandlers<T, R>): R {
+export function matchRead<T, R>(input: Matchable<T>, handlers: { [K in keyof ReadMatchHandlers<T, R>]?: ReadMatchHandlers<T, R>[K] } & { otherwise?: (read: Read<T>) => R }): R {
+  const read: Read<T> = "loadMore" in input && "read" in input ? input.read : input as Read<T>;
+  // A denied or partial without its own handler reaches only an `otherwiseAll` fallback.
+  const all = (): (read: Read<T>) => R => {
+    const otherwise: unknown = handlers.otherwise;
+    if (typeof otherwise === "function" && "otherwiseAll" in otherwise && otherwise.otherwiseAll === true) return handlers.otherwise!;
+    throw new TypeError("matchRead: denied and partial need their own handlers, or ...otherwiseAll(fallback) (LLP 3000.031 §8)");
+  };
   if ("loading" in read) return handlers.loading ? handlers.loading(read) : handlers.otherwise!(read);
-  if ("denied" in read) return handlers.denied(read.denied, read);
+  if ("denied" in read) return handlers.denied ? handlers.denied(read.denied, read) : all()(read);
   switch (read.existence) {
     case "absent": return handlers.absent ? handlers.absent(read) : handlers.otherwise!(read);
-    case "partial": return handlers.partial(read.data, read);
+    case "partial": return handlers.partial ? handlers.partial(read.data, read) : all()(read);
     case "present": return handlers.present ? handlers.present(read.data, read) : handlers.otherwise!(read);
   }
 }
 
-/** The handlers `otherwiseAll` spreads: one fallback for every state the call does not name. */
+/** The fallback `otherwiseAll` builds: marked, so `matchRead` also sends the
+ * denied and partial states the call does not name to it. The mark is a plain
+ * property, so two copies of the package agree on it. */
+export type OtherwiseAll<R> = ((read: Read<unknown>) => R) & { readonly otherwiseAll: true };
+/** What `otherwiseAll` spreads: the marked fallback, plus any overrides. */
 export interface ReadMatchOtherwiseAll<R> {
-  readonly otherwise: (read: Read<unknown>) => R;
-  readonly denied: (why: Refusal, read: Read<unknown>) => R;
-  readonly partial: (data: unknown, read: Read<unknown>) => R;
+  readonly otherwise: OtherwiseAll<R>;
+}
+/** Handlers `otherwiseAll(fallback, overrides)` carries. They see the read
+ * untyped (`Read<unknown>`), so a handler that needs typed rows (`partial:
+ * rows => …`, `present`) belongs in the `matchRead` call itself. */
+export interface ReadMatchOverrides<R> {
+  readonly loading?: (read: Extract<Read<unknown>, { loading: true }>) => R;
+  readonly denied?: (why: Refusal, read: Extract<Read<unknown>, { denied: Refusal }>) => R;
+  readonly absent?: (read: Absent<unknown>) => R;
+  readonly partial?: (data: unknown, read: Partial<unknown>) => R;
 }
 /** One fallback for every state a `matchRead` call does not name, denial and
- * uncertain emptiness included, spelled at the call site:
- * `matchRead(read, { present: rows => <List rows={rows} />, ...otherwiseAll(read => <Status read={read} />) })`.
+ * uncertain emptiness included, spelled at the call site. Spread it anywhere
+ * in the handlers; the ones you write win in any order:
+ * `matchRead(read, { ...otherwiseAll(read => <Status read={read} />), present: rows => <List rows={rows} />, partial: rows => <List rows={rows} more /> })`.
  * The fallback receives the read itself (`readPresentation(read).why` holds a
- * refusal). Spread it after the handlers you write: a `denied` or `partial`
- * written before it is a compile error (TS2783), and one written after it wins.
- * Pure: it only builds the three handlers. */
+ * refusal). `overrides` names states that need no typed rows in one place:
+ * `...otherwiseAll(() => <Spinner />, { denied: why => <p role="alert">{why.message}</p> })`.
+ * Pure: it only builds the handlers. */
 // @ref LLP 3000.031#8 — the fallback for denied/partial stays a visible decision; one token names it.
-export function otherwiseAll<R>(fallback: (read: Read<unknown>) => R): ReadMatchOtherwiseAll<R> {
-  return { otherwise: read => fallback(read), denied: (_why, read) => fallback(read), partial: (_data, read) => fallback(read) };
+// @ref LLP 3000.013#6.8 — the marked fallback covers what the call leaves unnamed, so key order is never load-bearing.
+export function otherwiseAll<R>(fallback: (read: Read<unknown>) => R): ReadMatchOtherwiseAll<R>;
+export function otherwiseAll<R, O extends ReadMatchOverrides<unknown>>(fallback: (read: Read<unknown>) => R, overrides: O): ReadMatchOtherwiseAll<R> & O;
+export function otherwiseAll<R>(fallback: (read: Read<unknown>) => R, overrides?: ReadMatchOverrides<unknown>): ReadMatchOtherwiseAll<R> {
+  const otherwise = Object.assign((read: Read<unknown>): R => fallback(read), { otherwiseAll: true as const });
+  return { ...overrides, otherwise };
 }
 
 /** Display metadata only; never an authorization or mutation-admission decision. */

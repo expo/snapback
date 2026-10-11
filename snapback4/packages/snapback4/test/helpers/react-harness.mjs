@@ -446,6 +446,28 @@ const cases = {
     await unmount();
     check(opened.every(app => app.closes === 1), "every opened app closed exactly once");
   },
+  // Wave 7 (LLP 3000.013 §6.8): a read whose arguments do not exist yet is skipped, not wrapped.
+  async "skip: a skipped useQuery or usePage reads nothing and opens the read when skip turns off"() {
+    const client = controlled(args => ready([{ id: "r", ...args }])); let read, page;
+    function Probe({ id }) {
+      read = useQuery(query, { id: id ?? "" }, { skip: !id });
+      page = usePage(query, { id: id ?? "" }, { skip: !id });
+      return null;
+    }
+    await mount(h(Probe, { id: null }), client);
+    check(read.loading === true && page.read.loading === true && page.items.length === 0 && page.hasMore === false, "skipped reads are loading with no items");
+    check(client.records.length === 0, "a skipped hook opens no observation");
+    page.loadMore();
+    check(client.records.length === 0, "loadMore on a skipped page opens nothing");
+    await render(h(Probe, { id: "a" }), client);
+    check(active(client).length === 2, "turning skip off opens each read once: " + active(client).length);
+    equal(read.data, [{ id: "a" }], "the read uses the real arguments");
+    equal(page.items.map(item => item.id), ["a"], "the page uses the real arguments");
+    await render(h(Probe, { id: null }), client);
+    check(active(client).length === 0 && read.loading === true, "skipping again releases both reads");
+    await unmount();
+    allClosed(client);
+  },
   async "useQuery owns observations through Strict Mode, equivalent arguments and unmount"() {
     const client = controlled(args => ready(args)); let latest;
     function Probe({ value }) { latest = useQuery(query, { value }); return null; }

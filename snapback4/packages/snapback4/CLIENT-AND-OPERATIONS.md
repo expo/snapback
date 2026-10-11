@@ -1493,8 +1493,8 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
-| `useQuery(op, args, { keep }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards |
-| `usePage(op, args)` | `{ items, hasMore, read, loadMore }` (`UsePage<typeof op>`, a `PageHook<R>`); `op` declares `c: cursor ?` |
+| `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
+| `usePage(op, args, { keep, skip }?)` | `{ items, hasMore, read, loadMore }` (`UsePage<typeof op>`, a `PageHook<R>`); `op` declares `c: cursor ?` |
 | `useFollowing(op, args)` | Following history: the snapshot plus `loadMore`, `retry`, `refresh` (`guide feeds`) |
 | `useMutation(op)` | `{ run(args, options?), last, inFlight }` (`UseMutation<typeof op>`): `Write<R>`, or `Signal<R>` for an ephemeral `op` |
 | `usePendingWrite(op, id?)` | `useMutation`'s shape plus `pending` and `restoring`, for a saved mutation id |
@@ -1507,8 +1507,8 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`), `denied` or `error` (`why`) |
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
-| `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
-| `otherwiseAll(fallback)` | spread into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included |
+| `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise`; `read` may be a `usePage` result |
+| `otherwiseAll(fallback, overrides?)` | spread anywhere into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included; named handlers win in any order |
 | `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
 | `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
 
@@ -1521,18 +1521,19 @@ absent or present, even when one of those also has a handler), so narrow it with
 touching `.data`. `denied` and `partial` stay explicit beside `otherwise`, so a list still
 decides what an uncertain page shows; leaving one out fails with "Property 'denied' is missing
 … `otherwise skips denied: add denied: why => …`". To send them to the same fallback, say so
-with one spread: `matchRead(read, { present: rows => rows.length, ...otherwiseAll(() => "…") })`.
-The fallback receives the read (`readPresentation(read).why` is a refusal); a `denied` written
-after the spread wins, and one written before it fails to compile. A `Write` is `pending`, `sent` or `failed`, and a replayed
+with one spread: `matchRead(read, { ...otherwiseAll(() => "…"), present: rows => rows.length })`.
+The fallback receives the read (`readPresentation(read).why` is a refusal) and runs only for the
+states the call leaves unnamed: a `denied` or `partial` handler wins wherever it is written.
+`otherwiseAll(fallback, { denied: why => …, loading: () => … })` carries handlers that need no
+rows; they see the read as `Read<unknown>`, so `partial: rows => …` belongs in the call itself. A `Write` is `pending`, `sent` or `failed`, and a replayed
 `sent` has no `result`: check `!write.replayed` (or `"result" in write`) before reading it, or
 let `sentResult(write)` do both (below). The
 online client can return `pending` too, while offline or with `waitSeconds: 0`. `close()` returns
 a promise; an effect cleanup must return nothing, so write `() => { void client.close(); }`.
 `UseQuery<typeof api.op>`, `UsePage<typeof api.op>`, `UseMutation<typeof api.op>` and
 `UseAction<typeof api.op>` name each hook's result for a prop; every name here imports from
-`snapback4/react`, and `Client` also from `snapback4/client`. A guard or `matchRead` takes a
-page's `page.read`, never the page: `isDenied(page)` fails with "`PageHook<…>` is not assignable
-to `Read<unknown>`".
+`snapback4/react`, and `Client` also from `snapback4/client`. A guard takes a page's `page.read`, never the page: `isDenied(page)` fails
+with "`PageHook<…>` is not assignable to `Read<unknown>`"; `matchRead(page, …)` takes either.
 
 ```tsx
 import { isFailed, sentResult, useMutation } from "snapback4/react";
@@ -1612,7 +1613,7 @@ export function Notices({ conversationId }: { conversationId: string }) {
 }
 // One fallback for every state the call does not name, denial included; a status line for any outcome.
 export function Count({ conversationId }: { conversationId: string }) {
-  return <p>{matchRead(useQuery(api.thread, { conversationId }), { present: rows => `${rows.length} messages`, ...otherwiseAll(read => readPresentation(read).why?.message ?? "…") })}</p>;
+  return <p>{matchRead(useQuery(api.thread, { conversationId }), { ...otherwiseAll(read => readPresentation(read).why?.message ?? "…"), present: rows => `${rows.length} messages` })}</p>;
 }
 export function FailText({ of }: { of: (Outcome | undefined)[] }) { return <p role="alert">{of.find(isFailed)?.why.message}</p>; }
 export function useOwnClient(url: string, persona: string): Client | null {
@@ -1674,6 +1675,51 @@ function MyThreads() {
 export function Home() {
   const auth = useAuth();
   return auth.state === "signed-in" ? <MyThreads /> : <p>{auth.why?.message ?? "Sign in to continue"}</p>;
+}
+```
+
+#### Status components and a form
+
+Two shared components cover most screens' status lines: `ReadState` for any read that is not
+showing rows (it takes `Read<unknown>`, so every query's read fits) and `WriteNote` for any
+write, signal or action outcome (`Outcome`; a hook's `last` is undefined before its first run).
+A read whose arguments do not exist yet takes `{ skip: true }` instead of a wrapper component:
+it stays `loading` and opens nothing until `skip` turns off. One list-and-form screen with them:
+
+```tsx
+import { useState } from "react";
+import { isFailed, matchRead, otherwiseAll, readPresentation, useMutation, usePage, type Outcome, type Read, type RowOf } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+type Message = RowOf<typeof api.thread>;
+/** Loading, refused, proven empty or possibly incomplete: one line for any read. */
+export function ReadState({ read }: { read: Read<unknown> }) {
+  const status = readPresentation(read);
+  if (status.why) return <p role="alert">{status.why.message}</p>;
+  if (status.pending) return <p role="status">Loading…</p>;
+  return status.existence === "absent" ? <p>Nothing yet</p> : status.incomplete ? <p role="status">More may exist</p> : null;
+}
+/** The refusal of the latest write, signal or action outcome, if it failed. */
+export function WriteNote({ last }: { last: Outcome | undefined }) {
+  return isFailed(last) ? <p role="alert">{last.why.message}</p> : null;
+}
+export function Messages({ conversationId }: { conversationId: string | null }) {
+  const page = usePage(api.thread, { conversationId: conversationId ?? "" }, { skip: !conversationId });
+  const send = useMutation(api.send), like = useMutation(api.setLike);
+  const [draft, setDraft] = useState("");
+  const list = (rows: readonly Message[]) => <ul>{rows.map(row => <li key={row.id}>{row.body}
+    <button onClick={() => void like.run({ postId: row.id, set: true })}>Like</button></li>)}</ul>;
+  async function submit() {
+    if (!conversationId || !draft) return;
+    const write = await send.run({ conversationId, body: draft });
+    if (!isFailed(write)) setDraft(""); // sent, or pending offline: the outbox owns it now
+  }
+  return <>
+    {matchRead(page, { ...otherwiseAll(read => <ReadState read={read} />), present: list, partial: rows => <>{list(rows)}<ReadState read={page.read} /></> })}
+    {page.hasMore && <button onClick={page.loadMore}>More</button>}
+    <input value={draft} onChange={e => setDraft(e.target.value)} />
+    <button disabled={!conversationId || !draft || send.inFlight} onClick={() => void submit()}>Send</button>
+    <WriteNote last={[send.last, like.last].find(isFailed)} />
+  </>;
 }
 ```
 

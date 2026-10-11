@@ -44,8 +44,27 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
-`matchRead` (no type arguments) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` takes all unnamed. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
-Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`; `[add, remove].find(isFailed)?.last.why`; `Outcome` types status helpers ([lists/scalars](CLIENT-AND-OPERATIONS.md#lists-and-single-values-with-usequery)). [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
+`matchRead` (no type arguments; a read, or a `usePage` result whole) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` sends every state the call does not name there, denied and partial included. Spread it anywhere: a handler you name wins in any order. `otherwiseAll(f, { denied: why => … })` names untyped states in one place; handlers that need rows (`partial: rows => …`) go in the call. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
+Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`; `[add, remove].find(isFailed)?.last.why`; `Outcome` types status helpers ([lists/scalars](CLIENT-AND-OPERATIONS.md#lists-and-single-values-with-usequery), [a form](CLIENT-AND-OPERATIONS.md#status-components-and-a-form)). `{ skip: true }` on `useQuery`/`usePage` reads nothing (`loading`) until its arguments exist. Outside React, `await client.query(op, args)` is ready or denied: `"denied" in r ? r.denied.message : r.data`. Personas: `usePersonaApp(persona, open)` ([recipe](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui)).
+
+```tsx
+import { isFailed, matchRead, otherwiseAll, readPresentation, useMutation, usePage, useQuery, type Outcome, type Read } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+// Shared status lines: any read that is not showing rows, and any write, signal or action outcome.
+export function ReadState({ read }: { read: Read<unknown> }) {
+  const status = readPresentation(read);
+  if (status.why) return <p role="alert">{status.why.message}</p>;
+  if (status.pending) return <p role="status">Loading…</p>;
+  return status.existence === "absent" ? <p>Nothing yet</p> : status.incomplete ? <p role="status">More may exist</p> : null;
+}
+export function WriteNote({ last }: { last: Outcome | undefined }) { return isFailed(last) ? <p role="alert">{last.why.message}</p> : null; }
+export function Inbox({ selected }: { selected: string | null }) {
+  const page = usePage(api.inboxCards, {}), send = useMutation(api.send);
+  const members = useQuery(api.members, { conversationId: selected ?? "" }, { skip: !selected });
+  return <>{matchRead(page, { ...otherwiseAll(read => <ReadState read={read} />), present: rows => rows.map(row => <p key={row.id}>{row.title}</p>) })}
+    <ReadState read={members} /><WriteNote last={send.last} /></>;
+}
+```
 
 | Meaning | UI decision |
 | --- | --- |
