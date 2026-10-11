@@ -245,3 +245,18 @@ fn seed_upserts_by_id_and_names_an_immutable_change() {
     let message = body["denied"]["message"].as_str().unwrap();
     assert!(message.contains("lists.owner is immutable") && message.contains("upsert by id"), "{message}");
 }
+
+/// `run` beside a `dev --fresh` would read the on-disk store; `--port N`
+/// reaches that dev's own temporary store, and a local run says which store answered.
+#[test]
+fn run_port_reaches_a_fresh_dev_and_a_local_run_names_its_store() {
+    let project = Project::new("use personas alice, bob\nquery whoAmI():\n  return viewer\n");
+    let (_dev, url) = project.dev(0);
+    let port = url.rsplit(':').next().unwrap();
+    let output = project.run(&["run", "whoAmI", "--as", "bob", "--port", port, "--json"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains(&format!("--port: the snapback4 dev at {url}; forwarding to POST /q/whoAmI as x-snapback-persona: bob")), "{}", text(&output));
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap()["data"], "dev:bob");
+    let local = project.run(&["run", "whoAmI", "--json"]);
+    assert!(local.status.success() && String::from_utf8_lossy(&local.stderr).contains("run: on the local store .snapback4/store.sqlite"), "{}", text(&local));
+}
