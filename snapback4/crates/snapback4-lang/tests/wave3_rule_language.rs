@@ -163,7 +163,7 @@ fn a_never_complete_note_says_how_tests_and_clients_treat_the_page() {
     let staffed = desk("exists staff[viewer]", "query q(c: cursor ?):\n  return items last 50 by .at, .id after c\n");
     let b = bound(&staffed);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap();
-    assert!(n.message.contains("run it as a caller `exists staff[viewer]` admits to expect `complete`") && n.message.contains("the complete form for everyone is `if` on the grant, pinning the owner otherwise"), "{n}");
+    assert!(n.message.contains("run it as a caller `exists staff[viewer]` admits to expect `complete`") && n.message.contains("the complete form for everyone is `if` on the grant, pinning `.owner` otherwise"), "{n}");
 }
 
 // ---- #4: the page rewrite and the horizon rewrite agree ----

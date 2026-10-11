@@ -7,13 +7,15 @@ const WINDOW: Duration = Duration::from_secs(1);
 const LIMIT: usize = 32;
 struct Entry { record: Value, count: u64, until: Instant }
 #[derive(Default)]
-pub(super) struct Console { entries: VecDeque<Entry> }
+pub(super) struct Console { entries: VecDeque<Entry>, detail: bool }
 
 fn same_cause(a: &Value, b: &Value) -> bool {
     ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation", "hiddenBy"]
         .iter().all(|key| a[key] == b[key])
 }
 impl Console {
+    /// `dev --verbose` keeps the full evidence line; the default is one short line per cause.
+    pub fn with_detail(detail: bool) -> Self { Self { entries: VecDeque::new(), detail } }
     pub fn wait(&self, now: Instant) -> Duration {
         self.entries.front().map_or(WINDOW, |entry| entry.until.saturating_duration_since(now))
     }
@@ -47,8 +49,15 @@ impl Console {
         let table = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" {t}")).unwrap_or_default();
         // A lookup refusal whose row the read rule hid: name that layer, since the author's later `require` never ran.
         let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the lookup's {t} row is hidden by its read rule at {} (a hidden row reads as absent at a lookup, before any later require)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
-        let line = format!("dev refusal: {}:{table} — {} at {}{hidden}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
-            r["operation"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or(""));
+        let line = if self.detail { format!("dev refusal: {}:{table} — {} at {}{hidden}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
+            r["operation"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or("")) }
+        else {
+            // @ref LLP 3000.036#16.5 — wave 6 #19: the human signal first, one short line; the record stays in `why recent`.
+            let on = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" on {t}")).unwrap_or_default();
+            let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the {t} row is hidden by its read rule at {} (hidden reads as absent)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
+            let times = if entry.count > 1 { format!(" ×{}", entry.count) } else { String::new() };
+            format!("dev refusal: {} {} at {} ({}{on}){hidden}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
+        };
         let _ = out.write_all(line.as_bytes());
     }
 }
@@ -74,7 +83,7 @@ mod tests {
             fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
         }
         let mut out = Interrupted { bytes: Vec::new(), inserted: false };
-        let mut console = Console::default();
+        let mut console = Console::with_detail(true);
         let now = Instant::now();
         let identity = json!({"storeId":"store", "instance":"instance"});
         let record = json!({"operation":"add", "code":"E_RULE", "table":"rows",
@@ -104,7 +113,7 @@ mod tests {
             }
             fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
         }
-        let mut console = Console::default();
+        let mut console = Console::with_detail(true);
         let mut out = Interleaved(Vec::new());
         let now = Instant::now();
         let identity = json!({"instance":"test"});
@@ -120,7 +129,7 @@ mod tests {
     }
     #[test]
     fn counts_repeats_without_sliding_and_separates_causes() {
-        let mut console = Console::default();
+        let mut console = Console::with_detail(true);
         let mut out = Vec::new();
         let now = Instant::now();
         let identity = json!({"instance":"test"});
@@ -150,7 +159,7 @@ mod tests {
             ("phase", json!("read through capture")), ("site", json!("schema.q:9:3")),
             ("executionSite", json!("add:2")), ("generation", json!(2)),
         ] {
-            let mut console = Console::default();
+            let mut console = Console::with_detail(true);
             let mut out = Vec::new();
             let now = Instant::now();
             let mut other = record.clone();
@@ -174,8 +183,22 @@ mod tests {
         }
     }
     #[test]
-    fn distinct_causes_are_bounded_and_counts_flush_on_disconnect() {
+    fn the_default_line_is_short_and_leads_with_the_operation_code_and_site() {
         let mut console = Console::default();
+        let mut out = Vec::new();
+        let now = Instant::now();
+        let identity = json!({"storeId":"store", "instance":"instance"});
+        let record = json!({"operation":"acceptRide", "code":"NOT_FOUND", "table":"rides", "clause":"lookup", "phase":"lookup", "site":"schema.q:31:3",
+            "executionSite":"acceptRide:1", "generation":1, "requestId":2, "hiddenBy":{"table":"rides","readRuleSite":"schema.q:12:3"}});
+        for _ in 0..3 { console.push_at(record.clone(), now, &identity, &mut out); }
+        console.flush_all(&identity, &mut out);
+        let text = String::from_utf8(out).unwrap();
+        assert_eq!(text, "dev refusal: acceptRide NOT_FOUND at schema.q:31:3 (lookup on rides); the rides row is hidden by its read rule at schema.q:12:3 (hidden reads as absent) ×3 — snapback4 why recent\n");
+        assert!(text.len() < 200, "{text}");
+    }
+    #[test]
+    fn distinct_causes_are_bounded_and_counts_flush_on_disconnect() {
+        let mut console = Console::with_detail(true);
         let mut out = Vec::new();
         let now = Instant::now();
         for n in 0..100 {

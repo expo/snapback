@@ -367,10 +367,24 @@ impl Dominance<'_> {
 
 /// Every fact the grant reads is one the caller may read itself.
 fn self_disclosing(schema: &Schema, grant: &RuleExpr) -> bool {
+    disclosing(schema, grant, false)
+}
+
+/// A disjunct whose row columns a page pins (`exists cats[.cat, owner =
+/// viewer]` under `.cat = cat`): whenever it holds, the caller can read every
+/// row it probes, so a program's own `exists cats[cat, owner = viewer]` (which
+/// sees only readable rows) answers exactly as the rule does. Pinned columns
+/// are arbitrary values here: they pin nothing on the probed row's rule.
+// @ref LLP 3000.036#16.1 — a printed branch on a parent probe must not narrow the probe's holders.
+pub fn pinned_probe_readable(schema: &Schema, disjunct: &RuleExpr) -> bool {
+    disclosing(schema, disjunct, true)
+}
+
+fn disclosing(schema: &Schema, grant: &RuleExpr, fields: bool) -> bool {
     match grant {
         RuleExpr::Allow | RuleExpr::Public { .. } => true,
-        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => [a, b].iter().all(|term| matches!(term, RuleTerm::Viewer | RuleTerm::Literal(_))),
-        RuleExpr::And(items) => items.iter().all(|item| self_disclosing(schema, item)),
+        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => [a, b].iter().all(|term| matches!(term, RuleTerm::Viewer | RuleTerm::Literal(_)) || fields && matches!(term, RuleTerm::Field(_))),
+        RuleExpr::And(items) => items.iter().all(|item| disclosing(schema, item, fields)),
         RuleExpr::Exists { table: target, index, key, equalities, .. } => {
             let Some(target_table) = schema.table(target) else { return false };
             let Some(target_index) = target_table.index(index) else { return false };
@@ -382,10 +396,12 @@ fn self_disclosing(schema: &Schema, grant: &RuleExpr) -> bool {
             };
             let mut pins: BTreeMap<String, Expr> = BTreeMap::new();
             for (component, term) in target_index.components.iter().zip(key) {
+                if fields && matches!(term, RuleTerm::Field(_)) && component.column().is_some() { continue; }
                 let (Some(column), Some(expr)) = (component.column(), value(term)) else { return false };
                 pins.insert(column.clone(), expr);
             }
             for (column, term) in equalities {
+                if fields && matches!(term, RuleTerm::Field(_)) { continue; }
                 let Some(expr) = value(term) else { return false };
                 pins.insert(column.clone(), expr);
             }

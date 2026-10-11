@@ -11,6 +11,8 @@ mod own_keys;
 mod refusals;
 pub(crate) mod rule_operator;
 mod pin_rewrite;
+mod complete_form;
+mod auth_lints;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
@@ -279,6 +281,8 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(denied_reads(&catalog, &schema, &programs));
+    // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
+    notes.extend(auth_lints::notes(&catalog, &schema));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
@@ -718,9 +722,19 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         // @ref LLP 3000.036#13.2 — the one line says what a test and a client do with the verdict, and where the complete form is.
                         let parties = table.rules.read.disjuncts().iter().filter(|d| matches!(d, snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Field(c), snapback4_core::schema::RuleTerm::Viewer) | snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Viewer, snapback4_core::schema::RuleTerm::Field(c)) if unpinned.contains(c))).count();
                         // @ref LLP 3000.036#14.1 — a disjunct the pins decide is not a grant: say so, so a guard on it is not read as a proof.
-                        let decided = if grant.is_none() { pin_rewrite::prefix_decided(scan, table, &pinned) } else { Vec::new() };
+                        // @ref LLP 3000.036#16.3 — also beside a grant (lane 088): an `if` on the parent probe is not followed.
+                        let decided = pin_rewrite::prefix_decided(scan, table, &pinned);
                         let decided_clause = decided.first().map_or_else(String::new, |d| format!("; `{}` is decided by the scan's pins, but the server decides a page only from a disjunct that reads no column of the row, so the page is `complete: false` for its holders too, whatever `require` or `if` guards it", d.quarry()));
-                        let complete_form = if parties >= 2 { "one query per party" } else if grant.is_some() && parties == 1 { "`if` on the grant, pinning the owner otherwise" } else if !decided.is_empty() { "a copy of the deciding principal on the row" } else { "the pin" };
+                        let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
+                        // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
+                        let complete_form = match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
+                            complete_form::Outcome::Form(form) if form.incomplete.is_empty() => format!("the complete form for everyone is {}", form.phrase),
+                            complete_form::Outcome::Form(form) => format!("the closest form is {} (its parent-probe arm stays `complete: false`; a copy of the deciding principal on the row completes it)", form.phrase),
+                            complete_form::Outcome::None(_) => "there is no single complete form: keep the query and expect `capped`".to_owned(),
+                            complete_form::Outcome::NotApplicable if parties >= 2 => "the complete form is one query per party".to_owned(),
+                            complete_form::Outcome::NotApplicable if !decided.is_empty() => "the complete form is a copy of the deciding principal on the row".to_owned(),
+                            complete_form::Outcome::NotApplicable => "the complete form is the pin".to_owned(),
+                        };
                         // @ref LLP 3000.036#15.12 — an `exists` answers a visible match as `true` and nothing else: say what it returns.
                         let treatment = if search_rewrite.is_some() { String::new() } else if scan.existence {
                             format!("; {}it answers `true` (`complete: false`) when a row the caller may read matches, otherwise null with no value (a client shows `loading`), never `false` from the server: rows the caller may not read leave absence unproven — test.cases.jsonl: the default passes it (`\"data\": true` pins a match); the complete form{} is {complete_form} (check --verbose)",
@@ -736,7 +750,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         let page = bound.sources.get(&scan.site).map(|(_, text)| text.as_str());
-                        let copy = (grant_free(schema, scan)).then(|| pin_rewrite::prefix_decided(scan, table, &pinned).iter().find_map(|d| pin_rewrite::copy_recipe(&scan.table, table, d, page))).flatten();
+                        let copy = pin_rewrite::prefix_decided(scan, table, &pinned).iter().find_map(|d| pin_rewrite::copy_recipe(&scan.table, table, d, page));
                         let base = match copy { Some(copy) => format!("{copy}; otherwise {base}"), None => base };
                         match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {
                             Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}"),
@@ -750,10 +764,6 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         }
     }
     notes
-}
-
-fn grant_free(schema: &Schema, scan: &snapback4_core::ir::Scan) -> bool {
-    snapback4_core::engine::rules::grant_decision(schema, scan).is_none()
 }
 
 fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, table: &snapback4_core::schema::Table) -> Option<String> {

@@ -21,25 +21,20 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
     let parties: Vec<String> = disjuncts.iter().filter_map(|d| viewer_column(d)).collect();
     let name = &scan.table;
     let grant = snapback4_core::engine::rules::grant_decision(schema, scan);
-    let mut code = None;
     let mut out = Vec::new();
-    if parties.len() >= 2 && unpinned.iter().all(|column| parties.contains(column)) {
+    // @ref LLP 3000.036#16.1 — the form is built from every disjunct and printed only when it admits exactly the rule's readers.
+    let form = super::complete_form::complete_form(schema, program, scan, table, declaration);
+    let code = match &form { super::complete_form::Outcome::Form(form) => Some(format!("{}\n{}", form.lead, form.code)), _ => None };
+    let only_parties = parties.len() >= 2 && unpinned.iter().all(|column| parties.contains(column)) && disjuncts.len() == parties.len();
+    if only_parties {
         let queries = parties.iter().map(|column| format!("`{name} where .{column} = viewer …`")).collect::<Vec<_>>().join(" and ");
         // @ref LLP 3000.036#12 — wave 2 #11: print the author's own query once per party, ready to paste.
-        let pasted = declaration.and_then(|text| party_declarations(text, name, &parties));
-        match pasted {
-            Some(declarations) => {
-                code = Some(format!("Replace this query with one per party, each pinned and complete, and show both lists or merge them by their order in the client:\n{declarations}"));
-                out.push(format!("`{}` admits either party, so one page cannot certify both (an `or` of the two pins in `where` is still one scan)", rule.quarry()));
-            }
-            None => out.push(format!("`{}` admits either party, so one page cannot certify both. Declare one query per party, each pinned and complete: {queries} (same order, page and cursor), and show or merge them in the client", rule.quarry())),
+        if code.is_some() {
+            out.push(format!("`{}` admits either party, so one page cannot certify both (an `or` of the two pins in `where` is still one scan)", rule.quarry()));
+        } else {
+            out.push(format!("`{}` admits either party, so one page cannot certify both. Declare one query per party, each pinned and complete: {queries} (same order, page and cursor), and show or merge them in the client", rule.quarry()));
         }
     } else {
-        // An owner plus a readable grant: branch on the grant, pin the owner otherwise.
-        if let (Some(grant), [party]) = (&grant, unpinned) && parties.contains(party)
-            && let Some(branched) = declaration.and_then(|text| role_branch(text, name, party, &grant.quarry())) {
-            code = Some(format!("Branch on the grant and pin the owner for everyone else; both pages are complete:\n{branched}"));
-        }
         let mut setup = Vec::new();
         let mut pins = Vec::new();
         for column in unpinned {
@@ -48,7 +43,11 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
             if let Some(line) = line { if !setup.contains(&line) { setup.push(line); } }
         }
         let first = if setup.is_empty() { String::new() } else { format!("first {}, then ", setup.join("; ")) };
-        out.push(format!("{first}add `and {}` to the page's where (keeping its current pins); this narrows the answer to that scope", pins.join(" and ")));
+        let others = if disjuncts.len() > 1 { " — only for a screen meant for that scope alone: every other reader the rule admits loses their rows" } else { "" };
+        out.push(format!("{first}add `and {}` to the page's where (keeping its current pins); this narrows the answer to that scope{others}", pins.join(" and ")));
+    }
+    if let super::complete_form::Outcome::None(why) = &form {
+        out.push(format!("there is no single complete form: {why}; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it)"));
     }
     // @ref LLP 3000.036#12 — the engine decides a page once for a caller whose readable grant holds.
     if let Some(used) = &grant {
@@ -61,7 +60,7 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
 
 /// The page statement of a one-statement query declaration: its `return`'s
 /// read over `table`, with the rest of the declaration's header.
-fn single_page(text: &str, table: &str) -> Option<(String, crate::ast::ProgramDecl, crate::ast::Expr)> {
+pub(super) fn single_page(text: &str, table: &str) -> Option<(String, crate::ast::ProgramDecl, crate::ast::Expr)> {
     use crate::ast::{Expr as A, Stmt as S};
     let (document, errors) = crate::parser::parse_document("query.q", text);
     if !errors.is_empty() { return None; }
@@ -80,7 +79,7 @@ fn single_page(text: &str, table: &str) -> Option<(String, crate::ast::ProgramDe
 
 /// `value` (a page over `table`, maybe shaped) with its `where` keeping every
 /// conjunct but the parties' pins and their disjunction, and `.party = viewer` first.
-fn pinned_to(value: &crate::ast::Expr, parties: &[String], party: &str) -> Option<crate::ast::Expr> {
+pub(super) fn pinned_to(value: &crate::ast::Expr, parties: &[String], party: &str) -> Option<crate::ast::Expr> {
     use crate::ast::Expr as A;
     let mut value = value.clone();
     let read = match &mut value {
@@ -103,32 +102,6 @@ fn pinned_to(value: &crate::ast::Expr, parties: &[String], party: &str) -> Optio
     let filter = conjuncts.into_iter().fold(pin(party, &site), |acc, part| A::Binary { op: "and".into(), left: Box::new(acc), right: Box::new(part), site: site.clone() });
     read.filter = Some(Box::new(filter));
     Some(value)
-}
-
-/// The query declaration `text` (one `return` of a page over `table`) once
-/// per party: named `{query}As{Party}`, its `where` without the parties'
-/// disjunction and with `.party = viewer` added, everything else as written.
-fn party_declarations(text: &str, table: &str, parties: &[String]) -> Option<String> {
-    let (header, decl, value) = single_page(text, table)?;
-    let at = header.find(&format!(" {}(", decl.name))? + 1;
-    let mut out = Vec::new();
-    for party in parties {
-        let value = pinned_to(&value, parties, party)?;
-        let mut name: Vec<char> = party.chars().collect();
-        name[0] = name[0].to_ascii_uppercase();
-        let header = format!("{}{}As{}{}", &header[..at], decl.name, name.into_iter().collect::<String>(), &header[at + decl.name.len()..]);
-        out.push(format!("{header}\n  return {}", crate::print::with_source(&value, &|_| None)));
-    }
-    Some(out.join("\n"))
-}
-
-/// The query declaration `text` branched on `grant`: the grant's holders read
-/// the page as written, everyone else the page pinned to `.party = viewer`.
-fn role_branch(text: &str, table: &str, party: &str, grant: &str) -> Option<String> {
-    let (header, _, value) = single_page(text, table)?;
-    let pinned = pinned_to(&value, &[party.to_owned()], party)?;
-    let print = |value: &crate::ast::Expr| crate::print::with_source(value, &|_| None);
-    Some(format!("{header}\n  if {grant}:\n    return {}\n  return {}", print(&value), print(&pinned)))
 }
 
 /// `exists staff[viewer]` or `viewer = 'service:x'`: the same for every row.

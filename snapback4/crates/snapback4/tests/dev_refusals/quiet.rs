@@ -56,7 +56,7 @@ fn tracing_records_unknown_empties_without_console_noise() {
     }
     // A real refusal is still printed, even if an application picked this code.
     assert_eq!(dev.post("/q/refused", json!({}))["denied"]["code"], "EMPTY_READ");
-    let text = wait_console(&dev, "dev refusal: refused:");
+    let text = wait_console(&dev, "dev refusal: refused ");
     assert_eq!(text.lines().filter(|line| line.starts_with("dev refusal:")).count(), 1);
 }
 fn snapshot_store(dev: &Host) -> String {
@@ -82,11 +82,14 @@ fn real_refusals_keep_individual_records_and_print_one_counted_line() {
         assert!(Instant::now() < end);
         std::thread::sleep(Duration::from_millis(10));
     }
-    let text = wait_console(&dev, "count 8; window 1s");
-    assert_eq!(text.lines().filter(|line| line.starts_with("dev refusal:")).count(), 1);
-    assert!(text.contains(&store));
+    // The default line is short (wave 6 #19); the store and instance stay in `why recent`.
+    let text = wait_console(&dev, "dev refusal: add E_RULE at ");
+    let lines: Vec<_> = text.lines().filter(|line| line.starts_with("dev refusal:")).collect();
+    assert_eq!(lines.len(), 1, "{text}");
+    assert!(lines[0].ends_with("(insert rule on rows) ×8 — snapback4 why recent") && lines[0].len() < 120, "{text}");
+    assert!(!store.is_empty());
     dev.refuse("add");
-    wait_console(&dev, "count 1; window 1s");
+    wait_console(&dev, "(insert rule on rows) — snapback4 why recent");
 }
 #[test]
 fn empty_read_card_is_served_by_both_verbs() {

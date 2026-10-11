@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_WRITE_DENIED" | "N_DELETE_ORPHANS" | "N_NEVER_COMPLETE" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_WRITE_DENIED" | "N_DELETE_ORPHANS" | "N_NEVER_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -74,13 +74,31 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     let mut current = None;
     let mut shown_codes = Vec::new();
     let mut shown_forms = Vec::new();
+    // @ref LLP 3000.036#16.5 — wave 6 #25: a code's repeats share one line naming each subject.
+    let mut repeats: Vec<(String, Vec<String>)> = Vec::new();
+    let flush = |lines: &mut Vec<String>, repeats: &mut Vec<(String, Vec<String>)>| {
+        for (code, subjects) in repeats.drain(..) {
+            lines.push(format!("note: {code} (as above) also for {}", subjects.join("; ")));
+        }
+    };
     for i in order {
         let (note, count) = &unique[i];
         let group = tier(&note.code);
-        if current != Some(group) { lines.push(heading(group).to_owned()); current = Some(group); }
+        if current != Some(group) { flush(&mut lines, &mut repeats); lines.push(heading(group).to_owned()); current = Some(group); }
         let times = if *count > 1 { format!(" (×{count} at this site)") } else { String::new() };
+        let new_form = note.form.as_ref().is_some_and(|(lead, _)| !shown_forms.contains(lead));
+        if shown_codes.contains(&note.code) && !new_form {
+            // A repeat of a code already explained above: its subject and site, on the code's one line.
+            let subject = format!("{} ({}){times}", subject(&note.summary), note.site);
+            match repeats.iter_mut().find(|(code, _)| *code == note.code) {
+                Some((_, subjects)) => subjects.push(subject),
+                None => repeats.push((note.code.clone(), vec![subject])),
+            }
+            continue;
+        }
+        flush(&mut lines, &mut repeats);
         if shown_codes.contains(&note.code) {
-            // A repeat of a code already explained above: its site and subject only.
+            // A repeat that carries a form not printed yet keeps its own line, then the form.
             lines.push(format!("note: {} — {}: (as above) {}{times}", note.site, note.code, short(&note.summary)));
         } else {
             let below = note.form.as_ref().is_some_and(|(lead, _)| !shown_forms.contains(lead));
@@ -94,7 +112,17 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             shown_forms.push(lead.clone());
         }
     }
+    flush(&mut lines, &mut repeats);
     lines
+}
+
+/// The operation or table a repeat is about (`query b`), else its short subject.
+fn subject(summary: &str) -> String {
+    let mut words = summary.splitn(3, ' ');
+    match (words.next(), words.next()) {
+        (Some(kind @ ("query" | "mutation" | "job" | "action" | "table" | "view")), Some(name)) => format!("{kind} {}", name.trim_end_matches(':')),
+        _ => short(summary),
+    }
 }
 
 /// The subject of a repeated note: its first clause before any quoted source, at most 100 characters.
@@ -131,6 +159,7 @@ mod tests {
             "      return t where .owner = viewer last 50 by .at after c".into(),
         ], "{lines:#?}");
         assert_eq!(lines.len(), 9, "the second note of the same form is the short repeat: {lines:#?}");
+        assert_eq!(lines[8], "note: N_NEVER_COMPLETE (as above) also for query q (schema.q:9:1)", "{lines:#?}");
     }
 
     #[test]
@@ -153,7 +182,7 @@ mod tests {
             "by design — what a declaration implies; no action needed for online use:",
             "note: schema.q:71:1 — N_MAINTAIN_SYNCED: 2 synced maintains",
             "note: schema.q:78:10 — N_SYNC_ORDER: query a reads by .id; the client needs the server",
-            "note: schema.q:87:10 — N_SYNC_ORDER: (as above) query b",
+            "note: N_SYNC_ORDER (as above) also for query b (schema.q:87:10)",
         ]);
         assert!(render(Vec::new()).is_empty());
     }

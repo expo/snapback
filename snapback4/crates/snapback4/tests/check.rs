@@ -215,7 +215,9 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             let output = p.run(if verbose { &["check", "--verbose"] } else { &["check"] });
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
-            assert_eq!(text.matches("note: ").count(), count);
+            // Repeats of a code share one line naming each query (wave 6 #25).
+            assert_eq!(text.matches("note: ").count(), if verbose { count } else { count.min(2) }, "{text}");
+            if !verbose && count > 1 { assert!((1..count).all(|i| text.contains(&format!("query page{i} ("))), "{text}"); }
             assert_eq!(text.matches("  guide: reads").count(), if verbose { count } else { 0 });
             assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), if verbose { count } else { 0 });
             let excerpts = usize::from(verbose);

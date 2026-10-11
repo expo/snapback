@@ -37,7 +37,8 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
         String::from_utf8(output.stdout).unwrap()
     };
     let plain = run(&["check"]);
-    assert_eq!(plain.matches(" — N_NO_HORIZON:").count(), 2);
+    assert_eq!(plain.matches(" — N_NO_HORIZON:").count(), 1, "{plain}");
+    assert!(plain.contains("note: N_NO_HORIZON (as above) also for table second (schema.q:5:1)"), "{plain}");
     assert!(plain.contains("check --verbose"));
     assert!(plain.contains("schema.q:1:1") && plain.contains("schema.q:5:1"), "{plain}");
     assert!(!plain.contains("rewrite:"));
@@ -97,6 +98,22 @@ query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2
     assert!(text.contains("    query queue(c: cursor ?):\n      if exists staff[viewer]:\n        return tickets last 50 by .at after c\n      return tickets where .owner = viewer last 50 by .at after c"), "{text}");
     assert_eq!(text.matches("  rewrite: Replace this query with one per party").count(), 1, "{text}");
     assert!(text.contains("query mySessionsAsTutor(c: cursor ?)") && text.contains("query mySessionsAsLearner(c: cursor ?)"), "{text}");
-    assert!(text.contains("pinning the owner otherwise (below)"), "{text}");
+    assert!(text.contains("pinning `.owner` otherwise (below)"), "{text}");
+    fs::remove_dir_all(dir).unwrap();
+}
+
+/// Wave 6 #20 (6 lanes): a maintained view is counted as a view, not a table
+/// a fixture fills.
+#[test]
+fn check_counts_views_apart_from_tables() {
+    let dir = std::env::temp_dir().join(format!("sb4-check-views-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let source = "table slots:\n  seats: int\n  public 'p'\n  online only\ntable bookings:\n  slot: slots\n  guest: principal\n  read <- .guest = viewer\n  insert <- .guest = viewer\n  online only\nview taken: count bookings by .slot\n  read <- allow\n";
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    let run = |args: &[&str]| String::from_utf8(Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap().stdout).unwrap();
+    let text = run(&["check"]);
+    assert!(text.starts_with("check: ok — 2 tables, 1 view (0 synced), 0 operations"), "{text}");
+    let json: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
+    assert_eq!((json["tables"].as_u64(), json["views"].as_u64()), (Some(2), Some(1)), "{json}");
     fs::remove_dir_all(dir).unwrap();
 }

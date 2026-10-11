@@ -5,7 +5,8 @@ fn shutdown_flushes(signal: i32, worker: bool) {
     if worker {
         fs::write(project.0.join("snapback/worker.mjs"), "import {writeFileSync} from 'node:fs'; writeFileSync('worker-ready', 'yes'); setInterval(() => {}, 1000);\n").unwrap();
     }
-    let mut dev = Host::start(project, true, false);
+    // `--verbose` keeps the full record line this test reads (count, instance).
+    let mut dev = Host::start_with(project, true, false, &["--verbose"]);
     if worker {
         let deadline = Instant::now() + Duration::from_secs(10);
         while !dev.project.0.join("worker-ready").exists() {

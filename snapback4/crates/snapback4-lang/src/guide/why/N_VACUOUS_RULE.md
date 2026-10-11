@@ -1,0 +1,3 @@
+# N_VACUOUS_RULE
+
+An insert rule a mutation always satisfies guards nothing: `insert <- .therapist = viewer` passes for every caller of a mutation that writes `therapist: viewer`. `check` notes N_VACUOUS_RULE when such a row also names a principal the caller chooses and another rule trusts the self-written column (`exists sessions[.session, therapist = viewer]`): any caller can make themselves that principal's counterpart. If being one is a role, test it: `insert <- .therapist = viewer and exists therapists[viewer]`, or `require` it with your own code. If any caller may be one (a patient naming a doctor is consent), nothing changes. A row that names only its writer, as an owner's todo does, is never noted.

@@ -179,7 +179,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "EMPTY_READ" | "E_FIELD_AUTHORITY" | "N_MAINTAIN_DELTA" | "E_RULE" => "rules",
         "E_NOT_PREDICTABLE" | "N_HORIZON_GUARD" | "E_PREDICT" => "prediction",
         "N_SEQUENCE_READ" => "sequences",
-        "N_WRITE_DENIED" | "N_READ_DENIED" => "rules",
+        "N_WRITE_DENIED" | "N_READ_DENIED" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" => "rules",
         "N_DELETE_ORPHANS" => "writes",
         "E_SEQUENCE_PARENT" | "E_SEQUENCE_EXHAUSTED" => "types",
         "E_SEQUENCE_SUPPLIED" => "writes",

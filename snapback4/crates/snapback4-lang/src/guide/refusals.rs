@@ -115,7 +115,9 @@ Ordinary empty reads are quiet in `dev` and absent from `why recent`.
 without console notices; `snapback4 why EMPTY_READ` gives the commands to
 inspect rules, sync coverage and horizons. Emptiness does not prove denial.
 Real refusals keep individual `why recent` records. Their console lines combine
-identical operation, code and cause for one second, then print once with a count.
+identical operation, code and cause for one second, then print once with a count:
+`dev refusal: add E_RULE at schema.q:5:3 (insert rule on rows) ×3 — snapback4 why recent`
+(`dev --verbose` prints the full record: phase, generation, store, instance, request).
 Repeats do not extend that window; at 32 distinct groups the oldest prints early.
 Normal dev shutdown drains these records and flushes their counts, even with
 held polls. It waits up to two seconds; a stalled writer or abrupt termination

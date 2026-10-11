@@ -337,7 +337,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str, inherited:
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().map_err(|e|e.to_string())?),
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
-        refusals: if dev { dev_refusals::Recent::start(&project.root, &engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default(), address, matches!(mode, Mode::Dev { trace_empty: true, .. }))? } else { Default::default() },
+        refusals: if dev { dev_refusals::Recent::start(&project.root, &engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default(), address, matches!(mode, Mode::Dev { trace_empty: true, .. }), matches!(mode, Mode::Dev { verbose: true, .. }))? } else { Default::default() },
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),

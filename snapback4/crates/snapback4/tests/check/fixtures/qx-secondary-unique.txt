@@ -1,7 +1,7 @@
 2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
 by design — what a declaration implies; no action needed for online use:
 note: schema.q:1:1 — N_NO_HORIZON: table groups: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
-note: schema.q:28:1 — N_NO_HORIZON: (as above) table reactions
+note: N_NO_HORIZON (as above) also for table reactions (schema.q:28:1)
 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
 check --verbose for explanations, rewrites and execution details; why <op> for one operation
 residency (facts)

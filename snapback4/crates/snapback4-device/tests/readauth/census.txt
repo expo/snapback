@@ -418,6 +418,7 @@ card/recipes/3:note | notes/insert | {"Exists":{"table":"offerParties","index":"
 card/recipes/4:addSlot | eligible
 card/recipes/4:book | never
 card/recipes/4:cancel | eligible
+card/recipes/4:removeSlot | never
 card/recipes/5:host | never
 card/recipes/5:rsvp | never
 card/refusals/1:checkin | never
