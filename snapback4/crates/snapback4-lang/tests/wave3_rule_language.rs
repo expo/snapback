@@ -270,3 +270,89 @@ fn a_pinned_unique_key_bounds_a_page_and_needs_no_cursor() {
     let nullable = "table tags:\n  owner: principal\n  slug: text <= 40 ?\n  unique slug\n  public 'p'\n  online only\nquery r(slug: text):\n  return tags where .slug = slug\n";
     first(nullable, "E_QUARRY_BOUND");
 }
+
+// ---- #17: every printed read-hop rewrite compiles and keeps the audience ----
+
+/// Apply a read-hop rewrite to `table` the way an author would (the
+/// wave-2 helper, for merged repairs too).
+fn apply_hop_rewrite(source: &str, table: &str, rewrite: &str) -> String {
+    let quoted: Vec<&str> = rewrite.split('`').skip(1).step_by(2).collect();
+    let mut lines: Vec<String> = source.lines().map(str::to_owned).collect();
+    let header = lines.iter().position(|l| l.starts_with(&format!("table {table}:"))).unwrap_or_else(|| panic!("no {table} in {source}"));
+    let end = (header + 1..lines.len()).find(|&i| !lines[i].starts_with("  ")).unwrap_or(lines.len());
+    let mut inserted = Vec::new();
+    for piece in &quoted {
+        if let Some(read) = piece.strip_prefix("read <- ") {
+            let at = (header..end).find(|&i| lines[i].trim_start().starts_with("read <-")).expect("a read line");
+            lines[at] = format!("  read <- {read}");
+        } else if let Some(check) = piece.strip_prefix("insert <- … and ") {
+            let at = (header..end).find(|&i| lines[i].trim_start().starts_with("insert <-")).expect("an insert line");
+            lines[at] = format!("{} and {check}", lines[at]);
+        } else if piece.starts_with("immutable ") {
+            inserted.push(format!("  {piece}"));
+        } else if piece.split_once(": ").is_some_and(|(name, ty)| name.chars().all(char::is_alphanumeric) && !ty.contains('[')) {
+            inserted.push(format!("  {piece}"));
+        } else if *piece == "online only" {
+            let at = (header..end).find(|&i| lines[i].trim_start().starts_with("sync")).expect("a sync line");
+            lines[at] = "  online only".into();
+        } else if !piece.starts_with("read through") {
+            panic!("an unapplied rewrite piece `{piece}` in {rewrite}");
+        }
+    }
+    for (offset, line) in inserted.into_iter().enumerate() {
+        lines.insert(header + 1 + offset, line);
+    }
+    lines.join("\n") + "\n"
+}
+
+const STATIONS: &str = "table events:\n  owner: principal\n  public 'events are public'\n  insert <- .owner = viewer\n  online only\ntable stations:\n  event: events\n  organizer: principal\n  lead: principal\n  immutable event\n  public 'stations are public'\n  insert <- .organizer = viewer\n  online only\n";
+
+#[test]
+fn a_rule_with_several_hops_gets_one_rewrite_that_compiles_and_keeps_its_readers() {
+    use snapback4_core::value::object;
+    let shifts = |rule: &str| format!("{STATIONS}table shifts:\n  station: stations\n  volunteer: principal\n  immutable station, volunteer\n  read <- {rule}\n  insert <- .volunteer = viewer\n  online only\nquery all(c: cursor ?):\n  return shifts first 50 by .id after c\n");
+    let cases = [
+        // 033: two one-hop disjuncts; the second hop was kept and refused again.
+        (".volunteer = viewer or .station.organizer = viewer or .station.lead = viewer", vec!["vic", "olga", "leo"]),
+        // 067: a two-hop chain beside a one-hop one.
+        (".volunteer = viewer or .station.event.owner = viewer or .station.lead = viewer", vec!["vic", "evan", "leo"]),
+        // 055: a hop inside a probe key, beside a plain hop.
+        (".volunteer = viewer or exists stations[id = .station, organizer = viewer] or .station.lead = viewer", vec!["vic", "olga", "leo"]),
+    ];
+    for (rule, readers) in cases {
+        let source = shifts(rule);
+        let b = bound(&source);
+        assert!(!b.diagnostics.iter().any(|d| d.code == "E_READ_THROUGH"), "a narrower rule is not a membership path, so `read through` is never the repair:\n{:#?}", b.diagnostics);
+        let d = first(&source, "E_QUARRY_RULE_HOP");
+        assert!(d.rewrite.contains("admits more readers than this rule"), "{d}");
+        let repaired = apply_hop_rewrite(&source, "shifts", &d.rewrite);
+        let b = clean(&repaired);
+        // The repaired rule admits exactly the parties the hops named, and no one else.
+        let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let mut shift = vec![("id", Value::Id("sh1".into())), ("station", Value::Id("st1".into())), ("volunteer", Value::Id("vic".into()))];
+        if repaired.contains("  event: events\n  station") || repaired.lines().any(|l| l == "  event: events") && repaired.matches("event: events").count() > 1 { shift.push(("event", Value::Id("e1".into()))); }
+        for copied in ["organizer", "lead"] { if repaired.contains(&format!("table shifts:\n  {copied}: principal")) { shift.push((copied, Value::Id(if copied == "lead" { "leo" } else { "olga" }.into()))); } }
+        engine.seed([
+            ("events".to_owned(), object([("id", Value::Id("e1".into())), ("owner", Value::Id("evan".into()))])),
+            ("stations".to_owned(), object([("id", Value::Id("st1".into())), ("event", Value::Id("e1".into())), ("organizer", Value::Id("olga".into())), ("lead", Value::Id("leo".into()))])),
+            ("shifts".to_owned(), object(shift)),
+        ]).unwrap_or_else(|e| panic!("{repaired}\n{e:?}"));
+        for viewer in ["vic", "olga", "leo", "evan", "zed"] {
+            let rows = engine.query("all", Context::new(viewer, args(&[("c", Value::Null)]))).unwrap().data.as_array().unwrap().len();
+            assert_eq!(rows == 1, readers.contains(&viewer), "{viewer} under {rule}:\n{repaired}");
+        }
+    }
+}
+
+#[test]
+fn hops_naming_two_audiences_on_a_synced_table_get_the_online_form() {
+    let source = format!("{STATIONS}table shifts:\n  station: stations\n  volunteer: principal\n  immutable station, volunteer\n  read <- .station.organizer = viewer or .station.lead = viewer\n  insert <- .volunteer = viewer\n  sync\n");
+    let d = first(&source, "E_QUARRY_RULE_HOP");
+    assert!(d.rewrite.contains("replace its sync line with `online only`"), "{d}");
+    clean(&apply_hop_rewrite(&source, "shifts", &d.rewrite));
+    // One hop on a synced table still copies the principal (one audience).
+    let one = source.replace(" or .station.lead = viewer", "");
+    let d = first(&one, "E_QUARRY_RULE_HOP");
+    assert!(!d.rewrite.contains("online only") && d.rewrite.contains("read <- .organizer = viewer"), "{d}");
+    clean(&apply_hop_rewrite(&one, "shifts", &d.rewrite));
+}
