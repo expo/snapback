@@ -26,6 +26,7 @@ mod scale;
 mod presentation;
 mod sync_wire;
 mod store_owner;
+mod supervisor;
 
 use snapback4_lang::guide;
 use std::process::ExitCode;
@@ -72,6 +73,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
 snapback4 <verb> --help explains one verb (init, check, dev, run, test: flags, output columns, exit codes).";
 
 fn main() -> ExitCode {
+    // Before any thread: the wrapper's PID leaves the environment here.
+    supervisor::adopt();
     snapback4_core::diagnostics::set_thread_start(thread_priority::background);
     // Keep this first: lifecycle tests distinguish a pre-main process-launch
     // stall from a server that reached its own bounded readiness window.

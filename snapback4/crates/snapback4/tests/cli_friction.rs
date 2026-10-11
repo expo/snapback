@@ -111,6 +111,88 @@ fn dev_refuses_a_taken_port_and_names_the_holder() {
     assert!(log.contains("E_ADDRINUSE") && log.contains(&format!("a running snapback4 dev (pid {})", first.0.id())) && log.contains(&format!("kill {}", first.0.id())), "{log}");
 }
 
+/// Wave 3: scripts that read stdout and stderr through one handler waited on
+/// "line 1" and met host diagnostics. stdout's first line stays the URL; the
+/// tagged `SNAPBACK4_READY` line on stderr carries the URL and PID for a merged
+/// reader. A process that launches the binary as the npm wrapper does names
+/// itself in SNAPBACK4_SUPERVISOR_PID; a SIGKILL to it stops the server too.
+#[test]
+fn dev_prints_a_tagged_ready_line_and_stops_with_a_killed_supervisor() {
+    use std::io::Read;
+    let project = Project::new("use personas alice\nquery alive():\n  return true\n");
+    let ready = |stderr: &mut dyn BufRead| -> String {
+        let mut line = String::new();
+        loop {
+            line.clear();
+            assert!(stderr.read_line(&mut line).unwrap() > 0, "stderr ended before SNAPBACK4_READY");
+            if line.starts_with("SNAPBACK4_READY ") { return line.trim().to_owned(); }
+        }
+    };
+    // Without a wrapper: no wrapperPid anywhere.
+    let mut child = Command::new(BIN).current_dir(&project.0).args(["dev", "--port", "0", "--fresh", "--no-watch"])
+        .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    let mut url = String::new();
+    BufReader::new(child.stdout.take().unwrap()).read_line(&mut url).unwrap();
+    let url = url.trim().to_owned();
+    let line = ready(&mut BufReader::new(child.stderr.take().unwrap()));
+    let dev = Dev(child);
+    assert_eq!(line, format!("SNAPBACK4_READY verb=dev generation=1 url={url} pid={}", dev.0.id()));
+    let (_, body) = http(&url, "GET", "/dev/status", None, "");
+    assert!(body["wrapperPid"].is_null() && body["pid"].as_u64() == Some(u64::from(dev.0.id())), "{body}");
+    drop(dev);
+
+    // Under a supervising shell: both PIDs, and the server dies with it.
+    let mut shell = Command::new("sh").current_dir(&project.0)
+        .args(["-c", "SNAPBACK4_SUPERVISOR_PID=$$ \"$0\" dev --port 0 --fresh --no-watch; :", BIN])
+        .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    let mut stdout = BufReader::new(shell.stdout.take().unwrap());
+    let mut url = String::new();
+    stdout.read_line(&mut url).unwrap();
+    let url = url.trim().to_owned();
+    let mut stderr = BufReader::new(shell.stderr.take().unwrap());
+    let line = ready(&mut stderr);
+    let (_, body) = http(&url, "GET", "/dev/status", None, "");
+    let server = body["pid"].as_u64().unwrap();
+    assert_eq!(body["wrapperPid"].as_u64(), Some(u64::from(shell.id())), "{body}");
+    assert_eq!(line, format!("SNAPBACK4_READY verb=dev generation=1 url={url} pid={server} wrapperPid={}", shell.id()));
+    shell.kill().unwrap();
+    shell.wait().unwrap();
+    // The server held the only other end of these pipes: they close when it exits.
+    let (done, ended) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut rest = String::new();
+        let _ = stderr.read_to_string(&mut rest);
+        let _ = stdout.read_to_string(&mut String::new());
+        let _ = done.send(rest);
+    });
+    let rest = match ended.recv_timeout(Duration::from_secs(30)) {
+        Ok(rest) => rest,
+        Err(_) => { unsafe { libc::kill(server as i32, libc::SIGKILL); } panic!("the server {server} outlived its SIGKILLed supervisor"); }
+    };
+    assert!(rest.contains("SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM"), "{rest}");
+    assert!(std::net::TcpStream::connect(url.strip_prefix("http://").unwrap()).is_err(), "{url} still answers");
+}
+
+/// A stale SNAPBACK4_SUPERVISOR_PID naming a live process that is not this
+/// process's parent is ignored: only the launching wrapper supervises.
+#[test]
+fn a_supervisor_pid_that_is_not_the_parent_is_ignored() {
+    let project = Project::new("use personas alice\nquery alive():\n  return true\n");
+    let mut stranger = Command::new("sleep").arg("60").spawn().unwrap();
+    let mut child = Command::new(BIN).current_dir(&project.0).args(["dev", "--port", "0", "--fresh", "--no-watch"])
+        .env("SNAPBACK4_SUPERVISOR_PID", stranger.id().to_string())
+        .stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap();
+    let mut url = String::new();
+    BufReader::new(child.stdout.take().unwrap()).read_line(&mut url).unwrap();
+    let dev = Dev(child);
+    let (status, body) = http(url.trim(), "GET", "/dev/status", None, "");
+    assert_eq!(status, 200, "{body}");
+    assert!(body["wrapperPid"].is_null(), "{body}");
+    let _ = stranger.kill();
+    let _ = stranger.wait();
+    drop(dev);
+}
+
 /// `snapback4 test --help` is about test (lane 054): its columns, its states,
 /// its exit codes and where the testing card is; every verb gets its own page.
 #[test]

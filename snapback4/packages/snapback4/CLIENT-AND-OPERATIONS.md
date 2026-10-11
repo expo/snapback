@@ -2658,10 +2658,15 @@ step.
   adoption does not yet yield bounded writer chunks. A reconnect is never acknowledged only in memory.
   The stderr banner prints `store: temporary — discarded on exit` for either flag, or `store: <SQLite
   path>` for persistent dev. For dev and serve, readiness is the first stdout line: the listening URL, emitted
-  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. The
-  stderr banner names the server's process (`snapback4 dev: http://127.0.0.1:4400  pid 1234 …`), and `GET
-  /dev/status` answers the same `pid`, so a script that spawned dev (perhaps through npx, npm and a shell) can
-  prove the server it polls is its own. A port that is already taken refuses the start at once with
+  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr, so
+  read stdout alone for it. A script that reads both streams through one handler matches the tagged
+  stderr line `SNAPBACK4_READY verb=dev generation=1 url=http://127.0.0.1:4400 pid=1234 wrapperPid=1230`
+  instead (`wrapperPid` only through the npm wrapper). The stderr banner names the server's process
+  (`snapback4 dev: http://127.0.0.1:4400  pid 1234 …`), and `GET /dev/status` answers the same `pid`, plus
+  `wrapperPid` when the `snapback4` npm wrapper (`node_modules/.bin/snapback4`, npx) launched it, so a
+  script that spawned dev (perhaps through npx, npm and a shell) can prove the server it polls is its own.
+  The wrapper forwards SIGINT, SIGTERM and SIGHUP; a SIGKILL to it stops the server as well, because the
+  binary exits (with SIGTERM's cleanup) once the wrapper that launched it is gone. A port that is already taken refuses the start at once with
   `E_ADDRINUSE`, naming the holder (a running dev's pid and project) and suggesting `--port N`; `--port 0`
   picks a free port, and the first stdout line names it. A second dev on the same project's store refuses
   with `E_STORE_BUSY`, naming the owner's address and pid. For a

@@ -75,10 +75,16 @@ save (a save with problems keeps the previous generation serving).
 
 Readiness and ownership:
   stdout's first line is the URL, printed once the server accepts requests;
-  everything else goes to stderr. The stderr banner names the server's pid,
-  and GET /dev/status (no credential) answers {pid, project, temporary,
-  generation, personas, …}: a script that spawned dev can check the pid is the
-  one it started. A taken port refuses the start at once (E_ADDRINUSE, naming
+  everything else goes to stderr, so read stdout alone for it. A script that
+  reads both streams through one handler matches the tagged stderr line
+  SNAPBACK4_READY verb=dev generation=N url=http://… pid=N [wrapperPid=N]
+  instead. The stderr banner names the server's pid, and GET /dev/status (no
+  credential) answers {pid, wrapperPid, project, temporary, generation,
+  personas, …}: a script that spawned dev can check the pid is the one it
+  started. Through the npm wrapper (node_modules/.bin/snapback4, npx), pid is
+  the binary's and wrapperPid the wrapper's; a signal to either stops the
+  server, and so does a SIGKILL to the wrapper (the binary exits when the
+  wrapper that launched it is gone). A taken port refuses the start at once (E_ADDRINUSE, naming
   the holder); --port 0 picks a free port.
 
 Store:

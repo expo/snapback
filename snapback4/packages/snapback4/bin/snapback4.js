@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 // `npx snapback4 <verb>`: the Rust binary, found in the platform package
 // installed beside this one, or named by SNAPBACK4_BIN, or built in this
-// repository. The JavaScript here only finds and runs it, and dies with it:
-// a signal to this wrapper reaches the binary, so a recorded PID of either
-// stops the server.
+// repository. The JavaScript here only finds and runs it, and the two live and
+// die together: SIGINT, SIGTERM and SIGHUP to this wrapper are forwarded, and
+// SIGKILL, which cannot be forwarded, still stops the binary: it is told this
+// wrapper's PID (SNAPBACK4_SUPERVISOR_PID) and exits when its parent is gone
+// (Linux: the kernel's parent-death signal; elsewhere within 250 ms). So a
+// recorded PID of either stops the server; `GET /dev/status` reports both
+// (`pid` is the binary, `wrapperPid` this wrapper), and so does the stderr line
+// `SNAPBACK4_READY … url=… pid=… wrapperPid=…`.
 import { spawn } from "node:child_process";
 import { resolveBinary } from "../dist/resolve-binary.js";
 import { fileURLToPath } from "node:url";
@@ -22,6 +27,7 @@ catch (error) { console.error(error.message); process.exit(2); }
 const exportLease = process.argv[2] === "witness" && ["export-lease", "export-publish"].includes(process.argv[3]);
 const child = spawn(binary, process.argv.slice(2), { stdio: exportLease ? ["inherit", "inherit", "inherit", 3] : "inherit", env: {
   ...process.env, SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("./witness-acquire.js", import.meta.url)),
+  SNAPBACK4_SUPERVISOR_PID: String(process.pid),
 } });
 const handlers = new Map(["SIGINT", "SIGTERM", "SIGHUP"].map(signal => [signal, () => { try { child.kill(signal); } catch { /* gone */ } }]));
 for (const [signal, handler] of handlers) process.on(signal, handler);

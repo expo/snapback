@@ -539,6 +539,43 @@ test("CLI and Node device share environment, platform-package and repository bin
   assert.match(missing.stderr, /^snapback4: no binary for /);
 });
 
+// Wave 3: scripts read stdout and stderr through one handler, SIGKILLed the
+// wrapper and orphaned the binary, and compared /dev/status's pid to the
+// wrapper's. The tagged ready line, both PIDs and the parent-death stop.
+test("the npm wrapper's dev prints a tagged ready line, reports both PIDs and stops when the wrapper is SIGKILLed", { timeout: hangBudget(5) }, async (t) => {
+  const { dir, run } = fixture(t);
+  run("init");
+  const wrapper = spawn(process.execPath, [join(root, "packages/snapback4/bin/snapback4.js"), "dev", "--port", "0", "--memory", "--no-watch"],
+    { cwd: dir, env: { ...process.env, SNAPBACK4_BIN: binary }, stdio: ["ignore", "pipe", "pipe"] });
+  let merged = "", closed = false;
+  wrapper.stdout.on("data", data => { merged += data; });
+  wrapper.stderr.on("data", data => { merged += data; });
+  wrapper.stdout.on("close", () => { closed = true; });
+  const wrapperExit = once(wrapper, "exit");
+  let server;
+  t.after(() => { try { if (server) process.kill(server, "SIGKILL"); } catch { /* gone */ } });
+  const ready = await awaitState(() => merged.match(/^SNAPBACK4_READY verb=dev generation=\d+ url=(http:\/\/127\.0\.0\.1:\d+) pid=(\d+) wrapperPid=(\d+)$/m), "the tagged ready line", { diagnostics: () => merged });
+  const [, url, pid, wrapperPid] = ready;
+  server = Number(pid);
+  assert.equal(Number(wrapperPid), wrapper.pid);
+  assert.notEqual(server, wrapper.pid);
+  // stdout's first line is still the URL alone.
+  assert.ok(merged.includes(`${url}\n`), merged);
+  const status = await (await fetch(`${url}/dev/status`, { signal: AbortSignal.timeout(hangBudget()) })).json();
+  assert.equal(status.pid, server);
+  assert.equal(status.wrapperPid, wrapper.pid);
+  assert.ok(merged.includes(`pid ${server}, wrapper pid ${wrapper.pid}`), merged);
+  // SIGKILL cannot be forwarded; the binary stops itself when its parent is gone.
+  wrapper.kill("SIGKILL");
+  await wrapperExit;
+  await awaitState(async () => {
+    if (!closed) return false;
+    try { await fetch(`${url}/dev/status`, { signal: AbortSignal.timeout(2000) }); return false; } catch { return true; }
+  }, "the server stops with its SIGKILLed wrapper", { diagnostics: () => merged });
+  assert.match(merged, /SNAPBACK4_SIGNAL verb=dev generation=\d+ reason=SIGTERM/);
+  server = undefined;
+});
+
 test("processDevice defaults to Node spawn and file writing in a new directory", (t) => {
   const { dir } = fixture(t);
   // Node stands in for the CLI here; native-e2e runs the actual Rust device.

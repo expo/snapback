@@ -134,8 +134,11 @@ shell sit in between); it forwards signals to the server and stops it if your
 script dies. `--port 0` takes a free port and `--memory` keeps no store, so
 parallel runs never contend; a fixed port that is taken refuses at once
 (`E_ADDRINUSE`, naming the holder) instead of leaving you talking to an older
-server. Readiness is the first stdout line: the URL. `GET /dev/status` names
-the server's `pid`; `snapback4 dev --help` has the lifecycle.
+server. Readiness is the first stdout line: the URL (read stdout alone; host
+diagnostics go to stderr first). Reading both streams together, match the
+stderr line `SNAPBACK4_READY … url=… pid=…` instead. `GET /dev/status` names
+the server's `pid` and, through the wrapper, `wrapperPid`; a SIGKILL to the
+wrapper stops the server too. `snapback4 dev --help` has the lifecycle.
 `resolveBinary()` from `snapback4/bin-path` returns the platform binary itself, with no Node wrapper.
 
 Each scenario starts from state you know. Earlier steps change what later ones read (bob's list grows
