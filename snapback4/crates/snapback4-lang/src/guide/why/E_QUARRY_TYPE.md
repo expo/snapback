@@ -47,3 +47,9 @@ lists are heap-bound; a write still validates their actual column lengths.
 Inside a nested `where`, `.` is that predicate's own row: in a contests shape,
 `entries where .contest = .id` compares two entries fields. A named key reads
 the enclosing row: `entries[contest = .id] first 10 by .id`.
+
+A reference's field (`p.bed.max`) reads one row, null when it is missing or
+hidden. Two hops (`r.planting.bed.owner`): read the first row (`planting =
+plantings[r.planting] ! else NOT_FOUND`), then `planting.bed.owner`. In a
+`require`, read the row present (`bed = beds[p.bed] ! else NOT_FOUND`) rather
+than `?? 0`, which admits a missing row.

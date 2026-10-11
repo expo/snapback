@@ -383,3 +383,36 @@ fn a_money_update_bound_has_one_rewrite_that_compiles_and_keeps_the_policy() {
     let d = first(mismatch, "E_QUARRY_TYPE");
     assert!(d.rewrite.contains("require available >= row.floor else INVALID_AVAILABLE") && !d.rewrite.contains("update (old, next)"), "{d}");
 }
+
+// ---- #23 (I5): a reference field reads one hop; the rewrites read rows present ----
+
+const GARDEN: &str = "table beds:\n  owner: principal\n  max: int\n  public 'p'\n  insert <- .owner = viewer\n  online only\ntable plantings:\n  bed: beds\n  crop: text <= 40\n  public 'p'\n  insert <- allow\n  online only\ntable harvests:\n  planting: plantings\n  grams: int\n  public 'p'\n  insert <- allow\n  online only\n";
+
+#[test]
+fn a_second_reference_hop_and_an_optional_comparison_get_rewrites_that_compile() {
+    use snapback4_core::{WriteState, value::object};
+    // 034: two hops print the two steps, by name.
+    let source = format!("{GARDEN}query ownerOf(h: harvests):\n  r = harvests[h] ! else NOT_FOUND\n  return r.planting.bed.owner\n");
+    let d = first(&source, "E_QUARRY_TYPE");
+    let pieces: Vec<&str> = d.rewrite.split('`').skip(1).step_by(2).collect();
+    assert_eq!(pieces[..2], ["planting = plantings[r.planting] ! else NOT_FOUND", "planting.bed.owner"], "{d}");
+    clean(&source.replace("  return r.planting.bed.owner\n", &format!("  {}\n  return {}\n", pieces[0], pieces[1])));
+    clean(&source.replace("  return r.planting.bed.owner\n", &format!("  {}\n  {}\n  return {}\n", pieces[0], pieces[2], pieces[3])));
+    // 013: a reference field in a require reads its row present, never `?? 0`.
+    let source = format!("{GARDEN}mutation harvest(planting: plantings, grams: int):\n  p = plantings[planting] ! else NOT_FOUND\n  require grams <= p.bed.max else TOO_MUCH\n  return insert harvests {{ planting, grams }}\n");
+    let d = first(&source, "E_QUARRY_TYPE");
+    assert!(!d.rewrite.contains("p.bed.max ?? 0") && d.rewrite.contains("`bed = beds[p.bed] ! else NOT_FOUND`") && d.rewrite.contains("`grams <= bed.max`"), "{d}");
+    let repaired = source.replace("  require grams <= p.bed.max else TOO_MUCH\n", "  bed = beds[p.bed] ! else NOT_FOUND\n  require grams <= bed.max else TOO_MUCH\n");
+    let b = clean(&repaired);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("beds".to_owned(), object([("id", Value::Id("b1".into())), ("owner", Value::Id("ann".into())), ("max", Value::Int(10))])),
+        ("plantings".to_owned(), object([("id", Value::Id("p1".into())), ("bed", Value::Id("b1".into())), ("crop", Value::String("basil".into()))])),
+        ("plantings".to_owned(), object([("id", Value::Id("p2".into())), ("bed", Value::Id("gone".into())), ("crop", Value::String("mint".into()))])),
+    ]).unwrap();
+    let run = |engine: &mut Engine, planting: &str, grams: i64| match engine.mutate("harvest", None, Context::new("ann", args(&[("planting", Value::Id(planting.into())), ("grams", Value::Int(grams))]))).unwrap().state {
+        WriteState::Sent { .. } => "sent".to_owned(), WriteState::Failed { why, .. } => why.code };
+    assert_eq!(run(&mut engine, "p1", 5), "sent");
+    assert_eq!(run(&mut engine, "p1", 50), "TOO_MUCH");
+    assert_eq!(run(&mut engine, "p2", 5), "NOT_FOUND", "a missing bed refuses; `?? 0` would have admitted it");
+}

@@ -205,6 +205,12 @@ impl Binder<'_> {
                     let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: table.clone(), keys: vec![key], index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
                     return self.computation(&A::Member { base: Box::new(A::Read(read)), name: name.clone(), site: site.clone() }, out);
                 }
+                // @ref LLP 3000.036#13.7 — `x.ref.col` reads one reference. A second hop
+                // (`r.planting.bed.owner`) gets the two steps that compile, by name.
+                if let Ty::Ref(target) = t.required() && t.is_optional() && name != "id"
+                    && let Some(rewrite) = self.second_hop_rewrite(base, &target, name) {
+                    return Err(type_error(site, format!("`{}` reads two references; `x.ref.col` reads one ({} may be missing or hidden)", print::expression(expr), print::expression(base)), rewrite).guide("shapes"));
+                }
                 let (value, ty) = self.member(e, t, name, site)?;
                 Ok((value, self.field_refinement(expr).unwrap_or(ty)))
             }
@@ -305,6 +311,42 @@ impl Binder<'_> {
                 Err(unknown(site, format!("unknown name {name}"), name_rewrite(name, declared, None)))
             }
         }
+    }
+
+    /// The type of `expr` without binding it into this program.
+    fn speculative_type(&self, expr: &A) -> Option<Ty> {
+        let mut probe = self.clone();
+        probe.computation(expr, &mut setup::Body::default()).ok().map(|(_, ty)| ty)
+    }
+
+    /// A local name for the row a reference column names, unused in scope.
+    fn row_local(&self, column: &str) -> String {
+        let taken = |name: &str| self.scopes.iter().any(|scope| scope.contains_key(name)) || self.catalog.tables.contains_key(name);
+        let mut name = column.to_owned();
+        if taken(&name) { name.push_str("Row"); }
+        while taken(&name) { name.push('_'); }
+        name
+    }
+
+    /// `x.a.b.c` where `x.a` is a required reference: read the `a` row, then one hop.
+    fn second_hop_rewrite(&self, base: &A, target: &str, field: &str) -> Option<String> {
+        let A::Member { base: inner, name: hop, .. } = base else { return None };
+        let Some(Ty::Ref(first)) = self.speculative_type(inner).filter(|ty| !ty.is_optional()) else { return None };
+        let reference = print::expression(inner);
+        let row = self.row_local(inner_name(inner).unwrap_or(&first));
+        let mut second = self.row_local(hop);
+        if second == row { second.push_str("Row"); }
+        Some(format!("read the first row, then one hop: `{row} = {first}[{reference}] ! else NOT_FOUND`, then `{row}.{hop}.{field}` (null when the {target} row is missing or hidden); for a present value read that row too: `{second} = {target}[{row}.{hop}] ! else NOT_FOUND`, then `{second}.{field}`"))
+    }
+
+    /// `p.bed.max` compared in `op`: read the `bed` row present first, then compare its field.
+    fn present_row_rewrite(&self, operand: &A, op: &str, left: &A, right: &A) -> Option<String> {
+        let A::Member { base, name: field, .. } = operand else { return None };
+        let Some(Ty::Ref(table)) = self.speculative_type(base).filter(|ty| !ty.is_optional()) else { return None };
+        let row = self.row_local(inner_name(base).unwrap_or(&table));
+        let read = print::expression(base);
+        let compared = |side: &A| if std::ptr::eq(side, operand) { format!("{row}.{field}") } else { print::expression(side) };
+        Some(format!("read the row present first, so a missing or hidden one refuses instead of passing: `{row} = {table}[{read}] ! else NOT_FOUND`, then compare `{} {op} {}` (`?? 0` would treat a missing row as 0)", compared(left), compared(right)))
     }
 
     pub(super) fn member(&mut self, base: Expr, ty: Ty, name: &str, site: &Site) -> Fallible<(Expr, Ty)> {
@@ -487,10 +529,16 @@ impl Binder<'_> {
             }
             "<" | "<=" | ">" | ">=" => {
                 if (lt.is_optional() && !nullable_left) || (rt.is_optional() && !nullable_right) {
+                    let operand = if lt.is_optional() && !nullable_left { left } else { right };
+                    // @ref LLP 3000.036#13.7 — a reference field is optional because its row may be
+                    // missing or hidden; `?? 0` would admit then. Read the row present instead (lane 013).
+                    if let Some(rewrite) = self.present_row_rewrite(operand, op, left, right) {
+                        return Err(type_error(site, format!("{op} needs present operands; `{}` reads a row through a reference, which is null when that row is missing or hidden", print::expression(operand)), rewrite));
+                    }
                     return Err(type_error(
                         site,
                         format!("{op} needs present operands; got {} and {}", lt.name(), rt.name()),
-                        format!("narrow first: `if {} != null:`, or `{} ?? 0`", print::expression(if lt.is_optional() { left } else { right }), print::expression(if lt.is_optional() { left } else { right })),
+                        format!("narrow first: `if {} != null:`, or `{} ?? 0`", print::expression(operand), print::expression(operand)),
                     ));
                 }
                 if !lt.comparable(&rt) {
@@ -877,4 +925,9 @@ impl Binder<'_> {
         let outer = if inner == a { b } else { a };
         Some(format!("`.{other_field}` here is the {inner} row's own id; to match the enclosing {outer} row, use a named key, which reads the enclosing row: `{inner}[{column} = .{other_field}]` (keep the same order and page after it, e.g. `{inner}[{column} = .{other_field}] first 20 by .id`), or bind the outer value to a local before the nested read"))
     }
+}
+
+/// The last name of `x.a`: `a`.
+fn inner_name(expr: &A) -> Option<&str> {
+    match expr { A::Member { name, .. } => Some(name.as_str()), A::Name { name, .. } => Some(name.as_str()), _ => None }
 }
