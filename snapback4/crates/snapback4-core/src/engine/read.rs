@@ -85,6 +85,38 @@ fn rule_values(rule: &crate::schema::RuleExpr, prefix: &[Value], viewer: &str) -
     }
 }
 
+// @ref LLP 3000.036.001#14 — PAGE admits discovery and target-lane metadata before allocation.
+/// Temporary `(table, index)` images built while retaining a rule's complete
+/// dependency envelope. Count them without allocating so PAGE lanes can admit
+/// the buffer before `rules::probe_sites` clones any names into it.
+fn rule_probe_sites_heap(rule: &crate::schema::RuleExpr) -> u64 {
+    use crate::schema::{RuleExpr::*, RuleTerm};
+    fn term(term: &RuleTerm) -> (usize, u64) {
+        term.references().fold((0usize, 0u64), |(count, bytes), (table, _)| {
+            (count.saturating_add(1), bytes.saturating_add(word_heap::text(table) + word_heap::text("byId")))
+        })
+    }
+    fn walk(rule: &crate::schema::RuleExpr) -> (usize, u64) {
+        let add = |(ac, ab): (usize, u64), (bc, bb): (usize, u64)| {
+            (ac.saturating_add(bc), ab.saturating_add(bb))
+        };
+        match rule {
+            Eq(a, b) | Ne(a, b) | Compare(_, a, b) => add(term(a), term(b)),
+            Exists { table, index, key, equalities, .. } | Created { table, index, key, equalities, .. } => {
+                key.iter().chain(equalities.iter().map(|(_, term)| term)).fold(
+                    (1, word_heap::text(table) + word_heap::text(index)),
+                    |sum, item| add(sum, term(item)),
+                )
+            }
+            And(rules) | Or(rules) => rules.iter().fold((0, 0), |sum, rule| add(sum, walk(rule))),
+            Not(rule) => walk(rule),
+            Allow | Deny | Public { .. } => (0, 0),
+        }
+    }
+    let (count, names) = walk(rule);
+    word_heap::vec_growth::<(String, String)>(count).saturating_add(names)
+}
+
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
 struct WordRead {
@@ -165,6 +197,41 @@ impl<'r> Runner<'r> {
         }
     }
 
+    fn metered_dependency_table(&mut self, table: &str) -> Result<(), RuntimeError> {
+        if !self.read_tables.contains(table) {
+            self.meter.heap(word_heap::text(table)
+                + word_heap::insertion::<String, ()>(self.read_tables.len()))?;
+            self.read_tables.insert(table.to_owned());
+        }
+        Ok(())
+    }
+
+    fn metered_aggregate_source_dependency(&mut self, table: &str) -> Result<(), RuntimeError> {
+        let source = self.schema.maintain_for(table)
+            .filter(|maintain| self.schema.tables[&maintain.source].is_expiring())
+            .map(|maintain| maintain.source.clone());
+        if let Some(source) = source { self.metered_dependency_table(&source)?; }
+        Ok(())
+    }
+
+    fn metered_rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) -> Result<(), RuntimeError> {
+        let site_heap = rule_probe_sites_heap(rule);
+        let site_mark = self.meter.mark();
+        self.meter.heap(site_heap)?;
+        let mut sites = Vec::new();
+        rules::probe_sites(rule, &mut sites);
+        for (table, _) in sites {
+            let row_key = self.schema.maintain_for(&table)
+                .and_then(|maintain| maintain.row_key.as_ref())
+                .map(|key| key.table.clone());
+            if let Some(row_key) = row_key { self.metered_dependency_table(&row_key)?; }
+            self.metered_aggregate_source_dependency(&table)?;
+            self.metered_dependency_table(&table)?;
+        }
+        self.meter.release_row_heap(site_mark, site_heap);
+        Ok(())
+    }
+
     // @ref LLP 3000.007#20.24.6 — trusted delivery avoids physical probes,
     // not the logical prefix verdict or its scratch admission.
     fn reserve_delivered_scan(&mut self, table: &Table, visibility: rules::Visibility, admitted: bool, query: bool) -> Result<bool, RuntimeError> {
@@ -225,7 +292,12 @@ impl<'r> Runner<'r> {
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
     pub(super) fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) -> Result<(), RuntimeError> {
-        self.aggregate_source_dependency(table);
+        self.aggregate_read_coverage_inner(table, index, key, site, false)
+    }
+
+    fn aggregate_read_coverage_inner(&mut self, table: &str, index: &str, key: &[Value], site: &str, metered: bool) -> Result<(), RuntimeError> {
+        if metered { self.metered_aggregate_source_dependency(table)?; }
+        else { self.aggregate_source_dependency(table); }
         if !self.device { return Ok(()); }
         let Some(maintain) = self.schema.maintain_for(table) else { return Ok(()); };
         if self.defer_receipt_maintain(maintain) {
@@ -236,7 +308,8 @@ impl<'r> Runner<'r> {
             // A projected view uses its member's acquisition; absence beyond that
             // horizon is unknown even though the projection has no order columns.
             if self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some()) {
-                self.read_tables.insert(k.table.clone());
+                if metered { self.metered_dependency_table(&k.table)?; }
+                else { self.read_tables.insert(k.table.clone()); }
                 // A held point value is checked against the member by live_row_view.
                 let index_def = &self.schema.tables[table].indexes[index];
                 if !index_def.unique || key.len() != index_def.components.len() {
@@ -258,7 +331,8 @@ impl<'r> Runner<'r> {
         }
         let source = &self.schema.tables[&maintain.source];
         if self.schema.maintain_subset_unknown(table) || (source.is_expiring() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
-            self.read_tables.insert(maintain.source.clone());
+            if metered { self.metered_dependency_table(&maintain.source)?; }
+            else { self.read_tables.insert(maintain.source.clone()); }
             self.unknown_fact(table, index, key, site);
         }
         Ok(())
@@ -723,9 +797,10 @@ impl<'r> Runner<'r> {
     /// decode scratch with its retained row/vector allowance.
     pub(super) fn metered_domain(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
         self.schema.refuse_private(&scan.table)?;
+        self.meter.heap(word_heap::slots::<Value>(scan.prefix.len()))?;
         let prefix = self.prefix_values(scan)?;
         let table = &self.schema.tables[&scan.table];
-        let bounds = self.bounds(scan, table, &table.indexes[&scan.index], Some(&prefix))?;
+        let bounds = self.word_bounds(scan, table, &table.indexes[&scan.index], Some(&prefix), true, false)?;
         self.scan_consumed(scan, prefix, bounds, self.take(&scan.take)?, None, None, false, true).map(|(rows, _)| rows)
     }
 
@@ -907,9 +982,15 @@ impl<'r> Runner<'r> {
         // Matching discovery already recorded these scope dependencies/coverage.
         // Borrow that verdict; do not reallocate identical sets for every word.
         if word.is_none() {
-            self.read_tables.insert(scan.table.clone());
-            self.rule_dependencies(&table.rules.read);
-            self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site)?;
+            if metered_domain {
+                self.metered_dependency_table(&scan.table)?;
+                self.metered_rule_dependencies(&table.rules.read)?;
+                self.aggregate_read_coverage_inner(&scan.table, &scan.index, &prefix, &scan.site, true)?;
+            } else {
+                self.read_tables.insert(scan.table.clone());
+                self.rule_dependencies(&table.rules.read);
+                self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site)?;
+            }
             if self.device && table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site); self.components.note(|frame| frame.speculative = true); }
         }
         if word.is_some_and(|w| w.metered) { self.meter.heap(word_heap::text(&scan.site))?; }
@@ -1156,7 +1237,7 @@ impl<'r> Runner<'r> {
                     if let Some(filter) = &scan.filter {
                         // @ref LLP 3000.014#5 — completed predicate answers belong to the page even when they reject this candidate.
                         let filter_expiry = self.next_expiry.scope();
-                        let filter_slot = if metered_payload { word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()) } else { 0 };
+                        let filter_slot = if metered_payload || metered_domain { word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()) } else { 0 };
                         self.meter.heap(filter_slot)?;
                         let filter_mark = self.meter.mark();
                         let prior = self.env.insert("$filter".into(), row.clone());
