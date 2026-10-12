@@ -28,3 +28,15 @@ overflow, but the meter differs by one step on the retained shrunk case.
 `issues/20261012-quarry-difftest-commuted-overflow-meters-differ.md` records
 it. The reproducer has no writes and its only table is online-only, so no
 UNION path executes. This campaign also exits red.
+
+
+Final fast/affected quality results are in `quality-summary.json`. The full
+five-crate run reported two fixture failures and no other failed targets:
+the public-join fixture was updated for the current-group-only history
+rule, and the sharing guide test pins all 12 retained examples. Both
+corrected targets pass their reruns. Final affected checks also cover 142
+Rust acquisition witnesses, 18 union simulator tests (2 deeper opt-in
+ignored), 82 wasm boundary tests, and 124 client sync/budget tests (1 skipped).
+The final fixes have not received another paired review: the user-specified
+two-additional-round limit is exhausted. See RFC §10 and the bounded-review
+follow-up ticket. Neither difftest campaign is counted as a pass.

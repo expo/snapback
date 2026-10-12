@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-12",
+  "finalSourceCommit": "6d1062dd80",
+  "sharingTestCommit": "f2dcf05960",
+  "cargoCommand": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+  "fullRun": {
+    "status": "two fixture failures, corrected in affected reruns",
+    "resultBlocks": 350,
+    "reportedPassed": 5521,
+    "reportedFailed": 2,
+    "reportedIgnored": 40,
+    "failedTargets": [
+      "snapback4-core/rows",
+      "snapback4-lang/sync_audiences"
+    ],
+    "allOtherTargets": "passed"
+  },
+  "affectedReruns": {
+    "snapback4-core/rows": {
+      "passed": 8
+    },
+    "snapback4-device/w13g_probe": {
+      "passed": 142
+    },
+    "snapback4-sim/union": {
+      "passed": 18,
+      "ignored": 2
+    },
+    "snapback4-lang/sync_audiences": {
+      "passed": 6
+    },
+    "client/horizon-boundary": {
+      "passed": 82
+    },
+    "client/sync-and-wasm-budget": {
+      "files": 7,
+      "passed": 124,
+      "skipped": 1
+    },
+    "readauth/authoring_census": {
+      "passed": 1,
+      "entries": 714,
+      "mutationOccurrences": 405,
+      "distinctPrivateWriteSites": 89
+    }
+  },
+  "docsBudget": {
+    "status": "passed",
+    "readmeLines": 319,
+    "cap": 320,
+    "namedSelfContainmentTestPassed": true
+  },
+  "wasmBudget": {
+    "status": "passed",
+    "raw": 2164773,
+    "gzip": 654164,
+    "cap": 654664,
+    "sha256": "ed7a7e45afa20686b11b8a1c96dd0e96804f02fb8801afc07299728f4d6240fe"
+  },
+  "refCheck": {
+    "status": "passed",
+    "llpDocs": 537,
+    "refs": 10897,
+    "files": 37556,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "difftest": {
+    "run": "red; seven commuted-overflow meter disagreements",
+    "runLean": "red; 1018 existing C2/W4 disagreements; 22656 unsupported"
+  },
+  "review": "Round 7: GPT NOT READY, Muse READY WITH CHANGES. Revision 8 fixes are unreviewed under the two-additional-round limit; RFC remains Draft."
+}
