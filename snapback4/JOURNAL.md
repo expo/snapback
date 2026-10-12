@@ -93331,3 +93331,10 @@ Validation and per-item commits are recorded in root WORKSTREAM-REPORT.md.
   raise to 680,529 B (measurement + 500 B), +18,384 B. Whole-artifact
   measurement, no per-feature attribution. UNION promotion remains held
   by the final NOT READY verdict; incoming base integration is local only.
+
+- 2026-10-12, UNION/current-loop planning repair: the online owner-or-X branch
+  planner rewrote synced UNION team pages into grant lanes, which intentionally
+  defer membership probes on devices. Keep ordinary per-arm scans for sources
+  with multiple sync needs, preserving acquired completeness; online branch
+  and service-seat surfaces remain. Snapshot-limit and epoch traces reproduce
+  the regression and pass with the guard; branch-merge/audience suites pass.
