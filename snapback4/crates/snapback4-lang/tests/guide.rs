@@ -832,7 +832,7 @@ fn the_readme_quarry_compiles_clean() {
 fn the_keywords_are_one_list() {
     let listed = |text: &str, after: &str| -> String {
         let start = text.find(after).unwrap_or_else(|| panic!("no `{after}` in the text"));
-        text[start..].chars().take(520).collect()
+        text[start..].split("\n\n").next().unwrap().to_owned()
     };
     let on_card = listed(LANGUAGE, "Cards: `snapback4 guide <keyword>`");
     let in_readme = listed(README, "**`guide [keyword]`**");

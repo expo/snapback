@@ -86,6 +86,8 @@ added. Keep the directory and its sidecars private. If the local owner is an old
 unreachable server or another CLI, `E_STORE_BUSY` names the stop/retry sequence.
 Never delete the owner sidecar to bypass exclusion.
 
+Serving now joins the private control transport during SIGTERM, SIGINT and SIGHUP shutdown and returns `128 + signal`; fatal signals retain their OS signal status.
+
 The database owns current release, generation, activation revision and history.
 Required source/native/worker artifacts are flushed before selecting them. A crash
 or convenience-file error can leave `current` or `releases.jsonl` stale; startup

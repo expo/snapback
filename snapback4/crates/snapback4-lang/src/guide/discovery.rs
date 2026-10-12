@@ -481,4 +481,4 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     if any { Err(out) } else { Ok(out) }
 }
 
-pub(super) const DEPLOY: &str = "# Deploy\n\nSee [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle) for deploy, rollback, prune, hot activation and recovery; `guide evolution` covers schema changes.\n";
+pub(super) const DEPLOY: &str = "# Deploy\n\nSee [release lifecycle](SERVER.md#release-lifecycle) for deploy, rollback, prune, hot activation and recovery.\n";
