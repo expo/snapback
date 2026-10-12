@@ -107,7 +107,8 @@ for (const phase of ['index', 'examined', 'heap']) test(`wasm ${phase} budget ex
   } finally { device.free(); }
 });
 
-test('wasm expired sub-pair (ii), meter boundary retains the existing time-hidden work bit', () => {
+// @ref LLP 3000.007#20.24.6 — a word held only by an expired row is store work, so the worlds agree.
+test('wasm expired sub-pair (ii), meter boundary no longer carries the time-hidden work bit', () => {
   const worlds = [];
   for (const key of ['expired-false', 'expired-true']) {
     const fixture = structuredClone(fixtures[key]);
@@ -133,7 +134,7 @@ test('wasm expired sub-pair (ii), meter boundary retains the existing time-hidde
   const [a, b] = worlds;
   assert.equal(a.complete, true); assert.equal(a.cut, null); assert.ok(a.next);
   assert.equal(a.data.length, 20);
-  assert.deepEqual(b, { ...a, data: [], complete: false, cut: 'meter', next: null });
+  assert.deepEqual(b, a);
 });
 
 test('wasm hidden-only words cannot change an admitted non-uniform page or cut', () => {
