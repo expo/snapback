@@ -1019,6 +1019,51 @@ fn a_decided_false_membership_source_commits_no_speculative_indexes() {
 }
 
 #[test]
+fn a_read_through_membership_source_keeps_parent_authorization() {
+    let source = "table parents:
+  read <- deny
+  online only
+
+table memberships:
+  parent: parents
+  principal: principal
+  immutable parent
+  unique parent, principal
+  cap 16 by principal
+  read through .parent
+  online only
+
+table documents:
+  owner: principal
+  parent: parents
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+    let b = clean(source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(!b.schema.tables["documents"].indexes.values().any(|index| index.columns() == ["owner", "at", "id"]));
+    assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+
+    let mut e = engine(source, vec![
+        ("parents", vec![("id", id("p1"))]),
+        ("memberships", vec![("id", id("m1")), ("parent", id("p1")), ("principal", id("alice"))]),
+        ("documents", vec![("id", id("d1")), ("owner", id("bob")), ("parent", id("p1")), ("at", Value::Int(1))]),
+    ]);
+    let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    // The outer rule's raw witness admits d1, while an authorized source scan
+    // through the denied parent would discover no lane. Keeping the original
+    // scan preserves that distinction and makes no completeness claim.
+    assert_eq!(ids(&page.data), ["d1"]);
+    assert!(!page.complete, "{page:?}");
+}
+
+#[test]
 fn a_discovery_cut_emits_no_owner_rows_and_no_cursor() {
     let mut e = engine(OWNER_MEMBERSHIP, vec![
         membership("m1", "p1", "alice"), membership("m2", "p2", "alice"),
