@@ -1017,6 +1017,44 @@ fn fixed_source_id_expiry_removes_only_its_membership_lane() {
 }
 
 #[test]
+fn fixed_source_id_cap_reserves_the_rule_from_where_branching() {
+    let source = "table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 1 by id
+  read <- allow
+  online only
+
+table documents:
+  owner: principal
+  parent: text <=40
+  bucket: int
+  at: int
+  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]
+  online only
+
+query documents(c: cursor ?):
+  return documents where (.owner = viewer and .bucket = 0) or (.owner = viewer and .bucket = 1) last 10 by .at after c
+";
+    let b = clean(source);
+    assert!(branch_merges(&b, "documents").is_empty());
+    assert!(b.schema.tables["documents"].indexes.values().all(|index| index.columns().first().is_none_or(|column| column != "owner")));
+    assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+
+    let mut e = engine(source, vec![
+        membership("m1", "p1", "alice"),
+        ("documents", vec![("id", id("d1")), ("owner", id("alice")), ("parent", Value::String("p0".into())),
+            ("bucket", Value::Int(0)), ("at", Value::Int(1))]),
+    ]);
+    let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    assert_eq!(ids(&page.data), ["d1"]);
+    assert!(!page.complete && page.next.is_some(), "{page:?}");
+}
+
+#[test]
 fn positional_membership_key_is_selected_by_its_argument_types() {
     let source = OWNER_MEMBERSHIP.replace("  unique parent, principal\n",
         "  n: int\n  unique parent, principal\n  unique n, principal\n");

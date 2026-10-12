@@ -377,7 +377,7 @@ def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
           let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
           (membershipTarget key).isSome
             && td.caps.any fun cap => cap.columns.all fun c =>
-              c != "id" && fixed.any (·.1 == c)
+              fixed.any (·.1 == c)
     topOr && party && membership && capped
 
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its

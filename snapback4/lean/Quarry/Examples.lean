@@ -493,7 +493,7 @@ def membershipDocsFixedIdCap : Schema := { tables := [
     uniques := [["parent", "principal"]]
     caps := [{ columns := ["id"], max := 1 }]
     read := .allow },
-  { name := "documents", cols := [c "owner", c "parent", c "at"]
+  { name := "documents", cols := [c "owner", c "parent", c "bucket", c "at"]
     read := .or (.eq (self "owner") .viewer)
       (.probe "members" [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
 
@@ -526,6 +526,10 @@ def membershipExtraStore : Store := mkStore [
                  mkRow "d3" [("owner", I "alice"), ("parent", T "p1"), ("at", N 3)],
                  mkRow "d4" [("owner", I "bob"), ("parent", T "p1"), ("at", N 4)],
                  mkRow "d5" [("owner", I "bob"), ("parent", T "p2"), ("at", N 5)]])]
+
+def membershipFixedIdStore : Store := mkStore [
+  ("members", [mkRow "m1" [("parent", T "p1"), ("principal", I "alice")]]),
+  ("documents", [mkRow "d1" [("owner", I "alice"), ("parent", T "p0"), ("bucket", N 0), ("at", N 1)]])]
 
 /-- A membership keyed by the target row id is outside PAGE's ordinary-column
 classifier and keeps the incomplete scan. -/
@@ -599,6 +603,14 @@ def merged : List Example := [
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":false,"next":null}"# },
+  { name := "page-owner-membership-fixed-id-cap-reserves-where-alternatives"
+    source := "LLP 3000.036.001 §14: a cap by fixed source id declines PAGE without entering the older where-alternative merge"
+    case := { schema := membershipDocsFixedIdCap, store := membershipFixedIdStore, viewer := alice,
+              program := query [.ret (.page "documents" [] (some (.or
+                (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "bucket") (int 0)))
+                (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "bucket") (int 1))))) ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","parent":"p0","bucket":0,"at":1}],"complete":false,"next":null}"# },
   { name := "page-owner-membership-repeated-party"
     source := "LLP 3000.036.001 §14: repeated copies of one owner party consume one static descriptor"
     case := { schema := membershipDocsRepeatedParty, store := membershipDocStore, viewer := alice,
