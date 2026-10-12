@@ -48,14 +48,14 @@ impl Binder<'_> {
             self.binding(root).is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool))))
     }
     pub(super) fn invalidate_points(&mut self) {
-        for (name, mut binding) in self.visible_bindings() {
-            let before = binding.fields.len();
-            binding.fields.retain(|key, _| key.first().is_none_or(|k| k != POINT && k != maintain_types::AUTHORIZATION));
-            if before != binding.fields.len() {
+        for scope in &mut self.scopes {
+            for binding in scope.values_mut() {
                 // A write invalidates these transaction facts, not the local's
-                // value. Keep assignment revisions stable so an automatic job
-                // sweep does not mistake a guard operand for an accumulator.
-                self.scopes.last_mut().unwrap().insert(name, binding);
+                // value. Clear shadowed roots too, and keep assignment revisions
+                // stable so a job sweep does not mistake a guard for an accumulator.
+                binding.fields.retain(|key, _| key.first().is_none_or(|k| {
+                    k != POINT && k != maintain_types::AUTHORIZATION
+                }));
             }
         }
     }

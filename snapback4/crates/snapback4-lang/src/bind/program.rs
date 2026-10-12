@@ -158,6 +158,8 @@ struct Binding {
 
 #[derive(Clone, Default)]
 struct LoopTransfers {
+    /// Binding state is keyed by runtime identity so a same-named loop item
+    /// cannot hide an outer local from the header or exit meet.
     breaks: Vec<BTreeMap<String, Binding>>,
     continues: Vec<BTreeMap<String, Binding>>,
 }

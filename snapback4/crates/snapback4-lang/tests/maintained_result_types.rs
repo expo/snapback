@@ -464,3 +464,70 @@ job inspect():
     assert_eq!(errors.len(), 1, "{:#?}", exiting.diagnostics);
     assert!(errors[0].message.contains("int ?"), "{}", errors[0]);
 }
+
+#[test]
+fn shadowed_loop_locals_cannot_hide_revoked_authorization() {
+    let guarded = r#"
+table grants:
+  owner: principal
+  unique owner
+  read <- allow
+  delete <- allow
+  online only
+view grantedCounts: count entries by .owner
+  read <- exists grants[.owner]
+  online only
+"#;
+    for (name, loop_body) in [
+        (
+            "fallthrough",
+            "  for key in [other]:\n    delete grants[owner]",
+        ),
+        (
+            "breakEdge",
+            "  for key in [other]:\n    delete grants[owner]\n    break",
+        ),
+        (
+            "continueEdge",
+            "  for key in [other]:\n    delete grants[owner]\n    continue",
+        ),
+        (
+            "nestedShadow",
+            "  for key in [other]:\n    for key in [other]:\n      delete grants[owner]",
+        ),
+    ] {
+        let bound = compile(&[(
+            "schema.q".into(),
+            format!(
+                "{SOURCE}{guarded}mutation {name}(owner: principal, other: principal):\n  key = owner\n  require exists grants[key] else NOT_ALLOWED\n{loop_body}\n  return grantedCounts[key] + 1\n"
+            )
+            .into(),
+        )]);
+        assert!(
+            bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+            "{name}: {:#?}",
+            bound.diagnostics
+        );
+    }
+
+    let controls = checked(&format!(
+        r#"{guarded}
+query stableShadow(owner: principal, other: principal):
+  key = owner
+  require exists grants[key] else NOT_ALLOWED
+  for key in [other]:
+    observed = key
+  return grantedCounts[key] + 1
+query stableNestedShadow(owner: principal, other: principal):
+  key = owner
+  require exists grants[key] else NOT_ALLOWED
+  for key in [other]:
+    for key in [other]:
+      observed = key
+  return grantedCounts[key] + 1
+"#
+    ));
+    assert_eq!(result(&controls, "stableShadow"), &Ty::Int);
+    assert_eq!(result(&controls, "stableNestedShadow"), &Ty::Int);
+}

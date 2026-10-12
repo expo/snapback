@@ -265,7 +265,7 @@ impl Binder<'_> {
                     if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "break cannot leave an as block or helper", "put break in a loop inside this block or helper")); }
                     return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
-                let bindings = self.visible_bindings();
+                let bindings = self.binding_states();
                 self.loop_transfers.last_mut().expect("an enclosing loop").breaks.push(bindings);
                 out.push(Stmt::Break);
                 Ok(())
@@ -276,7 +276,7 @@ impl Binder<'_> {
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.
-                let bindings = self.visible_bindings();
+                let bindings = self.binding_states();
                 self.loop_transfers.last_mut().expect("an enclosing loop").continues.push(bindings);
                 out.push(Stmt::Continue);
                 Ok(())
@@ -390,7 +390,7 @@ impl Binder<'_> {
             let result = self.block(body, &mut out, false);
             let transfers = self.loop_transfers.pop().expect("loop transfer frame");
             self.loops -= 1;
-            let after = self.visible_bindings();
+            let after = self.binding_states();
             self.pop_scope();
             result?;
             let flow = flow::Outcomes::block(&out);
@@ -398,7 +398,9 @@ impl Binder<'_> {
             let mut changed = false;
             for (local, old) in &mut header {
                 for bindings in carried.clone() {
-                    let new = &bindings[local];
+                    let new = bindings
+                        .get(&old.runtime)
+                        .expect("a loop edge retains every outer binding identity");
                     let (candidate_changed, candidate_grows) = self.join_loop_binding(local, old, new, site)?;
                     changed |= candidate_changed;
                     if candidate_grows { growing_list.get_or_insert_with(|| local.clone()); }
@@ -408,7 +410,10 @@ impl Binder<'_> {
                 let mut exit = header;
                 for bindings in &transfers.breaks {
                     for (local, binding) in &mut exit {
-                        self.join_loop_binding(local, binding, &bindings[local], site)?;
+                        let edge = bindings
+                            .get(&binding.runtime)
+                            .expect("a break edge retains every outer binding identity");
+                        self.join_loop_binding(local, binding, edge, site)?;
                     }
                 }
                 self.scopes.last_mut().expect("a scope").extend(exit);
@@ -428,7 +433,7 @@ impl Binder<'_> {
     /// only when both paths retain the same fact; assignments additionally
     /// widen the declared type and keep their revision for job carry checks.
     fn join_loop_binding(&self, local: &str, old: &mut Binding, new: &Binding, site: &Site) -> Fallible<(bool, bool)> {
-        if new.runtime != old.runtime { return Ok((false, false)); }
+        debug_assert_eq!(new.runtime, old.runtime);
         let surviving_fields: BTreeMap<_, _> = old.fields.iter()
             .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
             .map(|(path, ty)| (path.clone(), ty.clone()))
@@ -676,6 +681,16 @@ impl Binder<'_> {
 
     pub(super) fn visible_bindings(&self) -> BTreeMap<String, Binding> {
         self.scopes.iter().flat_map(|scope| scope.iter().map(|(name, binding)| (name.clone(), binding.clone()))).collect()
+    }
+
+    /// Preserve hidden outer locals across loop edges. Runtime identities are
+    /// unique to declarations even when their source names are shadowed.
+    fn binding_states(&self) -> BTreeMap<String, Binding> {
+        self.scopes
+            .iter()
+            .flat_map(|scope| scope.values())
+            .map(|binding| (binding.runtime.clone(), binding.clone()))
+            .collect()
     }
 
     fn branch(&mut self, condition: &A, taken: bool, statements: &[S], completes: bool) -> Fallible<(setup::Body, BTreeMap<String, Binding>)> {
