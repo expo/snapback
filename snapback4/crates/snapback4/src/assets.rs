@@ -102,7 +102,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
-    let granted = lock(&shared.engine).asset_access_request(&principal, id, shared.now(), range_requested);
+    let granted = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.asset_access_request(&principal, id, shared.now(), range_requested)};
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -130,6 +130,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         .map(|h| byte_range(h.value.as_str(), total)).unwrap_or(ByteRange::Ignore);
     if range == ByteRange::Unsatisfiable {
         let mut response = Response::empty(416);
+        if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
         response.add_header(Header::from_bytes("Content-Range", format!("bytes */{total}")).unwrap());
         response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
         response.add_header(Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap());
@@ -174,6 +175,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let reader = ExactReader { inner: file.take(length), remaining: length };
     let mut response = Response::new(tiny_http::StatusCode(status), headers, reader, Some(length as usize), None);
+    if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
     if status == 206 {
         response = response.with_status_code(206);
     }

@@ -474,7 +474,7 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
     for dev in [true, false] {
         let host = Host::new(dev);
         let response = host.request("GET", "/auth/config", "", "");
-        assert_eq!(body(&response), json!({ "guests": true, "password": true }));
+        assert_eq!(body(&response), json!({ "guests": true, "password": true, "generation":1 }));
         let session = body(&host.request("POST", "/auth/guest", "", "{}"));
         let token = session["session"]["token"].as_str().unwrap();
         let bearer = format!("Authorization: Bearer {token}\r\n");
@@ -696,7 +696,7 @@ fn effect_http_strictly_validates_present_fields_without_mutating_work() {
     assert_eq!(body(&host.request("POST", &status_path, &wrong, "{}"))["denied"]["code"], "E_EFFECT_LEASE");
     assert_eq!(effect_snapshot(&host, &id), running);
     let status_body = body(&host.request("POST", &status_path, &held, "ignored"));
-    assert_eq!(status_body, json!({ "id": id, "attempt": 1, "state": "running", "deadline": null, "cancelled": false, "errorCode": null }));
+    assert_eq!(status_body, json!({ "id": id, "attempt": 1, "state": "running", "deadline": null, "cancelled": false, "errorCode": null, "generation":1 }));
     let malformed_status = host.request("POST", "/effects/bad%FF/status", &held, "{}");
     assert_eq!(status(&malformed_status), 400); assert_eq!(body(&malformed_status)["denied"]["code"], "E_INPUT");
     assert_eq!(effect_snapshot(&host, &id), running);

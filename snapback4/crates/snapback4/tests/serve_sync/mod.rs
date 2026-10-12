@@ -127,7 +127,7 @@ fn generation_discovery_keeps_page_authorization() {
                 assert_eq!(status(&stale), 401);
                 assert_eq!(body(&stale), body(&ordinary));
                 assert_eq!(body(&stale)["denied"]["code"], "E_AUTH");
-                assert_eq!(body(&stale).as_object().unwrap().keys().collect::<Vec<_>>(), ["denied"]);
+                assert_eq!(body(&stale).as_object().unwrap().keys().collect::<Vec<_>>(), ["denied","generation"]);
             }
         }
         if !dev {
@@ -158,7 +158,7 @@ fn failed_materialization_is_not_counted_and_unreadable_head_fails_discovery() {
         assert_eq!(reply["denied"]["code"], "E_STORE");
         assert_eq!(reply["denied"]["retryable"], true);
         assert!(reply["denied"]["message"].as_str().unwrap().contains("no such table: _commits"));
-        assert_eq!(reply.as_object().unwrap().keys().collect::<Vec<_>>(), ["denied"]);
+        assert_eq!(reply.as_object().unwrap().keys().collect::<Vec<_>>(), ["denied","generation"]);
         let ordinary = host.request("POST", "/sync", PERSONA, &json!({ "generation": 1, "stream": stream }).to_string());
         assert_eq!(status(&ordinary), 503);
         assert_eq!(body(&ordinary)["denied"]["code"], "E_STORE");

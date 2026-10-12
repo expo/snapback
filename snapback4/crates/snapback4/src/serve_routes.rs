@@ -144,6 +144,7 @@ fn completed(request: Request, run: &ActionRequest) {
     let Ok(bytes) = response.validate() else { return unavailable(request); };
     if response.status >= 500 { return unavailable(request); }
     let mut output = Response::from_data(bytes).with_status_code(response.status);
+    if let Some(header)=crate::serve::generation_header(){output.add_header(header);}
     for (name, value) in response.headers {
         let Ok(header) = Header::from_bytes(name, value) else { return unavailable(request); };
         output.add_header(header);

@@ -648,7 +648,7 @@ fn development_banner_and_release_auth_boundary() {
     };
     let rows = json!([{"table":"items","row":{"id":"one","body":"development"}}]);
     let dev = Host::start(&dir, &["dev"]);
-    assert_eq!(request(dev.port, "/seed", rows.clone(), ""), (200, json!({"seeded":1})));
+    assert_eq!(request(dev.port, "/seed", rows.clone(), ""), (200, json!({"seeded":1,"generation":1})));
     let (status, read) = request(dev.port, "/q/all", json!({"args":{}}), "x-snapback-persona: alice\r\n");
     assert_eq!(status, 200); assert_eq!(read["data"][0]["body"], "development");
     let banner = dev.log();

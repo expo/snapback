@@ -71,6 +71,7 @@ pub(crate) mod latency;
 pub(crate) mod dev_refusals;
 
 pub struct Shared {
+    pub(crate) release_requests: Arc<crate::release_requests::Gate>,
     following: Mutex<snapback4_core::engine::following_history::Reader>,
     refusals: dev_refusals::Recent,
     latency: Arc<latency::Registry>,
@@ -660,7 +661,15 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     let refused = status >= 400 || body.refused();
     trace::mark("encode_start");
     let mut bytes = JsonBuffer(Vec::new());
+    let generation = body.generation().or_else(crate::release_requests::reply_generation).or_else(|| shared.map(|s| *lock(&s.generation)));
+    crate::release_requests::executed();
     let encoded = serde_json::to_writer(&mut bytes, &body);
+    // Append only to envelopes without a generation, without cloning row payloads.
+    if encoded.is_ok() && body.generation().is_none() && let Some(generation)=generation && bytes.0.last()==Some(&b'}') {
+        bytes.0.pop();
+        let separator=if bytes.0.len()>1 {","} else {""};
+        let _=write!(&mut bytes,"{separator}\"generation\":{generation}}}");
+    }
     drop(body);
     let status = if encoded.is_err() {
         bytes.0.clear();
@@ -668,6 +677,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
         // @ref LLP 3000.007.001#3.11 — generation discovery survives an undeliverable row page.
         let mut reply = sync_overflow.unwrap_or_else(|| json!({}));
         reply["denied"] = refusal_json(&refusal);
+        if let Some(generation)=generation {reply["generation"]=json!(generation);}
         serde_json::to_writer(&mut bytes, &reply).expect("the fixed HTTP refusal and sync identity fit the response ceiling");
         200
     } else { status };
@@ -680,8 +690,9 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
         for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
         // @ref LLP 3000.023#11 — discover compiler dependency summaries without probing older servers.
         response.add_header(Header::from_bytes("X-Snapback-Settlement", "1").unwrap());
-        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement").unwrap());
+        response.add_header(Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Settlement, X-Snapback-Generation").unwrap());
     }
+    if let Some(generation)=generation {response.add_header(Header::from_bytes("X-Snapback-Generation",generation.to_string()).unwrap());}
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
     for header in extra { response.add_header(header); }
@@ -723,6 +734,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
 /// next response on a persistent connection.
 pub(crate) fn respond_empty(request: Request, status: u16) {
     let mut response = Response::empty(status);
+    if let Some(header)=generation_header(){response.add_header(header);}
     for header in cors(&request).into_iter().chain(latency::header()).filter(|header| !header.field.equiv("Content-Type")) {
         response.add_header(header);
     }
@@ -785,6 +797,10 @@ fn mutation_error_status(refusal: &Refusal) -> u16 {
 }
 
 fn handle(mut request: Request, shared: &Shared) {
+    // @ref LLP 3000.000.000#93-http-admission-and-reporting — lookup, decode and execution share the admitted release.
+    let operation = request.url().split('?').next().is_some_and(|p| p.starts_with("/q/") || p.starts_with("/m/"));
+    let _scope=crate::release_requests::Scope::begin(*lock(&shared.generation));
+
     request.set_cleanup_guard(latency::FinishOnDrop);
     #[cfg(test)] test_work(&shared.request_work);
     let method = request.method().clone();
@@ -936,6 +952,7 @@ fn handle(mut request: Request, shared: &Shared) {
         Ok(body) => body,
         Err(_) => return reject(request, 400, Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")),
     };
+    if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
         (Method::Post, path) if path.starts_with("/dev/jobs/") => maintenance::run_job(request, shared, &path["/dev/jobs/".len()..], &body),
@@ -997,10 +1014,16 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Get, "/native.wasm") => {
             // The app's module, for a device to run its native reads over
             // the rows it holds (LLP 3000.005 §9).
-            let installed = lock(&shared.native).clone();
+            let installed = {
+                let _bound=lock(&shared.bound);
+                let installed=lock(&shared.native).clone();
+                crate::release_requests::stamp(*lock(&shared.generation));
+                installed
+            };
             match installed {
                 Some(module) => {
                     let mut response = Response::from_data(module.bytes);
+                    if let Some(header)=generation_header(){response.add_header(header);}
                     response.add_header(Header::from_bytes("Content-Type", "application/wasm").unwrap());
                     response.add_header(Header::from_bytes("ETag", format!("\"{}\"", module.digest)).unwrap());
                     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
@@ -1011,8 +1034,9 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Get, "/api.ts") => {
-            let text = snapback4_lang::emit::typescript(&lock(&shared.bound));
+            let text={let bound=lock(&shared.bound);crate::release_requests::stamp(*lock(&shared.generation));snapback4_lang::emit::typescript(&bound)};
             let mut response = Response::from_string(text);
+            if let Some(header)=generation_header(){response.add_header(header);}
             response.add_header(Header::from_bytes("Content-Type", "text/plain; charset=utf-8").unwrap());
             response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
             for header in cors(&request).into_iter().chain(latency::header()) { response.add_header(header); }
@@ -1104,12 +1128,12 @@ fn handle(mut request: Request, shared: &Shared) {
                                 args.insert(name.clone(), typed);
                             }
                             Err(why) => {
-                                operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"));
+                                argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"));
                                 return;
                             }
                         },
                         None => {
-                            operation_refusal(request, shared, 400, dev_doors::stale(shared, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")));
+                            argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), dev_doors::stale(shared, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")));
                             return;
                         }
                     }
@@ -1217,7 +1241,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(skip_serializing_if = "Option::is_none")]
                             refresh: Option<u64>,
                         }
-                        impl latency::Reply for QueryReply<'_> {}
+                        impl latency::Reply for QueryReply<'_> { fn generation(&self)->Option<u64>{Some(self.generation)} }
                         // @ref LLP 3000.018#3 — an answer of a query that may read presence asks its client to re-run it: no change feed names presence.
                         let refresh = reads_presence.then(|| PRESENCE_REFRESH.as_millis() as u64);
                         // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
@@ -1295,7 +1319,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         body["head"] = json!(head);
                         respond_timed(request, shared, 200, body);
                     }
-                    Err(refusal) => { respond_timed(request, shared, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
+                    Err(refusal) => { respond_timed(request, shared, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head, "generation":generation })) }
                 }
             }
         }
@@ -1363,3 +1387,21 @@ fn handle(mut request: Request, shared: &Shared) {
 #[cfg(test)]
 #[path = "../tests/serve_poison/mod.rs"]
 mod poison_tests;
+
+// All raw (asset/native/route/empty) replies advertise the admitted generation too.
+pub(crate) fn generation_header()->Option<Header>{
+    crate::release_requests::reply_generation().map(|g|Header::from_bytes("X-Snapback-Generation",g.to_string()).unwrap())
+}
+
+// Typed mutation inputs have one terminal failure envelope, including wire decoding.
+fn argument_refusal(request:Request,shared:&Shared,id:Option<&str>,why:Refusal){
+    if !request.url().starts_with("/m/") {return operation_refusal(request,shared,400,why);}
+    match shared.read_identity() {
+        Ok((store_id,head,generation))=>{
+            let mut reply=json!({"state":"failed","why":refusal_json(&why),"store_id":store_id,"head":head,"generation":generation});
+            if let Some(id)=id {reply["id"]=json!(id);}
+            respond_timed(request,shared,200,reply);
+        }
+        Err(error)=>respond_timed(request,shared,503,json!({"denied":refusal_json(&error)})),
+    }
+}

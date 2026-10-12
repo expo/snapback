@@ -161,6 +161,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
         answer.unwrap_or_else(|e| json!({"phase":"refused","code":e.refusal().code}).to_string());
     // Do not parse/re-encode a pinned response or attach a fresh store counter.
     let mut response = Response::from_string(bytes);
+    if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
     for header in cors(&request).into_iter().chain(latency::header()) {

@@ -159,6 +159,7 @@ pub fn serve(
     ));
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
+        release_requests: Arc::new(crate::release_requests::Gate::default()),
         #[cfg(test)]
         release_committed: Mutex::new(None),
         #[cfg(test)]
