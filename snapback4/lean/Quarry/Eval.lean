@@ -325,7 +325,7 @@ def membershipEligible (sch : Schema) (t : String) (key : List (String × Term))
     let columns := key.map (·.1)
     let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
     td.uniques.contains columns
-      && td.caps.any (fun cap => cap.columns.all fun c => fixed.any (·.1 == c))
+      && td.caps.any (fun cap => cap.max ≤ 8192 && cap.columns.all fun c => fixed.any (·.1 == c))
       && td.read.byForm fixed
   | _, _ => false
 
