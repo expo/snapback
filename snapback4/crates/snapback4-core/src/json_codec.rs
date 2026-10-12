@@ -95,6 +95,11 @@ pub fn to_buffer<T: Serialize + ?Sized>(buffer: &mut Vec<u8>, value: &T) -> Resu
     serde_json::to_writer(buffer, value)
 }
 
+/// Serialize into a caller's writer (a counting sink prices an image without a buffer).
+pub fn to_writer<W: std::io::Write, T: Serialize + ?Sized>(writer: W, value: &T) -> Result<(), Error> {
+    serde_json::to_writer(writer, value)
+}
+
 /// The meter's exact tagged byte count, without a second result-sized value.
 pub fn value_bytes(value: &crate::value::Value) -> Result<u64, Error> {
     struct Counter(u64);

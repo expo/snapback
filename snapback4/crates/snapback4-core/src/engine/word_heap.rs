@@ -261,7 +261,7 @@ pub(crate) fn stored_value_bytes(row: &Value) -> Result<u64, RuntimeError> {
         fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
     }
     let mut shape = Shape::default();
-    serde_json::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    crate::json_codec::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;
     let Shape { len, objects, tags, arrays, fields, commas, .. } = shape;
     let fields = fields - (tags - objects);
     Ok(4 * allocation(len) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
