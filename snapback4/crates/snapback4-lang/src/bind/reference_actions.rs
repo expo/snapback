@@ -93,8 +93,8 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
             }
             if chosen.writes() && schema.reference_cap(name, &column.name).is_none() {
                 diagnostics.push(Diagnostic::new(site, "E_CASCADE_BOUND",
-                    format!("{} on {name}.{} needs `cap N by {}`: a delete of a {parent} row writes its {name} rows in the same transaction, so the number of them must have a product limit", chosen.words(), column.name, column.name),
-                    format!("cap 500 by {}   -- choose the product limit; for an unbounded relation keep `on delete restrict` and delete the {name} rows in a job first (guide writes)", column.name)).guide("writes"));
+                    format!("{} on {name}.{} needs `cap N by {}` or plain single-column `unique {}`: a delete of a {parent} row writes its {name} rows in the same transaction, so the number of them must have a product limit", chosen.words(), column.name, column.name, column.name),
+                    format!("cap 500 by {}   -- choose the product limit; use `unique {}` for at most one child; for an unbounded relation keep `on delete restrict` and delete the {name} rows in a job first (guide writes)", column.name, column.name)).guide("writes"));
                 continue;
             }
             // `keep` is the legacy meaning, so the schema spells it by absence: a

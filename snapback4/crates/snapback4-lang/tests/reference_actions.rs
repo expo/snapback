@@ -371,6 +371,11 @@ fn diagnostics(source: &str) -> Vec<String> {
 #[test]
 fn check_refuses_what_a_column_cannot_carry() {
     let base = "table parents:\n  read <- allow\n  delete <- allow\n";
+    let missing_bound = snapback4_lang::compile(&[("schema.q".into(), format!("{base}table kids:\n  parent: parents on delete cascade\n  read <- allow\n"))]);
+    let bound = missing_bound.diagnostics.iter().find(|diagnostic| diagnostic.code == "E_CASCADE_BOUND")
+        .unwrap_or_else(|| panic!("{:#?}", missing_bound.diagnostics));
+    assert!(bound.message.contains("cap N by parent") && bound.message.contains("unique parent"), "{bound:#?}");
+    assert!(bound.rewrite.contains("unique parent"), "{bound:#?}");
     let cases = [
         ("table kids:\n  parent: parents on delete cascade\n  read <- allow\n", "E_CASCADE_BOUND"),
         ("table kids:\n  parent: parents on delete set null\n  cap 5 by parent\n  read <- allow\n", "E_REFERENCE_ACTION"),
