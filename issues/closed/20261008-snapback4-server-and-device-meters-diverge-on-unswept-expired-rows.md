@@ -1,6 +1,6 @@
 # Snapback 4 server and device meters diverge on unswept expired rows
 
-**Status:** Open
+**Status:** Closed (2026-10-12, ruled and implemented: the public meter charges only rows live at the read's clock; lane EX, branch `sb4/device-meter-expiry`)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -173,3 +173,51 @@ Recurrences:
 - 2026-10-12: run `20261012T000004Z-bbc18bf6`, seed `49255`, commit `1c47f02cd8faca7b0997644f4cc111711f7c8291`.
 
 - 2026-10-12: run `20261012T000004Z-bbc18bf6`, seed `43531`, commit `1c47f02cd8faca7b0997644f4cc111711f7c8291`.
+
+## Resolution
+
+**Ruling (Charlie, 2026-10-08):** the same principle as the heap ruling
+(LLP 3000.007 §20.24.5): the public meter charges only rows that are live at the
+read's clock. Stepping over expired, unswept rows is the store's internal work,
+bounded by an internal guard, never by the public meter. Data does not change.
+
+**Implementation** (LLP 3000.007 §20.24.6, engine-level, so SQLite, PostgreSQL,
+the core `MemoryRows` and both device stores share it):
+- `engine/authorized_point.rs::scan_authorized` steps over an expired candidate
+  inside its internal scope and fetches the next one; the candidate is never
+  returned, examined, counted toward a batch or `take`, used as a cursor
+  position, filtered, aggregated or added to `next_expiry`. A system read of an
+  expiring table keeps the store path through `live_store_scan`, which peeks
+  unpriced, steps over expired entries and lets the store price each run of live
+  entries as an ordinary page.
+- `engine/read.rs::authorized_candidate` (private pages) steps over expired
+  candidates without spending its walk.
+- `engine/live_aggregate.rs` (device recount) skips expired sources before
+  charging; `engine/aggregate_expiry.rs::backlog_aggregate` (server maintained
+  count) subtracts the expired backlog as store work.
+- `Runner::step_expired` (`engine/read.rs`) reserves 256 B plus the key per
+  stepped row on a per-execution ledger, adds it to `Meter::scratch`, returns the
+  row's unit of the 8,192-row authorization walk, and refuses `E_STORE_MEMORY`
+  past 256 MiB.
+
+**Tests.** `snapback4-difftest/tests/devices.rs`:
+`unswept_expired_rows_meter_the_same_on_the_server_and_the_device` (five query
+shapes, public and owner tables, devices acquired before and at the read clock,
+default ceilings and every boundary of every dimension, both device stores) and
+`a_cut_lands_in_the_same_place_before_and_after_the_sweep` (whole outcome record
+incl. `next` at every boundary, unswept against swept). Both fail on the old
+engine. About thirty existing tests pinned the old model (expired rows charged,
+backlogs cutting reads or refusing writes `E_BOUND`) and were updated to the
+ruling; where a test used an expired backlog only to force a cut, the cut now
+comes from a rejected live row or a lower ceiling so its original subject
+(retry without looping, unavailable aggregates) is still covered.
+
+**Docs.** Guide: the expire card, `programs`, `refusals`, `sequences`,
+`rules`, `maintains`, `bounds`, codes `E_BOUND`, why `E_STRUCTURAL_FANOUT`,
+`E_UNBOUND_LOOP`, `E_QUARRY_MAINTAIN_EXPIRE`, `E_QUARRY_LIVE_MAINTAIN_PROBE`;
+`check --cost` certificate wording (`crates/snapback4/src/scale.rs`); LLP 3000.007
+§20.24.6; LLP 3000.035 §5.1. Harness counts are in the journal entry.
+
+The ticket was copied into this branch from the generator lane's saved file
+before main carried it; on rebase, main's copy (with its scheduled recurrences)
+replaced that copy and moved here.

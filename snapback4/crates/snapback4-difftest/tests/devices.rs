@@ -86,6 +86,10 @@ fn retained_device_findings_still_reproduce() {
         match shrink::replay(&path).unwrap() {
             // Regression cases of the ruled exception (DIAGNOSIS.md): they replay as its name.
             Verdict::Named(n) if name.contains("--write-predicted-refused--") => assert_eq!(n, UNHELD_UNIQUE, "{name}"),
+            // Resolved by lane EX (DIAGNOSIS.md): a refusal after an unproved insert queues,
+            // and the meter charges only live rows (LLP 3000.007 §20.5, §20.24.6).
+            Verdict::Unsupported(r) if name.contains("--write-refused--") => assert_eq!(r, "prediction-declined", "{name}"),
+            Verdict::Pass if !name.contains("--write-") => {}
             Verdict::Disagree(f) => assert_eq!(f.signature, name),
             other => panic!("{name} no longer reproduces ({other:?}): diagnose, update its DIAGNOSIS.md and this test"),
         }
@@ -193,4 +197,164 @@ fn a_predicted_insert_over_a_hidden_secondary_unique_value_is_the_named_outcome(
     let mut upsert = case.clone();
     upsert.program.body = Body::Write(Write::Upsert, Expr::Int(1));
     assert!(!refused_over_unheld_unique(&upsert, &seeded_items(&upsert), &admitted, &refused("E_RULE"), &none, &none), "only a plain insert");
+}
+
+// @ref LLP 3000.007#20.24.6 — the public meter charges only rows live at the read's clock.
+const EXPIRING_PUBLIC: &str = "table items:\n  bucket: int\n  score: int\n  label: text <=64\n  until: time ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  expire at .until\n  sync public\n\n";
+const EXPIRING_OWNER: &str = "table items:\n  owner: principal\n  bucket: int\n  score: int\n  label: text <=64\n  tag: id\n  until: time ?\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  delete <- .owner = viewer\n  expire at .until\n  sync to .owner\n\ntable tags:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  delete <- .owner = viewer\n  sync to .owner\n\n";
+
+/// Unswept expired rows interleaved with live ones, at the read clock 1,000:
+/// expired long ago (100), expired at the read (1,000), expiring later
+/// (5,000, held by a device that acquired before 1,000), and never.
+fn expiring_case(owner: bool) -> snapback4_difftest::generate::Case {
+    let mut case = snapback4_difftest::generate::generate(0);
+    let untils = [json!(100), json!(null), json!(1000), json!(5000), json!(100), json!(null), json!(999), json!(1000), json!(null)];
+    case.rows = untils.iter().enumerate().map(|(n, until)| {
+        let mut row = json!({"id": format!("r{n}"), "bucket": 0, "score": (n % 3) as i64, "label": (["", "a", "é"][n % 3]), "until": until});
+        if owner { row["owner"] = json!("bob"); row["tag"] = json!(format!("tag{n}")); }
+        ("items".to_owned(), row)
+    }).collect();
+    if owner { case.rows.push(("tags".into(), json!({"id": "tag1", "owner": "bob"}))); }
+    case.principal = "bob".into();
+    case.args = json!({"c": null});
+    case.clock = 1000;
+    case
+}
+
+fn expiring_programs() -> Vec<(bool, &'static str)> {
+    vec![
+        (false, "query run(c: cursor ?):\n  return items where .bucket = 0 first 2 by .label, .score after c\n"),
+        (false, "query run(c: cursor ?):\n  return items where .bucket = 0 last 1 by .label, .score\n"),
+        (false, "query run(c: cursor ?):\n  return count(items where .bucket = 0)\n"),
+        (true, "query run(c: cursor ?):\n  return items where .bucket = 0 and .owner = viewer last 3 by .label, .score after c { id, t: tags[.tag] }\n"),
+        (true, "query run(c: cursor ?):\n  return sum(items where .bucket = 0 and .owner = viewer, .score)\n"),
+    ]
+}
+
+#[test]
+fn unswept_expired_rows_meter_the_same_on_the_server_and_the_device() {
+    for (owner, query) in expiring_programs() {
+        let case = expiring_case(owner);
+        let source = format!("{}{query}", if owner { EXPIRING_OWNER } else { EXPIRING_PUBLIC });
+        // A device that acquired at the read clock never received the expired
+        // rows; one that acquired earlier holds rows that expired since.
+        for acquired_at in [case.clock, 500] {
+            for store in devices::STORES {
+                let mut server = devices::server(&case, &source).unwrap();
+                let mut files = devices::Files::new().unwrap();
+                let mut dev = devices::open(store, &mut files, &server.backend).unwrap();
+                devices::acquire(dev.as_mut(), &mut server, &case.principal, 2, acquired_at).unwrap();
+                let oracle = devices::store_oracle(store, "read", 0);
+                let (verdict, classes) = devices::compare_read(&oracle, &mut server, dev.as_mut(), &case);
+                assert!(matches!(verdict, Verdict::Pass), "{store} acquired at {acquired_at}: {query}{verdict:#?}");
+                assert!(classes.iter().all(|c| c == "complete"), "{classes:?}");
+                for dimension in snapback4_difftest::oracle::DIMENSIONS {
+                    for n in devices::boundaries(&mut server, &case, dimension).unwrap() {
+                        let oracle = devices::store_oracle(store, dimension, n);
+                        let verdict = devices::compare_cut(&oracle, &mut server, dev.as_mut(), &case, dimension, n);
+                        assert!(!matches!(verdict, Verdict::Disagree(_)), "{store} acquired at {acquired_at}, {dimension} {n}: {query}{verdict:#?}");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_cut_lands_in_the_same_place_before_and_after_the_sweep() {
+    use snapback4_difftest::execute;
+    for (owner, query) in expiring_programs() {
+        let case = expiring_case(owner);
+        let source = format!("{}{query}", if owner { EXPIRING_OWNER } else { EXPIRING_PUBLIC });
+        let mut unswept = devices::server(&case, &source).unwrap();
+        let mut swept = devices::server(&case, &source).unwrap();
+        assert!(swept.engine.sweep_expired(case.clock, 1000).unwrap() > 0);
+        let read = |server: &mut devices::Server, ceilings: snapback4_core::Ceilings| {
+            server.engine.set_ceilings(ceilings);
+            let mut outcome = execute::execute(&mut server.engine, &case, "run", &case.args);
+            outcome.value.as_object_mut().unwrap().remove("seq");
+            outcome
+        };
+        for dimension in snapback4_difftest::oracle::DIMENSIONS {
+            let mut positions = devices::boundaries(&mut swept, &case, dimension).unwrap();
+            positions.extend(devices::boundaries(&mut unswept, &case, dimension).unwrap());
+            for n in positions {
+                let ceilings = devices::ceilings(dimension, n);
+                let (before, after) = (read(&mut unswept, ceilings), read(&mut swept, ceilings));
+                assert_eq!(before.value, after.value, "{dimension} {n}: {query}");
+            }
+        }
+        let (before, after) = (read(&mut unswept, Default::default()), read(&mut swept, Default::default()));
+        assert_eq!(before.value, after.value, "{query}");
+    }
+}
+
+const BLOCK_TABLE: &str = "table items:\n  owner: principal\n  bucket: int\n  score: int\n  label: text <=64\n  tag: id\n  unique byTag: tag\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  delete <- .owner = viewer\n  sync to .owner\n\ntable notes:\n  owner: principal\n  body: text <=64\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\n\nquery observe(key: id):\n  return items[key]\n\n";
+
+/// Admit `body` as `run` on both device stores after acquiring alice's
+/// partition (bob holds `r0` with tag `tag0`, which alice cannot see), then
+/// run it through the harness's write comparison: the device's admission
+/// reply and the write and convergence verdicts.
+fn admit_block(body: &str, args: serde_json::Value) -> Vec<(serde_json::Value, [(String, Verdict); 2])> {
+    let mut case = unheld_id_case();
+    case.rows = vec![("items".into(), json!({"id": "r0", "owner": "bob", "bucket": 1, "score": 0, "label": "", "tag": "tag0"}))];
+    case.principal = "alice".into();
+    case.args = args;
+    let source = format!("{BLOCK_TABLE}mutation run(key: id, k2: id, a: int, b: int):\n{body}");
+    let mut out = Vec::new();
+    for store in devices::STORES {
+        let mut server = devices::server(&case, &source).unwrap();
+        let mut files = devices::Files::new().unwrap();
+        let mut dev = devices::open(store, &mut files, &server.backend).unwrap();
+        devices::acquire(dev.as_mut(), &mut server, &case.principal, 5, case.clock).unwrap();
+        // The same admission the harness makes, kept for its reply.
+        let entry = json!({"id": "probe", "seq": 1, "op": "run", "args": case.args, "viewer": case.principal, "now": case.clock,
+            "new_ids": (0..8).map(|i| format!("minted-{i}")).collect::<Vec<_>>(), "predictable": true, "predicted": [], "replay_candidate": false});
+        let admitted = dev.call_text(&json!({"op": "admit", "entry": entry}).to_string());
+        if admitted.get("ok").is_some() {
+            assert!(dev.call_text(&json!({"op": "settle", "id": "probe", "store_id": server.store_id}).to_string()).get("denied").is_none());
+        }
+        let mut report = snapback4_difftest::campaign::Report::default();
+        let verdicts = snapback4_difftest::device_writes::compare(store, &mut server, dev.as_mut(), &case, &mut report).unwrap();
+        out.push((admitted, verdicts));
+    }
+    out
+}
+
+// @ref LLP 3000.007#20.5 — a refusal after an unproved prediction is the server's to report.
+#[test]
+fn a_refusal_after_an_unproved_insert_queues_for_the_server() {
+    let args = json!({"key": "r0", "k2": "fresh", "a": 0, "b": 9007199254740991_i64});
+    for body in [
+        // The id belongs to bob's row: the server refuses E_RULE at the first insert.
+        "  insert items { id: key, owner: viewer, bucket: 0, score: a, label: 'x', tag: 'mine' }\n  insert items { id: key, owner: viewer, bucket: 0, score: a, label: 'x', tag: 'mine2' }\n  return false\n",
+        "  insert items { id: key, owner: viewer, bucket: 0, score: a, label: 'x', tag: 'mine' }\n  delete items[key]\n  delete items[key]\n  return 0\n",
+        // A fresh id whose tag bob's row holds: still E_RULE on the server. (A
+        // minted id would not help: the tag's population is unproved too.)
+        "  insert items { id: k2, owner: viewer, bucket: 0, score: b, label: 'x', tag: 'tag0' }\n  v1 = (b * (items[k2].score ?? 0))\n  return 0\n",
+    ] {
+        for (admitted, [(_, write), (_, converge)]) in admit_block(body, args.clone()) {
+            assert!(admitted.get("denied").is_none(), "{body}{admitted}");
+            assert_eq!((admitted["ok"]["predictable"].clone(), admitted["ok"]["predicted"].clone()), (json!(false), json!([])), "{body}{admitted}");
+            assert!(matches!(&write, Verdict::Unsupported(r) if r == "prediction-declined"), "{body}{write:?}");
+            assert!(matches!(converge, Verdict::Pass), "{body}{converge:?}");
+        }
+    }
+}
+
+#[test]
+fn a_refusal_the_device_can_prove_stays_final_and_local() {
+    let args = json!({"key": "r9", "k2": "fresh", "a": 0, "b": 9007199254740991_i64});
+    for (body, code) in [
+        // A minted id on a table with no other unique key or cap: nothing to prove.
+        ("  insert notes { owner: viewer, body: 'x' }\n  v1 = (b * b)\n  return 0\n", "E_OVERFLOW"),
+        // No write precedes the refusal.
+        ("  v1 = (b * b)\n  insert items { id: key, owner: viewer, bucket: 0, score: a, label: 'x', tag: 'mine' }\n  return 0\n", "E_OVERFLOW"),
+    ] {
+        for (admitted, [(_, write), (_, converge)]) in admit_block(body, args.clone()) {
+            assert_eq!(admitted["denied"]["code"], json!(code), "{body}{admitted}");
+            assert!(matches!(write, Verdict::Pass), "{body}{write:?}");
+            assert!(matches!(converge, Verdict::Pass), "{body}{converge:?}");
+        }
+    }
 }
