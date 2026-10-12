@@ -320,9 +320,46 @@ def examples : List Example := [
     expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# }
 ]
 
+/-! ## Merged pages (LLP 3000.036.001) -/
+
+/-- Owner-or-assignee: a read rule of two parties. -/
+def tasks : Schema := { tables := [{
+  name := "tasks", cols := [c "owner", c "helper" (nullable := true), c "n"]
+  read := .or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer)
+  insert := .eq (self "owner") .viewer }] }
+
+def taskStore : Store := mkStore [("tasks", [
+  mkRow "k1" [("owner", I "alice"), ("helper", .null), ("n", N 2)],
+  mkRow "k2" [("owner", I "bob"), ("helper", I "alice"), ("n", N 0)],
+  mkRow "k3" [("owner", I "bob"), ("helper", .null), ("n", N 5)],
+  mkRow "k4" [("owner", I "carol"), ("helper", I "bob"), ("n", N 3)]])]
+
+def merged : List Example := [
+  { name := "page-parties-merged"
+    source := "LLP 3000.036.001 §2 case 2: a read rule of parties supplies the branches; the page is complete"
+    case := { schema := tasks, store := taskStore, viewer := alice,
+              program := query [.ret (.page "tasks" [] none [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2},{"id":"k2","owner":"bob","helper":"alice","n":0}],"complete":true,"next":null}"# },
+  { name := "page-where-branches"
+    source := "LLP 3000.036.001 §2 case 1: each alternative of the where's or pins a party; the page is complete"
+    case := { schema := tasks, store := taskStore, viewer := bob,
+              program := query [.ret (.page "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))) [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob","helper":"alice","n":0},{"id":"k3","owner":"bob","helper":null,"n":5},{"id":"k4","owner":"carol","helper":"bob","n":3}],"complete":true,"next":null}"# },
+  { name := "page-merged-lookahead"
+    source := "LLP 3000.036.001 §5: a merged page continues only when another matching row follows"
+    case := { schema := tasks, store := taskStore, viewer := alice, args := [("c", .null)],
+              program := query [.ret (.page "tasks" [] (some (.bin .gt (.dot "n") (int 1))) [] false 1 (some (.var "c")))] [p "c" true] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2}],"complete":true,"next":null}"# } ]
+
+/-- Every example. -/
+def all : List Example := examples ++ merged
+
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=
-  examples.filterMap fun ex =>
+  all.filterMap fun ex =>
     let got := (run ex.case).toJson ex.tables
     match Json.parse ex.expected with
     | .ok want => if got == want then none else some (ex.name, want.compress, got.compress)

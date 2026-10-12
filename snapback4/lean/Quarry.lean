@@ -13,3 +13,4 @@ import Quarry.Proofs.Determinism
 import Quarry.Proofs.ShortCircuit
 import Quarry.Proofs.Hoare
 import Quarry.Proofs.Continuation
+import Quarry.Proofs.Branches

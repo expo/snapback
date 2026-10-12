@@ -23,6 +23,8 @@ open Quarry
 #print axioms existsRead_eq
 #print axioms query_ignores_hidden_insert
 #print axioms pageRead_complete
+#print axioms partyLeaves_cover
+#print axioms parties_cover_view
 #print axioms walk_complete
 #print axioms cut_continuation
 #print axioms applyWrite_authorized

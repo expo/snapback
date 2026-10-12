@@ -223,6 +223,11 @@ rule hides?**
   carries `next` even when no candidate follows; that cursor returns an empty
   page. Data and `complete` agree. The card permits both behaviours; no
   document says a terminal full page must omit `next`. Open.
+- *Merged pages (2026-10-12, LLP 3000.036.001 §5):* a branch-decided page is
+  a merge that knows each branch's next matching row, so it carries `next`
+  after a full page exactly when another matching row follows; the model's
+  lookahead for those pages applies the filter (`lookahead`). On 20,000
+  cases, 691 merged pages were compared and none disagreed.
 
 **C9. Does a page without `after` carry `next`? (confirmed)**
 - *Documents:* LLP 3000.027 §1: "A cursorless top-N answer has no `next`; a
@@ -273,11 +278,29 @@ rule hides?**
 - *Source:* the bounds card: "never a partial count", "a mutation aborts
   with `E_BOUND`".
 
-**C8. When is a page uniform?**
-- *Model:* a page is uniform exactly when every row column its table's read
-  rule reads is pinned by an equality in the predicate. A non-uniform page
-  is never complete.
-- *Source:* the bounds card and `N_NEVER_COMPLETE`.
+**C8. When is a page decided?**
+- *Model (revised 2026-10-12, LLP 3000.036.001):* a page is *decided* when
+  its pins decide the read rule: every row column its table's read rule
+  reads is pinned by an equality in the predicate, or the rule is true by
+  the pins' form (a `.col = viewer` disjunct pinned to `viewer`, a `.col =
+  'x'` disjunct pinned to `'x'`, and `and`/`or` of those: `Rule.byForm`). A
+  query page its pins do not decide is still decided when it is
+  *branch-decided* (`branchDecided`): its predicate is total (comparisons and
+  boolean operators over columns, locals, literals and `viewer`), and either
+  the one top-level `or` of its `where` has 2–8 alternatives that each pin a
+  prefix (`.col = e`, not `id`, a nullable column only to `viewer`) deciding
+  the rule, or its read rule is an `or` of at least two parties (`.col =
+  viewer`), with at most 8 branches (alternatives × parties) and no branch
+  pinning an order column. The page's rows and order are unchanged; a page
+  that is not decided is never complete. A branch-decided page is the
+  engine's merged page, whose `next` after a full page needs another
+  *matching* row (C2). `parties_cover_view` proves the party branches miss
+  no readable row.
+- *Source:* the bounds card, `N_NEVER_COMPLETE`, LLP 3000.036.001 §2.
+- *Not modelled:* readable grants (§12.1; the emitter's `read-grant`
+  exclusion stands), the planner's exclusions outside the fragment (explicit
+  indexes, search, maintained views), and pages in helpers, which the engine
+  never merges (the generator puts none there).
 - *Engine (observed):* agrees on `complete` for all 1,343 compared
   non-uniform pages. A `count` or `sum` whose read rule its pins do not decide
   is refused at check (`E_QUARRY_BOUND`), so C5 cannot arise for an unpaged

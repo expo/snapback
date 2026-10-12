@@ -153,6 +153,135 @@ def uniform (sch : Schema) (t : String) (pins : List (String × Scalar)) : Bool 
   | some td => td.read.selfCols.all fun c => pins.any (·.1 == c)
   | none => false
 
+/-! ### Decided pages (OPEN C8, LLP 3000.036.001)
+
+A page is *decided* when its pins decide the read rule: every row column the
+rule reads is pinned, or the rule is true by the pins' form (a `.col = viewer`
+disjunct pinned to `viewer`, a `.col = 'x'` disjunct pinned to `'x'`). A query
+page whose pins do not decide the rule may still be *branch-decided*: its
+`where` is one `or` whose alternatives each pin a prefix that decides the rule,
+or its read rule is an `or` of parties (`.col = viewer`). The engine reads such
+a page as the merge of its branches; every branch's rows are decided by its
+own pins, so the page is complete. The page's rows, order and cursor are the
+same either way. -/
+
+/-- A predicate whose evaluation never refuses: comparisons and boolean
+operators over columns, locals, literals and `viewer`. -/
+def Expr.total : Expr → Bool
+  | .lit _ | .var _ | .viewer | .dot _ => true
+  | .field e _ | .not e => e.total
+  | .bin op a b => (op == .eq || op == .ne || op == .lt || op == .le || op == .gt || op == .ge) && a.total && b.total
+  | .and a b | .or a b => a.total && b.total
+  | _ => false
+
+/-- Reads no column of the row (conservatively: only the total forms). -/
+def Expr.rowFree : Expr → Bool
+  | .lit _ | .var _ | .viewer => true
+  | .field e _ | .not e => e.rowFree
+  | .bin _ a b | .and a b | .or a b => a.rowFree && b.rowFree
+  | _ => false
+
+def Expr.conjuncts : Expr → List Expr
+  | .and a b => a.conjuncts ++ b.conjuncts
+  | e => [e]
+
+def Expr.disjuncts : Expr → List Expr
+  | .or a b => a.disjuncts ++ b.disjuncts
+  | e => [e]
+
+def Expr.isOr : Expr → Bool
+  | .or _ _ => true
+  | _ => false
+
+def Expr.isViewer : Expr → Bool
+  | .viewer => true
+  | _ => false
+
+/-- `.col = e` with `e` free of the row, or a bare boolean column: a
+conjunct the planner can turn into an index pin. -/
+def Expr.eqPin : Expr → Option (String × Expr)
+  | .bin .eq (.dot c) e => if e.rowFree then some (c, e) else none
+  | .bin .eq e (.dot c) => if e.rowFree then some (c, e) else none
+  | .dot c => some (c, .lit (.ofBool true))
+  | .not (.dot c) => some (c, .lit (.ofBool false))
+  | _ => none
+
+/-- The first pin on column `c`: the planner pins each column once. -/
+def pinOf (pins : List (String × Expr)) (c : String) : Option Expr :=
+  (pins.find? (·.1 == c)).map (·.2)
+
+def pinnedLit (pins : List (String × Expr)) (c : String) (v : Scalar) : Bool :=
+  match pinOf pins c with
+  | some (.lit (.s x)) => decide (x = v)
+  | _ => false
+
+def pinnedViewer (pins : List (String × Expr)) (c : String) : Bool :=
+  (pinOf pins c).any Expr.isViewer
+
+/-- The rule is true for every row the pins select, by the pins' form. -/
+def Rule.byForm (pins : List (String × Expr)) : Rule → Bool
+  | .allow => true
+  | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => pinnedViewer pins c
+  | .eq (.col .self c) (.lit v) | .eq (.lit v) (.col .self c) => pinnedLit pins c v
+  | .or a b => a.byForm pins || b.byForm pins
+  | .and a b => a.byForm pins && b.byForm pins
+  | _ => false
+
+/-- The pins decide the read rule. -/
+def decidedPins (td : TableDecl) (pins : List (String × Expr)) : Bool :=
+  td.read.selfCols.all (fun c => pins.any (·.1 == c)) || td.read.byForm pins
+
+/-- The parties of a read rule that is an `or` of at least two `.col = viewer`
+disjuncts, and nothing else. -/
+def Rule.partyLeaves : Rule → Option (List String)
+  | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some [c]
+  | .or a b => do return (← a.partyLeaves) ++ (← b.partyLeaves)
+  | _ => none
+
+def Rule.parties (r : Rule) : Option (List String) :=
+  match r with
+  | .or _ _ => r.partyLeaves.map List.eraseDups
+  | _ => none
+
+/-- An alternative's eligible pin: not `id`, and on a nullable column only
+`viewer` (a branch never seeks a null the filter would reject). -/
+def eligiblePin (td : TableDecl) (e : Expr) : Bool :=
+  match e.eqPin with
+  | some (c, v) => c != "id" && (td.cols.any fun d => d.name == c && (!d.nullable || v.isViewer))
+  | none => false
+
+/-- A branch's prefix: its own equalities first, then the page's pins, each
+column once, never `id` or an order column (a merge lane keeps those as
+seeks), within an index's 8 components. -/
+def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
+  let lane := (eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1
+  (lane.map (·.1)).eraseDups.length + order.length + 1 ≤ 8 && decidedPins td lane
+
+/-- The branch rule of LLP 3000.036.001 §2 (cases 1 and 2; grants are outside
+the model, `read-grant`). -/
+def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
+    (filter : Option Expr) (order : List String) : Bool :=
+  match sch.table? t with
+  | none => false
+  | some td =>
+    let fs := (filter.map Expr.conjuncts).getD []
+    let total := pins.all (fun p => p.2.total) && fs.all Expr.total
+    let alts : Option (List (List Expr)) :=
+      match fs.filter Expr.isOr with
+      | [o] =>
+        let as := o.disjuncts
+        if 2 ≤ as.length && as.length ≤ 8 && as.all (fun a => a.conjuncts.any (eligiblePin td))
+        then some (as.map Expr.conjuncts) else none
+      | _ => none
+    let case1 := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
+    let case2 := match td.read.parties with
+      | some ps =>
+        let bases := alts.getD [[]]
+        ps.all (fun c => c != "id" && !order.contains c) && bases.length * ps.length ≤ 8
+          && bases.all fun a => ps.all fun c => laneDecided td order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
+      | none => false
+    total && (case1 || case2)
+
 def keyValue (k : Key) : Value := .arr (k.map .s)
 
 def parseCursor (order : List String) : Value → EM (Option Key)
@@ -185,18 +314,35 @@ def pageAnswer (order : List String) (w : Walk) : Value × Option Value :=
     | _ => w.last.map fun r => keyValue (rowKey order r)
   (.arr (w.rows.map Row.toValue), some (next.getD .null))
 
+/-- Whether any of `rs` passes the filter. -/
+def anyMatch (f : Row → EM Bool) : List Row → EM Bool
+  | [] => pure false
+  | r :: rs => do if ← f r then pure true else anyMatch f rs
+
+/-- After a full page, whether `next` is kept: always, except that a merged
+page keeps it only when a matching row follows. -/
+def lookahead (filt : Row → EM Bool) (order : List String) (desc : Bool) (merged : Bool) (w : Walk)
+    (cs : List Row) : EM Bool :=
+  if merged && w.stop = .filled then anyMatch filt (afterCursor order desc (w.last.map (rowKey order)) cs)
+  else pure true
+
 /-- A page: walk the candidates; a cut page is incomplete (and refuses
-`E_BOUND` in a mutation); a page whose read rule the pins do not decide is
-never complete; `next` follows the last examined row unless the walk
-exhausted the candidates (reads card; LLP 3000.007 §5.6). -/
+`E_BOUND` in a mutation); a page that is not `decided` is never complete;
+`next` follows the last examined row unless the walk exhausted the
+candidates (reads card; LLP 3000.007 §5.6). A `merged` page (the merge of its
+branches) carries `next` after a full page only when another *matching* row
+follows: the merge knows each branch's next matching row (LLP 3000.036.001 §5). -/
 def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
-    (filt : Row → EM Bool) (order : List String) (desc : Bool) (take : Nat) (cur : Option Key) :
+    (filt : Row → EM Bool) (order : List String) (desc : Bool) (take : Nat) (cur : Option Key)
+    (decided : Bool) (merged : Bool) :
     EM (Value × Option Value) := do
-  let w ← walk filt cx.budget take [] none (candidates vw t ps order desc cur)
+  let cs := candidates vw t ps order desc cur
+  let w ← walk filt cx.budget take [] none cs
   if w.stop = .cut && cx.mutation then refuse "E_BOUND"
   else do
-    markIf (w.stop = .cut || !(uniform cx.schema t ps))
-    pure (pageAnswer order w)
+    let more ← lookahead filt order desc merged w cs
+    markIf (w.stop = .cut || !decided)
+    pure (pageAnswer order (if more then w else { w with stop := .exhausted }))
 
 /-- `count(domain)`: the number of visible rows that match, or unavailable
 when cut (bounds card). -/
@@ -301,7 +447,11 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       let cur ← match after with
         | none => pure none
         | some a => do parseCursor order (← ev a).1
-      let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur
+      let decided := match cx.schema.table? t with
+        | some td => decidedPins td pins
+        | none => false
+      let merged := !decided && !cx.mutation && branchDecided cx.schema t pins f order
+      let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur (decided || merged) merged
       -- A cursorless page (no `after`) has no continuation: "A cursorless
       -- top-N answer has no `next`" (LLP 3000.027 §1; OPEN C9).
       pure (v, if after.isSome then nx else some .null)
