@@ -1,0 +1,101 @@
+// @ref LLP 3000.007#20.24.1 — an interrupted predicate has no verdict; never skip its candidate.
+mod common;
+use common::*;
+use serde_json::json;
+use snapback4_core::{Ceilings, Value, engine::QueryOutcome, value::object};
+use snapback4_device::{call::call, device::Device, store::DeviceStore};
+
+fn query<S: DeviceStore>(device: &mut Device<S>, op: &str, ceilings: Ceilings) -> serde_json::Value {
+    let mut spent = serde_json::to_value(Ceilings::default()).unwrap();
+    let limits = serde_json::to_value(ceilings).unwrap();
+    for (key, value) in spent.as_object_mut().unwrap() { *value = json!(value.as_u64().unwrap() - limits[key].as_u64().unwrap()); }
+    let result = call(device, json!({"op":"query", "name":op, "viewer":"alice", "args":{"c":null}, "now":0, "spent":spent}));
+    let mut out = result["ok"].clone();
+    assert!(out.is_object(), "{result}");
+    if let Some(meter) = out["metered"].as_object_mut() {
+        for (key, value) in meter { *value = json!(value.as_u64().unwrap() - spent[key].as_u64().unwrap()); }
+    }
+    out
+}
+
+const SOURCE: &str = include_str!("cut/predicates.q");
+fn ids(out: &QueryOutcome) -> Vec<String> {
+    out.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().as_str().unwrap().into()).collect()
+}
+fn predicates<H: Host>(host: &mut H) {
+    let (mut engine, backend) = compile(SOURCE);
+    engine.seed(vec![
+        ("metas".into(), object([("id", id("m1")), ("ok", Value::Bool(true))])),
+        ("tasks".into(), object([("id", id("t1")), ("owner", id("alice")), ("meta", id("m1")), ("at", Value::Int(10))])),
+        ("tasks".into(), object([("id", id("t2")), ("owner", id("alice")), ("meta", id("m1")), ("at", Value::Int(5))])),
+    ]).unwrap();
+    let mut device = host.open("cut", Some(backend.clone())).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "alice", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    for (op, expected) in [("flagged", vec!["t1", "t2"]), ("ascending", vec!["t2", "t1"]), ("lookahead", vec!["t1", "t2"])] {
+        for budget in 1..=5 {
+            let args = [("c", Value::Null)];
+            let ceilings = Ceilings { examined: budget, ..Default::default() };
+            engine.set_ceilings(ceilings);
+            let server = engine.query(op, context("alice", &args)).unwrap();
+            let held = query(&mut device, op, ceilings);
+            assert_eq!(held["unknown"], false, "{} {op}/{budget}", host.label());
+            assert_eq!(held["data"], snapback4_core::wire::to_json(&server.data));
+            assert_eq!(held["next"], json!(server.next));
+            for first in [server] {
+                let mut rows = ids(&first);
+                let mut next = first.next;
+                engine.set_ceilings(Ceilings::unbounded());
+                for _ in 0..4 {
+                    let Some(cursor) = next.take() else { break; };
+                    let out = engine.query(op, context("alice", &[("c", Value::String(cursor))])).unwrap();
+                    rows.extend(ids(&out)); next = out.next;
+                }
+                assert!(next.is_none());
+                assert_eq!(rows, expected, "{} {op}/{budget}: interrupted predicates must not skip or duplicate a match", host.label());
+            }
+        }
+    }
+    // Repeating a starved inclusive follow must terminate, never mint a loop.
+    engine.set_ceilings(Ceilings { examined: 1, ..Default::default() });
+    let first = engine.query("flagged", context("alice", &[("c", Value::Null)])).unwrap();
+    let cursor = first.next.unwrap();
+    let again = engine.query("flagged", context("alice", &[("c", Value::String(cursor))])).unwrap();
+    assert!(ids(&again).is_empty() && !again.complete && again.next.is_none());
+}
+#[test] fn memory_predicate_read_cut_never_loses_a_row() { predicates(&mut Memory::new()); }
+#[test] fn sqlite_predicate_read_cut_never_loses_a_row() { predicates(&mut Sqlite::new("predicate-cut")); }
+
+// @ref LLP 3000.007#20.24.6 — delivered uniform pages pay the server's logical prefix verdict.
+fn group_meter<H: Host>(host: &mut H) {
+    let source = include_str!("cut/groups.q");
+    let (mut engine, backend) = compile(source);
+    let mut rows = vec![("access".into(), object([("id", id("a")), ("bucket", Value::Int(1)), ("principal", id("alice"))]))];
+    for n in 0..3 { rows.push(("items".into(), object([("id", id(&format!("r{n}"))), ("bucket", Value::Int(1)), ("score", Value::Int(n))]))); }
+    engine.seed(rows).unwrap();
+    let mut device = host.open("groups", Some(backend.clone())).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "alice", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    for op in ["one", "two"] {
+        // Sweep all public meter boundaries, including prefix admission at zero probes.
+        engine.set_ceilings(Ceilings::default());
+        let baseline = engine.query(op, context("alice", &[("c", Value::Null)])).unwrap();
+        assert!(baseline.metered.rule_probes > 0);
+        for dimension in ["examined", "index_entries", "rule_probes", "steps", "heap_bytes", "output_bytes"] {
+            let value = serde_json::to_value(&baseline.metered).unwrap()[dimension].as_u64().unwrap();
+            for n in [0, 1, value.saturating_sub(1), value, value + 1] {
+                let mut limits = serde_json::to_value(Ceilings::default()).unwrap(); limits[dimension] = json!(n);
+                let ceilings: Ceilings = serde_json::from_value(limits).unwrap();
+                engine.set_ceilings(ceilings);
+                let server = engine.query(op, context("alice", &[("c", Value::Null)])).unwrap();
+                let held = query(&mut device, op, ceilings);
+                assert_eq!(held["unknown"], false, "{} {op}/{dimension}/{n}", host.label());
+                for (key, expected) in [("data", snapback4_core::wire::to_json(&server.data)),
+                    ("complete", json!(server.complete)), ("cut", json!(server.cut)), ("next", json!(server.next)),
+                    ("metered", json!(server.metered)), ("nextExpiry", json!(server.next_expiry))] {
+                    assert_eq!(held[key], expected, "{} {op}/{dimension}/{n}/{key}", host.label());
+                }
+            }
+        }
+    }
+}
+#[test] fn memory_group_prefix_meter_matches_server() { group_meter(&mut Memory::new()); }
+#[test] fn sqlite_group_prefix_meter_matches_server() { group_meter(&mut Sqlite::new("group-meter")); }
