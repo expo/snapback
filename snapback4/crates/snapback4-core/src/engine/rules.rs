@@ -562,7 +562,8 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     let Some(outer_column) = outer_column else { return false };
     if outer_column == "id" { return false; }
     let fixed = |column: &String| source_index.components.iter().zip(&source.prefix)
-        .find_map(|(part, key)| (part.column() == Some(column)).then(|| key.scalar()).flatten());
+        .find_map(|(part, key)| (part.column() == Some(column)).then(|| key.scalar()).flatten())
+        .or_else(|| source.filter.as_deref().and_then(|filter| required_source_equality(filter, column)));
     any_disjunct(&outer_table.rules.read, &|rule| {
         let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
         let Some(probe_index) = source_table.index(index) else { return false };
@@ -572,6 +573,26 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
         probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
             && equalities.iter().all(|(column, term)| matches(column, term))
     })
+}
+
+/// A generated membership discovery filter may retain an exact fixed probe
+/// component after its capped prefix (`id = 'm1'`, for example). Only a bare
+/// equality in the filter's conjunction is a necessary fact about every
+/// discovered row; alternatives and other implications remain unsupported.
+// @ref LLP 3000.036.001#14 — fixed membership witness columns may be proved by exact source residuals.
+fn required_source_equality<'a>(filter: &'a Expr, column: &str) -> Option<&'a Expr> {
+    match filter {
+        Expr::Binary { op: crate::ir::BinaryOp::And, left, right } =>
+            required_source_equality(left, column).or_else(|| required_source_equality(right, column)),
+        Expr::Binary { op: crate::ir::BinaryOp::Eq, left, right } if source_field(left, column) => Some(right),
+        Expr::Binary { op: crate::ir::BinaryOp::Eq, left, right } if source_field(right, column) => Some(left),
+        _ => None,
+    }
+}
+
+fn source_field(expr: &Expr, column: &str) -> bool {
+    matches!(expr, Expr::Field { base, name }
+        if name == column && matches!(base.as_ref(), Expr::Variable(binding) if binding == "$filter"))
 }
 
 fn term_matches_expr(term: &RuleTerm, expr: &Expr) -> bool {

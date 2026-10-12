@@ -309,12 +309,14 @@ fn apply_snapshot<S: snapback4_device::store::DeviceStore>(
 fn owner_membership_boundaries<H: Host>(host: &mut H) {
     let expiring = OWNER_MEMBERSHIP
         .replace("  principal: principal\n  unique", "  principal: principal\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  unique")
+        .replace("read <- .owner = viewer or exists memberships[.parent, viewer]",
+            "read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]")
         .replace("  sync to .principal", "  online only")
         .replace("  sync to .owner or memberships[.parent]", "  online only");
     let (mut engine, backend) = compile(&expiring);
     engine.seed(owner_membership_rows(true)).unwrap();
     let server = walk_server(&mut engine, "documents", "ann", &[]);
-    assert_eq!(server, (vec!["d5".into(), "d3".into(), "d1".into()], true));
+    assert_eq!(server, (vec!["d3".into(), "d1".into()], true));
     let pages = snapshot_pages(&mut engine, "ann", 2);
     assert!(
         pages
@@ -338,6 +340,8 @@ fn owner_membership_boundaries<H: Host>(host: &mut H) {
             "  unique parent, principal",
             "  unique parent, principal\n  by byPrincipalParent: principal, parent, id",
         )
+        .replace("read <- .owner = viewer or exists memberships[.parent, viewer]",
+            "read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]")
         .replace(
             "  sync to .principal",
             "  sync to .principal last 1 by byPrincipalParent",

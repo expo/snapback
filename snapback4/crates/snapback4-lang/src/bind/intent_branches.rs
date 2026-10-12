@@ -113,7 +113,8 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             // Uniform denial is not an empty discovery range. PAGE may commit
             // its speculative indexes only when the fixed source pins prove
             // a true read-rule disjunct, matching the core validator.
-            if !membership_source_capped(tables, source) || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
+            if !membership_source_witness(tables, synthesized, table, predicate, source)
+                || !membership_source_capped(tables, source) || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
                 || !candidate.branch_index_fits(source_table, source) { return None; }
             push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
                 lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
@@ -123,6 +124,43 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
         cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+/// Confirm, while requests still live in the throwaway candidate, that every
+/// fixed probe component survived source planning as either a prefix pin or
+/// an exact necessary residual equality. The core repeats this check on bound
+/// IR; keeping it here prevents a later fallback from retaining unused indexes.
+// @ref LLP 3000.036.001#14 — membership candidates commit only after their complete witness is visible in discovery.
+fn membership_source_witness(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>,
+    focal: &TableInfo, predicate: &Expr, source: &ReadExpr) -> bool {
+    let Expr::Exists { read: probe, .. } = predicate else { return false };
+    let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, probe) else { return false };
+    probe.keys.iter().zip(columns).all(|(key, column)| intent::column(&key.value).is_some()
+        || source_fixed(source, &column, &key.value))
+}
+
+fn source_fixed(source: &ReadExpr, column: &str, value: &Expr) -> bool {
+    source.keys.iter().any(|key| key.column.as_deref() == Some(column) && same_fixed(&key.value, value))
+        || source.filter.as_deref().is_some_and(|filter| required_source_equality(filter, column, value))
+}
+
+fn required_source_equality(filter: &Expr, column: &str, value: &Expr) -> bool {
+    match filter {
+        Expr::Binary { op, left, right, .. } if op == "and" =>
+            required_source_equality(left, column, value) || required_source_equality(right, column, value),
+        Expr::Binary { op, left, right, .. } if op == "=" && intent::column(left) == Some(column) => same_fixed(right, value),
+        Expr::Binary { op, left, right, .. } if op == "=" && intent::column(right) == Some(column) => same_fixed(left, value),
+        _ => false,
+    }
+}
+
+fn same_fixed(left: &Expr, right: &Expr) -> bool {
+    match (left, right) {
+        (Expr::Name { name: a, .. }, Expr::Name { name: b, .. }) => a == b,
+        (Expr::Literal { value: a, .. }, Expr::Literal { value: b, .. }) => a == b,
+        (Expr::Unary { op: a, value: av, .. }, Expr::Unary { op: b, value: bv, .. }) => a == b && same_fixed(av, bv),
+        _ => false,
+    }
 }
 
 fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec<MergeLane>, order: &mut Option<Vec<String>>, lane: ReadExpr,

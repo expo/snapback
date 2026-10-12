@@ -922,6 +922,11 @@ fn document(name: &'static str, owner: &str, parent: &str, at: i64) -> (&'static
     ("documents", vec![("id", id(name)), ("owner", id(owner)), ("parent", Value::String(parent.into())), ("at", Value::Int(at))])
 }
 
+fn fixed_membership_source() -> String {
+    OWNER_MEMBERSHIP.replace("exists memberships[.parent, viewer]",
+        "exists memberships[id = 'm1', parent = .parent, principal = viewer]")
+}
+
 #[test]
 fn owner_or_capped_membership_walks_one_complete_cursor() {
     let b = clean(OWNER_MEMBERSHIP);
@@ -963,6 +968,52 @@ fn reordered_named_membership_key_walks_the_same_complete_cursor() {
     let (got, complete) = walk(&mut e, "documents", "alice", &[]);
     assert_eq!(got, ["d3", "d2", "d1"]);
     assert!(complete.into_iter().all(|value| value));
+}
+
+#[test]
+fn fixed_source_id_residual_scopes_a_complete_owner_membership_page() {
+    let source = fixed_membership_source();
+    let b = clean(&source);
+    assert_eq!(branch_merges(&b, "documents"), vec![(3, true)]);
+    assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+
+    let rows = || vec![
+        membership("m1", "p1", "alice"), membership("m2", "p2", "alice"), membership("m3", "p3", "bob"),
+        document("owned", "alice", "p0", 1), document("fixed", "bob", "p1", 2),
+        document("other-id", "bob", "p2", 3), document("other-viewer", "bob", "p3", 4),
+    ];
+    let mut e = engine(&source, rows());
+    let (got, complete) = walk(&mut e, "documents", "alice", &[]);
+    assert_eq!(got, ["fixed", "owned"]);
+    assert!(complete.into_iter().all(|value| value));
+
+    let mut missing = engine(&source, rows().into_iter().filter(|(_, fields)|
+        !fields.iter().any(|(column, value)| *column == "id" && value == &id("m1"))).collect());
+    let (got, complete) = walk(&mut missing, "documents", "alice", &[]);
+    assert_eq!(got, ["owned"]);
+    assert!(complete.into_iter().all(|value| value));
+}
+
+#[test]
+fn fixed_source_id_expiry_removes_only_its_membership_lane() {
+    let source = fixed_membership_source()
+        .replace("  principal: principal\n  unique", "  principal: principal\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  unique");
+    let rows = vec![
+        ("memberships", vec![("id", id("m1")), ("parent", Value::String("p1".into())),
+            ("principal", id("alice")), ("until", Value::Int(5))]),
+        ("memberships", vec![("id", id("m2")), ("parent", Value::String("p2".into())),
+            ("principal", id("alice")), ("until", Value::Null)]),
+        document("owned", "alice", "p0", 1), document("fixed", "bob", "p1", 2),
+        document("other-id", "bob", "p2", 3),
+    ];
+    let mut e = engine(&source, rows);
+    let args = BTreeMap::from([("c".into(), Value::Null)]);
+    let before = e.query("documents", Context::new("alice", args.clone()).at(4)).unwrap();
+    assert!(before.complete && ids(&before.data) == ["fixed", "owned"] && before.next.is_none(), "{before:?}");
+    let after = e.query("documents", Context::new("alice", args).at(6)).unwrap();
+    assert!(after.complete && ids(&after.data) == ["owned"] && after.next.is_none(), "{after:?}");
+    assert_eq!(e.store().count("memberships").unwrap(), 2, "the expired witness remains physically unswept");
 }
 
 #[test]
@@ -1133,6 +1184,22 @@ fn a_decided_false_membership_source_commits_no_speculative_indexes() {
     assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
     assert!(has_note(&b, "N_NEVER_COMPLETE"));
     assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
+fn a_denied_fixed_source_id_commits_no_speculative_indexes() {
+    let source = fixed_membership_source().replace("  read <- .principal = viewer\n", "  read <- deny\n");
+    let b = clean(&source);
+    assert!(branch_merges(&b, "documents").is_empty());
+    assert!(!b.schema.tables["documents"].indexes.values().any(|index| index.columns() == ["owner", "at", "id"]));
+    assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+
+    let mut e = engine(&source, vec![membership("m1", "p1", "alice"), document("shared", "bob", "p1", 1)]);
+    let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    assert_eq!(ids(&page.data), ["shared"]);
+    assert!(!page.complete, "the ordinary rule probe still grants the row: {page:?}");
 }
 
 #[test]
