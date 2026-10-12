@@ -80,6 +80,13 @@ fn branches(tables: &Tables, requests: &Requests, read: &ReadExpr, grants: bool)
     if read.index.is_some() || !read.keys.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() { return None; }
     if table.maintained.is_some() || table.through.is_some() || table.decl.ephemeral.is_some() || !table.captures.is_empty() || table.decl.public.is_some() { return None; }
     let rule = read_rule(table)?;
+    // A synced union already holds every readable row. An online grant lane
+    // would defer its membership probe on the device, discarding completeness.
+    // @ref LLP 3000.036.000.000#5.3 — keep union reads on their certified per-arm scans.
+    if table.decl.sync.is_some() {
+        let catalog = super::catalog::Catalog { tables: tables.clone(), ..Default::default() };
+        if super::intent_sync::needs(table, &catalog).len() > 1 { return None; }
+    }
     // A page its own pins decide keeps its plan.
     let mut probe = requests.clone();
     let mut planned = read.clone();

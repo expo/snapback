@@ -158,7 +158,7 @@ mutation leave():
     let source = format!("{members}\n{}\nquery allPosts():\n  return posts first 100 by byId\n", SOURCE.replacen("  by byExpiry:", "  by byAuthor: authorId, id\n  by byExpiry:", 1));
     let (_, mut backend) = compile(&source);
     let posts = backend.schema.tables.get_mut("posts").unwrap();
-    posts.sync = Some(snapback4_core::schema::Sync { audience:snapback4_core::schema::Audience::Target { table:"members".into(),prefix:vec!["authorId".into()],principal:"principal".into() },horizon:Some(snapback4_core::schema::Horizon { last:1, by:"byAuthor".into() }) });
+    posts.sync = Some(snapback4_core::schema::Sync { audience:snapback4_core::schema::Audience::Target { table:"members".into(),prefix:vec!["authorId".into()],principal:"principal".into() },horizon:Some(snapback4_core::schema::Horizon { last:1, by:"byAuthor".into() }), also: Vec::new() });
     posts.leave = snapback4_core::schema::LeavePolicy::DeliveredHistory;
     backend.schema.tables.get_mut("receivedReplies").unwrap().sync = None;
     let mut server = snapback4_core::Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
@@ -256,7 +256,7 @@ fn membership_expiry<H: Host>(host: &mut H, retain: bool) {
     let source = format!("table members:\n  authorId: principal\n  principal: principal\n  until: time ?\n  unique byAuthorPrincipal: authorId, principal\n  by byPrincipal: principal, authorId\n  by byExpiry: until, id\n  expire at .until\n  read <- allow\n  sync public\n{}", SOURCE.replacen("  by byExpiry:", "  by byAuthor: authorId, id\n  by byExpiry:", 1));
     let (_, mut backend) = compile(&source);
     let posts = backend.schema.tables.get_mut("posts").unwrap();
-    posts.sync = Some(Sync { audience: Audience::Target { table: "members".into(), prefix: vec!["authorId".into()], principal: "principal".into() }, horizon: None });
+    posts.sync = Some(Sync { audience: Audience::Target { table: "members".into(), prefix: vec!["authorId".into()], principal: "principal".into() }, horizon: None, also: Vec::new() });
     posts.leave = if retain { LeavePolicy::DeliveredHistory } else { LeavePolicy::UntilRevoked };
     backend.schema.tables.get_mut("receivedReplies").unwrap().sync = None;
     let mut server = snapback4_core::Engine::memory(backend.schema.clone(), backend.programs.clone()).unwrap();

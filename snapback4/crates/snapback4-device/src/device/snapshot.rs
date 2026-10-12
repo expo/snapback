@@ -98,6 +98,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> 
             "scope" => {
                 let columns = audience_prefix(table);
                 let group = scope_group(table, event)?;
+                let keeper = scope_keeper(table, event)?;
                 boundaries.scope(tx, &event.table, table, &group)?;
                 if table.leave == LeavePolicy::DeliveredHistory && !table.columns.values().any(|kind| kind.contains_asset()) { continue; }
                 let mut after = String::new();
@@ -105,7 +106,8 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> 
                     let rows = tx.staged_table_after(&event.table, &after, 500)?;
                     for (key, data) in &rows {
                         let mut staged: Staged = decoded(data)?;
-                        if columns.iter().zip(&group).all(|(column, value)| staged.row.field(column).ok() == Some(value)) {
+                        if columns.iter().zip(&group).all(|(column, value)| staged.row.field(column).ok() == Some(value))
+                            && !spared(table, keeper.as_deref(), &staged.row) {
                             if table.leave == LeavePolicy::DeliveredHistory {
                                 // Text stays; a revoked media home must not be
                                 // reactivated when these staged rows publish.

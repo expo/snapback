@@ -127,7 +127,7 @@ fn column_audience_rules_survive_calendar_grouping_and_service_grants() {
             let target = &b.schema.tables["totals"];
             assert_eq!(target.rules.read.quarry(),rule);
             assert_eq!(target.rules.read,b.schema.tables["entries"].rules.read);
-            assert_eq!(target.sync,Some(Sync {audience:Audience::Column("owner".into()),horizon:None}));
+            assert_eq!(target.sync,Some(Sync {audience:Audience::Column("owner".into()),horizon:None,also:Vec::new()}));
             assert_eq!(target.residency.inherited_from.as_deref(),Some("entries"));
             let mut e = engine(&source);
             let mut row = json!({"id":"entry","owner":"alice"});

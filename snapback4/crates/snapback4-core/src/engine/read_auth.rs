@@ -93,20 +93,27 @@ impl Runner<'_> {
         if definition.leave == crate::schema::LeavePolicy::DeliveredHistory && !self.tx.current_group(table, index, key)? { return Ok(false); }
         if sync.horizon.is_some() || self.tx.retained_group(table, index, key)? { return Ok(false); }
         let pinned: std::collections::BTreeMap<_, _> = crate::small_map::collect(definition.index(index).expect("validated index").columns().into_iter().zip(key));
-        match &sync.audience {
-            Audience::Public => Ok(true),
-            Audience::Column(column) => Ok(pinned.get(column).is_some_and(|value| value.as_str() == Ok(self.context.viewer.as_str()))),
-            Audience::Target { table: target, prefix, .. } => {
-                let Some(mut group) = prefix.iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
-                let binding = crate::schema::audience_binding(self.schema, table, definition, sync).map_err(RuntimeError::Schema)?;
-                group.push(Value::Id(self.context.viewer.clone()));
-                let target_def = &self.schema.tables[target];
-                self.read_tables.insert(target.clone());
-                // This is a raw audience membership, not the witness's ACL.
-                let found = self.live_lookup(allowance, target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group, #[cfg(feature = "sqlite")] None)?;
-                found.map(|row| self.witness_covered(target, &binding.group_index, &group, &row)).transpose().map(|known| known.unwrap_or(false))
-            }
+        // @ref LLP 3000.036.000.000#5.3 — a union's absence is known through any one arm whose pinned group the viewer wholly holds.
+        let schema = self.schema;
+        let sync = schema.tables[table].sync.as_ref().expect("synced");
+        for (audience, _) in sync.arms() {
+            let covered = match audience {
+                Audience::Public => true,
+                Audience::Column(column) => pinned.get(column).is_some_and(|value| value.as_str() == Ok(self.context.viewer.as_str())),
+                Audience::Target { table: target, prefix, .. } => {
+                    let Some(mut group) = prefix.iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { continue };
+                    let binding = crate::schema::audience_binding(self.schema, table, definition, sync).map_err(RuntimeError::Schema)?;
+                    group.push(Value::Id(self.context.viewer.clone()));
+                    let target_def = &self.schema.tables[target];
+                    self.read_tables.insert(target.clone());
+                    // This is a raw audience membership, not the witness's ACL.
+                    let found = self.live_lookup(allowance, target, &binding.group_index, target_def.index(&binding.group_index).expect("audience index"), &group, #[cfg(feature = "sqlite")] None)?;
+                    found.map(|row| self.witness_covered(target, &binding.group_index, &group, &row)).transpose()?.unwrap_or(false)
+                }
+            };
+            if covered { return Ok(true); }
         }
+        Ok(false)
     }
 }
 

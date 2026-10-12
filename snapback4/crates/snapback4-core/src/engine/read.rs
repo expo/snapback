@@ -979,7 +979,8 @@ impl<'r> Runner<'r> {
             if self.read_capped() { return Ok((Vec::new(), Vec::new())); }
         }
         let horizon = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref());
-        let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
+        // Window boundaries certify only single-audience descending scans.
+        let by_boundary = self.device && !scan.existence && horizon.is_some() && table.sync.as_ref().is_some_and(|sync| sync.single_window(&scan.index).is_some()) && dir == Dir::Desc;
         let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
         let mut crossed = false;
         let mut candidate_inside = false;

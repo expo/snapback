@@ -441,6 +441,10 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
     if schema.tables.values().any(|t| t.ephemeral.is_some()) {
         return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "Postgres evaluation does not support ephemeral tables; use the SQLite server".into() });
     }
+    // @ref LLP 3000.036.000.000#9 — the evaluation adapter records no audience epoch; unions stay on SQLite.
+    if schema.tables.values().any(|t| t.sync.as_ref().is_some_and(crate::schema::Sync::is_union)) {
+        return Err(RuntimeError::Structural { code: "E_SYNC", message: "Postgres evaluation does not support union sync audiences; use the SQLite server".into() });
+    }
     refuse_maintained_columns(schema)?;
     schema.validate_column_owners()?;
     for program in programs.values() {

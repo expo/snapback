@@ -42,3 +42,30 @@ pub fn mixed_acquisition(hidden: usize, readable: usize, deleted_selected: bool)
     }
     Fixture { schema, stream, snapshots }
 }
+
+
+/// A real group audience for the raw ledger renewal fixtures. Public and
+/// column-only audiences deliberately ignore historical membership joins.
+pub fn roster_schema() -> Schema {
+    use snapback4_core::schema::*;
+    let mut schema = meter::schema();
+    schema.tables.remove("messages");
+    let probe = RuleExpr::Exists { table: "staff".into(), index: "byPerson".into(), key: vec![RuleTerm::Viewer],
+        provenance: snapback4_core::ir::KeyProvenance::Shape, equalities: Vec::new() };
+    let mut staff = schema.tables["writes"].clone();
+    staff.columns = std::collections::BTreeMap::from([("id".into(), ColumnType::Id), ("person".into(), ColumnType::Principal),
+        ("until".into(), ColumnType::Optional(Box::new(ColumnType::Time)))]);
+    staff.indexes = std::collections::BTreeMap::from([("byId".into(), Index::of(&["id"], true)),
+        ("byPerson".into(), Index::of(&["person"], true)), ("byExpiry".into(), Index::of(&["until", "id"], false))]);
+    staff.rules.read = RuleExpr::Eq(RuleTerm::Field("person".into()), RuleTerm::Viewer);
+    staff.rules.insert = probe.clone();
+    staff.constraints = vec![Constraint::Immutable { fields: vec!["person".into()] }];
+    staff.expire = Some("until".into());
+    staff.sync = Some(Sync::single(Audience::Column("person".into()), None));
+    schema.tables.insert("staff".into(), staff);
+    let writes = schema.tables.get_mut("writes").unwrap();
+    writes.rules.read = probe;
+    writes.sync = Some(Sync::single(Audience::Target { table: "staff".into(), principal: "person".into(), prefix: Vec::new() },
+        Some(Horizon { last: 2, by: "byBucket".into() })));
+    schema
+}

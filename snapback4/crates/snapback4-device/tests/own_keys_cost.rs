@@ -113,7 +113,7 @@ fn fixture_costs() {
             // The cost control copies public row fields as ordinary data; it does not replay engine capture or feed slots.
             t.recorded.clear();t.maintained.clear();t.columns.retain(|f,_|!f.starts_with('$'));
             t.indexes.retain(|_,i|i.columns().iter().all(|f|!f.starts_with('$')));
-            t.sync=Some(Sync {audience:Audience::Column(owner.into()),horizon:None});t.indexes.insert("byOwner".into(),Index::of(&[owner,"id"],false));
+            t.sync=Some(Sync {audience:Audience::Column(owner.into()),horizon:None,also:Vec::new()});t.indexes.insert("byOwner".into(),Index::of(&[owner,"id"],false));
             b.schema.tables.insert(format!("ownRows_{name}"),t);
         }}
         let mut e=Engine::open_at(Store::open(&path).unwrap(),snapback4_core::now_ms()).unwrap();let before=stats(e.store().conn());let t=Instant::now();

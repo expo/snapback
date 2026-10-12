@@ -1,4 +1,6 @@
-//! Frozen Vec-based oracle from 88549c7d7 (born tracking introduced by 0388900b8).
+//! Frozen Vec-based oracle from 88549c7d7 (born tracking introduced by 0388900b8),
+//! with the commit-boundary accounting of LLP 3000.036.000.000 §3 for rows that
+//! existed before the commit.
 //! Only the event-list parameter is separate from Runner so both implementations
 //! can execute against the same post-write store with independent birth maps.
 use super::*;
@@ -16,11 +18,15 @@ mod log_events {
             events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Del, id: id.to_owned(), data: None });
         }
     }
-    pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value]) {
-        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(Value::Array(group.to_vec())) });
+    pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], predecessor: Option<Value>) {
+        let data = predecessor.map_or_else(|| Value::Array(group.to_vec()), |expiry| crate::value::object([
+            ("group", Value::Array(group.to_vec())), ("previousExpiresAt", expiry)]));
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(data) });
     }
-    pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value) {
-        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(crate::value::object([("expiresAt", expiry)])) });
+    pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value, predecessor: Option<Value>) {
+        let mut data = BTreeMap::from([("expiresAt".to_owned(), expiry)]);
+        if let Some(predecessor) = predecessor { data.insert("previousExpiresAt".into(), predecessor); }
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(Value::Row(data.into())) });
     }
 }
 
@@ -64,10 +70,25 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                     log_events::put(events, table_name, &id, new, &after);
                 }
             } else {
+                // Commit-boundary accounting (LLP 3000.036.000.000 §3): a
+                // row that existed before the commit is accounted from the
+                // partitions it was in then.
+                let boundary = match runner.touched_rows.get(&key) {
+                    Some((earlier, start)) => {
+                        let (earlier, start) = (*earlier, start.clone());
+                        withdraw(events, earlier, row_event);
+                        start
+                    }
+                    None => {
+                        let earlier = events.iter().filter(|event| row_event(event)).count();
+                        runner.touched_rows.insert(key.clone(), (earlier, before.clone()));
+                        before.clone()
+                    }
+                };
                 if let Some(new) = new {
                     log_events::put(events, table_name, &id, new, &after);
                 }
-                log_events::del(events, table_name, &id, &before, &after);
+                log_events::del(events, table_name, &id, &boundary, &after);
             }
         }
         if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
@@ -151,12 +172,12 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, |other| other != own))? {
+                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own))? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
                     }
-                    None => log_events::scope(events, &content_name, partition, group),
+                    None => log_events::scope(events, &content_name, partition, group, table.is_expiring().then(|| expiry(old))),
                 }
             }
         }
@@ -177,13 +198,14 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                 let mut probe = group.clone();
                 probe.push(row.field(&bound.principal)?.clone());
                 let own = row.field("id")?.as_str()?;
-                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
+                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, true, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = events.iter().filter(|event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2).count();
-                    runner.born_grants.insert(key, earlier);
+                    runner.born_grants.insert(key.clone(), earlier);
                 }
             }
-            log_events::join(events, &content_name, partition, group, expiry(new));
+            let predecessor = (was == is && !runner.born_grants.contains_key(&key)).then(|| expiry(old));
+            log_events::join(events, &content_name, partition, group, expiry(new), predecessor);
         }
         runner.meter.charge(MeterKind::Steps, 1)?;
     }

@@ -1267,25 +1267,57 @@ impl<S: DeviceStore> Device<S> {
 /// columns (an id on the wire is a string; in a key it is an id).
 fn scope_group(table: &Table, event: &StreamEvent) -> Result<Vec<Value>, RuntimeError> {
     let columns = audience_prefix(table);
+    // A union's scope carries the recipient after the group (R2).
+    let width = columns.len() + usize::from(is_union(table));
     match &event.data {
-        Some(serde_json::Value::Array(items)) if items.len() == columns.len() => items.iter().zip(&columns).map(|(item, column)| wire::column_from_json(&table.columns[column], item)).collect::<Result<_, _>>().map_err(RuntimeError::Input),
+        Some(serde_json::Value::Array(items)) if items.len() == width => items.iter().zip(&columns).map(|(item, column)| wire::column_from_json(&table.columns[column], item)).collect::<Result<_, _>>().map_err(RuntimeError::Input),
         _ => Err(RuntimeError::Input("scope is not a key".into())),
     }
 }
 
+fn is_union(table: &Table) -> bool {
+    table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
+}
+
+/// The principal a union scope names after its group: the device keeps
+/// the group's rows that name it in a column arm.
+// @ref LLP 3000.036.000.000#4.3 — R2: leaving the group arm never drops a row a column arm still admits.
+fn scope_keeper(table: &Table, event: &StreamEvent) -> Result<Option<String>, RuntimeError> {
+    if !is_union(table) { return Ok(None); }
+    match &event.data {
+        Some(serde_json::Value::Array(items)) => match items.last() {
+            Some(serde_json::Value::String(principal)) => Ok(Some(principal.clone())),
+            _ => Err(RuntimeError::Input("a union scope names its recipient".into())),
+        },
+        _ => Err(RuntimeError::Input("scope is not a key".into())),
+    }
+}
+
+/// Whether a held row of a union table names `keeper` in a column arm.
+fn spared(table: &Table, keeper: Option<&str>, row: &Value) -> bool {
+    let (Some(keeper), Some(sync)) = (keeper, table.sync.as_ref()) else { return false };
+    sync.column_arms().any(|column| matches!(row.field(column), Ok(Value::Id(principal)) if principal == keeper))
+}
+
 /// A group the device left: drop its rows (`until-revoked`) or keep what
-/// was delivered (`delivered-history`).
-fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, group: &[Value]) -> Result<(), RuntimeError> {
-    let Some(table) = schema.table(table_name) else { return Ok(()) };
+/// was delivered (`delivered-history`). On a union, rows that name the
+/// recipient in a column arm stay.
+fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, group: &[Value], keeper: Option<&str>) -> Result<(), RuntimeError> {
+    let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("scope names unknown table {table_name}")))?;
+    let sync = table.sync.as_ref().ok_or_else(|| RuntimeError::Schema(format!("scope names unsynced table {table_name}")))?;
+    if !matches!(sync.audience, Audience::Target { .. }) { return Err(RuntimeError::Schema(format!("scope names a non-group audience on {table_name}"))); }
     if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
-    let Some(sync) = &table.sync else { return Ok(()) };
     let prefix = audience_prefix(table);
-    let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
-    let Some(index) = index else { return Ok(()) };
+    let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
+    let index = index.ok_or_else(|| RuntimeError::Schema(format!("scope has no group index on {table_name}")))?;
+    let mut bounds = Bounds::default();
     loop {
-        let rows = tx.scan(table_name, &index, group, &Bounds::default(), Dir::Asc, 500)?;
+        let rows = tx.scan(table_name, &index, group, &bounds, Dir::Asc, 500)?;
         let count = rows.len();
-        for (row, _) in rows {
+        for (row, key) in rows {
+            // A spared row stays in the index: continue after its key.
+            bounds.after = snapback4_core::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+            if spared(table, keeper, &row) { continue; }
             media::forget(tx, table_name, table, &row)?;
             tx.delete(table_name, table, &row)?;
         }
@@ -1337,3 +1369,6 @@ mod publication_round6;
 
 #[cfg(all(test, feature = "native"))]
 mod publication_round7;
+
+#[cfg(test)]
+mod union_hardening_tests;

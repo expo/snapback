@@ -147,7 +147,8 @@ fn mixed_fixture(hidden: usize, readable: usize, deleted: bool, snapshot: bool) 
         snapback4_core::value::encode_bytes_hex(&snapback4_core::rows::index_key(backend.schema.tables["writes"].index("byBucket").unwrap(),
             &object([("id",id("r1")),("bucket",Value::Int(1))]), "r1"))
     };
-    assert_eq!(fixture.stream.acquisitions[1].floor.as_deref(), Some(floor.as_str()));
+    // Historical group joins cannot establish a boundary on a public table.
+    assert!(fixture.stream.events.is_empty() && fixture.stream.acquisitions.is_empty());
     let pages = if snapshot {
         let mut after = None;
         fixture.snapshots.into_iter().map(|p| {
@@ -168,6 +169,12 @@ fn apply_mixed<H: Host>(host: &mut H, f: &Json) {
     for (i, page) in f["pages"].as_array().unwrap().iter().enumerate() {
         let page: StreamPage = serde_json::from_value(page.clone()).unwrap();
         device.apply(&page, i == 0 && page.snapshot).unwrap();
+    }
+    if f["snapshot"] == false {
+        assert!(device.store().boundary_entries().is_empty());
+        let (read, unknown, _) = device.query_with_coverage("timeline", "bob", &json!({"c":null}), 3);
+        assert!(unknown && !read.unwrap().complete, "an obsolete join cannot certify a public window");
+        return;
     }
     assert_eq!(device.store().boundary_entries().iter().map(|(_, v)| v.as_str()).collect::<Vec<_>>(), [f["floor"].as_str().unwrap()]);
     let (read, unknown, _) = device.query_with_coverage("timeline", "bob", &json!({"c":null}), 3);

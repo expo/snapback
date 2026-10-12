@@ -56,9 +56,9 @@ impl Boundaries {
     pub fn marker(&mut self, tx: &dyn crate::store::StreamTx, schema: &Schema, marker: &wire::Acquisition, snapshot: bool) -> Result<(), RuntimeError> {
         let valid = (|| {
             let table = schema.table(&marker.table)?;
-            let horizon = table.sync.as_ref()?.horizon.as_ref()?;
-            if horizon.by != marker.index { return None; }
-            let columns = audience_prefix(table);
+            // Acquisition markers belong only to a single-audience window.
+            let (audience, _) = table.sync.as_ref()?.single_window(&marker.index)?;
+            let columns = audience.columns();
             if columns.len() != marker.group.len() { return None; }
             let group = columns.iter().zip(&marker.group).map(|(column, value)| wire::column_from_json(&table.columns[column], value)).collect::<Result<Vec<_>, _>>().ok()?;
             let k = key(&marker.table, &marker.index, &group).ok()?;
@@ -97,16 +97,21 @@ impl Boundaries {
         }
         Ok(())
     }
+    /// Whether an unheld row's put is inside its single-audience acquired window.
     pub fn accept(&mut self, tx: &dyn crate::store::StreamTx, name: &str, table: &Table, row: &Value, held: bool) -> Result<bool, RuntimeError> {
         if held { return Ok(true); }
         let Some(sync) = &table.sync else { return Ok(true) };
         let Some(horizon) = &sync.horizon else { return Ok(true) };
-        let k = key(name, &horizon.by, &snapback4_core::partition::group_of(sync, row))?;
+        let k = key(name, &horizon.by, &snapback4_core::partition::arm_group(&sync.audience, row))?;
         self.ensure(tx, &k)?;
-        let Some(Some(floor)) = self.values.get(&k) else { return Ok(true) };
-        if floor == "whole" || floor == "unknown" { return Ok(true); }
-        let index = table.index(&horizon.by).expect("horizon index");
-        Ok(snapback4_core::rows::index_key(index, row, row.field("id")?.as_str()?) >= snapback4_core::value::decode_bytes_hex(floor).unwrap_or_default())
+        match self.values.get(&k) {
+            None | Some(None) => Ok(true),
+            Some(Some(floor)) if floor == "whole" || floor == "unknown" => Ok(true),
+            Some(Some(floor)) => {
+                let index = table.index(&horizon.by).expect("horizon index");
+                Ok(snapback4_core::rows::index_key(index, row, row.field("id")?.as_str()?) >= snapback4_core::value::decode_bytes_hex(floor).unwrap_or_default())
+            }
+        }
     }
     pub fn scope(&mut self, tx: &dyn crate::store::StreamTx, name: &str, table: &Table, group: &[Value]) -> Result<(), RuntimeError> {
         if let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref()) {
@@ -136,9 +141,9 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), Runtime
 
 pub(super) fn read(boundaries: &Boundaries, schema: &Schema, name: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> {
     let Some(table) = schema.table(name) else { return Ok(None) };
-    let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref()) else { return Ok(None) };
-    let width = audience_prefix(table).len();
-    if index != horizon.by || prefix.len() < width { return Ok(None); }
+    let Some((audience, _)) = table.sync.as_ref().and_then(|sync| sync.single_window(index)) else { return Ok(None) };
+    let width = audience.columns().len();
+    if prefix.len() < width { return Ok(None); }
     Ok(boundaries.values.get(&key(name, index, &prefix[..width])?).and_then(|floor| floor.as_ref()).and_then(|floor| {
         if floor == "whole" { Some(AcquiredBoundary::Whole) }
         else { snapback4_core::value::decode_bytes_hex(floor).map(AcquiredBoundary::Key) }

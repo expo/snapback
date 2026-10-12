@@ -307,7 +307,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let mut requests = Requests { contexts, merged, ..Default::default() };
     // Resolve against declared provenance before requests add any access index.
     let mut audiences: BTreeMap<_, _> = tables.iter().filter(|(_, table)| table.decl.sync.is_some())
-        .map(|(name, table)| (name.clone(), super::intent_sync::need(table, catalog))).collect();
+        .map(|(name, table)| (name.clone(), super::intent_sync::needs(table, catalog))).collect();
     for table in catalog.tables.values_mut() {
         let original = &tables[&table.decl.name];
         for cap in &table.decl.caps {
@@ -339,7 +339,16 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         // An audience's content prefix must be enumerable too. The target's
         // unique key already supplies the corresponding recipient enumeration.
         if let Some(sync) = &mut table.decl.sync {
-            let need = audiences.remove(&table.decl.name).expect("planned sync audience");
+            let mut needs = audiences.remove(&table.decl.name).expect("planned sync audience");
+            // @ref LLP 3000.036.000.000#2.2 — every admitted union arm has a plain prefix index; no arm has a window.
+            if needs.len() > 1 {
+                for need in &needs {
+                    if let Some((target, columns)) = &need.inverse { requests.index(&tables[target], columns.clone(), None, &sync.site, false); }
+                    if !need.prefix.is_empty() { requests.index(original, need.prefix.clone(), None, &sync.site, false); }
+                }
+                continue;
+            }
+            let need = needs.pop().expect("one audience need");
             if let Some((target, columns)) = need.inverse {
                 // Discovery uses principal then the exact probe's group order.
                 // No pageable id suffix is needed for this bounded enumeration.
@@ -469,6 +478,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         for (value, _) in &mut table.decl.final_exists { walk::expression(value, &mut resolve); }
         if let Some((_, SyncOrder::Index(by))) = table.decl.sync.as_mut().and_then(|sync| sync.horizon.as_mut())
             && let Some(name) = names.get(&(table.decl.name.clone(), by.clone())) { *by = name.clone(); }
+
     }
     for doc in &mut catalog.documents { walk::document(doc, &mut resolve); }
     for read in catalog.extremum_domains.values_mut() {

@@ -87,7 +87,7 @@ fn private_derivations_reject_malformed_raw_target_shapes() {
             0 => { raw.tables.get_mut(&target).unwrap().columns.remove("value"); },
             1 => { raw.tables.get_mut(&target).unwrap().indexes.remove("byGroup"); },
             2 => { raw.tables.get_mut(&target).unwrap().expire = Some("value".into()); },
-            3 => { raw.tables.get_mut(&target).unwrap().sync = Some(schema::Sync { audience: schema::Audience::Public, horizon: None }); },
+            3 => { raw.tables.get_mut(&target).unwrap().sync = Some(schema::Sync { audience: schema::Audience::Public, horizon: None, also: Vec::new() }); },
             4 => { raw.tables.get_mut("posts").unwrap().maintained.insert("likeCount".into(), "forged".into()); },
             5 => { raw.tables.get_mut(&target).unwrap().columns.insert("extra".into(), schema::ColumnType::Int); },
             _ => raw.maintains[0].by.push("postId".into()),

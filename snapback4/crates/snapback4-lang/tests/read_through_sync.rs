@@ -23,7 +23,7 @@ const MODEL:&str="table parents:\n  owner: principal\n  archived: bool\n  immuta
     let b=snapback4_lang::compile(&[("bad.q".into(),MODEL.replace("read through .parent\n  sync last 10 by .id","read through .parent\n  sync public"))]);
     assert!(b.diagnostics.iter().any(|d|d.code=="E_SYNC"),"{:?}",b.diagnostics);
     let mut b=bound(&MODEL.replace(".owner = viewer","allow"));
-    b.schema.tables.get_mut("children").unwrap().sync=Some(Sync{audience:Audience::Column("$parent.owner".into()),horizon:None});
+    b.schema.tables.get_mut("children").unwrap().sync=Some(Sync{audience:Audience::Column("$parent.owner".into()),horizon:None,also:Vec::new()});
     assert!(snapback4_core::schema::validate(&b.schema).iter().any(|d|d.message.contains("exactly equal")));
 }
 #[test]fn capture_alias_inherits_exact_sync_without_aggregate_read_rule(){

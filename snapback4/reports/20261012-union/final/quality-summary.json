@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-12",
+  "branch": "sb4-ws-union",
+  "reviewed_snapshot": "d5e7da77d4f4ea51fe36795ce5096476f107d23b",
+  "minor_diagnostics_commit": "493a9a8807",
+  "review": {
+    "gpt": "READY",
+    "muse": "READY WITH CHANGES \u2014 two Low diagnostics, repaired"
+  },
+  "difftest": {
+    "cases": 100000,
+    "compiled": 100000,
+    "executed": 5028923,
+    "disagreements": 0,
+    "generator_errors": 0,
+    "unexpected_refusals": 0,
+    "seconds": 472.698374412,
+    "seed": 0,
+    "workers": 8,
+    "commutation_meter_fields_omitted": 8743,
+    "report": "narrow-run/report.json"
+  },
+  "checks": {
+    "language": {
+      "passed": 220,
+      "targets": [
+        11,
+        33,
+        119,
+        5,
+        8,
+        40,
+        4
+      ],
+      "log": "logs/narrow-lang-all.log.gz"
+    },
+    "device": {
+      "passed": 209,
+      "targets": [
+        61,
+        6,
+        142
+      ],
+      "log": "logs/narrow-device.log.gz"
+    },
+    "core": {
+      "passed": 11,
+      "targets": [
+        8,
+        3
+      ],
+      "log": "logs/narrow-core.log.gz"
+    },
+    "partition": {
+      "passed": 1,
+      "targets": [
+        1
+      ],
+      "log": "logs/narrow-partition.log.gz"
+    },
+    "clock": {
+      "passed": 8,
+      "targets": [
+        8
+      ],
+      "log": "logs/narrow-clock.log.gz"
+    },
+    "difftest_regressions": {
+      "passed": 10,
+      "targets": [
+        1,
+        9
+      ],
+      "log": "logs/narrow-smoke.log.gz"
+    },
+    "union_simulator": {
+      "passed": 27,
+      "targets": [
+        27
+      ],
+      "log": "logs/narrow-sim-final.log.gz",
+      "ignored": 2
+    },
+    "census": {
+      "passed": 1,
+      "targets": [
+        1
+      ],
+      "log": "logs/narrow-census.log.gz",
+      "entries": 718,
+      "mutation_occurrences": 409,
+      "distinct_private_write_sites": 89,
+      "baseline_unchanged": true
+    },
+    "docs": {
+      "passed": 1,
+      "targets": [
+        1
+      ],
+      "log": "logs/narrow-docs.log.gz",
+      "readme_lines": 319,
+      "readme_limit": 320
+    },
+    "client": {
+      "files": 9,
+      "passed": 209,
+      "skipped": 8,
+      "failed": 0,
+      "log": "logs/narrow-client-tests.log.gz"
+    },
+    "wasm": {
+      "raw_bytes": 2245118,
+      "gzip_bytes": 679240,
+      "budget_bytes": 680529,
+      "delta_gzip_bytes": -789
+    },
+    "ref_check": {
+      "output": "ref-check: ok \u2014 540 LLP docs, 10985 refs in 37627 files, 0 errors, 0 unchecked",
+      "log": "logs/ref-check.log.gz"
+    }
+  },
+  "minor_diagnostic_regressions": 12,
+  "lean_rerun": false,
+  "author_acceptance_inferred": false,
+  "pushed": false
+}

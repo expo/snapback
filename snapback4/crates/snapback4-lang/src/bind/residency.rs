@@ -243,7 +243,7 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
                 "read the Following view with held cards, or answer this event read on the server".into()),
         _ if schema.maintain_subset_unknown(table) => (SiteClass::Server, format!("{kind} {table} by {index}: public source has subset delivery; aggregate coverage is unknown"), "read this aggregate on the server, or sync its public source to every device".into()),
         None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), if schema.maintain_for(table).is_some() { format!("remove `online only` from view {table} to inherit its source's sync, or read a compact synced projection") } else { format!("sync {table} to its read-rule audience, or read a compact synced projection") }),
-        Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line()), if kind == "write target" { String::new() } else { "remove a redundant guard, or read a synced fact without a horizon".into() }),
+        Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line_in(&schema.tables[table])), if kind == "write target" { String::new() } else { "remove a redundant guard, or read a synced fact without a horizon".into() }),
         Some(_) => (SiteClass::Held, format!("{kind} {table} by {index}: held, no horizon"), String::new()),
     };
     ResidencySite { site: location.into(), table: table.into(), index: index.into(), kind: kind.into(), class, reason, rewrite }
@@ -559,7 +559,7 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
         return format!("ephemeral {life}: server memory, never on a device");
     }
     let mut line = match &table.sync {
-        Some(sync) => format!("{}{}{}", sync.line(), if table.residency.inferred { " (from the read rule)" } else { "" }, table.residency.inherited_from.as_ref().map(|source| format!(" (inherited from {source})")).unwrap_or_default()),
+        Some(sync) => format!("{}{}{}", sync.line_in(table), if table.residency.inferred { " (from the read rule)" } else { "" }, table.residency.inherited_from.as_ref().map(|source| format!(" (inherited from {source})")).unwrap_or_default()),
         None => format!("online only{}", if table.residency.online_only { "" } else { " (no sync line)" }),
     };
     let grants: BTreeSet<_> = table.rules.read.disjuncts().into_iter().filter_map(RuleExpr::service_grant).collect();

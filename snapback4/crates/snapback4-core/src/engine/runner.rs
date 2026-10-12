@@ -131,6 +131,13 @@ pub struct Runner<'a> {
     pub(crate) born_rows: HashMap<(String, String), usize>,
     #[cfg(feature = "sqlite")]
     pub(crate) born_grants: HashMap<(String, String, String), usize>,
+    /// Synced rows that existed before this commit and changed in it: the
+    /// number of their events logged before the first change, and the
+    /// partitions they were in at the commit's start. Every later change is
+    /// accounted from that boundary, so a partition the row only passed
+    /// through inside the commit is sent neither its image nor its id.
+    #[cfg(feature = "sqlite")]
+    pub(crate) touched_rows: HashMap<(String, String), (usize, std::collections::BTreeSet<String>)>,
     /// Set only while a commit retires the rows it inserted already expired.
     #[cfg(feature = "sqlite")]
     pub(crate) retiring: Option<Retiring>,
@@ -315,6 +322,8 @@ impl<'a> Runner<'a> {
             born_rows: HashMap::new(),
             #[cfg(feature = "sqlite")]
             born_grants: HashMap::new(),
+            #[cfg(feature = "sqlite")]
+            touched_rows: HashMap::new(),
             #[cfg(feature = "sqlite")]
             retiring: None,
             outbox: Vec::new(),

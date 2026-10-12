@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 75504,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Online",
+          "effects": [
+            "OwnerOrWitness",
+            "Allow",
+            "Witness",
+            "Allow"
+          ]
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Allow",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r10",
+          "label": "𐀀",
+          "owner": "alice",
+          "score": 9007199254740991
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r11",
+          "label": "é",
+          "owner": "alice",
+          "score": 0
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "r0",
+      "n": 0
+    },
+    "clock": 71601,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 19032,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--continuation-next--next~no-next",
+    "oracle": "Lean",
+    "field": "continuation-next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": false,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 0
+                },
+                "id": {
+                  "Id": "r10"
+                },
+                "label": {
+                  "String": "𐀀"
+                },
+                "owner": {
+                  "Id": "alice"
+                },
+                "score": {
+                  "Int": 9007199254740991
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 1129,
+          "index_entries": 0,
+          "output_bytes": 140,
+          "rows_written": 0,
+          "rule_probes": 3,
+          "steps": 4
+        },
+        "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldExhYmVsU2NvcmU6YjBlM2M0MjRjY2YxMTQyMCIsIkFzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoi8JCAgCJ9LHsiSW50Ijo5MDA3MTk5MjU0NzQwOTkxfSx7IklkIjoicjEwIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjB9XX1d",
+        "seq": 1,
+        "tables": [
+          "access",
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "complete": false,
+        "data": {
+          "arr": [
+            {
+              "row": [
+                [
+                  "id",
+                  {
+                    "id": "r10"
+                  }
+                ],
+                [
+                  "owner",
+                  {
+                    "id": "alice"
+                  }
+                ],
+                [
+                  "bucket",
+                  {
+                    "int": "0"
+                  }
+                ],
+                [
+                  "score",
+                  {
+                    "int": "9007199254740991"
+                  }
+                ],
+                [
+                  "label",
+                  {
+                    "text": "𐀀"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "kind": "answer",
+        "next": {
+          "null": null
+        }
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "0"
+                    },
+                    "id": {
+                      "id": "r11"
+                    },
+                    "label": {
+                      "text": "é"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "0"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "0"
+                    },
+                    "id": {
+                      "id": "r11"
+                    },
+                    "label": {
+                      "text": "é"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "0"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          }
+        }
+      },
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "0"
+                    },
+                    "id": {
+                      "id": "r10"
+                    },
+                    "label": {
+                      "text": "𐀀"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "9007199254740991"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "0"
+                    },
+                    "id": {
+                      "id": "r10"
+                    },
+                    "label": {
+                      "text": "𐀀"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "9007199254740991"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 179
+}

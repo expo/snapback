@@ -92520,6 +92520,40 @@ card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
 
+## 2026-10-12 — Union sync audiences; the wasm budget rises 2,409 B
+
+- Workstream UNION, branch `sb4-ws-union`: LLP 3000.036.000.000 designs and
+  implements union sync audiences — a table syncs to principal-column arms and
+  at most one group arm (`sync to .owner or members[.team]`, or the inferred
+  `sync`), and a device holds a row while any arm admits its viewer. R1 (the
+  stream serves a union `del` from serve-time state), R2 (a union scope carries
+  the recipient, and both device stores keep the group's rows naming it in a
+  column arm), per-arm windows and acquisition boundaries, commit-boundary
+  accounting for rows that existed before a commit (every synced table), and an
+  audience epoch on activation. Two blind rounds (GPT gpt-6.1-sol, Muse
+  spark-1.3) under `llp/reviews/3000.036.000.000-*`.
+- The simulator's `tests/union.rs` (owner or team, windowed, owner or staff, two
+  parties) fails without each mechanism: without R1, a task moved between
+  Bob's teams leaves his device while `myCount` says complete; without R2, a
+  leave drops the leaver's own tasks; without commit-boundary accounting, a
+  task bounced through another team names its id to that team's members.
+- Wasm: 651,233 B gzip on Linux against 648,672 B at the base (+2,561 B, the
+  device's R2, per-arm boundaries and any-arm absence). Budget 649,324 →
+  651,733 B (measurement + 500 B), reason in `metrics/wasm-budget.json`.
+
+
+## 2026-10-12 — UNION revision 6: expiry at the commit boundary
+
+Round 5's GPT review found an existing row that moved to a new recipient
+while ending its life could name its id to that recipient, immediately and
+again at the sweep. Commit retirement now considers changed synced rows as
+well as births; commit-start accounting revokes the previous recipients
+without announcing the expired image to a new one. The regression checks
+Bob's revocation and Mallory's empty stream at page sizes 1 and 1,000 before
+and after a sweep. Snapshot catch-up's R2 reads its private staged server
+images; ordinary/deferred stream application first withdraws predictions.
+The web build also needed the audience-epoch helper's Table type qualified
+outside the SQLite-only import. No wasm behavior changes in that repair.
 ## 2026-10-12 — A development store reset: `POST /dev/reset` (author-approved)
 
 Test runners can now isolate tests against one running `snapback4 dev`.
@@ -92690,6 +92724,87 @@ branch's budget; together the Linux web device measures 651,704 B gzip,
 264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
 the reason in `metrics/wasm-budget.json`.
 
+
+## 2026-10-12 — UNION integrates sb4-loop 0.4.23; wasm budget rises 2,460 B
+
+Merged file assets, pinned-parent page guards, the revised readauth corpus,
+guide cards, development reset and the current Lean oracle. The sharing
+card keeps the union recipes, online staff console, complete private group
+list and explicit membership alternatives; old union-refusal prose is
+updated. Re-enumerated the authoring census from the compiled merged guide
+and package documentation: 405 mutation occurrences, 89 distinct private
+write sites, 714 census entries. The locked Linux web device measures
+2,164,773 B raw / 654,164 B gzip, +2,460 B over sb4-loop's 651,704 B
+measurement. The budget is 654,664 B (measurement + 500 B), up 2,460 B
+from 652,204 B. Revision 6's expiry retirement is SQLite-only.
+
+
+## 2026-10-12 — UNION revision 7: epoch transitions compose with acquisition
+
+GPT's sixth blind review found obsolete-scope filtering could invalidate
+window marker positions, and a first post-epoch continuous renewal could
+miss a deletion beside it. Filtering now precedes expansion, while the raw
+watermark passes removed scopes. Internal joins record a pre-commit
+renewal's previous deadline; same-commit births carry no predecessor.
+A currently live acquisition replaces its until-revoked group before
+putting current rows, so an expired replacement or an older join lacking
+metadata cannot preserve stale snapshot rows. Continuous renewals keep
+their existing rows and boundaries; a scope names only the acquired group,
+never an id deleted in the acquiring commit. R2 keeps column-arm rows.
+The new traces run both real stores at page sizes 1 and 1,000, covering
+markers, live renewal, expired replacement and genuine acquisition.
+
+
+## 2026-10-12 — UNION revision 8: final bounded-round corrections
+
+The round-7 pair returned GPT NOT READY and Muse READY WITH CHANGES.
+GPT found lifetime column interpretation was incomplete in the epoch key,
+and old roster joins could synthesize a malformed scope after removal.
+The identity now includes authored/effective lifetime type/default and the
+membership through capture. Membership history and join expansion both
+require a current group audience. Regressions cover the expiry-default
+activation/sweep disclosure trace and every earlier watermark after roster
+removal on both real stores, at page sizes 1 and 1,000.
+The requested two further review rounds are exhausted. Revision 8 is not
+claimed reviewed or READY, and the RFC stays Draft. The remaining named
+coverage and hardening requests, including the late round-5 Muse review,
+are tracked in issues/20261012-union-bounded-review-followups.md.
+
+
+Revision 8 also limits the replacement scope to a live post-epoch
+acquisition with no ledger predecessor (plus the existing expired-
+predecessor case). Ordinary initial acquisitions keep their prior wire
+protocol. This is the conservative path needed for an epoch's missing
+baseline, not a new scope on every initial join. The old hand-written
+public-join fixture now verifies that obsolete joins cannot certify a public
+window; its snapshot privacy checks remain, and renewal fixtures use a
+real admitted roster audience. Both real stores and the wasm fixture
+consumer exercise that distinction.
+
+- 2026-10-12, UNION continuation: round 8 on revision 8 returned GPT READY WITH
+  CHANGES (one Low doc mismatch), Muse READY WITH CHANGES (ancestor lifetime
+  identity and named coverage). Revision 9 binds ancestor expiry interpretation,
+  makes scope backstops fail closed, diagnoses equal-prefix window collisions,
+  and adds blocking multiple-column/window, multi-prefix, interleaved bulk leave,
+  snapshot-limit, cross-table and epoch/rebirth witnesses. Expiring union groups
+  remain refused; renewal/sweep traces stay on the admitted single-group path.
+  Final commissioned paired review pending; no author acceptance or push.
+
+- 2026-10-12, UNION revision 10: the final GPT attempt was interrupted without
+  a verdict (coordinator reported provider capacity). Its partial scope finding
+  is addressed before the retry: epoch activation time and internal revoked
+  lifetime distinguish never-live rebound groups from live revocations, before
+  and after sweeping. Wire scopes remain arrays; born event/meter reference
+  mirrors the internal metadata. Muse's revision-9 Low suggestions are adopted.
+
+- 2026-10-12, UNION revision 11: final round 9 retry returned GPT NOT READY /
+  Muse READY. The new High trace reproduced a scope for a never-held rebound
+  group when a transient replacement was born beside an unswept expired row.
+  Live pre-commit siblings now determine birth accounting; repeated renewals
+  remain born and deletion withdraws their joins. Scope liveness also requires
+  an actual earlier commit boundary. Zero/two-renewal regressions pass; renewal
+  fixtures use adopt_at and assert deletion without replacement. Review budget
+  exhausted, latest fixes unreviewed, UNION promotion remains held.
 ## 2026-10-12 — MERGE round-5 confirmation and revision 6
 
 Fresh, mutually blind reviews of revision 5 at `c8f0810607` are preserved
@@ -93298,3 +93413,97 @@ README 319/320 lines; recipes 380/400; docs-budget and ref-check pass.
 Evidence and per-file qualification are in reports/20261012-integration2/.
 The integration report goes in the final response; no WORKSTREAM-REPORT.md.
 No push or publication.
+- 2026-10-12, UNION integration with sb4-loop `9e345842af`: preserve UNION
+  alongside OPS, LANG2 (including refused-commutation fix `62d86c5a02`),
+  owner-or-X pages and W8C. Resolve six conflicts by preserving both schema
+  modules/journal histories, current online and union offline guide forms,
+  and incoming target-specific schedule counters. Locked Linux wasm measures
+  2,245,862 B raw / 680,029 B gzip, over incoming 662,145 B cap by 17,884 B;
+  raise to 680,529 B (measurement + 500 B), +18,384 B. Whole-artifact
+  measurement, no per-feature attribution. UNION promotion remains held
+  by the final NOT READY verdict; incoming base integration is local only.
+
+- 2026-10-12, UNION/current-loop planning repair: the online owner-or-X branch
+  planner rewrote synced UNION team pages into grant lanes, which intentionally
+  defer membership probes on devices. Keep ordinary per-arm scans for sources
+  with multiple sync needs, preserving acquired completeness; online branch
+  and service-seat surfaces remain. Snapshot-limit and epoch traces reproduce
+  the regression and pass with the guard; branch-merge/audience suites pass.
+
+## 2026-10-12 — UNION integration cheatsheet repair
+
+A fresh affected-suite rerun after 7f76133984 found that the synced
+owner-or-staff cheatsheet board now emits N_NEVER_COMPLETE: preserving
+ordinary UNION device scans also leaves the bare online scan unpinned for
+non-staff. The guide now uses the diagnostic's explicit staff branch and
+owner-pinned fallback. Both return the rule's intended rows; this preserves
+the incoming guide's complete-page recipe alongside the offline union.
+The existing every_card_compiles_clean regression fails before this edit
+and the complete guide target passes afterward (119 tests). No runtime
+behavior changed. Revision 11 plus the runtime integration repair are in
+the commissioned round-10 paired review.
+
+## 2026-10-12 — UNION revision 12: full, non-expiring audiences only
+
+The coordinator's conditional narrowing is triggered. Fresh GPT round 10
+on revision 11 plus the planner integration reproduced expiry-before-join
+then sweep announcing an unreadable content id, with/without windows and
+limits 1/2/1,000; the provider stopped before a final verdict. The actual
+partial output is retained, not counted READY. Instead of extending expiry
+support again, check now refuses union content/membership expiry and any
+union or membership acquisition window, including inherited ancestors.
+Diagnostics name the source and give a compiling online-only rewrite;
+dropping only a union sync window permits a full non-expiring replica.
+
+Per-arm window planning, printing and device boundary selection are removed;
+full unions, ordinary pagination, per-arm snapshots and leave sparing remain.
+Legacy further-arm horizon fields are retained only so admission rejects
+them instead of silently discarding old experimental data. Single-audience
+windows/expiry and generic epoch/commit accounting retain their regressions.
+The current simulator has five full-row worlds and named both-store scope,
+bulk, snapshot-limit, rebirth and epoch traces; old windowed-world evidence
+is historical. Refusal regressions cover the reproduced source and direct/
+inherited scopes in binder/core, with working rewrites. The sharing guide
+uses explicit population caps and the full replica; cost advice never offers
+a refused union horizon. LLP 3000.036.000.000 and the follow-up ticket record
+the narrowing. Fresh paired review of revision 12 is pending.
+
+## 2026-10-12 — UNION revision 12 paired readiness
+
+Fresh round-11 GPT is READY; Muse is READY WITH CHANGES with only two Low
+diagnostic items, both adopted with regressions. The binder/core advice
+conditions window removal on no other excluded lifetime/window source, and
+the core refusal no longer quotes an invalid index-form union-window line.
+The reviewed delivery/admission semantics are unchanged. Round-10 Muse's
+READY for revision 11 and GPT's provider-interrupted partial reproduction
+remain separate, verbatim records. The named follow-up ticket is closed;
+expiry/window admission remains a new deferred ticket. No third pair is
+needed under the coordinator's minor-only criterion; no author acceptance
+or outbound merge/publication is inferred.
+
+Current narrowed simulator: 27 passed, two opt-in ignored (261.63 s).
+Ordinary difftest run: seed 0, 100,000 cases, eight workers, every source
+compiled, 5,028,923 executions, zero disagreements/generator errors/unexpected
+refusals (472.698 s). Re-enumerated census remains 718 entries, 409 mutation
+occurrences and 89 distinct private write sites. Strict web rebuild is
+2,245,118 B raw / 679,240 B gzip, 789 B below the prior integration; the
+680,529 B cap remains unchanged. No per-feature byte attribution is claimed.
+
+## 2026-10-12 — Integration 3: union audiences alongside the loop
+
+Merge `sb4-ws-union` into `sb4-loop` with `--no-ff`, preserving OPS,
+LANG2, merged owner-or-X pages, referential actions and W8C persona journal
+custody. Both journal histories and LLP records remain. Union content and
+its direct/inherited membership scopes are non-expiring and horizon-free;
+windowed and expiring union arms remain refused. Recipes describe full
+replicas rather than an unsupported union acquisition window. Lean's real
+check reports 53/53 examples, 54 headline theorems with standard axioms only,
+and 7 agreeing oracle fixtures.
+
+The locked integrated Linux web artifact measures 2,245,118 B raw and
+679,238 B gzip. Set the gzip budget to 679,738 B, measurement + 500 B as
+commissioned: +2,948 B against Integration 2's measured 676,290 B. This is
+combined integration evidence, not per-feature byte attribution or a Mac
+measurement. Runtime resource ceilings stay as before. Integration's
+referential-event reservation and new cascade regression are qualified in
+follow-up commits; evidence is under reports/20261012-integration3/.

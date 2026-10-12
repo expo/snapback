@@ -215,6 +215,7 @@ mutation mark(id: notes):
         backend.schema.tables.get_mut("notes").unwrap().sync = Some(snapback4_core::schema::Sync {
             audience: snapback4_core::schema::Audience::Public,
             horizon: None,
+            also: Vec::new(),
         });
         let mut d = host.open("negated", Some(backend.clone())).unwrap();
         let page:StreamPage=serde_json::from_value(json!({"snapshot":true,"after":null,"watermark":1,"more":false,"generation":backend.generation,"held":{},"events":[{"kind":"put","table":"notes","id":"note","data":{"id":"note","owner":"alice","other":"bob","secret":1}}]})).unwrap();

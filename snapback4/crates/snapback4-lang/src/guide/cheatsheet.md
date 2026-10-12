@@ -37,12 +37,13 @@ table staff:                              -- a role: one row per staff member (g
   unique principal
   read <- .principal = viewer
   online only
-table requests:                           -- owner or staff: two audiences, so `online only` (guide sharing)
+table requests:                           -- owner or staff: a union, so `sync` holds both (guide sharing)
   author: principal
   title: text 1..200
   read <- .author = viewer or exists staff[viewer]
   insert <- .author = viewer
-  online only
+  cap 500
+  sync
 
 query myLists(c: cursor ?):               -- a page; pass the answer's `next` back as `c`
   return lists where .owner = viewer last 20 by .at after c   -- `last` reads newest first; `first` oldest first
@@ -51,7 +52,9 @@ query itemsOf(list: lists, c: cursor ?):
 query openCount(list: lists):
   return openItems[viewer, list]
 query board(c: cursor ?):                 -- owner or staff on one page: complete for both (guide indexes)
-  return requests last 50 by .id after c
+  if exists staff[viewer]:
+    return requests last 50 by .id after c
+  return requests where .author = viewer last 50 by .id after c
 
 mutation addList(title: text 1..80):
   return insert lists { owner: viewer, title }

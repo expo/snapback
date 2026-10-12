@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 47997,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [],
+          "ret": {
+            "Binary": [
+              "Eq",
+              {
+                "Binary": [
+                  "Mul",
+                  {
+                    "Arg": [
+                      "b",
+                      "Int"
+                    ]
+                  },
+                  {
+                    "Arg": [
+                      "a",
+                      "Int"
+                    ]
+                  }
+                ]
+              },
+              {
+                "Arg": [
+                  "b",
+                  "Int"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [],
+    "principal": "alice",
+    "args": {
+      "a": -9007199254740991,
+      "b": 9007199254740990,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 382413,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 13238,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "rewrite-commute--metered--E_OVERFLOW",
+    "oracle": {
+      "Rewrite": "Commute"
+    },
+    "field": "metered",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 4,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 5
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_OVERFLOW",
+          "family": "input",
+          "message": "E_OVERFLOW: -81129638414606654674191240921090 is outside the i53 value model"
+        }
+      }
+    },
+    "right": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 4,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 6
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_OVERFLOW",
+          "family": "input",
+          "message": "E_OVERFLOW: -81129638414606654674191240921090 is outside the i53 value model"
+        }
+      }
+    },
+    "continuation": []
+  },
+  "shrink_attempts": 86
+}

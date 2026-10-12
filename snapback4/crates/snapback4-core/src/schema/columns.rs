@@ -227,16 +227,18 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }
         if let Some(sync) = &table.sync {
             let path = format!("tables.{name}.sync");
-            if let Some(horizon) = &sync.horizon { walk.index(name,&horizon.by,&path); }
-            match &sync.audience {
-                Audience::Public => {},
-                Audience::Column(field) => walk.field(name,field,&path),
-                Audience::Target { table: target, prefix, principal } => {
-                    walk.target(target,&path);
-                    for field in prefix { walk.field(name,field,&path); walk.field(target,field,&path); }
-                    walk.field(target,principal,&path);
-                    // Resolved rule probes above carry the target index's actual columns.
-                },
+            for (audience, horizon) in sync.arms() {
+                if let Some(horizon) = horizon { walk.index(name,&horizon.by,&path); }
+                match audience {
+                    Audience::Public => {},
+                    Audience::Column(field) => walk.field(name,field,&path),
+                    Audience::Target { table: target, prefix, principal } => {
+                        walk.target(target,&path);
+                        for field in prefix { walk.field(name,field,&path); walk.field(target,field,&path); }
+                        walk.field(target,principal,&path);
+                        // Resolved rule probes above carry the target index's actual columns.
+                    },
+                }
             }
         }
         for (field,kind) in &table.columns {

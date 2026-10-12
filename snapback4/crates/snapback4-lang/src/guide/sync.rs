@@ -12,7 +12,7 @@ table todos:
   sync to .ownerId
 ```
 
-- `E_SYNC`: the read rule is not exactly one audience, or a membership insert proves no grant; the rewrite names the edit, and `guide sharing` has rosters, teams, two parties and owner plus staff.
+- `E_SYNC`: the read rule is neither one audience nor a union of whole audiences, or a membership insert proves no grant; the rewrite names the edit, and `guide sharing` has unions (owner or team, two parties, owner or staff), rosters and teams.
 - `N_SYNC_ORDER`: page and horizon orders differ; keep the intended selection (`first 1` can change), and restart pagination if changing order.
 - `N_NO_HORIZON`: a partition can grow; read the diagnostic's prediction warning before adding `last N by .column` or an intended cap.
 
@@ -105,11 +105,11 @@ sync to .col [last N by .at]                   each row reaches the principal in
 sync to t[.a, .b] [by .col] [last N by .at]    each row reaches every principal with a
                                                  row in t whose (a, b) match; `by .col` names
                                                  the recipient column when t has several
+sync to .col or t[.a]                         a horizon-free, non-expiring union
 ```
 
-`sync [last N by .at]` infers its audience from the read rule. Explicit
-`sync public` and `sync to ...` remain valid and must agree with that rule.
-The read rule must be exactly the audience — `public`, `.col = viewer`, or `exists t[.a, .b, viewer]` — so a device never holds a row it may not read and never misses one it may; a non-service second disjunct or an extra conjunct is
+`sync [last N by .at]` infers its audience from the read rule. Explicit `sync public` and `sync to ...` remain valid and must agree with that rule.
+The read rule must be exactly the audience — `public`, `.col = viewer`, `exists t[.a, .b, viewer]`, or a union: an `or` of `.col = viewer` branches and at most one `exists` branch, each whole (`guide sharing`; unions replicate every readable row and refuse windows or direct/inherited expiry) — so a device never holds a row it may not read and never misses one it may; a branch that is not a whole audience, or an extra conjunct, is
 refused with the rewrite. Declare `unique a, b, principal` on the target; the compiler supplies
 the recipient lookup index; when it
 has several principal columns, `by .col` names the recipient. Every insert
@@ -512,7 +512,7 @@ audience. For example, `read <- .ownerId = viewer` cannot pair with
 match the read rule's membership probe, declare its unique group/principal
 key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
-column or index; do not make private rows public just to enable sync. When the rule names several readers (two parties, an owner and staff, anyone who joins), the first repair is `online only` in place of the sync line: the rule stays as written, queries answer from the server, and mutations never predict (offline they queue). To keep the rows offline, a rule with two readers (`.claimant = viewer or .postedBy = viewer`) splits into a parties table synced to its members; an owner beside shares folds the owner into the shares; an owner beside a staff role keeps one table per audience (all in `guide sharing`); a public-or-owner rule (`.approved or .author = viewer`) splits into a public table and an owner-synced one, moving a row when it is shared. A members row read under `.principal = viewer or exists members[.group, viewer]` is its own witness and syncs as the probe alone. A membership insert branch that proves no grant is refused once, at that insert rule, with the probe conjoined; an open group anyone may join is public, or `online only`.
+column or index; do not make private rows public just to enable sync. When the rule names several readers (two parties, an owner and a team, an owner and staff), `sync` delivers the union as long as each `or` branch is one whole audience and at most one is a group (`guide sharing`); a branch with an extra condition keeps that condition in queries and mutations instead, or the table goes `online only` (the rule stays as written, queries answer from the server, and mutations never predict; offline they queue). A public-or-owner rule (`.approved or .author = viewer`) splits into a public table and an owner-synced one, moving a row when it is shared. A members row read under `.principal = viewer or exists members[.group, viewer]` is its own witness and syncs as the probe alone. A membership insert branch that proves no grant is refused once, at that insert rule, with the probe conjoined; an open group anyone may join is public, or `online only`.
 Mismatched read-through audiences also get E_SYNC, with the schema-specific
 `read through .ref` / `sync` repair.
 

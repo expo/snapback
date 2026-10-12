@@ -89,6 +89,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("branch-merge-v1", |s| s.operations.values().any(|o| o.branch_merge)),
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
+    // @ref LLP 3000.036.000.000#2.3 — a decoder that ignored `also` would hold only the first arm and lose rows.
+    ("union-audience", |s| s.tables.values().any(|t| t.sync.as_ref().is_some_and(Sync::is_union))),
 ];
 
 fn int_range(kind: &ColumnType) -> bool {

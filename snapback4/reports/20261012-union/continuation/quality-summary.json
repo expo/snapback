@@ -1,0 +1,246 @@
+{
+  "date": "2026-10-12",
+  "integration_commit": "5c6e7b39e1",
+  "planner_repair_commit": "7f76133984",
+  "readiness": "NOT READY; final GPT verdict on revision 10; revision 11 and planner repair unreviewed under exhausted allowance",
+  "paired_reviews": {
+    "round8_revision8": {
+      "gpt": "READY WITH CHANGES",
+      "muse": "READY WITH CHANGES"
+    },
+    "round9_retry_revision10": {
+      "gpt": "NOT READY",
+      "muse": "READY"
+    }
+  },
+  "cargo_targets": {
+    "core": [
+      {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "partition": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "language": [
+      {
+        "result": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 33,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 119,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 40,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "planner": [
+      {
+        "result": "ok",
+        "passed": 33,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "device": [
+      {
+        "result": "ok",
+        "passed": 61,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "result": "ok",
+        "passed": 142,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "branch-devices": [
+      {
+        "result": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "clock": [
+      {
+        "result": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "census": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "docs": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "smoke": [
+      {
+        "result": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "snapshot-fixed": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "epoch-fixed": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "sim-before-planner": [
+      {
+        "result": "FAILED",
+        "passed": 24,
+        "failed": 5,
+        "ignored": 2
+      }
+    ],
+    "transient-before": [
+      {
+        "result": "FAILED",
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0
+      }
+    ],
+    "transient-after": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "renewal-assertions": [
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "difftest": {
+    "cases": 100000,
+    "executed": 5028923,
+    "disagreements": 0,
+    "generator_errors": 0,
+    "unexpected_refusals": 0,
+    "seed": 0,
+    "workers": 8,
+    "seconds": 533.550696045
+  },
+  "census": {
+    "entries": 718,
+    "mutation_occurrences": 409,
+    "private_write_sites": 89
+  },
+  "wasm": {
+    "raw": 2245862,
+    "gzip": 680029,
+    "budget": 680529
+  },
+  "clients": {
+    "files": 9,
+    "passed": 209,
+    "failed": 0,
+    "skipped": 8,
+    "skip_reasons": [
+      "published 0.2.32 server binary absent",
+      "seven published 0.2.33 darwin-arm64 witnesses unavailable on Linux"
+    ]
+  },
+  "docs": {
+    "readme_lines": 319,
+    "budget": 320,
+    "self_containment_passed": 1
+  },
+  "refs": {
+    "llps": 540,
+    "refs": 10988,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "simulator": {
+    "passed": 29,
+    "failed": 0,
+    "ignored": 2,
+    "seconds": 660.79
+  },
+  "deferrals": [
+    "fresh paired review before UNION promotion",
+    "historic Lean C2/W4 findings",
+    "optional RFC section 8a evidence and unreleased epoch legacy bound"
+  ]
+}
