@@ -257,6 +257,51 @@ fn typed_positional_and_named_membership_keys_agree_with_the_engine() {
 }
 
 #[test]
+fn fixed_membership_source_id_agrees_with_the_engine() {
+    if !model_built() { return; }
+    let source = "table memberships:\n  parent: text <=40\n  principal: principal\n  unique parent, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.branches()));
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let rows: Vec<(String, serde_json::Value)> = vec![
+        ("memberships".into(), json!({"id":"m1","parent":"p1","principal":"alice"})),
+        ("memberships".into(), json!({"id":"m2","parent":"p2","principal":"alice"})),
+        ("documents".into(), json!({"id":"d1","owner":"bob","parent":"p1","at":1})),
+        ("documents".into(), json!({"id":"d2","owner":"bob","parent":"p2","at":2})),
+    ];
+    let seeded = rows.iter().map(|(table, value)| {
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+        (table.clone(), row)
+    }).collect::<Vec<_>>();
+    engine.seed(seeded).unwrap();
+    let actual = engine.query("run", snapback4_core::Context::new(
+        "alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+    )).unwrap();
+    let module = lean::module(source).unwrap();
+    let case = module.case(
+        "run",
+        module.store(&rows).unwrap(),
+        "alice",
+        module.tag_args("run", &json!({"c":null})).unwrap(),
+        None,
+    ).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(modeled["kind"], "answer", "{modeled}");
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
+    assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+    assert_eq!(lean::engine_value(&actual.data),
+        json!({"arr":[{"row":{"at":{"int":"1"},"id":{"id":"d1"},"owner":{"id":"bob"},"parent":{"text":"p1"}}}]}),
+        "m2 must not grant d2");
+    assert!(actual.complete && actual.next.is_none(), "{actual:?}");
+}
+
+#[test]
 fn same_typed_positional_membership_keys_are_rejected_before_the_oracle() {
     let source = "table memberships:\n  parent: text <=40\n  alias: text <=40\n  principal: principal\n  unique parent, principal\n  unique alias, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[.parent, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
