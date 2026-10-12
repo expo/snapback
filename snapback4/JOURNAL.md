@@ -92708,3 +92708,14 @@ whole-body IR walk, and documents case-1-only existence expansion. The
 507-byte index names, a 2,028-byte original key whose party indexes would
 need 2,166 bytes, and the nested-shape note assertion. Final integrated
 measurements and quality-bar results follow after merging the newer loop tip.
+
+## 2026-10-12 — MERGE: final optional-index bounds
+
+The focused revision-6 review found that a pending index's structural token
+is shorter than its emitted column-derived name. The optional planner now
+checks the emitted name through `intent::index_name`, including its collision
+suffix, and declared indexes through their actual names. Another fresh GPT
+confirmation is READY (`llp/reviews/3000.036.001-merged-pages.r6-key-bounds.gpt.md`).
+All 33 merged-page tests pass, including the added 480-byte owner-column
+label fallback and oversized existence-index fallback. Neither correction
+changes device execution or the measured wasm artifact.

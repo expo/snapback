@@ -794,3 +794,23 @@ fn branch_key_bytes_that_exceed_the_portable_bound_keep_the_original_scan() {
     assert_eq!(got, vec!["t1"]);
     assert!(complete.into_iter().all(|c| !c));
 }
+
+/// The pending request label fits, but the emitted label includes the column.
+#[test]
+fn an_oversized_emitted_branch_index_label_keeps_the_original_scan() {
+    let owner = "o".repeat(480);
+    let source = TASKS.replace("owner", &owner)
+        + "query mine(c: cursor ?):\n  return tasks last 1 by .at after c\n";
+    let b = clean(&source);
+    assert!(branch_merges(&b, "mine").is_empty());
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(b.schema.tables["tasks"].indexes.keys().all(|name| name.len() + 5 <= 512));
+}
+
+#[test]
+fn oversized_existence_branch_indexes_keep_the_original_scan() {
+    let b = clean("table tasks:\n  bucket: text <=500\n  read <- .bucket = 'a' or .bucket = 'b'\n  online only\nquery any():\n  return exists tasks where .bucket = 'a' or .bucket = 'b'\n");
+    let program = &b.programs.iter().find(|p| p.program.name == "any").unwrap().program;
+    assert_eq!(snapback4_core::ir::scans(program).len(), 1);
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+}

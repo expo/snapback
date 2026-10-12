@@ -63,9 +63,14 @@ impl Requests {
 
     pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
         let Some(name) = &read.index else { return false };
-        self.indexes.get(&(table.decl.name.clone(), name.clone()))
-            .or_else(|| table.indexes.iter().find(|index| &index.name == name))
-            .is_some_and(|index| super::key_bound::plain_index_fits(table, index))
+        if let Some(index) = self.indexes.get(&(table.decl.name.clone(), name.clone())) {
+            // A pending structural token is renamed after planning. Bound
+            // the emitted label, including its column names and collision suffix.
+            super::key_bound::plain_index_fits(table, index, &index_name(table, index))
+        } else {
+            table.indexes.iter().find(|index| &index.name == name)
+                .is_some_and(|index| super::key_bound::plain_index_fits(table, index, &index.name))
+        }
     }
 
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {

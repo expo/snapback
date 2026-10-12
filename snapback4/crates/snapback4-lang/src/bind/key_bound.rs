@@ -25,8 +25,8 @@ fn column_bytes(kind: &ColumnType) -> usize {
 /// Optional branch planning must not introduce a later key-bound refusal.
 /// Use the same column sizes and appended identity as the schema check.
 // @ref LLP 3000.036.001#3 — oversized branch indexes leave the original read intact
-pub(super) fn plain_index_fits(table: &super::catalog::TableInfo, index: &crate::ast::IndexDecl) -> bool {
-    table.decl.name.len().saturating_add(index.name.len()) <= MAX_INDEX_LABEL_BYTES
+pub(super) fn plain_index_fits(table: &super::catalog::TableInfo, index: &crate::ast::IndexDecl, emitted_name: &str) -> bool {
+    table.decl.name.len().saturating_add(emitted_name.len()) <= MAX_INDEX_LABEL_BYTES
         && index.words.is_none() && index.computed.is_empty()
         && index.columns.iter().fold(ID_BYTES, |bytes, column| {
             let size = table.columns.get(column).map(|ty| column_bytes(&crate::types::scalar_to_column(ty)))
