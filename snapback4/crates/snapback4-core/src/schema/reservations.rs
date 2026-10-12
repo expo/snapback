@@ -157,19 +157,22 @@ pub fn reservation(schema: &Schema, source: &str) -> Option<WriteReservation> {
                 if let Some(owner) = &m.private { row_tables.insert(owner.table.clone()); }
             }
         }
-        let (mut image, mut dependents) = (0_u64, 0_u64);
+        let (mut image, mut dependents, mut arms) = (0_u64, 0_u64, 1_u64);
         let mut tables = BTreeSet::new();
         for name in &row_tables {
             image = image.max(row_copy_ceiling(schema.table(name)?));
+            arms = arms.max(schema.table(name)?.sync.as_ref().map_or(1, |sync| sync.arms().count() as u64));
             if schema.visible(name) { tables.insert(name.clone()); }
             let mut count = 0;
             for (receiver, _, sync) in schema.synced() {
+                // The one group arm is always primary; also-arms are columns.
                 if matches!(&sync.audience, Audience::Target { table, .. } if table == name) { tables.insert(receiver.to_owned()); count += 1; }
             }
             dependents = dependents.max(count);
         }
         let metadata = tables.iter().map(|name| 1024 + 4 * crate::rows::MAX_INDEX_KEY_BYTES as u64 + 4 * name.len() as u64).max().unwrap_or(0);
-        plan.action_events = Some(ActionEvents { steps_per_write: dependents, heap_per_write: image.saturating_mul(2).saturating_add(metadata.saturating_mul(2 + 2 * dependents)), tables: tables.into_iter().collect() });
+        // @ref LLP 3000.039#5.1 — each union arm can retain its own row event; price schema width rather than live recipients.
+        plan.action_events = Some(ActionEvents { steps_per_write: dependents, heap_per_write: image.saturating_mul(2 * arms).saturating_add(metadata.saturating_mul(2 * arms + 2 * dependents)), tables: tables.into_iter().collect() });
     }
 
     Some(plan)

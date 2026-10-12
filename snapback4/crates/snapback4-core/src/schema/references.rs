@@ -392,11 +392,13 @@ fn carries_authority(schema: &Schema, child: &str, column: &str) -> bool {
 /// value that carries authority or meaning beyond "which parent this row has".
 // @ref LLP 3000.039#2.2 — set null never changes any rule's verdict, moves a row between audiences, or rewrites a fact resolved through the reference.
 pub fn set_null_refusal(schema: &Schema, name: &str, table: &Table, column: &str) -> Option<String> {
-    let audience = table.sync.as_ref().is_some_and(|sync| match &sync.audience {
+    let audience = table.sync.as_ref().is_some_and(|sync| std::iter::once((&sync.audience, sync.horizon.as_ref()))
+        .chain(sync.also.iter().map(|arm| (&arm.audience, arm.horizon.as_ref())))
+        .any(|(audience, horizon)| match audience {
         Audience::Public => false,
         Audience::Column(c) => c == column,
         Audience::Target { prefix, .. } => prefix.iter().any(|c| c == column),
-    } || sync.horizon.as_ref().is_some_and(|h| table.index(&h.by).is_some_and(|i| i.uses_column(column))));
+    } || horizon.is_some_and(|h| table.index(&h.by).is_some_and(|i| i.uses_column(column)))));
     let maintained = schema.maintains.iter().any(|m| m.source == name && m.by.iter().any(|by| by.trim_start_matches('.').starts_with(&format!("{column}."))));
     if !table.columns.get(column).is_some_and(ColumnType::is_optional) { Some("the reference is required; declare it optional (`?`) or choose cascade".into()) }
     else if table.through.as_ref().is_some_and(|t| t.reference == column) { Some("a read-through reference is required and immutable".into()) }

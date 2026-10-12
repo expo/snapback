@@ -95,3 +95,22 @@ fn the_grant_repair_conjoins_the_probe_to_each_unguarded_branch() {
     let repair = audience_grant_repair(&schema, "memberships", &binding, false).unwrap();
     assert!(repair.rule.ends_with("(exists rooms[.room] and .principal = viewer and exists memberships[.room, viewer])"), "{}", repair.rule);
 }
+
+// Defence for hand-built schemas: compiler-admitted union columns are required,
+// but eligibility must still inspect every arm and every serialized horizon.
+#[test]
+fn set_null_checks_later_union_arms_and_their_horizons() {
+    let mut table = public_table(BTreeMap::from([
+        ("id".into(), ColumnType::Id), ("owner".into(), ColumnType::Principal),
+        ("reviewer".into(), ColumnType::Optional(Box::new(ColumnType::Principal))),
+    ]), BTreeMap::from([("byReviewer".into(), Index::of(&["reviewer", "id"], false))]));
+    table.sync = Some(Sync { audience: Audience::Column("owner".into()), horizon: None,
+        also: vec![SyncArm { audience: Audience::Column("reviewer".into()), horizon: None }] });
+    let schema = Schema::default();
+    assert!(references::set_null_refusal(&schema, "tasks", &table, "reviewer").unwrap().contains("sync audience"));
+    table.sync.as_mut().unwrap().also[0] = SyncArm { audience: Audience::Column("owner".into()),
+        horizon: Some(Horizon { last: 1, by: "byReviewer".into() }) };
+    assert!(references::set_null_refusal(&schema, "tasks", &table, "reviewer").unwrap().contains("horizon"));
+    table.sync.as_mut().unwrap().also.clear();
+    assert!(references::set_null_refusal(&schema, "tasks", &table, "reviewer").is_none());
+}
