@@ -60,6 +60,36 @@ pub fn oracle_path() -> PathBuf {
     }
 }
 
+/// Bring this checkout's `quarry-oracle` up to date with its model sources
+/// (`lake build quarry-oracle`, under a second when current). A merge or
+/// checkout that changes `lean/` leaves the previous executable in `.lake`,
+/// and the harness would report that older model's choices as disagreements
+/// (2026-10-12: a stale pre-guard oracle on the merged `sb4-loop` tree showed
+/// `lean--complete--complete~incomplete`). Nothing is done when
+/// `SNAPBACK4_LEAN_ORACLE` names the oracle (the caller vouches for it; a
+/// campaign's workers inherit the refreshed path that way) or when `lake` is
+/// not installed (a missing oracle still refuses at `LeanProcess::spawn`).
+pub fn refresh() -> Result<(), String> {
+    if std::env::var_os("SNAPBACK4_LEAN_ORACLE").is_some() {
+        return Ok(());
+    }
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lean");
+    match Command::new("lake").args(["build", "quarry-oracle"]).current_dir(&dir).stdin(Stdio::null()).output() {
+        Ok(output) if output.status.success() => Ok(()),
+        Ok(output) => Err(format!(
+            "`lake build quarry-oracle` failed in {}: {}{}",
+            dir.display(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("lake not found: using the Lean oracle as built at {}", oracle_path().display());
+            Ok(())
+        }
+        Err(e) => Err(format!("lake: {e}")),
+    }
+}
+
 /// One `quarry-oracle` process: a JSON case per line in, an outcome per line out.
 pub struct LeanProcess {
     child: Child,

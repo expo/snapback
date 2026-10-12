@@ -344,3 +344,11 @@ export function awaitBoundary() {
 // commit and a receipt return clears replay ownership; the await set is the
 // same (the hash moves because that body sits inside an awaited lock). No delivery
 // site, classification or recipe changes.
+
+// FILE + JR merge (0.4.23): file assets change only asset-upload awaits.
+// assets.ts uploads with the declared content type and `?as=file` target;
+// client.ts and local.ts pass the new upload `options` through to it (await
+// counts unchanged). files.ts adds saveAsset's one await, `client.asset(id)`, a
+// read that downloads bytes for a browser save. None of these admits, sends,
+// stores or settles a write: no delivery site, classification or fault recipe
+// changes. The boundary is regenerated over both families' sources.
