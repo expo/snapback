@@ -43,6 +43,12 @@ fn expired_content_then_join_then_sweep_is_refused_before_a_device_can_learn_its
         let (prefix, suffix) = source.rsplit_once(&format!("  sync{window}\n")).unwrap();
         let repaired = format!("{prefix}  online only\n{suffix}");
         clean(&repaired);
+        if !window.is_empty() {
+            let without_window = format!("{prefix}  sync\n{suffix}");
+            let again = compile(&without_window);
+            assert!(again.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.message.contains("cannot expire: notes")), "{:?}", again.diagnostics);
+            assert!(b.diagnostics.iter().find(|d| d.code == "E_SYNC").unwrap().rewrite.contains("when no other excluded"));
+        }
     }
     let source = GROUP.replace("  until: time\n", "  until: time\n  expire at .until\n");
     // Replace only the content table's line; the membership still syncs.
@@ -58,7 +64,9 @@ fn every_union_arm_window_is_refused_even_in_hand_built_schemas() {
     let sync = core.tables.get_mut("notes").unwrap().sync.as_mut().unwrap();
     assert!(matches!(sync.audience, Audience::Target { .. }));
     sync.also[0].horizon = Some(Horizon { last: 1, by: "byId".into() });
-    assert!(schema::validate(&core).iter().any(|i| i.message.contains("union audiences cannot have")));
+    let issues = schema::validate(&core);
+    let d = issues.iter().find(|i| i.message.contains("union audiences cannot have")).unwrap();
+    assert!(!d.message.contains("last 1 by byId") && d.message.contains("when no other excluded"), "{d:?}");
     for window in ["last 1 by .at", "last 1 by byId"] {
         let source = GROUP.replace("  sync\ntable notes", "  sync to .person\ntable notes")
             .replace("  sync\n", &format!("  sync {window}\n"));

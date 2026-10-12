@@ -1,6 +1,6 @@
 # UNION: finish review and named coverage after the bounded loop
 
-**Status:** Open
+**Status:** Closed
 **Date:** 2026-10-12
 **Systems:** Snapback 4 union sync audiences; simulator and review evidence
 **Related:** LLP 3000.036.000.000 §§6, 8a, 9, 10
@@ -96,3 +96,24 @@ hardening items above are implemented. Optional null-lifetime, prediction-race
 and activation-straddle witnesses remain explicit in RFC §8a. Old unreleased
 epoch experiments without an activation clock retain their documented legacy
 baseline behavior. The broader Lean C2/W4 findings remain existing follow-ups.
+
+## Resolution — narrowed revision 12 and commissioned round 11
+
+The coordinator commissioned up to three new pairs, beginning with revision
+11 plus integration. Round 10 Muse returned READY; GPT provider-terminated
+before a verdict after reproducing content-expiry-before-join/sweep naming
+an unreadable id. The coordinator's explicit conditional narrowing was
+applied in d5e7da77d4: union content and direct/inherited membership scopes
+are non-expiring and horizon-free; per-arm window support is removed.
+Excluded expiry/window work moves to 20261012-union-expiry-windows-deferred.md.
+
+Round 11 reviewed revision 12: fresh GPT READY, Muse READY WITH CHANGES
+(two Low diagnostics only). Both Lows are repaired with regressions. Named
+disclosure/hardening requirements are implemented in admitted full-row
+forms; windowed forms are deliberately refused, not claimed as supported.
+The final narrowed simulator is green (27 passed, two opt-in ignored), as
+are affected language/device/core checks and ordinary difftest run 100,000
+(5,028,923 executions, zero disagreements or unexpected refusals). Historical
+failed/incomplete evidence is retained. No author acceptance, push or merge
+into sb4-loop is inferred. Optional broader witnesses and existing Lean C2/W4
+findings remain explicit follow-ups rather than this ticket's required work.

@@ -7,13 +7,13 @@ use super::*;
 // @ref LLP 3000.036.000.000#2.2 — every disjunct is one arm and every arm one disjunct, so each partition's recipients are readers and every reader has a partition.
 pub(super) fn validate(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
-    let line = sync.line_in(table);
     let arms: Vec<(&Audience, Option<&Horizon>)> = sync.arms().collect();
     // @ref LLP 3000.036.000.000#8 — union arms have no acquisition windows or direct/inherited expiry.
     if sync.horizon.is_some() || sync.also.iter().any(|arm| arm.horizon.is_some()) {
-        issue(issues, format!("{line}: union audiences cannot have `last N by ...`; use `online only` to keep the read rule and queries, or remove the sync window to replicate every readable row"));
+        issue(issues, "union audiences cannot have `last N by ...`; use `online only` to keep the read rule and queries, or remove the sync window to replicate every readable row when no other excluded expiry/window scope remains".into());
         return;
     }
+    let line = sync.line_in(table);
     let mut scopes = vec![table_name.to_owned()];
     if let Audience::Target { table, .. } = &sync.audience { scopes.push(table.clone()); }
     for root in scopes {

@@ -93376,3 +93376,24 @@ inherited scopes in binder/core, with working rewrites. The sharing guide
 uses explicit population caps and the full replica; cost advice never offers
 a refused union horizon. LLP 3000.036.000.000 and the follow-up ticket record
 the narrowing. Fresh paired review of revision 12 is pending.
+
+## 2026-10-12 — UNION revision 12 paired readiness
+
+Fresh round-11 GPT is READY; Muse is READY WITH CHANGES with only two Low
+diagnostic items, both adopted with regressions. The binder/core advice
+conditions window removal on no other excluded lifetime/window source, and
+the core refusal no longer quotes an invalid index-form union-window line.
+The reviewed delivery/admission semantics are unchanged. Round-10 Muse's
+READY for revision 11 and GPT's provider-interrupted partial reproduction
+remain separate, verbatim records. The named follow-up ticket is closed;
+expiry/window admission remains a new deferred ticket. No third pair is
+needed under the coordinator's minor-only criterion; no author acceptance
+or outbound merge/publication is inferred.
+
+Current narrowed simulator: 27 passed, two opt-in ignored (261.63 s).
+Ordinary difftest run: seed 0, 100,000 cases, eight workers, every source
+compiled, 5,028,923 executions, zero disagreements/generator errors/unexpected
+refusals (472.698 s). Re-enumerated census remains 718 entries, 409 mutation
+occurrences and 89 distinct private write sites. Strict web rebuild is
+2,245,118 B raw / 679,240 B gzip, 789 B below the prior integration; the
+680,529 B cap remains unchanged. No per-feature byte attribution is claimed.
