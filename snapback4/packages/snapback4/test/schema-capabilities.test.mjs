@@ -94,6 +94,15 @@ function noEffectKeys(path) {
 const ok=reply=>{assert.ok(Object.hasOwn(reply,'ok'),JSON.stringify(reply));assert.equal(reply.denied,undefined);return reply.ok;};
 const unknown=/unknown variant [`'"]?Capabilities/;
 const storedUnknown=/E_STORE: (?:invalid stored schema: )?unknown variant [`'"]?Capabilities/;
+// @ref LLP 3000.022#14.3 — byte capability fences remain reachable independently of release-store versions.
+// @ref LLP 3000.000.000#2 — pre-retention servers must refuse release stores before reading their schema.
+function releaseStoreRefusal(result,path) {
+  const db=new DatabaseSync(path,{readOnly:true});
+  let version;try {version=db.prepare("SELECT value FROM _meta WHERE key='version'").get()?.value;} finally {db.close();}
+  assert.match(version,/^snapback4-release-store-[23]$/,'fixture must be a retained release store');
+  assert.notEqual(result.status,0,'published server must refuse the release-store format');
+  assert.ok((result.stdout+result.stderr).includes(`E_STORE: store version ${version} is not snapback4-store-1; this data directory belongs to another Snapback`),result.stdout+result.stderr);
+}
 const capabilityCode=/"code"\s*:\s*"E_SCHEMA_CAPABILITY"/;
 function markers(schema,expected) {
   const constraints=Object.values(schema.tables).flatMap(t=>t.constraints);
@@ -253,12 +262,12 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   assert.equal(dump(store),stored);
   t.diagnostic(`${f.name} stored-engine refusal: ${doctor.stdout.trim()} ${doctor.stderr.trim()}`);
   const release=join(dir,'release');const deployed=run(binary,['deploy',release],'',next.cwd);assert.equal(deployed.status,0,deployed.stdout+deployed.stderr);
-  // Keep source old-readable: the refusal must come from the persisted schema.
+  // Keep source old-readable: release-store version is now the first persisted gate.
   const releaseSource=join(release,'releases/1/snapback/schema.q');
   writeFileSync(releaseSource,f.legacyPlain??f.plain);assert.equal(readFileSync(releaseSource,'utf8'),f.legacyPlain??f.plain);
   const releaseStore=join(release,'store.sqlite'),releaseBefore=dump(releaseStore);
   const served=run(legacy.binary,['serve',release,'--port','0'],'',next.cwd);
-  assert.notEqual(served.status,0);assert.match(served.stdout+served.stderr,storedUnknown);
+  releaseStoreRefusal(served,releaseStore);
   assert.equal(dump(releaseStore),releaseBefore,'old serve did not write');
   writeFileSync(join(next.cwd,'snapback/schema.q'),f.legacyPlain??f.plain);
   const beforeRun=dump(store);
@@ -314,7 +323,7 @@ test('Linux schema-byte fixture is the published capability-free control source'
     'use identity guests\n'+ordinary);
 });
 
-test('published 0.2.33 control: capability-free bytes and stores stay compatible',{
+test('published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version',{
   skip:fenceSkip,timeout:hangBudget(9),
 },async t=>{
   const {dir,legacy,current,run,native,app,start,request}=await harness(t);
@@ -360,14 +369,16 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   // committed setup before comparing physical bytes across the refusal.
   const closedStore=new DatabaseSync(join(release,'store.sqlite'));
   try {assert.equal(closedStore.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get().busy,0);} finally {closedStore.close();}
+  // Let the old compiler reach the store gate rather than stop at new source syntax.
+  writeFileSync(join(release,'releases/1/snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
+  const releaseDoctor=run(legacy.binary,['doctor','--store',join(release,'store.sqlite')],'',newApp.cwd);
+  releaseStoreRefusal(releaseDoctor,join(release,'store.sqlite'));
   const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
-  assert.notEqual(served.status,0);
-  // The release source spells `on delete keep` (LLP 3000.039), which 0.2.33 cannot parse: either refusal fails closed.
-  assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release|E_QUARRY_SYNTAX/);
+  releaseStoreRefusal(served,join(release,'store.sqlite'));
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
-  t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');
+  t.diagnostic('published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes');
   // Pin the complete canonical 0.4 backend after the behavioral checks. This
   // fixture includes the new first-10 site spelling and selection explanation.
   // SN adds settlement summaries to the program envelope (+150 bytes). Published
