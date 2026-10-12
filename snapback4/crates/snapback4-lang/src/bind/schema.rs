@@ -581,6 +581,13 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert, hops: rule.effect != Effect::Read, present: Vec::new() };
     rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
         let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
+        if error.code == "E_QUARRY_RULE_OPERATOR" && rule.effect == Effect::Update && rule.bindings.is_empty()
+            && error.rewrite == "write this as a named transition" {
+            let source = format!("update (old, next) <- {}", crate::print::expression(&rule.value));
+            error.rewrite = format!("name both row images: `{source}`");
+            error.source_rewrite = Some(source);
+            error.source_rewrite_kind = Some(crate::diag::SourceRewriteKind::NamedUpdate);
+        }
         // @ref LLP 3000.036#13.6 — the named form of a whole unnamed update rule, so the rewrite keeps every other clause.
         if error.code == "E_QUARRY_RULE_OPERATOR" && rule.effect == Effect::Update && rule.bindings.is_empty() && error.rewrite.starts_with("name both images") {
             let comparison = error.message.split('`').nth(1).unwrap_or_default().to_owned();
@@ -713,7 +720,9 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                     && !matches!(other, Ty::Principal | Ty::Id)
                     && !matches!((&l, &r), (RuleTerm::Viewer, _) | (_, RuleTerm::Viewer))
                 {
-                    return Err(type_error(site, format!("viewer meets {} here; only principal columns compare with viewer", other.name()), "declare the column as principal"));
+                    return Err(type_error(site,
+                        format!("rule comparison joins {} with {}; a principal value cannot equal a value that may be null", lt.name(), rt.name()),
+                        "compare required principal columns, or copy the present principal into a required immutable field when the mutation creates this row"));
                 }
                 if ordered && !transition {
                     // An insert rule orders only the new row's own required
@@ -819,6 +828,11 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 let ty = column_ty(info, name).ok_or_else(|| unknown(site, format!("rule reads undeclared column {}.{name}", info.decl.name), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None)))?;
                 Ok((RuleTerm::NextField(name.clone()), ty))
             }
+            Expr::Name { name: binder, .. } if bindings.update && bindings.old.is_none()
+                && matches!(binder.as_str(), "old" | "next") => Err(Diagnostic::new(site,
+                    "E_QUARRY_RULE_OPERATOR",
+                    format!("`{binder}.{name}` names a row image, but this update rule did not bind old and next"),
+                    "write this as a named transition").guide("rules")),
             other => rule_reference(catalog, info, other, name, bindings, site),
         },
         Expr::Name { name, .. } if bindings.update && (bindings.old.as_deref() == Some(name) || bindings.next.as_deref() == Some(name)) => Err(unknown(site, format!("select a field of {name} explicitly"), format!("{name}.id"))),
@@ -989,7 +1003,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         }
     };
     super::point_key::check(target, &index, read, &terms.iter().zip(&types).map(|((column, term), ty)|
-        (column.as_deref(), (!ty.is_optional() && *ty != Ty::Unknown) || bindings.present.contains(term))).collect::<Vec<_>>())?;
+        (column.as_deref(), (!ty.is_optional() && *ty != Ty::Unknown) || bindings.present.contains(term))).collect::<Vec<_>>(), true)?;
     let equalities = terms.iter().filter_map(|(column, term)| column.as_ref().filter(|col| !index.columns.contains(col)).map(|col| (col.clone(), term.clone()))).collect();
     let mut ordered: Vec<RuleTerm> = match &named {
         Some(names) => index.columns.iter().map(|column| {

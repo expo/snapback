@@ -1136,7 +1136,7 @@ impl<'a> Binder<'a> {
         let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let (bound, index, _) = self.select_index(info, &read, ReadMode::Point, out)?;
         super::point_key::check(info, &index, &read, &bound.iter().map(|(column, _, ty)|
-            (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>())?;
+            (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>(), false)?;
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {
             let id = self.temp("key");

@@ -19,7 +19,19 @@ pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&s
             cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), range: None, matching: None, filter: None, seeks: Vec::new() };
         super::positional_keys::candidates(table, &read, types, synthesized).into_iter()
             .filter(|key| key.unique && key.columns.len() == prefix).collect()
-    } else { declared.iter().copied().filter(|key| key.columns.len() == prefix && index.is_none_or(|name| name == key.name)).collect() };
+    } else {
+        // Before types are known, do not silently turn `roles[viewer,
+        // role = 'staff']` into an id lookup merely because byId has the
+        // positional prefix's arity. A declared composite key covered by the
+        // positional prefix plus named suffix must reach the typed pass, which
+        // prints the fully named repair.
+        let named: Vec<&str> = parts[prefix..].iter().filter_map(|part| part.column.as_deref()).collect();
+        let partial_composite = declared.iter().any(|key| key.columns.len() == parts.len()
+            && named.iter().all(|column| key.columns.iter().any(|key_column| key_column == column))
+            && index.is_none_or(|name| name == key.name));
+        if partial_composite { Vec::new() }
+        else { declared.iter().copied().filter(|key| key.columns.len() == prefix && index.is_none_or(|name| name == key.name)).collect() }
+    };
     let chosen = match candidates.as_slice() {
         [chosen] if table.total_unique(chosen) => *chosen,
         _ => {
@@ -36,7 +48,8 @@ pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&s
                 format!("{}[{}]", table.decl.name, named.join(", "))
             } else { format!("{}[id = <id>, {}]", table.decl.name, parts[prefix..].iter().map(spelling).collect::<Vec<_>>().join(", ")) };
             return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN",
-                format!("{} needs one full declared unique key with non-null columns before named tests; {prefix} positional components match {} keys; declared keys: {descriptions}", table.decl.name, candidates.len()), rewrite).guide("reads"));
+                format!("{} needs one full declared unique key with non-null columns before named tests; {prefix} positional components match {} keys; declared keys: {descriptions}", table.decl.name, candidates.len()), rewrite.clone())
+                .source_rewrite(crate::diag::SourceRewriteKind::MixedKey, rewrite).guide("reads"));
         }
     };
     let mut named = parts.to_vec();
