@@ -169,7 +169,8 @@ fn asset_narrowing_and_removed_homes_share_the_activation_commit() {
     let asset=e.store_asset("dev:alice",&png,1000).unwrap();let path=e.store().asset_path(&asset.id);
     e.seed([("items".into(),snapback4_core::value::object([("id",Value::Id("a".into())),("photo",asset.column_value())]))]).unwrap();
     let generation=e.generation();
-    assert_eq!(adopt(&mut e,&source.replace("<=1000","<=1")).unwrap_err().code(),"E_ASSET_TOO_LARGE");
+    // Development adoption reports E_ADOPT and preserves the asset ledger atomically.
+    assert_eq!(adopt(&mut e,&source.replace("<=1000","<=1")).unwrap_err().code(),"E_ADOPT");
     assert_eq!(e.generation(),generation);assert!(e.store().asset(&asset.id).unwrap().unwrap().released_at.is_none());
     let removed=source.replace("  photo: image <=1000\n", "");
     assert!(adopt(&mut e,&removed.replace("  read <- allow", "  required: int\n  read <- allow")).is_err());
