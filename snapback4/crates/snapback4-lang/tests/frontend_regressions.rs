@@ -63,15 +63,15 @@ fn self_witness_notes_name_only_the_unpinned_deciding_columns() {
     let source = include_str!("../../snapback4-sim/tests/fixtures/membership.q");
     let rule = ".principal = viewer or exists memberships[.chatKey, viewer]";
     let positive = bound(source);
-    assert!(!positive.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", positive.notes);
+    assert!(!positive.notes.iter().any(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", positive.notes);
     let blocked = bound(&source.replace("  by byPrincipalChat:", "  unique byChatPrincipalRole: chatKey, principal, role\n  by byPrincipalChat:")
         .replace(rule, ".principal = viewer or exists memberships[.chatKey, viewer, 'admin']"));
-    let note = blocked.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
+    let note = blocked.notes.iter().find(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .principal, which the scan does not pin"), "{note:?}");
     assert!(note.rewrite.contains("pin .principal with where equalities"), "{note:?}");
     assert!(!note.rewrite.contains("principal, principal"), "{note:?}");
     let residual = bound(&source.replace(rule, &format!("{rule} or .role = 'admin'")));
-    let note = residual.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
+    let note = residual.notes.iter().find(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .role, which the scan does not pin"), "{note:?}");
     assert!(note.rewrite.contains("pin .role with where equalities"), "{note:?}");
 }
@@ -1008,8 +1008,17 @@ query post(postId: posts):
     let unguarded_again = e.mutate("unchecked", None, context(&args(id("visible"), 1))).unwrap();
     assert!(matches!(unguarded.state, WriteState::Sent { .. }));
     assert_eq!(guarded.metered.examined, unguarded_again.metered.examined + 1);
+    // LLP 3000.039: an undeclared reference is `on delete restrict`, so the
+    // vote that names the post refuses its delete; dangling votes never do.
+    let refused = e.mutate("removePost", None, context(&[("postId", id("visible"))])).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "E_REFERENCED"), "{refused:?}");
+    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))));
+    // `on delete keep` declares the old meaning: the vote stays and names a deleted post.
+    let mut e = engine(&source.replace("  postId: posts\n", "  postId: posts on delete keep\n"));
+    e.seed([("posts".into(), object([("id", id("visible")), ("author", id("dev:alice"))]))]).unwrap();
+    mutation(&mut e, "unchecked", &args(id("visible"), 1));
     mutation(&mut e, "removePost", &[("postId", id("visible"))]);
-    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))), "deleting a target does not cascade to references");
+    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))), "keep does not cascade to references");
     assert_eq!(query(&mut e, "post", &[("postId", id("visible"))]), Value::Null);
 }
 

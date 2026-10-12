@@ -3,3 +3,5 @@
 {"code":"NOT_FOUND","kind":"refused"}
 {"kind":"committed","result":{"row":[["id",{"id":"r9"}],["owner",{"id":"alice"}],["score",{"int":"7"}]]},"store":{"items":[{"cols":{"owner":{"id":"alice"},"score":{"int":"7"}},"id":"r9"}]}}
 {"error":"offset 0: expected: null","kind":"error"}
+{"complete":true,"data":{"arr":[{"int":"681"},{"int":"1969"},{"int":"1790812800000"},{"int":"-1"}]},"kind":"answer","next":{"null":null}}
+{"code":"E_OVERFLOW","kind":"refused"}

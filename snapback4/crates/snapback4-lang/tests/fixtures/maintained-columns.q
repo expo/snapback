@@ -9,7 +9,7 @@ table posts:
   delete <- allow
   online only
 table likes:
-  postId: posts ?
+  postId: posts ? on delete keep
   active: bool
   amount: int
   public

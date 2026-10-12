@@ -20,6 +20,14 @@ pub fn features(case: &Case) -> BTreeSet<String> {
         out.insert(format!("items-rule/{:?}", table.rule));
         out.insert(format!("items-residency/{:?}", table.residency));
     }
+    // LLP 3000.036.001: whether the compiled page is the merge of its branches.
+    if case.program.domain.is_some() || case.program.tables.first().is_some_and(|t| t.rule == Rule::TwoParty) {
+        out.insert("read/branch-shape".into());
+        let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
+        let merged = bound.programs.iter().filter(|p| p.program.name == "run")
+            .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));
+        out.insert(format!("read/branch-{}", if merged { "merged" } else { "single-index" }));
+    }
     match &case.program.body {
         Body::Scalar(e) => {
             out.insert("body/scalar".into());
@@ -147,6 +155,10 @@ fn expr(e: &Expr, out: &mut BTreeSet<String>) {
         }
         Expr::Score(_) | Expr::Present(_) => {
             out.insert("expr/read-in-mutation".into());
+        }
+        Expr::Calendar(f, e) => {
+            out.insert(format!("expr/calendar-{}", f.source("t").split('(').next().unwrap_or_default()));
+            expr(e, out);
         }
         _ => {}
     }

@@ -173,7 +173,7 @@ const observeOptions = (options: ReadHookOptions | undefined): ObserveOptions | 
 export type UseQuery<O> = O extends Query<any, any> ? Read<ResultOf<O>> : never;
 /** What `usePage` returns: the rows of every requested page (deduplicated by
  * row id), whether another page exists, the combined read, and `loadMore`.
- * Guards and `matchRead` take `page.read`, never the page. */
+ * Guards take `page.read`; `matchRead` also accepts the whole page. */
 export interface PageHook<R extends readonly unknown[]> {
   items: R[number][];
   hasMore: boolean;

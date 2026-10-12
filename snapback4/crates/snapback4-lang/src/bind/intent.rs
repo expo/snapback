@@ -52,6 +52,27 @@ pub(super) fn table_order(catalog: &mut Catalog) {
 }
 
 impl Requests {
+    /// Plan a merge lane: an equality on its order column stays a seek, so
+    /// every lane keeps the merge's shared order.
+    pub(super) fn plan_lane(&mut self, tables: &BTreeMap<String, TableInfo>, read: &mut ReadExpr) {
+        let prior = std::mem::replace(&mut self.lane, true);
+        self.read(tables, read, false);
+        self.lane = prior;
+    }
+    pub(super) fn error_count(&self) -> usize { self.errors.len() }
+
+    pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
+        let Some(name) = &read.index else { return false };
+        if let Some(index) = self.indexes.get(&(table.decl.name.clone(), name.clone())) {
+            // A pending structural token is renamed after planning. Bound
+            // the emitted label, including its column names and collision suffix.
+            super::key_bound::plain_index_fits(table, index, &index_name(table, index))
+        } else {
+            table.indexes.iter().find(|index| &index.name == name)
+                .is_some_and(|index| super::key_bound::plain_index_fits(table, index, &index.name))
+        }
+    }
+
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)
     }
@@ -412,7 +433,18 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
+                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                    *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }
+            } else if lanes && let Expr::Read(read) = value
+                && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string())
+                && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                // @ref LLP 3000.036.001#3 — an undecided page whose branches each decide the rule reads as their merge.
+                *value = Expr::Merge(merge);
+            } else if lanes && let Expr::Exists { read, site } = value
+                && !requests.merged.contains(&read.site.to_string())
+                && let Some(either) = super::intent_branches::exists(&tables, &mut requests, read, site) {
+                *value = either;
             } else if let Expr::Read(read) | Expr::Exists { read, .. } = value { requests.read(&tables, read, false); }
         };
         // Shared helpers/shapes and non-query programs keep ordinary scans:

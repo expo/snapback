@@ -4,7 +4,7 @@ table groups:
   delete <- allow
   sync public
 table seats:
-  groupId: groups
+  groupId: groups on delete keep
   principal: principal
   unique byGroupPrincipal: groupId, principal
   by byPrincipal: principal, groupId, id
@@ -12,7 +12,7 @@ table seats:
   delete <- .principal = viewer
   sync to .principal
 table grants:
-  groupId: groups
+  groupId: groups on delete keep
   principal: principal
   unique byGroupPrincipal: groupId, principal
   by byPrincipal: principal, groupId, id
@@ -22,7 +22,7 @@ table grants:
   sync to seats[.groupId] by .principal
   retain delivered-history
 table notes:
-  groupId: groups
+  groupId: groups on delete keep
   owner: principal
   immutable owner, groupId
   body: text <=100
@@ -34,7 +34,7 @@ table notes:
   update <- .owner = viewer
   sync to grants[.groupId] by .principal
 table checks:
-  groupId: groups
+  groupId: groups on delete keep
   by byGroup: groupId, id
   read <- exists notes[.groupId, viewer]
   insert <- allow

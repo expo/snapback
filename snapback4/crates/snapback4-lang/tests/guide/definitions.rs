@@ -137,6 +137,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_REDUNDANT_RULE", "E_REDUNDANT_RULE means an aggregate read rule repeats its parent's rule"),
+    ("N_CONDITIONAL_COMPLETE", "N_CONDITIONAL_COMPLETE means a readable pinned-parent guard decides the page"),
     ("E_FOLLOWING_INPUT", "rejects invalid opening arguments or a protocol envelope"),
     ("E_FOLLOWING_DECLARATION", "means the view/query lacks an admitted history binding"),
     ("E_FOLLOWING_PAGE_SIZE", "requires 1–100 events per declared page"),
@@ -155,7 +157,11 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_JOB_VIEWER_READ_ONLY", "as refuses writes, emits, new ids and once asset consumption"),
     ("E_JOB_VIEWER_FLOW", "return cannot leave an as block"),
     ("E_SYSTEM_PRINCIPAL_WRITE", "into a principal column is refused at `check` with `E_SYSTEM_PRINCIPAL_WRITE`"),
-    ("N_DELETE_ORPHANS", "A reference is a typed id with no cascade: the referencing rows stay, name a deleted row, and read it through the reference as null."),
+    ("N_DELETE_RESTRICTED", "Since 0.5 an undeclared reference is `on delete restrict`"),
+    ("N_DELETE_NEEDS_READ", "since 0.5 it also needs read authority on the row it deletes"),
+    ("E_REFERENCED", "a delete would leave a live row referencing the deleted one through an `on delete restrict` reference"),
+    ("E_REFERENCE_ACTION", "an `on delete` declaration the column cannot carry"),
+    ("E_CASCADE_BOUND", "a delete's cascade has no fixed bound that fits its program"),
     ("N_PATCH_CLEARS", "An omitted optional argument is null, the same as an explicit null"),
     ("N_WRITE_DENIED", "A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system."),
     ("N_PROBE_ONLY_READ", "A rule probe sees every row"),

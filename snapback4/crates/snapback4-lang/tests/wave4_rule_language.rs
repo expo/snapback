@@ -21,7 +21,7 @@ fn first(source: &str, code: &str) -> Diagnostic {
 }
 
 fn note<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.notes.iter().find(|n| n.code == code)
+    b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
 }
 
 fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
@@ -113,8 +113,10 @@ fn an_or_guard_of_grants_is_followed_and_the_runtime_agrees() {
         let staff = if table == "reports" { ["vera", "cody"] } else { ["mia", "olly"] };
         for viewer in staff { assert_eq!(page(&mut engine, "q", viewer, &[("c", Value::Null)]), Some((true, all)), "{viewer}:\n{source}"); }
     }
-    // A disjunct that is not a grant still proves nothing, and the runtime still answers capped.
-    let source = format!("{LIBRARY}query q(open: bool, c: cursor ?):\n  if exists volunteers[viewer] or open:\n    return reports last 50 by .at after c\n  return []\n");
+    // A disjunct that is not a grant still proves nothing, and the runtime still
+    // answers capped, once the page keeps one index (arithmetic in its predicate;
+    // as written it merges, LLP 3000.036.001).
+    let source = format!("{LIBRARY}query q(open: bool, c: cursor ?):\n  if exists volunteers[viewer] or open:\n    return reports where .at + 1 > 0 last 50 by .at after c\n  return []\n");
     let b = bound(&source);
     assert!(note(&b, "N_NEVER_COMPLETE").is_some(), "{:#?}", b.notes);
     let mut engine = engine(&source, library_rows());
@@ -169,30 +171,37 @@ fn a_prefix_decided_parent_grant_decides_the_leaders_roster() {
     let pairs = [("ride", id("ride1")), ("c", Value::Null)];
     assert_eq!(page(&mut guarded_engine, "roster", "lee", &pairs), Some((true, 2)), "the leader's roster is complete");
     assert_eq!(page(&mut guarded_engine, "roster", "ann", &pairs), None, "a member is refused by the require");
-    // Unguarded: complete for the leader, the member's own row capped, as the note says.
+    // Unguarded, the page merges the member's branch with the leader's pinned
+    // guard (LLP 3000.036.001 §2 case 2): complete for both, and no note.
     let open = format!("{rides}{rsvps}query roster(ride: rides, c: cursor ?):\n  return rsvps where .ride = ride first 50 by .id after c\n");
-    let b = bound(&open);
-    let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
-    assert!(n.message.contains("except for callers `exists rides[.ride, leader = viewer]` admits") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
+    let b = clean(&open);
+    assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{:#?}", b.notes);
+    assert!(note(&b, "N_CONDITIONAL_COMPLETE").is_some(), "{:#?}", b.notes);
     let mut unguarded = engine(&open, rows());
     assert_eq!(page(&mut unguarded, "roster", "lee", &pairs), Some((true, 2)));
-    assert_eq!(page(&mut unguarded, "roster", "ann", &pairs), Some((false, 1)));
-    // A guard on another ride's probe proves nothing for this one.
+    assert_eq!(page(&mut unguarded, "roster", "ann", &pairs), Some((true, 1)));
+    // A guard on another ride's probe, or on a rebound argument, proves nothing
+    // for this page, which needs no proof now: it merges whatever guards it.
     let other = format!("{rides}{rsvps}query roster(ride: rides, other: rides, c: cursor ?):\n  require exists rides[other, leader = viewer] else NOT_LEADER\n  return rsvps where .ride = ride first 50 by .id after c\n");
-    assert!(note(&bound(&other), "N_NEVER_COMPLETE").is_some());
-    // Nor does one on a rebound argument.
+    assert!(note(&bound(&other), "N_NEVER_COMPLETE").is_none());
     let rebound = format!("{rides}{rsvps}query roster(ride: rides, other: rides, c: cursor ?):\n  require exists rides[ride, leader = viewer] else NOT_LEADER\n  ride = other\n  return rsvps where .ride = ride first 50 by .id after c\n");
     let b = bound(&rebound);
-    if b.diagnostics.is_empty() { assert!(note(&b, "N_NEVER_COMPLETE").is_some(), "{:#?}", b.notes); }
+    if b.diagnostics.is_empty() { assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{:#?}", b.notes); }
 }
 
 // ---- #3b: the role branch and the per-party split lead the note, and compile ----
 
 #[test]
 fn an_owner_or_grant_list_prints_the_role_branch_first_and_it_compiles_complete() {
+    // As written each page merges the grant with the owner's range (LLP
+    // 3000.036.001); with arithmetic in the predicate the note prints the
+    // role branch first, and that code compiles complete.
+    for query in ["query q(c: cursor ?):\n  return reports last 50 by .at after c\n", "query q(c: cursor ?):\n  return tickets where .at > 0 last 30 by .at after c\n"] {
+        assert!(note(&clean(&format!("{LIBRARY}{query}")), "N_NEVER_COMPLETE").is_none(), "{query}");
+    }
     let cases = [
-        ("query q(c: cursor ?):\n  return reports last 50 by .at after c\n", "reports", ["vera", "cody"], "rae"),
-        ("query q(c: cursor ?):\n  return tickets where .at > 0 last 30 by .at after c\n", "tickets", ["mia", "olly"], "tim"),
+        ("query q(c: cursor ?):\n  return reports where .at + 1 > 0 last 50 by .at after c\n", "reports", ["vera", "cody"], "rae"),
+        ("query q(c: cursor ?):\n  return tickets where .at + 1 > 1 last 30 by .at after c\n", "tickets", ["mia", "olly"], "tim"),
     ];
     for (query, table, staff, owner) in cases {
         let source = format!("{LIBRARY}{query}");
@@ -212,8 +221,11 @@ fn an_owner_or_grant_list_prints_the_role_branch_first_and_it_compiles_complete(
 
 #[test]
 fn a_two_party_list_prints_its_per_party_queries_first() {
-    let table = "table tasks:\n  owner: principal\n  assignee: principal\n  at: time\n  read <- .owner = viewer or .assignee = viewer\n  online only\n";
-    let source = format!("{table}query mine(c: cursor ?):\n  return tasks last 20 by .at after c\n");
+    // LLP 3000.036.001: as written the page merges its parties; arithmetic in
+    // the predicate keeps one index, and the note leads with the per-party queries.
+    let table = "table tasks:\n  owner: principal\n  assignee: principal\n  at: time\n  n: int\n  read <- .owner = viewer or .assignee = viewer\n  online only\n";
+    assert!(note(&clean(&format!("{table}query mine(c: cursor ?):\n  return tasks last 20 by .at after c\n")), "N_NEVER_COMPLETE").is_none());
+    let source = format!("{table}query mine(c: cursor ?):\n  return tasks where .n + 1 > 0 last 20 by .at after c\n");
     let n = note(&bound(&source), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(n.rewrite.starts_with("Replace this query with one per party"), "{n}");
     let code = n.rewrite.split_once(":\n").unwrap().1.split("\n\n").next().unwrap();
@@ -224,7 +236,7 @@ fn a_two_party_list_prints_its_per_party_queries_first() {
 #[test]
 fn a_never_complete_note_names_only_its_own_tables_index() {
     // 016 095: one generated index name shared by three tables printed all three.
-    let source = format!("{LIBRARY}table stock:\n  at: int\n  public 'p'\n  online only\nquery q(c: cursor ?):\n  return reports last 50 by .at after c\nquery s(c: cursor ?):\n  return stock last 50 by .at after c\n");
+    let source = format!("{LIBRARY}table stock:\n  at: int\n  public 'p'\n  online only\nquery q(c: cursor ?):\n  return reports where .at + 1 > 0 last 50 by .at after c\nquery s(c: cursor ?):\n  return stock last 50 by .at after c\n");
     let n = note(&bound(&source), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(n.message.contains("on reports (at, id)") && !n.message.contains("on stock") && !n.message.contains(" or read or declaration"), "{n}");
 }

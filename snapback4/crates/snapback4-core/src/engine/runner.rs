@@ -158,6 +158,11 @@ pub struct Runner<'a> {
     pub(super) view_seek: Option<(String, crate::cursor::CursorPosition)>,
     /// Projected source scans pay for fetched payloads before discarding fields.
     pub(super) view_scan_active: bool,
+    /// The grant verdict that admitted the branch-merge lane being read.
+    pub(super) merge_grant: Option<super::expiry::Pending>,
+    /// Armed by a branch merge around a lane's read with the lane's table and
+    /// index: the key of the last rule-visible candidate that read examined.
+    pub(super) scan_frontier: Option<(String, String, Option<Vec<u8>>)>,
     pub(super) word_cursor: Option<(String, crate::cursor::CursorPosition)>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
@@ -233,6 +238,12 @@ pub struct Runner<'a> {
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
+    /// Tables a delete's referential actions may write (LLP 3000.039 §4.2):
+    /// their events are not counted in the reply.
+    pub(crate) action_tables: BTreeSet<String>,
+    /// The engine's own write for a referential action is running: it
+    /// consults no rule of the row it writes (LLP 3000.039 §4.1).
+    pub(crate) engine_action: bool,
     pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
@@ -327,6 +338,8 @@ impl<'a> Runner<'a> {
             word_cursor: None,
             view_seek: None,
             view_scan_active: false,
+            merge_grant: None,
+            scan_frontier: None,
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
@@ -376,6 +389,8 @@ impl<'a> Runner<'a> {
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
+            action_tables: BTreeSet::new(),
+            engine_action: false,
             capture_prepaid: false,
             maintain_heap: 0,
             timeline_authority: None,
@@ -1045,6 +1060,7 @@ impl<'a> Runner<'a> {
                 if offset < 0 || offset >= *millis { return Err(RuntimeError::Input("calendar offset must be nonnegative and smaller than its period".into())); }
                 Ok(Value::Int(crate::maintain::calendar_ordinal(args[0].as_int()?, *millis, offset)))
             }
+            Builtin::Civil(function) => Ok(Value::Int(function.apply(args[0].as_int()?)?)),
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
                 let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });

@@ -13,6 +13,7 @@ compile_error!("web-device-check is only for debug test witnesses of the web dev
 extern crate self as snapback4_core;
 
 pub mod assets;
+pub mod calendar;
 pub(crate) mod authority;
 pub mod cursor;
 pub mod engine;

@@ -18,7 +18,7 @@ table posts:
   sync public
 table reposts:
   actorId: principal
-  postId: posts
+  postId: posts on delete keep
   at: time
   unique byActorPost: actorId, postId
   immutable actorId, postId, at

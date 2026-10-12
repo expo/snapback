@@ -125,12 +125,15 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let (Some(app), Some(client)) = (read(dir, app_path), read(dir, client_path)) else { return };
     // Which starter screen is on disk, if both files are still as init wrote
     // them: its sign-in (guest, or a persona picker) and its body.
+    let journal_shape = starter::Offline::Tables { synced: vec![], total: 0 };
     let client_shape = normalized(&client);
+    let matches_client = |reference: &str| client_shape == normalized(reference)
+        || platform == Platform::Web && client_shape == normalized(&starter::web_client(reference.to_owned(), &journal_shape));
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| {
         let (guest_app, guest_client) = starter::screens(platform, None, &body);
         let (persona_app, persona_client) = starter::screens(platform, Some(&[]), &body);
-        if app == guest_app && client_shape == normalized(&guest_client) { Some((None, body)) }
-        else if app == persona_app && client_shape == normalized(&persona_client) { Some((Some(personas_of(&client)), body)) }
+        if app == guest_app && matches_client(&guest_client) { Some((None, body)) }
+        else if app == persona_app && matches_client(&persona_client) { Some((Some(personas_of(&client)), body)) }
         else { None }
     });
     let Some((sign_in, body)) = current else { return };
@@ -150,8 +153,10 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
             sign_in.clone()
         }
     };
-    if wanted_sign_in == sign_in && wanted_body == body { return; }
     let (app_text, mut client_text) = starter::screens(platform, wanted_sign_in.as_deref(), &wanted_body);
+    if platform == Platform::Web { client_text = starter::web_client(client_text, &own.offline); }
+    let client_changed = client_shape != normalized(&client_text);
+    if wanted_sign_in == sign_in && wanted_body == body && !client_changed { return; }
     let mut reasons = Vec::new();
     let mut client_leftover = None;
     if wanted_sign_in != sign_in {
@@ -165,7 +170,13 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         reasons.push(format!("the unmodified starter screen shows {from}, but {because}; adapt writes {to}"));
         // Keep the backend port init wrote.
         if let Some(port) = port_of(&client) { client_text = client_text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
-        client_leftover = Some(Leftover { path: client_path, why: format!("the unmodified starter client for {from}; adapt writes {to}"), rewrite: Some(client_text) });
+        client_leftover = Some(Leftover { path: client_path, why: format!("the unmodified starter client for {from}; adapt writes {to}"), rewrite: Some(client_text.clone()) });
+    }
+    if wanted_sign_in == sign_in && client_changed {
+        if let Some(port) = port_of(&client) { client_text = client_text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
+        let why = "the unmodified web client needs the device or principal journal selected by your schema's synced tables".to_owned();
+        reasons.push(why.clone());
+        client_leftover = Some(Leftover { path: client_path, why, rewrite: Some(client_text.clone()) });
     }
     if wanted_body != body {
         reasons.push(match (&wanted_body, &body) {

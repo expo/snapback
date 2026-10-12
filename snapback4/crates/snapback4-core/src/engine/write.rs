@@ -19,6 +19,8 @@ pub(crate) enum Origin {
 
 #[path = "write_target.rs"]
 pub(crate) mod target;
+#[path = "write_references.rs"]
+mod references;
 
 impl Runner<'_> {
     pub(super) fn insert(&mut self, table: &str, row: Supplied) -> Result<(), RuntimeError> {
@@ -320,7 +322,8 @@ impl Runner<'_> {
         let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned(), message: None });
         };
-        if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
+        // @ref LLP 3000.039#3 — a delete that consults referencing rows needs read authority on its row first.
+        if (self.schema.children(table_name).next().is_some() || self.schema.is_referenced(table_name)) && !self.check_rule(table_name,Effect::Read,None,&old)? {
             self.refusing_clause(table_name, "read rule");
             return Err(self.no_write_target());
         }
@@ -333,6 +336,19 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
+        let old = if self.schema.is_referenced(table_name) {
+            self.apply_reference_actions(table_name, &old)?;
+            // @ref LLP 3000.039#3 — the actions may have changed the root (a maintained column mirrored from its children): remove its current image.
+            let id = old.field("id")?.as_str()?.to_owned();
+            self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, &id))?.unwrap_or(old)
+        } else { old };
+        self.delete_row(table_name, old)
+    }
+
+    /// A delete's own removal of one row, its rules already decided: receipt
+    /// membership, the read-through child probe, constraints, maintains and
+    /// the partition event. A referential cascade removes each row this way.
+    pub(super) fn delete_row(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
         let table = &self.schema.tables[table_name];
         self.receipt_member_removed(table_name, &old)?;
         self.refuse_live_children(table_name,old.field("id")?)?;
@@ -445,7 +461,8 @@ impl Runner<'_> {
     fn check_constraints(&mut self, table_name: &str, old: Option<&Value>, new: &Value, effect: Effect) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).expect("validated");
         let id = new.field("id")?.as_str()?.to_owned();
-        let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
+        // @ref LLP 3000.039#4.1 — an action's own write consults no rule: probing the child's read rule would draw the shared allowance only where a child exists.
+        let readable = match old { Some(old) if effect == Effect::Update && !self.engine_action => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 // byId can only return this id (already checked on insert).
@@ -512,6 +529,8 @@ impl Runner<'_> {
                         continue;
                     }
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
+                    // @ref LLP 3000.039#2.2 — a `set null` reference's null rows belong to no parent: its cap does not count them.
+                    if self.schema.cap_skips_null(table, by, &group) { continue; }
                     // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
                     let predecessor = old.filter(|row| !self.device || !self.expired(table, row));
                     let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
@@ -572,8 +591,13 @@ impl Runner<'_> {
                     if count >= *max as u64 {
                         self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
-                        self.refusing_clause(table_name, &format!("cap {}", by.join(", ")));
-                        let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
+                        // @ref LLP 3000.040#32-changes — a whole-table cap has no group to name.
+                        let (clause, message) = if by.is_empty() {
+                            (format!("cap {max}"), format!("{table_name} holds at most {max} rows"))
+                        } else {
+                            (format!("cap {}", by.join(", ")), format!("{table_name} holds at most {max} rows per group by {}", by.join(", ")))
+                        };
+                        self.refusing_clause(table_name, &clause);
                         return Err(if table.is_expiring() {
                             RuntimeError::ExpiringCap { message, site: self.statement_site.clone() }
                         } else { RuntimeError::Constraint(message) });

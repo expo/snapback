@@ -1,0 +1,182 @@
+{
+  "source_before_final_record": "10609408d5",
+  "initial_integration": "180eedefe0",
+  "loop_tip": "ccc3d40730",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "original_rust_exit": 101,
+  "original_rust_product_failures": [
+    "advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold"
+  ],
+  "original_rust_unexecuted_core_targets": 37,
+  "recovered_core_exit": 0,
+  "final_lang_exit": 0,
+  "final_cli_exit": 0,
+  "loop_guide_exit": 0,
+  "loop_cli_exit": 0,
+  "client_final": {
+    "files": 14,
+    "tests": 96,
+    "passed": 96,
+    "failed": 0
+  },
+  "census": {
+    "entries": 701,
+    "mutation_occurrences": 399,
+    "distinct_private_write_sites": 84,
+    "result": "pass"
+  },
+  "docs": {
+    "readme_lines": 319,
+    "budget": 320,
+    "self_containment_test": "pass"
+  },
+  "lean_audit": {
+    "theorems": 48,
+    "examples": 47,
+    "oracle_fixtures": 5,
+    "result": "pass"
+  },
+  "wasm": {
+    "raw": 2174378,
+    "gzip": 658353,
+    "budget": 658853,
+    "sha256": "fb531d8005f875b428a462a458f617d43dd8e81152ca3ec11aff05953d28eb55",
+    "source": "10609408d5"
+  },
+  "difftest": {
+    "run": {
+      "cases": 20000,
+      "disagreeing": 0,
+      "exit": 0
+    },
+    "run-lean": {
+      "cases": 100000,
+      "disagreeing": 1042,
+      "exit": 1,
+      "new_signatures": []
+    },
+    "run-devices": {
+      "cases": 3000,
+      "disagreeing": 224,
+      "exit": 1,
+      "new_signatures": []
+    },
+    "oracle_counts_identical_to_inherited_revision_5": true
+  },
+  "rust_log_counts_include_nested_output": true,
+  "log_summaries": {
+    "rust": {
+      "reported_passed": 5228,
+      "reported_failed": 1,
+      "reported_ignored": 36,
+      "log_sha256": "99116b6c63d81fc5048851865211a614c6458bd44493d72a4238dd68ef1a442e"
+    },
+    "recovered-core": {
+      "reported_passed": 334,
+      "reported_failed": 0,
+      "reported_ignored": 2,
+      "log_sha256": "60aefe7bb3a81c83446db5a42df6fda539756b46b4e7ef4ff46260bb270560c0"
+    },
+    "final-lang": {
+      "reported_passed": 1708,
+      "reported_failed": 0,
+      "reported_ignored": 14,
+      "log_sha256": "3d8287f63a5cdf82c2ddf82becb57961789ae4a0aa6088f218b2b78a58ec7559"
+    },
+    "final-cli": {
+      "reported_passed": 125,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "52b1077c8bb396c75750d034535e601106e20df89618dc73115272fcb818012e"
+    },
+    "loop-guide": {
+      "reported_passed": 119,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "dc9c604f7e999b99df26d640351a7365ff6d072e44032b8f200129a02deba44d"
+    },
+    "loop-cli": {
+      "reported_passed": 542,
+      "reported_failed": 0,
+      "reported_ignored": 4,
+      "log_sha256": "8116f1f529033b8d21e2a215a14120eb807ff5d3ab8d9cc5f67e9dd1ac8c3e2f"
+    },
+    "final-boundary-tests": {
+      "reported_passed": 33,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "6c07cc4550b15de7370c1d99311ba7cf9a4e65bdd7934a9662eb3a621ac972a0"
+    },
+    "census": {
+      "reported_passed": 1,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "bc17194ec8ea8d497a12166a91bc87286fc191b26bf7cba934ff6fde147401e2"
+    },
+    "census-confirm": {
+      "reported_passed": 1,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "1333712ded0583f4674a95106e69603ccb340abfb9325646404adb33b85a45bc"
+    },
+    "docs": {
+      "reported_passed": 1,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "a3e77005f39911597bfe30dd9c8b53ab4c5963987efd95f1dab59c0eb3b7090b"
+    },
+    "lean-check": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "c351068aedf3c86a6fa26e738b296299bb9e26cfc1a2a60e9427e8ea8bc42602"
+    },
+    "client-final": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "c2f20d3d401bbb2722dc94b1b440f5447b8f6053cb7c2b6e32538a980a5a16e3"
+    },
+    "codec-census-final2": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "2da8425c2c03c7a740702a5e85e5fbacd8cb87311f9124ed38b88ebb77a77ede"
+    },
+    "await-census": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "c4bf8fb41229cdd3e1863f7ce2ec8a0be275dbd588f359d6f2ca3deaa3164dcd"
+    },
+    "wasm-final": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "67c09f4c5be2ddbb80be3f6b5ed5c5e2a22b8901f46fc025352c130b2b8cbd6f"
+    },
+    "wasm-confirm": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "9e0a4482e9d6aa6674f39c86cf4432a33e9d355c36645244d49b383b3017bd1e"
+    },
+    "ref-check-final": {
+      "reported_passed": 0,
+      "reported_failed": 0,
+      "reported_ignored": 0,
+      "log_sha256": "bc83cd2b417c175a70fbb6a9519e368cb59414d80b777ae772b3652e9f37628b"
+    }
+  },
+  "reference_check": {
+    "llp_documents": 537,
+    "references": 10882,
+    "errors": 0,
+    "unchecked": 0,
+    "log_sha256": "6e4875c9122f777301103d1be97c3a53d24e3fdd7f73be16e0e2530485464bc1"
+  }
+}

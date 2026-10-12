@@ -64,7 +64,7 @@ theorem evalExpr_call (n : Nat) (cx : Ctx) (vw : View) (env : Env) (dot : Option
         | none => typeErr
         | some h =>
           if h.params.length = vs.length then
-            let (v, _) ← evalExpr n cx vw (h.params.zip (vs.map fun v => (v, none))) none h.body
+            let (v, _) ← evalExpr n { cx with inHelper := true } vw (h.params.zip (vs.map fun v => (v, none))) none h.body
             pure (v, none)
           else typeErr) := rfl
 

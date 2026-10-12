@@ -70,18 +70,36 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.036#12 — a decoder that orders only int/time in insert rules refuses a money or decimal order by name.
     ("insert-rule-order-units", |s| s.tables.values().any(|t| ordered_units(t, &t.rules.insert))),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
+    // @ref LLP 3000.039#8 — an older engine or device must not delete with the old (orphaning) semantics.
+    ("reference-actions", |s| s.tables.values().any(|t| !t.on_delete.is_empty())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
     ("sequence-by", |s| s.tables.values().any(|t| !t.sequences.is_empty())),
+    // @ref LLP 3000.040#4-fences-and-compatibility — an older decoder names the bounded int it cannot check.
+    ("int-range", |s| s.tables.values().any(|t| t.columns.values().any(int_range))),
+    // @ref LLP 3000.040#4-fences-and-compatibility — civil keys and calendar schedules.
+    ("calendar-month", |s| s.tables.values().any(|t| t.indexes.values().any(|i| i.components.iter().any(|c| matches!(c, IndexComponent::Calendar(key) if key.civil()))))
+        || s.maintains.iter().any(|m| m.computed.values().any(|key| key.civil()))),
+    ("calendar-schedule", |s| s.schedules.iter().any(|schedule| schedule.months > 0)),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
+    // @ref LLP 3000.036.001#3 — an older device would page a merged plan as an eager merge and refuse its server cursors; it refuses the backend by name.
+    ("branch-merge-v1", |s| s.operations.values().any(|o| o.branch_merge)),
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
     // @ref LLP 3000.036.000.000#2.3 — a decoder that ignored `also` would hold only the first arm and lose rows.
     ("union-audience", |s| s.tables.values().any(|t| t.sync.as_ref().is_some_and(Sync::is_union))),
 ];
+
+fn int_range(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::IntRange { .. } => true,
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => int_range(inner),
+        _ => false,
+    }
+}
 
 fn ordered_units(table: &Table, rule: &RuleExpr) -> bool {
     let units = |term: &RuleTerm| matches!(term, RuleTerm::Field(f) if matches!(table.columns.get(f), Some(ColumnType::Decimal { .. } | ColumnType::Money { .. })));

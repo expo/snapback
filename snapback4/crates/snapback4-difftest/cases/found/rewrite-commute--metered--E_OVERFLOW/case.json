@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 50094,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            }
+          ],
+          "keys": [],
+          "rule": "Witness",
+          "residency": "Online"
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Allow",
+          "residency": "Public"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [],
+          "ret": {
+            "Binary": [
+              "Eq",
+              {
+                "Arg": [
+                  "a",
+                  "Int"
+                ]
+              },
+              {
+                "Binary": [
+                  "Add",
+                  {
+                    "Arg": [
+                      "b",
+                      "Int"
+                    ]
+                  },
+                  {
+                    "Arg": [
+                      "b",
+                      "Int"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "arg_bound": [
+        0,
+        null
+      ]
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 9007199254740990,
+      "bucket": 0,
+      "c": null,
+      "k2": "r0",
+      "key": "missing",
+      "n": null
+    },
+    "clock": 20821,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 16079,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "rewrite-commute--metered--E_OVERFLOW",
+    "oracle": {
+      "Rewrite": "Commute"
+    },
+    "field": "metered",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 9,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 6
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_OVERFLOW",
+          "family": "input",
+          "message": "E_OVERFLOW: 18014398509481980 is outside the i53 value model"
+        }
+      }
+    },
+    "right": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 9,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 5
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_OVERFLOW",
+          "family": "input",
+          "message": "E_OVERFLOW: 18014398509481980 is outside the i53 value model"
+        }
+      }
+    },
+    "continuation": []
+  },
+  "shrink_attempts": 136
+}

@@ -120,6 +120,20 @@ are listed so that nobody reopens them.
   defect behind it: the cases it had masked added to C2 and W4.
 - *Engine (observed):* propagates null, as documented.
 
+**E5. Which calendar, and what happens outside i53? (confirmed)**
+- *Documents:* LLP 3000.040 §2.2: UTC; the proleptic Gregorian calendar with
+  astronomical years (year 0 exists, 1900 is not a leap year); `month(t)`
+  counts months since 1970-01; `year(t) = month(t) / 12 + 1970`;
+  `monthStart`/`yearStart` refuse `E_OVERFLOW` when the instant leaves
+  ±(2^53 − 1).
+- *Model:* `Calendar.lean` over unbounded `Int`, by a 400/100/4/1-year
+  decomposition of March-based years (the engine uses Hinnant's
+  civil-from-days, so the two are independent). The evaluator checks i53 on
+  the result. `day`, `hour` and `bucket` are `floor((t − offset) / period)`.
+- *Engine (observed):* agrees on the shared vectors and on every calendar
+  case of the 2026-10-12 `run-lean` (LLP 3000.040 §5); a planted
+  February-start defect in the engine was caught as `lean--data--int~int`.
+
 ## Rules
 
 **R1. Does an `exists t[..]` probe inside a rule see rows that `t`'s own read
@@ -223,6 +237,11 @@ rule hides?**
   carries `next` even when no candidate follows; that cursor returns an empty
   page. Data and `complete` agree. The card permits both behaviours; no
   document says a terminal full page must omit `next`. Open.
+- *Merged pages (2026-10-12, LLP 3000.036.001 §5):* a branch-decided page is
+  a merge that knows each branch's next matching row, so it carries `next`
+  after a full page exactly when another matching row follows; the model's
+  lookahead for those pages applies the filter (`lookahead`). On 20,000
+  cases, 691 merged pages were compared and none disagreed.
 
 **C9. Does a page without `after` carry `next`? (confirmed)**
 - *Documents:* LLP 3000.027 §1: "A cursorless top-N answer has no `next`; a
@@ -323,6 +342,28 @@ rule hides?**
   (`read-grant`). The engine took the pinned arm the same day (§16.3, the
   closed ticket `issues/closed/20261011-snapback4-prefix-decided-grants-at-run-time.md`),
   with the model's arm in the same change.
+- *Pins by form and branches (2026-10-12, LLP 3000.036.001):* a query page is
+  also decided when its pins decide the rule by their form (`Rule.byForm`: a
+  `.col = viewer` disjunct pinned to `viewer`, a `.col = 'x'` disjunct pinned
+  to `'x'`, and `and`/`or` of those; an argument that merely equals the viewer
+  decides nothing, as in the engine), or when it is *branch-decided*
+  (`branchDecided`): its predicate is total (comparisons and boolean operators
+  over columns, locals, literals and `viewer`), and either the one top-level
+  `or` of its `where` has 2–8 alternatives that each pin a prefix (`.col = e`,
+  not `id`, a nullable column only to `viewer`) deciding the rule, or its read
+  rule's disjuncts are parties (`.col = viewer`) and usable grants
+  (`Rule.usableGrant`: no row column, no `not`, every probed row readable by
+  the probe's own pins), with at least one party; at most 8 branches
+  (alternatives × parties) and no branch pinning an order column. That is the
+  engine's merged page: complete for every caller (a grant holder reads the
+  grant's branch), with `next` after a full page only when another *matching*
+  row follows (C2). `parties_cover_view` proves the party branches miss no
+  readable row. A guard is usable as the core's `disclosing` says
+  (`Rule.disclosing`: a pinned column is an unknown value, nested `or`/`not`
+  disclose nothing); the grant lane counts toward the 8, and a guarded page
+  whose first order column is pinned is not merged. A helper's page is never
+  merged (`Ctx.inHelper`), as in the engine. `exists` over branches (case 1
+  only) is decided as well.
 - *Engine (observed):* agrees on `complete` for all 1,343 compared
   non-uniform pages (60,000-case run of 2026-10-08). A `count` or `sum` whose
   read rule its pins do not decide is refused at check (`E_QUARRY_BOUND`).

@@ -1,13 +1,14 @@
 // @ref LLP 3000.013.000#9 — the device-less browser write journal over the
 // online intent journal: capture, admission, markers, recovery and refusals.
 import { waitFor } from './helpers/wait.mjs';
-import test from "node:test";
+import nodeTest from "node:test";
 import assert from "node:assert/strict";
 import { onlineCustody } from "../dist/app-online.js";
 import { OnlineCapture } from "../dist/online-capture.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { createClient, mintId } from "../dist/client.js";
 import { identifyDispatch } from "../dist/online-dispatch.js";
+import { personaAdmissionAuthority } from "../dist/admission-authority.js";
 import { storeKey } from "../dist/app-storage.js";
 
 const url = "https://journal.invalid", op = { kind: "mutation", name: "write" };
@@ -39,7 +40,7 @@ function browser(t) {
 }
 
 /** The IndexedDB session authority, reduced to what sameAdmissionAuthority reads. */
-function sessions(principal = "dev:alice", epoch = "1") {
+function sessionScope(principal = "dev:alice", epoch = "1") {
   const state = { principal, epoch };
   const authority = (as = "dev:alice", source = "test-authority") => ({
     capture: () => ({ key: SESSION, epoch: state.epoch, principal: as, source }),
@@ -90,6 +91,27 @@ async function orphan(authority, id, args, storeId = "A") {
   return record;
 }
 
+for (const identity of ["session", "persona"]) {
+  const sessions = (...args) => {
+    if (identity === "session") return sessionScope(...args);
+    return { state: { principal: "dev:alice", epoch: "0" },
+      authority: (principal = "dev:alice", source = "test-authority") => personaAdmissionAuthority(url, principal, source) };
+  };
+  const test = (name, run) => nodeTest(`${identity}: ${name}`, {
+    skip: identity === "persona" && (name.startsWith("an ended session") || name.startsWith("a logout between")),
+  }, run);
+test("failed opening releases its runtime lock and preserves surviving captures", async t => {
+  const storage = browser(t), srv = server(), { authority } = sessions();
+  const record = await orphan(authority(), mintId(), { n: 1 });
+  const raw = createClient({ url, persona: "alice", fetch: srv.fetch }); await identifyDispatch(raw);
+  t.after(() => raw.close());
+  const store = { ...memorySessionStore(), async get() { throw Error("opening read failed"); } };
+  await assert.rejects(onlineCustody(raw, url, store, () => {}, false, authority()), /opening read failed/);
+  await waitFor(async () => !(await navigator.locks.query()).held.some(lock => lock.name.startsWith("snapback4-online-runtime:")));
+  assert.equal(storage.records().length, 1); assert.equal(JSON.parse(storage.getItem(record.key)).id, record.id);
+  assert.deepEqual(srv.posts, []);
+});
+
 test("a click is in localStorage before mutate returns, then admitted, sent once and cleaned up", async t => {
   const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
   const c = await open(t, srv, store, authority());
@@ -97,7 +119,7 @@ test("a click is in localStorage before mutate returns, then admitted, sent once
   assert.equal(write.state, undefined, "not refused");
   assert.equal(storage.records().length, 1, "captured synchronously, in the calling stack");
   const record = JSON.parse(storage.getItem(storage.records()[0]));
-  assert.deepEqual([record.id, record.op, record.args, record.storeId, record.authority.epoch], [(await write).id, "write", { body: "hello" }, "A", "1"]);
+  assert.deepEqual([record.id, record.op, record.args, record.storeId, record.authority.epoch], [(await write).id, "write", { body: "hello" }, "A", identity === "persona" ? "0" : "1"]);
   await waitFor(() => srv.executed.size === 1, "sent");
   await waitFor(() => storage.records().length === 0, "record removed after the commit");
   await waitFor(async () => (await c.client.pendingWrites()).length === 0, "settled");
@@ -402,4 +424,22 @@ test("a second opener that sees a surviving capture beside a committed intent ke
   await waitFor(async () => (await a.client.pendingWrites()).length === 0 && (await b.client.pendingWrites()).length === 0);
   assert.equal(srv.executed.size, 1, "executed once");
   failing = false;
+});
+
+}
+
+nodeTest("persona captures preserve principal custody without session epochs and never join session sources", async t => {
+  const storage = browser(t), srv = server(), store = memorySessionStore();
+  const alice = personaAdmissionAuthority(url, "dev:alice", "test"), bob = personaAdmissionAuthority(url, "dev:bob", "test");
+  const record = await orphan(alice, mintId(), { n: 1 });
+  assert.equal(record.authority.kind, "persona");
+  const peer = new OnlineCapture(url, "dev:bob", bob); await peer.ready;
+  assert.deepEqual(await peer.candidates(), []); assert.equal(await peer.holds(record), false); peer.close();
+  const session = new OnlineCapture(url, "dev:alice", sessionScope().authority()); await session.ready;
+  assert.deepEqual(await session.candidates(), []); assert.equal(await session.holds(record), false); session.close();
+  const reopened = await open(t, srv, store, alice);
+  await waitFor(() => srv.executed.size === 1); await waitFor(() => storage.records().length === 0);
+  assert.deepEqual(srv.posts, [record.id]);
+  reopened.pause(); await reopened.client.close();
+  await open(t, srv, store, alice); assert.equal(srv.executed.size, 1);
 });

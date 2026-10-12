@@ -150,9 +150,12 @@ pub fn arm_sync(audience: &Audience, horizon: Option<&crate::schema::Horizon>) -
 /// The mutation receipt cannot reveal extra private owner deliveries. Count
 /// one logical change per private table/row, regardless of recipient fanout.
 #[cfg(feature = "sqlite")]
-pub(crate) fn disclosed_event_count(schema: &Schema, events: &[Event]) -> usize {
+pub(crate) fn disclosed_event_count(schema: &Schema, events: &[Event], actions: &BTreeSet<String>) -> usize {
     let mut private = BTreeSet::new();
     events.iter().filter(|event| {
+        // @ref LLP 3000.039#4.2 — no event of a table a delete's actions may
+        // write is counted: the schema, not the rows reached, decides.
+        if actions.contains(&event.table) { return false; }
         if schema.maintain_for(&event.table).is_some_and(|m|m.row_key.is_some()) { return false; }
         if schema.tables[&event.table].written_by.values().any(|a| !a.audience) {
             private.insert((&event.table, &event.id))

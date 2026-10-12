@@ -342,6 +342,39 @@ def examples : List Example := [
               program := scalar (.coalesce (.field (.point "todos" [("id", idE "nope")]) "title") (txt "none")) }
     tables := []
     expected := r#"{"kind":"answer","data":"none","complete":true,"next":null}"# },
+  { name := "calendar-vectors"
+    source := "LLP 3000.040 §2.2 and §5: the shared vectors — the epoch, 1969-12, 1900 (no leap day), 2000-02-29, 2026-10, year ends, the i53 ends"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.arr [.arr [.cal .month (int (0)), .cal .year (int (0))],
+                .arr [.cal .month (int (-1)), .cal .year (int (-1))],
+                .arr [.cal .month (int (-2678400000)), .cal .year (int (-2678400000))],
+                .arr [.cal .month (int (-2678400001)), .cal .year (int (-2678400001))],
+                .arr [.cal .month (int (951782400000)), .cal .year (int (951782400000))],
+                .arr [.cal .month (int (951868800000)), .cal .year (int (951868800000))],
+                .arr [.cal .month (int (1791676800000)), .cal .year (int (1791676800000))],
+                .arr [.cal .month (int (1798761599999)), .cal .year (int (1798761599999))],
+                .arr [.cal .month (int (1798761600000)), .cal .year (int (1798761600000))],
+                .arr [.cal .month (int (-2203891200000)), .cal .year (int (-2203891200000))],
+                .arr [.cal .month (int (-2203891200001)), .cal .year (int (-2203891200001))],
+                .arr [.cal .month (int (9007199254740991)), .cal .year (int (9007199254740991))],
+                .arr [.cal .month (int (-9007199254740991)), .cal .year (int (-9007199254740991))]]) }
+    tables := []
+    expected := r#"{"kind":"answer","data":[[0,1970],[-1,1969],[-1,1969],[-2,1969],[361,2000],[362,2000],[681,2026],[683,2026],[684,2027],[-838,1900],[-839,1900],[3425121,287396],[-3425122,-283457]],"complete":true,"next":null}"# },
+  { name := "calendar-starts"
+    source := "LLP 3000.040 §2.2: monthStart(681) is 2026-10-01; yearStart(2026); day, hour and bucket count fixed periods"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.arr [.cal .monthStart (int 681), .cal .monthStart (int (-1)), .cal .monthStart (int 361),
+                .cal .yearStart (int 2026), .cal .yearStart (int 1970), .cal .yearStart (int 0),
+                .cal (.period 86400000 0) (int 1791676800000), .cal (.period 86400000 28800000) (int 0),
+                .cal (.period 3600000 0) (int (-1)), .cal (.period 7200000 1800000) (int 1791676800000)]) }
+    tables := []
+    expected := r#"{"kind":"answer","data":[1790812800000,-2678400000,949363200000,1767225600000,0,-62167219200000,20737,-1,-1,248843],"complete":true,"next":null}"# },
+  { name := "calendar-overflow"
+    source := "LLP 3000.040 §2.2: monthStart and yearStart refuse E_OVERFLOW outside i53, never a wrong instant"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.cal .monthStart (int 3425122)) }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_OVERFLOW"}"# },
   { name := "exists-search-witness"
     source := "LLP 3000.036 §15.12: a readable match proves presence: `true`, `complete: false` when the pins do not decide the rule"
     case := { schema := todos, store := todoStore, viewer := alice,
@@ -366,10 +399,10 @@ def examples : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":true,"next":null}"# },
   { name := "page-grant-other"
-    source := "LLP 3000.036 §12.1: … and unchanged for everyone else"
+    source := "LLP 3000.036.001 §2 case 2: everyone else reads the owner's branch of the merged page, complete (§12.1's 'unchanged' before it)"
     case := { schema := console, store := consoleStore, viewer := bob, program := allTickets }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob"}],"complete":true,"next":null}"# },
   { name := "page-grant-hidden-roster"
     source := "LLP 3000.036 §12.1: a hidden roster (`read <- deny`) is not a grant; the rows stay readable through the rule's probe"
     case := { schema := console true, store := consoleStore, viewer := alice, program := allTickets }
@@ -381,10 +414,10 @@ def examples : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"},{"id":"k2","board":"b1","author":"bo"}],"complete":true,"next":null}"# },
   { name := "page-parent-guard-other"
-    source := "LLP 3000.036 §16.3: an author who does not own the board pages her own rows, `complete: false`"
+    source := "LLP 3000.036.001 §2 case 2: an author who does not own the board reads the author branch of the merged page, complete (§16.3's `complete: false` before it)"
     case := { schema := boardsSchema, store := boardStore, viewer := cps "ann", program := boardCards "b1" }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"}],"complete":false,"next":null}"# },
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"}],"complete":true,"next":null}"# },
   { name := "page-parent-guard-hidden"
     source := "LLP 3000.036 §16.1: a pin-decided probe its holders cannot read decides nothing"
     case := { schema := boardsSchema true, store := boardStore, viewer := cps "olga", program := boardCards "b1" }
@@ -404,9 +437,102 @@ def examples : List Example := [
     expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# }
 ]
 
+/-! ## Merged pages (LLP 3000.036.001) -/
+
+/-- Owner-or-assignee: a read rule of two parties. -/
+def tasks : Schema := { tables := [{
+  name := "tasks", cols := [c "owner", c "helper" (nullable := true), c "n"]
+  read := .or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer)
+  insert := .eq (self "owner") .viewer }] }
+
+def taskStore : Store := mkStore [("tasks", [
+  mkRow "k1" [("owner", I "alice"), ("helper", .null), ("n", N 2)],
+  mkRow "k2" [("owner", I "bob"), ("helper", I "alice"), ("n", N 0)],
+  mkRow "k3" [("owner", I "bob"), ("helper", .null), ("n", N 5)],
+  mkRow "k4" [("owner", I "carol"), ("helper", I "bob"), ("n", N 3)]])]
+
+def merged : List Example := [
+  { name := "page-parties-merged"
+    source := "LLP 3000.036.001 §2 case 2: a read rule of parties supplies the branches; the page is complete"
+    case := { schema := tasks, store := taskStore, viewer := alice,
+              program := query [.ret (.page "tasks" [] none [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2},{"id":"k2","owner":"bob","helper":"alice","n":0}],"complete":true,"next":null}"# },
+  { name := "page-where-branches"
+    source := "LLP 3000.036.001 §2 case 1: each alternative of the where's or pins a party; the page is complete"
+    case := { schema := tasks, store := taskStore, viewer := bob,
+              program := query [.ret (.page "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))) [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob","helper":"alice","n":0},{"id":"k3","owner":"bob","helper":null,"n":5},{"id":"k4","owner":"carol","helper":"bob","n":3}],"complete":true,"next":null}"# },
+  { name := "page-merged-lookahead"
+    source := "LLP 3000.036.001 §5: a merged page continues only when another matching row follows"
+    case := { schema := tasks, store := taskStore, viewer := alice, args := [("c", .null)],
+              program := query [.ret (.page "tasks" [] (some (.bin .gt (.dot "n") (int 1))) [] false 1 (some (.var "c")))] [p "c" true] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2}],"complete":true,"next":null}"# },
+  { name := "page-in-helper-not-merged"
+    source := "LLP 3000.036.001 §2: a shared helper's page keeps the single-index plan, never complete under parties"
+    case := { schema := tasks, store := taskStore, viewer := alice,
+              helpers := [{ name := "mine", params := [], body := .page "tasks" [] none [] false 10 none }],
+              program := query [.ret (.call "mine" [])] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2},{"id":"k2","owner":"bob","helper":"alice","n":0}],"complete":false,"next":null}"# },
+  { name := "exists-parties-false"
+    source := "LLP 3000.036.001 §8: exists over parties is an or of decided existence reads, so it answers false"
+    case := { schema := tasks, store := taskStore, viewer := cps "erin",
+              program := query [.ret (.exists_ "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))))] }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# } ]
+
+
+/-! ## Referential actions (LLP 3000.039) -/
+
+def refCol (n t : String) (a : Option OnDelete) (nullable := false) : ColDecl := { name := n, nullable, ref := some t, onDelete := a }
+
+/-- Projects cascade to their tasks (hidden from the project's owner); a note
+restricts its task; a tag's optional task is cleared. -/
+def projectsSchema : Schema := { tables := [
+  { name := "projects", cols := [c "owner"], read := .allow, delete := .eq (self "owner") .viewer },
+  { name := "tasks", cols := [refCol "project" "projects" (some .cascade), c "owner"],
+    read := .eq (self "owner") .viewer, delete := .eq (self "owner") .viewer },
+  { name := "notes", cols := [refCol "task" "tasks" (some .restrict)], read := .allow },
+  { name := "tags", cols := [refCol "task" "tasks" (some .setNull) (nullable := true)], read := .allow },
+  { name := "logs", cols := [refCol "task" "tasks" none], read := .allow }] }
+
+def projectStore (note : Bool) : Store := mkStore [
+  ("projects", [mkRow "p" [("owner", I "alice")]]),
+  ("tasks", [mkRow "t1" [("project", I "p"), ("owner", I "bob")], mkRow "t2" [("project", I "p"), ("owner", I "bob")]]),
+  ("notes", if note then [mkRow "n" [("task", I "t1")]] else []),
+  ("tags", [mkRow "g" [("task", I "t2")]]),
+  ("logs", [mkRow "l" [("task", I "t1")]])]
+
+def refExamples : List Example := [
+  { name := "delete-cascade"
+    source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
+    case := { schema := projectsSchema, store := projectStore false, viewer := alice,
+              program := mutation [.write none (.delete "projects" [("id", idE "p")])] }
+    tables := ["projects", "tasks", "tags", "logs"]
+    expected := r#"{"kind":"committed","result":null,"store":{"projects":[],"tasks":[],"tags":[{"id":"g","task":null}],"logs":[{"id":"l","task":"t1"}]}}"# },
+  { name := "delete-restrict-through-cascade"
+    source := "LLP 3000.039 §3 step 4: a restrict reference to a closure row refuses E_REFERENCED"
+    case := { schema := projectsSchema, store := projectStore true, viewer := alice,
+              program := mutation [.write none (.delete "projects" [("id", idE "p")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
+  { name := "delete-referenced-needs-read"
+    source := "LLP 3000.039 §3 step 1: a referenced row's deleter must read it (NOT_FOUND)"
+    case := { schema := projectsSchema, store := projectStore false, viewer := alice,
+              program := mutation [.write none (.delete "tasks" [("id", idE "t1")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# }
+]
+
+/-- Every example: the guide cards' and the referential actions'. -/
+def all : List Example := examples ++ merged ++ refExamples
+
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=
-  examples.filterMap fun ex =>
+  all.filterMap fun ex =>
     let got := (run ex.case).toJson ex.tables
     match Json.parse ex.expected with
     | .ok want => if got == want then none else some (ex.name, want.compress, got.compress)

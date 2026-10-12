@@ -185,6 +185,7 @@ impl Runner<'_> {
                 self.meter.step(through.fields.len() as u64 + 1)?;
                 let page = self.authorized_scan(&[], |runner, scope| runner.tx.scan_metered(scope, name, CHILDREN, &[id.clone()], &bounds, Dir::Asc, 1, &mut runner.meter))?;
                 let Some((row, key)) = page.into_iter().next() else { break };
+                if self.engine_action && self.tx.retained_row(name, &row)? { return Err(uncertain()); }
                 if !self.tx.retained_row(name, &row)? {
                     if self.expired(table, &row)
                         || !(self.tx.current_row(name, &row)? || self.is_provisional(name, &row)?)

@@ -20,11 +20,11 @@ fn clean(source: &str) -> Bound {
 }
 
 fn note<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.notes.iter().find(|n| n.code == code)
+    b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
 }
 
 fn problem<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.diagnostics.iter().find(|n| n.code == code)
+    b.diagnostics.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
 }
 
 fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
@@ -130,10 +130,11 @@ fn r1_the_repeat_check_finds_the_0_4_22_phrase() {
 fn r1_every_complete_form_verdict_is_said_once() {
     let staff = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\n";
     let shapes = [
-        // a grant: the printed `if` form
-        format!("{staff}table tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  online only\nquery all():\n  return tickets first 50 by .at\n"),
+        // a grant: the printed `if` form (arithmetic in the predicate keeps one
+        // index; as written the page merges, LLP 3000.036.001)
+        format!("{staff}table tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  online only\nquery all():\n  return tickets where .at + 1 > 0 first 50 by .at\n"),
         // two parties and a grant: one query per party
-        format!("{staff}table notes:\n  author: principal\n  helper: principal\n  at: time\n  immutable author, helper\n  read <- .author = viewer or .helper = viewer or exists staff[viewer]\n  online only\nquery all():\n  return notes first 50 by .at\n"),
+        format!("{staff}table notes:\n  author: principal\n  helper: principal\n  at: time\n  immutable author, helper\n  read <- .author = viewer or .helper = viewer or exists staff[viewer]\n  online only\nquery all():\n  return notes where .at + 1 > 0 first 50 by .at\n"),
         // a pin only, no grant
         "table items:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer\n  online only\nquery all():\n  return items first 50 by .at\n".to_owned(),
         // an `exists` over rows the caller partly reads
@@ -288,7 +289,7 @@ fn farm_private_scans() {
     println!("E_FIELD_AUTHORITY private scans: {hits}");
 }
 
-// ---- 17.4: N_DELETE_ORPHANS accepts guards that prove no children, and says why a sum does not ----
+// ---- 17.4: guards that prove no children silence N_DELETE_RESTRICTED (formerly N_DELETE_ORPHANS), and a sum says why it does not ----
 
 /// Lane 021: a sale is only inserted by the mutation that flips the work to `sold`.
 const GALLERY: &str = "table artworks:
@@ -323,15 +324,32 @@ const RECORD_SALE: &str = "mutation recordSale(artwork: artworks, buyer: text 1.
 ";
 
 #[test]
-fn a_status_guard_every_child_insert_flips_away_from_silences_n_delete_orphans_and_holds_at_run_time() {
+fn a_status_guard_every_child_insert_flips_away_from_silences_n_delete_restricted_and_holds_at_run_time() {
     let source = format!("{GALLERY}{RECORD_SALE}");
-    assert!(note(&clean(&source), "N_DELETE_ORPHANS").is_none(), "{:#?}", bound(&source).notes);
+    assert!(note(&clean(&source), "N_DELETE_RESTRICTED").is_none(), "{:#?}", bound(&source).notes);
     // At run time: a sold work cannot be withdrawn, so no sale is orphaned.
     let mut e = engine(&source, vec![("artworks", vec![("id", id("w1")), ("artist", id("ari"))])]);
     assert_eq!(mutate(&mut e, "recordSale", "sam", &[("artwork", id("w1")), ("buyer", text("Bo"))]), "ok");
     assert_eq!(mutate(&mut e, "withdraw", "ari", &[("artwork", id("w1"))]), "ALREADY_SOLD");
     // Any program that breaks the invariant keeps the note.
     let unsound = [
+        // Identically printed live reads can change between the flip and insert.
+        format!("{GALLERY}table links:\n  artwork: artworks on delete keep\n  read <- allow\n  update <- allow\nmutation recordSale(link: links, other: artworks, buyer: text 1..80):\n  update artworks[(links[link] ! else NOT_FOUND).artwork] {{ status: 'sold' }}\n  update links[link] {{ artwork: other }}\n  return insert sales {{ artwork: (links[link] ! else NOT_FOUND).artwork, buyer }}\n"),
+        // The flip and insert must retain the same key across the insert program.
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation recordSale(artwork: artworks, buyer:", "mutation recordSale(artwork: artworks, other: artworks, buyer:")
+            .replace("  return insert sales { artwork, buyer }", "  artwork = other\n  return insert sales { artwork, buyer }"),
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation recordSale(artwork: artworks, buyer:", "mutation recordSale(artwork: artworks, other: artworks, flag: bool, buyer:")
+            .replace("  return insert sales { artwork, buyer }", "  if flag:\n    artwork = other\n  return insert sales { artwork, buyer }"),
+        // Rebinding the row alias makes its status unrelated to the deleted key.
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation withdraw(artwork: artworks):", "mutation withdraw(artwork: artworks, other: artworks):")
+            .replace("  require a.status = 'available' else ALREADY_SOLD\n  delete", "  a = artworks[other] ! else NOT_FOUND\n  require a.status = 'available' else ALREADY_SOLD\n  delete"),
+        // Rebinding the argument changes the target after its guarded read.
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation withdraw(artwork: artworks):", "mutation withdraw(artwork: artworks, other: artworks):")
+            .replace("  delete artworks[artwork]", "  artwork = other\n  delete artworks[artwork]"),
         // the status can return to `available`
         format!("{GALLERY}{RECORD_SALE}mutation relist(artwork: artworks):\n  update artworks[artwork] {{ status: 'available' }}\n"),
         // to a status chosen by the caller
@@ -346,12 +364,14 @@ fn a_status_guard_every_child_insert_flips_away_from_silences_n_delete_orphans_a
         format!("{GALLERY}mutation recordSale(artwork: artworks, other: artworks, buyer: text 1..80):\n  update artworks[other] {{ status: 'sold' }}\n  return insert sales {{ artwork, buyer }}\n"),
     ];
     for source in &unsound {
-        assert!(note(&bound(source), "N_DELETE_ORPHANS").is_some(), "{source}\n{:#?}", bound(source).diagnostics);
+        assert!(note(&bound(source), "N_DELETE_RESTRICTED").is_some(), "{source}\n{:#?}", bound(source).diagnostics);
     }
-    // The second shape at run time: without the flip, a withdrawn work orphans its sale.
-    let mut e = engine(&unsound[2], vec![("artworks", vec![("id", id("w1")), ("artist", id("ari"))])]);
+    // The third shape at run time: without the flip the guard proves nothing, so the restrict
+    // default refuses the withdrawal (before 0.5 it orphaned the sale).
+    let without_flip = format!("{GALLERY}mutation recordSale(artwork: artworks, buyer: text 1..80):\n  return insert sales {{ artwork, buyer }}\n");
+    let mut e = engine(&without_flip, vec![("artworks", vec![("id", id("w1")), ("artist", id("ari"))])]);
     assert_eq!(mutate(&mut e, "recordSale", "sam", &[("artwork", id("w1")), ("buyer", text("Bo"))]), "ok");
-    assert_eq!(mutate(&mut e, "withdraw", "ari", &[("artwork", id("w1"))]), "ok", "the guard proved nothing here, as the note says");
+    assert_eq!(mutate(&mut e, "withdraw", "ari", &[("artwork", id("w1"))]), "E_REFERENCED", "the guard proved nothing here, as the note says");
 }
 
 /// Lanes 024 034: `require occupied[shelter] = 0` over `sum reservations of .beds`.
@@ -385,15 +405,16 @@ fn a_sum_guard_proves_no_children_only_over_a_count_like_column() {
     // The lanes' shape: the note stays and says why, with the count view.
     let lanes = shelter(".caseworker = viewer", "", "");
     let b = bound(&lanes);
-    let n = note(&b, "N_DELETE_ORPHANS").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    let n = note(&b, "N_DELETE_RESTRICTED").unwrap_or_else(|| panic!("{:#?}", b.notes));
     assert!(n.message.contains("the `occupied` guard does not prove there are none") && n.message.contains("view reservationsByShelter: count reservations by .shelter"), "{n}");
-    // Why: a zero-bed reservation sums to 0, and the delete orphans it.
+    // Why: a zero-bed reservation sums to 0; the guard passes and only the restrict default
+    // refuses the delete (before 0.5 it orphaned the reservation).
     let mut e = engine(&lanes, vec![("shelters", vec![("id", id("s1")), ("operator", id("op"))])]);
     assert_eq!(mutate(&mut e, "reserve", "cw", &[("shelter", id("s1")), ("beds", Value::Int(0))]), "ok");
-    assert_eq!(mutate(&mut e, "removeShelter", "op", &[("shelter", id("s1"))]), "ok", "sum 0 with a row");
+    assert_eq!(mutate(&mut e, "removeShelter", "op", &[("shelter", id("s1"))]), "E_REFERENCED", "sum 0 with a row");
     // Count-like: every insert branch requires beds ≥ 1 and beds is immutable; silent, and it holds.
     let counted = shelter(".caseworker = viewer and .beds >= 1", ", beds", "");
-    assert!(note(&clean(&counted), "N_DELETE_ORPHANS").is_none(), "{:#?}", bound(&counted).notes);
+    assert!(note(&clean(&counted), "N_DELETE_RESTRICTED").is_none(), "{:#?}", bound(&counted).notes);
     let mut e = engine(&counted, vec![("shelters", vec![("id", id("s1")), ("operator", id("op"))])]);
     assert!(mutate(&mut e, "reserve", "cw", &[("shelter", id("s1")), ("beds", Value::Int(0))]) != "ok");
     assert_eq!(mutate(&mut e, "reserve", "cw", &[("shelter", id("s1")), ("beds", Value::Int(1))]), "ok");
@@ -406,7 +427,7 @@ fn a_sum_guard_proves_no_children_only_over_a_count_like_column() {
         shelter(".caseworker = viewer and .beds >= 0", ", beds", ""),
         shelter(".caseworker = viewer and .beds >= 1", ", beds", "job zero():\n  for s in shelters:\n    insert reservations { shelter: s.id, caseworker: s.operator, beds: 0 }\n"),
     ] {
-        assert!(note(&bound(&source), "N_DELETE_ORPHANS").is_some(), "{source}");
+        assert!(note(&bound(&source), "N_DELETE_RESTRICTED").is_some(), "{source}");
     }
 }
 

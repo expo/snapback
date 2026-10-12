@@ -44,7 +44,9 @@ pub fn resolve(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<Di
             }
             if let Some(of) = &aggregate.of {
                 match source.columns.get(of) {
-                    Some(kind) if !kind.optional && matches!(kind.kind,TypeKind::Int | TypeKind::Decimal { .. } | TypeKind::Money { .. }) => {
+                    Some(kind) if !kind.optional && matches!(kind.kind,TypeKind::Int | TypeKind::IntRange { .. } | TypeKind::Decimal { .. } | TypeKind::Money { .. }) => {
+                        // A total of bounded values is an unbounded int.
+                        let kind = &if matches!(kind.kind, TypeKind::IntRange { .. }) { ScalarType { kind: TypeKind::Int, optional: false } } else { kind.clone() };
                         column.type_ = kind.clone();
                         info.columns.insert(column.name.clone(),kind.clone());
                     },

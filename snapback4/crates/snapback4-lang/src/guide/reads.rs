@@ -26,7 +26,7 @@ Repeated `where` clauses combine with `and` in order.
 
 - A positional key names one row; use `where` for populations: E_QUARRY_POSITIONAL_SCAN.
 - Add a cursor if the screen pages: N_NO_CURSOR.
-- A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
+- Unpinned rule columns: pinned `or` parties may merge; N_CONDITIONAL_COMPLETE names a readable pinned-parent guard; N_NEVER_COMPLETE means neither proves completeness.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
 - N_SHAPE_METER: maintained totals (guide views), previews, or queries.
 
@@ -45,6 +45,10 @@ The rules run before any projection, count or order reaches the caller.
 Declare `c: cursor ?`, read `after c`, pass each answer's `next` as `c`; `usePage` does that.
 
 ### Completeness
+
+Pinned-parent guards are caller-dependent (`N_CONDITIONAL_COMPLETE`; `guide recipes`).
+`T[]` requests a complete fitting group: `return children[] where .parent = parent`.
+It needs authority and a cap/unique bound. Update capped cases that now answer complete.
 
 `complete` means the query answered its declared request within known coverage and execution limits.
 Filling a declared page bound is complete.
@@ -76,14 +80,11 @@ A ready list read always carries an array; an absent point can still be null.
 `usePage` returns `items: []` while its first page is loading; earlier pages
 remain visible while a later page is unavailable.
 
-For ordinary device reads, online fallback asks the server only for a missing
-fact or unknown presence; a meter or word cut and a cursorless page stay local,
-as do held queries and retained left groups. While this device holds a predictable pending write to a table a query reads,
-that query asks no server; a write with an unknown predicted footprint blocks
-every query. Writes to unrelated tables do not hold it. A withheld answer
-(a total/extremum over input past the horizon, a point read past it, or another
-speculative answer) stays `loading` in observations; a local partial answer (`complete: false`,
-e.g. an order unlike the window's) stays partial.
+For device reads, online fallback asks only for missing facts or unknown presence.
+Meter/word cuts and cursorless pages stay local, as do held queries and retained left groups.
+Predictable pending writes block server fallback for dependent reads; unknown prediction
+footprints block every query. Unrelated writes do not block. Withheld speculation
+(past-horizon totals, extrema or points) stays `loading`; local cuts stay partial.
 For one-shots, see `guide client`.
 Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
 decorations in their own query so the main list never waits on them.

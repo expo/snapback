@@ -612,33 +612,6 @@ fn check_accepts_contextual_defaults_for_an_empty_dev_table() {
 }
 
 #[test]
-fn inspection_materializes_required_literals_but_not_optional_defaults() {
-    let p = Project::new();
-    let mut e = p.seed(&p.store(), 1);
-    let source = SOURCE.replace("  read", "  tombstone: bool default false\n  score: int default -7\n  label: text <=20 default \"O'Reilly\"\n  role: enum('member', 'admin') default 'member'\n  amount: decimal 2 default 125\n  room: id default 'r'\n  optional: bool ? default true\n  read");
-    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
-    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    // The working source remains old: inspection must use the stored generation.
-    let sql = p.run(&["sql", "SELECT tombstone, score, label, role, amount, room, optional FROM messages", "--json"]);
-    assert!(sql.status.success(), "{sql:?}");
-    let data = p.run(&["data", "messages"]);
-    println!("inspection SQL={} data={}", String::from_utf8_lossy(&sql.stdout), String::from_utf8_lossy(&data.stdout));
-    assert_eq!(parsed(&sql)["rows"], json!([[0, -7, "O'Reilly", "member", 125, "r", null]]));
-    assert!(data.status.success(), "{data:?}");
-    assert_eq!(parsed(&data), json!({"id":"m0", "body":"old", "tombstone":false,"score":-7,"label":"O'Reilly","role":"member","amount":125,"room":"r","optional":null}));
-    assert!(e.store().rows("messages").unwrap()[0].field("tombstone").is_err());
-    let explicit = json!({"id":"explicit", "body":"new", "tombstone":true,"score":0,"label":"","role":"admin","amount":0,"room":"other","optional":false});
-    let row = wire::row_from_json(&e.schema().tables["messages"], &explicit).unwrap();
-    e.seed([("messages".into(), row)]).unwrap();
-    let sql = p.run(&["sql", "SELECT tombstone, score, label, role, amount, room, optional FROM messages WHERE id = 'explicit'", "--json"]);
-    assert_eq!(parsed(&sql)["rows"], json!([[1, 0, "", "admin", 0, "other", 0]]));
-    let data = p.run(&["data", "messages"]);
-    let lines: Vec<Value> = String::from_utf8(data.stdout).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
-    assert!(lines.contains(&explicit), "explicit values win over defaults");
-}
-
-#[test]
 fn r2_n4_inspection_defaults_equal_stored_values_and_group_together() {
     use snapback4_core::{schema::{ColumnDefault, ColumnType}, Value as V};
     let p = Project::new();
@@ -1602,7 +1575,7 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
     let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);
-    for words in ["6", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
+    for words in ["7", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
         assert_eq!(guide(&["types", "--section", words]), (Some(0), by_name.clone()), "{words}");
     }
     // Wave 4: a topic word no heading names prints the section holding most of
@@ -1675,4 +1648,26 @@ fn the_recipes_cards_cases_pass_against_their_schemas() {
         assert!(output.status.success(), "{heading}: {text}{}", String::from_utf8_lossy(&output.stderr));
         assert!(text.contains(&format!("cases: {} passed, 0 failed", cases.lines().count())), "{heading}: {text}");
     }
+}
+
+#[path = "check/sql_objects.rs"]
+mod sql_objects;
+
+#[test]
+fn wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict() {
+    let p = Project::new();
+    p.source("use personas alice, bob\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  author: principal\n  immutable parent, author\n  read <- .author = viewer or exists parents[.parent, owner = viewer]\n  online only\nquery history(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\n");
+    let check = p.run(&["check"]); assert!(check.status.success(), "{check:?}");
+    let text = String::from_utf8_lossy(&check.stdout);
+    assert!(text.contains("N_CONDITIONAL_COMPLETE") && !text.contains("N_NEVER_COMPLETE"), "{text}");
+    fs::create_dir_all(p.0.join("fixture")).unwrap();
+    fs::write(p.0.join("fixture/parents.jsonl"), "{\"id\":\"p\",\"owner\":\"dev:alice\"}\n").unwrap();
+    fs::write(p.0.join("fixture/children.jsonl"), "{\"id\":\"c\",\"parent\":\"p\",\"author\":\"dev:bob\"}\n").unwrap();
+    fs::write(p.0.join("fixture/test.cases.jsonl"), "{\"op\":\"history\",\"as\":\"alice\",\"args\":{\"parent\":\"p\"},\"expect\":\"capped\"}\n").unwrap();
+    let test = p.run(&["test", "--fixture", "fixture"]);
+    assert!(!test.status.success());
+    let text = format!("{}{}", String::from_utf8_lossy(&test.stdout), String::from_utf8_lossy(&test.stderr));
+    assert!(text.contains("now complete — update the case"), "{text}");
+    fs::write(p.0.join("fixture/test.cases.jsonl"), "{\"op\":\"history\",\"as\":\"alice\",\"args\":{\"parent\":\"p\"},\"expect\":\"complete\"}\n{\"op\":\"history\",\"as\":\"bob\",\"args\":{\"parent\":\"p\"}}\n").unwrap();
+    let fixed = p.run(&["test", "--fixture", "fixture"]); assert!(fixed.status.success(), "{fixed:?}");
 }

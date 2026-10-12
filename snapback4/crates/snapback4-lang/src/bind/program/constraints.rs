@@ -64,7 +64,7 @@ impl BoundProgram {
         // @ref LLP 3000.036#16.2 — wave 6 R2: `require not exists children…` before a delete is a zero count, not a capacity.
         let by = pins.iter().map(|(column, _)| format!(".{column}")).collect::<Vec<_>>().join(", ");
         let absence = (!pins.is_empty()).then(|| absence_require(&self.program.body, site)).flatten().map(|code| format!(
-            "an absence check over every {name} row, whoever may read it, is a zero count (it discloses only the count per {group}, never who): declare `view {name}Count: count {name} by {by}` with `read <- allow`, then in `{}` write `require {name}Count[{key}] = 0 else {code}` in place of the `not exists` (before a delete of the parent, this guard also silences N_DELETE_ORPHANS; guide recipes, \"Booking\", `removeSlot`). Otherwise, ", self.program.name)).unwrap_or_default();
+            "an absence check over every {name} row, whoever may read it, is a zero count (it discloses only the count per {group}, never who): declare `view {name}Count: count {name} by {by}` with `read <- allow`, then in `{}` write `require {name}Count[{key}] = 0 else {code}` in place of the `not exists` (before a delete of the parent, this guard also silences N_DELETE_RESTRICTED; guide recipes, \"Booking\", `removeSlot`). Otherwise, ", self.program.name)).unwrap_or_default();
         Some(Diagnostic::new(source, "E_STRUCTURAL_FANOUT",
             format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused. A point read of a full unique key (`exists {name}[…]`) is not refused, but it too sees only readable rows",
                 self.program.name, scan.table, table.rules.read.quarry(), scan.table),

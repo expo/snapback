@@ -79,6 +79,8 @@ pub enum ArgType {
         types: Vec<String>,
     },
     Int,
+    // @ref LLP 3000.040#13-representation — a new tag: an older device cannot decode the program, so it never skips the bound.
+    IntRange { #[serde(default = "crate::schema::int_floor", skip_serializing_if = "crate::schema::is_int_floor")] min: i64, #[serde(default = "crate::schema::int_ceiling", skip_serializing_if = "crate::schema::is_int_ceiling")] max: i64 },
     Bool,
     Time,
     Json { max_bytes: u32 },
@@ -105,6 +107,7 @@ impl ArgType {
     pub fn bounds_valid(&self) -> bool {
         match self {
             Self::Text { min, max, .. } => min <= max,
+            Self::IntRange { min, max } => crate::schema::int_range_valid(*min, *max),
             Self::ListRange { of, min, max } => min <= max && of.as_ref().is_none_or(|of| of.bounds_valid()),
             Self::Optional(inner) | Self::List { of: Some(inner), .. } => inner.bounds_valid(),
             _ => true,
@@ -245,6 +248,8 @@ pub enum Builtin {
     /// A private field may be absent from a projected row.
     OptionalField { field: String },
     Calendar { millis: i64 },
+    // @ref LLP 3000.040#22-builtins — a new tag: an older device cannot decode a program that uses it.
+    Civil(crate::calendar::Civil),
     Len,
     Slice,
     Concat,
@@ -284,7 +289,7 @@ impl Builtin {
             Self::JobQuery { .. } => 1,
             #[cfg(feature = "sqlite")]
             Self::JobAs => 2,
-            Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Civil(_) | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
@@ -464,6 +469,42 @@ impl Merge {
     pub fn static_lanes(&self) -> Option<u64> {
         self.lanes.iter().try_fold(0u64, |sum, lane| Some(sum.saturating_add(match &lane.source { None => 1, Some(source) => source.static_max()? })))
     }
+    /// A branch merge: a query page planned as the k-way merge of its
+    /// disjunctive branches, each lane an index range of one table whose
+    /// prefix decides the read rule (or a grant lane). Its lanes carry
+    /// `BRANCH_LANE` or `GRANT_LANE` as their branch identity; no view does.
+    // @ref LLP 3000.036.001#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
+    pub fn branches(&self) -> bool {
+        self.view.is_none() && !self.lanes.is_empty()
+            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE)))
+    }
+    /// The cursor descriptor's index field: a bounded digest of the branch
+    /// set, in lane order. Legal labels repeated across eight lanes can
+    /// otherwise exceed the token bound before its position is encoded.
+    // @ref LLP 3000.036.001#5 — both plan identity and pin scope have bounded digests
+    pub fn branch_descriptor(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(b"branch-merge-v1\0");
+        hash.update((self.lanes.len() as u64).to_be_bytes());
+        for lane in &self.lanes {
+            hash.update((lane.scan.index.len() as u64).to_be_bytes());
+            hash.update(lane.scan.index.as_bytes());
+            hash.update([u8::from(lane.grant())]);
+        }
+        format!("{BRANCH_DESCRIPTOR}{:x}", hash.finalize())
+    }
+}
+
+/// A branch merge's lane whose prefix decides the read rule.
+pub const BRANCH_LANE: &str = "$or";
+/// A branch merge's lane read only when the table's readable grant holds.
+pub const GRANT_LANE: &str = "$or:grant";
+/// The prefix of a branch merge's cursor descriptor (cursor version 4).
+pub const BRANCH_DESCRIPTOR: &str = "$or:";
+
+impl MergeLane {
+    pub fn grant(&self) -> bool { self.branch.as_deref() == Some(GRANT_LANE) }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -660,8 +701,19 @@ pub fn scans(program: &Program) -> Vec<&Scan> {
 
 pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
     let mut out = Vec::new();
-    expr_scans(expr, &mut out, &mut false);
+    expr_scans(expr, &mut out, &mut Vec::new());
     out
+}
+
+/// Every merge a body evaluates, wherever it sits (inside returned shapes,
+/// write targets, loop domains): what a capability derived from the plan
+/// must look at. `search_plan::merges` follows only the value paths the
+/// return plan and diagnostics use.
+// @ref LLP 3000.036.001#5 — a merged plan anywhere in the body needs branch-merge-v1
+pub fn body_merges(body: &[Stmt]) -> Vec<&Merge> {
+    let mut merges = Vec::new();
+    stmts_scans(body, &mut Vec::new(), &mut merges);
+    merges
 }
 
 pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
@@ -670,100 +722,100 @@ pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
 
 pub(crate) fn body_read_structure(body: &[Stmt]) -> (Vec<&Scan>, bool) {
     let mut out = Vec::new();
-    let mut has_merge = false;
-    stmts_scans(body, &mut out, &mut has_merge);
-    (out, has_merge)
+    let mut merges = Vec::new();
+    stmts_scans(body, &mut out, &mut merges);
+    (out, !merges.is_empty())
 }
 
-fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
+fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>, merges: &mut Vec<&'a Merge>) {
     for stmt in stmts {
         match stmt {
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => expr_scans(value, out, has_merge),
-            Stmt::Emit { payload: value, once, .. } => { expr_scans(value, out, has_merge); if let Some(value) = once { expr_scans(value, out, has_merge); } },
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) => expr_scans(value, out, merges),
+            Stmt::Emit { payload: value, once, .. } => { expr_scans(value, out, merges); if let Some(value) = once { expr_scans(value, out, merges); } },
             Stmt::If { condition, then_body, else_body } => {
-                expr_scans(condition, out, has_merge);
-                stmts_scans(then_body, out, has_merge);
-                stmts_scans(else_body, out, has_merge);
+                expr_scans(condition, out, merges);
+                stmts_scans(then_body, out, merges);
+                stmts_scans(else_body, out, merges);
             }
             Stmt::For { domain, body, .. } => {
                 match domain {
                     LoopDomain::Page(scan) => {
-                        expr_scans_of_scan(scan, out, has_merge);
+                        expr_scans_of_scan(scan, out, merges);
                         out.push(scan);
                     }
-                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr_scans(start, out, has_merge); expr_scans(end_exclusive, out, has_merge); }
-                    LoopDomain::DerivedArray { value, .. } => expr_scans(value, out, has_merge),
-                    LoopDomain::Recurse(recurse) => expr_scans(&recurse.seed, out, has_merge),
+                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr_scans(start, out, merges); expr_scans(end_exclusive, out, merges); }
+                    LoopDomain::DerivedArray { value, .. } => expr_scans(value, out, merges),
+                    LoopDomain::Recurse(recurse) => expr_scans(&recurse.seed, out, merges),
                     LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
                 }
-                stmts_scans(body, out, has_merge);
+                stmts_scans(body, out, merges);
             }
-            Stmt::Require { condition, .. } => expr_scans(condition, out, has_merge),
-            Stmt::Check { condition, current } => { expr_scans(condition, out, has_merge); for key in &current.key { expr_scans(key, out, has_merge); } }
-            Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expr_scans(row, out, has_merge),
+            Stmt::Require { condition, .. } => expr_scans(condition, out, merges),
+            Stmt::Check { condition, current } => { expr_scans(condition, out, merges); for key in &current.key { expr_scans(key, out, merges); } }
+            Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expr_scans(row, out, merges),
             Stmt::Update { key, patch, .. } => {
-                expr_scans(key, out, has_merge);
-                expr_scans(patch, out, has_merge);
+                expr_scans(key, out, merges);
+                expr_scans(patch, out, merges);
             }
             Stmt::Upsert { key, row, .. } => {
-                expr_scans(key, out, has_merge);
-                expr_scans(row, out, has_merge);
+                expr_scans(key, out, merges);
+                expr_scans(row, out, merges);
             }
             Stmt::WriteTarget { target, patch, condition, .. } => {
-                for key in &target.key { expr_scans(key, out, has_merge); }
-                expr_scans(patch, out, has_merge);
-                if let Some(condition) = condition { stmts_scans(&condition.setup, out, has_merge); expr_scans(&condition.value, out, has_merge); }
+                for key in &target.key { expr_scans(key, out, merges); }
+                expr_scans(patch, out, merges);
+                if let Some(condition) = condition { stmts_scans(&condition.setup, out, merges); expr_scans(&condition.value, out, merges); }
             }
-            Stmt::Delete { key, .. } => expr_scans(key, out, has_merge),
-            Stmt::DeleteTarget { target } => for key in &target.key { expr_scans(key, out, has_merge); },
+            Stmt::Delete { key, .. } => expr_scans(key, out, merges),
+            Stmt::DeleteTarget { target } => for key in &target.key { expr_scans(key, out, merges); },
             Stmt::Break | Stmt::Continue => {}
         }
     }
 }
 
-fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
-    if let Some(filter) = &scan.filter { expr_scans(filter, out, has_merge); }
+fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>, merges: &mut Vec<&'a Merge>) {
+    if let Some(filter) = &scan.filter { expr_scans(filter, out, merges); }
     if let Some(range) = &scan.range {
-        for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_scans(bound, out, has_merge); }
+        for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_scans(bound, out, merges); }
     }
     for key in &scan.prefix {
-        match key { IndexKeyExpr::Scalar(expr) | IndexKeyExpr::WordPrefix(expr) => expr_scans(expr, out, has_merge) }
+        match key { IndexKeyExpr::Scalar(expr) | IndexKeyExpr::WordPrefix(expr) => expr_scans(expr, out, merges) }
     }
-    for cursor in [&scan.after, &scan.before].into_iter().flatten() { expr_scans(cursor, out, has_merge); }
+    for cursor in [&scan.after, &scan.before].into_iter().flatten() { expr_scans(cursor, out, merges); }
 }
 
-fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
+fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, merges: &mut Vec<&'a Merge>) {
     match expr {
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
-        Expr::Field { base, .. } => expr_scans(base, out, has_merge),
-        Expr::Array(items) => items.iter().for_each(|item| expr_scans(item, out, has_merge)),
-        Expr::Object(fields) => fields.values().for_each(|item| expr_scans(item, out, has_merge)),
-        Expr::Shape { base, fields } => { expr_scans(base, out, has_merge); fields.values().for_each(|item| expr_scans(item, out, has_merge)); }
+        Expr::Field { base, .. } => expr_scans(base, out, merges),
+        Expr::Array(items) => items.iter().for_each(|item| expr_scans(item, out, merges)),
+        Expr::Object(fields) => fields.values().for_each(|item| expr_scans(item, out, merges)),
+        Expr::Shape { base, fields } => { expr_scans(base, out, merges); fields.values().for_each(|item| expr_scans(item, out, merges)); }
         Expr::Binary { left, right, .. } => {
-            expr_scans(left, out, has_merge);
-            expr_scans(right, out, has_merge);
+            expr_scans(left, out, merges);
+            expr_scans(right, out, merges);
         }
-        Expr::Unary { value, .. } => expr_scans(value, out, has_merge),
-        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out, has_merge)),
-        Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out, has_merge)),
-        Expr::Block { body, value } => { stmts_scans(body, out, has_merge); expr_scans(value, out, has_merge); }
+        Expr::Unary { value, .. } => expr_scans(value, out, merges),
+        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out, merges)),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out, merges)),
+        Expr::Block { body, value } => { stmts_scans(body, out, merges); expr_scans(value, out, merges); }
         Expr::Scan(scan) => {
-            expr_scans_of_scan(scan, out, has_merge);
+            expr_scans_of_scan(scan, out, merges);
             out.push(scan);
         }
         Expr::Merge(merge) => {
-            *has_merge = true;
-            if let Some(after) = merge.position.as_ref().and_then(|position| position.after.as_ref()) { expr_scans(after, out, has_merge); }
+            merges.push(merge);
+            if let Some(after) = merge.position.as_ref().and_then(|position| position.after.as_ref()) { expr_scans(after, out, merges); }
             for lane in &merge.lanes {
-                if let Some(guard) = &lane.guard { expr_scans(guard, out, has_merge); }
-                if let Some(project) = &lane.project { expr_scans(project, out, has_merge); }
-                if let Some(value) = &lane.distinct { expr_scans(value, out, has_merge); }
-                stmts_scans(&lane.setup, out, has_merge);
+                if let Some(guard) = &lane.guard { expr_scans(guard, out, merges); }
+                if let Some(project) = &lane.project { expr_scans(project, out, merges); }
+                if let Some(value) = &lane.distinct { expr_scans(value, out, merges); }
+                stmts_scans(&lane.setup, out, merges);
                 if let Some(source) = &lane.source {
-                    if let Some(scan) = source.scan() { expr_scans_of_scan(scan, out, has_merge); out.push(scan); }
-                    for value in source.expressions() { expr_scans(value, out, has_merge); }
+                    if let Some(scan) = source.scan() { expr_scans_of_scan(scan, out, merges); out.push(scan); }
+                    for value in source.expressions() { expr_scans(value, out, merges); }
                 }
-                expr_scans_of_scan(&lane.scan, out, has_merge);
+                expr_scans_of_scan(&lane.scan, out, merges);
                 out.push(&lane.scan);
             }
         }

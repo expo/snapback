@@ -562,7 +562,7 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(names, ["receiptStatus", "daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "expiration", "familiarLengths", "spreadProfile", "spreadObjects", "spreadChoice", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest", "intentDigest"]);
     assert!(bound.server);
-    assert_eq!(bound.schema.schedules.len(), 2);
+    assert_eq!(bound.schema.schedules.len(), 3);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
     assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
     assert_eq!(bound.schema.routes["roomExport"].service, None);
@@ -723,6 +723,8 @@ fn the_language_card_compiles_and_runs() {
     let calendar = engine.query("calendar", Context::new(alice, args(&[])).at(-1)).unwrap().data;
     assert_eq!(calendar.field("hour").unwrap(), &Value::Int(-1));
     assert_eq!(calendar.field("bucket").unwrap(), &Value::Int(-1));
+    assert_eq!((calendar.field("month").unwrap(), calendar.field("year").unwrap()), (&Value::Int(-1), &Value::Int(1969)));
+    assert_eq!(calendar.field("monthStarts").unwrap(), &Value::Int(-31 * 86_400_000));
     // react: a refusal with the program's code; upsert as the implicit return.
     assert_eq!(failed(&engine.mutate("react", Some("x1"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(2))])).at(3_200)).unwrap()), "BAD_DIRECTION");
     let reacted = engine.mutate("react", Some("x2"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(-1))])).at(3_300).with_ids(["react1".to_owned()])).unwrap();
@@ -733,6 +735,8 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(engine.query("anchoredKeys", Context::new(bob, args(&[])).at(28_800_000)).unwrap().data,
         snapback4_core::value::object([("day", Value::Int(0)), ("hour", Value::Int(7)), ("bucket", Value::Int(0))]));
     assert_eq!(engine.query("digestToday", Context::new(alice, args(&[])).at(3_300)).unwrap().data, Value::Int(2));
+    // Value ranges (LLP 3000.040): `split`'s `int 0..` refuses a negative total before the body runs.
+    assert_eq!(failed(&engine.mutate("split", None, Context::new(alice, args(&[("total", Value::Int(-1)), ("people", Value::Array(vec![id(alice)]))]))).unwrap()), "E_INPUT");
     // A value index grants no read authority over a private vote aggregate.
     assert!(engine.query("mostLiked", Context::new(bob, args(&[])).at(3_300)).unwrap().data.as_array().unwrap().is_empty());
     // edit: the presence assertion, a conditional update refused with the current row, then accepted.
@@ -1072,12 +1076,14 @@ fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(guide_context::without_grouped_shape_note(&bound, "groupedMessages").is_empty(), "{:?}", bound.notes);
     assert_eq!(bound.schema.schedules[0].target, "timeline.nightly");
-    assert_eq!(bound.schema.schedules[1].target, "timeline.scheduledSummary");
+    assert_eq!(bound.schema.schedules[1].target, "timeline.nightly");
+    assert_eq!(bound.schema.schedules[1].months, 1);
+    assert_eq!(bound.schema.schedules[2].target, "timeline.scheduledSummary");
 }
 
 #[test]
 fn natural_words_find_their_cards() {
-    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "evolution"), ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
+    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "deploy"), ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
         assert!(card(word).is_some(), "{word} must find {target}");
         assert_eq!(card(word), card(target), "{word}");
     }
@@ -1181,7 +1187,7 @@ fn every_alias_targets_a_keyword_and_nearest_uses_aliases() {
     }
     assert_eq!(guide::nearest("pagintion")[0], "reads");
     assert_eq!(guide::nearest("redict")[0], "prediction");
-    assert_eq!(guide::nearest("migratio")[0], "evolution");
+    assert_eq!(guide::nearest("migratio")[0], "deploy");
     assert_eq!(guide::nearest("σ").len(), 3);
     assert_eq!(guide::nearest("banana").iter().collect::<std::collections::BTreeSet<_>>().len(), 3);
 }
@@ -1593,3 +1599,6 @@ fn guessed_section_words_land_on_one_section_even_in_another_card() {
     assert!(card("react") == card("client") && guide::alias_landing("react", "client", card("client").unwrap()).unwrap().contains("matchRead"));
     assert_eq!(card("money"), card("types"));
 }
+
+#[path = "guide/deploy.rs"]
+mod deploy;

@@ -186,6 +186,7 @@ pub fn programs(
         }
         fact.search_decoration = snapback4_core::search_decoration::admit(schema, &bound.program).is_ok();
         fact.search = snapback4_core::search_plan::ordinary::composition(schema, &bound.program);
+        fact.branch_merge = snapback4_core::ir::body_merges(&bound.program.body).iter().any(|m| m.branches());
         schema.operations.insert(bound.program.name.clone(), fact);
     }
 }

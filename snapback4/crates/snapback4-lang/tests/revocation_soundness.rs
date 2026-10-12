@@ -13,6 +13,7 @@ fn scalar(kind: &ColumnType, n: u64) -> Value {
         ColumnType::Enum { variants } => Value::String(variants[n as usize % variants.len()].clone()),
         ColumnType::Bool => Value::Bool(n % 2 == 0),
         ColumnType::Int | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => Value::Int(if n % 2 == 0 { 10000 } else { 50 }),
+        ColumnType::IntRange { min, max } => Value::Int((if n % 2 == 0 { 10000 } else { 50 }).clamp(*min, *max)),
         ColumnType::Optional(t) => if n % 3 == 0 { Value::Null } else { scalar(t,n) },
         ColumnType::List { .. } => Value::Array(vec![]),
         ColumnType::ListRange { of, min, .. } => Value::Array(vec![scalar(of, n); *min as usize]),

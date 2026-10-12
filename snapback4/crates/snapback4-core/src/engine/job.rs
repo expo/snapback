@@ -442,7 +442,7 @@ impl Engine {
             };
             let mut args = BTreeMap::new();
             if program.args.contains_key("periodStart") {
-                args.insert("periodStart".to_owned(), Value::Int(boundary - schedule.every_ms as i64));
+                args.insert("periodStart".to_owned(), Value::Int(schedule.previous(boundary)));
             }
             if program.args.contains_key("periodEnd") {
                 args.insert("periodEnd".to_owned(), Value::Int(boundary));

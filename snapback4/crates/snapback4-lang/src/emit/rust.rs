@@ -70,7 +70,7 @@ pub fn rust(bound: &Bound) -> String {
 fn rust_type(kind: &ColumnType) -> String {
     match kind {
         ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } | ColumnType::Text { .. } | ColumnType::Enum { .. } | ColumnType::Bytes { .. } => "String".into(),
-        ColumnType::Int | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => "i64".into(),
+        ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => "i64".into(),
         ColumnType::Bool => "bool".into(),
         ColumnType::Json { .. } | ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => "snapback4_native::Json".into(),
         ColumnType::Optional(inner) => format!("Option<{}>", rust_type(inner)),

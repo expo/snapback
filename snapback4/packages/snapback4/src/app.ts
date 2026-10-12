@@ -70,13 +70,15 @@ export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "s
   /** A development persona for loopback `snapback4 dev` only: the app acts as
    * `dev:<persona>` with no session (`?as=bob` pickers). app.auth sign-in is
    * refused; a non-loopback url refuses with E_AUTH, and serve refuses personas.
-   * A browser needs a device to write, as with every createApp. */
+   * Browser writes use the principal journal when no table syncs, or with
+   * writes: "online"; a device supplies offline reads and predictions. */
   readonly persona?: string;
   /** Browser writes without a device: each click is journaled synchronously in
    * localStorage and sent through the server (no offline reads, no
    * predictions). Chosen automatically when the backend syncs no table;
    * `"online"` also chooses it when tables sync. Needs
-   * `sessionStore: localStorageSessionStore()`. */
+   * `sessionStore: localStorageSessionStore()` for session identity; persona
+   * apps acquire their browser journal storage internally. */
   readonly writes?: "online";
 }
 
@@ -98,6 +100,22 @@ class SessionEpochChanged extends StorageWarning {
 
 export function createApp(options: AppOptions): App {
   validateReadOptions(options);
+  // @ref LLP 3000.013.000#17 — refuse unwritable configuration before identity branching.
+  if (options.writes !== undefined && (options.writes !== "online" || options.device || options.readOnly)) {
+    throw new StorageWarning({ code: "E_CLIENT", family: "client", site: "createApp.writes",
+      message: options.writes !== "online" ? 'writes must be "online" or omitted'
+        : 'writes: "online" cannot be combined with a device or readOnly',
+      rewrite: 'omit writes with a device/readOnly, or createApp({ url, writes: "online" })' });
+  }
+  if (!options.device && !options.readOnly && browserAdmission()) {
+    let available = false;
+    try { available = !!globalThis.localStorage && !!globalThis.indexedDB && !!globalThis.navigator?.locks; } catch {}
+    if (!available) throw new StorageWarning(admissionRefusal("the browser write journal requires localStorage, IndexedDB and Web Locks", "createApp", "restore browser storage and Web Locks, then create the app again"));
+    if (options.persona !== undefined && options.sessionStore && !sessionAuthority(options.sessionStore))
+      throw new StorageWarning(admissionRefusal("a persona browser journal needs IndexedDB storage", "createApp.persona", "omit sessionStore, or pass localStorageSessionStore()"));
+    if (options.persona === undefined && (!options.sessionStore || !(sessionReader(options.sessionStore) && sessionAuthority(options.sessionStore))))
+      throw new StorageWarning(admissionRefusal("this browser app needs sessionStore: localStorageSessionStore() for device-less writes", "createApp", ONLINE_WRITE_FIX));
+  }
   if (options.persona !== undefined) return personaApp({ ...options, persona: options.persona });
   const readOnly = options.readOnly ?? false;
   let assets: AssetRetention | undefined, configurationError: StorageWarning | undefined;
@@ -105,13 +123,6 @@ export function createApp(options: AppOptions): App {
   catch (error) {
     configurationError = new StorageWarning({ code: "E_CLIENT", family: "client", message: String(error),
       site: "app.assets", rewrite: 'createApp({ url, device, assets: { keep: "viewed", maxBytes: 67108864 } })' });
-  }
-  // @ref LLP 3000.013.000#3 — the explicit choice of the device-less browser journal.
-  if (options.writes !== undefined && (options.writes !== "online" || options.device || readOnly)) {
-    configurationError ??= new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.writes",
-      message: options.writes !== "online" ? `writes must be "online" or omitted, not ${JSON.stringify(options.writes)}`
-        : `writes: "online" is the device-less writing app; it cannot be combined with ${options.device ? "a device" : "readOnly"}`,
-      rewrite: 'createApp({ url, sessionStore: localStorageSessionStore(), writes: "online" })' });
   }
   const url = options.url.replace(/\/$/, "");
   const custodyKey = sessionKey(url, readOnly);
@@ -127,8 +138,6 @@ export function createApp(options: AppOptions): App {
     }
     return bytes;
   } };
-  // @ref LLP 3000.013.000#3 — a device-less browser app journals writes only over the IndexedDB session authority; say so at construction.
-  if (!options.device && !readOnly && browserAdmission() && !(sessionReader(backing) && authority)) console.warn(`snapback4: createApp without a device journals browser writes only with sessionStore: localStorageSessionStore(); with this session store every browser write refuses E_ADMISSION. Use ${ONLINE_WRITE_FIX} when no table syncs, or ${BROWSER_WRITE_FIX}.`);
   if (!options.sessionStore && typeof window !== "undefined") console.info("snapback4: createApp keeps sessions in memory. To restore after a page restart, pass sessionStore: localStorageSessionStore() from snapback4/auth. Scripts on the page can read that persisted token.");
   let persistence: Promise<unknown> = Promise.resolve();
   const persist = <T>(work: () => Promise<T>) => {
@@ -666,6 +675,7 @@ export function createApp(options: AppOptions): App {
         const identifying = identifyDispatch(raw).catch(() => undefined);
         if (options.writes === "online") writesDecision = { mode: "journal" };
         else await readWrites();
+        if ((writesDecision as WritesDecision).mode === "synced") warning = onlineWritesRefusal();
         let timer: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([identifying, new Promise<void>(resolve => { timer = setTimeout(resolve, 1_000); })]).finally(() => clearTimeout(timer));
         if (!scope.valid || closed || revision !== expected) {
@@ -753,7 +763,7 @@ export function createApp(options: AppOptions): App {
       recoverStore();
       if (scope.valid && current === client) notifyPublished?.(client);
       drainRevocations();
-      return { ok: true, session: raw.session() ?? next };
+      return warning?.code === "E_ADMISSION" ? { ok: false, why: warning } : { ok: true, session: raw.session() ?? next };
     } catch (error) {
       const why = problem(error);
       if (revision === expected) hide("restoring", false,

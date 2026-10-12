@@ -2,7 +2,7 @@
   "0411-hello": {
     "examined": 513,
     "heap_bytes": 132571,
-    "index_entries": 1062,
+    "index_entries": 1064,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
@@ -11,7 +11,7 @@
   "0411-near-max": {
     "examined": 513,
     "heap_bytes": 154023,
-    "index_entries": 1062,
+    "index_entries": 1064,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
@@ -20,7 +20,7 @@
   "0411-realistic": {
     "examined": 513,
     "heap_bytes": 140605,
-    "index_entries": 1092,
+    "index_entries": 1094,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
@@ -29,7 +29,7 @@
   "0412-hello": {
     "examined": 561,
     "heap_bytes": 224907,
-    "index_entries": 1063,
+    "index_entries": 1065,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
@@ -38,7 +38,7 @@
   "0412-near-max": {
     "examined": 561,
     "heap_bytes": 341633,
-    "index_entries": 1063,
+    "index_entries": 1065,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
@@ -47,7 +47,7 @@
   "0412-realistic": {
     "examined": 561,
     "heap_bytes": 236535,
-    "index_entries": 1093,
+    "index_entries": 1095,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,

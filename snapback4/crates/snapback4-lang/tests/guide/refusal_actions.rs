@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_REDUNDANT_RULE", &["Omit the entire read line", "making the total public would widen it"]),
+    ("N_CONDITIONAL_COMPLETE", &["Guard the parent branch with keyed require/if", "update expect: \"capped\" cases"]),
     ("E_FOLLOWING_INPUT", &["the SDK owns tokens and fresh revisions"]),
     ("E_FOLLOWING_DECLARATION", &["See `guide feeds` for the frozen-domain guarantee and stalled exceptions"]),
     ("E_FOLLOWING_PAGE_SIZE", &["requires 1–100 events per declared page"]),
@@ -19,7 +21,11 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_JOB_VIEWER_PRINCIPAL", &["Use a principal column or argument; keep intentional system reads outside as."]),
     ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),
     ("E_SYSTEM_PRINCIPAL_WRITE", &["make the column optional and write `null` for system events, or name a service principal"]),
-    ("N_DELETE_ORPHANS", &["Delete or retarget the children in the same mutation first", "keep the parent and mark it"]),
+    ("N_DELETE_RESTRICTED", &["Declare what you mean on the referencing column", "`on delete keep` keeps them as before"]),
+    ("N_DELETE_NEEDS_READ", &["Make every deleter a reader", "mark the references `on delete keep`"]),
+    ("E_REFERENCED", &["Choose what deleting the target should do", "Or delete the referencing rows first in the same mutation"]),
+    ("E_REFERENCE_ACTION", &["Choose `cascade`, `restrict` or `keep` instead"]),
+    ("E_CASCADE_BOUND", &["lower the cap if the domain has a smaller limit", "delete the referencing rows first in a job"]),
     ("N_PATCH_CLEARS", &["To keep the stored value", "if clearing is meant too"]),
     ("N_WRITE_DENIED", &["write the rule its callers need, or do the write in a job", "snapback4 run` prints the clause"]),
     ("N_PROBE_ONLY_READ", &["write `read through", "name the caller"]),

@@ -69,7 +69,7 @@ fn probe(info: &TableInfo, tables: &BTreeMap<String, TableInfo>, reference: &str
     let fits = match other {
         Expr::Name { name, .. } => name == "viewer" && matches!(kind, TypeKind::Principal),
         Expr::Literal { value: Literal::Str(_), .. } => matches!(kind, TypeKind::Text { .. } | TypeKind::Enum { .. }),
-        Expr::Literal { value: Literal::Number(_), .. } => matches!(kind, TypeKind::Int),
+        Expr::Literal { value: Literal::Number(_), .. } => matches!(kind, TypeKind::Int | TypeKind::IntRange { .. }),
         Expr::Literal { value: Literal::Bool(_), .. } => matches!(kind, TypeKind::Bool),
         _ => false,
     };

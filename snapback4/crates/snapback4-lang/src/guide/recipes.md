@@ -1,4 +1,4 @@
-# Recipes: roles, two parties, booking and schedules
+# Recipes: roles, two parties, booking, deleting and schedules
 
 Each recipe is one compiled schema for an app shape that otherwise takes several cards to assemble.
 Copy one whole, then rename its tables; each says how it syncs, how to test it and which refusals to expect.
@@ -26,17 +26,14 @@ query queue(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
   return requests last 50 by .id after c
 ```
-
 The pattern under every recipe: rules say who may touch a row at all, a
 `require … else CODE` in the operation says which change a caller may make and
 answers with your code, and the table's sync line (or `online only`) says
 whose device holds it. `guide refusals` gives the order the checks run in.
-
 On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
-deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts").
+deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts"). Monthly billing with `money`: `guide time --section billing`.
 
 ## Roles: admin, staff and members
-
 Everyone signed in is a member. A `roles` row makes a principal staff or an
 admin; `exists roles[viewer]` is the staff grant and `exists roles[viewer,
 role = 'admin']` the admin grant. An admin has a `roles` row, so every staff
@@ -45,10 +42,10 @@ grant admits admins too; test `role = 'staff'` where only staff is meant. Each o
 staff queue reads every open ticket and answers `complete: true`. The table's
 update rule admits the author and staff; `retitle` narrows it to the author
 and `close` to staff, one `require` each. A page that staff read whole and
-members read their own rows of is one query that branches on the grant
-(`board`): each branch scans rows its reader may read, so both answer
-`complete: true`. A single `where .author = viewer or exists roles[viewer]`
-scan cannot promise that (`N_NEVER_COMPLETE`), and two queries split the screen.
+members read their own rows of is one plain query (`board`): under `.author =
+viewer or exists roles[viewer]` it reads every row for a grant holder and the
+author's own range for everyone else, so both answer `complete: true` (guide
+indexes, "Private lists").
 
 ```quarry
 use personas alice, bob, carol
@@ -75,9 +72,7 @@ table tickets:
   online only
 
 query board(c: cursor ?):
-  if exists roles[viewer]:
-    return tickets last 50 by .at after c
-  return tickets where .author = viewer last 50 by .at after c
+  return tickets last 50 by .at after c
 
 query mine(c: cursor ?):
   return tickets where .author = viewer last 20 by .at after c
@@ -139,6 +134,7 @@ so both pages are complete on the device. A thread under an offer copies both
 parties onto each note, checks them against the offer in its insert rule
 (`.buyer = .offer.buyer and .seller = .offer.seller`), and syncs the same
 way; page it per party (`notes where .seller = viewer last 50 by .at`).
+Online, the same read rule can serve a complete page as written (`guide indexes`).
 
 ```quarry
 use personas alice, bob, carol
@@ -219,7 +215,7 @@ table slots:
   sync public last 500 by .startsAt
 
 table bookings:
-  slot: slots
+  slot: slots on delete restrict         -- a slot with seats taken is not deleted (the default, declared)
   guest: principal
   at: time default now
   unique slot, guest else ALREADY_BOOKED 'You already hold a seat.'
@@ -259,13 +255,12 @@ mutation removeSlot(slot: slots):
   delete slots[slot]
 ```
 
-A delete does not cascade: a removed slot would leave its bookings naming
-a deleted row (N_DELETE_ORPHANS). `removeSlot` refuses while any booking
-exists, by the public count: `require not exists bookings[slot = slot]` is
-refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
-bookings, and a count is the one fact about them the host may see. The
-`require taken[slot] = 0` guard is what silences N_DELETE_ORPHANS; any
-unfiltered `count child by .ref` view does the same for its child table.
+`slot: slots on delete restrict` refuses a slot's delete while a booking
+names it (E_REFERENCED); `on delete cascade` would cancel the guests'
+bookings instead (`guide writes`). `removeSlot` checks first, by the public
+count, to answer with its own code: `require not exists bookings[slot = slot]`
+is refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
+bookings, and a count is the one fact about them the host may see.
 
 Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 
@@ -277,6 +272,26 @@ Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 {"as":"carol","op":"book","args":{"slot":"s1"}}
 {"as":"alice","op":"removeSlot","args":{"slot":"s1"},"expect":"HAS_BOOKINGS","label":"alice hosts s1; carol still holds its seat"}
 ```
+
+## Deleting: cascade, restrict, set null, keep
+
+```quarry
+table projects:
+  owner: principal
+  read <- .owner = viewer
+  delete <- .owner = viewer
+table tasks:
+  project: projects on delete cascade   -- deleted with it; needs a cap
+  cap 500 by project
+  read <- allow
+table comments:
+  task: tasks on delete restrict        -- the default: refuses E_REFERENCED
+  read <- allow
+mutation dropProject(id: projects):
+  delete projects[id]                   -- its tasks too, unless a comment names one
+```
+
+`set null` clears an optional reference no rule reads; `keep` leaves rows naming the deleted one (the 0.4 meaning, N_DELETE_RESTRICTED). The parent's delete authorizes the cascade and reserves its worst case (E_CASCADE_BOUND); its deleter must read the row (N_DELETE_NEEDS_READ). Others can hold your row under restrict, so their likes and RSVPs should cascade. Expiry fires nothing.
 
 ## Schedules: close at a time, remind ahead, catch up
 
@@ -350,3 +365,21 @@ into one run for the latest period only. So a sweep over exactly
 closed, so one run catches up. Test with a running `dev`: `snapback4 clock
 advance 3h` reports `fired`, the period and `skippedPeriods` for each
 schedule (`guide time`, `guide jobs`).
+
+## Parent-scoped history and audiences
+
+Copied immutable owners do not prove parent authority. `read through .loan`
+shares every loan reader. Distinct authors/owners need
+`read <- .author = viewer or exists loans[.loan, owner = viewer]`, `.loan = loan`,
+and `require exists loans[loan, owner = viewer] else FORBIDDEN` on the owner page.
+A readable parent binding alone cannot prove an arbitrary child owner was copied
+correctly. Landlord/tenant/vendor boards use one guarded page per audience,
+merged in the client; private rows stay private. `guide reads` explains `T[]`.
+
+Seller sweeps need child write authority such as
+`update old, next <- exists listings[old.listing, seller = viewer]`, with listing
+immutable and a keyed seller require in the mutation. Pinning buyer would narrow
+seller scope, not authorize every competing offer.
+
+Cap groups use stored columns: set immutable int dayNumber to day(startsAt), then
+`cap 4 by owner, dayNumber`. Caps refuse E_CONSTRAINT; custom else belongs to unique.

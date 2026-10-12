@@ -281,7 +281,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     let written_by = decl.columns.iter().filter_map(|column| column.written_by.as_ref().map(|owner|
         (column.name.clone(), core::FieldAuthority { owner: owner.clone(), audience: column.readable_by_audience }))).collect();
     let update_transition = decl.rules.iter().any(|rule| rule.effect == Effect::Update && !rule.bindings.is_empty());
-    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, written_by, update_transition, through: info.through.clone(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, written_by, update_transition, through: info.through.clone(), on_delete: BTreeMap::new(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -1027,18 +1027,19 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     let value_type = match &maintain.column {
         None => ScalarType { kind: TypeKind::Int, optional: false },
         Some(column) => match source.columns.get(column) {
+            Some(ty) if matches!(ty.kind, TypeKind::IntRange { .. }) => ScalarType { kind: TypeKind::Int, optional: false },
             Some(ty) if matches!(ty.kind, TypeKind::Int | TypeKind::Decimal { .. } | TypeKind::Money { .. }) => ty.required(),
             Some(ty) => return Err(type_error(&site, format!("sum over {}.{column} needs int, decimal or money, not {}", maintain.source, crate::print::scalar_type(ty)), format!("view {}: count {} by {}", maintain.name, maintain.source, maintain.keys.iter().map(|key| super::maintains::bare_key(key).map_or_else(|| crate::print::expression(key), |name| format!(".{name}"))).collect::<Vec<_>>().join(", ")))),
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
     let aliases = super::maintains::inherited_aliases(source,maintain);
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[aliases.get(field).unwrap_or(field)].clone() };
-        columns.push(ColumnDecl { sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);

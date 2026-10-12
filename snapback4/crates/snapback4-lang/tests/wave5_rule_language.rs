@@ -317,52 +317,71 @@ fn a_view_with_where_after_by_names_the_clause_order() {
 }
 
 /// Wave 5 #5 (11 lanes): `int 1..N` failed "expected the end of the line, got 1".
-/// The targeted refusal prints the require (and rule) forms, which compile.
+/// LLP 3000.040 §1 reverses LLP 3000.036 §15.7: the lanes' own spelling is
+/// now the type, enforced on every write; the other comparisons print it.
 #[test]
-fn an_int_range_names_the_require_and_rule_forms() {
-    let d = first("mutation add(k: int 1..7200):\n  return k\n", "E_QUARRY_SYNTAX");
-    assert!(d.message.starts_with("int takes no range in its type"), "{d:#?}");
-    assert_eq!(d.rewrite, "declare `k: int` and refuse other values first in the body: `require k >= 1 and k <= 7200 else OUT_OF_RANGE`");
-    clean("mutation add(k: int):\n  require k >= 1 and k <= 7200 else OUT_OF_RANGE\n  return k\n");
-    let d = first("table items:\n  owner: principal\n  n: int 1..10\n  read <- .owner = viewer\n  online only\n", "E_QUARRY_SYNTAX");
-    assert!(d.rewrite.contains("insert <- … and .n >= 1 and .n <= 10") && d.rewrite.contains("update (old, next) <- … and next.n >= 1 and next.n <= 10"), "{d:#?}");
-    let source = "table items:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  insert <- .owner = viewer and .n >= 1 and .n <= 10\n  update (old, next) <- next.owner = viewer and next.n >= 1 and next.n <= 10\n  online only\n\
-mutation add(n: int):\n  require n >= 1 and n <= 10 else OUT_OF_RANGE\n  return insert items { owner: viewer, n }\n";
+fn an_int_range_is_a_type_and_other_spellings_print_it() {
+    let source = "table items:\n  owner: principal\n  n: int 1..10\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n\
+mutation add(n: int 1..10):\n  return insert items { owner: viewer, n }\nmutation raw(n: int):\n  return insert items { owner: viewer, n }\n";
+    clean(source);
     let mut engine = engine(source, vec![]);
-    let sent = |engine: &mut Engine, n: i64| matches!(engine.mutate("add", None, Context::new("amy", args(&[("n", Value::Int(n))]))).map(|o| o.state), Ok(snapback4_core::WriteState::Sent { .. }));
-    assert!(sent(&mut engine, 4) && !sent(&mut engine, 11) && !sent(&mut engine, 0));
-    let d = first("table items:\n  m: int <=5 ?\n  public 'x'\n  online only\n", "E_QUARRY_SYNTAX");
-    assert!(d.rewrite.starts_with("declare `m: int ?`") && d.rewrite.contains("(.m = null or .m <= 5)"), "{d:#?}");
+    let code = |engine: &mut Engine, op: &str, n: i64| match engine.mutate(op, None, Context::new("amy", args(&[("n", Value::Int(n))]))).map(|o| o.state) {
+        Ok(snapback4_core::WriteState::Sent { .. }) => "sent".to_owned(),
+        Ok(snapback4_core::WriteState::Failed { why, .. }) => why.code,
+        Err(e) => e.code().to_string(),
+    };
+    for op in ["add", "raw"] {
+        assert_eq!(code(&mut engine, op, 4), "sent");
+        assert_eq!(code(&mut engine, op, 11), "E_INPUT", "{op}");
+        assert_eq!(code(&mut engine, op, 0), "E_INPUT", "{op}");
+    }
+    clean("mutation add(k: int 1..7200):\n  return k\n");
+    clean("table items:\n  m: int ..5 ?\n  p: int 0..\n  q: int -3..-1\n  public 'x'\n  online only\n");
+    for (written, canonical) in [("int <=5", "int ..5"), ("int >=1", "int 1.."), ("int <10", "int ..9"), ("int >0", "int 1.."), ("int 9..1", "int 1..9")] {
+        let d = first(&format!("table items:\n  m: {written} ?\n  public 'x'\n  online only\n"), "E_QUARRY_SYNTAX");
+        assert_eq!(d.rewrite, canonical, "{written}: {d:#?}");
+        assert_eq!(d.guide, "types");
+        clean(&format!("table items:\n  m: {canonical} ?\n  public 'x'\n  online only\n"));
+    }
+    let d = first("table items:\n  m: int <=5\n  public 'x'\n  online only\n", "E_QUARRY_SYNTAX");
+    assert!(d.message.contains("text's `<=N` starts at 0"), "{d:#?}");
 }
 
-// ---- #22: a parent delete does not cascade (noted, not changed) ----
+// ---- #22: a parent delete with children (LLP 3000.039 answers §15.8) ----
 
-/// Lane 081: `delete screenings[s]` returned sent and kept its RSVPs. The
-/// semantics stay (an open design question, LLP 3000.036 §15.8); `check` now
-/// says so where a mutation deletes a referenced row and handles no child.
+/// Lane 081: `delete screenings[s]` returned sent and kept its RSVPs. Since
+/// LLP 3000.039 an undeclared reference is `on delete restrict`: the delete
+/// refuses while an RSVP names the screening, `check` says so at the delete
+/// (N_DELETE_RESTRICTED), and declaring the action silences the note.
 #[test]
-fn a_parent_delete_that_leaves_children_is_noted_and_unchanged() {
+fn a_parent_delete_with_children_refuses_by_default_and_cascades_when_declared() {
     let schema = "table screenings:\n  host: principal\n  public 'screenings'\n  delete <- .host = viewer\n  online only\n\
 table rsvps:\n  screening: screenings\n  guest: principal\n  public 'rsvps'\n  insert <- .guest = viewer\n  delete <- .guest = viewer or exists screenings[.screening, host = viewer]\n  online only\n";
     let cancel = "mutation cancel(s: screenings):\n  delete screenings[s]\n  return null\nquery roster(s: screenings, c: cursor ?):\n  return rsvps where .screening = s first 50 by .id after c\n";
     let source = format!("{schema}{cancel}");
     let b = clean(&source);
-    let n = note(&b, "N_DELETE_ORPHANS").unwrap_or_else(|| panic!("{:#?}", b.notes));
-    assert!(n.message.starts_with("mutation cancel: `delete screenings[…]` keeps the rows that reference it (rsvps.screening)"), "{n:#?}");
-    let mut engine = engine(&source, vec![
+    let n = note(&b, "N_DELETE_RESTRICTED").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.starts_with("mutation cancel: `delete screenings[…]` now refuses E_REFERENCED while a live row references it (rsvps.screening)"), "{n:#?}");
+    let rows = || vec![
         ("screenings", vec![("id", id("s1")), ("host", id("hal"))]),
         ("rsvps", vec![("id", id("r1")), ("screening", id("s1")), ("guest", id("gil"))]),
-    ]);
-    let outcome = engine.mutate("cancel", None, Context::new("hal", args(&[("s", id("s1"))]))).unwrap();
+    ];
+    let mut e = engine(&source, rows());
+    let outcome = e.mutate("cancel", None, Context::new("hal", args(&[("s", id("s1"))]))).unwrap();
+    assert!(matches!(&outcome.state, snapback4_core::WriteState::Failed { why, .. } if why.code == "E_REFERENCED"), "{outcome:?}");
+    // Declared cascade (with its cap): the RSVPs go with the screening, and the note is silent.
+    let cascading = source.replace("  screening: screenings\n", "  screening: screenings on delete cascade\n").replace("  online only\nmutation cancel", "  cap 200 by screening\n  online only\nmutation cancel");
+    let b = clean(&cascading);
+    assert!(note(&b, "N_DELETE_RESTRICTED").is_none(), "{:#?}", b.notes);
+    let mut e = engine(&cascading, rows());
+    let outcome = e.mutate("cancel", None, Context::new("hal", args(&[("s", id("s1"))]))).unwrap();
     assert!(matches!(outcome.state, snapback4_core::WriteState::Sent { .. }), "{outcome:?}");
-    let roster = engine.query("roster", Context::new("gil", args(&[("s", id("s1")), ("c", Value::Null)]))).unwrap();
-    assert_eq!(roster.data.as_array().unwrap().len(), 1, "unchanged: the child stays");
-    // A mutation that handles the children (a guard or a cleanup) is not noted.
-    for handled in [
-        "mutation cancel(s: screenings):\n  require not exists rsvps where .screening = s else HAS_GUESTS\n  delete screenings[s]\n  return null\n",
-        "mutation cancel(s: screenings):\n  for row in rsvps where .screening = s:\n    delete rsvps[row.id]\n  delete screenings[s]\n  return null\n",
-    ] {
-        let b = bound(&format!("{schema}{handled}"));
-        assert!(note(&b, "N_DELETE_ORPHANS").is_none(), "{handled}\n{:#?}", b.notes);
-    }
+    let roster = e.query("roster", Context::new("gil", args(&[("s", id("s1")), ("c", Value::Null)]))).unwrap();
+    assert_eq!(roster.data.as_array().unwrap().len(), 0, "the RSVP went with its screening");
+    // `keep` restores the old meaning, declared.
+    let kept = source.replace("  screening: screenings\n", "  screening: screenings on delete keep\n");
+    assert!(note(&clean(&kept), "N_DELETE_RESTRICTED").is_none());
+    let mut e = engine(&kept, rows());
+    assert!(matches!(e.mutate("cancel", None, Context::new("hal", args(&[("s", id("s1"))]))).unwrap().state, snapback4_core::WriteState::Sent { .. }));
+    assert_eq!(e.query("roster", Context::new("gil", args(&[("s", id("s1")), ("c", Value::Null)]))).unwrap().data.as_array().unwrap().len(), 1);
 }

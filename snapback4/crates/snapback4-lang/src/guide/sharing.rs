@@ -222,13 +222,13 @@ query mine(c: cursor ?):
 ### Online: any rule, as written
 
 **A staff console, online.** When the app is online, one table can say
-`.tenant = viewer or exists staff[viewer]`. A staff member's page is decided
-once by the grant and answers `complete: true`, as long as each staff member
-can read their own `staff` row; start the console query with the same
-`require`, and a staff-only mutation can walk every row of a group the same
-way (`: server` alone does not lift a page the rule does not decide). Tenants
-pin their own column. To hold the union offline, use the synced staff
-roster and union in the preceding recipe. `guide recipes --section roles` adds admins who grant roles.
+`.tenant = viewer or exists staff[viewer]`. One query serves both: a staff
+member's page is decided once by the grant (as long as each staff member can
+read their own `staff` row), a tenant's is their own range, and both answer
+`complete: true`. A staff-only mutation can walk every row of a group after
+`require` of the grant (`: server` alone does not lift a page the rule does
+not decide). To hold the union offline, use the synced staff roster and
+union in the preceding recipe. `guide recipes --section roles` adds admins who grant roles.
 
 ```quarry
 table staff:
@@ -247,12 +247,8 @@ table tickets:
   update <- exists staff[viewer]
   online only
 
-query queue(c: cursor ?):
-  require exists staff[viewer] else NOT_STAFF
+query open(c: cursor ?):
   return tickets where not .done last 50 by .at after c
-
-query mine(c: cursor ?):
-  return tickets where .tenant = viewer last 50 by .at after c
 
 mutation closeAllFor(tenant: principal):
   require exists staff[viewer] else NOT_STAFF
@@ -462,9 +458,11 @@ Cases (alice and bob in household `h1`, which has one charge; carol in `h2`):
 ### An explicit parties table
 
 **Two parties (buyer and seller), with explicit membership.** `.buyer = viewer or .seller = viewer` is
-two audiences. As an alternative to a union, give the row a parties table
-with one row per reader and read through it; both parties' devices hold the order, and each can predict writes
-to it. The creating mutation is the only one that may add parties here
+two audiences. Online, keep the rule: `orders last 50 by .at after c` is one
+complete query (guide indexes, "Private lists"). As an alternative to a union
+offline, give the row a parties table with one row per reader and read through
+it; both parties' devices hold the order, and each can predict writes to it.
+The creating mutation is the only one that may add parties here
 (`created orders[.orderId]`); an owner sharing with others is the team recipe
 above with one group per item.
 

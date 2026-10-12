@@ -19,7 +19,7 @@ table lists:                              -- every table has an implicit `id`
   cap 100 by owner                        -- at most 100 rows per owner
   sync to .owner last 100 by .at          -- each owner's devices hold their newest 100
 table items:
-  list: lists                             -- a reference: the parent row's id
+  list: lists on delete cascade           -- a reference: the parent's id; deleting it deletes these
   owner: principal
   text: text 1..200
   done: bool default false
@@ -50,10 +50,8 @@ query itemsOf(list: lists, c: cursor ?):
   return items where .owner = viewer and .list = list first 50 by .id after c
 query openCount(list: lists):
   return openItems[viewer, list]
-query board(c: cursor ?):                 -- owner or staff on one page: branch on the grant; both complete
-  if exists staff[viewer]:
-    return requests last 50 by .id after c
-  return requests where .author = viewer last 50 by .id after c
+query board(c: cursor ?):                 -- owner or staff on one page: complete for both (guide indexes)
+  return requests last 50 by .id after c
 
 mutation addList(title: text 1..80):
   return insert lists { owner: viewer, title }
@@ -72,26 +70,26 @@ mutation removeItem(item: items):
 ## Quarry
 
 - Comments start with `--` (never `//`); blocks indent two spaces; `snapback/*.q` share one namespace.
-- Types: `text <=N`, `text M..N` (a length), `int` (no range: bound it with `require n >= 1 and n <= 10 else CODE`), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
+- Types: `text <=N`, `text M..N` (a length), `int`, `int 1..5` / `int 0..` / `int ..100` (a value range, checked on every write), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
   `json <=N`, `bytes <=N`, `[text <=20] <=8`, `image <=N`, a table name (a reference); `T ?` is optional (`guide types`).
 - Operators: `= != < <= > >=`, `and or not`, `+ - * / %`, `x ?? fallback`, `a if cond else b`, `exists t[k]`.
   `/` and `%` take ints (and times) and floor: `7 / 2` is 3, `-7 / 2` is -4, `-7 % 2` is 1; zero refuses E_DIV_ZERO.
   `money` and `decimal` add, subtract and multiply by an int but do not divide; `share(total, people, viewer)` splits an amount.
-- Text: `'it\'s'` or `"it's"`; `\\`, `\n`, `\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)` (`guide time`).
+- Text: `'it\'s'` or `"it's"`; `\\`, `\n`, `\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)` (day number; UTC midnight: `day(now) * 1d`), `month(now)`, `monthStart(m)` (`guide time`).
 - Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`. `t[a, b]` takes
   a unique key's values in column order; `t[col = x]` names a column; in brackets a bare name is a local or argument, `.col` the row's.
 - Pages: `where` is optional (`return pieces first 50 by .id after c`). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.
 - Writes: `insert t { .. }`, `update t[id] { .. }`, `upsert t[k] { .. }`, `delete t[id]` (`guide writes`).
   A missing target refuses NOT_FOUND, `delete` too: guard it with `if exists t[id]:` and `delete t[id]` on the next line.
-  Each statement checks `unique`, so swap two keys through a free value. Deleting a row leaves rows
-  that reference it (delete them first); `read through` children refuse with E_PARENT_HAS_CHILDREN.
-- Table clauses: `unique a, b else CODE`, `cap N by col`, `immutable col`, `expire at .col`, `search col`,
+  Each statement checks `unique`, so swap two keys through a free value. A reference says what deleting
+  its target does: `on delete restrict` (default; E_REFERENCED), `cascade`, `set null`, `keep` (`guide recipes`).
+- Table clauses: `unique a, b else CODE`, `cap N by col`, `cap N` (whole-table bound), `immutable col`, `expire at .col`, `search col`,
   `public 'why'`, `online only`, `sync to .col last N by .at` (`guide sync`, `guide bounds`).
 - Reserved as column names: `after by cap delete deliver ephemeral expire immutable insert online public read
   retain search sync unique update` (and `id`). As parameter, local and loop names: `and as break continue
   created delete device elif else emit exists false for if insert merge not null oblivious or require return
   true update upsert viewer walk while`. A shape or object field cannot be named `pending` (row metadata).
-- Background work: `job`, `schedule x every 1d at 03:00: x`, `effect` (`guide jobs`, `guide effects`).
+- Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).
 
 ## Roles and rosters
 
@@ -161,3 +159,5 @@ and `await client.mutate(api.addList, { title })`. Every export by subpath: `gui
 - `npx snapback4 test --fixture fixtures --as alice`: `fixtures/<table>.jsonl` rows, then `fixtures/test.cases.jsonl`:
   `{"as":"bob","op":"addItem","args":{"list":"l1","text":"x"},"expect":"denied"}` (`guide testing`).
 - Over HTTP: `dev --port 0 --memory` (stdout's first line is the URL); `POST /seed`, `/q/<query>`, `/m/<mutation>` with `x-snapback-persona: alice` (`guide testing --section acceptance`).
+
+Maintained totals: `view total: sum expenses of .amount by .owner` beside `view n: count expenses by .owner`. `cap` groups by stored columns; store `day(startsAt)` in an immutable int dayNumber before grouping by it.

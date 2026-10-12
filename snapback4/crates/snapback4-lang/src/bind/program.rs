@@ -1180,6 +1180,7 @@ impl<'a> Binder<'a> {
                     let expected = Ty::from_scalar(scalar);
                     let mut setup = setup::Body::default();
                     let (e, t) = self.field_value(field, &expected, &mut setup)?;
+                    literal_in_range(info, &field.name, scalar, &e, &field.site)?;
                     self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                     if !t.writable_to(&expected) {
                         return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
@@ -1206,6 +1207,7 @@ impl<'a> Binder<'a> {
             let expected = Ty::from_scalar(scalar);
             let mut setup = setup::Body::default();
             let (e, t) = self.field_value(field, &expected, &mut setup)?;
+            literal_in_range(info, &field.name, scalar, &e, &field.site)?;
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             if !t.writable_to(&expected) {
                 return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
@@ -1251,7 +1253,22 @@ impl<'a> Binder<'a> {
         if super::columns::fields(info).next().is_some() { Ty::WriteRow(info.decl.name.clone()) } else { Ty::Row(info.decl.name.clone()) }
     }
 
+    fn calendar_number(&self, value: &A, depth: u8) -> bool {
+        if depth > 8 { return false; }
+        match value {
+            A::Call { name, .. } => matches!(name.as_str(), "day" | "hour" | "bucket"),
+            A::Name { name, .. } => self.binding(name).is_some_and(|binding| binding.revision == 0 && binding.origins.len() == 1 && self.calendar_number(&binding.origins[0].1, depth + 1)),
+            A::If { then, otherwise, .. } => self.calendar_number(then, depth + 1) || self.calendar_number(otherwise, depth + 1),
+            _ => false,
+        }
+    }
+
     fn field_value(&mut self, field: &ObjectField, expected: &Ty, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if expected.required() == Ty::Time && field.value.as_ref().map_or_else(
+            || self.calendar_number(&A::Name { name: field.name.clone(), site: field.site.clone() }, 0), |value| self.calendar_number(value, 0)) {
+            return Err(type_error(&field.site, "day/hour/bucket returns a period number, not a time in milliseconds",
+                "store the period number in an int field, or use day(now) * 1d for a UTC midnight time (hour(now) * 1h for an hour)"));
+        }
         match &field.value {
             Some(value) if expected.required().is_identity() => self.expr_as_identity(value, out, expected),
             Some(value) => {
@@ -1286,6 +1303,23 @@ struct WriteKey {
     index: String,
     key: Vec<Expr>,
     alternate: bool,
+}
+
+/// A constant written into a bounded int column is checked where it is written;
+/// a computed value meets the bound at run time (E_INPUT).
+// @ref LLP 3000.040#14-where-the-bound-is-enforced — the binder refuses what the runtime would always refuse.
+pub(super) fn literal_in_range(info: &TableInfo, column: &str, scalar: &crate::ast::ScalarType, value: &Expr, site: &Site) -> Fallible<()> {
+    let constant = match value {
+        Expr::Literal(Value::Int(n)) => Some(*n),
+        Expr::Unary { op: snapback4_core::ir::UnaryOp::Neg, value } => match value.as_ref() { Expr::Literal(Value::Int(n)) => Some(-n), _ => None },
+        _ => None,
+    };
+    if let (crate::ast::TypeKind::IntRange { min, max }, Some(n)) = (&scalar.kind, constant)
+        && !snapback4_core::schema::int_in_range(n, *min, *max) {
+        let range = snapback4_core::schema::int_range_text(*min, *max);
+        return Err(type_error(site, format!("{}.{column} is {range}; {n} is outside it", info.decl.name), format!("write a value in {range}, or widen the column's range")).guide("types"));
+    }
+    Ok(())
 }
 
 fn literal_int(expr: &A) -> Option<i64> {

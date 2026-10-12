@@ -51,10 +51,11 @@ elan.
 | Syntax | `Quarry/Syntax.lean` | Schema: tables, typed nullable columns, unique keys with `else CODE`, read/insert/update/delete rules. Rules: allow, deny, `=`, `!=`, `exists t[..]` probes, and, or, not, over the row, old/next images and `viewer`. Expressions: arithmetic, comparison, and/or/not, `!` / `else`, `??`, conditionals, pure helper calls, arrays, records, point reads, pages, `count`, `exists`. Statements: `x = e`, `require`, `if`, `return`, and insert/upsert/update/delete. |
 | Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`), a rule's disjuncts and terms. |
 | Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a page guard: a grant or a pinned parent probe). Reads see only a `View` of visible rows. |
-| Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, application codes). |
+| Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, `E_REFERENCED`, application codes). A delete applies its references' `on delete` actions (LLP 3000.039 §3): the read prerequisite, the cascade closure, restrict probes outside it, set null, removal. Caps are carried as unenforced declarations: the emitter admits a capped table only when the program never inserts into or updates it. |
+| Calendar | `Quarry/Calendar.lean` | The UTC builtins of LLP 3000.040 §2.2: `day`, `hour`, `bucket` as period ordinals; `month`, `year`, `monthStart`, `yearStart` over the proleptic Gregorian calendar, by a 400/100/4/1-year decomposition independent of the engine's algorithm. Unbounded `Int`; the evaluator refuses `E_OVERFLOW` outside i53. |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
 | Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
-| Examples | `Quarry/Examples.lean` | 42 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
+| Examples | `Quarry/Examples.lean` | 53 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from (three for LLP 3000.039's referential actions). |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
@@ -65,7 +66,7 @@ visible candidates examined (OPEN M1), and the following:
 - search, jobs and effects;
 - loops, `walk`, `merge` and shapes;
 - sequences, caps, immutable columns, `after insert` and field authority;
-- defaults, text bounds and formats, and assets;
+- defaults, text bounds and formats, int ranges (LLP 3000.040 §1.8), and assets;
 - `created`, parent hops and `read through`.
 
 ## What is proved
@@ -123,9 +124,13 @@ returned. Changing a witness row is a change of authority, not a disclosure.
   unchanged (`if absent`) or is one authorized `Step`:
   - an insert whose insert rule admits the new image;
   - an update of an existing row whose update rule admits (old, next);
-  - a delete whose delete rule admits the row.
+  - a delete whose delete rule admits the row, together with the
+    referential actions its schema declares on the rows naming it (LLP
+    3000.039: the parent's delete authorizes a declared cascade or set null).
 
   Each rule is evaluated in the store immediately before that write.
+- `refDelete_without_actions`: a delete from a table that no action-carrying
+  reference names removes exactly that row, as every delete did before.
 - `mutation_authorized`: a committed mutation's store is reached by a chain
   of authorized steps. The proof uses `execStmts_inv`: statements change the
   world only through writes.
@@ -133,8 +138,9 @@ returned. Changing a witness row is a change of authority, not a disclosure.
 **Completeness soundness** (`Proofs/Disclosure.lean`, `Proofs/Continuation.lean`)
 
 - `pageRead_complete`: a page that leaves `complete` true was decided (by its
-  pins, or by a page guard: a readable grant or a pinned parent probe). It returned exactly the first N qualifying
-  visible rows after its cursor, in key order.
+  pins, by a page guard: a readable grant or a pinned parent probe, or by its
+  pins' form or its branches: OPEN C8). It returned exactly the first N
+  qualifying visible rows after its cursor, in key order.
 - `decided_store`, `pageRead_complete_store`: **a decided scan sees all of
   its rows or none**. The rows its pins select in the store are all readable
   to the caller, or none is, so a complete page omits no qualifying row. Its
@@ -143,6 +149,10 @@ returned. Changing a witness row is a change of authority, not a disclosure.
   columns are all pinned — none, for a grant — that holds over the caller's
   view with the pinned values makes every row the pins select readable;
   `Rule.eval_mono`, `Rule.eval_pin`).
+- `partyLeaves_cover`, `parties_cover_view` (`Proofs/Branches.lean`): under
+  a read rule of parties (`.owner = viewer or .helper = viewer`) every
+  visible row carries the viewer in a party column, so the merge of the party
+  ranges the engine reads misses no readable row (LLP 3000.036.001).
 - `walk_complete`: the same fact for the underlying candidate walk.
 - `cut_continuation`: a page cut by the ceiling, followed by the leading
   qualifying rows of its continuation from `next`, equals the uncut page.
@@ -156,6 +166,19 @@ returned. Changing a witness row is a change of authority, not a disclosure.
 - `identity_sum`: `identity(1) + identity(2) = 3`.
 - `call_scope_independent`: a helper call does not see the caller's locals
   or row.
+
+**The civil calendar** (`Calendar.lean`, LLP 3000.040 §2.5)
+
+- `monthStart_le`, `lt_monthStart_succ`: for every integer time `t`,
+  `monthStart (month t) ≤ t < monthStart (month t + 1)`.
+- `yearStart_le`, `lt_yearStart_succ`: the same for years.
+- `marchDays_succ`: every month is at least 28 days long, so month starts
+  strictly increase (`marchDays_mono`).
+
+The proofs are `omega` over the explicit 400/100/4/1-year decomposition
+(`parts_spec`, `marchDays_parts`). The examples pin the shared calendar
+vectors (`calendar-vectors`, the same table as the engine's `calendar.rs`
+tests) and the overflow refusal.
 
 **Axiomatic rules** (`Proofs/Hoare.lean`)
 

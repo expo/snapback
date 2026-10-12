@@ -26,11 +26,13 @@ mod test_cases;
 /// A fixture directory's case file: not a table's rows.
 pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
+mod package_versions;
 mod latency;
 mod run_admission;
 pub(crate) mod run_forward;
 mod run_refusal;
 
+#[derive(Clone)]
 pub struct Options {
     pub positionals: Vec<String>,
     pub flags: BTreeMap<String, String>,
@@ -43,8 +45,9 @@ pub fn parse(args: &[String]) -> Options {
     let mut json = false;
     let mut iter = args.iter().skip(1).peekable();
     while let Some(arg) = iter.next() {
-        if arg == "--json" {
+        if arg == "--json" || arg == "--json-objects" {
             json = true;
+            if arg == "--json-objects" { flags.insert("json-objects".into(), String::new()); }
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
@@ -209,6 +212,7 @@ pub fn check(options: &Options) -> i32 {
     }
     let project = project_or_exit();
     let started = Instant::now();
+    package_versions::warn(&project);
     let mut bound = match fix::checked(if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() }) {
         Ok(bound) => bound,
         Err(code) => return code,
@@ -941,11 +945,11 @@ pub fn doctor(options: &Options) -> i32 {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
                         let last = last.and_then(|at| at.parse::<i64>().ok());
                         let state = match last {
-                            Some(at) if at > schedule.boundary(now) => format!("last boundary {at} ({}), ahead of the clock: held until {}; restart with dev --resume-clock or advance the clock", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(at.saturating_add(schedule.every_ms as i64))),
-                            Some(at) => format!("last boundary {at} ({}); next {}", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.boundary(now).saturating_add(schedule.every_ms as i64))),
+                            Some(at) if at > schedule.boundary(now) => format!("last boundary {at} ({}), ahead of the clock: held until {}; restart with dev --resume-clock or advance the clock", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.next(at))),
+                            Some(at) => format!("last boundary {at} ({}); next {}", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.next(schedule.boundary(now)))),
                             None => "not yet started (a running server starts it)".into(),
                         };
-                        lines.push(format!("schedule  {} every {}{} → {}; {state}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02} UTC", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target));
+                        lines.push(format!("schedule  {} {} → {}; {state}", schedule.name, schedule.describe(), schedule.target));
                     }
                     if let Ok(work) = engine.timeline_work_counts() {
                         for (name, pending, parked) in work { lines.push(format!("timeline  {name}: {pending} pending delivery work, {parked} parked")); }
@@ -1097,6 +1101,13 @@ pub fn why(options: &Options) -> i32 {
 /// ceilings, so a builder reads numbers instead of being refused on a bound.
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
+    let mut defaults = options.clone();
+    if !defaults.flags.contains_key("fixture") && project.root.join("fixtures").is_dir() {
+        let fixture = project.root.join("fixtures");
+        eprintln!("test: using {} (default fixture directory; override with --fixture <dir>)", fixture.display());
+        defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
+    }
+    let options = &defaults;
     let bound = compile_or_exit(&project, options.json);
     // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
     // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.
@@ -1299,6 +1310,7 @@ fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &s
             None => "a".repeat((*min).max(1) as usize),
         }),
         ir::ArgType::Int => Value::Int(0),
+        ir::ArgType::IntRange { min, max } => Value::Int(0.clamp(*min, *max)),
         ir::ArgType::Time => Value::Int(snapback4_core::now_ms()),
         ir::ArgType::Bool => Value::Bool(false),
         ir::ArgType::Enum { variants } => Value::String(variants.first()?.clone()),

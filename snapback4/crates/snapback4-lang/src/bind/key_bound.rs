@@ -16,10 +16,23 @@ fn column_bytes(kind: &ColumnType) -> usize {
         ColumnType::Bytes { max } => (*max as usize).saturating_mul(2).saturating_add(3),
         ColumnType::Enum { variants } => variants.iter().map(|v| key::encode(&[Value::String(v.clone())]).len()).max().unwrap_or(1),
         ColumnType::Bool => 1,
-        ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Time => 9,
+        ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Time => 9,
         // The existing schema validator refuses these in an index.
         _ => usize::MAX,
     }
+}
+
+/// Optional branch planning must not introduce a later key-bound refusal.
+/// Use the same column sizes and appended identity as the schema check.
+// @ref LLP 3000.036.001#3 — oversized branch indexes leave the original read intact
+pub(super) fn plain_index_fits(table: &super::catalog::TableInfo, index: &crate::ast::IndexDecl, emitted_name: &str) -> bool {
+    table.decl.name.len().saturating_add(emitted_name.len()) <= MAX_INDEX_LABEL_BYTES
+        && index.words.is_none() && index.computed.is_empty()
+        && index.columns.iter().fold(ID_BYTES, |bytes, column| {
+            let size = table.columns.get(column).map(|ty| column_bytes(&crate::types::scalar_to_column(ty)))
+                .unwrap_or(if column == "id" { ID_BYTES } else { usize::MAX });
+            bytes.saturating_add(size)
+        }) <= MAX_INDEX_KEY_BYTES
 }
 
 // @ref LLP 3000.009#4.3 — bound components, encoding overhead and the id.

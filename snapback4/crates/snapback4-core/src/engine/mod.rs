@@ -595,7 +595,7 @@ impl Engine {
             for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
         }
         for schedule in &schema.schedules {
-            if schedule.every_ms == 0 || schedule.every_ms > i64::MAX as u64 || schedule.offset_ms >= schedule.every_ms {
+            if !schedule.valid() {
                 return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));
             }
             let Some(program) = programs.get(&schedule.target).filter(|p| matches!(p.kind, ProgramKind::Job | ProgramKind::Action)) else {
@@ -1231,6 +1231,7 @@ impl Engine {
         let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events: Vec<Event> = runner.events.take();
+        let action_tables = std::mem::take(&mut runner.action_tables);
         let outbox = std::mem::take(&mut runner.outbox);
         let rows_written = runner.rows_written;
         let mut read_tables = runner.read_tables.clone();
@@ -1250,7 +1251,7 @@ impl Engine {
                     partition::append(&tx, seq, &events)?;
                     effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
                 }
-                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
+                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;

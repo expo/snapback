@@ -6,13 +6,13 @@ const BASE: &str = r#"
 table posts:
   author: principal
   at: time
-  parent: posts ?
+  parent: posts ? on delete keep
   amount: int
   immutable author, at, parent
   public
   sync public
 table likes:
-  post: posts
+  post: posts on delete keep
   author: principal
   at: time
   immutable post, author, at

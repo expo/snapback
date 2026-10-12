@@ -10,10 +10,22 @@ pub enum Type {
     Principal,
     Time,
     Nullable(Box<Type>),
+    /// `int M..N`, `int M..`, `int ..N` (LLP 3000.040 §1).
+    IntRange(Option<i64>, Option<i64>),
 }
 impl Type {
+    /// The type as Quarry source.
+    pub fn source_text(&self) -> String {
+        self.source()
+    }
     fn source(&self) -> String {
         match self {
+            Self::IntRange(min, max) => match (min, max) {
+                (Some(a), Some(b)) => format!("int {a}..{b}"),
+                (Some(a), None) => format!("int {a}.."),
+                (None, Some(b)) => format!("int ..{b}"),
+                (None, None) => "int".into(),
+            },
             Self::Int => "int".into(),
             Self::Text => "text <=64".into(),
             Self::Id => "id".into(),
@@ -48,6 +60,8 @@ pub enum Rule {
     NamedNext,
     /// `update (old, next) <- old.owner = viewer`.
     NamedOld,
+    /// `.owner = viewer or .helper = viewer`: two parties (LLP 3000.036.001).
+    TwoParty,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -62,6 +76,7 @@ impl Rule {
             Self::NamedBoth => "old.owner = viewer and next.owner = viewer",
             Self::NamedNext => "next.owner = viewer",
             Self::NamedOld => "old.owner = viewer",
+            Self::TwoParty => ".owner = viewer or .helper = viewer",
         }
     }
     /// Whether the rule names the update's two images (`update (old, next)`).
@@ -74,6 +89,8 @@ pub enum Residency {
     Public,
     Owner,
     Online,
+    /// `sync to access[.bucket]`: the group audience of `exists access[.bucket, viewer]`.
+    Group,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Table {
@@ -115,6 +132,7 @@ impl Table {
             Residency::Public => "  sync public\n",
             Residency::Owner => "  sync to .owner\n",
             Residency::Online => "  online only\n",
+            Residency::Group => "  sync to access[.bucket]\n",
         };
         out
     }
@@ -155,6 +173,33 @@ pub enum Expr {
     Score(Key),
     /// `(exists items[key])`.
     Present(Key),
+    /// A calendar builtin over one int (LLP 3000.040 §2): `month(t)`, ..
+    Calendar(Cal, Box<Expr>),
+}
+/// The calendar builtins, with `bucket`'s period and offset in milliseconds.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Cal {
+    Day,
+    Hour,
+    Bucket(i64, i64),
+    Month,
+    Year,
+    MonthStart,
+    YearStart,
+}
+impl Cal {
+    pub fn source(&self, arg: &str) -> String {
+        match self {
+            Self::Day => format!("day({arg})"),
+            Self::Hour => format!("hour({arg})"),
+            Self::Bucket(ms, 0) => format!("bucket({arg}, {ms}ms)"),
+            Self::Bucket(ms, off) => format!("bucket({arg}, {ms}ms, {off}ms)"),
+            Self::Month => format!("month({arg})"),
+            Self::Year => format!("year({arg})"),
+            Self::MonthStart => format!("monthStart({arg})"),
+            Self::YearStart => format!("yearStart({arg})"),
+        }
+    }
 }
 impl Expr {
     pub fn ty(&self) -> Type {
@@ -165,6 +210,8 @@ impl Expr {
             Self::Arg(_, t) | Self::Var(_, t) => t.clone(),
             Self::Score(_) => Type::Int,
             Self::Present(_) => Type::Bool,
+            Self::Calendar(Cal::MonthStart | Cal::YearStart, _) => Type::Time,
+            Self::Calendar(..) => Type::Int,
             Self::Identity(e) => e.ty(),
             Self::Assert(e) => match e.ty() {
                 Type::Nullable(t) => *t,
@@ -187,6 +234,7 @@ impl Expr {
             Self::Binary(op, a, b) => format!("({} {} {})", a.source(), op.source(), b.source()),
             Self::Identity(e) => format!("identity({})", e.source()),
             Self::Assert(e) => format!("({} ! else NULL_ASSERT)", e.source()),
+            Self::Calendar(f, e) => f.source(&e.source()),
         }
     }
     pub fn simpler(&self) -> Vec<Self> {
@@ -385,6 +433,10 @@ pub struct Program {
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
+    /// The domain's first clause in place of `.bucket = bucket`, as source:
+    /// a disjunction of pinned branches (LLP 3000.036.001).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
     /// A last domain conjunct that reads no row column (`exists access[bucket,
     /// viewer]`, `a < b`): a returned page's guard the compiler lowers to an
     /// `if` (LLP 3000.036 §15.4; Lean variants).
@@ -394,6 +446,45 @@ pub struct Program {
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prelude: Vec<Block>,
+    /// `run` also takes `t: time` (calendar cases, LLP 3000.040 §5).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub time_arg: bool,
+    /// `run`'s argument `a` declared `int M..N`, `int M..` or `int ..N` (LLP 3000.040 §5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arg_bound: Option<(Option<i64>, Option<i64>)>,
+    /// Rows referencing `items` with a delete action (LLP 3000.039), and
+    /// optionally rows restricting those (`widen.rs`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kids: Option<Kids>,
+}
+
+/// `kids.item: items` with `on delete <action>` (undeclared when `None`),
+/// readable by everyone or by its owner, synced or online; `notes.kid: kids`
+/// (undeclared, so restrict) when `notes`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Kids {
+    pub action: Option<String>,
+    pub nullable: bool,
+    pub owner_read: bool,
+    pub synced: bool,
+    pub notes: bool,
+}
+impl Kids {
+    pub fn source(&self) -> String {
+        let action = self.action.as_ref().map_or(String::new(), |a| format!(" on delete {a}"));
+        let mut out = format!("table kids:\n  item: items{}{action}\n  owner: principal\n", if self.nullable { " ?" } else { "" });
+        if matches!(self.action.as_deref(), Some("cascade" | "set null")) { out += "  cap 4 by item\n"; }
+        out += &format!("  read <- {}\n  insert <- allow\n  update <- allow\n  delete <- allow\n", if self.owner_read { ".owner = viewer" } else { "allow" });
+        out += match (self.synced, self.owner_read) { (true, true) => "  sync to .owner\n", (true, false) => "  sync public\n", _ => "  online only\n" };
+        if self.notes {
+            out += &format!("\ntable notes:\n  kid: kids\n  read <- allow\n  insert <- allow\n  delete <- allow\n{}", if self.synced { "  sync public\n" } else { "  online only\n" });
+        }
+        out
+    }
+    /// The kids `observe` reads after a mutation: those naming `key`, as the viewer may.
+    fn observed(&self) -> String {
+        format!("kids where .item = key{} first 10 by .id", if self.owner_read { " and .owner = viewer" } else { "" })
+    }
 }
 const SIGNATURE: &str = "key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
 const WIDE_SIGNATURE: &str = "key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
@@ -418,6 +509,9 @@ impl Program {
         if self.helper {
             declarations.push("fn identity(x: int): x\n".into());
         }
+        if let Some(kids) = &self.kids {
+            declarations.push(kids.source());
+        }
         if self.reverse {
             declarations.reverse();
         }
@@ -431,7 +525,10 @@ impl Program {
         }
         out += &declarations.join("\n");
         let mutation = self.mutation();
-        let signature = if self.wide() { WIDE_SIGNATURE } else { SIGNATURE };
+        let mut signature = format!("{}{}", if self.wide() { WIDE_SIGNATURE } else { SIGNATURE }, if self.time_arg { ", t: time" } else { "" });
+        if let Some((min, max)) = self.arg_bound {
+            signature = signature.replace(", a: int,", &format!(", a: {},", Type::IntRange(min, max).source()));
+        }
         out += &format!(
             "\n{} run({signature}):\n",
             if mutation { "mutation" } else { "query" }
@@ -449,7 +546,7 @@ impl Program {
                 owner,
                 project,
             } => {
-                let mut domain = "items where .bucket = bucket".to_string();
+                let mut domain = format!("items where {}", self.domain.as_deref().unwrap_or(".bucket = bucket"));
                 if *owner {
                     domain += " and .owner = viewer";
                 }
@@ -510,7 +607,10 @@ impl Program {
         } else {
             out += &format!("  return {result}\n");
         }
-        if mutation {
+        if mutation && let Some(kids) = &self.kids {
+            let (signature, item) = if self.wide() { ("key: id, k2: id", "[items[key], items[k2]]") } else { ("key: id", "items[key]") };
+            out += &format!("\nquery observe({signature}):\n  return {{ item: {item}, kids: {} }}\n", kids.observed());
+        } else if mutation {
             if self.wide() {
                 out += "\nquery observe(key: id, k2: id):\n  return [items[key], items[k2]]\n";
             } else {

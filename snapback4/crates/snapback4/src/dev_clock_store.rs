@@ -76,10 +76,7 @@ pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
 }
 
 fn period(schedule: &snapback4_core::schema::Schedule) -> String {
-    let every = schedule.every_ms as i64;
-    let unit = [(86_400_000, "d"), (3_600_000, "h"), (60_000, "m"), (1_000, "s"), (1, "ms")].into_iter().find(|(n, _)| every % n == 0).unwrap_or((1, "ms"));
-    let at = if schedule.offset_ms > 0 { format!(" at {:02}:{:02} UTC", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() };
-    format!("every {}{}{at}", every / unit.0, unit.1)
+    schedule.describe()
 }
 
 /// What each schedule did on one clock advance, and why one did not fire.
@@ -90,30 +87,31 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
     let after = saved_boundaries(engine);
     let runs = engine.jobs(64).unwrap_or_default();
     engine.schema().schedules.iter().enumerate().map(|(index, schedule)| {
-        let every = schedule.every_ms as i64;
         let (old, saved) = (before.get(index).copied().flatten(), after.get(index).copied().flatten());
         let current = schedule.boundary(now);
-        let next = current.saturating_add(every);
+        let next = schedule.next(current);
         let mut entry = serde_json::json!({ "name": schedule.name, "target": schedule.target, "period": period(schedule), "fired": false, "nextBoundary": utc(next) });
         if fired.contains(&schedule.name) {
             let end = saved.unwrap_or(current);
             entry["fired"] = true.into();
-            entry["periodStart"] = (end - every).into();
+            let start = schedule.previous(end);
+            entry["periodStart"] = start.into();
             entry["periodEnd"] = end.into();
-            entry["reason"] = format!("fired for the period {} to {}", utc(end - every), utc(end)).into();
+            entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into();
             if let Some(run) = runs.iter().find(|run| run.name == schedule.target) {
                 entry["run"] = serde_json::json!({ "state": run.state, "rowsWritten": run.rows_written, "error": run.error });
             }
-            let skipped = old.map(|old| (end - old) / every - 1).unwrap_or(0);
+            // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar periods count boundaries, not milliseconds.
+            let skipped = old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0);
             if skipped > 0 {
                 entry["skippedPeriods"] = skipped.into();
                 entry["reason"] = format!("fired once, for the latest period {} to {}; {skipped} earlier period{} this advance crossed (from {}) did not run: missed boundaries fire once. Run {} with periodStart/periodEnd for an earlier period",
-                    utc(end - every), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
+                    utc(start), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
             }
         } else if held {
             entry["reason"] = "schedules are held (dev --hold-schedules or --replay); a restart without the flag resumes at the next boundary".into();
         } else if let Some(saved) = saved.filter(|saved| *saved > current) {
-            let due = saved.saturating_add(every);
+            let due = schedule.next(saved);
             entry["heldUntil"] = utc(due).into();
             entry["nextBoundary"] = utc(due).into();
             entry["reason"] = format!("held by the store: its saved boundary {} is ahead of the clock {} (a dev restart resets the clock offset; the store keeps the boundary). Advance {} more, restart with dev --resume-clock, or test on dev --fresh",
@@ -132,7 +130,7 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
 pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
     engine.schema().schedules.iter().zip(saved_boundaries(engine)).filter_map(|(schedule, saved)| {
         let saved = saved.filter(|saved| *saved > schedule.boundary(now))?;
-        let due = saved.saturating_add(schedule.every_ms as i64);
+        let due = schedule.next(saved);
         Some(format!("clock     schedule {} is held until {} ({} from now): its saved boundary {} is ahead of this clock; `clock advance {}` or restart with dev --resume-clock",
             schedule.name, utc(due), span(due - now), utc(saved), span(due - now)))
     }).collect()

@@ -443,6 +443,28 @@ pub fn features(case: &Case) -> Vec<String> {
     if items.effects.is_some() {
         out.push("items-effect-rules".into());
     }
+    // LLP 3000.036.001: branch pages (the merged plan is decided by OPEN C8's branch rule).
+    if let Some(domain) = &case.program.domain {
+        out.push(format!("branch-where-{}", if domain.contains("helper") { "parties" } else { "buckets" }));
+    }
+    if rules[0] == Rule::TwoParty {
+        out.push("branch-rule-two-party".into());
+    }
+    if case.program.domain.is_some() || rules[0] == Rule::TwoParty {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
+        let merged = bound.programs.iter().filter(|p| p.program.name == "run")
+            .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));
+        out.push(format!("branch-{}", if merged { "merged" } else { "single-index" }));
+}
+
+    // @ref LLP 3000.039#9 — run-lean reports supported action cases by action (and, with `kind`, outcome).
+    if let Some(kids) = &case.program.kids {
+        let action = kids.action.as_deref().unwrap_or("undeclared").replace(' ', "-");
+        let deletes = matches!(body, Body::Write(Write::Delete, _)) || case.program.prelude.iter().chain(match body { Body::Block(b) => Some(b), _ => None })
+            .flat_map(|b| b.all()).any(|s| matches!(s, crate::ast::Stmt::Write { kind: Write::Delete, .. }));
+        out.push(format!("references-{action}{}", if deletes { "-delete" } else { "" }));
+        if kids.notes { out.push("references-restricting-notes".into()); }
+    }
     // Widened shapes (`widen.rs`) inside the model's fragment.
     if matches!(body, Body::Block(_)) {
         out.push("block".into());
@@ -550,6 +572,12 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(crate::orac
         *report.store_stats.entry(format!("lean-agreed/{}", checked.class)).or_default() += 1;
     }
     let stats = &mut report.store_stats;
+    // @ref LLP 3000.040#25-the-lean-model — calendar evidence is counted where it is compared.
+    if case.program.time_arg {
+        *stats.entry("lean-calendar-generated".into()).or_default() += 1;
+        let class = match &checked.verdict { Verdict::Unsupported(_) => "unsupported", Verdict::Pass => "agreed", Verdict::Disagree(_) => "disagreeing", _ => "other" };
+        *stats.entry(format!("lean-calendar-{class}")).or_default() += 1;
+    }
     match &checked.verdict {
         Verdict::Unsupported(_) => *stats.entry("lean-unsupported".into()).or_default() += 1,
         _ => {
@@ -612,6 +640,7 @@ pub fn reproduce(case: &Case, source: &str) -> Result<Verdict, String> {
 pub fn generate(seed: u64) -> Case {
     use crate::ast::{Read, Rule};
     let mut case = crate::generate::generate(seed);
+    unbound(&mut case);
     // Half the widened cases the model cannot run (projections, expiry) are
     // narrowed back into its fragment; the other half stay named unsupported.
     if crate::generate::Rng::new(seed ^ 0x4c45_414e_4e41_5257).next() % 2 == 0 {
@@ -660,6 +689,11 @@ fn variants(case: &mut Case, seed: u64) {
     if pick(4) == 0 {
         case.program.tables[1].effects = Some(vec![Rule::Deny, Rule::Allow, Rule::Allow, Rule::Allow]);
         case.program.tables[1].residency = Residency::Online;
+        // A hidden, open roster cannot carry a group audience (`E_SYNC`); the
+        // model has no residency, so the group-synced branch shape reads online.
+        if matches!(case.program.tables[0].residency, Residency::Group) {
+            case.program.tables[0].residency = Residency::Online;
+        }
     }
     if matches!(case.program.body, Body::Read { kind: crate::ast::Read::Page | crate::ast::Read::Bounded, .. }) && pick(2) == 0 {
         let orders: [&[&str]; 5] = [&["maybe"], &["maybe", "label"], &["flag", "score"], &["tag"], &["score"]];
@@ -717,6 +751,19 @@ pub fn narrow(case: &mut Case) {
     }
 }
 
+/// Slot bounds are outside the model's fragment (LLP 3000.040 §1.8): every
+/// Lean case drops them, so the campaign compares the rest of the case.
+fn unbound(case: &mut Case) {
+    case.program.arg_bound = None;
+    for t in &mut case.program.tables {
+        for c in &mut t.columns {
+            if matches!(c.ty, crate::ast::Type::IntRange(..)) {
+                c.ty = crate::ast::Type::Int;
+            }
+        }
+    }
+}
+
 pub fn run_bounded(seed: u64, cases: u64, out: &std::path::Path, seconds: Option<f64>) -> Result<Report, String> {
     std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
     let started = std::time::Instant::now();
@@ -761,6 +808,11 @@ pub fn run_bounded(seed: u64, cases: u64, out: &std::path::Path, seconds: Option
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report).unwrap()).map_err(|e| e.to_string())?;
     if let Some(error) = failure {
         return Err(error);
+    }
+    // A campaign large enough to qualify must have compared calendar cases (LLP 3000.040 §2.5).
+    let compared = ["lean-calendar-agreed", "lean-calendar-disagreeing"].iter().map(|k| report.store_stats.get(*k).copied().unwrap_or(0)).sum::<u64>();
+    if report.generated >= 5_000 && compared == 0 {
+        return Err(format!("{} cases compared no calendar case: the calendar dimension was not drawn or not supported", report.generated));
     }
     Ok(report)
 }

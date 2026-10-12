@@ -230,7 +230,15 @@ export const refusalAllow = [
   { file: device + 'call.rs', item: 'call', line: 'Err(error) if error.is_refusal() => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }),' },
   { file: device + 'web.rs', item: 'refused', line: 'JsError::new(&json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string())' },
 ];
-export function census(sources, exceptions = [...allow, ...refusalAllow, ...representationAllow]) {
+// Exact streaming entry points inherited from the integrated engine: the file
+// verifier discards JSON without constructing a value; the stored-row meter
+// counts serializer bytes without allocating a second row or text buffer.
+// Their custody and single-use checks remain as strict as the other entries.
+export const streamingAllow = [
+  { file: core + 'assets.rs', item: 'verify_file', line: '"application/json" => text(bytes).is_some_and(|text| serde_json::from_str::<serde::de::IgnoredAny>(text).is_ok()),' },
+  { file: core + 'engine/word_heap.rs', item: 'stored_value_bytes', line: 'serde_json::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+];
+export function census(sources, exceptions = [...allow, ...refusalAllow, ...representationAllow, ...streamingAllow]) {
   const used = new Map(exceptions.map(entry => [entry, 0])), errors = [];
   for (const [file, source] of sources) {
     const code = mask(source), scopes = items(source), hits = new Set();
@@ -264,7 +272,7 @@ export function census(sources, exceptions = [...allow, ...refusalAllow, ...repr
       const fn = enclosing.filter(item => item.kind === 'fn').at(-1);
       const start = source.lastIndexOf('\n', index) + 1, end = source.indexOf('\n', index);
       const line = source.slice(start, end < 0 ? undefined : end).trim();
-      const exception = exceptions.find(entry => entry.file === file && entry.item === (representation?.item.name ?? fn?.name) && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry) || (representation && decodeGated(representation.item))));
+      const exception = exceptions.find(entry => entry.file === file && entry.item === (representation?.item.name ?? fn?.name) && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry) || streamingAllow.includes(entry) || (representation && decodeGated(representation.item))));
       if (exception) used.set(exception, used.get(exception) + 1);
       else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}${representation?.unknown?.length ? ` — unresolvable derive ${representation.unknown.join(', ')}: not on the census's reviewed list; if it is not a decoder add it to nonSerdeDerives in wasm-codec-census.mjs` : ''}${representation?.hidden ? ' — a serde representation with no visible derive: the derive comes from, or goes to, a macro this census cannot join; put the derive and the attribute on the same item' : ''}${representation && (representation.decoder || representation.hidden || representation.unknown?.length) ? ` — ${representation.decoder ? 'Deserialize content buffering' : 'if that derive decodes, content buffering follows'}: on a decoded type this representation selects serde's content buffer, which instantiates every reachable reader again (ir::LaneSource cost 33,460 B gzip this way); see LLP 3000.002#proposed-device-representation-and-codec-redesign` : ''}`);
     }

@@ -147,6 +147,7 @@ impl Runner<'_> {
         for constraint in &definition.constraints {
             if let Constraint::Cap { by, .. } = constraint {
                 let key: Vec<_> = by.iter().map(|field| row.field(field).cloned().unwrap_or(Value::Null)).collect();
+                if self.schema.cap_skips_null(definition, by, &key) { continue; }
                 let Some((name, _)) = definition.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)) else {
                     return Err(RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))));
                 };
@@ -334,7 +335,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
         #[cfg(feature = "sqlite")]
         Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
-        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_) | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }
@@ -354,7 +355,7 @@ pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
         // Canonical JSON bytes bound owned strings/bytes and array slots at every
         // depth. Object subtrees, like image/video facts, are shared Arc values.
         ColumnType::Json { max_bytes } => u64::from(*max_bytes) * (std::mem::size_of::<Value>() as u64 + 1),
-        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } | ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Bool | ColumnType::Time => 0,
+        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } | ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Bool | ColumnType::Time => 0,
     }
 }
 

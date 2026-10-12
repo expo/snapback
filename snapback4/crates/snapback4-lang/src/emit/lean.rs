@@ -43,7 +43,7 @@
 //! nothing: there is no partial program.
 // @ref LLP 3000.035#52-stage-2-a-small-lean-core — the emitter half of the Lean oracle; surface tree in, model terms out
 
-use crate::ast::{self, Document, Effect, Expr, KeyPart, Literal, ObjectField, Order, ReadExpr, Stmt, TypeKind, WriteOp};
+use crate::ast::{self, Document, Effect, Expr, KeyPart, Literal, ObjectField, OnDelete, Order, ReadExpr, Stmt, TypeKind, WriteOp};
 use serde_json::{Map, Value as Json, json};
 use std::collections::BTreeMap;
 
@@ -69,6 +69,9 @@ impl std::fmt::Display for Unsupported {
 }
 
 type R<T> = Result<T, Unsupported>;
+
+/// The calendar builtins the model evaluates (LLP 3000.040 §2.5).
+const CALENDAR: [&str; 7] = ["day", "hour", "bucket", "month", "year", "monthStart", "yearStart"];
 
 fn no<T>(reason: &str, detail: impl Into<String>) -> R<T> {
     Err(Unsupported::new(reason, detail))
@@ -97,6 +100,8 @@ impl Kind {
     fn of(t: &TypeKind) -> R<Kind> {
         Ok(match t {
             TypeKind::Int | TypeKind::Time => Kind::Int,
+            // @ref LLP 3000.040#18-the-lean-model — slot bounds sit outside the model's fragment, as text bounds do.
+            TypeKind::IntRange { .. } => return no("int-range", "an int range"),
             TypeKind::Text { min: None, max, format: None } => Kind::Text(Some(*max)),
             TypeKind::Text { format: Some(_), .. } => return no("text-format", "a text format"),
             TypeKind::Text { min: Some(_), .. } => return no("text-minimum", "a text minimum length"),
@@ -132,6 +137,9 @@ struct Col {
     name: String,
     kind: Kind,
     nullable: bool,
+    /// A reference's effective delete action (LLP 3000.039 §2): the declared
+    /// one, else restrict; `None` for `keep` and for a non-reference.
+    on_delete: Option<&'static str>,
 }
 
 #[derive(Clone, Debug)]
@@ -140,6 +148,9 @@ struct Table {
     cols: Vec<Col>,
     uniques: Vec<Vec<String>>,
     codes: Vec<Option<String>>,
+    /// Caps are carried as unenforced declarations: a program that inserts
+    /// into or updates a capped table is outside the fragment (`table-cap`).
+    capped: bool,
 }
 
 impl Table {
@@ -263,7 +274,6 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (t.ephemeral.is_some(), "ephemeral"),
         (!t.search.is_empty(), "search"),
         (!t.immutable.is_empty(), "immutable"),
-        (!t.caps.is_empty(), "cap"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
         (t.expire.is_some(), "expiry"),
@@ -289,7 +299,14 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         if kind == Kind::Cursor {
             return no("type-cursor-column", format!("{}.{}", t.name, c.name));
         }
-        cols.push(Col { name: c.name.clone(), kind, nullable: c.type_.optional });
+        // @ref LLP 3000.039#2 — an undeclared reference restricts; keep is the legacy meaning, spelled by absence.
+        let on_delete = match (&c.type_.kind, c.on_delete.as_ref().map(|(a, _)| *a)) {
+            (TypeKind::Ref { .. }, None | Some(OnDelete::Restrict)) => Some("restrict"),
+            (TypeKind::Ref { .. }, Some(OnDelete::Cascade)) => Some("cascade"),
+            (TypeKind::Ref { .. }, Some(OnDelete::SetNull)) => Some("setNull"),
+            _ => None,
+        };
+        cols.push(Col { name: c.name.clone(), kind, nullable: c.type_.optional, on_delete });
     }
     let mut uniques = Vec::new();
     let mut codes = Vec::new();
@@ -302,7 +319,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
             codes.push(i.refusal.as_ref().map(|(code, _)| code.clone()));
         }
     }
-    Ok(Table { name: t.name.clone(), cols, uniques, codes })
+    Ok(Table { name: t.name.clone(), cols, uniques, codes, capped: !t.caps.is_empty() })
 }
 
 fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
@@ -330,7 +347,14 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
     let rule = |w: &str| rules.get(w).cloned().unwrap_or(json!("deny"));
     Ok(json!({
         "name": t.name,
-        "cols": shape.cols.iter().map(|c| json!({"name": c.name, "nullable": c.nullable})).collect::<Vec<_>>(),
+        "cols": shape.cols.iter().map(|c| {
+            let mut col = json!({"name": c.name, "nullable": c.nullable});
+            if let (Kind::Id(IdSort::Ref(target)), Some(action)) = (&c.kind, c.on_delete) {
+                col["ref"] = json!(target);
+                col["onDelete"] = json!(action);
+            }
+            col
+        }).collect::<Vec<_>>(),
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
@@ -557,7 +581,7 @@ impl<'a> Scope<'a> {
                     .unwrap_or(Ty::Unknown)
             }
             Expr::Read(read) if read.range.is_none() && read.filter.is_none() && !read.keys.is_empty() => Ty::Row(read.table.clone()),
-            Expr::Call { name, .. } if name == "count" => Ty::Scalar(Kind::Int),
+            Expr::Call { name, .. } if name == "count" || CALENDAR.contains(&name.as_str()) => Ty::Scalar(Kind::Int),
             Expr::Exists { .. } => Ty::Scalar(Kind::Bool),
             Expr::Unary { op, value, .. } => if op == "not" { Ty::Scalar(Kind::Bool) } else { self.ty(value) },
             Expr::Binary { op, left, .. } => match op.as_str() {
@@ -638,6 +662,26 @@ impl<'a> Scope<'a> {
                     return Ok(json!({"call": [name, args.iter().map(|a| self.expr(a)).collect::<R<Vec<_>>>()?]}));
                 }
                 match (name.as_str(), args.as_slice()) {
+                    // @ref LLP 3000.040#25-the-lean-model — calendar builtins are in the fragment.
+                    (calendar, [value, rest @ ..]) if CALENDAR.contains(&calendar) => {
+                        let literal = |e: &Expr| match e {
+                            Expr::Literal { value: Literal::Number(n), .. } => n.parse::<i64>().map_err(|_| Unsupported::new("calendar-duration", print())),
+                            _ => no("calendar-duration", print()),
+                        };
+                        let function = match (calendar, rest) {
+                            ("day", []) => json!({"fn": "period", "ms": 86_400_000, "off": 0}),
+                            ("day", [off]) => json!({"fn": "period", "ms": 86_400_000, "off": literal(off)?}),
+                            ("hour", []) => json!({"fn": "period", "ms": 3_600_000, "off": 0}),
+                            ("hour", [off]) => json!({"fn": "period", "ms": 3_600_000, "off": literal(off)?}),
+                            ("bucket", [ms]) => json!({"fn": "period", "ms": literal(ms)?, "off": 0}),
+                            ("bucket", [ms, off]) => json!({"fn": "period", "ms": literal(ms)?, "off": literal(off)?}),
+                            (civil @ ("month" | "year" | "monthStart" | "yearStart"), []) => json!({"fn": civil}),
+                            _ => return no(&format!("call-{name}"), print()),
+                        };
+                        let mut function = function;
+                        function["arg"] = self.expr(value)?;
+                        Ok(json!({"cal": function}))
+                    }
                     ("count", [Expr::Read(read)]) => {
                         let (pins, filter) = self.domain(read, false)?;
                         Ok(json!({"count": {"table": read.table, "pins": pins, "filter": filter}}))
@@ -791,6 +835,9 @@ impl<'a> Scope<'a> {
         let Expr::Write { op, table, keys, fields, if_absent, condition, .. } = e else { unreachable!() };
         if *op != WriteOp::Insert && keys.is_empty() { return no("row-variable-write", crate::print::expression(e)); }
         let t = self.table(table)?;
+        if t.capped && *op != WriteOp::Delete {
+            return no("table-cap", format!("{} writes capped table {table}; the model does not enforce caps", crate::print::expression(e)));
+        }
         Ok(match op {
             WriteOp::Insert => {
                 if !keys.is_empty() || condition.is_some() {

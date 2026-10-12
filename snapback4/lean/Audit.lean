@@ -29,11 +29,14 @@ open Quarry
 #print axioms Rule.eval_perm
 #print axioms query_ignores_hidden_insert
 #print axioms pageRead_complete
+#print axioms partyLeaves_cover
+#print axioms parties_cover_view
 #print axioms decided_store
 #print axioms pageRead_complete_store
 #print axioms walk_complete
 #print axioms cut_continuation
 #print axioms applyWrite_authorized
+#print axioms refDelete_without_actions
 #print axioms mutation_authorized
 #print axioms or_true_skips
 #print axioms and_false_skips
@@ -49,3 +52,8 @@ open Quarry
 #print axioms triple_ite
 #print axioms triple_write
 #print axioms triple_write_authorized
+#print axioms Calendar.monthStart_le
+#print axioms Calendar.lt_monthStart_succ
+#print axioms Calendar.yearStart_le
+#print axioms Calendar.lt_yearStart_succ
+#print axioms Calendar.marchDays_succ

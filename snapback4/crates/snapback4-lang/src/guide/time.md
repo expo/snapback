@@ -1,7 +1,7 @@
 # Time: now, durations, calendar days and the dev clock
 
 A `time` is Unix milliseconds in UTC, and `now` is the writing host's clock.
-Durations are milliseconds too, and `day`, `hour` and `bucket` turn a time into a calendar number.
+Durations are milliseconds too; `day`, `hour`, `bucket`, `month` and `year` turn a time into a calendar number.
 
 ```quarry
 use personas alice, bob
@@ -40,6 +40,10 @@ query today():                            -- day: 20737; midnight: 1791676800000
 query pacificToday():                     -- days that start at 08:00 UTC: midnight at UTC-8, no DST
   return { day: day(now, 8h), starts: day(now, 8h) * 1d + 8h }
 
+query thisMonth():                        -- month: 681 (2026-10), year: 2026; [start, end) as times
+  m = month(now)
+  return { month: m, year: year(now), start: monthStart(m), end: monthStart(m + 1) }
+
 mutation addShift(title: text 1..80, startsAt: time, hours: int):
   require hours >= 1 and hours <= 24 else BAD_LENGTH 'A shift is 1 to 24 hours.'
   require startsAt >= now - 1d else IN_THE_PAST
@@ -57,8 +61,8 @@ mutation checkIn():
   `default now` stamps an omitted field the same way.
 - Duration literals: `500ms`, `30s`, `15m`, `24h`, `7d`. They are plain integers of milliseconds:
   `now + 1h`, `.endsAt - .startsAt` (elapsed ms), `hours * 1h`, `.at >= now - 7d`.
-- There are no time zones and no date type. Compute local wall-clock dates, weekdays and months in the
-  client from the millisecond number.
+- There are no time zones and no date type. Compute local wall-clock dates, weekdays and local months in
+  the client from the millisecond number; UTC months are `month(t)` below.
 
 ## Calendar numbers: day, hour, bucket
 
@@ -71,17 +75,29 @@ mutation checkIn():
   and in range filters (`.at >= day(now) * 1d` is "since midnight UTC").
 - A `time` column accepts any integer, so storing `day(now)` there type-checks and reads as January 1970.
   Store `day(now) * 1d`, or keep the day number in an `int` column.
-- There is no `month(t)` or `year(t)`: a calendar month has no fixed length, and `bucket(t, 30d)` is
-  not one. Keep the month the client computes in an `int` column (`202610`, from
-  `d.getUTCFullYear() * 100 + d.getUTCMonth() + 1`) and key or group by it (`unique person, month`,
-  `view … by .person, .month`). For a range, pass the month's first instant and the next month's as
-  `time` arguments (`.at >= start and .at < end`). When the key must match the clock, check the bounds
-  you were given: `require start <= now and now < end and end - start <= 31d else BAD_MONTH`.
+
+## Months and years (UTC)
+
+- `month(t)` counts months since 1970-01: 681 is 2026-10, -1 is 1969-12. Arithmetic is continuous:
+  `month(now) - 1` is last month, `month(.at) >= month(now) - 2` is the last three months.
+- `year(t)` is the calendar year (2026); `month(t) / 12 + 1970` equals it.
+- `monthStart(m)` and `yearStart(y)` are the first instants, as `time`s. A month is `[monthStart(m),
+  monthStart(m + 1))`; there is no `monthEnd`, because ranges are half-open. They refuse E_OVERFLOW only
+  beyond about ±285,000 years.
+- Keys and views take them like `day`: `unique person, month(at) else ALREADY_THIS_MONTH`,
+  `view … by .owner, month(.at)`, `checkins[viewer, month(now)]`.
+- In JS: `Date.UTC(1970, m)` is the month's start; `(d.getUTCFullYear() - 1970) * 12 + d.getUTCMonth()`
+  is the key. A JS `Date` spans ±8.64e15 ms, less than a `time`, so the extreme times are `Invalid Date`.
+- Months and years are UTC; they take no offset. Local-time months (a time zone) are not available:
+  for a fixed-offset zone west of UTC, store the client's local month in an `int` column.
 
 ## Schedules and expiry
 
 - `schedule nightly every 1d at 03:00: digest` fires once per period of the server's clock, in UTC;
   periods are `every 2m`, `1h` or `1d [at HH:MM]` (`guide jobs`).
+- `schedule billing every 1 month at day 1 09:00: bill` fires on calendar months (UTC); `every 3 months`
+  fires in January, April, July and October, `every 1 year` in January. Days 1–28 only.
+  `month(periodStart)` is the month that just ended.
 - `expire at .expiresAt` ends a row's life at a time; a null time never expires (`guide expire`).
 - Catch-up: a schedule fires once per boundary, never twice. Boundaries it missed (the server was
   down, or `clock advance` jumped past them) coalesce into one run for the latest period once
@@ -123,3 +139,74 @@ schedule closer every 1m: closeDeparted
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.
 - In the client, `client.now()` is the server's time estimate; `useNow(deadline)` from `snapback4/react`
   re-renders at a deadline.
+
+## Monthly billing (UTC) with `money`
+
+One invoice per subscription per calendar month, billed by a monthly
+schedule. `month(t)` is the month ordinal (681 is 2026-10), so the months to
+bill are plain ints and `unique subscription, month` makes each invoice once.
+
+```quarry
+table plans:
+  name: text 1..40
+  price: money USD
+  unique name
+  public 'the price list'
+  insert <- deny
+  cap 20
+  sync public
+
+table subscriptions:
+  owner: principal
+  plan: plans
+  startMonth: int
+  billedThrough: int                     -- the last month invoiced
+  immutable owner, plan, startMonth
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- deny
+  online only
+
+table invoices:
+  subscription: subscriptions
+  owner: principal
+  month: int
+  amount: money USD
+  unique subscription, month
+  immutable subscription, owner, month, amount
+  read <- .owner = viewer
+  insert <- deny
+  update <- deny
+  delete <- deny
+  online only
+
+mutation subscribe(plan: plans):
+  require exists plans[plan] else NOT_FOUND
+  m = month(now)
+  return insert subscriptions { owner: viewer, plan, startMonth: m, billedThrough: m - 1 }
+
+query myInvoices(c: cursor ?):
+  return invoices where .owner = viewer last 12 by .month after c
+
+job bill(periodStart: time, periodEnd: time):
+  due = month(periodStart)                -- the month that just ended
+  for s in subscriptions:
+    p = plans[s.plan]
+    upto = min(due, s.billedThrough + 12)  -- at most twelve months per subscription per run
+    if p != null and s.billedThrough < upto:
+      for m in range(s.billedThrough + 1, upto + 1):
+        insert invoices { subscription: s.id, owner: s.owner, month: m, amount: p.price } if absent
+      update subscriptions[s.id] { billedThrough: upto }
+
+schedule billing every 1 month at day 1 09:00: bill
+```
+
+The schedule fires at 09:00 UTC on the 1st. Missed boundaries coalesce into
+one run, so the job bills from `billedThrough`, not just `periodStart`'s
+month: after a two-month outage the next run bills both months, and a rerun
+writes nothing (`if absent`, then `billedThrough` has moved). A backlog
+longer than twelve months shrinks by eleven a run. Charge a payment provider
+from an `effect` keyed by the invoice id, the provider's idempotency key;
+the unique invoice stops duplicate rows, not duplicate charges. Test with
+`snapback4 clock advance 62d` on a running `dev`. Months here are UTC; a
+local-time month needs a time zone, which Quarry does not have.

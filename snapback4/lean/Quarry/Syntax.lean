@@ -37,9 +37,19 @@ namespace Quarry
 
 /-! ## Schema -/
 
+/-- What deleting a referenced row does to the rows naming it (LLP 3000.039
+§2). A reference with no action keeps its rows (`on delete keep`). -/
+inductive OnDelete where
+  | restrict | cascade | setNull
+  deriving Repr, DecidableEq
+
 structure ColDecl where
   name : String
   nullable : Bool
+  /-- The table a reference column names, when it is one. -/
+  ref : Option String := none
+  /-- The reference's delete action; `none` keeps the rows (LLP 3000.039 §2). -/
+  onDelete : Option OnDelete := none
   deriving Repr, DecidableEq
 
 /-- Which image of a row a rule term reads: the row itself (read, insert,
@@ -98,6 +108,17 @@ inductive BinOp where
   | eq | ne | lt | le | gt | ge
   deriving Repr, DecidableEq
 
+/-- The calendar builtins (LLP 3000.040 §2.2, the time card): `day(t)`,
+`hour(t)` and `bucket(t, P, O)` are `period P O`; `month`, `year`,
+`monthStart` and `yearStart` take one int (a time, or an ordinal). -/
+inductive CalFn where
+  | period (ms off : Int)
+  | month
+  | year
+  | monthStart
+  | yearStart
+  deriving Repr, DecidableEq
+
 inductive Expr where
   | lit (v : Value)
   | var (x : String)
@@ -120,6 +141,8 @@ inductive Expr where
   | cond (c a b : Expr)
   /-- A pure helper call `f(args)`. -/
   | call (f : String) (args : List Expr)
+  /-- A calendar builtin over one int. -/
+  | cal (f : CalFn) (a : Expr)
   | arr (xs : List Expr)
   | record (fs : List (String × Expr))
   /-- `t[c = e, …]`: a point read by id or a unique key. -/

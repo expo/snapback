@@ -68,7 +68,7 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
         let end = start + offset(&source[start..], equals.site.line, equals.site.col)? + 1;
         return Some((index, start, end, diagnostic.rewrite.clone()));
     }
-    if diagnostic.code == "E_QUARRY_UNKNOWN" && diagnostic.message.starts_with("aggregate read rule repeats its parent's rule through ") {
+    if diagnostic.code == "E_REDUNDANT_RULE" && diagnostic.message.starts_with("aggregate read rule repeats its parent's rule through ") {
         let end = start + source[start..].find(['\n', '\r']).unwrap_or(source.len() - start);
         return Some((index, start, end, diagnostic.rewrite.clone()));
     }

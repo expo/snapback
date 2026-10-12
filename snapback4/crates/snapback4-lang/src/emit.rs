@@ -28,6 +28,8 @@ pub fn typescript(bound: &Bound) -> String {
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
         for (column, kind) in table.columns.iter().filter(|(name, _)| !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name)) {
+            // @ref LLP 3000.040#15-generated-typescript — a bound is documented, not branded: the server's E_INPUT is the guarantee.
+            if column_has_int_range(kind) { out.push_str(&format!("    /** {kind} */\n")); }
             out.push_str(&format!("    {}: {};\n", format!("{}{}", property(column), if table.private_field(column) { "?" } else { "" }), column_ts(kind, &bound.schema)));
         }
         out.push_str("    /** True on this device's own unconfirmed change (the card). */\n    pending?: boolean;\n");
@@ -137,10 +139,19 @@ pub fn typescript(bound: &Bound) -> String {
     out
 }
 
+fn column_has_int_range(ty: &ColumnType) -> bool {
+    match ty {
+        ColumnType::IntRange { .. } => true,
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => column_has_int_range(inner),
+        _ => false,
+    }
+}
+
+/// Arguments whose declared bound the TypeScript type cannot carry.
 fn has_list_minimum(ty: &snapback4_core::ir::ArgType) -> bool {
     use snapback4_core::ir::ArgType;
     match ty {
-        ArgType::ListRange { .. } => true,
+        ArgType::ListRange { .. } | ArgType::IntRange { .. } => true,
         ArgType::Optional(inner) | ArgType::List { of: Some(inner), .. } => has_list_minimum(inner),
         _ => false,
     }

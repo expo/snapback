@@ -86,6 +86,31 @@ fn site_address_changes_replay_as_equivalent() {
 }
 
 #[test]
+fn commuting_a_refused_operand_preserves_semantics_without_equal_cost() {
+    let artifact: shrink::Artifact = serde_json::from_str(include_str!(
+        "../cases/found/rewrite-commute--metered--E_OVERFLOW/case.json"
+    )).unwrap();
+    let mut case = artifact.case;
+    for swap in [false, true] {
+        if swap { case.program = Rewrite::Commute.apply(&case.program).unwrap(); }
+        let source = case.program.source();
+        let mut engine = execute::engine(&case, &source).unwrap();
+        let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(outcome.refusal().unwrap()["code"], "E_OVERFLOW");
+        assert!(Rewrite::Commute.costs_for(&case.program, &outcome));
+        assert!(matches!(oracle::rewrite(&case, &Rewrite::Commute, &source).unwrap().0, Verdict::Pass));
+    }
+    // A successful expression still compares the full meter record.
+    case.args["b"] = json!(1);
+    let source = case.program.source();
+    let mut engine = execute::engine(&case, &source).unwrap();
+    let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+    assert!(outcome.refusal().is_none());
+    assert!(!Rewrite::Commute.costs_for(&case.program, &outcome));
+    assert!(matches!(oracle::rewrite(&case, &Rewrite::Commute, &source).unwrap().0, Verdict::Pass));
+}
+
+#[test]
 fn semantic_checks_still_run_when_meter_fields_are_omitted() {
     let a = execute::Outcome {
         kind: "query".into(),
@@ -198,12 +223,29 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.tables[0].expire.is_some() {
             dims.push("expiry");
         }
+        // LLP 3000.040 §5: calendar bodies and bounded `score`, from their own stream.
+        if case.program.time_arg {
+            dims.push("calendar");
+        }
+        if case.program.tables[0].columns.iter().any(|c| matches!(c.ty, snapback4_difftest::ast::Type::IntRange(..))) {
+            dims.push("bounded");
+        }
+        if case.program.arg_bound.is_some() {
+            dims.push("bounded-arg");
+        }
+        // LLP 3000.036.001: branch pages, from their own stream.
+        if case.program.domain.is_some() || case.program.tables[0].rule == snapback4_difftest::ast::Rule::TwoParty {
+            dims.push("branches");
+        }
+        if case.program.kids.is_some() {
+            dims.push("references");
+        }
         if dims.is_empty() {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 4, "{seen:?}");
+    assert_eq!(seen.len(), 9, "{seen:?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

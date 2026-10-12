@@ -13,7 +13,8 @@ test('a device-less browser app journals clicks synchronously and sends each onc
   const project = mkdtempSync(join(tmpdir(), 'sb4-online-journal-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   // No table syncs: the app writes through the server only.
-  writeFileSync(join(sourceDir, 'schema.q'), `use identity password
+  writeFileSync(join(sourceDir, 'schema.q'), `use personas alice, bob
+use identity password
 
 table audit:
   total: int
@@ -36,12 +37,13 @@ import { mintId } from '${path('client.ts')}';
 Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessionKey, mintId });
 window.clickOp = { kind: 'mutation', name: 'click' };
 window.records = () => Object.keys(localStorage).filter(key => key.startsWith('snapback4-online-admission:'));
-window.boot = async ({ url, session, holdPosts = false, fakeSync = false, malformed = false, writes }) => {
+window.boot = async ({ url, session, holdPosts = false, fakeSync = false, malformed = false, schemaFailure = false, writes, persona }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.posts = []; window.held = [];
-  window.app = createApp({ url, sessionStore: localStorageSessionStore(), ...(writes ? { writes } : {}),
+  window.app = createApp({ url, ...(persona ? { persona } : { sessionStore: localStorageSessionStore() }), ...(writes ? { writes } : {}),
     fetch: async (input, init) => {
       const route = new URL(String(input)).pathname;
+      if (route === '/schema' && schemaFailure) throw Error('schema offline');
       if (route === '/changes') return new Promise(() => {});
       if (route.startsWith('/m/')) {
         window.posts.push(JSON.parse(init.body).id);
@@ -62,6 +64,7 @@ window.boot = async ({ url, session, holdPosts = false, fakeSync = false, malfor
 // Refuse the next online-journal commit in IndexedDB: the click's only custody is localStorage.
 window.refuseJournalCommits = () => {
   const transaction = IDBDatabase.prototype.transaction;
+  window.allowJournalCommits = () => { IDBDatabase.prototype.transaction = transaction; };
   IDBDatabase.prototype.transaction = function (...args) {
     const tx = transaction.apply(this, args);
     if (this.name === 'snapback4-session-authority' && args[1] === 'readwrite') {
@@ -90,6 +93,158 @@ window.refuseJournalCommits = () => {
     await page.waitForURL('**/?' + suffix); await page.waitForFunction(() => !!window.boot);
   };
   const results = {};
+
+  await t.test('persona writes capture synchronously; reload replays one execution and keeps principals separate', async () => {
+    await fresh();
+    await page.evaluate(options => boot(options), { url, persona: 'alice', holdPosts: true });
+    const before = await total();
+    const captured = await page.evaluate(() => {
+      const id = mintId(), write = app.mutate(clickOp, {}, { id, waitSeconds: 0 });
+      return { id, records: records().length, state: write.state };
+    });
+    assert.equal(captured.records, 1); assert.equal(captured.state, undefined);
+    await until(async () => await total() === before + 1);
+    await navigate('persona-bob');
+    assert.deepEqual(await page.evaluate(options => boot(options), { url, persona: 'bob' }), { ok: true });
+    assert.deepEqual(await page.evaluate(() => posts), [], 'Bob never replays Alice');
+    await page.evaluate(() => app.close());
+    await navigate('persona-alice');
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    await until(() => page.evaluate(id => app.client.write(id).then(w => w?.state === 'sent' && w.replayed), captured.id));
+    assert.deepEqual(await page.evaluate(() => posts), [captured.id]);
+    assert.equal(await total(), before + 1);
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('persona same-turn navigation before IndexedDB commit preserves the click', async () => {
+    await fresh(); const before = await total();
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    const id = await page.evaluate(() => {
+      refuseJournalCommits(); const id = mintId(); app.mutate(clickOp, {}, { id, waitSeconds: 0 });
+      location.assign('/?persona-captured'); return id;
+    });
+    await page.waitForURL('**/?persona-captured'); await page.waitForFunction(() => !!window.boot);
+    assert.equal(await total(), before); assert.equal(await page.evaluate(() => records().length), 1);
+    await page.evaluate(options => boot(options), { url, persona: 'bob' });
+    assert.equal(await page.evaluate(() => records().length), 1, 'Bob leaves Alice capture intact');
+    await page.evaluate(() => app.close());
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    await until(async () => await total() === before + 1);
+    assert.deepEqual(await page.evaluate(() => posts), [id]);
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('persona syncing schema and invalid combinations refuse while opening; explicit online works', async () => {
+    await fresh();
+    const refused = await page.evaluate(options => boot(options), { url, persona: 'alice', fakeSync: true });
+    assert.equal(refused.ok, false); assert.equal(refused.why.code, 'E_ADMISSION');
+    assert.match(refused.why.rewrite, /writes: "online"/);
+    assert.equal(await page.evaluate(() => app.auth.why.code), 'E_ADMISSION');
+    await page.evaluate(() => app.close());
+    const invalid = await page.evaluate(url => {
+      try { createApp({ url, persona: 'alice', writes: 'online', device: {} }); return null; }
+      catch (error) { return error.why.code; }
+    }, url);
+    assert.equal(invalid, 'E_CLIENT');
+    await page.evaluate(options => boot(options), { url, persona: 'alice', fakeSync: true, writes: 'online' });
+    assert.equal((await page.evaluate(() => app.mutate(clickOp, {}))).state, 'sent');
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('a syncing schema refuses new writes at opening while recovering older persona intent', async () => {
+    await fresh(); const before = await total();
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    const id = await page.evaluate(() => {
+      refuseJournalCommits(); const id = mintId(); app.mutate(clickOp, {}, { id, waitSeconds: 0 });
+      location.assign('/?persona-schema-change'); return id;
+    });
+    await page.waitForURL('**/?persona-schema-change'); await page.waitForFunction(() => !!window.boot);
+    const ready = await page.evaluate(options => boot(options), { url, persona: 'alice', fakeSync: true });
+    assert.equal(ready.ok, false); assert.equal(ready.why.code, 'E_ADMISSION');
+    const refused = await page.evaluate(() => app.mutate(clickOp, {}));
+    assert.equal(refused.state, 'failed'); assert.equal(refused.why.code, 'E_ADMISSION');
+    await until(async () => await total() === before + 1);
+    assert.deepEqual(await page.evaluate(() => posts), [id]);
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('unknown schema selection still recovers captured and committed persona intent', async () => {
+    for (const schemaFailure of [false, true]) for (const captured of [false, true]) {
+      await fresh(); const before = await total();
+      await page.evaluate(options => boot(options), { url, persona: 'alice', holdPosts: !captured });
+      let id;
+      if (captured) {
+        id = await page.evaluate(() => { refuseJournalCommits(); const id = mintId(); app.mutate(clickOp, {}, { id, waitSeconds: 0 }); location.assign('/?unknown-capture'); return id; });
+        await page.waitForURL('**/?unknown-capture'); await page.waitForFunction(() => !!window.boot);
+      } else {
+        id = await page.evaluate(() => { const id = mintId(); app.mutate(clickOp, {}, { id, waitSeconds: 0 }); return id; });
+        await until(async () => await total() === before + 1);
+        await navigate('unknown-pending');
+      }
+      const ready = await page.evaluate(options => boot(options), { url, persona: 'alice', malformed: !schemaFailure, schemaFailure });
+      assert.equal(ready.ok, false); assert.equal(ready.why.code, 'E_ADMISSION'); assert.equal(ready.why.retryable, true);
+      const refusal = await page.evaluate(() => app.mutate(clickOp, {}));
+      assert.equal(refusal.state, 'failed'); assert.equal(refusal.why.code, 'E_ADMISSION');
+      await until(async () => await total() === before + 1);
+      await until(() => page.evaluate(id => app.client.write(id).then(w => w?.state === 'sent'), id));
+      assert.deepEqual(await page.evaluate(() => posts), [id]);
+      await page.evaluate(() => app.close());
+      assert.equal(await page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length), 0);
+    }
+  });
+
+  await t.test('persona reset observed by a read retires custody and releases the runtime lock', async () => {
+    await fresh();
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    assert.equal(await page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length), 1);
+    await fetch(url + '/dev/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }] }) });
+    const read = await page.evaluate(() => app.client.query({ kind: 'query', name: 'total' }, {}));
+    assert.equal(read.denied?.code, 'E_STORE_REPLACED');
+    await until(() => page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length === 0));
+    const write = await page.evaluate(() => app.mutate(clickOp, {}));
+    assert.equal(write.state, 'failed'); assert.equal(write.why.code, 'E_STORE_REPLACED');
+    await page.evaluate(() => app.close());
+  });
+
+  await t.test('failed persona retirement releases custody so reopening resolves the old-store capture', async () => {
+    await fresh();
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    const id = await page.evaluate(async () => {
+      refuseJournalCommits(); window.oldApp = app;
+      const id = mintId(); const write = await app.mutate(clickOp, {}, { id, waitSeconds: 0 });
+      if (write.state !== 'pending') throw Error(JSON.stringify(write)); return id;
+    });
+    assert.equal(await page.evaluate(() => records().length), 1);
+    await fetch(url + '/dev/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }] }) });
+    const read = await page.evaluate(() => app.client.query({ kind: 'query', name: 'total' }, {}));
+    assert.equal(read.denied?.code, 'E_STORE_REPLACED');
+    await until(() => page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length === 0));
+    await page.evaluate(() => allowJournalCommits());
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    await until(() => page.evaluate(id => app.client.write(id).then(w => w?.state === 'failed' && w.why.code === 'E_STORE_REPLACED'), id));
+    await until(() => page.evaluate(() => records().length === 0));
+    assert.deepEqual(await page.evaluate(() => posts), [], 'the captured store binding is refused before dispatch');
+    const total = await fetch(url + '/q/total', { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: '{}' }).then(r => r.json());
+    assert.equal(total.data, 0);
+    await page.evaluate(async () => { await oldApp.close(); await app.close(); });
+  });
+
+  await t.test('failed IndexedDB opening leaves no persona runtime lock after ready or close', async () => {
+    await fresh();
+    const result = await page.evaluate(async url => {
+      const open = IDBFactory.prototype.open;
+      IDBFactory.prototype.open = () => { throw Error('injected IndexedDB opening failure'); };
+      try {
+        const failed = createApp({ url, persona: 'alice', writes: 'online' });
+        const ready = await failed.ready;
+        const locks = async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length;
+        const before = await locks(); await failed.close();
+        return { ready, before, after: await locks() };
+      } finally { IDBFactory.prototype.open = open; }
+    }, url);
+    assert.equal(result.ready.ok, false); assert.equal(result.ready.why.code, 'E_CLIENT');
+    assert.equal(result.before, 0); assert.equal(result.after, 0);
+  });
 
   await t.test('signed in with no synced table, a click is captured before mutate returns and sent once', async () => {
     const session = await fresh(), before = await total();
@@ -170,9 +325,8 @@ window.refuseJournalCommits = () => {
 
   await t.test('a schema that syncs refuses with both rewrites; writes: "online" admits; a malformed reply is unknown', async () => {
     const session = await fresh(), before = await total();
-    await page.evaluate(options => boot(options), { url, session, fakeSync: true });
-    const refused = await page.evaluate(() => { const w = app.mutate(clickOp, {}); return { state: w.state, why: w.why }; });
-    assert.equal(refused.state, 'failed'); assert.equal(refused.why.code, 'E_ADMISSION');
+    const refused = await page.evaluate(options => boot(options), { url, session, fakeSync: true });
+    assert.equal(refused.ok, false); assert.equal(refused.why.code, 'E_ADMISSION');
     assert.match(refused.why.message, /this schema syncs audit/);
     assert.match(refused.why.rewrite, /device: webDevice\(\)/); assert.match(refused.why.rewrite, /writes: "online"/);
     await page.evaluate(() => app.close());

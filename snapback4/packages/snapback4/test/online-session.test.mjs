@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
-import { memorySessionStore } from "../dist/auth.js";
+import { memorySessionStore, signup, login, guest } from "../dist/auth.js";
 import { assetRetryAt } from "../dist/asset-download.js";
 
 const session = (token, expiresAt = Date.now() + 7 * 86400_000) => ({ principal: "user:alice", kind: "user", token, expiresAt });
@@ -12,6 +12,18 @@ const denied = () => Response.json({ denied: { code: "E_AUTH", family: "auth", m
 const bearer = init => new Headers(init.headers).get("authorization");
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const query = { kind: "query", name: "read" };
+
+test("sign-in helpers retain refusal bodies on HTTP 401 and 403", async () => {
+  for (const status of [401, 403]) {
+    const why = { code: "E_AUTH", family: "auth", message: "identity method refused" };
+    const doFetch = async () => Response.json({ denied: why }, { status });
+    for (const result of [await signup("https://card.invalid", "a@example.test", "password", doFetch),
+      await login("https://card.invalid", "a@example.test", "password", doFetch),
+      await guest("https://card.invalid", doFetch)]) {
+      assert.deepEqual(result, { ok: false, why });
+    }
+  }
+});
 
 async function localPersona() {
   const backend = { generation: 1, schema: { tables: {} }, programs: [] };

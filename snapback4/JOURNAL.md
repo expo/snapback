@@ -92662,6 +92662,60 @@ The same writing page builds to 274,853 B (88,485 B gzip) with no wasm, against
 (`scripts/measure-online-writes.mjs`). Persona apps and a durable online head
 floor are deferred. The number moved from 3000.038, which four lanes claimed
 the same night.
+## 2026-10-12 — Workstream MERGE: owner-or-X lists are one complete query (LLP 3000.036.001)
+
+`tasks where .owner = viewer or .assignee = viewer last 50 by .at after c`,
+or `tasks last 50 by .at after c` under that read rule, or owner-or-staff,
+now reads as a lazy k-way merge of the branch index ranges and answers
+`complete`. Design, review dispositions and exclusions in LLP 3000.036.001;
+the blind GPT (`gpt-6.1-sol`) and Muse (`muse-spark-1.3-contributor`) reviews
+of the draft, both NOT READY, are in `llp/reviews/3000.036.001-*`.
+
+- **Plan.** `bind/intent_branches.rs` expands an undecided query page whose
+  total predicate has one `or` of deciding pins, or whose read rule is parties
+  and readable grants, into planned lanes marked `$or`/`$or:grant` (no new IR
+  field; digests unchanged). `program/views.rs` re-checks with the core's
+  `branch_merge_lazy` and `covering_grant`; a hidden-roster grant binds the
+  read as written.
+- **Run.** `engine/branch_merge.rs`: lanes over different indexes, one shared
+  position (order then `id`), de-duplication by id; a held grant reads its
+  lane alone, an unheld one nothing; a seat is decided on a device, a role
+  probe is unknown there. After a cut the page stops at the frontier every
+  lane examined and continues from it.
+- **Cursor.** Versions 4 (exclusive) and 5 (inclusive, for an unfinished first
+  shape) on version 3's layout, naming the branch set; another plan's token
+  restarts the read with `E_CURSOR_INDEX`; 0.4.22 refuses them by version and
+  runs the plan as an eager merge.
+- **Wasm.** 2,159,570 B raw / 653,674 B gzip on Linux, +5,002 B over the
+  base's 648,672; budget 654,174 B (measurement + 500 B), reason in
+  `metrics/wasm-budget.json`. Sharing version 3's token layout saved 646 B.
+- **Lean.** OPEN C8 is "decided": pins by form (`Rule.byForm`) or branches
+  (`branchDecided`); a merged page's `next` needs a matching row (C2);
+  `parties_cover_view`. 40 theorems audited, 35/35 examples.
+- **Evidence.** `run-lean` seeds 0–99,999: 1,979 disagreements, all known
+  signatures; 3,459 merged pages compared, the 10 that disagreed all on the
+  known prelude `E_RULE~NOT_FOUND`, none on a page. `run-devices` seeds
+  0–2,999: no new signature (197 merged branch pages; group-synced tables are
+  not drawn yet, see the ticket below). `run` seeds 0–19,999: 0
+  disagreements in every rewrite and meter oracle, 1,314 merged pages.
+  Suites: `snapback4-core`, `-device`, `-sim`, `-difftest`, `-lang`,
+  `snapback4 --test check`/`check_notes`, `lean/check.sh`, and the client's
+  `read-*`, `local-*` and `bounded-following` (286 pass, 1 skipped).
+- **Found, not caused.** The first device campaign that drew a group-synced
+  table found that a held group's pinned page meters one rule probe on the
+  server and none on a device, merged or not:
+  `issues/20261012-snapback4-device-group-page-rule-probe-meter.md`.
+- **Docs.** The staff console, the roles board and the private two-party list
+  are single queries; the N_NEVER_COMPLETE page and the reads card say when
+  the merge applies. The wave 1–6 farm tests whose shapes now merge assert the
+  merged page and keep the note machinery covered with arithmetic in the
+  predicate, which keeps one index.
+- **What felt good:** the engine already had the merge position and the
+  drain-cut idea; a second index per lane was mostly bookkeeping. The Lean
+  model's surface syntax kept the pin forms the engine decides by.
+- **What was hard:** with a page per lane, a cut can only land while lanes
+  open, so the drain-cut continuation never fired; the frontier replaced it.
+  And twenty farm tests pinned the old "never complete" on purpose.
 
 ## 2026-10-12 — 0.4.23: the wasm budget rises 764 B for the integrated device
 
@@ -92751,3 +92805,529 @@ consumer exercise that distinction.
   an actual earlier commit boundary. Zero/two-renewal regressions pass; renewal
   fixtures use adopt_at and assert deletion without replacement. Review budget
   exhausted, latest fixes unreviewed, UNION promotion remains held.
+## 2026-10-12 — MERGE round-5 confirmation and revision 6
+
+Fresh, mutually blind reviews of revision 5 at `c8f0810607` are preserved
+verbatim in `llp/reviews/3000.036.001-merged-pages.r5.{gpt,muse}.md`.
+GPT (`gpt-6.1-sol`, high) found two material size-bound gaps and two minor
+items; Muse (`muse-spark-1.3-contributor`, high) returned READY WITH CHANGES
+for the existence wording. Its prescribed wrapper completed through the
+API-key fallback after plan quota errors; no key was read or logged here.
+
+Revision 6 bounds the branch descriptor with a length-framed SHA-256 digest
+of ordered index names and grant flags, checks actual prospective lane
+indexes against the shared portable key/label bounds before committing
+optional plans, suppresses nested grant-lane completeness notes through the
+whole-body IR walk, and documents case-1-only existence expansion. The
+31-test merged-page target passes, including a cursor over eight repeated
+507-byte index names, a 2,028-byte original key whose party indexes would
+need 2,166 bytes, and the nested-shape note assertion. Final integrated
+measurements and quality-bar results follow after merging the newer loop tip.
+
+## 2026-10-12 — MERGE: final optional-index bounds
+
+The focused revision-6 review found that a pending index's structural token
+is shorter than its emitted column-derived name. The optional planner now
+checks the emitted name through `intent::index_name`, including its collision
+suffix, and declared indexes through their actual names. Another fresh GPT
+confirmation is READY (`llp/reviews/3000.036.001-merged-pages.r6-key-bounds.gpt.md`).
+All 33 merged-page tests pass, including the added 480-byte owner-column
+label fallback and oversized existence-index fallback. Neither correction
+changes device execution or the measured wasm artifact.
+
+## 2026-10-12 — MERGE integration: regenerate the codec census
+
+The page/query client files passed. The additional codec census found two
+inherited calls absent from its registry: file JSON verification through
+`IgnoredAny`, and `stored_value_bytes` streaming to its allocation-counting
+writer. Their behavior is unchanged. Exact function/line entries now name
+these calls; the census still requires exactly one consumption, and new
+mutation controls reject renamed owners, duplicate calls and changed lines.
+All 27 codec-census checks pass. The integrated delivery-await boundary was
+also regenerated with no delta, and its classification check passes.
+
+## 2026-10-12 — MERGE quality bar: UTC-independent schedule assertion
+
+The full requested Rust run exposed an inherited clock-test assumption:
+`advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold`
+expected two counter increments from its hourly schedule, although its daily
+06:00 UTC schedule calls the same mutation and can fire during either advance.
+The assertion now checks the exact sum of schedules reported as fired.
+The full clock target and the CLI `check`/`check_notes` targets pass (125
+checks in total), and the final affected language crate passes. No scheduler
+or clock implementation changed.
+
+## 2026-10-12 — MERGE: integrated device budget
+
+The locked Linux revision-6 artifact measures 2,166,371 B raw / 657,042 B
+gzip, unchanged on a hash and size recheck. Set the budget to 657,542 B,
+measured gzip plus the existing 500 B cross-host headroom. Incoming 0.4.23
+recorded 651,704 B gzip / 652,204 B cap: a whole-artifact increase of 5,338 B,
+without a rebuilt control or per-feature attribution. The inherited revision-5
+run measured 658,195 B gzip; the bounded-descriptor artifact is 1,153 B smaller.
+No macOS measurement or runtime ceiling change is claimed. The final budget
+check passes.
+
+## 2026-10-12 — OPS: production ports and rollback help (wave 8 DT3, DT1b)
+
+Continued the untracked shared port-parser draft left by the previous session.
+Both listening verbs now parse N, 0 and inclusive A-B ranges, with E_INPUT for
+invalid input. Serve validates before creating deployment state and holds the
+chosen loopback range listener through startup. Its existing real-URL and
+SNAPBACK4_READY output is covered by a release subprocess regression. Rollback
+help lists both adoption flags; no adoption or rollback behavior changed.
+Validation: port-filtered binary and cli_friction tests passed (15 and 6 tests).
+
+## 2026-10-12 — OPS: identity refusal statuses (wave 8 DT6)
+
+Password failures and disabled identity methods now return 401 with the existing
+denied body. Other identity error paths share that mapping; production personas
+remain 401 and development doors remain 403. Guide wire now has a status table
+and explains streaming status limits and replay receipts' absent result/current.
+Receipts intentionally contain no historical values, so no core replay or read
+authority behavior changed. JS helpers already preserve the body on refusal.
+
+Validation: binary suite 385 passed / 4 ignored, CLI friction 19 passed; two
+client files (online-session, headless-registration) passed 16 tests. Added
+coverage for HTTP 401/403 bodies and the real failed-login/disabled-guest path.
+
+## 2026-10-12 — OPS: default fixtures and installed Expo versions (wave 8 DT5)
+
+Test now announces and uses the project's fixtures directory when no explicit
+fixture was given, including its declared cases. An explicit fixture wins; the
+default path uses the existing isolated in-memory fixture engine. Check warns
+on stderr if installed snapback4 and snapback4-expo versions differ, naming
+both versions and the single coupled upgrade command. JSON stdout stays valid.
+
+CLI regressions cover a failing default case, explicit override, malformed rows,
+fixture isolation, version mismatch in text/JSON and matching versions. The
+19-test cli_friction suite passed; the final full package run includes the same
+tests. Serve's regression was additionally bounded and hardened for an occupied
+first range port, equals spelling, held listener and real PID readiness.
+
+## 2026-10-12 — OPS: independent review corrections and clock test isolation
+
+The required fresh Codex and Muse reviews are retained verbatim under
+llp/reviews/3000.007-ops-production-surfaces.*.md, with separate dispositions.
+Codex found a bound custom-session validation path still returning E_AUTH at
+200; it now uses the same 401 identity mapping as legacy minting. Its production
+regression compares both forms. Identity scope/value E_INPUT at 200 remains
+documented as an existing exception; action-lease behavior is unchanged.
+
+The full package run also found an inherited clock regression: crossing 06:00
+UTC in its five-hour advance fired the daily tick into the hourly counter.
+It reproduced alone. The daily explanation fixture now uses a separate
+no-change sweep; the hourly restart assertion stays exact. Isolated clock
+test and all 25 clock tests now pass; no production clock behavior changed.
+
+## 2026-10-12 — OPS: day-two guide and object SQL output (DT2, DT8–DT10)
+
+Guide deploy is the tested production entry point for upgrades (including the
+exact-version Expo adapter), deploy/serve, password accounts, a first admin
+through an ops service seat, schema evolution, rollback, sessions, stopped
+backup and proxy/TLS operation. Rollback remains one isolated section describing
+current adoption behavior; stop → deploy → restart is explicit. All requested
+production aliases reach the card, and admin lands on its First admin section.
+The insert-only grant recipe compiles and runs under ops/existing-admin/public
+viewers; the readauth census adds just its never-predicted operation. Current
+is documented as a text copy of the database's authoritative release pointer.
+
+SQL keeps positional --json for existing consumers and adds --json-objects.
+Direct boolean columns recover their types from the adopted schema and SQL
+projection, including aliases, nullable/default values, subqueries and supported
+CTEs. Numeric expressions remain numeric. Ambiguous/unresolved lineage refuses
+with a positional-JSON fallback: schema-qualified relations, recursive,
+shadowing and forward CTEs cannot silently coerce integers into booleans.
+The parser is CLI-only (sqlparser 0.59.0, std only), with no core/device format,
+Quarry execution, read authority or wasm changes.
+
+Validation: guide 119/119; readauth 88/88; clients 828/828 across 25 files,
+plus a final 16-test auth/headless rerun. README remains 319/320 lines and the
+docs-budget self-contained screen test passes. Ref-check is clean. Full Rust
+package verification and the complete per-item mapping are in the workstream
+report. Two actual independent reviews and dispositions are retained; no RFC
+status changed and no rollback/hot-deploy semantics were edited.
+## 2026-10-12 — Workstream LANG2: bounded ints, UTC calendar months, caps for small tables (LLP 3000.040)
+
+Three approved language additions, designed in LLP 3000.040 (one blind round:
+Codex `gpt-6.1-sol` and Muse `spark-1.3`, both NOT READY, folded in
+revision 1; reviews under `llp/reviews/3000.040-*`).
+
+- **Bounded ints.** `int 1..5`, `int 0..`, `int ..100` on columns, list
+  items and operation arguments (`IntRange`), one check in `validate::fits`,
+  so arguments, stored writes, defaults, fixtures and both device stores
+  refuse `E_INPUT: reviews.stars must be int 1..5, not the number 10`.
+  `check` refuses constants outside the range and bounded helper parameters;
+  `int <=N` prints `int ..N` (text's `<=N` starts at 0). Sums erase the
+  bound. Tightening is Narrowing, checked against stored rows. This reverses
+  LLP 3000.036 §15.7.
+- **Calendar months.** `month(t)` (months since 1970-01), `year(t)`,
+  `monthStart(m)`, `yearStart(y)` in `snapback4_core::calendar`; `month`/
+  `year` index and view keys; `every N months|years [at day D HH:MM]`
+  schedules anchored at 1970-01 with the existing coalescing rule. UTC only;
+  time zones deferred. The Lean model gained an independent calendar
+  (400/100/4/1-year decomposition) with `omega` proofs that each month and
+  year start brackets every time.
+- **Small-table caps.** `cap N` without `by` already worked (LLP 3000.007
+  §20.3); its refusal now reads `T holds at most N rows`, raising a cap is
+  Additive, and `guide indexes` has the lookup-table recipe.
+- **Oracles.** `run-lean` seeds 0–99,999: 68,428 supported, only the four
+  classified signatures (OPEN C2/W4); every calendar case agrees.
+  `run-devices` seeds 0–2,999: only signatures already in `cases/found`.
+  Negative controls (reverted): a February-start defect in `calendar.rs` was
+  caught by `run-lean` (`lean--data--int~int`), a device-only bound skip by
+  `run-devices` (`write-predicted-refused--admitted`).
+- **The wasm budget rises 6,647 B gzip** (648,672 → 655,319 B on Linux;
+  budget 655,819 = measurement + 500 B): the device validates int ranges and
+  evaluates the civil builtins and keys, so predictions refuse what the
+  server refuses. Reason in `metrics/wasm-budget.json`.
+
+- **What felt good:** every write path already funnels through `fits`, so a
+  bounded type needed one arm; the shared interpreter made device parity free.
+- **What was hard:** the guide's word and line budgets (the six familiar
+  cards at their 30% reduction, the language card at 825 lines) left room for
+  about twenty words; the detail went to the time, indexes and recipes cards.
+
+## 2026-10-12 — LANG2 follow-up: round 2, compact `IntRange`, the budget settles at 654,235 B
+
+Round 2 (Muse READY WITH CHANGES) found the day-29 schedule rewrite tested the
+clock instead of the period, and two promised tests missing; all fixed (a
+tightening adoption with a stale device image on both stores, a retried billing
+period). `IntRange` now stores its ends as `i64` with the i53 limits as the
+unwritten ends, so `ColumnType` keeps its size (the heap meter's cursor-column
+charge was 24 B higher with `Option` ends) and the web device is 1,584 B
+smaller: 653,735 B gzip on Linux, budget 654,235 B (+5,063 B over the base,
+reason in `metrics/wasm-budget.json`). Reruns on the final code: `run-lean`
+seeds 0–99,999 and `run-devices` 0–2,999 show only known signatures. Filed
+`issues/20261012-snapback4-seed-refusal-reports-not-found.md` (pre-existing:
+an invalid seeded row refuses NOT_FOUND, not E_INPUT).
+
+## 2026-10-12 — LANG2 round 2 (Codex): raw ranges, exact schedule edges, calendar evidence counted
+
+Codex's round 2 (READY WITH CHANGES) found a raw catalog could install
+`IntRange { min: 5, max: 1 }`, calendar schedule boundaries substituted i53
+endpoints at the ±285,000-year edges, and `run-lean` counted calendar cases
+before support. Fixed: raw ranges are validated at every depth, boundaries are
+exact in `i128`, and `run-lean` reports calendar cases by verdict and refuses
+a qualifying campaign that compared none; the generator also bounds `run`'s
+argument. Rerun: 6,434 calendar cases in seeds 0–99,999, 5,875 agreed, 9
+disagreed only in a prelude (OPEN W4, before the calendar body), 550
+unsupported for other dimensions. LLP 3000.040 §10 records both round-2
+reviews and their dispositions.
+
+## 2026-10-12 — LANG2 merges `sb4-loop` (0.4.23)
+
+Conflicts resolved keeping both sides: FILE's `file` column type beside the
+bounded int (`types.rs`, `write_target.rs`, `rows/disclosed.rs`), LN's Lean
+examples beside the calendar examples (45/45 agree, 51 theorems audited), AA's
+LLP 3000.036 §17 beside the §15.7 reversal note, both journals. 0.4.23's new
+rule that the recipes card prints whole (under 400 piped lines) moved the
+monthly billing recipe to `guide time` (`--section billing`); the recipes
+card points to it. The merged web device measures 2,174,248 B raw / 655,243 B
+gzip on Linux, 3,539 B over sb4-loop's 651,704 B; budget 655,743 B
+(measurement + 500 B), reason in `metrics/wasm-budget.json`.
+
+## 2026-10-12 — LANG2 post-merge: the clock test counts both schedules
+
+The requested post-merge Rust check reproduced the time-of-day failure filed
+in `issues/20261012-snapback4-clock-advance-test-depends-on-time-of-day.md`.
+The hourly and daily schedules both update the same counter. The test now
+checks the first and resumed advances against both schedules' reported
+firings, including when either advance crosses 06:00 UTC. The scheduler is
+unchanged. The full clock target passes (25/25); the ticket is closed.
+
+## 2026-10-12 — LANG2 post-merge: overflow stops a commuted operand sooner
+
+The `run` differential campaign found seed 50094: `a = (b + b)` refuses
+the same E_OVERFLOW in both operand orders, but after six versus five
+steps. In the commuted order the overflow stops evaluation before reading
+`a`. This is a harness defect: only refused commutations now omit their
+meter record, with the omission counted in the campaign; all semantic
+fields and post-write observations remain compared, and successful
+commutations keep their prior meter checks. The shrunk case is retained
+verbatim under `cases/found/rewrite-commute--metered--E_OVERFLOW`, with a
+diagnosis. The smoke target passes 9/9, including both refused operand
+orders and a successful execution of the same expression. LLP 3000.035
+§5.1 records the comparison rule.
+
+## 2026-10-12 — LANG2 post-merge quality bar completes
+
+The five-crate Rust check completed 351 targets: 5,528 passed, one failed,
+38 existing ignores. Its sole failure was the clock assertion fixed in
+`798326f938`; the full clock target reran green (25/25). All other targets
+passed, covering 5,529 passing tests after that scoped correction. LANG2
+passed 8 device and 11 language tests; guide 118/118, readauth 88/88 and
+the unchanged authoring census pass. README budget: 319/320 lines.
+
+`run` seeds 0–99,999 on the corrected harness (`62d86c5a02`, release, eight
+workers) compiled 100,000 cases and made 4,710,628 calls with zero findings,
+generator errors or unexpected refusals (669.70 s); smoke 9/9 passes.
+`run-lean` on the merged model supports 77,344 cases, with 76,322 agreeing
+and only 1,022 classified C2/W4 disagreements (exit 1, 439.84 s). Calendar
+coverage is unchanged: 5,875 agree, 550 unsupported, nine known prelude
+disagreements before the calendar body. No new signatures.
+
+The wasm rebuild exactly matches 2,174,248 B raw / 655,243 B gzip; budget
+655,743 stays (+3,539 B over sb4-loop's measured device, plus 500 B
+headroom). `ref-check` passes. Both round-2 reviews were READY WITH CHANGES,
+with dispositions already recorded; neither remained NOT READY. LLP
+3000.040 §11 records the final checks and explicit deferrals. No push.
+
+## 2026-10-12 — MERGE final integrated qualification
+
+`10609408d5` also incorporates the newer `sb4-loop` tip `ccc3d40730`:
+CLI/auth/production-guide changes, unchanged MERGE engine/planner source.
+Both journal histories and both clock-test corrections survive. Affected
+latest-loop checks pass: 119 guide and 542 CLI tests (four declared ignores).
+Final page/query/census/budget client run: 14 files, 96 pass. Readauth:
+701 entries, 399 mutation occurrences, 84 private write sites; regenerated
+ordering and its recheck pass. Delivery-await census passes with no delta;
+codec census passes all 27 checks. Final language: 1,708 pass, 14 ignores.
+
+The original full Rust command's only product failure was the corrected
+UTC-dependent clock assertion. It also never launched 37 core executables
+that disappeared during the run; those targets were rebuilt in an isolated
+target directory and all pass (334 tests, two ignores). The original log
+is retained as interrupted evidence, not reported as green.
+
+The final fresh wasm rebuild measures 2,174,378 B raw / 658,353 B gzip and
+repeats exactly. Set 658,853 B, measurement + the existing 500 B headroom.
+This supersedes the earlier 657,042 B result after the newer integration and
+fresh rebuild; no per-feature cause, rebuilt control, Mac measurement or
+runtime-ceiling change is claimed.
+
+`run` 20,000 cases: zero disagreements. `run-lean` 100,000: 1,042 in four
+existing signatures; `run-devices` 3,000: 224 in existing signatures. No new
+signatures; all three oracle reports' counts exactly match the inherited
+revision-5 campaigns. Exit-1 differential results remain explicit. Lean's
+audit passes 48 theorems, 47 examples and five oracle fixtures. Docs budget:
+319/320 lines and the named self-containment check pass. Reference check:
+zero errors/unchecked. Evidence under `reports/20261012-merged-owner-pages/`;
+root `WORKSTREAM-REPORT.md` lists changes, commits, checks and deferrals.
+No push or publication.
+
+## 2026-10-12 — Integrate merged owner-or-X pages with OPS and LANG2
+
+Finish `sb4-ws-merge` into `sb4-loop`, keeping both LLP revised entries,
+both journals, and all generator dimensions (eight in the smoke census).
+Lean check passes: 50/50 examples, 53 audited theorems, seven oracle fixtures;
+AGENTS and the Lean README now state the real example count. The locked
+integrated Linux wasm measures 2,192,240 B raw / 661,645 B gzip. Its initial
+build fails the inherited 655,743 B cap as expected; set 662,145 B, exactly
+measurement + 500 B, for LANG2 bounded ints/calendar months/caps together
+with LLP 3000.036.001 merged owner-or-X pages. No per-feature attribution
+or macOS measurement is claimed; runtime ceilings are unchanged.
+
+## 2026-10-12 — OPS/LANG2/merged-page integration quality bar completes
+
+Merge `a1d9a7768a` preserves OPS, LANG2 (LLP 3000.040) and merged
+owner-or-X pages (LLP 3000.036.001). Documentation checkpoint
+`a89e93d42c` corrects the child RFC's integration status and the widening
+stream description. The requested five-crate Rust command completes
+353 targets: 5,574 pass, zero failures, 38 declared ignores (exit 0).
+The first invocation stopped in a provider interruption; its log is retained
+as incomplete evidence. A durable full rerun survived subsequent provider
+interruptions and finished. No product integration fix or transient test
+timeout was needed; normal over-60-second running notices are not failures.
+
+`run` seeds 0–19,999: 20,000 compiled, 1,009,916 calls, no disagreements
+or generator errors. `run-lean` seeds 0–99,999: 76,298 agree, 22,656
+unsupported, 1,046 disagreements only in the four classified C2/W4
+signatures (exit 1); no new signatures. Calendar: 5,875 agree, nine known
+prelude disagreements, 550 unsupported. Smoke 9/9 and Lean regressions
+5/5 pass. Lean check: 50/50 examples, 53 audited theorems, seven fixtures.
+
+Readauth census passes unchanged: 401 mutation occurrences and 84 distinct
+private write sites. All 17 selected page/query/codec/census/budget/sync
+client files pass: 196 tests, one declared skip. Docs budget is 319/320
+lines; ref-check passes. The locked wasm build repeats 2,192,240 B raw /
+661,645 B gzip; budget 662,145 B, measurement plus 500 B, for both features.
+The completed child RFC leaves current/; its document and reviews remain.
+Evidence: `reports/20261012-ws-merge-integration/`. No push or publication.
+
+## 2026-10-12 — Referential actions: a reference declares what deleting its row does (LLP 3000.039)
+
+The author asked for the end-game answer to LLP 3000.036 §15.8. A reference
+column now says `on delete restrict | cascade | set null | keep`; an
+undeclared one is `restrict`, so deleting a row a live row still references
+refuses `E_REFERENCED` naming the referencing column. This is a deliberate
+behavior change (no users depend on stability): `check` names every delete
+it changes (`N_DELETE_RESTRICTED`, replacing `N_DELETE_ORPHANS`), `on delete
+keep` restores the old meaning, and `keep` is spelled by absence in the
+schema, so all-keep schemas stay byte-identical and capability-free.
+
+- **Design**, reviewed blind three rounds (GPT gpt-6.1-sol and Muse
+  muse-spark-1.3-contributor; records under `llp/reviews/3000.039-*`): the
+  parent's delete authorizes a declared cascade or set null; a delete closes
+  over cascades, probes restrict references outside the closure (reporting
+  the first occupied one in schema order), clears set-null references
+  outside it and removes children first, each from its current image; set
+  null only on optional references no rule of any table reads; cascade and
+  set null need `cap N by <reference>` and a schema-fixed reservation that
+  `check` proves fits (`E_CASCADE_BOUND`); every published trace (meter,
+  touched tables, change footprint, event count, physical allowance) is
+  schema-fixed; a device predicts only over referencing groups it holds
+  current and whole, else queues. No background sweep: the recipes (lower
+  the cap, a job, mark and sweep) cover unbounded relations.
+- **Behavior changes to know**: a table that restrict/cascade/set-null
+  references name needs its deleter to read the row (`N_DELETE_NEEDS_READ`
+  where the rules' shapes cannot show it); every such reference gets an
+  index (`$reference:<column>`), so writes to it maintain one more index —
+  the RP calibration's `index_entries` ceilings rose by exactly 2 (README
+  amendment). Expiry fires no action.
+- **Fixtures that pin legacy bytes** (capability-free control, RX legacy
+  identity, recorded attribution, following view, timeline capability,
+  maintained columns, derived clique, adoption) spell their references
+  `on delete keep`: their frozen meaning. The JS capability fence keeps a
+  `legacyOrdinary` source for the published 0.2.33 binary.
+- **Verification**: compiler, engine and device unit tests; device scenarios
+  on both stores; an exhaustive simulator check of cascades, restrict and
+  disclosure over every two-operation sequence (three opt-in); the Lean
+  model gains references, `refDelete` and `refDelete_without_actions`
+  (35/35 examples); `run-lean` over 100,000 seeds with a `kids` reference
+  family (all actions, ~3,800 delete cases compared) finds only the four
+  classified open signatures; `run-devices` seeds 0–2999 finds no new
+  signature.
+- **Wasm budget**: 648,672 → 661,877 B gzip on Linux (+13,205 B); budget
+  662,377 B with the reason in `metrics/wasm-budget.json`. About 11 KB is the
+  web device predicting the cascade; queueing such deletes on the web only is
+  the lever if the diet needs it.
+
+- **What felt good:** the existing held-group proof, reservation plans and
+  change-evidence widening gave every soundness requirement a place to live.
+- **What was hard:** disclosure is everywhere a delete is observable — the
+  meter, the touched tables, footprints, event counts, the physical
+  allowance, refusal order — and each review round found another channel.
+- **Fourth round** (revision 3 with its code; GPT NOT READY, Muse READY WITH
+  CHANGES): the code fell short of its own reservation and two interactions
+  leaked or corrupted. Fixed: walks stream four-row pages and keep identities
+  only (a restrict probe streams a row per seek past the closure, the root
+  included — a self-referencing root had hidden an outside holder); set null
+  rereads each row before clearing it (a buffered image overwrote another
+  clear's maintained count); the reply's event count is decided by the
+  static action envelope, not by which rows actions reached; the reservation
+  prices the pages and charges output. The shipped Following recipe's
+  `feed.eventId` now says `on delete keep` (its inbox purges lazily behind
+  tombstones; the new restrict default refused `deletePost`). run-lean 100k
+  and run-devices 0–2999 match the earlier runs signature for signature;
+  wasm 662,137 B gzip, within the raised budget.
+
+## 2026-10-12 — REF continuation: revision-5 fixes and integration qualification
+
+LLP 3000.039 revision 5 closes the round-5 GPT findings: gather a set-null
+group before writing, bypass child read rules in action constraint checks,
+sum concurrently held phase heaps, queue retained noncurrent device history,
+and require a dominating zero-count guard on the deleted key. The continuation
+also conservatively invalidates count guards across rebinding, control flow
+and helper calls, and binds status proofs to the individual delete site.
+Regression coverage exercises reset/reseed reference indexes and cap counts,
+retained read-through history on both device adapters, and hidden file-asset
+release through a cascade. The retired orphan diagnostic is now
+N_DELETE_RESTRICTED; development reset remains an atomic store-wide clearing
+and reseed under LLP 3000.007 §20.25.
+
+Locked Linux wasm build (Rust 1.97.0, Binaryen 132): 2,196,072 B raw /
+664,818 B gzip. The inherited cap was 652,204 B and refused this build by
+12,614 B. Set 665,318 B, exactly measured gzip plus the inherited 500 B host
+allowance. Against the recorded 0.4.23 integration artifact (2,157,263 /
+651,704 B), the whole-artifact difference is +38,809 B raw / +13,114 B gzip.
+The control was not rebuilt, and no independent per-function attribution,
+macOS measurement or runtime meter ceiling increase is claimed.
+
+The review and quality-bar results are recorded in WORKSTREAM-REPORT.md at
+the worktree root when the continuation finishes; unavailable providers are
+recorded as failed attempts, never as reviews.
+
+REF revision 7 qualification update: prepaid lifetime probes and retained
+action-event reservations, including audience scope receivers, measure
+2,198,002 B raw / 665,520 B gzip on the locked Linux build. Compared with
+the revision-5 measurement above: +1,930 B raw / +702 B gzip. The 665,318 B
+intermediate cap is exceeded by 202 B; final cap 666,020 B is measured gzip
+plus the existing 500 B host allowance. The recorded 0.4.23 integration
+artifact was 2,157,263 / 651,704 B, so the whole-artifact REF difference is
++40,739 B raw / +13,816 B gzip. No rebuilt integration control, macOS
+measurement, per-function attribution or runtime meter ceiling change is
+claimed. Targeted language suites pass (21 reference-action tests and
+16 wave-7 rule tests), with cumulative event-heap and hidden grant-revocation
+regressions.
+
+REF revision 8 final: source-write plans export action-event prices and
+visible destination envelopes before private derivations are projected out.
+Every action's audience transition steps are priced; diagnostic status keys
+are stable names/literals. Fresh GPT gpt-6.1-sol and Muse Spark 1.3 reviews
+both mark `4cdfad3975` READY, verbatim under LLP 3000.039's round-8 records.
+Targeted suites: 22 language reference-action tests, 3 device tests (including
+maintained-column projection parity), and 16 wave-7 rule tests pass.
+
+Locked Linux final wasm: 2,199,518 B raw / 666,206 B gzip. Set 666,706 B,
+exactly measured gzip plus the existing 500 B host allowance. Against the
+revision-7 measurement above: +1,516 B raw / +686 B gzip. Against recorded
+0.4.23 integration: +42,255 B raw / +14,502 B gzip. The integration control
+was not rebuilt; these are whole-artifact comparisons. No Mac measurement,
+per-function attribution or runtime meter ceiling increase is claimed.
+
+Quality-bar fixture reconciliation: alternate-key authorization grants and
+work rows explicitly `keep` their record reference so their deletion tests
+remain about read authority. The clock schedule test now counts both hourly
+and daily jobs: its five-hour jump can cross 06:00 UTC, so a fixed expected
+counter of two was a time-of-day assumption. Product clock behavior is unchanged.
+The final workstream report records the full checks and inherited Lean
+OPEN C2/W4 signatures.
+
+REF client qualification: 47 of 48 delete/reset client files initially
+passed. The social receipt-badge cancellation scenario queued without
+prediction because `messages.replyTo` inherited restrict and its complete
+reply group is not held offline. The starter now explicitly declares
+`on delete keep`: replies outlive deletion of their quoted original and
+the point quote becomes unavailable. The social guide states that choice;
+the unchanged receipt-badge regression verifies restored prediction.
+
+## 2026-10-12 — Integration 2: referential actions into sb4-loop
+
+Merge sb4-ws-ref after OPS, LANG2 and merged owner-or-X pages, preserving
+both histories and all nine generator dimensions. Keep the existing UTC
+clock-test correction: only `tick` increments the counter; the daily job is
+a no-op. Lean check passes 53/53 examples, 54 audited theorems and seven
+oracle fixtures. The final integrated wasm budget and qualification follow
+after W8C joins this branch. No push or publication.
+
+
+## 2026-10-12 — W8C: wave 8 regressions and defects
+
+Worktree `sb4-ws-w8c`, continuing from clean `sb4-loop` (no earlier lane commits).
+R2 reset now primes adopted schedules at the reset clock inside the same
+transaction; a next crossed boundary fires once, and a bad reseed rolls it back.
+
+R1 extends the existing browser capture/IndexedDB journal to dev personas,
+scoped by backend, persona principal and storage namespace with no session
+epoch. Default persona web apps ship no device when nothing syncs. Public
+construction/ready reports unwritable configurations; private custody still
+recovers older intent under known-sync and unknown schema decisions. Opening
+failure and failed store retirement release runtime locks without dropping
+captures. The same capture/commit/marker/race tests run for sessions/personas;
+Chromium covers navigation, reload replay, principal isolation, schema changes,
+storage failure and reset. LLP 3000.013.000 §17 records the amendment and review
+dispositions; fresh Sol and Muse both returned READY. Muse plan calls hit
+quota 429, then the wrapper Meta fallback completed the reviews. Complete
+stdout is recorded, including the initial quota errors.
+
+R4 names readable pinned-parent runtime pages N_CONDITIONAL_COMPLETE rather
+than “never complete”, without changing the runtime authority proof. Capped
+fixture expectations that now complete say “now complete — update the case”.
+NA4 guide recipes and notes show the keyed parent guard, T[] complete read,
+audience branches and seller write authority; a readable parent alone is no
+proof about a copied child owner. NA2 diagnostics name stored cap keys, cap's
+E_CONSTRAINT, maintained sum spelling, principal lookup keys, redundant
+inherited aggregate rules and calendar-number/time units. Starters select
+journal/device from identity and schema; PageHook comments match matchRead.
+Validation and per-item commits are recorded in root WORKSTREAM-REPORT.md.
+
+- 2026-10-12, UNION integration with sb4-loop `9e345842af`: preserve UNION
+  alongside OPS, LANG2 (including refused-commutation fix `62d86c5a02`),
+  owner-or-X pages and W8C. Resolve six conflicts by preserving both schema
+  modules/journal histories, current online and union offline guide forms,
+  and incoming target-specific schedule counters. Locked Linux wasm measures
+  2,245,862 B raw / 680,029 B gzip, over incoming 662,145 B cap by 17,884 B;
+  raise to 680,529 B (measurement + 500 B), +18,384 B. Whole-artifact
+  measurement, no per-feature attribution. UNION promotion remains held
+  by the final NOT READY verdict; incoming base integration is local only.

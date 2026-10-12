@@ -8,7 +8,8 @@ use crate::diag::{Diagnostic, Fallible, syntax, syntax_with, unsupported};
 use crate::lexer::Kind;
 
 impl Parser {
-    /// `schedule name every <duration> [at HH:MM]: job`, at least one minute.
+    /// `schedule name every <duration> [at HH:MM]: job`, at least one minute,
+    /// or `every N month[s]|year[s] [at [day D] HH:MM]`.
     pub(super) fn parse_schedule(&mut self) -> Fallible<ScheduleDecl> {
         let site = self.take("schedule")?.site;
         let rewrite = "schedule digest every 1d at 08:00: sendDigests";
@@ -18,8 +19,36 @@ impl Parser {
         }
         let amount = self.take_kind(Kind::Number)?;
         let unit = self.word()?;
+        // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar months and years, UTC, anchored at 1970-01.
+        let calendar = match unit.value.as_str() { "month" | "months" => Some(1), "year" | "years" => Some(12), _ => None };
+        if let Some(per) = calendar {
+            let rewrite = "schedule billing every 1 month at day 1 09:00: bill";
+            let months = amount.value.parse::<u32>().ok().filter(|n| *n >= 1).and_then(|n| n.checked_mul(per))
+                .filter(|n| *n <= snapback4_core::schema::CALENDAR_MONTHS_LIMIT)
+                .ok_or_else(|| syntax_with(&amount.site, "a calendar schedule fires every 1 to 1200 months (100 years)", rewrite).guide("jobs"))?;
+            let mut offset_ms = 0;
+            if self.maybe("at") {
+                let mut day = 1;
+                if self.maybe("day") {
+                    let token = self.peek().clone();
+                    day = self.number()?;
+                    if !(1..=28).contains(&day) {
+                        return Err(syntax_with(&token.site, format!("day {day} is not in every month; a calendar schedule's day is 1 through 28"),
+                            "at day 28 09:00, or a daily schedule whose job tests month(periodStart) != month(periodEnd): that daily period crosses a month's end").guide("jobs"));
+                    }
+                }
+                let hours = self.number()?;
+                self.take(":")?;
+                let minutes = self.number()?;
+                if hours > 23 || minutes > 59 {
+                    return Err(syntax_with(&site, "at takes a day of the month and a time of day: at day 1 09:00", rewrite));
+                }
+                offset_ms = (u64::from(day - 1) * 86_400 + u64::from(hours) * 3_600 + u64::from(minutes) * 60) * 1_000;
+            }
+            return self.schedule_tail(name, 0, offset_ms, months, site);
+        }
         let multiplier = super::views::duration_unit(&unit.value).ok_or_else(|| syntax_with(&unit.site,
-            "a schedule period is a whole number followed by ms, s, m, h or d", "every 2m"))?;
+            "a schedule period is a whole number followed by ms, s, m, h or d, or a number of months or years", "every 2m, every 1d, or every 1 month"))?;
         // Integer millisecond boundaries need no rounding to whole minutes.
         // Retain the range of previously accepted m/h/d schedule periods.
         let every_ms = amount.value.parse::<i64>().ok().and_then(|value| value.checked_mul(multiplier))
@@ -29,6 +58,9 @@ impl Parser {
         }
         let mut offset_ms = 0;
         if self.maybe("at") {
+            if self.at("day") {
+                return Err(syntax_with(&site, "at day D names a day of a calendar month; it needs every 1 month (or N months or years)", "schedule billing every 1 month at day 1 09:00: bill").guide("jobs"));
+            }
             let hours = self.number()?;
             self.take(":")?;
             let minutes = self.number()?;
@@ -40,6 +72,10 @@ impl Parser {
                 return Err(syntax_with(&site, "at names a time of day inside the period; it needs every 1d (or longer)", rewrite));
             }
         }
+        self.schedule_tail(name, every_ms, offset_ms, 0, site)
+    }
+
+    fn schedule_tail(&mut self, name: String, every_ms: u64, offset_ms: u64, months: u32, site: crate::Site) -> Fallible<ScheduleDecl> {
         let service = if self.maybe("as") {
             let namespace = self.word()?;
             if namespace.value != "service" {
@@ -58,7 +94,7 @@ impl Parser {
         let mut target = self.word()?.value;
         if self.maybe(".") { target.push('.'); target.push_str(&self.word()?.value); }
         self.end_line(&site)?;
-        Ok(ScheduleDecl { name, every_ms, offset_ms, target, service, site })
+        Ok(ScheduleDecl { name, every_ms, offset_ms, target, service, months, site })
     }
 
     fn service_name_part(&mut self) -> Fallible<String> {
