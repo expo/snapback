@@ -31,7 +31,10 @@ pub trait PartitionRows: Rows {
     /// ledger's joins and scopes before it belong to an audience the table no
     /// longer syncs to (LLP 3000.036.000.000 §9). Zero when it never changed.
     fn audience_epoch(&self, _table: &str) -> Result<u64, RuntimeError> { Ok(0) }
+    fn audience_epoch_time(&self, _table: &str) -> Result<Option<i64>, RuntimeError> { Ok(None) }
 }
+
+pub fn audience_epoch_time_key(table: &str) -> String { format!("audience_epoch_time:{table}") }
 
 /// The meta key that records a content table's audience epoch.
 pub fn audience_epoch_key(table: &str) -> String {
@@ -65,6 +68,9 @@ impl PartitionRows for Tx<'_> {
     }
     fn read_log_spans(&self, spans: &[LogSpan], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {
         self.read_log_spans(spans, after, only_seq, limit)
+    }
+    fn audience_epoch_time(&self, table: &str) -> Result<Option<i64>, RuntimeError> {
+        self.meta(&audience_epoch_time_key(table))?.map(|time| time.parse().map_err(|_| RuntimeError::Store("invalid audience epoch time".into()))).transpose()
     }
     fn audience_epoch(&self, table: &str) -> Result<u64, RuntimeError> {
         Ok(self.meta(&audience_epoch_key(table))?.and_then(|value| value.parse().ok()).unwrap_or(0))

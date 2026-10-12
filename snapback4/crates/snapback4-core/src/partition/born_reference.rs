@@ -18,8 +18,10 @@ mod log_events {
             events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Del, id: id.to_owned(), data: None });
         }
     }
-    pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value]) {
-        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(Value::Array(group.to_vec())) });
+    pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], predecessor: Option<Value>) {
+        let data = predecessor.map_or_else(|| Value::Array(group.to_vec()), |expiry| crate::value::object([
+            ("group", Value::Array(group.to_vec())), ("previousExpiresAt", expiry)]));
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(data) });
     }
     pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value, predecessor: Option<Value>) {
         let mut data = BTreeMap::from([("expiresAt".to_owned(), expiry)]);
@@ -175,7 +177,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                         }
                         undone_born = Some(key);
                     }
-                    None => log_events::scope(events, &content_name, partition, group),
+                    None => log_events::scope(events, &content_name, partition, group, table.is_expiring().then(|| expiry(old))),
                 }
             }
         }

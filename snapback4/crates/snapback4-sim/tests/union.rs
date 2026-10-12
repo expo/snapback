@@ -643,7 +643,7 @@ fn three_world() -> World {
         },
         readable,
         ops: |now| {
-            let mut out = parties_world().ops(now);
+            let mut out = (parties_world().ops)(now);
             for actor in PRINCIPALS {
                 for order in now["orders"].keys() {
                     for who in PRINCIPALS { out.push(Op::new(actor, "appoint", &[("order", id(order)), ("agent", id(who))])); }
@@ -708,7 +708,7 @@ fn windowed_parties_world(three: bool) -> World {
     };
     if !three {
         world.seed = || {
-            windowed_parties_world(true).seed()
+            (windowed_parties_world(true).seed)()
                 .into_iter()
                 .map(|(t, mut row)| {
                     if let Value::Row(fields) = &mut row {
@@ -2564,5 +2564,39 @@ fn renewal_epoch_and_sweep_between_pages_name_only_previously_readable_ids() {
             &json!({}),
             &expected,
         );
+    }
+}
+
+#[test]
+fn a_rebound_already_expired_grant_never_names_its_new_group() {
+    let old = "table members:\n  team: text <=20\n  alternate: text <=20\n  person: principal\n  until: time ?\n  immutable team, alternate, person\n  unique team, person\n  unique person\n  read <- .person = viewer\n  insert <- exists members[.team, viewer]\n  delete <- .person = viewer\n  sync\ntable notes:\n  owner: principal\n  team: text <=20\n  body: text <=20\n  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer\n  sync\nmutation remove(person: principal):\n  m = members[person = person] ! else NOT_FOUND\n  delete members[m]\n  return null\n";
+    let new = old.replace("until: time ?", &format!("until: time default {}\n  expire at .until", NOW+50))
+        .replace("unique team, person", "unique alternate, person")
+        .replace(".owner = viewer or exists members[.team, viewer]", "exists members[.team, viewer]")
+        .replace("insert <- exists members[.team, viewer]", "insert <- exists members[.alternate, viewer]");
+    let old=compiled(old); let new=compiled(&new);
+    for limit in [1,1000] {
+        let mut engine=Engine::memory(old.0.clone(),old.1.clone()).unwrap();
+        let alice=object([("id",id("ma")),("team",Value::String("old-a".into())),("alternate",Value::String("never-held".into())),("person",id(ALICE))]);
+        let bob=object([("id",id("mb")),("team",Value::String("old-b".into())),("alternate",Value::String("live-b".into())),("person",id(BOB)),("until",Value::Int(NOW+1000))]);
+        engine.seed_at([("members".into(),alice.clone()),("members".into(),bob)],NOW).unwrap();
+        engine.store().conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'",[snapback4_core::value::canonical_json(&alice)]).unwrap();
+        engine.adopt_at(new.0.clone(),new.1.clone(),NOW+100).unwrap();
+        let (_,watermark)=engine.snapshot_at(ALICE,NOW+150).unwrap();
+        for swept in [false,true] {
+            if swept { engine.sweep_expired(NOW+300,100).unwrap(); }
+            for from in [0,watermark] {
+                let mut from=from;
+                loop {
+                    let page=engine.stream_at(ALICE,from,limit,NOW+310).unwrap();
+                    assert!(page.events.iter().all(|e|e.table!="notes" || e.kind!="scope"),"{swept}, {page:?}");
+                    from=page.watermark;if !page.more {break;}
+                }
+            }
+        }
+        let (_,from)=engine.snapshot_at(BOB,NOW+310).unwrap();
+        mutate(&mut engine,BOB,"remove",&[("person",id(BOB))],400);
+        let page=engine.stream_at(BOB,from,limit,NOW+500).unwrap();
+        assert!(page.events.iter().any(|e| e.table=="notes" && e.kind=="scope" && e.data==Some(Value::Array(vec![Value::String("live-b".into())]))),"a grant live after activation still revokes: {page:?}");
     }
 }

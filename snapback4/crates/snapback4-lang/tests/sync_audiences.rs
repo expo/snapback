@@ -271,3 +271,13 @@ fn equal_union_window_prefixes_name_the_collision_and_offer_a_working_repair() {
     clean(&source.replace("sync by .person last 1 by .at", &d.rewrite));
     clean(&source.replace("sync by .person last 1 by .at", "sync by .person"));
 }
+
+
+#[test]
+fn inherited_expiry_on_a_group_target_still_refuses_the_union() {
+    let source = "table roots:\n  owner: principal\n  until: time ?\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  sync\ntable staff:\n  parent: roots\n  principal: principal\n  immutable parent, principal\n  unique principal\n  read through .parent\n  insert <- exists staff[viewer]\n  sync\ntable notes:\n  owner: principal\n  at: time\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  sync\n";
+    let baseline = clean(&source.replace(".owner = viewer or exists staff[viewer]", "exists staff[viewer]"));
+    assert!(baseline.schema.tables["staff"].is_expiring());
+    let bound = compile(source);
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.message.contains("cannot expire")), "{:?}", bound.diagnostics);
+}

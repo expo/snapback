@@ -92735,3 +92735,10 @@ consumer exercise that distinction.
   snapshot-limit, cross-table and epoch/rebirth witnesses. Expiring union groups
   remain refused; renewal/sweep traces stay on the admitted single-group path.
   Final commissioned paired review pending; no author acceptance or push.
+
+- 2026-10-12, UNION revision 10: the final GPT attempt was interrupted without
+  a verdict (coordinator reported provider capacity). Its partial scope finding
+  is addressed before the retry: epoch activation time and internal revoked
+  lifetime distinguish never-live rebound groups from live revocations, before
+  and after sweeping. Wire scopes remain arrays; born event/meter reference
+  mirrors the internal metadata. Muse's revision-9 Low suggestions are adopted.

@@ -633,6 +633,7 @@ impl Engine {
                 let epoch = tx.next_seq()?;
                 for table in partition::changed_group_audiences(previous.as_ref(), schema) {
                     tx.set_meta(&partition::audience_epoch_key(&table), &epoch.to_string())?;
+                    tx.set_meta(&partition::audience_epoch_time_key(&table), &now.to_string())?;
                 }
             }
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
