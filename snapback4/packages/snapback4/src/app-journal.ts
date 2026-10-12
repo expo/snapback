@@ -7,7 +7,7 @@ import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 export type Intent = { owner: string; id: string; op: string; args: unknown; storeId?: string | null; dispatched?: boolean; holdReason?: string; statusRevision?: string };
 export type Terminal = Exclude<Write, { state: "pending" }>;
 export type Journal = { owner: string; backend: string; pending: Intent[]; receipts: Terminal[]; retired?: string[]; retirementFull?: boolean; firstStore?: string; changedStore?: boolean;
-  /** Ids whose browser capture may survive (LLP 3000.013.000 §4.2). */
+  /** `id:nonce` of each browser capture that may survive (LLP 3000.013.000 §4.2). */
   captured?: string[] };
 
 export function observeJournalStore(journal: Journal, store: string): void {
@@ -81,7 +81,7 @@ export function retiredReceipt(journal: Journal, id: string): Terminal | undefin
 // @ref LLP 3000.013.000#4.2 — an id known only by its transfer marker was admitted
 // and settled; its receipt left the journal, so it is never admitted again.
 export function capturedReceipt(journal: Journal, id: string): Terminal | undefined {
-  if (!journal.captured?.includes(id)) return undefined;
+  if (!journal.captured?.some(mark => mark.startsWith(`${id}:`))) return undefined;
   return { state: "failed", id, why: { code: "E_WRITE_RECEIPT_EXPIRED", family: "input", guide: "writes", site: "app.mutate",
     message: "this browser already admitted this write id; its receipt is no longer retained and it cannot be admitted again",
     rewrite: "reopen to recover that outcome through the server's record; do not retry automatically" } };
@@ -95,7 +95,7 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
   if (value.retirementFull !== undefined && typeof value.retirementFull !== "boolean") return false;
   if (value.firstStore !== undefined && (typeof value.firstStore !== "string" || !value.firstStore)) return false;
   if (value.changedStore !== undefined && typeof value.changedStore !== "boolean") return false;
-  if (value.captured !== undefined && (!Array.isArray(value.captured) || value.captured.length > CAPTURED_ID_LIMIT || !value.captured.every(id))) return false;
+  if (value.captured !== undefined && (!Array.isArray(value.captured) || value.captured.length > CAPTURED_ID_LIMIT || !value.captured.every(mark => typeof mark === "string" && mark.split(":").length === 2 && mark.split(":").every(id)))) return false;
   if (!value.pending.every(item => record(item) && item.owner === owner && id(item.id) && typeof item.op === "string" && item.op.length > 0 && Object.hasOwn(item, "args"))) return false;
   if (!value.pending.every(item => (item.storeId == null || (typeof item.storeId === "string" && item.storeId.length > 0))
     && (item.dispatched === undefined || typeof item.dispatched === "boolean"))) return false;

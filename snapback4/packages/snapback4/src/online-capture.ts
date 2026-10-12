@@ -11,8 +11,12 @@ export interface CaptureRecord {
   v: 1; key: string; nonce: string; runtime: string; seq: number; id: string; op: string; args: unknown;
   viewer: string; url: string; storeId: string; authority: AdmissionAuthority & { source: string }; at: number;
 }
-/** Transfer markers live in the online journal value, beside its intents. */
-export interface Marked { captured?: string[] }
+/** Transfer markers live in the online journal value, beside its intents:
+ * one `id:nonce` entry per admitted or known capture (LLP 3000.013.000 §4.2). */
+export interface Marked { captured?: string[]; pending?: { id: string }[] }
+export const markerOf = (record: Pick<CaptureRecord, "id" | "nonce">) => `${record.id}:${record.nonce}`;
+/** Whether the journal holds a marker for any capture of id. */
+export const markedId = (journal: Marked, id: string) => !!journal.captured?.some(mark => mark.startsWith(`${id}:`));
 
 const PREFIX = "snapback4-online-admission:";
 const RUNTIME = "snapback4-online-runtime:";
@@ -56,6 +60,7 @@ export class OnlineCapture {
   /** Granted before custody exposes a client (LLP 3000.013.000 §4.5). */
   readonly ready: Promise<void>;
   private readonly live = new Set<string>();
+  /** Markers (`id:nonce`) of captures whose removal this runtime saw itself. */
   private readonly removed = new Set<string>();
   private sequence = 0;
   private release: (() => void) | undefined;
@@ -94,13 +99,15 @@ export class OnlineCapture {
       const store = storage();
       const { stamp, source } = this.scope();
       const nonce = mintId(), key = recordKey(this.url, source, stamp.principal, id, nonce);
+      // The bounds count executable records; a cancellation placeholder holds no click.
       let held = 0, total = 0;
       for (const name of keys(store)) {
         if (!name.startsWith(backendPrefix(this.url))) continue;
         const text = store.getItem(name) ?? "";
-        held++; total += bytes(name) + bytes(text);
         const found = parse(name, text, this.url);
-        if (typeof found === "object") this.sequence = Math.max(this.sequence, found.seq);
+        if (typeof found !== "object") continue;
+        held++; total += bytes(name) + bytes(text);
+        this.sequence = Math.max(this.sequence, found.seq);
       }
       const record: CaptureRecord = { v: 1, key, nonce, runtime: this.runtime, seq: ++this.sequence, id, op, args,
         viewer: this.viewer, url: this.url, storeId, authority: { key: stamp.key, epoch: stamp.epoch, principal: stamp.principal, source }, at: Date.now() };
@@ -122,9 +129,12 @@ export class OnlineCapture {
     try {
       const store = storage();
       store.removeItem(record.key);
-      if (store.getItem(record.key) === null) this.removed.add(record.id);
+      if (store.getItem(record.key) === null) this.removed.add(markerOf(record));
     } catch { /* The marker keeps it non-executable; a later recovery removes it. */ }
   }
+
+  /** Hand the record to a later open's recovery, without a stale-recovery here. */
+  keep(record: CaptureRecord): void { this.live.delete(record.key); }
 
   /** The commit failed; the record stays for this runtime's recovery. */
   failed(record: CaptureRecord): void { this.live.delete(record.key); this.stale = true; }
@@ -139,19 +149,22 @@ export class OnlineCapture {
     } catch { /* Indeterminate; see LLP 3000.013.000 §6. */ }
   }
 
-  mark(journal: Marked, id: string): void {
-    this.removed.delete(id);
-    const marks = (journal.captured ?? []).filter(mark => mark !== id);
-    marks.push(id);
+  mark(journal: Marked, record: Pick<CaptureRecord, "id" | "nonce">): void {
+    const mark = markerOf(record);
+    this.removed.delete(mark);
+    const marks = (journal.captured ?? []).filter(entry => entry !== mark);
+    marks.push(mark);
     journal.captured = marks.slice(-MARKER_LIMIT);
   }
 
   // @ref LLP 3000.013.000#4.2 — a peer's getItem() === null proves nothing
-  // across renderers; only the runtime that saw its own removal drops a marker.
+  // across renderers: a marker is dropped only for a capture this runtime saw
+  // removed itself, and never while its id is still pending.
   collect(journal: Marked): void {
-    for (const id of this.removed) if (!journal.captured?.includes(id)) this.removed.delete(id);
+    for (const mark of this.removed) if (!journal.captured?.includes(mark)) this.removed.delete(mark);
     if (!journal.captured || !this.removed.size) return;
-    const kept = journal.captured.filter(id => !this.removed.has(id));
+    const pending = new Set(journal.pending?.map(intent => intent.id));
+    const kept = journal.captured.filter(mark => !this.removed.has(mark) || pending.has(mark.slice(0, mark.indexOf(":"))));
     if (kept.length) journal.captured = kept; else delete journal.captured;
   }
 
@@ -166,6 +179,8 @@ export class OnlineCapture {
     for (const key of keys(store)) {
       if (!key.startsWith(sourcePrefix)) continue;
       const record = parse(key, store.getItem(key), this.url);
+      // A cancellation placeholder is never executable; sweeping it frees its slot.
+      if (record === "cancelled") { try { store.removeItem(key); } catch { /* Harmless. */ } continue; }
       if (typeof record !== "object" || record.authority.key !== stamp.key) continue;
       if (record.runtime === this.runtime ? this.live.has(key) : busy.has(RUNTIME + record.runtime)) continue;
       found.push(record);

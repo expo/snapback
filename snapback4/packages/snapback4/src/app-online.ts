@@ -6,7 +6,7 @@ import type { Client, Mutation, Refusal, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { inheritClose } from "./closing-responses.ts";
 import { mintId } from "./client.ts";
-import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
+import { inputKey, mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import { IdentityWait, identityRefusal } from "./identity-admission.ts";
 import { journalChanges } from "./journal-changes.ts";
@@ -17,7 +17,7 @@ import { dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispat
 import { admissionRefusal, failedAdmission } from "./admission.ts";
 import { admissionAuthorityRefusal, type AdmissionAuthorityContext } from "./admission-authority.ts";
 import { StorageWarning } from "./app-storage.ts";
-import { OnlineCapture, type CaptureRecord } from "./online-capture.ts";
+import { OnlineCapture, markedId, type CaptureRecord } from "./online-capture.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true,
@@ -30,6 +30,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.013.000#4.4 — captured admissions wait behind recovery, from before signed-in.
   let recovery: Promise<void> | undefined, openGate: (() => void) | undefined;
   if (capture) recovery = new Promise<void>(resolve => { openGate = resolve; });
+  // Ids durable in the journal that this runtime replays without capturing; settled ids leave.
+  const restoredIds = new Set<string>();
   let active = true;
   let storeRefusal: Refusal | undefined;
   let retirement: Promise<void> | undefined;
@@ -70,6 +72,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.013.000#4.2 — journal lock, then session lock, raw store only:
   // the click's session must still hold when its intent and marker commit.
   const sessionEnded = Symbol("session ended");
+  // One normalized comparison (MutationIds' input key) for admission and recovery.
+  const sameInput = (a: { op: string; args: unknown }, b: { op: string; args: unknown }) => {
+    try { return inputKey(a.op, a.args) === inputKey(b.op, b.args); } catch { return false; }
+  };
   const admitCaptured = <T>(record: CaptureRecord, work: (journal: Journal) => T): Promise<{ value: Awaited<T>; known: boolean } | typeof sessionEnded> => {
     const result = locked(key, () => locked(record.authority.key, async () => {
       if (!await capture!.holds(record)) return sessionEnded;
@@ -77,11 +83,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const before = JSON.stringify(journal);
       const value = await work(journal);
       // A refusal of an unknown id (input reuse, saturation) keeps no marker.
-      const known = journal.pending.some(intent => intent.id === record.id && intent.op === record.op && JSON.stringify(intent.args) === JSON.stringify(record.args))
+      const known = journal.pending.some(intent => intent.id === record.id && sameInput(intent, record))
         || (value as Write | undefined)?.state === "sent"
         || ((value as Write | undefined)?.state === "failed" && !["E_WRITE_ID_REUSE"].includes((value as Extract<Write, { state: "failed" }>).why.code)
-          && (journal.receipts.some(write => write.id === record.id) || !!journal.retired?.includes(record.id) || !!journal.captured?.includes(record.id)));
-      if (known) capture!.mark(journal, record.id);
+          && (journal.receipts.some(write => write.id === record.id) || !!journal.retired?.includes(record.id) || markedId(journal, record.id)));
+      if (known) capture!.mark(journal, record);
       capture!.collect(journal);
       const after = JSON.stringify(journal);
       if (after !== before) { await store.set(key, after); journalEvents.notify(); }
@@ -102,6 +108,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const notify = (write: Terminal) => {
     unsavedHolds.delete(write.id);
     dispatchRevisions.delete(write.id);
+    restoredIds.delete(write.id);
     ids.finish(write.id);
     pending.notify();
     if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
@@ -162,7 +169,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.013.000#4.5 — liveness is visible to peers before the first capture.
   if (capture) await capture.ready;
   const journalEvents = journalChanges(key, pending.notify);
-  const restoredIds = new Set(initial.pending.map(intent => intent.id));
+  for (const intent of initial.pending) restoredIds.add(intent.id);
   ownDispatch(raw, {
     observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
     before: (id, identity) => change(journal => {
@@ -226,10 +233,17 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         const identity = dispatchIdentity(raw);
         // Discovery can fence this runtime and retire its queue. Do not add
         // a later admission behind that completed retirement transaction.
-        if (storeRefusal) { if (captured) capture!.cancel(captured); return refusedStore(id) as Promise<Write<R>>; }
+        // @ref LLP 3000.013.000#4.7 — a store refusal cancels a capture only with a
+        // terminal refusal to its caller; a pending retirement keeps the record.
+        const refusedCapture = async (): Promise<Write<R>> => {
+          const outcome = await refusedStore(id);
+          if (captured) { if (outcome.state === "failed") capture!.cancel(captured); else capture!.keep(captured); }
+          return outcome as Write<R>;
+        };
+        if (storeRefusal) return refusedCapture();
         // Recovered clicks are admitted before this runtime's new ones.
         if (captured && recovery) await recovery;
-        if (storeRefusal) { if (captured) capture!.cancel(captured); return refusedStore(id) as Promise<Write<R>>; }
+        if (storeRefusal) return refusedCapture();
         const admission = (journal: Journal) => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
@@ -415,19 +429,24 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         const journal = await read(true);
         const before = JSON.stringify(journal);
         const admitted: CaptureRecord[] = [], ended: CaptureRecord[] = [], reused: CaptureRecord[] = [];
+        const known = new Set<string>();
         let blocked = 0;
         for (const record of records) {
           if (record.viewer !== viewer) { if (!await capture.holds(record)) ended.push(record); continue; }
           const pending = journal.pending.find(intent => intent.id === record.id);
-          if (pending || journal.receipts.some(write => write.id === record.id) || journal.retired?.includes(record.id) || journal.captured?.includes(record.id)) {
-            if (pending && (pending.op !== record.op || JSON.stringify(pending.args) !== JSON.stringify(record.args))) { reused.push(record); continue; }
+          if (pending || journal.receipts.some(write => write.id === record.id) || journal.retired?.includes(record.id) || markedId(journal, record.id)) {
+            if (pending && !sameInput(pending, record)) { reused.push(record); continue; }
+            // Protect this capture until its own removal is seen, then remove it.
+            capture.mark(journal, record);
             capture.remove(record);
+            // A peer committed this intent and died before sending it: this runtime owns its replay.
+            if (pending && !restoredIds.has(record.id) && !known.has(record.id) && !adopted.some(intent => intent.id === record.id)) { known.add(record.id); adopted.push(pending); }
             continue;
           }
           if (!await capture.holds(record)) { ended.push(record); continue; }
           if (journal.retirementFull) { blocked++; continue; }
           const intent: Intent = { owner: viewer, id: record.id, op: record.op, args: record.args, storeId: record.storeId, dispatched: false };
-          journal.pending.push(intent); capture.mark(journal, record.id); adopted.push(intent); admitted.push(record);
+          journal.pending.push(intent); capture.mark(journal, record); adopted.push(intent); admitted.push(record);
         }
         capture.collect(journal);
         const after = JSON.stringify(journal);

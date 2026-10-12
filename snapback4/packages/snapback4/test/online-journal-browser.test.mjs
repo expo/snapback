@@ -36,7 +36,7 @@ import { mintId } from '${path('client.ts')}';
 Object.assign(window, { createApp, keepSession, localStorageSessionStore, sessionKey, mintId });
 window.clickOp = { kind: 'mutation', name: 'click' };
 window.records = () => Object.keys(localStorage).filter(key => key.startsWith('snapback4-online-admission:'));
-window.boot = async ({ url, session, holdPosts = false, fakeSync = false, writes }) => {
+window.boot = async ({ url, session, holdPosts = false, fakeSync = false, malformed = false, writes }) => {
   if (session) await keepSession(url, session, localStorageSessionStore());
   window.posts = []; window.held = [];
   window.app = createApp({ url, sessionStore: localStorageSessionStore(), ...(writes ? { writes } : {}),
@@ -49,6 +49,7 @@ window.boot = async ({ url, session, holdPosts = false, fakeSync = false, writes
         if (holdPosts) { void fetch(input, init); return new Promise(() => {}); }
       }
       const response = await fetch(input, init);
+      if (route === '/schema' && malformed) { await response.body?.cancel(); return Response.json({ schema: { tables: [] } }); }
       if (route === '/schema' && fakeSync) {
         const json = await response.json();
         json.schema.tables.audit.sync = { audience: 'Public', horizon: null };
@@ -167,7 +168,7 @@ window.refuseJournalCommits = () => {
     await page.evaluate(() => app.close());
   });
 
-  await t.test('a schema that syncs refuses with both rewrites; writes: "online" admits', async () => {
+  await t.test('a schema that syncs refuses with both rewrites; writes: "online" admits; a malformed reply is unknown', async () => {
     const session = await fresh(), before = await total();
     await page.evaluate(options => boot(options), { url, session, fakeSync: true });
     const refused = await page.evaluate(() => { const w = app.mutate(clickOp, {}); return { state: w.state, why: w.why }; });
@@ -178,6 +179,12 @@ window.refuseJournalCommits = () => {
     await page.evaluate(options => boot(options), { url, fakeSync: true, writes: 'online' });
     assert.equal((await page.evaluate(() => app.mutate(clickOp, {}))).state, 'sent');
     assert.equal(await total(), before + 1);
+    await page.evaluate(() => app.close());
+    // A malformed reply is an unknown decision, never "nothing syncs".
+    await page.evaluate(options => boot(options), { url, malformed: true });
+    const unknown = await page.evaluate(() => { const w = app.mutate(clickOp, {}); return { state: w.state, why: w.why }; });
+    assert.equal(unknown.state, 'failed'); assert.equal(unknown.why.code, 'E_ADMISSION'); assert.equal(unknown.why.retryable, true);
+    assert.match(unknown.why.message, /has not said whether its tables sync/);
     await page.evaluate(() => app.close());
   });
 

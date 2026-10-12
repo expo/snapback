@@ -335,3 +335,8 @@ export function awaitBoundary() {
 // failed commits, recovery, ordering and saturation; online-journal-browser
 // covers page loss, held responses, live and closed tabs and a full
 // localStorage in Chromium. No delivery site, classification or recipe changes.
+// LLP 3000.013.000 round 3: app-online.ts's one added await is the captured
+// call's store-refused path awaiting the existing refusedStore before it
+// decides whether to cancel or keep its localStorage record; app.ts's await
+// counts are unchanged (the /schema reply check is synchronous). No delivery
+// site, classification or recipe changes.

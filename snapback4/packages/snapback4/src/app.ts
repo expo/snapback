@@ -473,9 +473,11 @@ export function createApp(options: AppOptions): App {
         const response = await scopedFetch(url + "/schema", { headers: { authorization: `Bearer ${token}` } });
         const json = await response.json() as { schema?: { tables?: Record<string, { sync?: unknown } | null> }; denied?: Refusal };
         const tables = json?.schema?.tables;
-        if (!response.ok || !tables || typeof tables !== "object") next = { mode: "unknown", why: json?.denied?.message ?? `GET /schema answered ${response.status}` };
+        const declaration = (table: unknown) => !!table && typeof table === "object" && !Array.isArray(table);
+        // A malformed reply is an unknown decision, never "nothing syncs".
+        if (!response.ok || !declaration(tables) || !Object.values(tables!).every(declaration)) next = { mode: "unknown", why: json?.denied?.message ?? `GET /schema answered ${response.status} without a table map` };
         else {
-          const synced = Object.entries(tables).filter(([, table]) => table?.sync).map(([name]) => name).sort();
+          const synced = Object.entries(tables!).filter(([, table]) => table?.sync).map(([name]) => name).sort();
           next = synced.length ? { mode: "synced", tables: synced } : { mode: "journal" };
         }
       } catch (error) { next = { mode: "unknown", why: String(error) }; }

@@ -832,7 +832,9 @@ The app then commits the intent to its online journal in IndexedDB, under the
 journal's and the session's Web Locks, after the same locked authority check
 the device uses: a logout or account change before that commit cancels the
 click with `E_AUTH`. A transfer marker in that commit keeps a surviving record
-from ever being admitted twice. If the commit fails, the call resolves
+from being admitted twice, except after journal damage, a removal that never
+reached storage, or more than 1,024 outstanding markers; even then the same id
+goes to the same store and the server answers `replayed`. If the commit fails, the call resolves
 `pending` ("journaled in this browser"), `write(id)` reports it pending, and the
 app recovers it before its next admission and on a backoff timer.
 

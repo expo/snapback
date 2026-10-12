@@ -24,7 +24,7 @@ interface Submission {
   running?: Promise<Write>;
 }
 
-function inputKey(op: string, args: unknown): string {
+export function inputKey(op: string, args: unknown): string {
   const sorted = (value: unknown): unknown => Array.isArray(value) ? value.map(sorted)
     : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, child]) => [key, sorted(child)])) : value;
   return JSON.stringify([op, sorted(args)]);

@@ -120,12 +120,23 @@ test("unusable localStorage refuses synchronously with E_ADMISSION and sends not
   await waitFor(() => srv.executed.has(id));
 });
 
-test("the journal's 32-record bound refuses loudly", async t => {
+test("the journal's 32-record bound refuses loudly; cancellation placeholders neither count nor stay", async t => {
   const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
-  const c = await open(t, srv, store, authority());
-  for (let i = 0; i < 32; i++) storage.setItem(`${PREFIX}filler:${i}`, "{}");
+  const placeholders = [];
+  for (let i = 0; i < 40; i++) {
+    const record = await orphan(authority("dev:alice", "placeholder-source"), mintId(), { n: i });
+    storage.setItem(record.key, JSON.stringify({ key: record.key, cancelled: true }));
+    placeholders.push(record.key);
+  }
+  const live = new OnlineCapture(url, "dev:alice", authority());
+  await live.ready;
+  t.after(() => live.close());
+  for (let i = 0; i < 32; i++) assert.equal(live.capture(mintId(), "write", { i }, "A").v, 1, "placeholders take no slot");
+  const c = await open(t, srv, store, authority("dev:alice", "placeholder-source"));
   const refused = c.client.mutate(op, { body: "x" });
   assert.equal(refused.why.code, "E_ADMISSION"); assert.match(refused.why.message, /32 records or 256 KiB/);
+  await c.client.pendingWrites();
+  await waitFor(() => placeholders.every(key => storage.getItem(key) === null), "recovery sweeps placeholders of its source");
 });
 
 test("a gone runtime's click is adopted once, before new clicks; a later open does not re-admit it", async t => {
@@ -217,7 +228,7 @@ test("a retained receipt wins over a marker; a marker alone refuses E_WRITE_RECE
   await c.client.pendingWrites();
   // A peer tab settled these after this runtime opened (so its MutationIds never saw them).
   await store.set(journalKey, JSON.stringify({ owner: "dev:alice", backend: url, pending: [],
-    receipts: [{ state: "sent", id: settled, seq: 7 }], captured: [settled, forgotten] }));
+    receipts: [{ state: "sent", id: settled, seq: 7 }], captured: [`${settled}:${mintId()}`, `${forgotten}:${mintId()}`] }));
   const receipt = await c.client.mutate(op, { body: "x" }, { id: settled });
   assert.equal(receipt.state, "sent"); assert.equal(receipt.seq, 7);
   const expired = await c.client.mutate(op, { body: "y" }, { id: forgotten });
@@ -252,4 +263,104 @@ test("two captures of one id (an explicit id in two tabs) admit once; different 
   const reused = await c.client.mutate(op, { body: "different" }, { id });
   assert.equal(reused.state, "failed");
   assert.equal(srv.posts.filter(post => post === id).length, 1);
+});
+
+test("two captures of one id: the other capture's removal never drops the admitted capture's marker", async t => {
+  const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
+  const id = mintId();
+  const first = await orphan(authority(), id, { body: "same" });
+  const second = await orphan(authority(), id, { body: "same" });
+  // The first capture's removal fails after its admission commits.
+  const removeItem = storage.removeItem.bind(storage);
+  let failing = true;
+  storage.removeItem = key => { if (failing && key === first.key) throw new DOMException("refused", "SecurityError"); removeItem(key); };
+  srv.hold = true;
+  const c = await open(t, srv, store, authority());
+  await waitFor(() => srv.posts.includes(id), "sent");
+  const marks = (await journal(store)).captured;
+  assert.ok(marks.includes(`${id}:${first.nonce}`), `the admitted capture keeps its marker: ${marks}`);
+  assert.equal(storage.getItem(second.key), null);
+  assert.notEqual(storage.getItem(first.key), null, "the failed removal left the first record");
+  srv.hold = false; srv.held.splice(0).forEach(release => release());
+  await waitFor(async () => (await journal(store)).receipts.some(write => write.id === id), "settled");
+  // Evict the receipt: only the marker remembers the id now.
+  const evicted = await journal(store);
+  await store.set(journalKey, JSON.stringify({ ...evicted, receipts: [] }));
+  await c.client.close();
+  const again = await open(t, srv, store, authority());
+  await again.client.pendingWrites();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.deepEqual(srv.posts, [id], "the surviving record is never admitted again");
+  failing = false;
+  const last = await open(t, srv, store, authority());
+  await waitFor(() => storage.getItem(first.key) === null, "a later recovery removes it");
+  await last.client.pendingWrites();
+  assert.deepEqual(srv.posts, [id]);
+});
+
+test("a peer that committed an intent and died before sending it: recovery replays it", async t => {
+  const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
+  const c = await open(t, srv, store, authority(), { start: false });
+  await c.client.pendingWrites();
+  // Between this runtime's opening read and its recovery, a peer commits P and its marker, then dies.
+  const id = mintId(), record = await orphan(authority(), id, { body: "peer" });
+  await store.set(journalKey, JSON.stringify({ owner: "dev:alice", backend: url, receipts: [],
+    pending: [{ owner: "dev:alice", id, op: "write", args: { body: "peer" }, storeId: "A", dispatched: false }], captured: [`${id}:${record.nonce}`] }));
+  const fresh = c.client.mutate(op, { body: "new" }, { waitSeconds: 0 });
+  c.start();
+  await waitFor(() => srv.executed.size === 2, "both sent");
+  assert.equal(srv.posts[0], id, "the stranded intent goes first");
+  assert.equal(storage.getItem(record.key), null);
+  assert.equal((await fresh).state, "pending");
+});
+
+test("two openers race for one orphan: admitted once, marker kept while pending", async t => {
+  const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
+  const id = mintId();
+  const record = await orphan(authority(), id, { body: "orphan" });
+  srv.hold = true;
+  const [a, b] = await Promise.all([open(t, srv, store, authority()), open(t, srv, store, authority())]);
+  await waitFor(() => srv.posts.includes(id));
+  await waitFor(() => storage.getItem(record.key) === null);
+  const held = await journal(store);
+  assert.equal(held.pending.filter(intent => intent.id === id).length, 1, "one pending entry");
+  assert.ok(held.captured?.includes(`${id}:${record.nonce}`), "a removal never drops the marker of a pending id");
+  srv.hold = false; srv.held.splice(0).forEach(release => release());
+  await waitFor(async () => (await a.client.pendingWrites()).length === 0 && (await b.client.pendingWrites()).length === 0);
+  assert.equal(srv.executed.size, 1);
+});
+
+test("a store refusal with a failed retirement keeps the capture rather than dropping it", async t => {
+  const storage = browser(t), srv = server(), memory = memorySessionStore(), { authority } = sessions();
+  let failing = false;
+  const store = { ...memory, async set(key, value) { if (failing && key === journalKey) throw Error("IndexedDB refused"); return memory.set(key, value); } };
+  const c = await open(t, srv, store, authority(), { start: false });
+  await c.client.pendingWrites();
+  const id = mintId(), write = c.client.mutate(op, { body: "x" }, { id, waitSeconds: 0 });
+  assert.equal(storage.records().length, 1, "captured; waiting behind the recovery gate");
+  failing = true;
+  const retiring = c.refuseStore({ code: "E_STORE_REPLACED", family: "store", message: "replaced" }).catch(() => {});
+  c.start();
+  const outcome = await write;
+  await retiring;
+  assert.equal(outcome.state, "pending", "no terminal refusal reached the caller");
+  assert.equal(storage.records().length, 1, "so the only durable custody stays");
+  failing = false;
+  await c.client.close(); // the app retires a refused scope; its liveness lock goes with it
+  const next = await open(t, srv, store, authority());
+  await waitFor(() => srv.executed.has(id), "a later open admits it");
+  await next.client.pendingWrites();
+});
+
+test("recovery compares input like admission: key order does not make a reuse", async t => {
+  const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
+  const id = mintId(), record = await orphan(authority(), id, { b: 2, a: 1 });
+  srv.hold = true;
+  const c = await open(t, srv, store, authority(), { start: false });
+  await store.set(journalKey, JSON.stringify({ owner: "dev:alice", backend: url, receipts: [],
+    pending: [{ owner: "dev:alice", id, op: "write", args: { a: 1, b: 2 }, storeId: "A", dispatched: true }] }));
+  c.start();
+  await waitFor(() => storage.getItem(record.key) === null);
+  assert.ok(!c.errors.some(error => error.why?.code === "E_WRITE_ID_REUSE"), "not reported as a reuse");
+  srv.hold = false; srv.held.splice(0).forEach(release => release());
 });
