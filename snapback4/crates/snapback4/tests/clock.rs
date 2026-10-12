@@ -795,7 +795,10 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert!(log.contains("--resume-clock: offset +") && !log.contains("N_CLOCK_STORE_AHEAD") && !log.contains("is held until"), "{log}");
     let resumed = host.post("/dev/clock/advance", json!({"duration":"1h"}));
     assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
-    assert_eq!(host.query("counters")[0]["n"], 2, "{resumed}");
+    // The five-hour jump may also cross 06:00 UTC and fire the daily job.
+    // Both schedules increment this counter; the resume must preserve them.
+    let increments: usize = [&advanced, &resumed].iter().map(|reply| reply["schedules"].as_array().unwrap().iter().filter(|schedule| schedule["fired"] == true).count()).sum();
+    assert_eq!(host.query("counters")[0]["n"], increments, "{advanced}; {resumed}");
 }
 
 // Wave 4 of the app farm: the time card's look-back sweep catches up
