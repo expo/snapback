@@ -24,9 +24,13 @@ inductive Step (sch : Schema) (v : List Nat) : Store → Store → Prop
       sch.table? t = some td → old ∈ s t →
       td.update.eval s v { old := some old, next := some nw } = true →
       Step sch v s (s.replaceRow t old nw)
-  | delete {s : Store} {t : String} {td : TableDecl} {old : Row} :
+  /-- A delete whose delete rule admits the row, with the referential
+  actions the schema declares on the rows naming it (LLP 3000.038 §4.1: the
+  parent's delete authorizes a declared cascade or set null). -/
+  | delete {s s' : Store} {t : String} {td : TableDecl} {old : Row} :
       sch.table? t = some td → old ∈ s t → td.delete.eval s v { self := some old } = true →
-      Step sch v s (s.removeRow t old)
+      refDelete sch s t old = .ok s' →
+      Step sch v s s'
 
 inductive Steps (sch : Schema) (v : List Nat) : Store → Store → Prop
   | refl (s : Store) : Steps sch v s s
@@ -82,6 +86,17 @@ theorem doUpdateRow_ok {sch s v t td old patch cond val s'}
   cases h
   exact ⟨nw, guardE_ok hg, rfl⟩
 
+/-- **Referential actions change nothing a schema does not declare**
+(LLP 3000.038 §1): a delete from a table no action-carrying reference names
+removes exactly that row, as every delete did before. -/
+theorem refDelete_without_actions {sch : Schema} {s : Store} {t : String} {old : Row}
+    (h : referencing sch t = []) : refDelete sch s t old = .ok (s.removeRow t old) := by
+  have hk : cascadeKids sch s t old = [] := by simp [cascadeKids, h]
+  have hc : ∀ f, closure sch s (f + 1) [(t, old)] [(t, old)] = [(t, old)] := by
+    intro f; cases f <;> simp [closure, hk]
+  simp only [refDelete, hc, restricted, setNulls, List.any_cons, List.any_nil, List.foldl_cons, List.foldl_nil]
+  simp [h, pure, Except.pure]
+
 /-- **Write authority, one write.** -/
 theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Value}
     (h : applyWrite cx s rw = .ok (val, s')) : s' = s ∨ Step cx.schema cx.viewer s s' := by
@@ -135,8 +150,10 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       · cases h
       · rename_i old hold
         obtain ⟨_, hg, h⟩ := bind_ok h
+        obtain ⟨_, -, h⟩ := bind_ok h
+        obtain ⟨s2, hd, h⟩ := bind_ok h
         cases h
-        exact .inr (.delete htd (findRow_mem hold) (guardE_ok hg))
+        exact .inr (.delete htd (findRow_mem hold) (guardE_ok hg) hd)
 
 end Quarry
 

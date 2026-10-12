@@ -413,6 +413,14 @@ pub fn features(case: &Case) -> Vec<String> {
     if items.effects.is_some() {
         out.push("items-effect-rules".into());
     }
+    // @ref LLP 3000.038#9 — run-lean reports supported action cases by action (and, with `kind`, outcome).
+    if let Some(kids) = &case.program.kids {
+        let action = kids.action.as_deref().unwrap_or("undeclared").replace(' ', "-");
+        let deletes = matches!(body, Body::Write(Write::Delete, _)) || case.program.prelude.iter().chain(match body { Body::Block(b) => Some(b), _ => None })
+            .flat_map(|b| b.all()).any(|s| matches!(s, crate::ast::Stmt::Write { kind: Write::Delete, .. }));
+        out.push(format!("references-{action}{}", if deletes { "-delete" } else { "" }));
+        if kids.notes { out.push("references-restricting-notes".into()); }
+    }
     // Widened shapes (`widen.rs`) inside the model's fragment.
     if matches!(body, Body::Block(_)) {
         out.push("block".into());

@@ -92519,3 +92519,57 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — Referential actions: a reference declares what deleting its row does (LLP 3000.038)
+
+The author asked for the end-game answer to LLP 3000.036 §15.8. A reference
+column now says `on delete restrict | cascade | set null | keep`; an
+undeclared one is `restrict`, so deleting a row a live row still references
+refuses `E_REFERENCED` naming the referencing column. This is a deliberate
+behavior change (no users depend on stability): `check` names every delete
+it changes (`N_DELETE_RESTRICTED`, replacing `N_DELETE_ORPHANS`), `on delete
+keep` restores the old meaning, and `keep` is spelled by absence in the
+schema, so all-keep schemas stay byte-identical and capability-free.
+
+- **Design**, reviewed blind three rounds (GPT gpt-6.1-sol and Muse
+  muse-spark-1.3-contributor; records under `llp/reviews/3000.038-*`): the
+  parent's delete authorizes a declared cascade or set null; a delete closes
+  over cascades, probes restrict references outside the closure (reporting
+  the first occupied one in schema order), clears set-null references
+  outside it and removes children first, each from its current image; set
+  null only on optional references no rule of any table reads; cascade and
+  set null need `cap N by <reference>` and a schema-fixed reservation that
+  `check` proves fits (`E_CASCADE_BOUND`); every published trace (meter,
+  touched tables, change footprint, event count, physical allowance) is
+  schema-fixed; a device predicts only over referencing groups it holds
+  current and whole, else queues. No background sweep: the recipes (lower
+  the cap, a job, mark and sweep) cover unbounded relations.
+- **Behavior changes to know**: a table that restrict/cascade/set-null
+  references name needs its deleter to read the row (`N_DELETE_NEEDS_READ`
+  where the rules' shapes cannot show it); every such reference gets an
+  index (`$reference:<column>`), so writes to it maintain one more index —
+  the RP calibration's `index_entries` ceilings rose by exactly 2 (README
+  amendment). Expiry fires no action.
+- **Fixtures that pin legacy bytes** (capability-free control, RX legacy
+  identity, recorded attribution, following view, timeline capability,
+  maintained columns, derived clique, adoption) spell their references
+  `on delete keep`: their frozen meaning. The JS capability fence keeps a
+  `legacyOrdinary` source for the published 0.2.33 binary.
+- **Verification**: compiler, engine and device unit tests; device scenarios
+  on both stores; an exhaustive simulator check of cascades, restrict and
+  disclosure over every two-operation sequence (three opt-in); the Lean
+  model gains references, `refDelete` and `refDelete_without_actions`
+  (35/35 examples); `run-lean` over 100,000 seeds with a `kids` reference
+  family (all actions, ~3,800 delete cases compared) finds only the four
+  classified open signatures; `run-devices` seeds 0–2999 finds no new
+  signature.
+- **Wasm budget**: 648,672 → 661,877 B gzip on Linux (+13,205 B); budget
+  662,377 B with the reason in `metrics/wasm-budget.json`. About 11 KB is the
+  web device predicting the cascade; queueing such deletes on the web only is
+  the lever if the diet needs it.
+
+- **What felt good:** the existing held-group proof, reservation plans and
+  change-evidence widening gave every soundness requirement a place to live.
+- **What was hard:** disclosure is everywhere a delete is observable — the
+  meter, the touched tables, footprints, event counts, the physical
+  allowance, refusal order — and each review round found another channel.

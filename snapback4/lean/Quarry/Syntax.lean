@@ -30,9 +30,19 @@ namespace Quarry
 
 /-! ## Schema -/
 
+/-- What deleting a referenced row does to the rows naming it (LLP 3000.038
+§2). A reference with no action keeps its rows (`on delete keep`). -/
+inductive OnDelete where
+  | restrict | cascade | setNull
+  deriving Repr, DecidableEq
+
 structure ColDecl where
   name : String
   nullable : Bool
+  /-- The table a reference column names, when it is one. -/
+  ref : Option String := none
+  /-- The reference's delete action; `none` keeps the rows (LLP 3000.038 §2). -/
+  onDelete : Option OnDelete := none
   deriving Repr, DecidableEq
 
 /-- Which image of a row a rule term reads: the row itself (read, insert,

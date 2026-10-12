@@ -1,6 +1,6 @@
 table posts:
   authorId: principal
-  parentId: posts ?
+  parentId: posts ? on delete keep
   at: time
   removed: bool default false
   immutable authorId, parentId, at
@@ -11,7 +11,7 @@ table posts:
 
 table reposts:
   actorId: principal
-  postId: posts
+  postId: posts on delete keep
   at: time
   unique byPair: actorId, postId
   immutable actorId, postId, at

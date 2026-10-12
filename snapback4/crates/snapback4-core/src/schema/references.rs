@@ -369,6 +369,10 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             let Some(ColumnType::Ref { table: parent }) = table.columns.get(column).map(ColumnType::required) else {
                 fail(format!("on delete names {column}, which is not a reference column")); continue;
             };
+            if table.written_by.contains_key(column) {
+                fail(format!("{name}.{column} is field-owned; a private value carries no delete action"));
+                continue;
+            }
             if !schema.actionable(name) || !schema.actionable(parent) {
                 fail(format!("{name}.{column} -> {parent} cannot carry a delete action: ephemeral, engine-owned and receipt or timeline bookkeeping tables keep their own lifetimes"));
                 continue;

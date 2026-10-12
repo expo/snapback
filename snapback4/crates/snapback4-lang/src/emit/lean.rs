@@ -43,7 +43,7 @@
 //! nothing: there is no partial program.
 // @ref LLP 3000.035#52-stage-2-a-small-lean-core — the emitter half of the Lean oracle; surface tree in, model terms out
 
-use crate::ast::{self, Document, Effect, Expr, KeyPart, Literal, ObjectField, Order, ReadExpr, Stmt, TypeKind, WriteOp};
+use crate::ast::{self, Document, Effect, Expr, KeyPart, Literal, ObjectField, OnDelete, Order, ReadExpr, Stmt, TypeKind, WriteOp};
 use serde_json::{Map, Value as Json, json};
 use std::collections::BTreeMap;
 
@@ -132,6 +132,9 @@ struct Col {
     name: String,
     kind: Kind,
     nullable: bool,
+    /// A reference's effective delete action (LLP 3000.038 §2): the declared
+    /// one, else restrict; `None` for `keep` and for a non-reference.
+    on_delete: Option<&'static str>,
 }
 
 #[derive(Clone, Debug)]
@@ -140,6 +143,9 @@ struct Table {
     cols: Vec<Col>,
     uniques: Vec<Vec<String>>,
     codes: Vec<Option<String>>,
+    /// Caps are carried as unenforced declarations: a program that inserts
+    /// into or updates a capped table is outside the fragment (`table-cap`).
+    capped: bool,
 }
 
 impl Table {
@@ -263,7 +269,6 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (t.ephemeral.is_some(), "ephemeral"),
         (!t.search.is_empty(), "search"),
         (!t.immutable.is_empty(), "immutable"),
-        (!t.caps.is_empty(), "cap"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
         (t.expire.is_some(), "expiry"),
@@ -289,7 +294,14 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         if kind == Kind::Cursor {
             return no("type-cursor-column", format!("{}.{}", t.name, c.name));
         }
-        cols.push(Col { name: c.name.clone(), kind, nullable: c.type_.optional });
+        // @ref LLP 3000.038#2 — an undeclared reference restricts; keep is the legacy meaning, spelled by absence.
+        let on_delete = match (&c.type_.kind, c.on_delete.as_ref().map(|(a, _)| *a)) {
+            (TypeKind::Ref { .. }, None | Some(OnDelete::Restrict)) => Some("restrict"),
+            (TypeKind::Ref { .. }, Some(OnDelete::Cascade)) => Some("cascade"),
+            (TypeKind::Ref { .. }, Some(OnDelete::SetNull)) => Some("setNull"),
+            _ => None,
+        };
+        cols.push(Col { name: c.name.clone(), kind, nullable: c.type_.optional, on_delete });
     }
     let mut uniques = Vec::new();
     let mut codes = Vec::new();
@@ -302,7 +314,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
             codes.push(i.refusal.as_ref().map(|(code, _)| code.clone()));
         }
     }
-    Ok(Table { name: t.name.clone(), cols, uniques, codes })
+    Ok(Table { name: t.name.clone(), cols, uniques, codes, capped: !t.caps.is_empty() })
 }
 
 fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
@@ -335,7 +347,14 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
     let rule = |w: &str| rules.get(w).cloned().unwrap_or(json!("deny"));
     Ok(json!({
         "name": t.name,
-        "cols": shape.cols.iter().map(|c| json!({"name": c.name, "nullable": c.nullable})).collect::<Vec<_>>(),
+        "cols": shape.cols.iter().map(|c| {
+            let mut col = json!({"name": c.name, "nullable": c.nullable});
+            if let (Kind::Id(IdSort::Ref(target)), Some(action)) = (&c.kind, c.on_delete) {
+                col["ref"] = json!(target);
+                col["onDelete"] = json!(action);
+            }
+            col
+        }).collect::<Vec<_>>(),
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
@@ -815,6 +834,9 @@ impl<'a> Scope<'a> {
         let Expr::Write { op, table, keys, fields, if_absent, condition, .. } = e else { unreachable!() };
         if *op != WriteOp::Insert && keys.is_empty() { return no("row-variable-write", crate::print::expression(e)); }
         let t = self.table(table)?;
+        if t.capped && *op != WriteOp::Delete {
+            return no("table-cap", format!("{} writes capped table {table}; the model does not enforce caps", crate::print::expression(e)));
+        }
         Ok(match op {
             WriteOp::Insert => {
                 if !keys.is_empty() || condition.is_some() {

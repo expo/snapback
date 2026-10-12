@@ -273,7 +273,46 @@ pub fn widen(mut case: Case) -> Case {
             }
         }
     }
+    references(&mut case);
     case
+}
+
+const REFERENCES: u64 = 0x5245_4645_5245_4e43;
+/// Referential actions (LLP 3000.038): a quarter of the cases gain `kids`
+/// referencing `items` with a random action (with its cap), rows naming
+/// present and absent items, sometimes `notes` restricting kids; half of
+/// their single writes become `delete items[key]`. Its own stream, so no other
+/// case changes.
+// @ref LLP 3000.038#9 — the generators exercise every action, diamonds aside, through deletes of the parent.
+fn references(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ REFERENCES);
+    if rng.pick(4) != 0 { return; }
+    let action = [None, Some("restrict"), Some("cascade"), Some("set null"), Some("keep")][rng.pick(5) as usize].map(str::to_owned);
+    let owner_read = rng.pick(2) == 0;
+    let kids = Kids {
+        nullable: action.as_deref() == Some("set null") || rng.pick(3) == 0,
+        action,
+        owner_read,
+        synced: rng.pick(3) != 0,
+        notes: rng.pick(3) == 0,
+    };
+    let targets = ["r0", "r0", "r1", "missing", "r2"];
+    let count = rng.pick(4) + 1;
+    for i in 0..count {
+        let owner = if rng.pick(2) == 0 { "alice" } else { "bob" };
+        case.rows.push(("kids".into(), json!({"id": format!("k{i}"), "item": targets[rng.pick(targets.len() as u64) as usize], "owner": owner})));
+    }
+    if kids.notes {
+        for i in 0..rng.pick(3) {
+            case.rows.push(("notes".into(), json!({"id": format!("n{i}"), "kid": format!("k{}", rng.pick(count))})));
+        }
+    }
+    if let Body::Write(kind, _) = &mut case.program.body && rng.pick(2) == 0 {
+        *kind = Write::Delete;
+        // Delete a row the kids name, when there is one.
+        if case.rows.iter().any(|(t, row)| t == "items" && row["id"] == "r0") { case.args["key"] = json!("r0"); }
+    }
+    case.program.kids = Some(kids);
 }
 fn projection(rng: &mut Rng) -> Vec<Proj> {
     let mut fields = vec![];

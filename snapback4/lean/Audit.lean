@@ -26,6 +26,7 @@ open Quarry
 #print axioms walk_complete
 #print axioms cut_continuation
 #print axioms applyWrite_authorized
+#print axioms refDelete_without_actions
 #print axioms mutation_authorized
 #print axioms or_true_skips
 #print axioms and_false_skips

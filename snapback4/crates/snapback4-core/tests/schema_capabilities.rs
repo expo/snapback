@@ -124,7 +124,7 @@ fn legacy_recorded_fixture_decodes_and_emits_only_capabilities() {
 fn legacy_recorded_marker_cannot_substitute_for_sequence_capability() {
     let original = include_str!("../../snapback4-lang/tests/fixtures/recorded-attribution.q");
     for sequences in [false, true] {
-        let source = if sequences { original.replace("  postId: posts", "  postId: posts\n  ordinal: sequence by postId") } else { original.into() };
+        let source = if sequences { original.replace("  postId: posts on delete keep\n", "  postId: posts on delete keep\n  ordinal: sequence by postId\n") } else { original.into() };
         let schema = compile(&source);
         let mut wire = serde_json::to_value(&schema).unwrap();
         assert_eq!(serde_json::from_value::<Schema>(wire.clone()).unwrap(), schema);

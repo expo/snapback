@@ -26,7 +26,7 @@ pub(super) fn indexes(catalog: &mut Catalog) {
         if !ordinary(catalog, name) { continue; }
         for column in &info.decl.columns {
             let TypeKind::Ref { table: parent } = &column.type_.kind else { continue };
-            if column.on_delete.as_ref().is_some_and(|(a, _)| *a == OnDelete::Keep) || !ordinary(catalog, parent) { continue; }
+            if column.on_delete.as_ref().is_some_and(|(a, _)| *a == OnDelete::Keep) || column.written_by.is_some() || !ordinary(catalog, parent) { continue; }
             if info.through.as_ref().is_some_and(|through| through.reference == column.name) { continue; }
             // @ref LLP 3000.038#2.3 — the effective deadline: a read-through child's `$deadline`, else `expire at`.
             let mut leading = vec![column.name.clone()];
@@ -58,6 +58,13 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
                 continue;
             };
             if !schema.tables.contains_key(parent) || !schema.tables.contains_key(name) { continue; }
+            // @ref LLP 3000.038#2.1 — a field-owned reference is private to its owner: probing it would disclose it.
+            if column.written_by.is_some() {
+                if declared.is_some() {
+                    refuse(diagnostics, format!("{name}.{} is written by its field owner, so it carries no delete action: probing it would tell the parent's deleter about a private value", column.name), "remove `on delete`".into());
+                }
+                continue;
+            }
             if !schema.actionable(name) || !schema.actionable(parent) {
                 if declared.is_some() {
                     refuse(diagnostics, format!("{name}.{} -> {parent} carries no delete action: ephemeral tables, engine-maintained tables and receipt or timeline bookkeeping keep their own lifetimes, so the row stays when {parent} is deleted", column.name), "remove `on delete`".into());

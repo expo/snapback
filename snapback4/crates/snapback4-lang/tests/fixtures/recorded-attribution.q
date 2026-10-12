@@ -1,6 +1,6 @@
 table posts:
   authorId: principal
-  parentId: posts ?
+  parentId: posts ? on delete keep
   at: time
   until: time ?
   immutable authorId, parentId, at
@@ -12,7 +12,7 @@ table posts:
   sync public
 
 table likes:
-  postId: posts
+  postId: posts on delete keep
   principal: principal
   at: time
   until: time ?
