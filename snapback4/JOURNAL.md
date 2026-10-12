@@ -94073,3 +94073,8 @@ Final Integration 6 codec measurement supersedes the provisional number: clean d
 
 
 Integration 6 independent round 3: Muse and fresh Codex both return READY for d0205be3b1; all six verbatim integration reviews and provenance are retained. Minor findings were corrected: why --verbose is admitted, and Expo saveAsset catches asset-acquisition exceptions as typed E_CLIENT failures with its acquired handle still disposed. The focused acquisition-failure regression and Expo typecheck pass. Full session-model file passes 52 tests (including the unchanged 5,000-seed counts); the mixed-evidence oracle passes all 300 histories on both process and wasm devices. Complete qualification details, original failed runs and their successful affected reruns are retained in reports/20261012-integration6 and WORKSTREAM-REPORT.md.
+
+
+### 2026-10-13 — Integration 6 guide and contract qualification closeout
+
+The full Rust pass found stale guide projections and two frontend fixtures that copied contract.ts without MEDIA's type dependencies. Those fixtures now typecheck against the real source contract; all 40 frontend regressions pass. The client card retains its 114-line/1,200-word bounds (1,199 words), deploy its 150-line bound, with the complete feature text and usable packaged media link. Internal LLP breadcrumbs do not ship in the offline-upload document. MEDIA's ten new refusal definitions/recovery facts are explicitly pinned; the generic held-upload and save-sheet cancellation codes have assets-card routing and dedicated paragraphs. The complete 119-test guide target passes, including emitted-code, definition, publication-path and card budgets. These are qualification repairs, not new feature or budget exemptions.

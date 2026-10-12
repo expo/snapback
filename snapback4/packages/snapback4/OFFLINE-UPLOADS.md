@@ -105,5 +105,4 @@ implementation details; they are not permission to send placement through an
 online client around the device's dependency barrier.
 
 Exact implements its adapter side in its workstream. DX owns starter and
-main guide integration; HAND owns general wire/protocol text. The governing
-contract and proof obligations are LLP 3000.038.000.
+main guide integration; HAND owns general wire/protocol text.

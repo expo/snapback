@@ -933,6 +933,12 @@ together to the device outbox. For the API, Exact adapter contract, typed
 states, native save and WAV/MP3/FLAC file types, read the package's
 `OFFLINE-UPLOADS.md`. DX owns full starter/guide integration of this surface.
 
+`E_CANCELLED`: the save/share sheet was cancelled. Call `saveAsset` again
+when the user wants to retry.
+
+`E_UPLOAD`: an upload is held without a recorded reason. Retry the same intent
+or discard it before placement dispatch.
+
 `E_UPLOAD_DEVICE`: pass `webDevice()` or Expo's `nativeDevice` to `createApp`;
 the online-only client has no durable capture capability.
 

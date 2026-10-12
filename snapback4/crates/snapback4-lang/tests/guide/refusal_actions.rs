@@ -2,6 +2,18 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_ASSET_INTENT_REUSE", &["retry the original bytes, metadata and placing input"]),
+    ("E_ASSET_INTENT_EXPIRED", &["Select a new capture/id"]),
+    ("E_CANCELLED", &["Call `saveAsset` again when the user wants to retry"]),
+    ("E_UPLOAD", &["Retry the same intent or discard it before placement dispatch"]),
+    ("E_UPLOAD_DEVICE", &["pass `webDevice()` or Expo's `nativeDevice` to `createApp`"]),
+    ("E_UPLOAD_BYTES", &["select nonempty bytes of at most 64 MiB"]),
+    ("E_UPLOAD_QUOTA", &["Place or cancel earlier captures"]),
+    ("E_UPLOAD_ARGUMENT", &["omit one declared image/video/file mutation argument, name it in `argument`"]),
+    ("E_UPLOAD_INTENT", &["use the SDK's upload-and-place declaration and stable id"]),
+    ("E_UPLOAD_PENDING", &["Let the SDK deliver its dependency before sending the mutation"]),
+    ("E_UPLOAD_CANCELLED", &["Select a new id for a new capture"]),
+    ("E_UPLOAD_DISPATCHED", &["recover its same-id outcome. Cancellation cannot manufacture failure for an unknown write"]),
     ("E_REDUNDANT_RULE", &["Omit the entire read line", "making the total public would widen it"]),
     ("N_CONDITIONAL_COMPLETE", &["Guard the parent branch with keyed require/if", "update expect: \"capped\" cases"]),
     ("E_FOLLOWING_INPUT", &["the SDK owns tokens and fresh revisions"]),

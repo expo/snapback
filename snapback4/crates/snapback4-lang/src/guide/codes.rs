@@ -246,6 +246,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_JOB_GENERATION", "family generation — a queued job run found its job changed or gone since it was queued; the run is parked. Queue it again."),
     ("E_ASSET_INTENT_REUSE", "An upload intent id names different bytes or metadata. Retry the original selection or mint a new id. guide assets."),
     ("E_ASSET_INTENT_EXPIRED", "This intent's original asset was collected. It cannot upload twice; select the file under a new intent id. guide assets."),
+    ("E_CANCELLED", "The save/share sheet was cancelled. Call saveAsset again when the user wants to retry. guide assets."),
+    ("E_UPLOAD", "An upload is held without a recorded reason. Retry the same intent or discard it before placement dispatch. guide assets."),
     ("E_UPLOAD_DEVICE", "Durable upload-and-place needs a local device. Pass webDevice() or nativeDevice to createApp. guide assets."),
     ("E_UPLOAD_BYTES", "Select a nonempty file of at most 64 MiB. Device captures use lowercase hex bytes. guide assets."),
     ("E_UPLOAD_QUOTA", "Unresolved upload intents exceed the device or viewer's byte allowance. Place or cancel earlier intents. guide assets."),

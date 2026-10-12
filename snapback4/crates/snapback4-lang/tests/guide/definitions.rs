@@ -137,6 +137,18 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_ASSET_INTENT_REUSE", "A declaration cannot be changed or reused for another row"),
+    ("E_ASSET_INTENT_EXPIRED", "the original asset was collected after settlement"),
+    ("E_CANCELLED", "the save/share sheet was cancelled"),
+    ("E_UPLOAD", "an upload is held without a recorded reason"),
+    ("E_UPLOAD_DEVICE", "the online-only client has no durable capture capability"),
+    ("E_UPLOAD_BYTES", "capture copies the selected range before delivery"),
+    ("E_UPLOAD_QUOTA", "unresolved device or pinned owner bytes exceed 128 MiB"),
+    ("E_UPLOAD_ARGUMENT", "keep the other encoded args within 64 KiB"),
+    ("E_UPLOAD_INTENT", "the device owns the original bytes, metadata, viewer and placing operation"),
+    ("E_UPLOAD_PENDING", "placement waits for its uploaded asset facts to commit"),
+    ("E_UPLOAD_CANCELLED", "the server's cancellation tombstone proves the intent cannot place"),
+    ("E_UPLOAD_DISPATCHED", "placement dispatch was reserved or begun"),
     ("E_REDUNDANT_RULE", "E_REDUNDANT_RULE means an aggregate read rule repeats its parent's rule"),
     ("N_CONDITIONAL_COMPLETE", "N_CONDITIONAL_COMPLETE means a readable pinned-parent guard decides the page"),
     ("E_FOLLOWING_INPUT", "rejects invalid opening arguments or a protocol envelope"),

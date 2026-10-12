@@ -43,7 +43,7 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 `usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md); non-JS hosts: “The device reply”.
 
 ## Read boundaries
-`query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
+`query(op,args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete device predictions. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
 
 ## React hooks
 `matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
@@ -111,5 +111,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
 }
 ```
 `useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`).
-
-Durable offline media and the Exact adapter contract: [OFFLINE-UPLOADS.md](../../../../packages/snapback4/OFFLINE-UPLOADS.md); DX owns full guide/starter integration.
+Offline media: [OFFLINE-UPLOADS.md](OFFLINE-UPLOADS.md).

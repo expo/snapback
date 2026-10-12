@@ -10,9 +10,8 @@ bunx snapback4 serve ./deployment --port 4400
 ```
 
 ## Upgrade
-`bun add snapback4@latest` upgrades core and its platform CLI. Expo needs one
-command: `bun add snapback4@latest snapback4-expo@latest`, with matching exact
-versions including patch. Check warns on installed version skew. Rebuild native
+
+`bun add snapback4@latest` upgrades core and its platform CLI. Expo needs one command: `bun add snapback4@latest snapback4-expo@latest`, with matching exact versions including patch. Check warns on installed version skew. Rebuild native
 apps after adapter upgrades; Expo Go uses the online tier. Commit the lockfile,
 check, typecheck and run acceptance tests. Test defaults to ./fixtures when present.
 
@@ -78,8 +77,7 @@ is stderr. Protect it. A repeat grant hits uniqueness; add revocation deliberate
 
 ## Migrations and adoption
 
-Optional/defaulted columns, new tables/ops, non-unique indexes and wider types
-are additive. Required new fields need a literal default or explicit backfill;
+Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or explicit backfill;
 default now/viewer cannot invent historical values. Dev check/adoption refuses
 incompatible values with E_ADOPT. Release type narrowing instead retains each row
 whose present values cannot fit. Unique/cap conflicts still refuse atomically;
@@ -149,5 +147,4 @@ Bind loopback behind a TLS proxy. Forward Authorization and preserve response
 bodies; allow long polls without buffering or early timeouts. Non-loopback
 HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS.
 Identity rate keys use the socket peer, not forwarded headers. Serve refuses
-personas and dev doors even through a local proxy; see SERVER.md for capacity.
-For the `--json-objects` envelope fields, see `snapback4 sql --help`.
+personas and dev doors even through a local proxy; see SERVER.md for capacity. For the `--json-objects` envelope fields, see `snapback4 sql --help`.

@@ -790,7 +790,7 @@ fn generated_typescript_preserves_strings_and_typechecks_with_the_real_contract(
     }
     let scratch = Scratch::new();
     std::fs::write(scratch.0.join("api.ts"), api.replace("\"snapback4/contract\"", "\"./contract\"")).unwrap();
-    std::fs::write(scratch.0.join("contract.ts"), include_str!("../../../packages/snapback4/src/contract.ts")).unwrap();
+    std::fs::write(scratch.0.join("contract.ts"), format!("export * from {};\n", serde_json::to_string(&workspace().join("packages/snapback4/src/contract.ts").to_string_lossy()).unwrap())).unwrap();
     std::fs::write(scratch.0.join("receipt-family.ts"), include_str!("../../../packages/snapback4/src/receipt-family.ts")).unwrap();
     std::fs::write(
         scratch.0.join("check.ts"),
@@ -811,7 +811,7 @@ void label; void name;
     .unwrap();
     let tsc = workspace().join("node_modules/typescript/bin/tsc");
     assert!(tsc.exists(), "the emitted-TypeScript check uses the existing Bun workspace dependencies; run bun install --frozen-lockfile in snapback4");
-    let result = Command::new("node").arg(tsc).args(["--noEmit", "--strict", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "api.ts", "check.ts"]).current_dir(&scratch.0).output().unwrap();
+    let result = Command::new("node").arg(tsc).args(["--noEmit", "--allowImportingTsExtensions", "--strict", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "api.ts", "check.ts"]).current_dir(&scratch.0).output().unwrap();
     assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
 }
 
@@ -871,7 +871,7 @@ query nullableObjects():
     let scratch = Scratch::new();
     let api = snapback4_lang::emit::typescript(&compiled);
     std::fs::write(scratch.0.join("api.ts"), api.replace("\"snapback4/contract\"", "\"./contract\"")).unwrap();
-    std::fs::write(scratch.0.join("contract.ts"), include_str!("../../../packages/snapback4/src/contract.ts")).unwrap();
+    std::fs::write(scratch.0.join("contract.ts"), format!("export * from {};\n", serde_json::to_string(&workspace().join("packages/snapback4/src/contract.ts").to_string_lossy()).unwrap())).unwrap();
     std::fs::write(scratch.0.join("receipt-family.ts"), include_str!("../../../packages/snapback4/src/receipt-family.ts")).unwrap();
     std::fs::write(scratch.0.join("check.ts"), r#"import { api, type Rows } from './api';
 type NullableRows = NonNullable<typeof api.nullableRows.__result>;
@@ -900,7 +900,7 @@ labels(rows); labels(objects);
 "#).unwrap();
     let tsc = workspace().join("node_modules/typescript/bin/tsc");
     assert!(tsc.exists(), "the emitted-TypeScript check uses the existing Bun workspace dependencies; run bun install --frozen-lockfile in snapback4");
-    let result = Command::new("node").arg(tsc).args(["--noEmit", "--strict", "--noUncheckedIndexedAccess", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "api.ts", "check.ts"]).current_dir(&scratch.0).output().unwrap();
+    let result = Command::new("node").arg(tsc).args(["--noEmit", "--allowImportingTsExtensions", "--strict", "--noUncheckedIndexedAccess", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "api.ts", "check.ts"]).current_dir(&scratch.0).output().unwrap();
     assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
 }
 
