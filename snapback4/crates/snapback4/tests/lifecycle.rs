@@ -25,11 +25,19 @@ const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(120);
 const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
+fn control_socket(deployment: &Path) -> PathBuf {
+    use std::os::unix::ffi::OsStrExt;
+    use sha2::{Digest, Sha256};
+    let canonical = deployment.canonicalize().unwrap();
+    let hash = Sha256::digest(canonical.as_os_str().as_bytes());
+    PathBuf::from(format!("/tmp/snapback4-{}/{}.sock", unsafe { libc::geteuid() },
+        hash.iter().map(|b| format!("{b:02x}")).collect::<String>()))
+}
+
 // @ref LLP 3000.000.000#51-path-independent-control-address — real host, deploy and rollback under the default platform temp root.
 #[test]
 fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
     use std::os::unix::{ffi::OsStrExt, fs::FileTypeExt};
-    use sha2::{Digest, Sha256};
     let root = Directory::new();
     let dir = Directory(root.0.join("long-project-component".repeat(7)));
     fs::create_dir_all(dir.0.join("snapback")).unwrap();
@@ -40,10 +48,7 @@ fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
     let release = deployment.to_str().unwrap();
     let deployed = dir.run(&["deploy", release]);
     assert!(deployed.status.success(), "{deployed:?}");
-    let canonical = deployment.canonicalize().unwrap();
-    let hash = Sha256::digest(canonical.as_os_str().as_bytes());
-    let socket = PathBuf::from(format!("/tmp/snapback4-{}/{}.sock", unsafe { libc::geteuid() },
-        hash.iter().map(|b| format!("{b:02x}")).collect::<String>()));
+    let socket = control_socket(&deployment);
     assert!(socket.as_os_str().as_bytes().len() < 104);
     let mut host = Host::start(&dir, &["serve", release]);
     assert!(fs::symlink_metadata(&socket).unwrap().file_type().is_socket());
@@ -425,6 +430,15 @@ fn dev_and_serve_report_signals_without_a_configured_worker() {
                 host.until(|h| h.log().contains("schema adopted as generation 2"));
                 assert_eq!(post(host.port, "/q/changed", json!({"args": {}}))["data"], true);
             }
+            // Keep a partially sent control request alive across graceful
+            // shutdown: idle listener cleanup alone missed detached threads.
+            let graceful = matches!(signal, libc::SIGTERM | libc::SIGINT | libc::SIGHUP);
+            let _control = if verb == "serve" && graceful {
+                let mut stream = std::os::unix::net::UnixStream::connect(control_socket(&release)).unwrap();
+                stream.write_all(b"{\"identity\":").unwrap();
+                std::thread::sleep(Duration::from_millis(100));
+                Some(stream)
+            } else { None };
             let status = host.signal(signal);
             // Serve now also joins its private release-control transport.
             if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) {
@@ -435,7 +449,10 @@ fn dev_and_serve_report_signals_without_a_configured_worker() {
             assert!(host.log().lines().any(|l| l == line), "{}", host.log());
             println!("{line}");
             assert_eq!(fs::read_to_string(&host.stdout).unwrap().lines().count(), 1);
-            if verb=="serve" && matches!(signal,libc::SIGTERM|libc::SIGINT|libc::SIGHUP) {assert!(!release.join(".release-control.sock").exists(),"managed shutdown removes the owned control socket");}
+            if verb == "serve" && graceful {
+                assert!(!control_socket(&release).exists(), "managed shutdown removes the owned control socket");
+                assert!(host.log().contains("thread=\"release-control\" reason=\"shutdown\""), "{}", host.log());
+            }
         }
     }
 }

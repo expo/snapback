@@ -298,7 +298,16 @@ fn serve_requests(
             }
             report_at = Instant::now();
         }
-        if stopping() { shared.refusals.shutdown(); return Ok(()); }
+        if stopping() {
+            shared.refusals.shutdown();
+            // @ref LLP 3000.000.000#51-path-independent-control-address — retain store ownership until control drains admitted work and unlinks its socket.
+            for (name, thread) in background {
+                if name == "release-control" {
+                    thread.join().map_err(|_| "release-control thread panicked during shutdown")?;
+                }
+            }
+            return Ok(());
+        }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }
