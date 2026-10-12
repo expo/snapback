@@ -138,7 +138,7 @@ impl Store {
         let native: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key='release_native_digest'", [], |r|r.get(0)).optional()?;
         let activation_hash = programs.map(|programs| match &native {Some(native)=>digest(&(schema,programs,native)),None=>digest(&(schema,programs))});
         let schema_changed = before.0.as_deref() != Some(&schema_hash);
-        let changed = schema_changed || activation_hash.as_ref().is_some_and(|hash| before.1.as_ref() != Some(hash));
+        let mut changed = schema_changed || activation_hash.as_ref().is_some_and(|hash| before.1.as_ref() != Some(hash));
         let mut catalog: BTreeMap<String, i64> = sql.prepare("SELECT name, num FROM _catalog")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         // Repeat source-count admission under the writer lock, before any candidate writes.
@@ -177,13 +177,17 @@ impl Store {
             if tx.has_sequence_table()? { tx.conn().execute_batch("DELETE FROM _sequences;")?; }
         }
         let mut retained_through=BTreeSet::new();
-        if schema_changed && programs.is_some() && !reset {
+        let release_activation=programs.is_some() && tx.meta("activation_restore")?.is_some();
+        if (schema_changed || release_activation) && programs.is_some() && !reset {
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
             let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
             retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now)?;
         }
-        if schema_changed && programs.is_some() && !reset {
+        let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
+        changed |= population_changed;
+        let rebuilding=schema_changed || population_changed;
+        if rebuilding && programs.is_some() && !reset {
             let started = std::time::Instant::now();
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;
@@ -192,7 +196,7 @@ impl Store {
             report.detail("read-through retirement", started);
         }
         if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
-        if schema_changed && programs.is_some() {
+        if rebuilding && programs.is_some() {
             let started = std::time::Instant::now();
             super::timeline_launch::build(&tx, schema, &launches, now)?;
             report.detail("feed launch", started);
@@ -210,13 +214,12 @@ impl Store {
             }
             report.detail("successor assessment", started);
         }
-        let previous: Option<Schema> = if schema_changed && programs.is_some() && !reset {
+        let previous: Option<Schema> = if rebuilding && programs.is_some() && !reset {
             tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0)).optional()?
                 .map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?
         } else { None };
         #[cfg(test)]
         let previous = if self.full_adoption { None } else { previous };
-        let population_changed = tx.meta("activation_population")?.as_deref()==Some("true");
         let plans = super::activation_plan::plans(schema, if population_changed {None} else {previous.as_ref()});
         if let Some(previous)=&previous {
             for step in crate::successor::classify(previous,schema) {
@@ -229,7 +232,7 @@ impl Store {
         }
 
         report.phase("preflight", &mut phase);
-        if schema_changed {
+        if rebuilding {
             // @ref LLP 3000.000#implementation-follow-up — keys are still evaluated,
             // admitted and published in this transaction. Spill the key stream to
             // SQLite's temporary store, then insert in B-tree order instead of
@@ -311,7 +314,7 @@ impl Store {
         report.phase("project and index", &mut phase);
         // Upgrade old stores and rebuild only when the schema changes. Counts
         // participate in the same activation transaction as rows and indexes.
-        if cap_counts && tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash) {
+        if cap_counts && (population_changed || tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash)) {
             tx.conn().execute_batch("DELETE FROM _cap_counts;")?;
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 if table.is_expiring() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
@@ -323,10 +326,10 @@ impl Store {
         report.phase("cap counts", &mut phase);
         build(&tx, changed, &mut report)?;
         report.phase("derived rebuild", &mut phase);
-        if schema_changed && programs.is_some() && super::dormant::enabled(&tx)? {
+        if rebuilding && programs.is_some() && super::dormant::enabled(&tx)? {
             super::adopt_refusals::candidate(&tx,schema,if population_changed{None}else{previous.as_ref()},true)?;
         }
-        if schema_changed {
+        if rebuilding {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let plan = &plans[name];
                 // @ref LLP 3000.019#3.6 — physical reuse cannot exempt rebuilt rows from unchanged invariants.
@@ -355,7 +358,7 @@ impl Store {
             }
         }
         report.phase("validation", &mut phase);
-        if schema_changed {
+        if rebuilding {
             // A removed asset home is retired in the same transaction as its
             // projection. The ordinary collector removes bytes after commit.
             let homes: Vec<(String, String)> = tx.conn().prepare("SELECT DISTINCT home_table, home_column FROM _assets WHERE home_table IS NOT NULL AND released_at IS NULL")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;

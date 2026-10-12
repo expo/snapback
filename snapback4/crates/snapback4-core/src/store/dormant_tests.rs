@@ -913,3 +913,62 @@ fn combined_narrowing_and_lifetime_removal_never_resurrects_expired_children() {
     activate(&mut e,&old.replace("enum('live')","enum('live','new')"),3).unwrap();
     assert_eq!(e.store().count("children").unwrap(),0);
 }
+
+#[test]
+fn partial_restoration_prunes_only_dormant_asset_homes() {
+    let wide="table rows:\n  status: enum('live','new')\n  photo: image <=1000 ?\n  public\n";
+    let hidden=wide.replace("enum('live','new')","enum('live')").replace("  photo: image <=1000 ?\n","");
+    let mixed=wide.replace("enum('live','new')","enum('live')");
+    let mut e=engine(wide);
+    let bytes=b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01";
+    let active=e.store_asset("alice",bytes,100).unwrap();
+    let dormant=e.store_asset("alice",bytes,100).unwrap();
+    for (id,status,asset) in [("a","live",&active),("b","new",&dormant)] {
+        let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":id,"status":status,"photo":{"id":asset.id}})).unwrap();
+        e.seed_at([("rows".into(),row)],101).unwrap();
+    }
+    activate(&mut e,&hidden,2).unwrap();
+    activate(&mut e,&mixed,3).unwrap();
+    assert!(e.asset_access("alice",&active.id,102).is_ok());
+    let inventory=e.store_mut().dormant_inventory(None,100).unwrap();
+    assert_eq!(inventory.iter().find(|i|i.key=="column:rows.photo").unwrap().asset_bytes,dormant.bytes);
+    e.store_mut().prune_dormant(true,None).unwrap();
+    assert!(e.asset_access("alice",&active.id,103).is_ok(),"prune cannot release the active row's restored asset");
+    let released=|e:&Engine,id:&str|e.store().conn().query_row("SELECT released_at FROM _assets WHERE id=?1",[id],|r|r.get::<_,Option<i64>>(0)).unwrap();
+    assert_eq!(released(&e,&active.id),None);
+    assert!(released(&e,&dormant.id).is_some());
+}
+
+#[test]
+fn release_store_2_keeps_deletion_evidence_before_its_next_upgrade() {
+    let wide="table parents:\n  public\ntable children:\n  parent: parents on delete keep\n  public\n";
+    let old=wide.replace("table children:\n  parent: parents on delete keep\n  public\n","");
+    let mut e=engine(wide);
+    seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
+    activate(&mut e,&old,2).unwrap();
+    e.store().conn().execute_batch("DROP TABLE _dormant_narrow_rows; UPDATE _meta SET value='snapback4-release-store-2' WHERE key='version';").unwrap();
+    let table=e.schema().tables["parents"].clone();
+    {let tx=e.store_mut().transaction().unwrap();let row=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&row).unwrap();tx.commit().unwrap();}
+    seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+    assert!(activate(&mut e,wide,3).unwrap_err().to_string().contains("lifetime"));
+    assert_eq!(e.store().meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"),"failed upgrade must keep the old marker");
+}
+
+#[test]
+fn equal_schema_activation_closes_new_nominal_references_and_replaces_generation() {
+    let wide="table parents:\n  status: enum('live','new')\n  public\ntable children:\n  parent: parents\n  public\n";
+    let old=wide.replace("enum('live','new')","enum('live')");
+    let mut e=engine(wide);
+    seed(&mut e,"parents",serde_json::json!({"id":"p","status":"new"}));
+    activate(&mut e,&old,2).unwrap();
+    // Nominal references remain legal without an existence oracle.
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
+    assert_eq!(e.store().count("children").unwrap(),1);
+    let generation=e.generation();
+    activate(&mut e,&old,2).unwrap();
+    assert_eq!(e.generation(),generation+1);
+    assert_eq!(e.store().count("children").unwrap(),0);
+    activate(&mut e,wide,3).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),1);
+}

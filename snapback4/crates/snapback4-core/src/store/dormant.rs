@@ -30,7 +30,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
-    Ok(tx.meta("version")?.as_deref() == Some(VERSION))
+    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2")))
 }
 
 fn authoritative(table: &Table, column: &str) -> bool {
@@ -219,6 +219,7 @@ pub(super) fn transition(
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
     }
+    if !super::narrowed::present(tx.conn())? {enable(tx.conn())?;}
     let whole: Vec<(String, String)> = tx
         .conn()
         .prepare("SELECT table_name,definition FROM _dormant_tables ORDER BY table_name")?
@@ -263,7 +264,7 @@ pub(super) fn transition(
                     samples.describe()
                 )));
             }
-            reuse.push(format!("{name}.{column}"));
+            if previous.and_then(|s|s.table(name)).is_none_or(|t|!t.columns.contains_key(column)) {reuse.push(format!("{name}.{column}"));}
         }
     }
     let indexes: Vec<(String, String)> = tx
@@ -603,5 +604,6 @@ pub(super) fn holds_home(tx: &Tx<'_>, table: &str, column: &str) -> Result<bool,
     if !enabled(tx)? {
         return Ok(false);
     }
-    Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_tables WHERE table_name=?1) OR EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=?1 AND column_name=?2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON n.t=c.num WHERE c.name=?1)",params![table,column],|r|r.get(0))?)
+    let narrowed=if super::narrowed::present(tx.conn())? {" OR EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON n.t=c.num WHERE c.name=?1)"}else{""};
+    Ok(tx.conn().query_row(&format!("SELECT EXISTS(SELECT 1 FROM _dormant_tables WHERE table_name=?1) OR EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=?1 AND column_name=?2){narrowed}"),params![table,column],|r|r.get(0))?)
 }

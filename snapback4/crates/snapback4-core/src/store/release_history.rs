@@ -86,7 +86,12 @@ pub(crate) fn inventory(
         let asset_bytes = if kind == "index" {
             0
         } else {
-            conn.query_row("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL",params![name,if kind=="table" || kind=="rows" {None}else{column.as_deref()}],|r|r.get::<_,i64>(0).map(|n|n as u64))?
+            let selector=match kind.as_str(){
+                "rows"=>"EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=?3 AND n.id=_assets.home_id)",
+                "column"=>"EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=?3 AND v.id=_assets.home_id AND v.column_name=_assets.home_column)",
+                _=>"?3 IS NOT NULL",
+            };
+            conn.query_row(&format!("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL AND {selector}"),params![name,if kind=="table" || kind=="rows" {None}else{column.as_deref()},t],|r|r.get::<_,i64>(0).map(|n|n as u64))?
         };
         out.push(DormantItem {
             key: format!("{kind}:{path}"),
@@ -208,7 +213,7 @@ impl Store {
             return Ok(serde_json::json!({"pruned":true,"items":[],"revision":held}));
         }
         // Release only dormant homes; active application data is untouched.
-        tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?1) WHERE home_table IN (SELECT table_name FROM _dormant_tables) OR EXISTS(SELECT 1 FROM _dormant_columns d WHERE d.table_name=_assets.home_table AND d.column_name=_assets.home_column)",[crate::now_ms()])?;
+        tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?1) WHERE home_table IN (SELECT table_name FROM _dormant_tables) OR EXISTS(SELECT 1 FROM _dormant_values v JOIN _catalog c ON c.num=v.t WHERE c.name=_assets.home_table AND v.column_name=_assets.home_column AND v.id=_assets.home_id)",[crate::now_ms()])?;
         if super::narrowed::present(tx.conn())? {
             tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?1) WHERE EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE c.name=_assets.home_table AND n.id=_assets.home_id)",[crate::now_ms()])?;
             tx.conn().execute("DELETE FROM _dormant_values WHERE EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",[])?;
