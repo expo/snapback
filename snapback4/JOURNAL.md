@@ -93002,3 +93002,30 @@ build fails the inherited 655,743 B cap as expected; set 662,145 B, exactly
 measurement + 500 B, for LANG2 bounded ints/calendar months/caps together
 with LLP 3000.036.001 merged owner-or-X pages. No per-feature attribution
 or macOS measurement is claimed; runtime ceilings are unchanged.
+
+## 2026-10-12 — OPS/LANG2/merged-page integration quality bar completes
+
+Merge `a1d9a7768a` preserves OPS, LANG2 (LLP 3000.040) and merged
+owner-or-X pages (LLP 3000.036.001). Documentation checkpoint
+`a89e93d42c` corrects the child RFC's integration status and the widening
+stream description. The requested five-crate Rust command completes
+353 targets: 5,574 pass, zero failures, 38 declared ignores (exit 0).
+The first invocation stopped in a provider interruption; its log is retained
+as incomplete evidence. A durable full rerun survived subsequent provider
+interruptions and finished. No product integration fix or transient test
+timeout was needed; normal over-60-second running notices are not failures.
+
+`run` seeds 0–19,999: 20,000 compiled, 1,009,916 calls, no disagreements
+or generator errors. `run-lean` seeds 0–99,999: 76,298 agree, 22,656
+unsupported, 1,046 disagreements only in the four classified C2/W4
+signatures (exit 1); no new signatures. Calendar: 5,875 agree, nine known
+prelude disagreements, 550 unsupported. Smoke 9/9 and Lean regressions
+5/5 pass. Lean check: 50/50 examples, 53 audited theorems, seven fixtures.
+
+Readauth census passes unchanged: 401 mutation occurrences and 84 distinct
+private write sites. All 17 selected page/query/codec/census/budget/sync
+client files pass: 196 tests, one declared skip. Docs budget is 319/320
+lines; ref-check passes. The locked wasm build repeats 2,192,240 B raw /
+661,645 B gzip; budget 662,145 B, measurement plus 500 B, for both features.
+The completed child RFC leaves current/; its document and reviews remain.
+Evidence: `reports/20261012-ws-merge-integration/`. No push or publication.

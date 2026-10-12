@@ -1,0 +1,62 @@
+{
+  "semantic_merge": "a1d9a7768a",
+  "documentation_checkpoint": "a89e93d42c",
+  "date": "2026-10-12",
+  "rust": {
+    "exit": 0,
+    "targets": 353,
+    "passed": 5574,
+    "failed": 0,
+    "ignored": 38
+  },
+  "first_rust_invocation": "provider interruption; incomplete log preserved separately",
+  "lean_check": {
+    "examples": 50,
+    "audited_theorems": 53,
+    "oracle_fixtures": 7
+  },
+  "difftest_run": {
+    "cases": 20000,
+    "exit": 0,
+    "disagreements": 0
+  },
+  "difftest_run_lean": {
+    "cases": 100000,
+    "exit": 1,
+    "agreed": 76298,
+    "unsupported": 22656,
+    "disagreements": 1046,
+    "signatures": {
+      "lean--code--E_RULE~NOT_FOUND": 35,
+      "lean--continuation-next--next~no-next": 231,
+      "lean--next--next~no-next": 668,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 112
+    },
+    "new_signatures": []
+  },
+  "client": {
+    "files": 17,
+    "passed": 196,
+    "skipped": 1,
+    "failed": 0
+  },
+  "readauth": {
+    "mutation_occurrences": 401,
+    "private_write_sites": 84,
+    "passed": true
+  },
+  "wasm": {
+    "raw": 2192240,
+    "gzip": 661645,
+    "budget": 662145,
+    "headroom": 500
+  },
+  "docs": {
+    "README_lines": 319,
+    "budget": 320
+  },
+  "ref_check": "passed; final log attached",
+  "product_fixes_required": false,
+  "transient_timeout_failures": [],
+  "push": false
+}
