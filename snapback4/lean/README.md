@@ -52,9 +52,10 @@ elan.
 | Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`), a rule's disjuncts and terms. |
 | Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a page guard: a grant or a pinned parent probe). Reads see only a `View` of visible rows. |
 | Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, application codes). |
+| Calendar | `Quarry/Calendar.lean` | The UTC builtins of LLP 3000.040 §2.2: `day`, `hour`, `bucket` as period ordinals; `month`, `year`, `monthStart`, `yearStart` over the proleptic Gregorian calendar, by a 400/100/4/1-year decomposition independent of the engine's algorithm. Unbounded `Int`; the evaluator refuses `E_OVERFLOW` outside i53. |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
 | Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
-| Examples | `Quarry/Examples.lean` | 42 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
+| Examples | `Quarry/Examples.lean` | 45 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
@@ -65,7 +66,7 @@ visible candidates examined (OPEN M1), and the following:
 - search, jobs and effects;
 - loops, `walk`, `merge` and shapes;
 - sequences, caps, immutable columns, `after insert` and field authority;
-- defaults, text bounds and formats, and assets;
+- defaults, text bounds and formats, int ranges (LLP 3000.040 §1.8), and assets;
 - `created`, parent hops and `read through`.
 
 ## What is proved
@@ -156,6 +157,19 @@ returned. Changing a witness row is a change of authority, not a disclosure.
 - `identity_sum`: `identity(1) + identity(2) = 3`.
 - `call_scope_independent`: a helper call does not see the caller's locals
   or row.
+
+**The civil calendar** (`Calendar.lean`, LLP 3000.040 §2.5)
+
+- `monthStart_le`, `lt_monthStart_succ`: for every integer time `t`,
+  `monthStart (month t) ≤ t < monthStart (month t + 1)`.
+- `yearStart_le`, `lt_yearStart_succ`: the same for years.
+- `marchDays_succ`: every month is at least 28 days long, so month starts
+  strictly increase (`marchDays_mono`).
+
+The proofs are `omega` over the explicit 400/100/4/1-year decomposition
+(`parts_spec`, `marchDays_parts`). The examples pin the shared calendar
+vectors (`calendar-vectors`, the same table as the engine's `calendar.rs`
+tests) and the overflow refusal.
 
 **Axiomatic rules** (`Proofs/Hoare.lean`)
 

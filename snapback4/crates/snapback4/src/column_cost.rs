@@ -7,7 +7,7 @@ fn value_bytes(kind: &ColumnType) -> Option<u64> {
     Some(match kind {
         // A tagged identity is <=144 B; plain JSON omits seven tag bytes.
         ColumnType::Id | ColumnType::Principal | ColumnType::Ref {..} => 137,
-        ColumnType::Int | ColumnType::Time | ColumnType::Decimal {..} | ColumnType::Money {..} => 17,
+        ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal {..} | ColumnType::Money {..} => 17,
         ColumnType::Bool => 5,
         // Text forbids controls other than tab, CR and LF. Four-byte Unicode
         // is wider than those two-byte escapes, quotes and backslashes.

@@ -75,11 +75,25 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
     ("sequence-by", |s| s.tables.values().any(|t| !t.sequences.is_empty())),
+    // @ref LLP 3000.040#4-fences-and-compatibility — an older decoder names the bounded int it cannot check.
+    ("int-range", |s| s.tables.values().any(|t| t.columns.values().any(int_range))),
+    // @ref LLP 3000.040#4-fences-and-compatibility — civil keys and calendar schedules.
+    ("calendar-month", |s| s.tables.values().any(|t| t.indexes.values().any(|i| i.components.iter().any(|c| matches!(c, IndexComponent::Calendar(key) if key.civil()))))
+        || s.maintains.iter().any(|m| m.computed.values().any(|key| key.civil()))),
+    ("calendar-schedule", |s| s.schedules.iter().any(|schedule| schedule.months > 0)),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];
+
+fn int_range(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::IntRange { .. } => true,
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => int_range(inner),
+        _ => false,
+    }
+}
 
 fn ordered_units(table: &Table, rule: &RuleExpr) -> bool {
     let units = |term: &RuleTerm| matches!(term, RuleTerm::Field(f) if matches!(table.columns.get(f), Some(ColumnType::Decimal { .. } | ColumnType::Money { .. })));

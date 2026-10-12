@@ -150,6 +150,16 @@ partial def expr (j : Json) : D Expr := do
   | "call" => do
     let (f, xs) ← pair v
     return .call (← f.getStr?) (← (← xs.getArr?).toList.mapM expr)
+  | "cal" => do
+    let name ← str v "fn"
+    let f : CalFn ← if name == "period" then
+        pure (CalFn.period (← (← field v "ms").getInt?) (← (← field v "off").getInt?))
+      else if name == "month" then pure CalFn.month
+      else if name == "year" then pure CalFn.year
+      else if name == "monthStart" then pure CalFn.monthStart
+      else if name == "yearStart" then pure CalFn.yearStart
+      else throw s!"unknown calendar builtin {name}"
+    return .cal f (← expr (← field v "arg"))
   | "arr" => return .arr (← (← v.getArr?).toList.mapM expr)
   | "record" => return .record (← named v)
   | "point" => return .point (← str v "table") (← named (← field v "key"))

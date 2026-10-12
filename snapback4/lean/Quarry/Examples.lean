@@ -342,6 +342,39 @@ def examples : List Example := [
               program := scalar (.coalesce (.field (.point "todos" [("id", idE "nope")]) "title") (txt "none")) }
     tables := []
     expected := r#"{"kind":"answer","data":"none","complete":true,"next":null}"# },
+  { name := "calendar-vectors"
+    source := "LLP 3000.040 §2.2 and §5: the shared vectors — the epoch, 1969-12, 1900 (no leap day), 2000-02-29, 2026-10, year ends, the i53 ends"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.arr [.arr [.cal .month (int (0)), .cal .year (int (0))],
+                .arr [.cal .month (int (-1)), .cal .year (int (-1))],
+                .arr [.cal .month (int (-2678400000)), .cal .year (int (-2678400000))],
+                .arr [.cal .month (int (-2678400001)), .cal .year (int (-2678400001))],
+                .arr [.cal .month (int (951782400000)), .cal .year (int (951782400000))],
+                .arr [.cal .month (int (951868800000)), .cal .year (int (951868800000))],
+                .arr [.cal .month (int (1791676800000)), .cal .year (int (1791676800000))],
+                .arr [.cal .month (int (1798761599999)), .cal .year (int (1798761599999))],
+                .arr [.cal .month (int (1798761600000)), .cal .year (int (1798761600000))],
+                .arr [.cal .month (int (-2203891200000)), .cal .year (int (-2203891200000))],
+                .arr [.cal .month (int (-2203891200001)), .cal .year (int (-2203891200001))],
+                .arr [.cal .month (int (9007199254740991)), .cal .year (int (9007199254740991))],
+                .arr [.cal .month (int (-9007199254740991)), .cal .year (int (-9007199254740991))]]) }
+    tables := []
+    expected := r#"{"kind":"answer","data":[[0,1970],[-1,1969],[-1,1969],[-2,1969],[361,2000],[362,2000],[681,2026],[683,2026],[684,2027],[-838,1900],[-839,1900],[3425121,287396],[-3425122,-283457]],"complete":true,"next":null}"# },
+  { name := "calendar-starts"
+    source := "LLP 3000.040 §2.2: monthStart(681) is 2026-10-01; yearStart(2026); day, hour and bucket count fixed periods"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.arr [.cal .monthStart (int 681), .cal .monthStart (int (-1)), .cal .monthStart (int 361),
+                .cal .yearStart (int 2026), .cal .yearStart (int 1970), .cal .yearStart (int 0),
+                .cal (.period 86400000 0) (int 1791676800000), .cal (.period 86400000 28800000) (int 0),
+                .cal (.period 3600000 0) (int (-1)), .cal (.period 7200000 1800000) (int 1791676800000)]) }
+    tables := []
+    expected := r#"{"kind":"answer","data":[1790812800000,-2678400000,949363200000,1767225600000,0,-62167219200000,20737,-1,-1,248843],"complete":true,"next":null}"# },
+  { name := "calendar-overflow"
+    source := "LLP 3000.040 §2.2: monthStart and yearStart refuse E_OVERFLOW outside i53, never a wrong instant"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.cal .monthStart (int 3425122)) }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_OVERFLOW"}"# },
   { name := "exists-search-witness"
     source := "LLP 3000.036 §15.12: a readable match proves presence: `true`, `complete: false` when the pins do not decide the rule"
     case := { schema := todos, store := todoStore, viewer := alice,

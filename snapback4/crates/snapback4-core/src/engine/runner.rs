@@ -1036,6 +1036,7 @@ impl<'a> Runner<'a> {
                 if offset < 0 || offset >= *millis { return Err(RuntimeError::Input("calendar offset must be nonnegative and smaller than its period".into())); }
                 Ok(Value::Int(crate::maintain::calendar_ordinal(args[0].as_int()?, *millis, offset)))
             }
+            Builtin::Civil(function) => Ok(Value::Int(function.apply(args[0].as_int()?)?)),
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
                 let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });

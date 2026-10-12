@@ -112,8 +112,9 @@ card/from-sql/2:add | never
 card/from-sql/2:remove | never
 card/from-sql/3:createRoom | never
 card/from-sql/3:setReminder | never
-card/indexes/2:signUp | never
-card/indexes/3:checkin | never
+card/indexes/2:addCategory | eligible
+card/indexes/3:signUp | never
+card/indexes/4:checkin | never
 card/language/16:checkin | never
 card/language/16:createRoom | eligible
 card/language/16:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
@@ -563,10 +564,11 @@ card/start/5:toggle | eligible
 card/start/5:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/testing/1:addCard | never
 card/time/1:addShift | eligible
-card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/time/1:addShift | shifts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/time/1:checkIn | checkins/insert | {"Eq":[{"Field":"person"},"Viewer"]} | read rule
 card/time/1:checkIn | eligible
+card/time/3:subscribe | never
 card/types/1:createProfile | never
 card/wire/1:addExpense | never
 card/writes/1:checkin | never
@@ -666,9 +668,9 @@ recipe/generated-bridge:social.publishExisting | eligible
 recipe/generated-bridge:social.publishExisting | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.register | eligible
 recipe/generated-bridge:social.repost | eligible
+recipe/generated-bridge:social.repost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.repostExisting | eligible
 recipe/generated-bridge:social.repostExisting | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
-recipe/generated-bridge:social.repost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.saveProfile | eligible
 recipe/generated-bridge:social.unfollow | never
 recipe/generated-bridge:social.unrepost | eligible

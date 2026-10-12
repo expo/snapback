@@ -49,3 +49,8 @@ open Quarry
 #print axioms triple_ite
 #print axioms triple_write
 #print axioms triple_write_authorized
+#print axioms Calendar.monthStart_le
+#print axioms Calendar.lt_monthStart_succ
+#print axioms Calendar.yearStart_le
+#print axioms Calendar.lt_yearStart_succ
+#print axioms Calendar.marchDays_succ

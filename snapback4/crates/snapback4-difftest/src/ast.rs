@@ -10,10 +10,22 @@ pub enum Type {
     Principal,
     Time,
     Nullable(Box<Type>),
+    /// `int M..N`, `int M..`, `int ..N` (LLP 3000.040 §1).
+    IntRange(Option<i64>, Option<i64>),
 }
 impl Type {
+    /// The type as Quarry source.
+    pub fn source_text(&self) -> String {
+        self.source()
+    }
     fn source(&self) -> String {
         match self {
+            Self::IntRange(min, max) => match (min, max) {
+                (Some(a), Some(b)) => format!("int {a}..{b}"),
+                (Some(a), None) => format!("int {a}.."),
+                (None, Some(b)) => format!("int ..{b}"),
+                (None, None) => "int".into(),
+            },
             Self::Int => "int".into(),
             Self::Text => "text <=64".into(),
             Self::Id => "id".into(),
@@ -155,6 +167,33 @@ pub enum Expr {
     Score(Key),
     /// `(exists items[key])`.
     Present(Key),
+    /// A calendar builtin over one int (LLP 3000.040 §2): `month(t)`, ..
+    Calendar(Cal, Box<Expr>),
+}
+/// The calendar builtins, with `bucket`'s period and offset in milliseconds.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Cal {
+    Day,
+    Hour,
+    Bucket(i64, i64),
+    Month,
+    Year,
+    MonthStart,
+    YearStart,
+}
+impl Cal {
+    pub fn source(&self, arg: &str) -> String {
+        match self {
+            Self::Day => format!("day({arg})"),
+            Self::Hour => format!("hour({arg})"),
+            Self::Bucket(ms, 0) => format!("bucket({arg}, {ms}ms)"),
+            Self::Bucket(ms, off) => format!("bucket({arg}, {ms}ms, {off}ms)"),
+            Self::Month => format!("month({arg})"),
+            Self::Year => format!("year({arg})"),
+            Self::MonthStart => format!("monthStart({arg})"),
+            Self::YearStart => format!("yearStart({arg})"),
+        }
+    }
 }
 impl Expr {
     pub fn ty(&self) -> Type {
@@ -165,6 +204,8 @@ impl Expr {
             Self::Arg(_, t) | Self::Var(_, t) => t.clone(),
             Self::Score(_) => Type::Int,
             Self::Present(_) => Type::Bool,
+            Self::Calendar(Cal::MonthStart | Cal::YearStart, _) => Type::Time,
+            Self::Calendar(..) => Type::Int,
             Self::Identity(e) => e.ty(),
             Self::Assert(e) => match e.ty() {
                 Type::Nullable(t) => *t,
@@ -187,6 +228,7 @@ impl Expr {
             Self::Binary(op, a, b) => format!("({} {} {})", a.source(), op.source(), b.source()),
             Self::Identity(e) => format!("identity({})", e.source()),
             Self::Assert(e) => format!("({} ! else NULL_ASSERT)", e.source()),
+            Self::Calendar(f, e) => f.source(&e.source()),
         }
     }
     pub fn simpler(&self) -> Vec<Self> {
@@ -394,6 +436,12 @@ pub struct Program {
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prelude: Vec<Block>,
+    /// `run` also takes `t: time` (calendar cases, LLP 3000.040 §5).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub time_arg: bool,
+    /// `run`'s argument `a` declared `int M..N`, `int M..` or `int ..N` (LLP 3000.040 §5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arg_bound: Option<(Option<i64>, Option<i64>)>,
 }
 const SIGNATURE: &str = "key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
 const WIDE_SIGNATURE: &str = "key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
@@ -431,7 +479,10 @@ impl Program {
         }
         out += &declarations.join("\n");
         let mutation = self.mutation();
-        let signature = if self.wide() { WIDE_SIGNATURE } else { SIGNATURE };
+        let mut signature = format!("{}{}", if self.wide() { WIDE_SIGNATURE } else { SIGNATURE }, if self.time_arg { ", t: time" } else { "" });
+        if let Some((min, max)) = self.arg_bound {
+            signature = signature.replace(", a: int,", &format!(", a: {},", Type::IntRange(min, max).source()));
+        }
         out += &format!(
             "\n{} run({signature}):\n",
             if mutation { "mutation" } else { "query" }

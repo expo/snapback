@@ -595,7 +595,7 @@ impl Engine {
             for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
         }
         for schedule in &schema.schedules {
-            if schedule.every_ms == 0 || schedule.every_ms > i64::MAX as u64 || schedule.offset_ms >= schedule.every_ms {
+            if !schedule.valid() {
                 return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));
             }
             let Some(program) = programs.get(&schedule.target).filter(|p| matches!(p.kind, ProgramKind::Job | ProgramKind::Action)) else {

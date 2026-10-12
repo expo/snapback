@@ -88,7 +88,7 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
         execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed} does not compile: {e}"));
         let module = match lean::module(&source) {
             Ok(m) => m,
-            // Only expiry is outside the model at the schema level.
+            // Only expiry is outside the model at the schema level (the campaign drops int ranges).
             Err(r) => {
                 assert_eq!(r, "table-expiry", "seed {seed}");
                 reasons.insert(r);

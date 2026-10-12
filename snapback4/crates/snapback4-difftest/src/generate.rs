@@ -235,6 +235,8 @@ pub fn base(seed: u64) -> Case {
             residual: None,
             guard: None,
             prelude: vec![],
+            time_arg: false,
+            arg_bound: None,
         },
         rows,
         principal: if rng.pick(2) == 0 { "alice" } else { "bob" }.into(),

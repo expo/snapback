@@ -156,7 +156,16 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
         };
         let binding: Vec<&Constraint> = new.constraints.iter().filter(|c| existed(c)).collect();
         if old.constraints.iter().collect::<Vec<_>>() != binding {
-            steps.push(Step { path: format!("{path}.constraints"), change: Change::Narrowing, message: format!("{name}'s constraints change; existing rows must satisfy them") });
+            // @ref LLP 3000.040#32-changes — raising a cap cannot invalidate a stored row.
+            let raised_only = old.constraints.len() == binding.len() && old.constraints.iter().zip(&binding).all(|(a, b)| match (a, b) {
+                (Constraint::Cap { by: a_by, max: a_max }, Constraint::Cap { by: b_by, max: b_max }) => a_by == b_by && b_max >= a_max,
+                (a, b) => a == *b,
+            });
+            if raised_only {
+                steps.push(Step { path: format!("{path}.constraints"), change: Change::Additive, message: format!("{name}'s cap rises; existing rows already satisfy it") });
+            } else {
+                steps.push(Step { path: format!("{path}.constraints"), change: Change::Narrowing, message: format!("{name}'s constraints change; existing rows must satisfy them") });
+            }
         }
     }
     for name in to.visible_tables().map(|(name,_)|name) {
@@ -189,7 +198,8 @@ fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
     if let (Some((amin, amax)), Some((bmin, bmax))) = (list(old), list(new)) {
         let (ColumnType::List { of: a, .. } | ColumnType::ListRange { of: a, .. },
             ColumnType::List { of: b, .. } | ColumnType::ListRange { of: b, .. }) = (old, new) else { unreachable!() };
-        return if a == b && bmin <= amin && bmax >= amax { Change::Additive } else { Change::Narrowing };
+        let items_widen = a == b || column_change(a, b) == Change::Additive;
+        return if items_widen && bmin <= amin && bmax >= amax { Change::Additive } else { Change::Narrowing };
     }
     match (old, new) {
         (ColumnType::Optional(a), ColumnType::Optional(b)) => column_change(a, b),
@@ -198,6 +208,12 @@ fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
         (a, ColumnType::Optional(b)) => worse(Change::Additive, column_change(a, b)),
         (ColumnType::Text { max: a }, ColumnType::Text { max: b }) | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b }) | (ColumnType::Json { max_bytes: a }, ColumnType::Json { max_bytes: b }) => {
             if b >= a { Change::Additive } else { Change::Narrowing }
+        }
+        // @ref LLP 3000.040#16-schema-evolution — a wider int range applies in place; a tighter one is checked against every stored row.
+        (ColumnType::IntRange { .. }, ColumnType::Int) => Change::Additive,
+        (ColumnType::Int, ColumnType::IntRange { .. }) => Change::Narrowing,
+        (ColumnType::IntRange { min: amin, max: amax }, ColumnType::IntRange { min: bmin, max: bmax }) => {
+            if bmin <= amin && bmax >= amax { Change::Additive } else { Change::Narrowing }
         }
         (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
             if a.iter().all(|v| b.contains(v)) { Change::Additive } else { Change::Narrowing }

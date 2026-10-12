@@ -11,6 +11,8 @@ pub enum TypeKind {
     Id,
     Principal,
     Int,
+    /// `int M..N`, `int M..`, `int ..N` (LLP 3000.040 §1).
+    IntRange { min: Option<i64>, max: Option<i64> },
     Decimal { scale: u8 },
     Money { currency: String, scale: u8 },
     Time,
@@ -491,6 +493,8 @@ pub struct ScheduleDecl {
     pub offset_ms: u64,
     pub target: String,
     pub service: Option<String>,
+    /// `every N months` / `every N years` (12N): calendar periods; `every_ms` is 0.
+    pub months: u32,
     pub site: Site,
 }
 

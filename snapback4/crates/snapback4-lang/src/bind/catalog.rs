@@ -158,6 +158,14 @@ impl Catalog {
                     diagnostics.push(unknown(&function.site, format!("duplicate fn {}; first declared at {}", function.name, first.site), "rename one function"));
                     continue;
                 }
+                // @ref LLP 3000.040#12-surface — a bound belongs to a slot a value enters (a column or an operation's argument); a helper is inlined and has none.
+                for param in &function.args {
+                    if let Some((min, max)) = int_range_of(&param.type_) {
+                        let range = snapback4_core::schema::int_range_text(min, max);
+                        diagnostics.push(crate::diag::type_error(&param.site, format!("{}'s parameter {} cannot be {range}: a helper is inlined, so no value crosses a boundary where the bound is checked", function.name, param.name),
+                            format!("declare `{}: int` and bound the operation's argument or the stored column as {range}", param.name)).guide("types"));
+                    }
+                }
                 functions.insert(function.name.clone(), function.clone());
             }
             for effect in &doc.effects {
@@ -255,5 +263,13 @@ impl Catalog {
             return maintain.site.clone();
         }
         self.documents.first().map(|d| Site::new(&d.file, 1, 1)).unwrap_or_default()
+    }
+}
+
+fn int_range_of(ty: &crate::ast::ScalarType) -> Option<(Option<i64>, Option<i64>)> {
+    match &ty.kind {
+        crate::ast::TypeKind::IntRange { min, max } => Some((*min, *max)),
+        crate::ast::TypeKind::List { item, .. } => int_range_of(item),
+        _ => None,
     }
 }

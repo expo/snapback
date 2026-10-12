@@ -1575,7 +1575,7 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
     let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);
-    for words in ["6", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
+    for words in ["7", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
         assert_eq!(guide(&["types", "--section", words]), (Some(0), by_name.clone()), "{words}");
     }
     // Wave 4: a topic word no heading names prints the section holding most of

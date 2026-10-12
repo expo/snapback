@@ -71,7 +71,7 @@ fn inspect(options: &Options) -> Result<()> {
             let tag = match kind.required() {
                 ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => ".Id",
                 ColumnType::Text { .. } | ColumnType::Enum { .. } => ".String",
-                ColumnType::Int | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => ".Int",
+                ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => ".Int",
                 ColumnType::Bool => ".Bool",
                 ColumnType::Bytes { .. } => ".Bytes",
                 _ => "", // Compound values remain canonical tagged JSON, as stored.

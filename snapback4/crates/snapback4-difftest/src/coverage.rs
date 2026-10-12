@@ -148,6 +148,10 @@ fn expr(e: &Expr, out: &mut BTreeSet<String>) {
         Expr::Score(_) | Expr::Present(_) => {
             out.insert("expr/read-in-mutation".into());
         }
+        Expr::Calendar(f, e) => {
+            out.insert(format!("expr/calendar-{}", f.source("t").split('(').next().unwrap_or_default()));
+            expr(e, out);
+        }
         _ => {}
     }
 }

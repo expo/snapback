@@ -76,10 +76,13 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
     report.executed += 1;
     if let Some(code) = budgeted.refusal().and_then(|r| r["code"].as_str()) {
         *report.runtime_refusals.entry(code.into()).or_default() += 1;
+        // A bounded `score` or `a` (LLP 3000.040 §5) refuses out-of-range values by design.
+        let bounded = case.program.arg_bound.is_some()
+            || case.program.tables.iter().any(|t| t.columns.iter().any(|c| matches!(c.ty, crate::ast::Type::IntRange(..))));
         if !matches!(
             code,
             "E_OVERFLOW" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_ID_REUSED" | "REQUIRED"
-        ) {
+        ) && !(bounded && code == "E_INPUT") {
             *report
                 .runtime_refused_unexpected
                 .entry(code.into())
@@ -125,7 +128,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
         };
         report.executed += n;
         report.record(&format!("rewrite-{}", r.name()), &verdict);
-        if r.costs(&case.program) && !matches!(verdict, Verdict::Unsupported(_)) {
+        if r.costs_for(&case.program, &budgeted) && !matches!(verdict, Verdict::Unsupported(_)) {
             report
                 .by_oracle
                 .get_mut(&format!("rewrite-{}", r.name()))

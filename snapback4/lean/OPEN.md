@@ -120,6 +120,20 @@ are listed so that nobody reopens them.
   defect behind it: the cases it had masked added to C2 and W4.
 - *Engine (observed):* propagates null, as documented.
 
+**E5. Which calendar, and what happens outside i53? (confirmed)**
+- *Documents:* LLP 3000.040 §2.2: UTC; the proleptic Gregorian calendar with
+  astronomical years (year 0 exists, 1900 is not a leap year); `month(t)`
+  counts months since 1970-01; `year(t) = month(t) / 12 + 1970`;
+  `monthStart`/`yearStart` refuse `E_OVERFLOW` when the instant leaves
+  ±(2^53 − 1).
+- *Model:* `Calendar.lean` over unbounded `Int`, by a 400/100/4/1-year
+  decomposition of March-based years (the engine uses Hinnant's
+  civil-from-days, so the two are independent). The evaluator checks i53 on
+  the result. `day`, `hour` and `bucket` are `floor((t − offset) / period)`.
+- *Engine (observed):* agrees on the shared vectors and on every calendar
+  case of the 2026-10-12 `run-lean` (LLP 3000.040 §5); a planted
+  February-start defect in the engine was caught as `lean--data--int~int`.
+
 ## Rules
 
 **R1. Does an `exists t[..]` probe inside a rule see rows that `t`'s own read

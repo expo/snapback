@@ -24,6 +24,8 @@ pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
 pub mod timeline;
 mod capabilities;
+mod schedule;
+pub use schedule::{CALENDAR_MONTHS_LIMIT, CALENDAR_OFFSET_LIMIT_MS};
 mod delivery;
 mod receipts;
 pub use receipts::ReceiptFamily;
@@ -179,15 +181,13 @@ pub struct Schedule {
     /// Actions require an explicit `service:<name>`; jobs remain system work.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub service: Option<String>,
-}
-
-impl Schedule {
-    /// The most recent period boundary at or before `now`.
-    pub fn boundary(&self, now: i64) -> i64 {
-        let every = self.every_ms as i64;
-        let offset = self.offset_ms as i64;
-        (now - offset).div_euclid(every) * every + offset
-    }
+    /// `every N months` (years are 12N): boundaries at the start of each UTC
+    /// month whose ordinal since 1970-01 is a multiple of N, plus `offset_ms`
+    /// (day and time of day, under 28 days). A calendar schedule has
+    /// `every_ms = 0`; zero keeps a fixed period and its serialized bytes.
+    // @ref LLP 3000.040#24-monthly-and-yearly-schedules — an older engine refuses every_ms = 0 at load.
+    #[serde(default, skip_serializing_if = "schedule::is_zero_months")]
+    pub months: u32,
 }
 
 impl Schema {
@@ -437,6 +437,8 @@ pub enum ColumnType {
     // @ref LLP 3000.038#1 — an empty allow-list is the default: every verifiable type.
     File { max: u32, #[serde(default, skip_serializing_if = "Vec::is_empty")] types: Vec<String> },
     Int,
+    // @ref LLP 3000.040#13-representation — a new tag fails closed on older decoders; `Int` keeps its bytes.
+    IntRange { #[serde(default = "crate::schema::int_floor", skip_serializing_if = "crate::schema::is_int_floor")] min: i64, #[serde(default = "crate::schema::int_ceiling", skip_serializing_if = "crate::schema::is_int_ceiling")] max: i64 },
     Enum { variants: Vec<String> },
     Decimal { scale: u8 },
     Money { currency: String, scale: u8 },
@@ -458,6 +460,18 @@ impl ColumnType {
     }
 
     pub fn is_optional(&self) -> bool { matches!(self, Self::Optional(_)) }
+
+    /// An integer slot, bounded or not: the same value, order, key and arithmetic.
+    pub fn is_int(&self) -> bool { matches!(self, Self::Int | Self::IntRange { .. }) }
+
+    /// The value's kind without a slot bound: `IntRange` reads as `Int`.
+    pub fn unbounded(&self) -> ColumnType {
+        match self {
+            Self::IntRange { .. } => Self::Int,
+            Self::Optional(inner) => Self::Optional(Box::new(inner.unbounded())),
+            other => other.clone(),
+        }
+    }
 
     pub fn is_indexable(&self) -> bool {
         match self {
@@ -500,6 +514,7 @@ impl fmt::Display for ColumnType {
             Self::File { max, types } if types.is_empty() => write!(f, "file <={max}"),
             Self::File { max, types } => write!(f, "file <={max} ({})", types.iter().map(|t| format!("'{t}'")).collect::<Vec<_>>().join(", ")),
             Self::Int => f.write_str("int"),
+            Self::IntRange { min, max } => f.write_str(&int_range_text(int_bound(*min, int_floor()), int_bound(*max, int_ceiling()))),
             Self::Enum { variants } => write!(f, "enum({})", variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")),
             Self::Decimal { scale } => write!(f, "decimal {scale}"),
             Self::Money { currency, scale } => write!(f, "money {currency} {scale}"),
@@ -512,6 +527,32 @@ impl fmt::Display for ColumnType {
             Self::ListRange { of, min, max } => write!(f, "[{of}] {min}..{max}"),
         }
     }
+}
+
+/// `int M..N`, `int M..` or `int ..N`, the one spelling of each bound.
+pub fn int_range_text(min: Option<i64>, max: Option<i64>) -> String {
+    match (min, max) {
+        (Some(min), Some(max)) => format!("int {min}..{max}"),
+        (Some(min), None) => format!("int {min}.."),
+        (None, Some(max)) => format!("int ..{max}"),
+        (None, None) => "int".into(),
+    }
+}
+
+// @ref LLP 3000.040#13-representation — an unwritten end is the i53 limit itself, so the
+// variant stays as small as `Int`'s neighbours (no Option) and the bytes omit it.
+pub fn int_floor() -> i64 { -crate::value::I53_MAX }
+pub fn int_ceiling() -> i64 { crate::value::I53_MAX }
+pub fn is_int_floor(min: &i64) -> bool { *min <= int_floor() }
+pub fn is_int_ceiling(max: &i64) -> bool { *max >= int_ceiling() }
+/// An int range some i53 value satisfies, with both ends inside i53.
+pub fn int_range_valid(min: i64, max: i64) -> bool { int_floor() <= min && min <= max && max <= int_ceiling() }
+/// A stored end as written: `None` when it is the i53 limit.
+pub fn int_bound(end: i64, limit: i64) -> Option<i64> { (end != limit).then_some(end) }
+
+/// Whether `value` lies inside an inclusive optional range.
+pub fn int_in_range(value: i64, min: Option<i64>, max: Option<i64>) -> bool {
+    min.is_none_or(|min| value >= min) && max.is_none_or(|max| value <= max)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1077,7 +1118,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
 // @ref LLP 3000.036#12 — decimal and money are integer minor units and order the same way.
 fn insert_order(table: &Table, left: &RuleTerm, right: &RuleTerm) -> bool {
     let own = |term: &RuleTerm| match term {
-        RuleTerm::Field(field) => table.columns.get(field).is_some_and(|kind| matches!(kind, ColumnType::Int | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. })),
+        RuleTerm::Field(field) => table.columns.get(field).is_some_and(|kind| matches!(kind, ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. })),
         RuleTerm::Literal(Value::Int(_)) => true,
         _ => false,
     };
@@ -1175,6 +1216,8 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         MaintainKind::Count => Some(ColumnType::Int),
         MaintainKind::Sum { of } => match source.columns.get(of) {
             Some(kind @ (ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. })) => Some(kind.clone()),
+            // @ref LLP 3000.040#13-representation — a bound is a fact about the source slot; a total is unbounded.
+            Some(ColumnType::IntRange { .. }) => Some(ColumnType::Int),
             Some(kind) => {
                 issue(issues, format!("sum over {}.{of} needs int, decimal, or money, not {kind}", maintain.source));
                 None
@@ -1593,6 +1636,7 @@ pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
         ArgType::Video { max } => ColumnType::Video { max: *max },
         ArgType::File { max, types } => ColumnType::File { max: *max, types: types.clone() },
         ArgType::Int => ColumnType::Int,
+        ArgType::IntRange { min, max } => ColumnType::IntRange { min: *min, max: *max },
         ArgType::Bool => ColumnType::Bool,
         ArgType::Time => ColumnType::Time,
         ArgType::Json { max_bytes } => ColumnType::Json { max_bytes: *max_bytes },

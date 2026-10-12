@@ -22,7 +22,17 @@
 //!   that advances between operations, sweeps, and writes setting
 //!   `until: now + ttl`;
 //! - **secondary unique clashes** (OPEN W4): block writes put `tag0`/`tag1`,
-//!   which seeded rows hold, into the unique `byTag`.
+//!   which seeded rows hold, into the unique `byTag`;
+//! - **calendar builtins** (LLP 3000.040 §2): a scalar `run` over a `t: time`
+//!   argument drawn from the shared calendar vectors, their edges, the i53
+//!   ends and random times: `month`, `year`, `day`, `hour`, `bucket`,
+//!   `monthStart`/`yearStart` round trips and their overflow;
+//! - **bounded ints** (LLP 3000.040 §1): `items.score` declared `int M..N`,
+//!   `int M..` or `int ..N`, seeded rows inside the bound, writes of the
+//!   ordinary arithmetic that may leave it (`E_INPUT` on every host).
+//!
+//! The last two draw from their own stream, so every earlier dimension's
+//! decisions are unchanged.
 // @ref LLP 3000.035#5.1 — generator widening behind independent probabilities.
 use crate::{
     ast::*,
@@ -238,6 +248,7 @@ pub fn widen(mut case: Case) -> Case {
     }
     // The clock: seeded, then each step, then `run`; it advances when there
     // is a prelude or expiry. Times stay positive.
+    lang2(&mut case);
     if !case.steps.is_empty() || expire {
         case.clock += 300_000;
         let mut at = case.clock;
@@ -289,4 +300,100 @@ fn projection(rng: &mut Rng) -> Vec<Proj> {
         _ => fields.push(Proj::TagGet),
     }
     fields
+}
+
+const LANG2_STREAM: u64 = 0x4c41_4e47_3230_3430;
+/// Calendar inputs: the shared vectors (`snapback4-core` `calendar.rs`, the
+/// Lean examples), the instants beside them, other century edges and the i53 ends.
+pub const CALENDAR_TIMES: [i64; 20] = [
+    0, -1, 1, -2_678_400_000, -2_678_400_001, 951_782_400_000, 951_868_799_999, 1_791_676_800_000,
+    1_798_761_599_999, 1_798_761_600_000, -2_203_891_200_000, -2_203_891_200_001, 9_007_199_254_740_991,
+    -9_007_199_254_740_991, 4_102_444_800_000, 946_684_800_000, -62_167_219_200_000, -62_167_219_200_001,
+    253_402_300_800_000, 9_007_199_254_740_990,
+];
+const BOUNDS: [(Option<i64>, Option<i64>); 5] = [
+    (Some(-1), Some(1)), (Some(0), None), (None, Some(7)), (Some(-9_007_199_254_740_990), Some(9_007_199_254_740_990)), (Some(1), Some(1)),
+];
+fn calendar_time(rng: &mut Rng) -> i64 {
+    if rng.pick(3) == 0 {
+        let span = 2 * 9_007_199_254_740_991u64 + 1;
+        (rng.next() % span) as i64 - 9_007_199_254_740_991
+    } else {
+        CALENDAR_TIMES[rng.pick(CALENDAR_TIMES.len() as u64) as usize]
+    }
+}
+fn calendar(rng: &mut Rng) -> Expr {
+    let t = || Expr::Arg("t".into(), Type::Time);
+    let cal = |f: Cal, e: Expr| Expr::Calendar(f, Box::new(e));
+    let add = |a: Expr, b: Expr| Expr::Binary(Bin::Add, Box::new(a), Box::new(b));
+    let small = |rng: &mut Rng| [Expr::Int(0), Expr::Int(1), Expr::Int(-1), Expr::Int(12), Expr::Arg("b".into(), Type::Int)][rng.pick(5) as usize].clone();
+    match rng.pick(10) {
+        0 => cal(Cal::Month, t()),
+        1 => cal(Cal::Year, t()),
+        2 => cal(Cal::Day, t()),
+        3 => cal(Cal::Hour, t()),
+        4 => {
+            let period = [60_000, 7_200_000, 604_800_000][rng.pick(3) as usize];
+            let offset = [0, 1, 1_800_000][rng.pick(3) as usize] % period;
+            cal(Cal::Bucket(period, offset), t())
+        }
+        5 => cal(Cal::MonthStart, add(cal(Cal::Month, t()), small(rng))),
+        6 => cal(Cal::YearStart, add(cal(Cal::Year, t()), small(rng))),
+        7 => Expr::Binary(Bin::Lt, Box::new(t()), Box::new(cal(Cal::MonthStart, add(cal(Cal::Month, t()), Expr::Int(1))))),
+        8 => Expr::Binary(Bin::Lt, Box::new(cal(Cal::YearStart, cal(Cal::Year, t()))), Box::new(add(t(), Expr::Int(1)))),
+        _ => cal(if rng.pick(2) == 0 { Cal::MonthStart } else { Cal::YearStart }, Expr::Arg("a".into(), Type::Int)),
+    }
+}
+fn lang2(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ LANG2_STREAM);
+    let calendar_body = rng.pick(5) == 0;
+    let bounded = rng.pick(6) == 0;
+    let bounded_arg = rng.pick(6) == 0;
+    let arg_bound = BOUNDS[rng.pick(BOUNDS.len() as u64) as usize];
+    if bounded_arg {
+        // `a` takes the generator's i53-edge values, so most calls refuse E_INPUT on every host.
+        case.program.arg_bound = Some(arg_bound);
+    }
+    if calendar_body && matches!(case.program.body, Body::Scalar(_)) {
+        case.program.body = Body::Scalar(calendar(&mut rng));
+        case.program.time_arg = true;
+        case.args["t"] = json!(calendar_time(&mut rng));
+    }
+    if bounded {
+        let (min, max) = BOUNDS[rng.pick(BOUNDS.len() as u64) as usize];
+        if let Some(c) = case.program.tables[0].columns.iter_mut().find(|c| c.name == "score") {
+            c.ty = Type::IntRange(min, max);
+        }
+        for (table, row) in &mut case.rows {
+            if table == "items" && let Some(score) = row["score"].as_i64() {
+                row["score"] = json!(score.clamp(min.unwrap_or(i64::MIN), max.unwrap_or(i64::MAX)));
+            }
+        }
+        // `check` refuses a constant outside the bound; keep the write and
+        // move its refusal to run time, where the hosts are compared.
+        fn hide(stmts: &mut [Stmt], min: Option<i64>, max: Option<i64>) {
+            for s in stmts {
+                match s {
+                    Stmt::Write { value: value @ Expr::Int(_), .. } => {
+                        let Expr::Int(n) = value else { unreachable!() };
+                        if min.is_some_and(|m| *n < m) || max.is_some_and(|m| *n > m) {
+                            let n = *n;
+                            *value = Expr::Binary(Bin::Add, Box::new(Expr::Int(n)), Box::new(Expr::Binary(Bin::Mul, Box::new(Expr::Int(0)), Box::new(Expr::Arg("b".into(), Type::Int)))));
+                        }
+                    }
+                    Stmt::If(_, a, b) => {
+                        hide(a, min, max);
+                        hide(b, min, max);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if let Body::Block(b) = &mut case.program.body {
+            hide(&mut b.stmts, min, max);
+        }
+        for b in &mut case.program.prelude {
+            hide(&mut b.stmts, min, max);
+        }
+    }
 }

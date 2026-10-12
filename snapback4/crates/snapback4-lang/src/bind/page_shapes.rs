@@ -48,6 +48,6 @@ fn scalar_column(value: &Expr, table: &TableInfo) -> bool {
     let Expr::Member { base, name, .. } = value else { return false };
     if !matches!(base.as_ref(), Expr::Focal { .. }) { return false; }
     name == "id" || table.columns.get(name).is_some_and(|column| matches!(column.kind,
-        TypeKind::Text { .. } | TypeKind::Id | TypeKind::Principal | TypeKind::Int | TypeKind::Decimal { .. } | TypeKind::Money { .. }
+        TypeKind::Text { .. } | TypeKind::Id | TypeKind::Principal | TypeKind::Int | TypeKind::IntRange { .. } | TypeKind::Decimal { .. } | TypeKind::Money { .. }
         | TypeKind::Time | TypeKind::Bool | TypeKind::Enum { .. } | TypeKind::Ref { .. }))
 }

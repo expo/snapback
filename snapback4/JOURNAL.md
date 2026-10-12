@@ -92715,3 +92715,128 @@ docs-budget self-contained screen test passes. Ref-check is clean. Full Rust
 package verification and the complete per-item mapping are in the workstream
 report. Two actual independent reviews and dispositions are retained; no RFC
 status changed and no rollback/hot-deploy semantics were edited.
+## 2026-10-12 — Workstream LANG2: bounded ints, UTC calendar months, caps for small tables (LLP 3000.040)
+
+Three approved language additions, designed in LLP 3000.040 (one blind round:
+Codex `gpt-6.1-sol` and Muse `spark-1.3`, both NOT READY, folded in
+revision 1; reviews under `llp/reviews/3000.040-*`).
+
+- **Bounded ints.** `int 1..5`, `int 0..`, `int ..100` on columns, list
+  items and operation arguments (`IntRange`), one check in `validate::fits`,
+  so arguments, stored writes, defaults, fixtures and both device stores
+  refuse `E_INPUT: reviews.stars must be int 1..5, not the number 10`.
+  `check` refuses constants outside the range and bounded helper parameters;
+  `int <=N` prints `int ..N` (text's `<=N` starts at 0). Sums erase the
+  bound. Tightening is Narrowing, checked against stored rows. This reverses
+  LLP 3000.036 §15.7.
+- **Calendar months.** `month(t)` (months since 1970-01), `year(t)`,
+  `monthStart(m)`, `yearStart(y)` in `snapback4_core::calendar`; `month`/
+  `year` index and view keys; `every N months|years [at day D HH:MM]`
+  schedules anchored at 1970-01 with the existing coalescing rule. UTC only;
+  time zones deferred. The Lean model gained an independent calendar
+  (400/100/4/1-year decomposition) with `omega` proofs that each month and
+  year start brackets every time.
+- **Small-table caps.** `cap N` without `by` already worked (LLP 3000.007
+  §20.3); its refusal now reads `T holds at most N rows`, raising a cap is
+  Additive, and `guide indexes` has the lookup-table recipe.
+- **Oracles.** `run-lean` seeds 0–99,999: 68,428 supported, only the four
+  classified signatures (OPEN C2/W4); every calendar case agrees.
+  `run-devices` seeds 0–2,999: only signatures already in `cases/found`.
+  Negative controls (reverted): a February-start defect in `calendar.rs` was
+  caught by `run-lean` (`lean--data--int~int`), a device-only bound skip by
+  `run-devices` (`write-predicted-refused--admitted`).
+- **The wasm budget rises 6,647 B gzip** (648,672 → 655,319 B on Linux;
+  budget 655,819 = measurement + 500 B): the device validates int ranges and
+  evaluates the civil builtins and keys, so predictions refuse what the
+  server refuses. Reason in `metrics/wasm-budget.json`.
+
+- **What felt good:** every write path already funnels through `fits`, so a
+  bounded type needed one arm; the shared interpreter made device parity free.
+- **What was hard:** the guide's word and line budgets (the six familiar
+  cards at their 30% reduction, the language card at 825 lines) left room for
+  about twenty words; the detail went to the time, indexes and recipes cards.
+
+## 2026-10-12 — LANG2 follow-up: round 2, compact `IntRange`, the budget settles at 654,235 B
+
+Round 2 (Muse READY WITH CHANGES) found the day-29 schedule rewrite tested the
+clock instead of the period, and two promised tests missing; all fixed (a
+tightening adoption with a stale device image on both stores, a retried billing
+period). `IntRange` now stores its ends as `i64` with the i53 limits as the
+unwritten ends, so `ColumnType` keeps its size (the heap meter's cursor-column
+charge was 24 B higher with `Option` ends) and the web device is 1,584 B
+smaller: 653,735 B gzip on Linux, budget 654,235 B (+5,063 B over the base,
+reason in `metrics/wasm-budget.json`). Reruns on the final code: `run-lean`
+seeds 0–99,999 and `run-devices` 0–2,999 show only known signatures. Filed
+`issues/20261012-snapback4-seed-refusal-reports-not-found.md` (pre-existing:
+an invalid seeded row refuses NOT_FOUND, not E_INPUT).
+
+## 2026-10-12 — LANG2 round 2 (Codex): raw ranges, exact schedule edges, calendar evidence counted
+
+Codex's round 2 (READY WITH CHANGES) found a raw catalog could install
+`IntRange { min: 5, max: 1 }`, calendar schedule boundaries substituted i53
+endpoints at the ±285,000-year edges, and `run-lean` counted calendar cases
+before support. Fixed: raw ranges are validated at every depth, boundaries are
+exact in `i128`, and `run-lean` reports calendar cases by verdict and refuses
+a qualifying campaign that compared none; the generator also bounds `run`'s
+argument. Rerun: 6,434 calendar cases in seeds 0–99,999, 5,875 agreed, 9
+disagreed only in a prelude (OPEN W4, before the calendar body), 550
+unsupported for other dimensions. LLP 3000.040 §10 records both round-2
+reviews and their dispositions.
+
+## 2026-10-12 — LANG2 merges `sb4-loop` (0.4.23)
+
+Conflicts resolved keeping both sides: FILE's `file` column type beside the
+bounded int (`types.rs`, `write_target.rs`, `rows/disclosed.rs`), LN's Lean
+examples beside the calendar examples (45/45 agree, 51 theorems audited), AA's
+LLP 3000.036 §17 beside the §15.7 reversal note, both journals. 0.4.23's new
+rule that the recipes card prints whole (under 400 piped lines) moved the
+monthly billing recipe to `guide time` (`--section billing`); the recipes
+card points to it. The merged web device measures 2,174,248 B raw / 655,243 B
+gzip on Linux, 3,539 B over sb4-loop's 651,704 B; budget 655,743 B
+(measurement + 500 B), reason in `metrics/wasm-budget.json`.
+
+## 2026-10-12 — LANG2 post-merge: the clock test counts both schedules
+
+The requested post-merge Rust check reproduced the time-of-day failure filed
+in `issues/20261012-snapback4-clock-advance-test-depends-on-time-of-day.md`.
+The hourly and daily schedules both update the same counter. The test now
+checks the first and resumed advances against both schedules' reported
+firings, including when either advance crosses 06:00 UTC. The scheduler is
+unchanged. The full clock target passes (25/25); the ticket is closed.
+
+## 2026-10-12 — LANG2 post-merge: overflow stops a commuted operand sooner
+
+The `run` differential campaign found seed 50094: `a = (b + b)` refuses
+the same E_OVERFLOW in both operand orders, but after six versus five
+steps. In the commuted order the overflow stops evaluation before reading
+`a`. This is a harness defect: only refused commutations now omit their
+meter record, with the omission counted in the campaign; all semantic
+fields and post-write observations remain compared, and successful
+commutations keep their prior meter checks. The shrunk case is retained
+verbatim under `cases/found/rewrite-commute--metered--E_OVERFLOW`, with a
+diagnosis. The smoke target passes 9/9, including both refused operand
+orders and a successful execution of the same expression. LLP 3000.035
+§5.1 records the comparison rule.
+
+## 2026-10-12 — LANG2 post-merge quality bar completes
+
+The five-crate Rust check completed 351 targets: 5,528 passed, one failed,
+38 existing ignores. Its sole failure was the clock assertion fixed in
+`798326f938`; the full clock target reran green (25/25). All other targets
+passed, covering 5,529 passing tests after that scoped correction. LANG2
+passed 8 device and 11 language tests; guide 118/118, readauth 88/88 and
+the unchanged authoring census pass. README budget: 319/320 lines.
+
+`run` seeds 0–99,999 on the corrected harness (`62d86c5a02`, release, eight
+workers) compiled 100,000 cases and made 4,710,628 calls with zero findings,
+generator errors or unexpected refusals (669.70 s); smoke 9/9 passes.
+`run-lean` on the merged model supports 77,344 cases, with 76,322 agreeing
+and only 1,022 classified C2/W4 disagreements (exit 1, 439.84 s). Calendar
+coverage is unchanged: 5,875 agree, 550 unsupported, nine known prelude
+disagreements before the calendar body. No new signatures.
+
+The wasm rebuild exactly matches 2,174,248 B raw / 655,243 B gzip; budget
+655,743 stays (+3,539 B over sb4-loop's measured device, plus 500 B
+headroom). `ref-check` passes. Both round-2 reviews were READY WITH CHANGES,
+with dispositions already recorded; neither remained NOT READY. LLP
+3000.040 §11 records the final checks and explicit deferrals. No push.

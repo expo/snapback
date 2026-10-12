@@ -97,6 +97,11 @@ query nestedIds(x: a, y: b):
   return [{ id: exposedId(x) }, { id: exposedId(y) }]
 ```
 
+### Int ranges
+
+`int 1..5`, `int 0..` and `int ..100` bound values; every write and call
+checks them (`E_INPUT`).
+
 ### Text bounds
 
 `text` defaults to `text <=10000` characters in columns, arguments and helper
@@ -109,10 +114,7 @@ an indexed column must also fit the key budget (`guide indexes`).
 inside the write transaction. The named column must be a required reference
 on this table, such as `conversationId: conversations`. E_SEQUENCE_PARENT
 names a missing, optional or non-reference parent column and gives the rewrite.
-For an import that retargets an existing sequence parent, keep the existing
-parent or import a new row id; redeclaring the column cannot move an ordinal.
-The ordinal and parent reference are immutable (`immutable ordinal` is
-redundant but accepted). Do not
+The ordinal and parent reference are immutable. Do not
 supply a value or default. A table named `sequence` remains a reference type;
 only the two words `sequence by` introduce an ordinal.
 
@@ -125,12 +127,6 @@ table messages:
   conversationId: conversations
   ordinal: sequence by conversationId
   public 'shared chat history'
-  online only
-
-table members:
-  conversationId: conversations
-  joinedAt: sequence by conversationId
-  public 'shared chat membership positions'
   online only
 ```
 

@@ -147,6 +147,15 @@ fn list_bounds_valid(kind: &ColumnType) -> bool {
     }
 }
 
+// @ref LLP 3000.040#13-representation — a raw catalog cannot install a range no int satisfies.
+fn int_ranges_valid(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::IntRange { min, max } => crate::schema::int_range_valid(*min, *max),
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => int_ranges_valid(inner),
+        _ => true,
+    }
+}
+
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut walk = Walk { schema, issues: Vec::new() };
     for (name, table) in &schema.tables {
@@ -154,6 +163,10 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             if !list_bounds_valid(kind) {
                 walk.issues.push(SchemaIssue { path: format!("tables.{name}.columns.{field}"),
                     message: "list minimum must not exceed its maximum".into() });
+            }
+            if !int_ranges_valid(kind) {
+                walk.issues.push(SchemaIssue { path: format!("tables.{name}.columns.{field}"),
+                    message: "an int range needs -(2^53 - 1) <= min <= max <= 2^53 - 1".into() });
             }
         }
     }

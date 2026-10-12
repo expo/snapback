@@ -61,7 +61,7 @@ fn row_bounds(table: &Table, event: bool) -> Option<(usize, usize, usize, usize)
             let value = match kind.required() {
                 ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => Value::Id(identity.clone()),
                 ColumnType::Bool => Value::Bool(false),
-                ColumnType::Int | ColumnType::Time => Value::Int(I53_MIN),
+                ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time => Value::Int(I53_MIN),
                 ColumnType::Text { max } => Value::String("\\".repeat(*max as usize)),
                 ColumnType::Enum { variants: values } => Value::String(values.iter().max_by_key(|s| s.len())?.clone()),
                 _ => return None,
