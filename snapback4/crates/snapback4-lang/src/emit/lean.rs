@@ -1023,7 +1023,7 @@ fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String]
 }
 
 fn model_plain_index_fits(module: &LeanModule, table: &Table, columns: &[String]) -> bool {
-    model_index_label_fits(module, table, columns) && columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+    columns.len() <= 8 && model_index_label_fits(module, table, columns) && columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
         bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
     }) <= PORTABLE_KEY_BYTES
 }
@@ -1104,8 +1104,8 @@ fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
     }
 }
 
-/// The source key and target parent column of one capped membership leaf.
-fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, String)> {
+/// The source key, target parent column and usable cap of one membership leaf.
+fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, String, bool)> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
     let source = module.tables.iter().find(|table| table.name == read.table)?;
@@ -1120,20 +1120,24 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
         if let Some(parent) = column_of(&key.value) {
             if target.replace((column.clone(), parent.to_owned())).is_some() { return None }
         } else if !reads_row(&key.value) {
-            fixed.push(column.clone());
+            // A fixed source id remains an exact witness constraint, but PAGE
+            // evaluates it as a residual. It is neither a discovery prefix nor
+            // a cap grouping term; physical indexes always append id last.
+            if column != "id" { fixed.push(column.clone()); }
         } else {
             return None;
         }
     }
     let (source_parent, target_parent) = target?;
     let ceiling = snapback4_core::Ceilings::default().examined;
-    if !source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling && by.iter().all(|column| fixed.contains(column))) { return None }
+    let bounded = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
+        && by.iter().all(|column| column != "id" && fixed.contains(column)));
     fixed.sort();
     fixed.dedup();
     let mut source_key = fixed;
     if !source_key.contains(&source_parent) { source_key.push(source_parent); }
     if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
-    Some((source.name.clone(), source_key, target_parent))
+    Some((source.name.clone(), source_key, target_parent, bounded))
 }
 
 fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bool {
@@ -1151,12 +1155,13 @@ fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bo
         else { return false; }
     }
     if parties.is_empty() || memberships.is_empty() { return false }
-    if memberships.iter().any(|(source, columns, _)| module.tables.iter().find(|table| table.name == *source)
-        .is_none_or(|table| !model_plain_index_fits(module, table, columns))) { return true }
+    if memberships.iter().any(|(source, columns, _, bounded)| !bounded
+        || module.tables.iter().find(|table| table.name == *source)
+            .is_none_or(|table| !model_plain_index_fits(module, table, columns))) { return true }
     let (system_pins, branches) = model_page_pins(target, read);
     if !model_plain_index_fits(module, target, &model_lane_columns(system_pins, &read.order_keys)) { return true }
     branches.into_iter().any(|branch| {
-        parties.iter().chain(memberships.iter().map(|(_, _, parent)| parent)).any(|prefix| {
+        parties.iter().chain(memberships.iter().map(|(_, _, parent, _)| parent)).any(|prefix| {
             let mut pins = branch.clone();
             if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
             !model_plain_index_fits(module, target, &model_lane_columns(pins, &read.order_keys))

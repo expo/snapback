@@ -183,6 +183,62 @@ query run(c: cursor ?):
 }
 
 #[test]
+fn fixed_membership_id_is_not_a_physical_prefix_or_cap() {
+    let parent_column = "p".repeat(480);
+    let oversized = format!("table memberships:
+  {parent_column}: text <=40
+  principal: principal
+  unique pair: {parent_column}, principal
+  by decoy: id, principal, {parent_column}
+  cap 16 by principal
+  read <- allow
+  online only
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[id = 'm1', {parent_column} = .parent, principal = viewer]
+  online only
+query run(c: cursor ?):
+  return documents last 10 by .at after c
+");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), oversized.clone())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().all(|merge| !merge.branches()));
+    assert_eq!(lean::module(&oversized).unwrap().program("run").unwrap_err().reason,
+        "page-membership-key-bound");
+
+    let id_cap = "table memberships:\n  parent: text <=40\n  principal: principal\n  unique parent, principal\n  cap 1 by id\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), id_cap.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().all(|merge| !merge.branches()));
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let actual = engine.query("run", snapback4_core::Context::new(
+        "alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+    )).unwrap();
+    assert!(!actual.complete && actual.next.is_none(), "{actual:?}");
+    assert_eq!(lean::module(id_cap).unwrap().program("run").unwrap_err().reason,
+        "page-membership-key-bound");
+}
+
+#[test]
+fn membership_discovery_component_limit_stops_before_model_comparison() {
+    let source = "table memberships:\n  parent: text <=40\n  principal: principal\n  a: int\n  b: int\n  c: int\n  d: int\n  e: int\n  f: int\n  unique parent, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[parent = .parent, principal = viewer, a = 0, b = 0, c = 0, d = 0, e = 0, f = 0]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().all(|merge| !merge.branches()));
+    assert_eq!(lean::module(source).unwrap().program("run").unwrap_err().reason,
+        "page-membership-key-bound");
+}
+
+#[test]
 fn membership_filter_pins_and_labels_stop_before_model_comparison() {
     let filtered = "table memberships:
   parent: text <=100
@@ -259,7 +315,7 @@ fn typed_positional_and_named_membership_keys_agree_with_the_engine() {
 #[test]
 fn fixed_membership_source_id_agrees_with_the_engine() {
     if !model_built() { return; }
-    let source = "table memberships:\n  parent: text <=40\n  principal: principal\n  unique parent, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let source = "table memberships:\n  parent: text <=40\n  principal: principal\n  unique parent, principal\n  by decoy: id, principal, parent\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
     assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
