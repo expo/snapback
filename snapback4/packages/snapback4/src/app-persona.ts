@@ -4,13 +4,20 @@
 // sign-in, rotation, session custody or epochs, so none of createApp's session
 // machinery is involved. Writes keep the tier's own custody: with a device,
 // the device outbox (and the web journal in a browser); without one, the online
-// client, which refuses browser writes exactly as a bare createClient does.
+// journal, keyed by backend and persona principal.
 // @ref LLP 3000.013#6.1 — loopback is checked here for a clear refusal; dev's
 // socket/Host/Origin check and serve's refusal of the header remain the boundary.
 import type { App, AppOptions, AppResult, AuthSnapshot, AppAuth, LiveAuth } from "./app.ts";
 import { onlineView, type Online } from "./app-online-arm.ts";
 import { createClient, mintId } from "./client.ts";
 import { defaultFetch } from "#fetch";
+import { localStorageSessionStore, memorySessionStore } from "./auth.ts";
+import { sessionAuthority } from "./session-authority.ts";
+import { personaAdmissionAuthority } from "./admission-authority.ts";
+import { guardClient } from "./app-client.ts";
+import { onlineCustody } from "./app-online.ts";
+import { identifyDispatch } from "./online-dispatch.ts";
+import { StorageWarning } from "./app-storage.ts";
 import { createLocalClient } from "./local.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sdkOwned } from "./admission.ts";
@@ -54,6 +61,9 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
   let current: Client = notOpen(`persona ${viewer} is still opening; the write was not admitted`, "await app.ready, then retry with the same id");
   let remote: Client | undefined, online: Online = onlineView(current);
   let closed = false, ended = false;
+  let openingRefusal: Refusal | undefined;
+  let storeChanged: Refusal | undefined;
+  let custody: Awaited<ReturnType<typeof onlineCustody>> | undefined;
   const listeners = new Set<() => void>(), onlineListeners = new Set<() => void>();
   const publish = (next: AuthSnapshot) => {
     snapshot = next;
@@ -61,6 +71,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     for (const listener of listeners) { try { listener(); } catch (error) { console.error("snapback4 auth listener:", error); } }
   };
   const signedOut = (why?: Refusal) => {
+    custody?.pause();
     const previous = [current, remote];
     current = notOpen(why?.message ?? `persona ${viewer} signed out; the write was not admitted`,
       why?.rewrite ?? "create a new app to act as a persona again");
@@ -70,17 +81,18 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
   };
   const problem = (error: unknown): Refusal => {
     const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof StorageWarning) return error.why;
     const code = /E_AUTH\b/.test(message) ? "E_AUTH" : "E_CLIENT";
     return { code, family: code === "E_AUTH" ? "auth" : "client", message, site: "createApp.persona", guide: "personas",
       rewrite: "start `snapback4 dev` on this loopback url with `use personas` declared, then create the app again" };
   };
   const refused = personaRefusal(url, persona);
   if (typeof window !== "undefined" && !refused) console.info(`snapback4: createApp acts as development persona ${viewer} (loopback snapback4 dev only; serve refuses personas).`);
-  if (!options.device && browserAdmission()) console.warn("snapback4: a persona app without a device refuses browser writes with E_ADMISSION; use createApp({ url, persona, device: webDevice() }).");
+
   const ready: Promise<AppResult> = (async (): Promise<AppResult> => {
     if (refused) { await signedOut(refused); return { ok: false, why: refused }; }
+    let opened: Client | undefined;
     try {
-      let opened: Client;
       if (options.device) {
         opened = await createLocalClient({ url, persona, device: options.device,
           ...(fetcher ? { fetch: fetcher } : {}),
@@ -88,28 +100,61 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
           ...(options.assets ? { assets: options.assets } : {}),
           ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}) });
       } else {
-        opened = sdkOwned(() => createClient({ url, persona, ...(fetcher ? { fetch: fetcher } : {}),
+        opened = sdkOwned(() => createClient({ url, persona, onStoreChange: why => {
+          storeChanged = why;
+          void custody?.refuseStore(why).finally(() => custody?.pause()).catch(error => console.error("snapback4 persona retirement:", error));
+        }, ...(fetcher ? { fetch: fetcher } : {}),
           ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}) }));
-        // The bare online transport has no browser admission journal. Name the
-        // fix for this app, rather than the bare client's account-based one.
-        if (browserAdmission()) opened.mutate = routeMutations(opened.mutate, (_op, _args, write) => failedAdmission(write?.id ?? mintId(),
-          admissionRefusal("a persona app without a device has no synchronous browser admission journal", "app.mutate",
-            "createApp({ url, persona, device: webDevice() })")));
         // A refused persona (serve, or a non-loopback peer) surfaces before
         // signed-in. An unreachable dev server does not: the online client
         // reports its link like any other.
         const denied = await (fetcher ?? defaultFetch)(url + "/probe", { headers: { "x-snapback-persona": persona } })
           .then(async response => response.status === 401 ? ((await response.json()) as { denied?: Refusal }).denied : undefined, () => undefined);
         if (denied) { await opened.close(); throw new Error(`E_AUTH: ${denied.message}`); }
+        try {
+          const browser = browserAdmission();
+          const store = options.sessionStore ?? (browser ? localStorageSessionStore() : memorySessionStore());
+          const authority = browser ? sessionAuthority(store) : undefined;
+          if (browser && !authority) throw new StorageWarning(admissionRefusal("a persona browser journal needs IndexedDB storage", "createApp.persona", "omit sessionStore, or pass localStorageSessionStore()"));
+          if (browser && options.writes !== "online") {
+            const unknown = (detail: string): Refusal => ({ ...admissionRefusal(`the backend has not said whether its tables sync (${detail})`, "createApp.persona", 'retry opening, or pass writes: "online"'), retryable: true });
+            try {
+              const response = await (fetcher ?? defaultFetch)(url + "/schema", { headers: { "x-snapback-persona": persona } });
+              const json = await response.json() as { schema?: { tables?: Record<string, { sync?: unknown }> } };
+              const tables = json?.schema?.tables;
+              if (!response.ok || !tables || typeof tables !== "object" || Array.isArray(tables)
+                || !Object.values(tables).every(table => table && typeof table === "object" && !Array.isArray(table)))
+                openingRefusal = unknown(`GET /schema answered ${response.status} without a table map`);
+              else {
+                const synced = Object.entries(tables).filter(([, table]) => table.sync).map(([name]) => name);
+                if (synced.length) openingRefusal = admissionRefusal(`this schema syncs ${synced.join(", ")}; choose a device or explicit online writes`, "createApp.persona",
+                  'createApp({ url, persona, device: webDevice() }) for offline reads, or createApp({ url, persona, writes: "online" })');
+              }
+            } catch (error) { openingRefusal = unknown(String(error)); }
+          }
+          if (browser) {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            await Promise.race([identifyDispatch(opened).catch(() => undefined),
+              new Promise<void>(resolve => { timer = setTimeout(resolve, 1_000); })]).finally(() => clearTimeout(timer));
+          }
+          custody = await onlineCustody(opened, url, store, error => console.error("snapback4 persona journal:", error), false,
+            authority ? personaAdmissionAuthority(url, viewer, authority.source) : undefined);
+          if (storeChanged) { await custody.refuseStore(storeChanged); custody.pause(); }
+          opened = guardClient(custody.client, async () => !closed && !ended, () => !closed && !ended,
+            () => storeChanged ?? personaOnly("the persona app has stopped"), undefined, () => storeChanged ?? openingRefusal).client;
+        } catch (error) { await opened.close(); throw error; }
       }
       if (closed || ended) { await opened.close(); return { ok: true }; }
       const previous = current;
       current = opened;
       online = onlineView(options.device ? (remote = sdkOwned(() => createClient({ url, persona, ...(fetcher ? { fetch: fetcher } : {}) }))) : current);
-      publish({ state: "signed-in", viewer });
+      custody?.start();
+      publish({ state: "signed-in", viewer, ...(openingRefusal ? { why: openingRefusal } : {}) });
       await previous.close();
-      return { ok: true };
+      return openingRefusal ? { ok: false, why: openingRefusal } : { ok: true };
     } catch (error) {
+      custody?.pause();
+      await opened?.close().catch(() => {});
       const why = problem(error);
       if (!closed && !ended) await signedOut(why);
       return { ok: false, why };
@@ -146,8 +191,10 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     close() {
       if (closing) return closing;
       closed = true;
+      custody?.pause();
       closing = (async () => {
         await ready.catch(() => {});
+        custody?.pause();
         await Promise.all([current.close(), remote?.close()]);
         if (snapshot.state !== "signed-out") publish({ state: "signed-out", viewer: null });
         listeners.clear(); onlineListeners.clear();

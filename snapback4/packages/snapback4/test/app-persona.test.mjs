@@ -82,18 +82,16 @@ test("persona app refuses a non-loopback url without a request, and a server tha
   }, "persona refusals");
 });
 
-test("a browser persona app without a device names the device fix for writes; reads still work", { timeout: hangBudget(5) }, async t => {
-  const { url } = await server(t, undefined, source);
+test("a browser persona app refuses missing journal support at construction", async t => {
   const previousWindow = globalThis.window;
-  globalThis.window = { location: { href: url } };
+  globalThis.window = { location: { href: "http://127.0.0.1:4400" } };
   t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; });
-  const info = console.info; console.info = () => {}; t.after(() => { console.info = info; });
-  const app = createApp({ url, persona: "alice", fetch }); t.after(() => app.close());
-  assert.deepEqual(await app.ready, { ok: true });
-  const write = app.mutate(add, { body: "x" });
-  assert.equal(write.state, "failed", "the refusal is in the calling stack");
-  assert.equal(write.why.code, "E_ADMISSION");
-  assert.match(write.why.rewrite, /createApp\(\{ url, persona, device: webDevice\(\) \}\)/);
-  assert.equal((await write).state, "failed");
-  assert.deepEqual((await app.client.query(list, {})).data, []);
+  assert.throws(() => createApp({ url: "http://127.0.0.1:4400", persona: "alice", fetch }), error => error.why?.code === "E_ADMISSION");
+});
+
+test("invalid online-write combinations refuse before branching on identity", () => {
+  for (const persona of [undefined, "alice"]) {
+    for (const extra of [{ writes: "bogus" }, { writes: "online", device: {} }])
+      assert.throws(() => createApp({ url: "http://127.0.0.1:4400", persona, ...extra }), error => error.why?.code === "E_CLIENT");
+  }
 });

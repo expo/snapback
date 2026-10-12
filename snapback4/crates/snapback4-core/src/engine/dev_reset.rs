@@ -57,9 +57,13 @@ impl Engine {
                 None => tx.conn().execute(&format!("DELETE FROM {quoted}"), [])?,
             };
         }
-        // A fresh store has no schedule boundary: the next tick records the
-        // current one without firing a missed period. Replay's count restarts.
+        // Prime at the reset clock in this transaction: no old period fires,
+        // and the next crossed boundary fires normally. Replay's count restarts.
         tx.conn().execute("DELETE FROM _meta WHERE key LIKE 'schedule:%' OR key LIKE 'schedule-shape:%' OR key = 'dev:suppressed-effects'", [])?;
+        for schedule in &self.schema.schedules {
+            tx.set_meta(&format!("schedule:{}", schedule.name), &schedule.boundary(now).to_string())?;
+            tx.set_meta(&format!("schedule-shape:{}", schedule.name), &crate::value::digest(schedule))?;
+        }
         tx.conn().execute("UPDATE _meta SET value = lower(hex(randomblob(16))) WHERE key = 'store_id'", [])?;
         let store_id = tx.meta("store_id")?.unwrap_or_default();
         // Every table changed: no change evidence may certify an interval

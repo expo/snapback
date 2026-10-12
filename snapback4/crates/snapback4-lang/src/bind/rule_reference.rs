@@ -78,11 +78,20 @@ pub(super) fn reference_rewrite(catalog: &Catalog, info: &TableInfo, expr: &Expr
                 let (key, ty) = if let Expr::Read(read) = base.as_ref() {
                     let key = read.keys.first().map(|key| render(catalog, info, &key.value, lines).0).unwrap_or_else(|| "id".into());
                     named = read.keys.first().and_then(|key| key.column.clone()).filter(|column| column != "id");
+                    // @ref LLP 3000.036#18 — preserve the typed positional key; viewer is a principal, never an intrinsic row id.
+                    if named.is_none() && key == "viewer" && read.keys.len() == 1 {
+                        if let Some(target) = catalog.tables.get(&read.table) {
+                            let candidates: Vec<_> = target.indexes.iter().filter(|index| target.total_unique(index) && index.columns.len() == 1
+                                && target.columns.get(&index.columns[0]).is_some_and(|ty| ty.kind == TypeKind::Principal)
+                                && read.index.as_ref().is_none_or(|name| *name == index.name)).collect();
+                            if candidates.len() == 1 { named = Some(candidates[0].columns[0].clone()); }
+                        }
+                    }
                     (key, Some(Ty::Ref(read.table.clone())))
                 } else { render(catalog, info, base, lines) };
                 if let Some(Ty::Ref(table)) = ty.map(|ty| ty.required()) {
                     let local = format!("rule_parent_{}", lines.len());
-                    let target = match &named { Some(column) => format!("{table}[{column} = {key}]"), None => lookup(catalog, &table, &key) };
+                    let target = match &named { Some(column) => format!("{table}[{column} = {key}]"), None if matches!(base.as_ref(), Expr::Read(_)) => format!("{table}[{key}]"), None => lookup(catalog, &table, &key) };
                     lines.push(format!("{local} = {target} ! else FORBIDDEN"));
                     if let Some(target) = catalog.tables.get(&table) { private_guard(target, name, &format!("{local}."), lines); }
                     selected(catalog,&table,name,&local)

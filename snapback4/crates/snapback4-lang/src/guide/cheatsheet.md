@@ -75,7 +75,7 @@ mutation removeItem(item: items):
 - Operators: `= != < <= > >=`, `and or not`, `+ - * / %`, `x ?? fallback`, `a if cond else b`, `exists t[k]`.
   `/` and `%` take ints (and times) and floor: `7 / 2` is 3, `-7 / 2` is -4, `-7 % 2` is 1; zero refuses E_DIV_ZERO.
   `money` and `decimal` add, subtract and multiply by an int but do not divide; `share(total, people, viewer)` splits an amount.
-- Text: `'it\'s'` or `"it's"`; `\\`, `\n`, `\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)`, `month(now)`, `monthStart(m)` (`guide time`).
+- Text: `'it\'s'` or `"it's"`; `\\`, `\n`, `\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)` (day number; UTC midnight: `day(now) * 1d`), `month(now)`, `monthStart(m)` (`guide time`).
 - Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`. `t[a, b]` takes
   a unique key's values in column order; `t[col = x]` names a column; in brackets a bare name is a local or argument, `.col` the row's.
 - Pages: `where` is optional (`return pieces first 50 by .id after c`). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.
@@ -159,3 +159,5 @@ and `await client.mutate(api.addList, { title })`. Every export by subpath: `gui
 - `npx snapback4 test --fixture fixtures --as alice`: `fixtures/<table>.jsonl` rows, then `fixtures/test.cases.jsonl`:
   `{"as":"bob","op":"addItem","args":{"list":"l1","text":"x"},"expect":"denied"}` (`guide testing`).
 - Over HTTP: `dev --port 0 --memory` (stdout's first line is the URL); `POST /seed`, `/q/<query>`, `/m/<mutation>` with `x-snapback-persona: alice` (`guide testing --section acceptance`).
+
+Maintained totals: `view total: sum expenses of .amount by .owner` beside `view n: count expenses by .owner`. `cap` groups by stored columns; store `day(startsAt)` in an immutable int dayNumber before grouping by it.

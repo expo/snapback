@@ -63,7 +63,7 @@ fn cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches()
 fn cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority() {
     let first = include_str!("fixtures/ag/rule-hop.q");
     let b = bound(first);
-    let d = b.diagnostics.iter().find(|d| d.code == "E_QUARRY_UNKNOWN").unwrap();
+    let d = b.diagnostics.iter().find(|d| d.code == "E_REDUNDANT_RULE").unwrap();
     assert!(d.mechanical, "{d}");
     assert!(d.message.contains("parent's rule"), "{d}");
     assert_ne!(d.rewrite, ".conversation");

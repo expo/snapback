@@ -1253,7 +1253,22 @@ impl<'a> Binder<'a> {
         if super::columns::fields(info).next().is_some() { Ty::WriteRow(info.decl.name.clone()) } else { Ty::Row(info.decl.name.clone()) }
     }
 
+    fn calendar_number(&self, value: &A, depth: u8) -> bool {
+        if depth > 8 { return false; }
+        match value {
+            A::Call { name, .. } => matches!(name.as_str(), "day" | "hour" | "bucket"),
+            A::Name { name, .. } => self.binding(name).is_some_and(|binding| binding.revision == 0 && binding.origins.len() == 1 && self.calendar_number(&binding.origins[0].1, depth + 1)),
+            A::If { then, otherwise, .. } => self.calendar_number(then, depth + 1) || self.calendar_number(otherwise, depth + 1),
+            _ => false,
+        }
+    }
+
     fn field_value(&mut self, field: &ObjectField, expected: &Ty, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if expected.required() == Ty::Time && field.value.as_ref().map_or_else(
+            || self.calendar_number(&A::Name { name: field.name.clone(), site: field.site.clone() }, 0), |value| self.calendar_number(value, 0)) {
+            return Err(type_error(&field.site, "day/hour/bucket returns a period number, not a time in milliseconds",
+                "store the period number in an int field, or use day(now) * 1d for a UTC midnight time (hour(now) * 1h for an hour)"));
+        }
         match &field.value {
             Some(value) if expected.required().is_identity() => self.expr_as_identity(value, out, expected),
             Some(value) => {

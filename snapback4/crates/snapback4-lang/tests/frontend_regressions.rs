@@ -63,15 +63,15 @@ fn self_witness_notes_name_only_the_unpinned_deciding_columns() {
     let source = include_str!("../../snapback4-sim/tests/fixtures/membership.q");
     let rule = ".principal = viewer or exists memberships[.chatKey, viewer]";
     let positive = bound(source);
-    assert!(!positive.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", positive.notes);
+    assert!(!positive.notes.iter().any(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", positive.notes);
     let blocked = bound(&source.replace("  by byPrincipalChat:", "  unique byChatPrincipalRole: chatKey, principal, role\n  by byPrincipalChat:")
         .replace(rule, ".principal = viewer or exists memberships[.chatKey, viewer, 'admin']"));
-    let note = blocked.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
+    let note = blocked.notes.iter().find(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .principal, which the scan does not pin"), "{note:?}");
     assert!(note.rewrite.contains("pin .principal with where equalities"), "{note:?}");
     assert!(!note.rewrite.contains("principal, principal"), "{note:?}");
     let residual = bound(&source.replace(rule, &format!("{rule} or .role = 'admin'")));
-    let note = residual.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
+    let note = residual.notes.iter().find(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .role, which the scan does not pin"), "{note:?}");
     assert!(note.rewrite.contains("pin .role with where equalities"), "{note:?}");
 }

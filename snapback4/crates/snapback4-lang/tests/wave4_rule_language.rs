@@ -21,7 +21,7 @@ fn first(source: &str, code: &str) -> Diagnostic {
 }
 
 fn note<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.notes.iter().find(|n| n.code == code)
+    b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
 }
 
 fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
@@ -176,6 +176,7 @@ fn a_prefix_decided_parent_grant_decides_the_leaders_roster() {
     let open = format!("{rides}{rsvps}query roster(ride: rides, c: cursor ?):\n  return rsvps where .ride = ride first 50 by .id after c\n");
     let b = clean(&open);
     assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{:#?}", b.notes);
+    assert!(note(&b, "N_CONDITIONAL_COMPLETE").is_some(), "{:#?}", b.notes);
     let mut unguarded = engine(&open, rows());
     assert_eq!(page(&mut unguarded, "roster", "lee", &pairs), Some((true, 2)));
     assert_eq!(page(&mut unguarded, "roster", "ann", &pairs), Some((true, 1)));

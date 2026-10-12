@@ -352,3 +352,20 @@ export function awaitBoundary() {
 // read that downloads bytes for a browser save. None of these admits, sends,
 // stores or settles a write: no delivery site, classification or fault recipe
 // changes. The boundary is regenerated over both families' sources.
+
+// W8C (LLP 3000.013.000 §17): app-persona opening awaits dev probe/schema,
+// store identification and the existing onlineCustody wrapper. These are
+// online journal custody, outside this matrix's device delivery path; no
+// device await or fault recipe changed. online-capture runs all common
+// capture/marker/commit-failure/recovery races for sessions AND personas;
+// online-journal-browser covers navigation, lost POST responses, schema
+// refusal/unknown selection with older intent, principal isolation and reset.
+// Persona authority is synchronous, with no session-credential I/O. app.ts
+// construction validates configurations before its identity branch; its
+// journal/session admission and the device dispatcher remain unchanged.
+// W8C lifecycle correction: onlineCustody's opening read now has a cleanup
+// catch (close capture/listeners/raw transport) before rethrowing. app-persona
+// awaits closing the provisional client on every failed opening. These online
+// awaits are outside device delivery. Both identity kinds test opening read
+// failure with a surviving capture and no leaked runtime lock; Chromium
+// exercises store replacement observed by a read and lock release.

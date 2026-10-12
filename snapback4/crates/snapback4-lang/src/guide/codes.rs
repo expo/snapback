@@ -299,6 +299,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_HELD_UNKNOWN", "a held query may read a table, view or read-through parent with no sync, or server presence; that read is unavailable on a device and held prevents server fallback. Move the read to its own query, or drop held. guide sync."),
     ("N_SEEK", "a where on the next index column is a seek; write it in the key, with the comparison after the pinned prefix."),
     ("N_SPARSE_FILTER", "a residual predicate may examine many rejected rows before finding a page. Pin its scope with where .owner = owner. For a time window, give both endpoints, for example .at > now - 24h and .at <= now. The engine chooses the index; the read meter still bounds work. guide reads."),
+    ("E_REDUNDANT_RULE", "aggregate read rule repeats its parent's rule; omit the entire read line to inherit the reference-grouped parent's authorization. guide totals."),
+    ("N_CONDITIONAL_COMPLETE", "a readable pinned-parent guard decides the page for callers it admits; other callers still get complete: false. Check the named guard or split the audiences. On upgrade, update capped case expectations that now answer complete. guide reads."),
     ("N_NEVER_COMPLETE", "a note, not an error — a page whose read rule reads a column the scan does not pin is complete: false on the server whatever it finds. Pin that column with a where equality. For membership search, use messages matching q where exists members[.roomId, viewer] last 20 by .at after c; or read held rows on the device. guide reads, search."),
     ("NOT_FOUND", "the program's own code for a write whose row does not exist (a direct update or delete of a missing point), and the conventional code for `t[key] ! else NOT_FOUND`."),
 ];

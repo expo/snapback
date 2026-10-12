@@ -6,6 +6,9 @@ with a site and rewrite: no new intent is accepted. Use `webDevice()` and
 the original id. With no synced table a browser app needs no device:
 `createApp({ url, sessionStore: localStorageSessionStore() })` journals each
 click; a schema that syncs refuses without `webDevice()` or `writes: "online"`.
+Loopback persona apps use `createApp({ url, persona })` with the same journal,
+without a session store. Missing journal APIs throw at construction; schema
+selection refuses new writes through ready while older intent still recovers.
 Browser storage clearing after admission can still erase the journal. Session
 readiness is required; acquisition readiness is not.
 

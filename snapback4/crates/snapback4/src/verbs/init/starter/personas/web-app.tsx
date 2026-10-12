@@ -5,7 +5,7 @@ import { openApp, personas } from "./client.ts";
 // `?as=bob` acts as the declared persona dev:bob; the picker switches it.
 export function App() {
   const [persona, setPersona] = useState(() => new URLSearchParams(location.search).get("as"));
-  // One app (and device store) per persona: opened on choice, closed on switch and unmount.
+  // One app and write store per persona: opened on choice, closed on switch and unmount.
   const app = usePersonaApp(persona, openApp);
   const choose = (next: string | null) => {
     const address = new URL(location.href);

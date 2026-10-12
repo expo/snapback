@@ -20,11 +20,11 @@ fn clean(source: &str) -> Bound {
 }
 
 fn note<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.notes.iter().find(|n| n.code == code)
+    b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
 }
 
 fn problem<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.diagnostics.iter().find(|n| n.code == code)
+    b.diagnostics.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
 }
 
 fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {

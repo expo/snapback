@@ -34,7 +34,7 @@ pub(super) fn inherited_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDec
     // .message is the group reference, not a same-named parent column.
     if traversed == 0 || traversed != roots || super::schema::bind_rule(catalog, parent, &lifted).ok()?
         != super::schema::bind_rule(catalog, parent, parent_rule).ok()? { return None; }
-    let mut diagnostic = Diagnostic::new(&rule.site, "E_QUARRY_UNKNOWN",
+    let mut diagnostic = Diagnostic::new(&rule.site, "E_REDUNDANT_RULE",
         format!("aggregate read rule repeats its parent's rule through .{}; omit the entire read line to inherit {} authorization", through.reference, through.parent),
         format!("-- {} inherits read through {}.{}", maintain.name, maintain.source, through.reference)).guide("maintains");
     diagnostic.mechanical = !catalog.source.expression(&rule.value).contains('\n');

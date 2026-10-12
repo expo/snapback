@@ -29,8 +29,7 @@ test("a bare browser createClient and a device-less createApp warn once at const
   assert.equal(write.state, "failed"); assert.equal(write.why.code, "E_ADMISSION");
   assert.equal(write.why.rewrite, "createApp({ url, sessionStore: localStorageSessionStore() }) when no table syncs; otherwise createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })");
   assert.match(write.why.message, /without a device when no table syncs/);
-  const online = createApp({ url, sessionStore: memorySessionStore(), fetch: unreachable });
-  assert.equal(warnings.length, 2);
-  assert.match(warnings[1], /createApp without a device journals browser writes only with sessionStore: localStorageSessionStore\(\)/);
-  await Promise.all([bare.close(), withDevice.close(), online.close()]);
+  assert.throws(() => createApp({ url, sessionStore: memorySessionStore(), fetch: unreachable }), error => error.why?.code === "E_ADMISSION");
+  assert.equal(warnings.length, 1);
+  await Promise.all([bare.close(), withDevice.close()]);
 });

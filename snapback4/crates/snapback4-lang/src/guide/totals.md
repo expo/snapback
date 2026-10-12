@@ -165,3 +165,9 @@ Common misspellings and what `check` says:
   `E_QUARRY_UNKNOWN: unknown shape where`. Write `count(orders where …)`.
 - `sum(orders where …, cents)`: `E_QUARRY_UNKNOWN: unknown name cents`. The
   column is `.cents`.
+
+Reference-grouped views over `read through .parent` rows inherit the parent's
+rule. Omit a read line that repeats `.parent.owner = viewer`; it is
+`E_REDUNDANT_RULE`, and deleting the whole line preserves the inherited audience.
+Maintained sums spell the value separately: `view total: sum expenses of .amount by .household`,
+not `sum expenses.amount by .household`.
