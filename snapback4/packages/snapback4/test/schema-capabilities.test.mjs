@@ -116,6 +116,9 @@ async function harness(t) {
   t.after(async()=>{for(const {child,exited} of children){if(child.exitCode===null&&child.signalCode===null)child.kill();await exited;}rmSync(dir,{recursive:true,force:true});});
   const legacy=await published(cache,join(dir,'published'),text=>t.diagnostic(text));
   const current=await loadWasm(join(root,'packages/snapback4/src/wasm'));
+  // @ref LLP 3000.001.000#protocol — a current engine retrieves fixture bytes through the live wire gate; legacy codecs are exercised directly below.
+  const engine=(await import(new URL('../src/wasm/snapback4_device.js',import.meta.url))).engine_info();
+  assert.equal(JSON.parse(engine).format,1);
   const run=(bin,args,input='',cwd=dir)=>spawnSync(bin,args,{cwd,input,encoding:'utf8',timeout:hangBudget()});
   assert.match(run(legacy.binary,['--version']).stdout,/snapback4 0\.2\.33/);
   function native(bin,path,backend,requests=[]) {
@@ -135,7 +138,7 @@ async function harness(t) {
     return {url,assertAlive,stop:async()=>{if(stopped)return;assertAlive();stopped=true;child.kill();await exited;}};
   }
   const request=async(server,path,body,auth={'x-snapback-persona':'alice'})=>{
-    const r=await fetch(server.url+path,{method:body?'POST':'GET',headers:{...auth,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(hangBudget())});
+    const r=await fetch(server.url+path,{method:body?'POST':'GET',headers:{...auth,'x-snapback-device':engine,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(hangBudget())});
     const text=await r.text();assert.equal(r.status,200,text);return {text,json:JSON.parse(text)};
   };
   async function app(name,source,seed=[],bin=binary) {
@@ -354,12 +357,10 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   await newApp.server.stop();await oldApp.server.stop();
   const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stderr);
   const release=join(dir,'control-release'),deployed=run(binary,['deploy',release],'',newApp.cwd);assert.equal(deployed.status,0,deployed.stderr);
-  // Supervisor's 0.4 compatibility policy: a 0.4 release requires a 0.4
-  // server. Selection facts/indexes/explanations may change the compiled
-  // backend; old devices still accept capability-free backends. An older
-  // server recompiles the source differently and must fail closed unchanged.
-  // First serve with the matching server establishes the ordinary release
-  // store link and proves the release works before testing the old server.
+  // Capability-free bytes still decode on old devices, while retained release
+  // stores require a retention-aware server. First serve with the matching
+  // server to establish the ordinary store link and prove the release works
+  // before testing the old server's version gate.
   const server=await start(binary,newApp.cwd,['serve',release,'--port','0']);
   const guest=await request(server,'/auth/guest',{},{});assert.ok(guest.json.session?.token);
   const reply=await request(server,'/q/posts',{args:{}},{authorization:`Bearer ${guest.json.session.token}`});
@@ -371,9 +372,11 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   try {assert.equal(closedStore.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get().busy,0);} finally {closedStore.close();}
   // Let the old compiler reach the store gate rather than stop at new source syntax.
   writeFileSync(join(release,'releases/1/snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
+  const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const releaseDoctor=run(legacy.binary,['doctor','--store',join(release,'store.sqlite')],'',newApp.cwd);
   releaseStoreRefusal(releaseDoctor,join(release,'store.sqlite'));
-  const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
+  assert.deepEqual(files(release),releaseBefore,'refused release doctor preserves the release');
+  assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused release doctor preserves every SQLite byte');
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
   releaseStoreRefusal(served,join(release,'store.sqlite'));
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
