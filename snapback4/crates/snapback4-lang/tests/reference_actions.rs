@@ -443,6 +443,19 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
 
     let conditionally_checked = rule_checked.replace("insert <- exists parents[.parent]", "insert <- exists parents[.parent] or allow");
     assert!(bound(&conditionally_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "every admitted write path must prove existence");
+
+    let hop_checked = "table parents:\n  active: bool\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- .parent.active = true\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(!bound(hop_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+    let hop_bypassed = hop_checked.replace("insert <- .parent.active = true", "insert <- .parent.active = true or allow");
+    assert!(bound(&hop_bypassed).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let through_checked = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete cascade\n  immutable parent\n  unique parent\n  read through .parent\n  insert <- allow\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(!bound(through_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let after_insert = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\n  update <- allow\n  after insert <- exists parents[.parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\nmutation put(id: id, parent: parents):\n  upsert kids[id] { parent }\n";
+    let notes: Vec<_> = bound(after_insert).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(notes.len(), 1, "after insert proves only the insert arm: {notes:#?}");
+    assert!(notes[0].message.contains("mutation put"), "{notes:#?}");
 }
 
 #[test]

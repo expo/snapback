@@ -168,12 +168,12 @@ impl Runner<'_> {
         // @ref LLP 3000.013#14.7 — the requested key authorizes a
         // missing aggregate before its logical zero is disclosed. A hidden hit
         // and hidden miss are the same unavailable value.
-        let stored_authorization = maintained.is_some_and(|m| !self.schema.tables[&m.source].is_expiring()) && !key_admitted;
+        let authorize_missing_group = maintained.is_some() && !key_admitted;
         let tables_mark = self.read_tables.clone();
         let mut absent = false;
         let found = self.authorized_point(read, index, key, prepaid, trusted, maintained.is_some(), &mut absent)?;
         let Some(row) = found else {
-            if absent && stored_authorization {
+            if absent && authorize_missing_group {
                 // The same reservation owns a live row or a logical zero.
                 let mut fields: BTreeMap<_, _> = crate::small_map::collect(index.columns().into_iter().zip(key.iter().cloned()));
                 let m = maintained.expect("maintained aggregate");
@@ -186,7 +186,7 @@ impl Runner<'_> {
                 // scope. This is a synthetic image, so a device must evaluate its
                 // key rule rather than trust delivery of a row it never received.
                 let authorized = self.authorized_scratch(0, &[], |runner, _| {
-                    if runner.authorize_read(&read.table, &zero, true)? {
+                    if runner.context.is_system() || runner.authorize_read(&read.table, &zero, true)? {
                         Ok(Some(runner.authorized_synthetic(table, zero)))
                     } else { Ok(None) }
                 })?;

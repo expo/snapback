@@ -84,17 +84,18 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
 
 fn write_contract_checks(schema: &Schema, candidate: &Candidate) -> bool {
     let Some(table) = schema.table(&candidate.child) else { return false };
+    if table.through.as_ref().is_some_and(|through| through.reference == candidate.column) { return true }
     let rule_checks = |rule: &RuleExpr| rule_checks_target(rule, &candidate.target, &candidate.column);
-    let rules = match candidate.op {
-        WriteOp::Insert => rule_checks(&table.rules.insert),
-        WriteOp::Update => rule_checks(&table.rules.update),
-        WriteOp::Upsert => rule_checks(&table.rules.insert) && rule_checks(&table.rules.update),
-        WriteOp::Delete => true,
-    };
-    rules || matches!(candidate.op, WriteOp::Insert | WriteOp::Upsert) && table.constraints.iter().any(|constraint| {
+    let final_exists = || table.constraints.iter().any(|constraint| {
         matches!(constraint, Constraint::FinalExistsOnInsert { table, key, .. }
             if table == &candidate.target && key.iter().any(|term| term_reads_column(term, &candidate.column)))
-    })
+    });
+    match candidate.op {
+        WriteOp::Insert => rule_checks(&table.rules.insert) || final_exists(),
+        WriteOp::Update => rule_checks(&table.rules.update),
+        WriteOp::Upsert => (rule_checks(&table.rules.insert) || final_exists()) && rule_checks(&table.rules.update),
+        WriteOp::Delete => true,
+    }
 }
 
 fn rule_checks_target(rule: &RuleExpr, target: &str, column: &str) -> bool {
@@ -102,14 +103,21 @@ fn rule_checks_target(rule: &RuleExpr, target: &str, column: &str) -> bool {
         RuleExpr::And(items) => items.iter().any(|item| rule_checks_target(item, target, column)),
         RuleExpr::Or(items) => !items.is_empty() && items.iter().all(|item| rule_checks_target(item, target, column)),
         RuleExpr::Not(_) => false,
+        RuleExpr::Eq(left, right) | RuleExpr::Ne(left, right) | RuleExpr::Compare(_, left, right) => {
+            [left, right].iter().any(|term| term_looks_up_column(term, column))
+        }
         RuleExpr::Exists { table, key, equalities, .. } | RuleExpr::Created { table, key, equalities, .. } => {
             table == target && key.iter().chain(equalities.iter().map(|(_, term)| term)).any(|term| term_reads_column(term, column))
         }
-        RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Eq(..) | RuleExpr::Ne(..) | RuleExpr::Compare(..) => false,
+        RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => false,
     }
 }
 
 fn term_reads_column(term: &RuleTerm, column: &str) -> bool {
     matches!(term, RuleTerm::Field(field) | RuleTerm::OldField(field) | RuleTerm::NextField(field) if field == column)
-        || term.reference_source().is_some_and(|(source, _)| source == column)
+        || term_looks_up_column(term, column)
+}
+
+fn term_looks_up_column(term: &RuleTerm, column: &str) -> bool {
+    term.reference_source().is_some_and(|(source, old)| source == column && !old)
 }

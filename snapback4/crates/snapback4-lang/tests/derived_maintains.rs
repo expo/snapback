@@ -236,6 +236,9 @@ table officers:
 view recusalCounts: count recusals by .meeting
   read <- exists meetings[.meeting, chair = viewer] or exists officers[viewer]
   online only
+view chairedMeetingCounts: count meetings by .chair
+  read <- .chair = viewer
+  online only
 query bare(meeting: meetings):
   return recusalCounts[meeting]
 query guarded(meeting: meetings):
@@ -244,12 +247,20 @@ query guarded(meeting: meetings):
 query unrelated(meeting: meetings):
   require true else IMPOSSIBLE
   return recusalCounts[meeting]
+query selfAuthorized():
+  return chairedMeetingCounts[viewer]
+query rebound(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  key = b
+  return chairedMeetingCounts[key]
 "#;
     let b = bound(source);
     let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
-    assert_eq!(notes.len(), 2, "an unrelated require must not suppress the note: {:#?}", b.notes);
+    assert_eq!(notes.len(), 3, "unrelated and stale requirements must not suppress the note: {:#?}", b.notes);
     assert!(notes.iter().any(|note| note.message.contains("query bare")), "{notes:#?}");
     assert!(notes.iter().any(|note| note.message.contains("query unrelated")), "{notes:#?}");
+    assert!(notes.iter().any(|note| note.message.contains("query rebound")), "{notes:#?}");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|program| program.program)).unwrap();
     e.seed_at([
         ("meetings".into(), snapback4_core::value::object([("id", id("with")), ("chair", id("alice"))])),
@@ -267,4 +278,33 @@ query unrelated(meeting: meetings):
     assert_eq!(read(&mut e, "bare", "bob", "with").unwrap(), Value::Null, "hidden stored group");
     assert_eq!(read(&mut e, "bare", "bob", "empty").unwrap(), Value::Null, "hidden absent group");
     assert_eq!(read(&mut e, "guarded", "bob", "with").unwrap_err().code, "NOT_CHAIR");
+}
+
+#[test]
+fn expiring_source_and_system_misses_use_the_same_maintain_authorization_as_hits() {
+    let source = r#"
+table events:
+  owner: principal
+  until: time
+  immutable owner, until
+  expire at .until
+  read <- allow
+  online only
+view liveCounts: count events by .owner
+  read <- .owner = viewer
+  online only
+view deniedCounts: count events by .owner
+  read <- deny
+  online only
+query live(owner: principal):
+  return liveCounts[owner]
+query denied(owner: principal):
+  return deniedCounts[owner]
+"#;
+    let mut e = engine(source);
+    assert_eq!(e.query("live", ctx("alice", &[("owner", id("alice"))])).unwrap().data, Value::Int(0));
+    assert_eq!(e.query("live", ctx("bob", &[("owner", id("alice"))])).unwrap().data, Value::Null);
+    let mut system = Context::system().at(86_400_010);
+    system.args.insert("owner".into(), id("alice"));
+    assert_eq!(e.query("denied", system).unwrap().data, Value::Int(0));
 }

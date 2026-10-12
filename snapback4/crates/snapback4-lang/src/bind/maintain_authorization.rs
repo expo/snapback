@@ -16,17 +16,23 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let mut seen = BTreeSet::new();
     for doc in &catalog.documents {
         for program in doc.programs.iter().filter(|program| program.kind == ProgramKind::Query && !program.native) {
-            let mut requirements = Vec::new();
+            let mut requirements: Vec<Expr> = Vec::new();
             for statement in program.prelude.iter().chain(&program.body) {
                 if let Stmt::Require { condition, .. } = statement {
-                    requirements.push(condition);
+                    requirements.push(condition.clone());
+                    continue;
+                }
+                if let Stmt::Bind { names, .. } = statement {
+                    requirements.retain(|condition| !mentions_any(condition, names));
                     continue;
                 }
                 let Stmt::Return { value: Expr::Read(read), .. } = statement else { continue };
                 let Some(info) = catalog.tables.get(&read.table) else { continue };
                 let Some(maintain) = &info.maintained else { continue };
                 let Some(table) = schema.table(&read.table) else { continue };
-                if requirements.iter().any(|condition| matches_view_rule(condition, maintain, read))
+                let expected = substituted_view_rule(maintain, read);
+                if expected.as_ref().is_some_and(|expected| constant_bool(expected) == Some(true))
+                    || expected.as_ref().is_some_and(|expected| requirements.iter().any(|condition| canonical(condition.clone()) == canonical(expected.clone())))
                     || read.range.is_some() || read.keys.len() != maintain.by.len()
                     || table.rules.read.is_uniformly_readable() || matches!(table.rules.read, RuleExpr::Deny)
                     || !seen.insert((program.site.file.clone(), program.name.clone(), read.table.clone())) {
@@ -41,11 +47,23 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     notes
 }
 
+fn mentions_any(expression: &Expr, names: &[String]) -> bool {
+    let mut expression = expression.clone();
+    let mut found = false;
+    super::intent_walk::expression(&mut expression, &mut |expr| {
+        if let Expr::Name { name, .. } = expr
+            && names.contains(name) {
+            found = true;
+        }
+    });
+    found
+}
+
 /// Exact substitution is deliberately conservative: an unrelated requirement
 /// must not hide the note, and a guard we cannot prove equivalent keeps it.
-fn matches_view_rule(condition: &Expr, maintain: &crate::ast::MaintainDecl, read: &ReadExpr) -> bool {
-    let Some(rule) = &maintain.read else { return false };
-    if maintain.by.len() != read.keys.len() { return false }
+fn substituted_view_rule(maintain: &crate::ast::MaintainDecl, read: &ReadExpr) -> Option<Expr> {
+    let rule = maintain.read.as_ref()?;
+    if maintain.by.len() != read.keys.len() { return None }
     let mut keys: BTreeMap<String, Expr> = maintain.by.iter().map(|field| field.trim_start_matches('.').to_owned())
         .zip(read.keys.iter().map(|key| key.value.clone())).collect();
     for key in &read.keys {
@@ -59,7 +77,32 @@ fn matches_view_rule(condition: &Expr, maintain: &crate::ast::MaintainDecl, read
             *expr = value.clone();
         }
     });
-    canonical(expected) == canonical(condition.clone())
+    Some(expected)
+}
+
+/// Evaluate only identities whose truth follows from the authored expression
+/// itself. A key such as `counts[viewer]` proves `.owner = viewer`; a probe or
+/// comparison with an argument remains caller-dependent.
+fn constant_bool(expression: &Expr) -> Option<bool> {
+    match expression {
+        Expr::Name { name, .. } if matches!(name.as_str(), "allow" | "public" | "true") => Some(true),
+        Expr::Name { name, .. } if matches!(name.as_str(), "deny" | "false") => Some(false),
+        Expr::Literal { value: crate::ast::Literal::Bool(value), .. } => Some(*value),
+        Expr::Unary { op, value, .. } if op == "not" => constant_bool(value).map(|value| !value),
+        Expr::Binary { op, left, right, .. } if op == "and" => match (constant_bool(left), constant_bool(right)) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(true), Some(true)) => Some(true),
+            _ => None,
+        },
+        Expr::Binary { op, left, right, .. } if op == "or" => match (constant_bool(left), constant_bool(right)) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(false), Some(false)) => Some(false),
+            _ => None,
+        },
+        Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "=" | "!=")
+            && canonical(left.as_ref().clone()) == canonical(right.as_ref().clone()) => Some(op == "="),
+        _ => None,
+    }
 }
 
 fn canonical(mut expression: Expr) -> String {
