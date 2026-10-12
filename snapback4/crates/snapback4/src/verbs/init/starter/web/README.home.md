@@ -21,9 +21,10 @@ SIGN_IN
 - `fixtures/`: your rows as `fixtures/<table>.jsonl` and expectations in
   `fixtures/test.cases.jsonl`, for `npx snapback4 test --fixture fixtures`
   (`npx snapback4 guide testing`).
-- `src/client.ts`: one `createApp` per app. A browser app that writes passes
-  `device: webDevice()`; a bare `createClient()` in a browser refuses
-  mutations with `E_ADMISSION`.
+- `src/client.ts`: one `createApp` per app (or chosen persona). With no synced
+  table it uses the browser principal journal; synced tables use `webDevice()`
+  for offline reads and predictions. A bare browser `createClient()` refuses
+  durable mutations with `E_ADMISSION`.
 - `src/App.tsx`: the sign-in and `Home`, a screen to replace. It shows the
   viewer, your operations and your first query without required arguments,
   rendered with `matchRead`. Read with `useQuery(api.op, args)` or

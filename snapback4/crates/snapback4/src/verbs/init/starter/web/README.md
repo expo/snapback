@@ -23,8 +23,8 @@ returns.
 - `snapback/schema.q`: the backend (tables, rules, `sync`, queries, mutations).
   Edit it and `snapback4 dev` re-adopts it; `snapback4 check` regenerates the API.
 - `fixtures/`: seed rows and expected outcomes for `snapback4 test`.
-- `src/client.ts`: one `createApp` for the whole app. A browser app that writes
-  passes `device: webDevice()`; a bare `createClient()` in a browser refuses
+- `src/client.ts`: one `createApp` for the whole app. This synced todo schema
+  uses `device: webDevice()`; a bare `createClient()` in a browser refuses
   mutations with `E_ADMISSION`.
 - `src/App.tsx`: sign-in, the live list (`usePage`) and writes (`useMutation`).
   `usePage` passes the query's cursor itself: a paged query takes `c: cursor ?`

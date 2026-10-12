@@ -45,7 +45,7 @@ impl Offline {
         let lead = match platform { Platform::Web => "Offline:", Platform::Expo => "Offline, in device builds and on the web:" };
         let body = match self {
             Offline::Unknown => "tables that declare `sync` read and write offline and sync when the link returns; the others read from the server, and writes to them made offline are kept on this device and sent when the link returns (`npx snapback4 guide sync`).".to_owned(),
-            Offline::Tables { synced, .. } if synced.is_empty() => "no table in `snapback/*.q` declares `sync`, so reads need the server. Writes made offline are kept on this device and sent when the link returns. Add `sync` to a table to read it offline (`npx snapback4 guide sync`).".to_owned(),
+            Offline::Tables { synced, .. } if synced.is_empty() => format!("no table in `snapback/*.q` declares `sync`, so reads need the server. Writes made offline are kept {} and sent when the link returns. Add `sync` to a table to read it offline (`npx snapback4 guide sync`).", if platform == Platform::Web { "in this browser's principal journal" } else { "on this device" }),
             Offline::Tables { synced, total } if synced.len() >= *total => "every table declares `sync`, so the app reads and writes offline and syncs when the link returns.".to_owned(),
             Offline::Tables { synced, .. } => format!("the synced {} ({}) {} and {} offline and {} when the link returns; the other tables read from the server, and writes to them made offline are sent when the link returns (`npx snapback4 guide sync`).",
                 if synced.len() == 1 { "table" } else { "tables" }, synced.iter().map(|name| format!("`{name}`")).collect::<Vec<_>>().join(", "),
@@ -58,7 +58,7 @@ impl Offline {
     pub(super) fn summary(&self) -> &'static str {
         match self {
             Offline::Unknown => "",
-            Offline::Tables { synced, .. } if synced.is_empty() => ", online reads (no table declares `sync`; offline writes queue on the device)",
+            Offline::Tables { synced, .. } if synced.is_empty() => ", online reads (no table declares `sync`; offline writes queue in the write journal)",
             Offline::Tables { .. } => ", offline-capable for its synced tables",
         }
     }
@@ -146,6 +146,15 @@ pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: &Bo
         }
     };
     (super::without_design_references(&app), super::without_design_references(&client))
+}
+
+// @ref LLP 3000.013.000#17 — both identity modes choose the no-device journal when nothing syncs.
+pub(super) fn web_client(client: String, offline: &Offline) -> String {
+    if matches!(offline, Offline::Tables { synced, .. } if synced.is_empty()) {
+        client.replace("import { webDevice } from \"snapback4/web\";\n", "")
+            .replace("device: webDevice(), ", "").replace(", device: webDevice()", "")
+            .replace("each with its own device and store", "each with its own principal write journal")
+    } else { client }
 }
 
 /// Behind the persona picker there is no session: "Sign out" (`auth.logout()`)
@@ -246,6 +255,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
     package["scripts"]["build"] = json!("vite build && snapback4 web-shell dist");
     let (app, client) = screens(Platform::Web, shape.personas.as_deref(), &shape.body);
+    let client = web_client(client, &shape.offline);
     vec![
         ("package.json", super::pretty(&package)),
         ("index.html", include_str!("starter/web/index.html").replace("TITLE", &html_text(&shape.title))),

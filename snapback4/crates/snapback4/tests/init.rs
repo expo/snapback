@@ -688,7 +688,7 @@ fn skip_existing_keeps_files_and_writes_the_rest() {
     // `use personas carol` and no `use identity`: nobody can sign in as a guest.
     assert!(stdout.contains("picks a persona"), "{stdout}");
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
-    assert!(client.contains(r#"personas: readonly string[] = ["carol"]"#) && client.contains("createApp({ url, persona, device: webDevice() })"), "{client}");
+    assert!(client.contains(r#"personas: readonly string[] = ["carol"]"#) && client.contains("createApp({ url, persona })"), "{client}");
     let app = fs::read_to_string(dir.0.join("src/App.tsx")).unwrap();
     // The schema has none of the todo starter's operations: the screen behind
     // the picker is the neutral Home, which compiles against any schema.
@@ -1203,15 +1203,16 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
         let flat = readme.replace('\n', " ");
         assert!(!readme.contains("works offline") && !readme.contains("work offline"), "{flag}: {readme}");
-        assert!(flat.contains("no table in `snapback/*.q` declares `sync`, so reads need the server. Writes made offline are kept on this device"), "{flag}: {readme}");
+        assert!(flat.contains("no table in `snapback/*.q` declares `sync`, so reads need the server. Writes made offline are kept") && flat.contains(if flag == "--web" { "principal journal" } else { "on this device" }), "{flag}: {readme}");
         assert!(readme.lines().all(|line| line.matches('`').count() % 2 == 0 || line.starts_with("```") || line.contains("``")), "{flag}: no code span is wrapped: {readme}");
         // The schema grows a synced table: adapt rewrites only that paragraph.
         fs::write(dir.0.join("snapback/schema.q"), &synced).unwrap();
         let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(String::from_utf8_lossy(&checked.stdout).contains("README.md: the unmodified starter README says what works offline for another schema"), "{flag}: {checked:?}");
         let adapted = dir.init(&["--adapt"]);
-        assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote README.md"), "{flag}: {adapted:?}");
+        assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("README.md"), "{flag}: {adapted:?}");
         let after = fs::read_to_string(dir.0.join("README.md")).unwrap();
+        if flag == "--web" { assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("device: webDevice()"), "adapt follows the newly synced table"); }
         assert!(after.replace('\n', " ").contains("the synced table (`notes`) reads and writes offline"), "{flag}: {after}");
         assert_eq!(after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(),
             readme.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: nothing else changes");
@@ -1258,4 +1259,21 @@ fn init_names_the_one_flag_that_moves_both_ports() {
     let help = Command::new(BIN).args(["init", "--help"]).output().unwrap();
     let help = String::from_utf8_lossy(&help.stdout);
     assert!(help.contains("--port N") && help.contains("the page on N+1") && help.contains("one flag moves all of them"), "{help}");
+}
+
+#[test]
+fn wave8_web_client_chooses_principal_journal_for_both_identity_modes_when_nothing_syncs() {
+    for identity in ["use identity", "use personas alice, bob"] {
+        for sync in [false, true] {
+            let dir = Dir::new(); fs::create_dir_all(dir.0.join("snapback")).unwrap();
+            fs::write(dir.0.join("snapback/schema.q"), format!("{identity}\ntable notes:\n  owner: principal\n  body: text <=100\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  {}\n", if sync { "sync to .owner" } else { "online only" })).unwrap();
+            let output = dir.run("--web"); assert!(output.status.success(), "{output:?}");
+            let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+            assert_eq!(client.contains("device: webDevice()"), sync, "{client}");
+            assert_eq!(client.contains("from \"snapback4/web\""), sync);
+            assert!(!client.contains("This schema syncs todos"));
+            assert_eq!(client.contains("sessionStore: localStorageSessionStore()"), identity == "use identity");
+            assert_eq!(client.contains("createApp({ url, persona"), identity.contains("personas"));
+        }
+    }
 }

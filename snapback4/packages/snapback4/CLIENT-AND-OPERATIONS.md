@@ -804,8 +804,9 @@ preserved cancellation in that case.
 #### Browser writes without a device
 
 A browser `createApp` without `device` writes when the backend's schema
-declares no `sync`, or when the app passes `writes: "online"`; it needs
-`sessionStore: localStorageSessionStore()` and Web Locks. Opening reads
+declares no `sync`, or when the app passes `writes: "online"`. Session apps need
+`sessionStore: localStorageSessionStore()`; persona apps acquire journal storage
+internally. Both need Web Locks. Opening reads
 `GET /schema` once (skipped with `writes: "online"`) and identifies the store
 beside it. Reads are the online client's (no replica, no offline reads, no
 predictions); a write appears when the server confirms it.
