@@ -473,7 +473,7 @@ fn fixed_id_caps_reserve_all_older_page_classifiers() {
 #[test]
 fn varying_membership_source_id_remains_page_eligible() {
     if !model_built() { return; }
-    let source = "table groups:\n  principal: principal\n  unique id, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: groups\n  at: int\n  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let source = "table groups:\n  principal: principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: groups\n  at: int\n  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
     assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
@@ -508,6 +508,42 @@ fn varying_membership_source_id_remains_page_eligible() {
     let modeled = lean::ask(&case).unwrap();
     assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
     assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+    assert!(actual.complete && actual.next.is_none(), "{actual:?}");
+}
+
+#[test]
+fn intrinsic_id_membership_missing_witness_agrees_with_the_model() {
+    if !model_built() { return; }
+    let source = "table groups:\n  principal: principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: groups\n  at: int\n  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.branches()), "{:#?}", bound.notes);
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let rows: Vec<(String, serde_json::Value)> = vec![
+        ("groups".into(), json!({"id":"g0","principal":"bob"})),
+        ("documents".into(), json!({"id":"owned","owner":"alice","parent":"g0","at":1})),
+        ("documents".into(), json!({"id":"denied","owner":"bob","parent":"g0","at":2})),
+    ];
+    let seeded = rows.iter().map(|(table, value)| {
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+        (table.clone(), row)
+    }).collect::<Vec<_>>();
+    engine.seed(seeded).unwrap();
+    let actual = engine.query("run", snapback4_core::Context::new(
+        "alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+    )).unwrap();
+    let module = lean::module(source).unwrap();
+    let case = module.case("run", module.store(&rows).unwrap(), "alice",
+        module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
+    assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+    assert_eq!(actual.data.as_array().unwrap().len(), 1);
     assert!(actual.complete && actual.next.is_none(), "{actual:?}");
 }
 
@@ -581,6 +617,11 @@ fn same_typed_positional_membership_keys_are_rejected_before_the_oracle() {
     assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_POSITIONAL_SCAN"),
         "{:#?}", bound.diagnostics);
     assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
+
+    let intrinsic_only = source.replace("  unique parent, principal\n  unique alias, principal\n", "");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), intrinsic_only)]);
+    assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_POSITIONAL_SCAN"),
+        "intrinsic byId must not invent a two-part positional key: {:#?}", bound.diagnostics);
 }
 
 #[test]

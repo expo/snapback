@@ -326,16 +326,17 @@ def membershipColumns (key : List (String × Term)) : Option (String × String) 
   if pair.2 != "id" && key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
   then some pair else none
 
-/-- An exact membership probe has a declared unique key, one target-row
-component, fixed readable source pins, and a finite cap grouped wholly by
-those fixed columns (LLP 3000.036.001 §14). -/
+/-- An exact membership probe has a declared unique key or the intrinsic `id`
+key, one target-row component, fixed readable source pins, and a finite cap
+grouped wholly by those fixed columns (LLP 3000.036.001 §14). -/
 def membershipEligible (sch : Schema) (t : String) (key : List (String × Term)) : Bool :=
   match sch.table? t, membershipColumns key with
   | some td, some _ =>
     let columns := key.map (·.1)
     let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
-    let exactUnique := columns.eraseDups.length == columns.length && td.uniques.any fun unique =>
-      unique.eraseDups.length == unique.length && unique.all columns.contains
+    let exactUnique := columns.eraseDups.length == columns.length &&
+      (columns.contains "id" || td.uniques.any fun unique =>
+        unique.eraseDups.length == unique.length && unique.all columns.contains)
     exactUnique
       && td.caps.any (fun cap => cap.max ≤ 8192
         && cap.columns.all fun c => c != "id" && fixed.any (·.1 == c))
