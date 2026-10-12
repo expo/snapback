@@ -267,7 +267,6 @@ impl<'a> Runner<'a> {
         Ok(self.expr(expr)?.expression_input(ExpressionAccess(())))
     }
     pub(super) fn environment_heap(&self) -> u64 { self.env.values().map(expression_heap).sum() }
-    pub(super) fn environment_value_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, expression_heap) }
     pub(super) fn component_object(&mut self, fields: super::components::EvaluatedFields) -> Result<Value, RuntimeError> {
         let row = fields.into_value();
         self.meter.heap(expression_heap(&row))?;

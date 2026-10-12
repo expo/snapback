@@ -552,6 +552,7 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
             && outer_column.replace(column.clone()).is_some() { return false; }
     }
     let Some(outer_column) = outer_column else { return false };
+    if outer_column == "id" { return false; }
     let fixed: BTreeMap<&String, &Expr> = source_index.components.iter().zip(&source.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
     outer_table.rules.read.disjuncts().into_iter().any(|rule| {
         let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
@@ -675,25 +676,36 @@ fn pinned_term(term: &RuleTerm, expression: &Expr) -> bool {
 }
 
 fn rule_true<'a>(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
+    rule_known(rule, true, table_name, table, pinned)
+}
+
+/// An exact boolean prefix can decide either side of `=`/`!=`. Keep this
+/// local to an actual boolean literal pin: an optional boolean's null value
+/// is not interchangeable with false.
+fn pinned_boolean_equality<'a>(left: &RuleTerm, right: &RuleTerm, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> Option<bool> {
+    [(left, right), (right, left)].iter().find_map(|(field, value)| {
+        let (RuleTerm::Field(column), RuleTerm::Literal(Value::Bool(expected))) = (field, value) else { return None };
+        let Expr::Literal(Value::Bool(actual)) = pinned(column)? else { return None };
+        Some(actual == expected)
+    })
+}
+
+fn rule_known<'a>(rule: &RuleExpr, truth: bool, table_name: &str, table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
     match rule {
-        RuleExpr::Allow | RuleExpr::Public { .. } => true,
-        RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {
-            let RuleTerm::Field(column) = field else { return false };
-            pinned(column).is_some_and(|expression| pinned_term(value, expression))
-        }),
-        RuleExpr::Or(rules) => rules.iter().any(|rule| rule_true(rule, table_name, table, pinned)),
-        RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| rule_true(rule, table_name, table, pinned)),
-        // The AST binder and scan planner both canonicalize boolean pins;
-        // recognize the equivalent compiled rule form as well. This makes
-        // `not .sealed` and `.sealed = false` share one page proof.
-        RuleExpr::Not(inner) => match inner.as_ref() {
-            RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {
-                let (RuleTerm::Field(column), RuleTerm::Literal(Value::Bool(expected))) = (field, value) else { return false };
-                pinned(column).is_some_and(|expression| matches!(expression, Expr::Literal(Value::Bool(actual)) if actual != expected))
+        RuleExpr::Allow | RuleExpr::Public { .. } => truth,
+        RuleExpr::Deny => !truth,
+        RuleExpr::Eq(left, right) => pinned_boolean_equality(left, right, pinned).is_some_and(|equal| equal == truth)
+            || truth && [(left, right), (right, left)].iter().any(|(field, value)| {
+                let RuleTerm::Field(column) = field else { return false };
+                pinned(column).is_some_and(|expression| pinned_term(value, expression))
             }),
-            _ => false,
-        },
-        RuleExpr::Exists { table: target, index, key, equalities, .. } if target == table_name => {
+        RuleExpr::Ne(left, right) => pinned_boolean_equality(left, right, pinned).is_some_and(|equal| equal != truth),
+        RuleExpr::Or(rules) if truth => rules.iter().any(|rule| rule_known(rule, true, table_name, table, pinned)),
+        RuleExpr::Or(rules) => rules.iter().all(|rule| rule_known(rule, false, table_name, table, pinned)),
+        RuleExpr::And(rules) if truth => !rules.is_empty() && rules.iter().all(|rule| rule_known(rule, true, table_name, table, pinned)),
+        RuleExpr::And(rules) => rules.iter().any(|rule| rule_known(rule, false, table_name, table, pinned)),
+        RuleExpr::Not(inner) => rule_known(inner, !truth, table_name, table, pinned),
+        RuleExpr::Exists { table: target, index, key, equalities, .. } if truth && target == table_name => {
             // A self-probe on a total unique key whose every component is
             // either the row's own column or pinned to the probing value is
             // true for every row the prefix selects.

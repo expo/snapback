@@ -1237,7 +1237,11 @@ impl<'r> Runner<'r> {
         if let Some(mark) = row_heap { self.meter.release_row_heap(mark, row_bytes); }
         // @ref LLP 3000.036.001#6 — a branch lane cut mid-read reports how far it examined (rule-visible rows only).
         if let Some((table, index, frontier)) = &mut self.scan_frontier && *table == scan.table && *index == scan.index {
-            *frontier = last_rule_visible.clone().or_else(|| keys.last().cloned());
+            *frontier = if metered_domain {
+                last_rule_visible.take()
+            } else {
+                last_rule_visible.clone().or_else(|| keys.last().cloned())
+            };
         }
         // @ref LLP 3000.007#20.22 — a device page is complete by its acquisition boundary, carried on the wire, not by a count.
         // An existence probe is exempt (W13c): a held witness below the floor still proves existence.
@@ -1491,6 +1495,11 @@ impl<'r> Runner<'r> {
         self.discovering_values |= lane.distinct.is_some();
         let values = (|| -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
             Ok(match &lane.source {
+                Some(LaneSource::Scan(scan)) if lane.membership() => {
+                    let values = self.metered_domain(scan)?;
+                    self.meter.heap(word_heap::slots::<std::vec::IntoIter<Value>>(1))?;
+                    Box::new(values.into_iter())
+                }
                 Some(LaneSource::Scan(scan)) => Box::new(self.scan(scan)?.into_iter()),
                 Some(source) => self.domain(&source.domain())?,
                 None => Box::new(std::iter::once(Value::Null)),
@@ -1502,19 +1511,34 @@ impl<'r> Runner<'r> {
         }
         let values = values?;
         let Some(distinct) = &lane.distinct else { return Ok(values); };
-        let prior = self.env.get(&lane.binding).cloned();
+        let prior = self.env.get_mut(&lane.binding).map(|value| std::mem::replace(value, Value::Null));
+        let mut inserted_binding = false;
         let mut seen = BTreeSet::new();
         let mut unique = Vec::new();
         for value in values {
             if !self.read_charge(MeterKind::Steps, 1)? { break; }
-            self.env.insert(lane.binding.clone(), value.clone());
+            if let Some(binding) = self.env.get_mut(&lane.binding) {
+                *binding = value;
+            } else {
+                self.meter.heap(word_heap::text(&lane.binding) + word_heap::insertion::<String, Value>(self.env.len()))?;
+                self.env.insert(lane.binding.clone(), value);
+                inserted_binding = true;
+            }
             let key = self.expr(distinct)?;
+            let value = std::mem::replace(self.env.get_mut(&lane.binding).expect("lane binding"), Value::Null);
             if key == Value::Null { continue; }
+            let bytes = crate::json_codec::value_bytes(&key).map_err(|error| RuntimeError::Store(error.to_string()))?;
+            self.meter.heap(word_heap::allocation(usize::try_from(bytes).unwrap_or(usize::MAX))
+                + word_heap::insertion::<String, ()>(seen.len()))?;
             let key = canonical_json(&key);
-            self.meter.heap(key.len() as u64 + 64)?;
-            if seen.insert(key) { self.meter.heap(self.environment_value_heap(&lane.binding) + std::mem::size_of::<Value>() as u64)?; unique.push(value); }
+            if seen.insert(key) { word_heap::push(&mut self.meter, &mut unique, value)?; }
         }
-        if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
+        if let Some(prior) = prior {
+            *self.env.get_mut(&lane.binding).expect("prior lane binding") = prior;
+        } else if inserted_binding {
+            self.env.remove(&lane.binding);
+        }
+        self.meter.heap(word_heap::slots::<std::vec::IntoIter<Value>>(1))?;
         Ok(Box::new(unique.into_iter()))
     }
 

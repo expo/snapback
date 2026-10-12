@@ -144,14 +144,19 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     fs::write(dir.join("snapback/schema.q"), online).unwrap();
     let plain = run(&["check"]);
     assert!(!plain.contains("never predict"), "{plain}");
-    assert!(run(&["check", "--verbose"]).contains("1 mutation never predicts: open"));
+    let verbose = run(&["check", "--verbose"]);
+    assert!(verbose.contains("1 mutation never predicts: open"));
+    assert!(verbose.contains("N_NEVER_COMPLETE: query all:") && verbose.contains("rewrite: Branch on the grant"), "{verbose}");
     let notes: Vec<&str> = plain.lines().filter(|line| line.starts_with("note: schema.q")).collect();
     assert!(!notes.is_empty(), "{plain}");
     for line in &notes {
-        let verdict = line.split_once(": ").unwrap().1.split_once(": ").unwrap().1;
-        assert!(["fix:", "review", "no action", "no one-query fix"].iter().any(|v| verdict.starts_with(v)), "{line}");
+        assert!(line.contains(" — verdict:") || ["fix:", "review", "no action"].iter().any(|verdict| line.contains(&format!(": {verdict}"))), "{line}");
     }
-    assert!(plain.contains("N_NEVER_COMPLETE: fix: use the complete form below"), "{plain}");
+    let lines: Vec<_> = plain.lines().collect();
+    let completeness = lines.iter().position(|line| line.contains(" — N_NEVER_COMPLETE — verdict:")).expect("compact completeness note");
+    assert_eq!(lines[completeness + 1], "  who: callers admitted by `exists staff[viewer]` have a complete page", "{plain}");
+    assert!(lines[completeness + 2].starts_with("  what:") && lines[completeness + 2].contains("check --verbose"), "{plain}");
+    assert!(!lines[completeness + 3].starts_with("  "), "the default completeness note is exactly three lines: {plain}");
     assert!(plain.contains("N_NO_CURSOR: no action for a top-N list."), "{plain}");
     // A synced table keeps the paragraph.
     fs::write(dir.join("snapback/schema.q"), "table notes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync\ntable log:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add():\n  insert log { owner: viewer }\n  return insert notes { owner: viewer }\n").unwrap();

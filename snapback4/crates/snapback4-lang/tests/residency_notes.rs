@@ -487,13 +487,17 @@ fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
 }
 
 #[test]
-fn branch_merge_of_one_pinned_capped_group_needs_no_cursor_note() {
-    let source = "table facilitators:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable approvals:\n  treaty: id\n  principal: principal\n  partyA: principal\n  partyB: principal\n  cap 2 by treaty\n  unique treaty, principal\n  read <- .partyA = viewer or .partyB = viewer or exists facilitators[viewer]\n  online only\nquery approvalsFor(treaty: id):\n  return approvals where .treaty = treaty first 2 by .id\n";
-    let b = clean(source);
-    assert!(!b.notes.iter().any(|note| note.code == "N_NO_CURSOR"), "the whole treaty group is capped at the page size: {:#?}", b.notes);
-    let program = &b.programs.iter().find(|program| program.program.name.ends_with("approvalsFor")).unwrap().program;
-    let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("an audience branch merge");
-    assert!(merge.lanes.iter().all(|lane| lane.scan.table == "approvals"), "{merge:#?}");
+fn branch_merge_capped_group_accounts_for_every_participating_lane() {
+    let source = |cap| format!("table facilitators:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable approvals:\n  treaty: id\n  principal: principal\n  partyA: principal\n  partyB: principal\n  cap {cap} by treaty\n  unique treaty, principal\n  read <- .partyA = viewer or .partyB = viewer or exists facilitators[viewer]\n  online only\nquery approvalsFor(treaty: id):\n  return approvals where .treaty = treaty first {cap} by .id\n");
+    for (cap, cursor_note) in [(100, false), (5_000, true)] {
+        let b = clean(&source(cap));
+        assert_eq!(b.notes.iter().any(|note| note.code == "N_NO_CURSOR"), cursor_note,
+            "two party lanes can each examine the capped group (cap {cap}): {:#?}", b.notes);
+        let program = &b.programs.iter().find(|program| program.program.name.ends_with("approvalsFor")).unwrap().program;
+        let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("an audience branch merge");
+        assert!(merge.lanes.iter().all(|lane| lane.scan.table == "approvals"), "{merge:#?}");
+        assert_eq!(merge.lanes.iter().filter(|lane| !lane.grant() && !lane.system()).count(), 2, "{merge:#?}");
+    }
 }
 
 

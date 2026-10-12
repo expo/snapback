@@ -544,9 +544,18 @@ fn scan_pin<'a>(schema: &Schema, scan: &'a snapback4_core::ir::Scan, column: &st
 fn merged_group_complete(schema: &Schema, merge: &snapback4_core::ir::Merge) -> bool {
     if !merge.branches() || merge.lanes.is_empty() { return false; }
     let table = match schema.table(merge.table()) { Some(table) => table, None => return false };
+    // System and grant lanes cover the other branches when they run. Every
+    // remaining branch can scan the capped group, including the same row
+    // through two party indexes, so its examined allowance is per lane. A
+    // generated source has an additional discovery walk that this bound does
+    // not prove.
+    let participating: Vec<_> = merge.lanes.iter().filter(|lane| !lane.system() && !lane.grant()).collect();
+    if participating.iter().any(|lane| lane.source.is_some()) { return false; }
+    let scans = participating.len().max(1) as u64;
     table.constraints.iter().any(|constraint| {
         let snapback4_core::schema::Constraint::Cap { by, max } = constraint else { return false };
-        if u64::from(*max) > merge.take() || u64::from(*max) > snapback4_core::Ceilings::default().examined { return false; }
+        if u64::from(*max) > merge.take()
+            || u64::from(*max).saturating_mul(scans) > snapback4_core::Ceilings::default().examined { return false; }
         by.iter().all(|column| {
             let Some(first) = scan_pin(schema, &merge.lanes[0].scan, column) else { return false };
             merge.lanes[1..].iter().all(|lane| scan_pin(schema, &lane.scan, column) == Some(first))

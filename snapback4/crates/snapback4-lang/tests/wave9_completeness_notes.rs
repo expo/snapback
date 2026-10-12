@@ -1,4 +1,6 @@
+use snapback4_core::{Context, Engine, Value, ir::Expr, value::object};
 use snapback4_lang::compile;
+use std::collections::BTreeMap;
 
 fn bound(predicate: &str) -> snapback4_lang::Bound {
     let source = format!("table referees:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable orders:\n  turn: id\n  owner: principal\n  sealed: bool default true\n  cap 100 by turn\n  read <- .owner = viewer or (exists referees[viewer] and {predicate})\n  online only\nquery refereeOrders(turn: id):\n  require exists referees[viewer] else REFEREE_ONLY\n  return orders where .turn = turn and .sealed = false first 100 by .id\n");
@@ -9,13 +11,46 @@ fn bound(predicate: &str) -> snapback4_lang::Bound {
 
 #[test]
 fn boolean_spelling_is_normalized_before_completeness_pins() {
-    let bare_not = bound("not .sealed");
-    let equality = bound(".sealed = false");
     let completeness = |bound: &snapback4_lang::Bound| bound.notes.iter()
         .filter(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE"))
         .map(|note| note.code.clone()).collect::<Vec<_>>();
-    assert_eq!(completeness(&bare_not), completeness(&equality));
-    assert!(completeness(&bare_not).is_empty(), "not .sealed must plan the same false pin: {:#?}", bare_not.notes);
+    let predicate_decided = |predicate: &str, pin: bool| {
+        let compiled = bound(predicate);
+        let table = compiled.schema.table("orders").unwrap();
+        let snapback4_core::schema::RuleExpr::And(terms) = table.rules.read.disjuncts()[1] else { panic!("staff rule must be a conjunction") };
+        let rule = terms.last().unwrap();
+        let column = table.columns.keys().find(|column| column.as_str() == "sealed").unwrap();
+        let value = Expr::Literal(Value::Bool(pin));
+        snapback4_core::engine::rules::prefix_visibility("orders", table, rule, &BTreeMap::from([(column, &value)])).decided_true
+    };
+    for predicate in ["not .sealed", ".sealed = false", ".sealed != true", "not not (.sealed = false)"] {
+        let compiled = bound(predicate);
+        assert!(completeness(&compiled).is_empty(), "{predicate} must match the page's false pin: {:#?}", compiled.notes);
+        assert!(predicate_decided(predicate, false), "{predicate} must be true under a false pin");
+        assert!(!predicate_decided(predicate, true), "{predicate} must be false under a true pin");
+    }
+    for predicate in [".sealed", ".sealed = true", ".sealed != false", "not not .sealed"] {
+        assert!(predicate_decided(predicate, true), "{predicate} must be true under a true pin");
+        assert!(!predicate_decided(predicate, false), "{predicate} must be false under a false pin");
+    }
+}
+
+#[test]
+fn nullable_boolean_ne_keeps_null_distinct_from_false() {
+    let compile = |rule: &str| {
+        let source = format!("table items:\n  flag: bool ?\n  by byFlag: flag, id\n  read <- {rule}\n  online only\nquery nulls():\n  return items where .flag = null first 10 by byFlag\n");
+        let bound = compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+        bound
+    };
+    let visible = |rule| {
+        let bound = compile(rule);
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|program| program.program)).unwrap();
+        engine.seed([("items".into(), object([("id", Value::Id("null".into())), ("flag", Value::Null)]))]).unwrap();
+        engine.query("nulls", Context::new("alice", Default::default())).unwrap().data.as_array().unwrap().len()
+    };
+    assert_eq!(visible(".flag != true"), 1, "null != true under the authored rule");
+    assert_eq!(visible(".flag = false"), 0, "null must not be normalized to false");
 }
 
 #[test]
