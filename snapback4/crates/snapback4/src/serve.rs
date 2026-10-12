@@ -441,9 +441,19 @@ pub(crate) fn wait_seconds(url: &str) -> u64 {
     query_params(url).get("wait").and_then(|s| s.parse().ok()).unwrap_or(0).min(25)
 }
 
+// @ref LLP 3000.000.000#93-http-admission-and-reporting — stamp actual engine work after buffered intake, without pinning worker waits or socket I/O.
+pub(crate) fn producing_engine(shared:&Shared) -> engine_lock::FairGuard<'_,Engine> {
+    let engine=lock(&shared.engine);
+    crate::release_requests::stamp(engine.generation());
+    engine
+}
+
 /// A worker's seat: a bearer session of a service principal.
 fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
-    service_of_locked(request, shared, &lock(&shared.engine))
+    let engine=lock(&shared.engine);
+    let result=service_of_locked(request,shared,&engine);
+    if result.is_err() {crate::release_requests::stamp(engine.generation());}
+    result
 }
 
 fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Result<String, Refusal> {
@@ -967,10 +977,10 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Get, "/effects") => effects::list(request, shared, &url),
         (Method::Get | Method::Post, "/probe") => match principal_of(&request, shared) {
             Ok(viewer) => {
-                let identity = shared.read_head();
+                let identity = shared.read_identity();
                 match identity {
-                    Ok((store_id, seq)) => {
-                        let mut reply = json!({ "ok": true, "store_id": store_id, "seq": seq, "viewer": viewer.0 });
+                    Ok((store_id, seq,generation)) => {
+                        let mut reply = json!({ "ok": true, "store_id": store_id, "seq": seq, "generation":generation,"viewer": viewer.0 });
                         if query_params(&url).get("scope").is_some_and(|scope| scope == "1") {
                             reply["kind"] = json!(viewer.1); reply["scope"] = json!(viewer.2);
                         }
@@ -982,7 +992,7 @@ fn handle(mut request: Request, shared: &Shared) {
             Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
-            let auth = lock(&shared.bound).schema.auth.clone();
+            let auth = producing_engine(shared).schema().auth.clone();
             respond_timed(request, shared, 200, json!({ "guests": auth.guests, "password": auth.password }));
         }
         (Method::Get, "/") => {
@@ -1333,7 +1343,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let wire = session_mint_wire(&request, &payload);
             let legacy_now = shared.now();
             let outcome = {
-                let mut engine = lock(&shared.engine);
+                let mut engine = producing_engine(shared);
                 match service_of_locked(&request, shared, &engine) {
                     Err(refusal) => Err((401, refusal)),
                     Ok(service) => match wire {
@@ -1366,7 +1376,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
             };
             let outcome = {
-                let engine = lock(&shared.engine);
+                let engine = producing_engine(shared);
                 snapback4_core::identity::revoke_principal(engine.store(), &principal)
             };
             match outcome {

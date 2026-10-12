@@ -400,6 +400,11 @@ pub fn releases(options: &Options) -> i32 {
                 )
                 .map_err(|e| e.to_string())?;
             result["latest"]=serde_json::json!(latest(&dir).ok());
+            if let Some(selector)=options.positionals.get(1) {
+                let n=if selector=="latest" {latest(&dir)?} else {selector.parse::<u64>().ok().filter(|n|*n>0).ok_or("releases selection requires N or latest")?};
+                let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
+                result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
+            }
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
             Ok(())
         })(),

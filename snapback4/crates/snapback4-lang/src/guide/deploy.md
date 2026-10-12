@@ -92,14 +92,14 @@ reinstate constraints. Prefer expand → migrate → contract for client compati
 bunx snapback4 rollback ./deployment --to 1 --check
 bunx snapback4 check --store ./deployment/store.sqlite --release 1
 bunx snapback4 rollback ./deployment --to 1
-bunx snapback4 releases ./deployment
+bunx snapback4 releases ./deployment latest
 bunx snapback4 rollback ./deployment --to latest
 ```
 
 Preview runs exact adoption on a private disk snapshot and removes it, without
 activating; disk/time scales with the store, and later writes can change the plan.
 Release is immutable source, latest the highest complete source even after rollback,
-and generation a monotone execution identity. Identical packaged source is a no-op.
+and generation a monotone identity; releases N/latest inspects source. Identical source is a no-op.
 Deploy/rollback return after serve switches: `release N is current as generation G`.
 In-flight one-shot operations finish in their generation; no settle sleep is needed.
 Default adoption is one measured receipt; --verbose/--json includes phases/cache

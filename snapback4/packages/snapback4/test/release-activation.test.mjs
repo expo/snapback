@@ -870,6 +870,8 @@ test('REL identical source is a no-op; latest and exact previews never activate'
     assert.equal((await releasePost(url,headers,'/q/q')).data,2);
     assert.match(run('rollback',deployment,'--to','1'),/release 1 is current as generation 3/);
     const status=JSON.parse(run('releases',deployment));assert.equal(status.release,1);assert.equal(status.latest,2);
+    const selected=JSON.parse(run('releases',deployment,'latest'));assert.equal(selected.release,1);assert.equal(selected.selected.release,2);assert.equal(selected.selected.current,false);assert.equal(typeof selected.selected.digest,'string');
+    assert.equal(JSON.parse(run('releases',deployment,'1')).selected.current,true);
     assert.match(run('rollback',deployment,'--to','latest'),/release 2 is current as generation 4/);
     assert.equal((await releasePost(url,headers,'/q/q')).data,2);
   });

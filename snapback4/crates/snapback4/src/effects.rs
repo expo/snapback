@@ -102,7 +102,7 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
         // @ref LLP 3000.009#5.2 — every long-poll turn rechecks service,
         // supervisor revision, declaration and claimability in one writer transaction.
         let claimed = {
-            let mut engine = lock(&shared.engine);
+            let mut engine = producing_engine(shared);
             if shared.hold_effects {
                 engine.authorize_effect_poll_strict(&token, effect.as_deref(), declaration_contract.as_deref(), fenced, || sample(shared)).map(|()| Vec::new())
             } else {
@@ -127,7 +127,7 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
 pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/effects/").and_then(|tail| tail.strip_suffix("/cancel")) {
         if let Err(refusal) = service_of(&request, shared) { return respond(request, 401, json!({ "denied": refusal_json(&refusal) })); }
-        let outcome = { lock(&shared.engine).cancel_effect(id, shared.now()) };
+        let outcome = { producing_engine(shared).cancel_effect(id, shared.now()) };
         if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
         return match outcome {
             Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
@@ -144,7 +144,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
             _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_LEASE", "schema", "send exactly one nonempty effect claim token")) })),
         };
         let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
-        let outcome = { lock(&shared.engine).effect_status_strict(&service_token, &id, &lease, || sample(shared)) };
+        let outcome = { producing_engine(shared).effect_status_strict(&service_token, &id, &lease, || sample(shared)) };
         return match outcome {
             Ok(run) => respond(request, 200, json!({ "id": run.id, "attempt": run.attempts, "state": run.state, "deadline": run.deadline, "cancelled": run.cancelled, "errorCode": run.error_code })),
             Err(error) => answer_error(request, error),
@@ -181,7 +181,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
             let input = payload.get("input").unwrap_or(&Json::Null);
             let result = payload.get("result").unwrap_or(&Json::Null);
             let outcome: Result<StepOutcome, snapback4_core::RuntimeError> = {
-                let mut engine = lock(&shared.engine);
+                let mut engine = producing_engine(shared);
                 (|| Ok(match verb {
                     "begin" => StepOutcome::Began(engine.begin_effect_step_strict(&service_token, &id, &lease, &name, input, reconcile, || sample(shared))?),
                     "done" => StepOutcome::Completed(engine.complete_effect_step_strict(&service_token, &id, &lease, &name, result, || sample(shared))?),
@@ -220,7 +220,7 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
         snapback4_core::Settled::Failed { error, retry }
     };
     let outcome = {
-        let mut engine = lock(&shared.engine);
+        let mut engine = producing_engine(shared);
         engine.settle_effect_strict(&service_token, &id, lease, settled, || sample(shared))
     };
     if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
@@ -235,7 +235,7 @@ pub(super) fn list(request: Request, shared: &Shared, url: &str) {
     let params = query_params(url);
     let state = params.get("state").cloned();
     let limit: usize = params.get("limit").and_then(|value| value.parse().ok()).unwrap_or(100);
-    let outcome = { lock(&shared.engine).effects(state.as_deref(), limit) };
+    let outcome = { producing_engine(shared).effects(state.as_deref(), limit) };
     match outcome {
         Ok(runs) => respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
         Err(error) => answer_error(request, error),

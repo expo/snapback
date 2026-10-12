@@ -50,7 +50,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   deploy <dir> [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir> [--to N|latest] [--check]  incompatible present values become dormant per row; --check previews without activating
   prune <dir> [--allow-destructive] preview or explicitly drop dormant storage
-  releases <dir> [--after ID] [--items-after KEY] [--event ID]  inspect authoritative release history/storage
+  releases <dir> [N|latest] [--after ID] [--items-after KEY] [--event ID]  inspect authoritative release history/storage
   serve <dir> [--port N|A-B] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --port N|A-B                    a port (0 chooses a free one) or the first free port in an inclusive range; stdout prints the real URL, stderr SNAPBACK4_READY
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract

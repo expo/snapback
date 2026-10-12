@@ -67,8 +67,10 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
             } else {
                 snapback4_core::identity::resolve_supervised(engine.store(), &token, sample)
             };
-            result.map_err(|error| error.refusal())?.ok_or_else(||
-                snapback4_core::identity::diagnostics::refused(engine.store(), &token, now, trusted_dev_request(request, shared)))
+            let result=result.map_err(|error| error.refusal()).and_then(|value|value.ok_or_else(||
+                snapback4_core::identity::diagnostics::refused(engine.store(), &token, now, trusted_dev_request(request, shared))));
+            if result.is_err() {crate::release_requests::stamp(engine.generation());}
+            result
         };
         return if let Some(engine) = owner { resolve(engine, None, false) }
         else if read { match shared.reader() {

@@ -142,7 +142,9 @@ do not automatically deploy another release.
 ### Inspecting history
 
 `releases <dir>` reports authoritative identity, worker status, activation/prune
-events and dormant storage. Audit items include before/after/restored row counts
+events and dormant storage. An optional `N` or `latest` source selector adds
+`selected` id/digest/currentness while preserving the authoritative current
+identity; inspection never activates. Audit items include before/after/restored row counts
 and bounded prior/current samples, including partial restorations. Follow `--after <event-id>` for history and
 `--items-after <key>` for inventory pages, using the returned `items_after` value.
 Item keys distinguish tables, narrowed row populations (`rows:<table>`), columns and indexes even when names coincide. `--event <id>` inspects the exact

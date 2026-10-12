@@ -542,3 +542,25 @@ fn action_reply_stamps_admission_after_switch_during_request_intake() {
     assert_eq!(body(&reply)["state"],"pending","{reply}");assert_eq!(body(&reply)["generation"],3,"{reply}");
     assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 3\r\n"),"{reply}");
 }
+
+#[test]
+fn authentication_and_metadata_stamp_the_engine_after_intake_switch() {
+    for route in ["/auth/guest","/auth/config","/probe"] {
+        let directory=ReaderTestDirectory::new();let host=directory.host();
+        let (entered,waiting)=mpsc::channel();let barrier=Arc::new((Mutex::new(false),Condvar::new()));let stalled=barrier.clone();
+        *lock(&host.shared.request_work)=Some(Arc::new(move||{
+            entered.send(()).unwrap();let (state,wake)=&*stalled;let mut ready=lock(state);
+            while !*ready {ready=wake.wait(ready).unwrap();}
+        }));
+        let address=host.address;let payload=serde_json::json!({"padding":"x".repeat(2048)}).to_string();
+        let method=if route=="/auth/guest" {"POST"} else {"GET"};
+        let wire=format!("{method} {route} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}",payload.len());
+        let task=thread::spawn(move||exchange(address,&wire));waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+        let changed=READER_SCHEMA.replace("return 1","return 2");
+        release::apply(&host.shared,&directory.0,candidate(&directory.0,2,&changed,None,0)).unwrap();
+        *lock(&barrier.0)=true;barrier.1.notify_all();let reply=task.join().unwrap();let data=body(&reply);
+        assert!(reply.starts_with("HTTP/1.1 200"),"{route}: {reply}");assert_eq!(data["generation"],2,"{route}: {reply}");
+        assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 2\r\n"),"{route}: {reply}");
+        if route=="/auth/guest" {assert!(data["session"].is_object(),"{reply}");}
+    }
+}
