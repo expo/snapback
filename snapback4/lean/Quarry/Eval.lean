@@ -313,7 +313,7 @@ def membershipColumns (key : List (String × Term)) : Option (String × String) 
     | .col .self outer => some (p.1, outer)
     | _ => none
   let [pair] := dynamic | none
-  if key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
+  if pair.2 != "id" && key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
   then some pair else none
 
 /-- An exact membership probe has a declared unique key, one target-row
@@ -460,7 +460,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
             | .party c => c != "id" && !order.contains c
                 && laneFits order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
             | .membership _ key => (membershipColumns key).any fun pair =>
-                pair.2 != "id" && !order.contains pair.2
+                !order.contains pair.2 && !pins.any (·.1 == pair.2)
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
     total && (case1 || case2 || case3)

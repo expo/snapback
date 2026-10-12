@@ -471,6 +471,22 @@ def membershipDocStore : Store := mkStore [
                  mkRow "d4" [("owner", I "bob"), ("parent", T "p1"), ("at", N 4)],
                  mkRow "d5" [("owner", I "bob"), ("parent", T "p2"), ("at", N 5)]])]
 
+/-- A membership keyed by the target row id is outside PAGE's ordinary-column
+classifier and keeps the incomplete scan. -/
+def membershipIdDocs : Schema := { tables := [
+  { name := "shares", cols := [c "document", c "principal"]
+    uniques := [["document", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "shares" [("document", self "id"), ("principal", .viewer)]) }] }
+
+def membershipIdStore : Store := mkStore [
+  ("shares", [mkRow "s1" [("document", I "d2"), ("principal", I "alice")]]),
+  ("documents", [mkRow "d1" [("owner", I "alice"), ("at", N 1)],
+                 mkRow "d2" [("owner", I "bob"), ("at", N 2)]])]
+
 def merged : List Example := [
   { name := "page-parties-merged"
     source := "LLP 3000.036.001 §2 case 2: a read rule of parties supplies the branches; the page is complete"
@@ -508,7 +524,13 @@ def merged : List Example := [
     case := { schema := membershipDocs, store := membershipDocStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# } ]
+    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-row-id-membership-not-merged"
+    source := "LLP 3000.036.001 §14: a membership keyed by the target id keeps the incomplete scan"
+    case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d2","owner":"bob","at":2},{"id":"d1","owner":"alice","at":1}],"complete":false,"next":null}"# } ]
 
 
 /-! ## Referential actions (LLP 3000.039) -/
