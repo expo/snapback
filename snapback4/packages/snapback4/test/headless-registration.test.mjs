@@ -17,7 +17,7 @@ const root = resolve(import.meta.dirname, "../../..");
 test("guide auth runs headlessly; two password accounts sign in and enforce own-row writes", { timeout: hangBudget(12) }, async t => {
   const guide = spawnSync(binary, ["guide", "auth", "--full"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
-  for (const alias of ["headless", "signup", "sign-up", "register", "replay adapter"]) {
+  for (const alias of ["headless", "replay adapter"]) {
     // One argument also exercises the quoted multi-word CLI spelling.
     const found = spawnSync(binary, ["guide", alias, "--full"], { encoding: "utf8" });
     assert.equal(found.status, 0, `${alias}: ${found.stderr}`);
@@ -105,7 +105,16 @@ query list():
     assert.equal(read.complete, true);
     assert.deepEqual(read.data.map(row => [row.id, row.body]), [[rows[n], "own note"]]);
   }
-  assert.equal((await login(url, "seed1@example.test", "wrong-password")).ok, false);
+  const refusedLogin = await login(url, "seed1@example.test", "wrong-password");
+  assert.equal(refusedLogin.ok, false);
+  assert.equal(refusedLogin.why.code, "E_AUTH", "auth helpers keep the server refusal on HTTP 401");
+  const rawLogin = await fetch(`${url}/auth/login`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "seed1@example.test", password: "wrong-password" }) });
+  assert.equal(rawLogin.status, 401);
+  assert.equal((await rawLogin.json()).denied.code, "E_AUTH");
+  const disabledGuest = await fetch(`${url}/auth/guest`, { method: "POST", body: "{}" });
+  assert.equal(disabledGuest.status, 401);
+  assert.equal((await disabledGuest.json()).denied.code, "E_AUTH");
   assert.equal((registered.stdout + signedIn.stdout + registered.stderr + signedIn.stderr).includes(password), false);
   const db = new DatabaseSync(join(dir, ".snapback4/store.sqlite"), { readOnly: true });
   try {

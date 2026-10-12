@@ -47,7 +47,7 @@ const APP_FILES: &[&str] = &[
     "api.ts", "server.ts", "schema.q", "m.q", "digest.q", "mail.q", "hooks.q",
     "App.tsx", "metro.config.js", "metro.config.cjs", "metro-wasm-transformer.cjs",
     "snapback4-sw.js", "contact.html", "about.html", "store.sqlite",
-    "<dir>/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
+    "<dir>/store.sqlite", "deployment/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
     "<segment>-ios-receipts.jsonl", "/api.ts", "/native.wasm",
     "index.html", "<table>.jsonl", "releases.jsonl", "backend.json",
     "fixtures/<table>.jsonl", "fixtures/test.cases.jsonl", "expo-env.d.ts",

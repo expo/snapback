@@ -92752,3 +92752,83 @@ without a rebuilt control or per-feature attribution. The inherited revision-5
 run measured 658,195 B gzip; the bounded-descriptor artifact is 1,153 B smaller.
 No macOS measurement or runtime ceiling change is claimed. The final budget
 check passes.
+
+## 2026-10-12 — OPS: production ports and rollback help (wave 8 DT3, DT1b)
+
+Continued the untracked shared port-parser draft left by the previous session.
+Both listening verbs now parse N, 0 and inclusive A-B ranges, with E_INPUT for
+invalid input. Serve validates before creating deployment state and holds the
+chosen loopback range listener through startup. Its existing real-URL and
+SNAPBACK4_READY output is covered by a release subprocess regression. Rollback
+help lists both adoption flags; no adoption or rollback behavior changed.
+Validation: port-filtered binary and cli_friction tests passed (15 and 6 tests).
+
+## 2026-10-12 — OPS: identity refusal statuses (wave 8 DT6)
+
+Password failures and disabled identity methods now return 401 with the existing
+denied body. Other identity error paths share that mapping; production personas
+remain 401 and development doors remain 403. Guide wire now has a status table
+and explains streaming status limits and replay receipts' absent result/current.
+Receipts intentionally contain no historical values, so no core replay or read
+authority behavior changed. JS helpers already preserve the body on refusal.
+
+Validation: binary suite 385 passed / 4 ignored, CLI friction 19 passed; two
+client files (online-session, headless-registration) passed 16 tests. Added
+coverage for HTTP 401/403 bodies and the real failed-login/disabled-guest path.
+
+## 2026-10-12 — OPS: default fixtures and installed Expo versions (wave 8 DT5)
+
+Test now announces and uses the project's fixtures directory when no explicit
+fixture was given, including its declared cases. An explicit fixture wins; the
+default path uses the existing isolated in-memory fixture engine. Check warns
+on stderr if installed snapback4 and snapback4-expo versions differ, naming
+both versions and the single coupled upgrade command. JSON stdout stays valid.
+
+CLI regressions cover a failing default case, explicit override, malformed rows,
+fixture isolation, version mismatch in text/JSON and matching versions. The
+19-test cli_friction suite passed; the final full package run includes the same
+tests. Serve's regression was additionally bounded and hardened for an occupied
+first range port, equals spelling, held listener and real PID readiness.
+
+## 2026-10-12 — OPS: independent review corrections and clock test isolation
+
+The required fresh Codex and Muse reviews are retained verbatim under
+llp/reviews/3000.007-ops-production-surfaces.*.md, with separate dispositions.
+Codex found a bound custom-session validation path still returning E_AUTH at
+200; it now uses the same 401 identity mapping as legacy minting. Its production
+regression compares both forms. Identity scope/value E_INPUT at 200 remains
+documented as an existing exception; action-lease behavior is unchanged.
+
+The full package run also found an inherited clock regression: crossing 06:00
+UTC in its five-hour advance fired the daily tick into the hourly counter.
+It reproduced alone. The daily explanation fixture now uses a separate
+no-change sweep; the hourly restart assertion stays exact. Isolated clock
+test and all 25 clock tests now pass; no production clock behavior changed.
+
+## 2026-10-12 — OPS: day-two guide and object SQL output (DT2, DT8–DT10)
+
+Guide deploy is the tested production entry point for upgrades (including the
+exact-version Expo adapter), deploy/serve, password accounts, a first admin
+through an ops service seat, schema evolution, rollback, sessions, stopped
+backup and proxy/TLS operation. Rollback remains one isolated section describing
+current adoption behavior; stop → deploy → restart is explicit. All requested
+production aliases reach the card, and admin lands on its First admin section.
+The insert-only grant recipe compiles and runs under ops/existing-admin/public
+viewers; the readauth census adds just its never-predicted operation. Current
+is documented as a text copy of the database's authoritative release pointer.
+
+SQL keeps positional --json for existing consumers and adds --json-objects.
+Direct boolean columns recover their types from the adopted schema and SQL
+projection, including aliases, nullable/default values, subqueries and supported
+CTEs. Numeric expressions remain numeric. Ambiguous/unresolved lineage refuses
+with a positional-JSON fallback: schema-qualified relations, recursive,
+shadowing and forward CTEs cannot silently coerce integers into booleans.
+The parser is CLI-only (sqlparser 0.59.0, std only), with no core/device format,
+Quarry execution, read authority or wasm changes.
+
+Validation: guide 119/119; readauth 88/88; clients 828/828 across 25 files,
+plus a final 16-test auth/headless rerun. README remains 319/320 lines and the
+docs-budget self-contained screen test passes. Ref-check is clean. Full Rust
+package verification and the complete per-item mapping are in the workstream
+report. Two actual independent reviews and dispositions are retained; no RFC
+status changed and no rollback/hot-deploy semantics were edited.

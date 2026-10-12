@@ -21,6 +21,7 @@ mod dev_clock_store;
 mod lifecycle;
 mod thread_priority;
 mod verbs;
+mod port_flag;
 mod timeline_cost;
 mod column_cost;
 mod scale;
@@ -41,11 +42,13 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason
   types                            compile and write snapback/generated/api.ts
-  dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
+  dev [--port N|A-B] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
   deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
-  rollback <dir>                   current → the previous release
-  serve <dir> [--port N] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
+  rollback <dir> [--allow-destructive] [--allow-feed-adoption]  current → the previous release
+                                      --allow-destructive: confirm changes classified as data-losing; --allow-feed-adoption: permit the explicit feed adoption step
+  serve <dir> [--port N|A-B] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
+    --port N|A-B                    a port (0 chooses a free one) or the first free port in an inclusive range; stdout prints the real URL, stderr SNAPBACK4_READY
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   long-wait flags (dev and serve; SERVER.md \"Long-wait capacity\"):
     --long-waits N                   viewers' held /changes?wait and /a/ calls (default 1024, max 4096; SNAPBACK4_LONG_WAITS)
@@ -54,11 +57,12 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   reset [--port N] [--seed <fixture dir|rows.json>] [--clock reset]  empty a running dev's store (POST /dev/reset): rows, views, queues, assets, accounts; a new store identity; reseed in the same transaction; personas and service seats stay
-  test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
+  test [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
-  sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
+  sql <SELECT> [--release dir] [--limit N] [--json|--json-objects]  read-only inspection of your store (not rule-filtered)
+    --json-objects                  object rows; declared boolean columns are true/false, SQL expressions keep SQLite types
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
     sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
@@ -196,7 +200,7 @@ fn main() -> ExitCode {
                 eprintln!("clock     --resume-clock: offset {clock_offset:+}ms from the store's newest commit stamp or schedule boundary");
             }
             let bind = development_bind(&options)?;
-            let (port, inherited) = dev_port(options.flags.get("port").map(String::as_str), bind, inherited)?;
+            let (port, inherited) = port_flag::listen("dev", port_flag::parse("dev", options.flags.get("port").map(String::as_str))?, bind, inherited)?;
             let capacity = host_limits::Capacity::from_options(&options.flags, |name| std::env::var(name).ok())?;
             serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
         }),
@@ -226,37 +230,6 @@ fn quiet_broken_pipe(verb: &str) {
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }
 
-/// `dev --port N`, or `--port A-B`: the first free port of an inclusive range
-/// (a farm or CI host assigns each builder a range; agents wrote their own
-/// scanners, two of which hung). The range is held from the first free probe
-/// to the server: a loopback listener is handed to the server as bound, so no
-/// other process can take the port in between. The URL stays stdout's first line.
-// @ref LLP 3000.036#15.9 — a port range binds its first free port; every port taken is E_ADDRINUSE.
-fn dev_port(flag: Option<&str>, bind: std::net::IpAddr, inherited: Option<std::net::TcpListener>) -> Result<(u16, Option<std::net::TcpListener>), String> {
-    let Some(text) = flag else { return Ok((4400, inherited)); };
-    let Some((low, high)) = text.split_once('-') else {
-        return text.trim().parse::<u16>().map(|port| (port, inherited))
-            .map_err(|_| format!("dev --port takes a port (0 picks a free one) or a range A-B (the first free port in it), not {text:?}"));
-    };
-    let range = |part: &str| part.trim().parse::<u16>().ok().filter(|port| *port > 0);
-    let (Some(low), Some(high)) = (range(low), range(high)) else {
-        return Err(format!("dev --port {text}: a range is two ports from 1 to 65535, low-high, for example --port 20100-20109"));
-    };
-    if low > high { return Err(format!("dev --port {text}: the range runs from low to high; write --port {high}-{low}")); }
-    if inherited.is_some() { return Err("dev --port A-B cannot combine with an inherited listener".into()); }
-    for port in low..=high {
-        match std::net::TcpListener::bind((bind, port)) {
-            // A loopback listener is handed over bound; a wildcard bind keeps the
-            // server's own listen path (it refuses an inherited non-loopback socket).
-            Ok(listener) if bind.is_loopback() => return Ok((port, Some(listener))),
-            Ok(listener) => { drop(listener); return Ok((port, None)); }
-            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse || error.kind() == std::io::ErrorKind::PermissionDenied => continue,
-            Err(error) => return Err(format!("dev --port {text}: cannot listen on {bind}:{port}: {error}")),
-        }
-    }
-    Err(format!("E_ADDRINUSE: every port in {low}-{high} on {bind} is in use; widen the range, stop a dev you started (GET /dev/status names its pid), or use --port 0"))
-}
-
 fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String> {
     let address = verbs::release_bind(options)?;
     if !address.is_loopback() && !address.is_unspecified() {
@@ -267,23 +240,6 @@ fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn a_dev_port_range_binds_its_first_free_port_and_refuses_when_full() {
-        let loopback = std::net::IpAddr::from([127, 0, 0, 1]);
-        let held = std::net::TcpListener::bind((loopback, 0)).unwrap();
-        let taken = held.local_addr().unwrap().port();
-        // A range starting at a taken port moves on to a free one (or refuses when none is free).
-        let range = format!("{taken}-{}", taken.saturating_add(20));
-        let (port, listener) = super::dev_port(Some(&range), loopback, None).unwrap();
-        assert!(port > taken && port <= taken.saturating_add(20), "{port}");
-        assert_eq!(listener.unwrap().local_addr().unwrap().port(), port, "the chosen port is held, not probed and dropped");
-        let full = super::dev_port(Some(&format!("{taken}-{taken}")), loopback, None).unwrap_err();
-        assert!(full.starts_with("E_ADDRINUSE: every port in"), "{full}");
-        assert_eq!(super::dev_port(Some("0"), loopback, None).unwrap().0, 0);
-        assert_eq!(super::dev_port(None, loopback, None).unwrap().0, 4400);
-        for bad in ["abc", "20109-20100", "0-5", "1-x"] { assert!(super::dev_port(Some(bad), loopback, None).is_err(), "{bad}"); }
-    }
-
     #[test]
     fn development_binding_preserves_a_loopback_path_for_the_supervised_worker() {
         let parse = |args: &[&str]| super::verbs::parse(&args.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());

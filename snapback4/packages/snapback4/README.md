@@ -310,7 +310,7 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Identity / media / expiry / seeds / time and the dev clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide time` |
 | Typing / scoped presence | `guide ephemeral` / [Ephemeral writes](./CLIENT-AND-OPERATIONS.md#ephemeral-writes) |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
-| Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
+| Limits / failures / adoption / production upgrades and deploy / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide deploy` / `guide witness`; `why <code>` |
 | Client patterns / exports by subpath / auth / React list | `guide client` / `guide api` / [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
 | Development and wire | [§5](./CLIENT-AND-OPERATIONS.md#5-development) |
 | Release | [§6](./CLIENT-AND-OPERATIONS.md#6-release) |

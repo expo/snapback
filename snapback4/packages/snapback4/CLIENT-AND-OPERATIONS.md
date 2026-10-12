@@ -3122,7 +3122,11 @@ try {
   internal tables (including raw `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded
   to 200 rows by default and says when more exist. The table is stdout; the inspection header and
   row-count/truncation notice go to stderr. `--json` returns `columns`, positional `rows` (retaining every
-  selected column), `limit`, `more`, `ruleFiltered: false`, and the same inspection header. For example:
+  selected column), `limit`, `more`, `ruleFiltered: false`, and the same inspection header.
+  `--json-objects` instead returns object rows with direct declared boolean columns as true/false
+  (optional nulls stay null), including aliases, non-shadowing declaration-order CTEs and subqueries. Numeric SQL
+  expressions remain numeric. Alias duplicate output names; unsupported projection syntax
+  refuses with E_INPUT and suggests positional `--json`. For example:
   `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
   `snapback4 sql '\dt'` (alias `'.tables'`) lists application tables and maintained views;
   `snapback4 sql '\d messages'` (alias `'.schema messages'`) describes Quarry types,
@@ -3143,12 +3147,12 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
   (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). A card over 130 lines prints its opening and a numbered section index (piped, also its first section);
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),
   `--find <words>` prints the lines that mention them (`a|b` for either), and `--full` prints the whole card. Natural words
-  resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects, `clock` → time.
+  resolve too: `offline` → prediction, `pagination` → reads, `migration` → deploy, `sql` → from-sql, `push` → effects, `clock` → time.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
   binary's version, which equals the package's. Every flag may be spelled `--flag=value`.
 
@@ -3288,7 +3292,9 @@ sends it. A user token at these worker doors is 401 `E_AUTH`.
 Authorization:
 `x-snapback-persona` (dev, same machine, `[A-Za-z0-9_-]+`, a name `use personas` declares) or
 `Authorization: Bearer <token>`; send one, since both together refuse `E_AUTH`. Status
-codes come from two layers. Before anything runs, the request is decoded against the operation's
+codes come from two layers. Failed login and disabled identity methods return HTTP 401
+with the same `denied` body the JS auth helpers preserve. Production dev doors return 403;
+`guide wire` has the status table. Before anything runs, the request is decoded against the operation's
 signature: a body that is not JSON, an argument of the wrong JSON type or shape (a fraction, a string for an
 `int`) or an argument the operation does not take is 400 `{ denied: E_INPUT }`, and a query route for a
 mutation is 400 `E_OP`; 401 with no or a dead credential or an undeclared persona, 404 `E_OP` for an unknown
@@ -3358,6 +3364,11 @@ application worker. It waits up to two seconds for acknowledgement. A stalled
 writer or abrupt termination can still lose queued records and unprinted
 windows; requests completing after shutdown starts are not covered.
 
+Start with `snapback4 guide deploy` for package upgrades (including the Expo adapter),
+password identity, the first admin and migration recipes. check warns on stderr
+(including with --json) when installed core/Expo versions differ. Stop the owned serve process,
+wait for exit, deploy, then restart serve; live activation currently refuses E_STORE_BUSY.
+
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 
 - **`snapback4 deploy <dir> [--allow-destructive]`** (from inside the
@@ -3366,14 +3377,17 @@ windows; requests completing after shutdown starts are not covered.
   destructive one without the flag, writes the release under
   `<dir>/releases/N`, installs the schema into the directory's one store,
   points `current` at it (the store's own release pointer is
-  authoritative; the file is a copy) and appends `releases.jsonl`. Every
+  authoritative; `current` is a text file containing the release number, not a symlink) and appends `releases.jsonl`. Every
   device re-derives its partition on the next sync; a write queued under
   the old schema that no longer fits is refused, typed.
 - **`snapback4 rollback <dir> [--allow-destructive]`** moves `current`
-  back, classifying the change the same way.
-- **`snapback4 serve <dir> [--port N] [--bind H]`** runs the current
+  back, classifying the change the same way. It adopts earlier source into current data;
+  it does not restore deleted data, and --allow-destructive cannot bypass E_ADOPT.
+- **`snapback4 serve <dir> [--port N|A-B] [--bind H]`** runs the current
   release on the shared store on `127.0.0.1:4400`, tokens only (a persona
-  is refused `E_AUTH`; so is `/seed`). A non-loopback literal bind requires
+  is refused HTTP 401 `E_AUTH`; `/seed` is HTTP 403). Port 0 chooses a free port;
+  an inclusive A-B range chooses its first free one, and invalid input refuses E_INPUT.
+  Stdout prints the real listening URL; stderr includes SNAPBACK4_READY. A non-loopback literal bind requires
   `--i-understand-cleartext` and prints a warning because the socket is HTTP.
   Put a TLS proxy on the same host in front of the loopback listener: preserve
   `Authorization` and `Origin`, strip `x-snapback-persona`, restrict direct

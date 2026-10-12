@@ -13,6 +13,8 @@ const PRIVATE: &str = "_snapback_sql_";
 const CATALOG_HINT: &str = "`\\dt` lists tables; `\\d messages` describes one";
 #[path = "sql_catalog.rs"]
 mod catalog;
+#[path = "sql_objects.rs"]
+mod objects;
 
 pub fn sql(options: &Options) -> i32 {
     match inspect(options) {
@@ -26,7 +28,7 @@ pub fn sql(options: &Options) -> i32 {
 }
 
 fn inspect(options: &Options) -> Result<()> {
-    let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: snapback4 sql '<SELECT …> | \\dt | \\d table' [--release dir] [--limit N] [--json]; {CATALOG_HINT}"))); };
+    let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: snapback4 sql '<SELECT …> | \\dt | \\d table' [--release dir] [--limit N] [--json|--json-objects]; {CATALOG_HINT}"))); };
     let command = catalog::command(statement)?;
     let body = if command.is_none() { select_body(statement)? } else { String::new() };
     let limit = match options.flags.get("limit") {
@@ -127,10 +129,24 @@ fn inspect(options: &Options) -> Result<()> {
     // before wrapping, rather than surfacing as a generic subquery syntax error.
     let original = conn.prepare(&body).map_err(query_error)?;
     if !original.readonly() { return Err(("E_SQL_READ_ONLY", "sql accepts only a SELECT".into())); }
+    if options.flags.contains_key("json-objects") {
+        let mut names = BTreeSet::new();
+        if original.column_names().iter().any(|name| !names.insert(name.to_ascii_lowercase())) {
+            return Err(("E_INPUT", "--json-objects needs unique output names; alias duplicate columns".into()));
+        }
+    }
     drop(original);
     let wrapped = format!("SELECT * FROM (\n{body}\n) LIMIT {}", u64::from(limit) + 1);
     let mut query = conn.prepare(&wrapped).map_err(query_error)?;
     let columns = query.column_names().into_iter().map(str::to_owned).collect::<Vec<_>>();
+    let object_rows = options.flags.contains_key("json-objects");
+    let booleans = if object_rows {
+        let mut names = BTreeSet::new();
+        if columns.iter().any(|name| !names.insert(name.to_ascii_lowercase())) {
+            return Err(("E_INPUT", "--json-objects needs unique output names; alias duplicate columns".into()));
+        }
+        objects::booleans(&body, &schema, columns.len()).map_err(|e| ("E_INPUT", e))?
+    } else { vec![false; columns.len()] };
     let mut cursor = query.query([]).map_err(query_error)?;
     let mut rows = Vec::new();
     while let Some(row) = cursor.next().map_err(query_error)? {
@@ -138,6 +154,7 @@ fn inspect(options: &Options) -> Result<()> {
         for i in 0..columns.len() {
             values.push(match row.get_ref(i).map_err(query_error)? {
                 ValueRef::Null => Value::Null,
+                ValueRef::Integer(value) if booleans[i] => json!(value != 0),
                 ValueRef::Integer(value) => json!(value),
                 ValueRef::Real(value) => json!(value),
                 ValueRef::Text(value) => json!(String::from_utf8_lossy(value)),
@@ -149,6 +166,9 @@ fn inspect(options: &Options) -> Result<()> {
     let more = rows.len() > limit as usize;
     if more { rows.pop(); }
     if options.json {
+        let rows = if object_rows {
+            Value::Array(rows.into_iter().map(|values| Value::Object(columns.iter().cloned().zip(values).collect())).collect())
+        } else { json!(rows) };
         println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false }));
     } else {
         eprintln!("{header}");

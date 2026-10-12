@@ -46,6 +46,8 @@ fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_mete
     }
 }
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
+
+
 pub(super) struct Host {
     server: Arc<Server>,
     pub(super) shared: Arc<Shared>,
@@ -1452,3 +1454,6 @@ fn a_presence_answer_asks_its_client_to_refresh() {
 
 #[path = "../tests/serve_identity/diagnostics.rs"]
 mod session_diagnostics_tests;
+
+#[path = "../tests/serve_ops/mod.rs"]
+mod ops_tests;
