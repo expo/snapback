@@ -16,6 +16,7 @@ import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-stor
 import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
+import { identifyDispatch } from "./online-dispatch.ts";
 import { guardClient } from "./app-client.ts";
 import { personaApp } from "./app-persona.ts";
 import { ownOnline, onlineView, type Online } from "./app-online-arm.ts";
@@ -658,8 +659,13 @@ export function createApp(options: AppOptions): App {
       scope.stop = () => { for (const stop of stops) stop(); };
       let warning: Refusal | undefined;
       if (journalSupport) {
+        // @ref LLP 3000.013.000#4.1 — identify the store while opening, so the
+        // first clicks capture synchronously instead of waiting in memory (§20.4).
+        const identifying = identifyDispatch(raw).catch(() => undefined);
         if (options.writes === "online") writesDecision = { mode: "journal" };
         else await readWrites();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([identifying, new Promise<void>(resolve => { timer = setTimeout(resolve, 1_000); })]).finally(() => clearTimeout(timer));
         if (!scope.valid || closed || revision !== expected) {
           if (scope.valid && closed) await raw.close();
           else void raw.signOut().catch(() => {});

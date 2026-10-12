@@ -32,8 +32,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "app-online.ts": {
-    "count": 23,
-    "sha256": "6377b8339db3f069bfc979466e1d5fc88d0fbb65b5bc230d774087b199fe804f"
+    "count": 36,
+    "sha256": "3cfa0e255ed57087342e10ff9b44181e75d1ae0b05ee3477837ef385d516a8d0"
   },
   "app-persona.ts": {
     "count": 12,
@@ -48,8 +48,8 @@
     "sha256": "32a1eed42a561749fc32c3c9a94d656318730b40b909b710d6a6228f1797ddfe"
   },
   "app.ts": {
-    "count": 79,
-    "sha256": "4a87574698bd269543ecce46336b621d02e1a0feb8ff579c3160e269c0f9b3fd"
+    "count": 84,
+    "sha256": "0d86cb545cd12612b1285b34bd7c9b72f48a2f324fce7450396197cfe7b4ca13"
   },
   "asset-download.ts": {
     "count": 10,
@@ -274,6 +274,10 @@
   "online-arm-fence.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "online-capture.ts": {
+    "count": 1,
+    "sha256": "10ef8fdb40b18a20f534f657e64e170cea5ded6eee65a1bf0552b99fb9f56875"
   },
   "online-delivery.ts": {
     "count": 4,
