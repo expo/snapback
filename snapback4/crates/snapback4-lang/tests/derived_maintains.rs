@@ -241,6 +241,14 @@ table readableBans:
   principal: principal
   unique principal
   read <- .principal = viewer
+table banParents:
+  read <- deny
+table throughBans:
+  parent: banParents
+  principal: principal
+  immutable parent
+  unique principal
+  read through .parent
 table inboxItems:
   meeting: meetings
   principal: principal
@@ -257,6 +265,9 @@ view hiddenUnbannedCounts: count meetings by .chair
   online only
 view readableUnbannedCounts: count meetings by .chair
   read <- not exists readableBans[viewer]
+  online only
+view throughUnbannedCounts: count meetings by .chair
+  read <- not exists throughBans[viewer]
   online only
 query bare(meeting: meetings):
   return recusalCounts[meeting]
@@ -276,6 +287,9 @@ query hiddenAbsence(owner: principal):
 query readableAbsence(owner: principal):
   require not exists readableBans[viewer] else BANNED
   return readableUnbannedCounts[owner]
+query throughAbsence(owner: principal):
+  require not exists throughBans[viewer] else BANNED
+  return throughUnbannedCounts[owner]
 query rebound(a: principal, b: principal):
   key = a
   require key = viewer else NOT_OWNER
@@ -323,8 +337,8 @@ query stableLoop(a: principal, b: principal):
 "#;
     let b = bound(source);
     let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
-    assert_eq!(notes.len(), 8, "unrelated, stale, and visibility-only requirements must not suppress the note: {:#?}", b.notes);
-    for name in ["bare", "unrelated", "hiddenAbsence", "rebound", "nestedReturn", "branchRebound", "loopRebound", "loopCarriedReturn"] {
+    assert_eq!(notes.len(), 9, "unrelated, stale, and visibility-only requirements must not suppress the note: {:#?}", b.notes);
+    for name in ["bare", "unrelated", "hiddenAbsence", "throughAbsence", "rebound", "nestedReturn", "branchRebound", "loopRebound", "loopCarriedReturn"] {
         assert!(notes.iter().any(|note| note.message.contains(&format!("query {name}"))), "{name}: {notes:#?}");
     }
     assert!(!notes.iter().any(|note| note.message.contains("query inheritedSelfAuthorized")), "{notes:#?}");
