@@ -330,6 +330,7 @@ pub(crate) struct DevWorker {
     // claiming work for a connection nobody reads.
     child_expires_at: Option<i64>,
     child_revision: Option<usize>,
+    child_clock: Option<String>,
     restart: Instant,
     started: Instant,
     backoff: Duration,
@@ -445,6 +446,7 @@ impl DevWorker {
             worker_pid: None,
             child_expires_at: None,
             child_revision: None,
+            child_clock: None,
             restart: Instant::now(),
             started: Instant::now(),
             backoff: Duration::from_millis(250),
@@ -520,6 +522,12 @@ impl DevWorker {
                     self.source = source;
                 }
             }
+            self.restart = Instant::now();
+        }
+        // @ref LLP 3000.001.000#workers — deliberate dev time changes re-mint the injected bearer through a replacement child.
+        if self.child.is_some() && self.child_clock.as_ref().is_some_and(|revision| *revision != lock(&self.shared.clock).revision()) {
+            self.stop_child();
+            if !self.close_child_session() { self.retry_later(); return; }
             self.restart = Instant::now();
         }
         // Renew through a new child, so the process receives its new token.
@@ -663,11 +671,14 @@ impl DevWorker {
                 self.retry_later();
                 return;
             }
-            if let Some(name) = &self.name {
+            let clock = lock(&self.shared.clock);
+            let now = clock.now();
+            self.child_clock = Some(clock.revision());
+            let minted = if let Some(name) = &self.name {
                 (|| -> Result<identity::Session, RuntimeError> {
                     let tx = engine.store().conn().unchecked_transaction()?;
                     let session =
-                        identity::service_session(engine.store(), name, self.shared.now(), 1)?;
+                        identity::service_session(engine.store(), name, now, 1)?;
                     let family = format!("{:x}", Sha256::digest(session.token.as_bytes()));
                     engine.store().set_meta(
                         &format!("worker:family:{family}"),
@@ -678,8 +689,11 @@ impl DevWorker {
                     Ok(session)
                 })()
             } else {
-                child_session(engine.store(), self.shared.now(), self.revision)
-            }
+                child_session(engine.store(), now, self.revision)
+            };
+            #[cfg(test)]
+            crate::serve::test_work(&self.shared.worker_minted);
+            minted
         };
         let session = match session {
             Ok(session) => session,

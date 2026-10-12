@@ -34,3 +34,35 @@ fn headerless_legacy_sync_refuses_before_a_garbage_body_and_schema_auth_is_first
         assert_eq!(status(&production.request("GET","/schema",&headers,"")),401);
     }
 }
+
+#[test]
+fn a_clock_jump_cannot_be_captured_as_the_revision_of_a_prejump_token() {
+    use std::sync::atomic::AtomicBool;
+    let dir = ReaderTestDirectory::new();
+    std::fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    let entry = dir.0.join("snapback/worker.mjs");
+    std::fs::write(&entry,"setInterval(()=>{},1000);").unwrap();
+    let host = Host::with_store(true, snapback4_core::Store::open(&dir.0.join("clock.sqlite")).unwrap(), SCHEMA);
+    let project = crate::project::Project {root:dir.0.clone()};
+    let mut worker = crate::dev_worker::DevWorker::start_source(&project,host.shared.clone(),format!("http://{}",host.address),entry,true).unwrap();
+    let (entered, waiting) = mpsc::channel(); let (resume,resumed) = mpsc::channel();
+    let resumed = Mutex::new(resumed); let once = AtomicBool::new(false);
+    *lock(&host.shared.worker_minted)=Some(Arc::new(move||{
+        if !once.swap(true,Ordering::AcqRel) { entered.send(()).unwrap(); lock(&resumed).recv_timeout(Duration::from_secs(10)).unwrap(); }
+    }));
+    let minting = thread::spawn(move||{worker.tick();worker});
+    waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+    assert!(host.shared.clock.try_lock().is_err(),"token time and revision remain under one clock guard");
+    let changing=host.shared.clone();
+    let advance=thread::spawn(move||{
+        let mut engine=lock(&changing.engine);let mut clock=lock(&changing.clock);
+        engine.advance_worker_leases_at(1,clock.now()).unwrap();clock.advance(1).unwrap();
+    });
+    resume.send(()).unwrap();let mut worker=minting.join().unwrap();advance.join().unwrap();
+    let first=lock(&host.shared.engine).store().meta("worker:session-family").unwrap().unwrap();
+    worker.tick();
+    let second=lock(&host.shared.engine).store().meta("worker:session-family").unwrap().unwrap();
+    assert_ne!(first,second,"a small deliberate jump must re-mint, even far from expiration");
+    let state:Json=serde_json::from_str(&lock(&host.shared.engine).store().meta("worker:status").unwrap().unwrap()).unwrap();
+    assert_eq!(state["starts"],2);drop(worker);
+}

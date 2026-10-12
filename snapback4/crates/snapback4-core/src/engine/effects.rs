@@ -409,7 +409,15 @@ impl Engine {
     /// together. Backoffs and ordinary sessions stay put; overdue stays overdue.
     // @ref LLP 3000.007#20.12 — dev advances preserve worker lifetimes without making retries wait longer.
     pub fn advance_worker_leases(&mut self, milliseconds: i64) -> Result<(), RuntimeError> {
+        self.advance_worker_leases_at(milliseconds, crate::now_ms())
+    }
+    // @ref LLP 3000.001.000#workers — keep live supervised bearers valid until their orderly clock-revision replacement.
+    pub fn advance_worker_leases_at(&mut self, milliseconds: i64, before: i64) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        let supervised: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'worker:session-family' OR key LIKE 'worker:family:%')", [], |row| row.get(0))?;
+        if supervised {
+        tx.conn().execute("UPDATE _sessions SET expires_at = expires_at + ?1 WHERE expires_at > ?2 AND COALESCE(family, token_digest) IN (SELECT value FROM _meta WHERE key = 'worker:session-family' UNION SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [milliseconds, before])?;
+        }
         tx.conn().execute("UPDATE _outbox SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
         // Advancing the dev clock cannot extend a claim past its admitting family.
         tx.conn().execute("UPDATE _requests SET lease_until = CASE WHEN family IS NULL OR principal_generation IS NULL OR admitted_expires_at IS NULL THEN lease_until + ?1 ELSE MIN(lease_until + ?1, COALESCE((SELECT MAX(s.expires_at) FROM _sessions s WHERE s.principal = _requests.principal AND COALESCE(s.family, s.token_digest) = _requests.family), lease_until)) END WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;

@@ -120,6 +120,8 @@ pub struct Shared {
     #[cfg(test)]
     pub(crate) worker_prepare: WorkHook,
     #[cfg(test)]
+    pub(crate) worker_minted: WorkHook,
+    #[cfg(test)]
     pub auth_work: WorkHook,
     #[cfg(test)]
     request_work: WorkHook,
