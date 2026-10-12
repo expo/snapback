@@ -66,7 +66,7 @@ function Password() {
 ```
 SDK: `{ok:true, session}` / `{ok:false, why}`; wire: `{session}` / `{denied}`. Expo imports `Platform` and `* as SecureStore`:
 `sessionStore: Platform.OS === "web" ? localStorageSessionStore() : { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync }`.
-Synced web: `webDevice()`; native: `nativeDevice`; no-sync web: journal. `init --web`/`--expo` writes the form. REL owns the deploy checklist.
+Synced web: `webDevice()`; native: `nativeDevice`; no-sync web: journal. `init --web`/`--expo` writes the form. `guide deploy` covers production.
 
 ## React hooks
 `matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.

@@ -19,7 +19,7 @@ pub(super) fn run(args: &[String]) -> i32 {
             if let Some(project) = std::env::current_dir().ok().and_then(|cwd| crate::project::Project::locate(&cwd)) {
                 let bound = project.compile().map_err(|e| e.to_string())?;
                 if !bound.diagnostics.is_empty() { return Err("schema does not compile; run snapback4 check".into()); }
-                let plan: Vec<_> = bound.programs.iter().filter(|p| p.program.kind == snapback4_core::ir::ProgramKind::Mutation)
+                let plan: Vec<_> = bound.programs.iter().filter(|p| p.program.kind == snapback4_core::ir::ProgramKind::Mutation && !bound.schema.operations.get(&p.program.name).is_some_and(|facts| facts.ephemeral))
                     .map(|p| serde_json::json!({ "name": p.program.name, "args": p.program.args.iter().map(|(name, kind)| (name.clone(), sample(kind))).collect::<std::collections::BTreeMap<_, _>>() })).collect();
                 command.env("SNAPBACK4_WEB_PLAN", serde_json::to_string(&plan).unwrap());
             }

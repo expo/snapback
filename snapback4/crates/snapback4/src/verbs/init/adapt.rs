@@ -135,15 +135,15 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     // them: its sign-in (guest, or a persona picker) and its body.
     let journal_shape = starter::Offline::Tables { synced: vec![], total: 0 };
     let client_shape = normalized(&client);
-    let matches_client = |reference: &str| client_shape == normalized(reference)
-        || client_shape == normalized(&starter::web_client(reference.to_owned(), &journal_shape));
+    let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
+        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)));
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| {
         let (guest_app, guest_client) = starter::screens(platform, None, &body);
         let (persona_app, persona_client) = starter::screens(platform, Some(&[]), &body);
         let (password_app, password_client) = starter::identity_screens(platform, None, &body, true);
-        if app == guest_app && matches_client(&guest_client) { Some((SignIn::Guest, body)) }
-        else if app == password_app && matches_client(&password_client) { Some((SignIn::Password, body)) }
-        else if app == persona_app && matches_client(&persona_client) { Some((SignIn::Personas(personas_of(&client)), body)) }
+        if app == guest_app && matches_client(&guest_client, false) { Some((SignIn::Guest, body)) }
+        else if app == password_app && matches_client(&password_client, false) { Some((SignIn::Password, body)) }
+        else if app == persona_app && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body)) }
         else { None }
     });
     let Some((sign_in, body)) = current else { return };

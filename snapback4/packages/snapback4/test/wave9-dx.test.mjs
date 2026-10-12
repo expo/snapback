@@ -143,3 +143,15 @@ test('password-entry failures never print credentials from Playwright call logs'
   assert.match(result.stderr, /E_WITNESS_WEB/);
   for (const stream of [result.stdout, result.stderr]) { assert.ok(!stream.includes(password) && !stream.includes(JSON.stringify(password).slice(1, -1))); assert.ok(!stream.includes('fake-proof-secret')); }
 });
+
+test('browser proof selects a durable operation and refuses an ephemeral signal', async t => {
+  const { registerWebWitness } = await import('../dist/witness-web.js');
+  const old = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const window = { location: { search: '?witness=web' } };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: window });
+  t.after(() => { if (old) Object.defineProperty(globalThis, 'window', old); else delete globalThis.window; });
+  const app = { ready: Promise.resolve({ ok: true }), client: { viewer: () => 'user:proof', onWrite: () => () => {} }, mutate: async (op, args, { id }) => ({ state: 'sent', id, result: op.name }) };
+  registerWebWitness(app, { signal: { kind: 'mutation', name: 'signal', ephemeral: true }, durable: { kind: 'mutation', name: 'durable' } });
+  assert.equal((await window.__snapback4Witness.mutate(undefined, {}, 'proof')).result, 'durable');
+  await assert.rejects(window.__snapback4Witness.mutate('signal', {}, 'proof'), /E_WITNESS_MUTATION/);
+});

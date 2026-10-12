@@ -8,7 +8,7 @@ export function registerWebWitness(app: App, api: Operations): void {
   const operations: unknown[] = [];
   const walk = (value: Operations) => { for (const entry of Object.values(value)) {
     if (entry && typeof entry === "object") {
-      if ("kind" in entry && entry.kind === "mutation") operations.push(entry);
+      if ("kind" in entry && entry.kind === "mutation" && !("ephemeral" in entry && entry.ephemeral === true)) operations.push(entry);
       else if (!("kind" in entry)) walk(entry as Operations);
     }
   } };
@@ -18,7 +18,7 @@ export function registerWebWitness(app: App, api: Operations): void {
     viewer: () => app.client?.viewer(),
     mutate: async (name: string | undefined, args: Record<string, unknown>, id: string) => {
       const operation = operations.find(value => !name || (value as { name: string }).name === name);
-      if (!operation) throw Error("E_WITNESS_MUTATION: no matching mutation; pass --mutation with a generated API name");
+      if (!operation) throw Error("E_WITNESS_MUTATION: no matching durable mutation; pass --mutation with a generated API name (ephemeral signals do not prove stored writes)");
       if (!app.client) throw Error("E_WITNESS_AUTH: the app has no signed-in client");
       let observed: unknown;
       let settle: ((write: unknown) => void) | undefined;

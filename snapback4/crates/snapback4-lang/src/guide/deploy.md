@@ -17,7 +17,7 @@ See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed
 Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes;
 commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures;
-`--fixture dir` overrides it. REL owns the persona-to-password checklist.
+`--fixture dir` overrides it. Use the password and first-admin recipes below.
 
 ## Deploy and password identity
 

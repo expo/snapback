@@ -1,0 +1,12 @@
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { webDevice } from "snapback4/web";
+
+// The backend `snapback4 dev` serves. Set VITE_SNAPBACK_URL for a deployment.
+export const url = (import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:4400").replace(/\/$/, "");
+
+// A device supplies offline reads for synced tables and queues writes.
+// With no synced table, init omits the device and uses the browser write journal.
+// localStorageSessionStore() keeps the session across reloads; any script on
+// this origin can read it. Device-less browser writes require this store.
+export const app = createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });

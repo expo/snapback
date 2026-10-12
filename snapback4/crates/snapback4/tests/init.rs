@@ -1319,3 +1319,35 @@ fn adapt_switches_guest_password_and_persona_and_keeps_password_readme() {
         }
     }
 }
+
+#[test]
+fn untouched_previous_release_clients_adapt_to_password_but_edits_stay_owned() {
+    for (mode, previous) in [
+        ("--web", include_str!("../src/verbs/init/starter/previous/web-client.ts")),
+        ("--expo", include_str!("../src/verbs/init/starter/previous/expo-client.ts")),
+        ("--web", include_str!("../src/verbs/init/starter/previous/web-persona-client.ts")),
+        ("--expo", include_str!("../src/verbs/init/starter/previous/expo-persona-client.ts")),
+    ] {
+        let dir = Dir::new(); let persona = previous.contains("PERSONAS");
+        if persona {
+            fs::create_dir(dir.0.join("snapback")).unwrap();
+            fs::write(dir.0.join("snapback/schema.q"), "use personas alice\nquery hello():\n  return 42\n").unwrap();
+        }
+        assert!(dir.run(mode).status.success());
+        let client = previous.replace("PERSONAS", "[\"alice\"]").replace("127.0.0.1:4400", "127.0.0.1:4517");
+        fs::write(dir.0.join("src/client.ts"), &client).unwrap();
+        let schema = dir.0.join("snapback/schema.q");
+        let body = fs::read_to_string(&schema).unwrap().lines().filter(|l| !l.starts_with("use identity") && !l.starts_with("use personas")).collect::<Vec<_>>().join("\n");
+        fs::write(schema, format!("use identity password\n{body}\n")).unwrap();
+        let out = dir.init(&["--adapt"]); assert!(out.status.success(), "{out:?}");
+        let app_path = dir.0.join(if mode == "--web" { "src/App.tsx" } else { "App.tsx" });
+        let app = fs::read_to_string(&app_path).unwrap(); assert!(app.contains("auth.signup") && !app.contains("auth.guest()"), "{app}");
+        let adapted = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+        assert!(adapted.contains("127.0.0.1:4517") && adapted.contains("registerWebWitness"));
+        fs::write(dir.0.join("src/client.ts"), format!("{client}\n// An application edit.\n")).unwrap();
+        let before = fs::read_to_string(&app_path).unwrap();
+        assert!(dir.init(&["--adapt"]).status.success());
+        assert_eq!(fs::read_to_string(app_path).unwrap(), before);
+        assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().ends_with("// An application edit.\n"));
+    }
+}

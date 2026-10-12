@@ -69,7 +69,7 @@ const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorage
 registerWebWitness(app, api);
 ```
 
-`npm run build:web && snapback4 witness web dist --as alice` proves the first
+`npm run build:web && snapback4 witness web dist --as alice` proves the first durable
 mutation reaches `sent`; `--mutation NAME --args JSON` supplies application
 values. Password accounts use `--email EMAIL --password-env ENV_VAR`, with
 `--url URL` for an existing backend. See `guide testing` for lifecycle and

@@ -333,3 +333,15 @@ pub(super) fn identity_readme(platform: Platform, title: &str, body: &Body, pers
         .replace("Choose \"Continue as a guest\", then add", "Sign up or sign in with email and password, then add")
         .replace("Choose \"Continue as a\nguest\", then add", "Sign up or sign in with email and password, then add") } else { text }
 }
+
+/// Exact client templates emitted by 0.4.24, before runtime URL/witness additions.
+/// Matching complete known bytes preserves the rule that edited files stay owned.
+// @ref LLP 3000.011.003.000#8 — upgrading an untouched starter still adapts its identity.
+pub(super) fn previous_client(platform: Platform, personas: bool) -> &'static str {
+    match (platform, personas) {
+        (Platform::Web, false) => include_str!("starter/previous/web-client.ts"),
+        (Platform::Web, true) => include_str!("starter/previous/web-persona-client.ts"),
+        (Platform::Expo, false) => include_str!("starter/previous/expo-client.ts"),
+        (Platform::Expo, true) => include_str!("starter/previous/expo-persona-client.ts"),
+    }
+}
