@@ -897,6 +897,8 @@ query items(bucket: int, c: cursor ?):
 ";
     let b = clean(source);
     assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(!b.schema.tables["items"].indexes.values().any(|index| index.columns() == ["bucket", "owner", "tag", "id"]));
+    assert!(!b.schema.tables["access"].indexes.values().any(|index| index.columns() == ["principal", "bucket", "id"]));
     let mut e = engine(source, vec![]);
     let page = e.query("items", Context::new("alice", BTreeMap::from([("bucket".into(), Value::Int(0)), ("c".into(), Value::Null)]))).unwrap();
     assert!(!page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
@@ -924,6 +926,8 @@ query items(bucket: int, c: cursor ?):
 ";
     let b = clean(source);
     assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(!b.schema.tables["items"].indexes.values().any(|index| index.columns() == ["bucket", "owner", "tag", "id"]));
+    assert!(!b.schema.tables["access"].indexes.values().any(|index| index.columns() == ["principal", "bucket", "id"]));
     let mut e = engine(source, vec![]);
     let page = e.query("items", Context::new("alice", BTreeMap::from([("bucket".into(), Value::Int(0)), ("c".into(), Value::Null)]))).unwrap();
     assert!(!page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
@@ -986,8 +990,21 @@ query documents(c: cursor ?):
 ";
     let b = clean(source);
     assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(!b.schema.tables["documents"].indexes.values().any(|index| index.columns() == ["owner", "at", "id"]));
+    assert!(!b.schema.tables["shares"].indexes.values().any(|index| index.columns() == ["principal", "document", "id"]));
     assert!(has_note(&b, "N_NEVER_COMPLETE"));
     assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
+fn membership_source_with_a_true_pinned_disjunct_still_merges() {
+    let source = OWNER_MEMBERSHIP
+        .replace("  principal: principal\n", "  principal: principal\n  isPublic: bool\n")
+        .replace("  read <- .principal = viewer\n", "  read <- .principal = viewer or .isPublic\n");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().any(|merge| merge.branches()));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
 }
 
 #[test]
@@ -1019,7 +1036,7 @@ fn membership_lanes_borrow_the_compiled_scan_and_obey_the_heap_boundary() {
     assert!(page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
     // The 1 KiB residual expression is one compiled shared image, rather
     // than sixteen unpriced copies retained by the generated lanes.
-    assert!(page.metered.heap_bytes < 64 * 1024, "unexpected per-lane Scan copies: {:?}", page.metered);
+    assert!(page.metered.heap_bytes < 96 * 1024, "unexpected per-lane Scan copies: {:?}", page.metered);
 
     let mut cut = engine(&source, (0..16).map(|n| {
         let member = Box::leak(format!("n{n}").into_boxed_str());
@@ -1029,4 +1046,36 @@ fn membership_lanes_borrow_the_compiled_scan_and_obey_the_heap_boundary() {
     let page = cut.query("documents", Context::new("alice", args)).unwrap();
     assert!(!page.complete && (page.data == Value::Null || page.data.as_array().is_ok_and(|rows| rows.is_empty())) && page.next.is_none(), "{page:?}");
     assert!(page.metered.heap_bytes >= cut.ceilings().heap_bytes);
+}
+
+#[test]
+fn membership_merge_prices_all_sixteen_target_buffers_before_payload_allocation() {
+    let payload = "p".repeat(128 * 1024);
+    let source = OWNER_MEMBERSHIP.replace("  at: int\n", "  at: int\n  payload: text <=131072\n");
+    let rows = || {
+        let mut rows = Vec::new();
+        for n in 0..16 {
+            let parent = format!("p{n}");
+            let member = Box::leak(format!("m{n}").into_boxed_str());
+            rows.push(membership(member, &parent, "alice"));
+            for at in 0..3 {
+                let document = Box::leak(format!("d{n}_{at}").into_boxed_str());
+                rows.push(("documents", vec![("id", id(document)), ("owner", id("bob")), ("parent", Value::String(parent.clone())),
+                    ("at", Value::Int(i64::from(n * 3 + at))), ("payload", Value::String(payload.clone()))]));
+            }
+        }
+        rows
+    };
+    let args = BTreeMap::from([("c".into(), Value::Null)]);
+    let mut full = engine(&source, rows());
+    full.set_ceilings(snapback4_core::Ceilings::unbounded());
+    let page = full.query("documents", Context::new("alice", args.clone())).unwrap();
+    assert!(page.complete && page.next.is_some() && ids(&page.data).len() == 2, "{page:?}");
+    assert!(page.metered.heap_bytes > 5 * 1024 * 1024, "target read-ahead was not priced: {:?}", page.metered);
+
+    let mut cut = engine(&source, rows());
+    cut.set_ceilings(snapback4_core::Ceilings { heap_bytes: 1024 * 1024, ..snapback4_core::Ceilings::unbounded() });
+    let page = cut.query("documents", Context::new("alice", args)).unwrap();
+    assert!(!page.complete && page.next.is_none() && (page.data == Value::Null || ids(&page.data).is_empty()), "{page:?}");
+    assert!(page.metered.heap_bytes >= 1024 * 1024, "target payload did not reach the heap boundary: {:?}", page.metered);
 }

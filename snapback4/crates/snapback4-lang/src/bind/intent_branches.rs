@@ -23,6 +23,10 @@ type Branch = (Vec<Expr>, bool);
 // @ref LLP 3000.036.001#2 — the rule: where-branches first, then the read rule's parties and readable grants.
 pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
     if let Some(merge) = membership(tables, requests, read) { return Some(merge); }
+    // An exact owner-or-membership rule belongs wholly to PAGE. If one of its
+    // stricter eligibility checks declines, keep the original scan instead of
+    // reinterpreting its probe as a generic grant branch.
+    if owner_membership_shape(tables, read) { return None; }
     let range = read.range.as_ref()?;
     let branches = branches(tables, requests, read, true)?;
     let mut candidate = requests.clone();
@@ -74,6 +78,12 @@ fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Opti
     if parties.is_empty() || memberships.is_empty() { return None; }
     let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
     let base = where_branches(table, &conjuncts).unwrap_or_else(|| vec![conjuncts.clone()]);
+    // These are structural PAGE exclusions, not late core fallbacks: decline
+    // before the candidate can retain party/source indexes the original scan
+    // does not use.
+    let membership_targets: Vec<String> = memberships.iter().map(membership_target).collect::<Option<_>>()?;
+    if membership_targets.iter().any(|target| target == "id" || base.iter().any(|branch|
+        branch.iter().filter_map(|predicate| intent::equality(predicate, table)).any(|(column, _)| column == *target))) { return None; }
     let descriptor_count = 1usize.saturating_add(base.len().saturating_mul(parties.len().saturating_add(memberships.len())));
     if descriptor_count > MAX_BRANCHES { return None; }
     let mut candidate = requests.clone();
@@ -100,7 +110,7 @@ fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Opti
             let Expr::Read(source) = source else { return None };
             candidate.read(tables, source, false);
             let source_table = tables.get(&source.table)?;
-            if !membership_source_capped(tables, source) || !super::intent_lanes::prefix_decides_rule(tables, source)
+            if !membership_source_capped(tables, source) || !decided(tables, source)
                 || !candidate.branch_index_fits(source_table, source) { return None; }
             push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
                 lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
@@ -125,6 +135,42 @@ fn membership_source_capped(tables: &Tables, source: &ReadExpr) -> bool {
     let pinned: Vec<&str> = source.keys.iter().filter_map(|key| key.column.as_deref()).collect();
     let ceiling = snapback4_core::Ceilings::default().examined;
     table.decl.caps.iter().any(|cap| u64::from(cap.max) <= ceiling && cap.by.iter().all(|column| pinned.contains(&column.as_str())))
+}
+
+fn membership_target(predicate: &Expr) -> Option<String> {
+    let Expr::Exists { read, .. } = predicate else { return None };
+    let mut target = None;
+    for key in &read.keys {
+        if let Some(column) = intent::column(&key.value) {
+            if target.replace(column.to_owned()).is_some() { return None; }
+        } else if !intent::independent(&key.value) { return None; }
+    }
+    target
+}
+
+fn owner_membership_shape(tables: &Tables, read: &ReadExpr) -> bool {
+    let Some(table) = tables.get(&read.table) else { return false };
+    let Some(rule) = read_rule(table) else { return false };
+    let mut leaves = Vec::new(); disjuncts(rule, &mut leaves);
+    let party = leaves.iter().any(|leaf| self::party(table, leaf).is_some());
+    let membership = leaves.iter().any(|leaf| membership_probe_capped(tables, leaf));
+    party && membership && leaves.iter().all(|leaf| self::party(table, leaf).is_some() || membership_probe_capped(tables, leaf))
+}
+
+fn membership_probe_capped(tables: &Tables, predicate: &Expr) -> bool {
+    let Expr::Exists { read, .. } = predicate else { return false };
+    let Some(table) = tables.get(&read.table) else { return false };
+    let columns = if read.keys.iter().all(|key| key.column.is_some()) {
+        read.keys.iter().filter_map(|key| key.column.clone()).collect::<Vec<_>>()
+    } else {
+        let indexes: Vec<_> = table.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len())
+            .filter(|index| read.index.as_ref().is_none_or(|name| &index.name == name)).collect();
+        let [index] = indexes.as_slice() else { return false };
+        index.columns.clone()
+    };
+    let fixed: Vec<String> = read.keys.iter().zip(columns).filter_map(|(key, column)|
+        intent::column(&key.value).is_none().then_some(column)).collect();
+    table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| fixed.contains(column)))
 }
 
 /// `exists t where W` with `W` branch-decided: `exists (branch 1) or …`, each
