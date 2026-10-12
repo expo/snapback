@@ -1,0 +1,360 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 5259,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            }
+          ],
+          "keys": [],
+          "rule": "Witness",
+          "residency": "Online",
+          "effects": [
+            "OwnerOrWitness",
+            "Deny",
+            "NamedOld",
+            "Witness"
+          ]
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Allow",
+          "residency": "Online",
+          "effects": [
+            "Deny",
+            "Allow",
+            "Allow",
+            "Allow"
+          ]
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": true,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r10",
+          "label": "𐀀",
+          "owner": "alice",
+          "score": 0
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r11",
+          "label": "",
+          "owner": "bob",
+          "score": 9007199254740991
+        }
+      ],
+      [
+        "access",
+        {
+          "bucket": 1,
+          "id": "bob1",
+          "principal": "bob"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "key": "missing",
+      "n": 0
+    },
+    "clock": 330548,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 15562,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--continuation-next--next~no-next",
+    "oracle": "Lean",
+    "field": "continuation-next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": false,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 1
+                },
+                "id": {
+                  "Id": "r11"
+                },
+                "label": {
+                  "String": ""
+                },
+                "owner": {
+                  "Id": "bob"
+                },
+                "score": {
+                  "Int": 9007199254740991
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 1139,
+          "index_entries": 0,
+          "output_bytes": 137,
+          "rows_written": 0,
+          "rule_probes": 2,
+          "steps": 4
+        },
+        "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUJ1Y2tldExhYmVsU2NvcmU6YjBlM2M0MjRjY2YxMTQyMCIsIkRlc2MiLFt7Im5hbWUiOiJsYWJlbCIsImtpbmQiOnsiVGV4dCI6eyJtYXgiOjY0fX19LHsibmFtZSI6InNjb3JlIiwia2luZCI6IkludCJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IlN0cmluZyI6Iu6AgCJ9LHsiSW50Ijo5MDA3MTk5MjU0NzQwOTkxfSx7IklkIjoicjExIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbeyJJbnQiOjF9XX1d",
+        "seq": 1,
+        "tables": [
+          "access",
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "complete": false,
+        "data": {
+          "arr": [
+            {
+              "row": [
+                [
+                  "id",
+                  {
+                    "id": "r11"
+                  }
+                ],
+                [
+                  "owner",
+                  {
+                    "id": "bob"
+                  }
+                ],
+                [
+                  "bucket",
+                  {
+                    "int": "1"
+                  }
+                ],
+                [
+                  "score",
+                  {
+                    "int": "9007199254740991"
+                  }
+                ],
+                [
+                  "label",
+                  {
+                    "text": ""
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "kind": "answer",
+        "next": {
+          "null": null
+        }
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r10"
+                    },
+                    "label": {
+                      "text": "𐀀"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "0"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r10"
+                    },
+                    "label": {
+                      "text": "𐀀"
+                    },
+                    "owner": {
+                      "id": "alice"
+                    },
+                    "score": {
+                      "int": "0"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          }
+        }
+      },
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r11"
+                    },
+                    "label": {
+                      "text": ""
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "score": {
+                      "int": "9007199254740991"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r11"
+                    },
+                    "label": {
+                      "text": ""
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "score": {
+                      "int": "9007199254740991"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 207
+}

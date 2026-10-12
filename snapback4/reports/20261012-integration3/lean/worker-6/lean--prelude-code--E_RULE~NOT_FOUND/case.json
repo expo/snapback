@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 16015,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [
+            [
+              "byTag",
+              [
+                "tag"
+              ],
+              true
+            ]
+          ],
+          "rule": "Owner",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Scalar": {
+          "Bool": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag0"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": false
+          }
+        }
+      ],
+      "kids": {
+        "action": null,
+        "nullable": true,
+        "owner_read": true,
+        "synced": true,
+        "notes": false
+      }
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "flag": false,
+          "id": "r0",
+          "label": "é",
+          "maybe": -1,
+          "owner": "bob",
+          "score": -9007199254740991,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "missing2",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 386367,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 12221,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": -9007199254740991,
+          "b": 0,
+          "bucket": 0,
+          "c": null,
+          "k2": "r3",
+          "key": "missing",
+          "n": null
+        },
+        "at": 386367,
+        "viewer": "alice"
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--E_RULE~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1424,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 12
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_RULE",
+          "family": "auth",
+          "guide": "rules",
+          "message": "items's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_RULE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 232
+}

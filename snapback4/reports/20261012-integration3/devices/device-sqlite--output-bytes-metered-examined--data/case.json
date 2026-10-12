@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 49,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public",
+          "expire": "until"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag",
+                "ttl": 50
+              }
+            }
+          ],
+          "ret": {
+            "Int": 0
+          }
+        }
+      ],
+      "kids": {
+        "action": "keep",
+        "nullable": false,
+        "owner_read": false,
+        "synced": true,
+        "notes": true
+      }
+    },
+    "rows": [],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 1,
+      "c": null,
+      "k2": "r0",
+      "key": "missing",
+      "n": 0
+    },
+    "clock": 305186,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 13756,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": 9007199254740990,
+          "b": 0,
+          "bucket": 1,
+          "c": null,
+          "k2": "r3",
+          "key": "r1",
+          "n": null
+        },
+        "at": 304686
+      }
+    ],
+    "seeded_at": 304684
+  },
+  "finding": {
+    "signature": "device-sqlite--output-bytes-metered-examined--data",
+    "oracle": {
+      "Device": {
+        "store": "sqlite",
+        "phase": "output_bytes",
+        "ceiling": 831
+      }
+    },
+    "field": "output_bytes-metered-examined",
+    "left": {
+      "kind": "projection",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": [],
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 9,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "right": {
+      "kind": "projection",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": [],
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 9,
+          "index_entries": 0,
+          "output_bytes": 12,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 4
+        },
+        "next": null,
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Array": []
+            },
+            "metered": {
+              "examined": 1,
+              "heap_bytes": 9,
+              "index_entries": 0,
+              "output_bytes": 12,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 4
+            },
+            "seq": 1,
+            "tables": [
+              "items"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "device-call",
+          "value": {
+            "raw": {
+              "ok": {
+                "complete": true,
+                "cut": null,
+                "data": [],
+                "decorationExpiry": null,
+                "metered": {
+                  "examined": 0,
+                  "heap_bytes": 9,
+                  "index_entries": 0,
+                  "output_bytes": 1047757,
+                  "rows_written": 0,
+                  "rule_probes": 0,
+                  "steps": 4
+                },
+                "next": null,
+                "nextExpiry": null,
+                "retained": false,
+                "scopes": {
+                  "items": [
+                    {}
+                  ]
+                },
+                "tables": [
+                  "items"
+                ],
+                "unknown": false,
+                "watermark": 1
+              }
+            },
+            "reply": {
+              "complete": true,
+              "cut": null,
+              "data": [],
+              "decorationExpiry": null,
+              "metered": {
+                "examined": 0,
+                "heap_bytes": 9,
+                "index_entries": 0,
+                "output_bytes": 12,
+                "rows_written": 0,
+                "rule_probes": 0,
+                "steps": 4
+              },
+              "next": null,
+              "nextExpiry": null,
+              "retained": false,
+              "scopes": {
+                "items": [
+                  {}
+                ]
+              },
+              "tables": [
+                "items"
+              ],
+              "unknown": false,
+              "watermark": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 215
+}

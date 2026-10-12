@@ -93571,3 +93571,22 @@ client files also rerun green, 143 tests. Both guide cards stay within their
 printed budgets: sharing 95/150 overview lines, recipes 359/400 printed
 lines (358 source lines). README is 319/320; all 119 guide tests pass.
 Final case-count/evidence accounting is recorded in the integration report.
+
+## 2026-10-12 — Integration 3 qualification completes
+
+All 22 initial Rust failures have passing full-target corrective evidence:
+609 tests across the six scope-affected device targets and 30 simulator-review
+regressions. Add the four new passing tests (set-null, scope retention, two
+union/cascade cases) to the original battery: qualified aggregate **5,648
+passed, zero failed, 40 declared ignores**. The initial 359-target command
+remains recorded as 5,622 passed / 22 failed / 40 ignores, exit 101.
+All clients including serial models qualify at **7,231 passed, zero failed,
+56 declared skips**, with the export timeout's one passing unchanged rerun.
+The final source's repeated difftest campaigns reproduce the same results:
+run 20,000 / 1,009,341 executions / no disagreements; devices seeds 0–999 /
+26 disagreements in 16 existing ticketed signatures; Lean 20,000 / 198 in
+four inherited C2/W4 signatures, no new signatures. No inherited discrepancy
+is called green. Final strict wasm repeats 2,245,239 B raw / 679,647 B gzip,
+cap 680,147 B = measurement + 500 B. Docs-budget and ref-check pass.
+The root WORKSTREAM-REPORT.md and reports/20261012-integration3/ record each
+item, commits, actual results and deferrals. No push or publication.

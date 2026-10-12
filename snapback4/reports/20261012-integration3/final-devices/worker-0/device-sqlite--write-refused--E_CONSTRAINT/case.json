@@ -1,0 +1,284 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 89,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [],
+          "rule": "Owner",
+          "residency": "Owner"
+        }
+      ],
+      "body": {
+        "Block": {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            },
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Int": 0
+          }
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "kids": {
+        "action": null,
+        "nullable": true,
+        "owner_read": true,
+        "synced": true,
+        "notes": false
+      }
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "flag": true,
+          "id": "r0",
+          "label": "𐀀",
+          "maybe": null,
+          "owner": "alice",
+          "score": -9007199254740991,
+          "tag": "tag0"
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "missing2",
+      "key": "r0",
+      "n": null
+    },
+    "clock": 379363,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 18744,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-sqlite--write-refused--E_CONSTRAINT",
+    "oracle": {
+      "Device": {
+        "store": "sqlite",
+        "phase": "write",
+        "ceiling": 0
+      }
+    },
+    "field": "write-refused",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1476,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 12
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_RULE",
+          "family": "auth",
+          "guide": "rules",
+          "message": "items's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"
+        }
+      }
+    },
+    "right": {
+      "kind": "admission",
+      "value": {
+        "denied": {
+          "code": "E_CONSTRAINT",
+          "family": "constraint",
+          "guide": "indexes",
+          "message": "items already has a row with id r0"
+        }
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "mutation",
+          "value": {
+            "events": 0,
+            "metered": {
+              "examined": 0,
+              "heap_bytes": 1476,
+              "index_entries": 0,
+              "output_bytes": 0,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 12
+            },
+            "receipt_only": false,
+            "replayed": false,
+            "state": "failed",
+            "tables": [],
+            "why": {
+              "code": "E_RULE",
+              "family": "auth",
+              "guide": "rules",
+              "message": "items's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"
+            }
+          }
+        },
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Row": {
+                "item": {
+                  "Array": [
+                    "Null",
+                    "Null"
+                  ]
+                },
+                "kids": {
+                  "Array": []
+                }
+              }
+            },
+            "metered": {
+              "examined": 2,
+              "heap_bytes": 489,
+              "index_entries": 0,
+              "output_bytes": 62,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 10
+            },
+            "seq": 1,
+            "tables": [
+              "items",
+              "kids"
+            ]
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "admission",
+          "value": {
+            "denied": {
+              "code": "E_CONSTRAINT",
+              "family": "constraint",
+              "guide": "indexes",
+              "message": "items already has a row with id r0"
+            }
+          }
+        },
+        {
+          "kind": "query",
+          "value": {
+            "complete": true,
+            "cut": null,
+            "data": {
+              "Row": {
+                "item": {
+                  "Array": [
+                    "Null",
+                    "Null"
+                  ]
+                },
+                "kids": {
+                  "Array": []
+                }
+              }
+            },
+            "metered": {
+              "examined": 2,
+              "heap_bytes": 489,
+              "index_entries": 0,
+              "output_bytes": 62,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 10
+            },
+            "retained": false,
+            "seq": 0,
+            "tables": [
+              "items",
+              "kids"
+            ],
+            "unknown": false
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 189
+}

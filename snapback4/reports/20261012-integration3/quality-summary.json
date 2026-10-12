@@ -1,0 +1,194 @@
+{
+  "implementation_commit": "851e15425f",
+  "merge_commit": "f5a482a4a9",
+  "rust": {
+    "initial": {
+      "exit": 101,
+      "targets": 359,
+      "passed": 5622,
+      "failed": 22,
+      "ignored": 40
+    },
+    "corrected_complete_targets": {
+      "device-affected-final": [
+        [
+          22,
+          0,
+          0
+        ],
+        [
+          30,
+          0,
+          0
+        ],
+        [
+          437,
+          0,
+          0
+        ]
+      ],
+      "device-scope-final2": [
+        [
+          88,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ]
+      ],
+      "device-timeline-final": [
+        [
+          26,
+          0,
+          0
+        ]
+      ],
+      "reviews-confirm": [
+        [
+          30,
+          0,
+          0
+        ]
+      ]
+    },
+    "new_tests": 4,
+    "qualified": {
+      "passed": 5648,
+      "failed": 0,
+      "ignored": 40
+    },
+    "accounting": "Initial suite plus all 22 failures replaced by passing complete-target reruns, plus four newly added passing tests (set-null, scope retention, two union/cascade tests). No claim that the initial command exited green."
+  },
+  "clients": {
+    "initial_regular": {
+      "files": 366,
+      "passed": 7131,
+      "failed": 19,
+      "skipped": 56
+    },
+    "qualified_regular": {
+      "files": 366,
+      "passed": 7150,
+      "failed": 0,
+      "skipped": 56
+    },
+    "serial_models": {
+      "files": 2,
+      "passed": 81,
+      "failed": 0
+    },
+    "qualified_total": {
+      "passed": 7231,
+      "failed": 0,
+      "skipped": 56
+    },
+    "after_revocation_repair": {
+      "files": 3,
+      "passed": 143,
+      "failed": 0
+    },
+    "load_sensitive_timeout": "export-background maintenance queue wait; single unchanged complete-file rerun passed 70 with 34 declared skips"
+  },
+  "lean_check": {
+    "examples": 53,
+    "theorems_audited": 54,
+    "oracle_fixtures": 7
+  },
+  "census": {
+    "entries": 718,
+    "mutation_occurrences": 409,
+    "private_write_sites": 89,
+    "regenerated_unchanged": true,
+    "delivery_await_regenerated_unchanged": true
+  },
+  "guide": {
+    "tests_passed": 119,
+    "readme_lines": 319,
+    "readme_limit": 320,
+    "recipes_source_lines": 358,
+    "recipes_printed_lines": 359,
+    "recipes_limit": 400,
+    "sharing_piped_lines": 95,
+    "sharing_piped_limit": 150
+  },
+  "wasm": {
+    "raw_bytes": 2245239,
+    "gzip_bytes": 679647,
+    "budget": 680147,
+    "headroom": 500,
+    "integration2_delta_gzip": 3357
+  },
+  "reviews": {
+    "action_events": {
+      "sol": "READY",
+      "muse": "READY WITH CHANGES",
+      "disposition": "All recommendations addressed; defensive direct eligibility regression substitutes for impossible optional union principal reference."
+    },
+    "expired_predecessor": {
+      "sol": "READY",
+      "muse": "READY"
+    }
+  },
+  "difftest": {
+    "final-run": {
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 1009341,
+      "seconds": 86.045031635,
+      "generator_errors": {},
+      "runtime_refused_unexpected": {},
+      "disagreeing": 0,
+      "signatures": []
+    },
+    "final-devices": {
+      "generated": 1000,
+      "compiled": 1000,
+      "executed": 27902,
+      "seconds": 27.535028859,
+      "generator_errors": {},
+      "runtime_refused_unexpected": {},
+      "disagreeing": 26,
+      "signatures": [
+        "device-memory--examined-complete--data",
+        "device-memory--examined-data--data",
+        "device-memory--examined-metered-examined--data",
+        "device-memory--heap-bytes-metered-examined--data",
+        "device-memory--metered-examined--data",
+        "device-memory--output-bytes-metered-examined--data",
+        "device-memory--steps-metered-examined--data",
+        "device-memory--write-refused--E_CONSTRAINT",
+        "device-sqlite--examined-complete--data",
+        "device-sqlite--examined-data--data",
+        "device-sqlite--examined-metered-examined--data",
+        "device-sqlite--heap-bytes-metered-examined--data",
+        "device-sqlite--metered-examined--data",
+        "device-sqlite--output-bytes-metered-examined--data",
+        "device-sqlite--steps-metered-examined--data",
+        "device-sqlite--write-refused--E_CONSTRAINT"
+      ]
+    },
+    "final-lean": {
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 51002,
+      "seconds": 23.094335391,
+      "generator_errors": {},
+      "runtime_refused_unexpected": {},
+      "disagreeing": 198,
+      "signatures": [
+        "lean--code--E_RULE~NOT_FOUND",
+        "lean--continuation-next--next~no-next",
+        "lean--next--next~no-next",
+        "lean--prelude-code--E_RULE~NOT_FOUND"
+      ]
+    }
+  },
+  "deferred_existing_issues": [
+    "20261008-snapback4-server-and-device-meters-diverge-on-unswept-expired-rows",
+    "20261008-snapback4-device-refusal-after-an-unproved-prediction-differs-from-the-server",
+    "Lean OPEN C2/W4"
+  ]
+}
