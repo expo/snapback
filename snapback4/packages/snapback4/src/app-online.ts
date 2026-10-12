@@ -165,9 +165,17 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const stopViewer = raw.onViewer(next => {
     if (next !== viewer) { viewerChanged = true; if (initialized) pause(); }
   });
-  const initial = await locked(key, read);
-  // @ref LLP 3000.013.000#4.5 — liveness is visible to peers before the first capture.
-  if (capture) await capture.ready;
+  let initial: Journal;
+  try {
+    initial = await locked(key, read);
+    // @ref LLP 3000.013.000#4.5 — liveness is visible to peers before the first capture.
+    if (capture) await capture.ready;
+  } catch (error) {
+    // @ref LLP 3000.013.000#17 — failed opening must not leave a liveness lock or raw transport behind.
+    capture?.close(); stop(); stopViewer(); stopPending?.();
+    await raw.close();
+    throw error;
+  }
   const journalEvents = journalChanges(key, pending.notify);
   for (const intent of initial.pending) restoredIds.add(intent.id);
   ownDispatch(raw, {

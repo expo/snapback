@@ -847,8 +847,19 @@ ended session are cancelled with a console warning; records under another
 session store namespace are left alone; a saturated journal keeps them and
 reports `auth.why`. A schema that syncs refuses `E_ADMISSION` naming the
 tables, `device: webDevice()` and `writes: "online"`; an unreachable `/schema`
-at opening refuses `retryable: true` until it answers. Persona apps keep the
-device requirement. Limits are the device journal's: clearing site data or an
+at opening refuses `retryable: true` until it answers. A known syncing schema
+reports failed `app.ready` with `E_ADMISSION` in `auth.why`; reads and recovery
+of prior intent remain active, while new durable writes refuse.
+
+Personas use the same journal keyed by backend and `dev:<persona>`:
+`createApp({ url, persona: "alice" })` needs no session store when nothing syncs.
+`writes: "online"` selects it with synced tables. This identity works only on
+loopback dev; serve refuses personas. Switching personas leaves earlier intent
+for that principal's next app; it never sends Alice's clicks as Bob. Close and
+persona logout preserve captured/pending intent; there is no session epoch to
+revoke. A reset still refuses old-store writes. Missing browser storage/Web Locks
+or invalid writes/device/readOnly combinations throw at construction (`error.why`
+carries the refusal), rather than waiting for the first write. Limits are the device journal's: clearing site data or an
 operating-system crash before the browser flushes storage can lose a click.
 
 On the web one tab is one device: a second tab on the same store opens
@@ -1785,12 +1796,12 @@ A development UI can act as a declared persona (`use personas alice, bob`) behin
 `AppProvider`, `useAuth` and `app.mutate` it uses for accounts: `createApp({ url, persona: "bob",
 device })` acts as `dev:bob` with no session. `app.auth.state` goes `restoring` → `signed-in`;
 `login`, `signup`, `guest` and `logoutEverywhere` refuse `E_AUTH`; `logout()` stops the app and
-leaves the persona's queued writes on its device for its next app. The url must be literal loopback
+leaves the persona's queued writes in its device or principal journal for its next app. The url must be literal loopback
 (`localhost`, `127.x`, `[::1]`), or `ready` resolves `{ ok: false }` with `E_AUTH` before any request
 carries the header; `snapback4 dev` still checks the socket, `Host` and `Origin`, and `serve`
-refuses personas, which the app also reports as `E_AUTH`. A persona app writes in a browser only with a
-device (it has no session store for the device-less journal): without one, `app.mutate` refuses
-`E_ADMISSION` and names `createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app:
+refuses personas, which the app also reports as `E_AUTH`. A persona app without a device
+journals browser writes by principal when nothing syncs, or with writes: "online".
+Use `device: webDevice()` for offline reads and predictions. Switching persona replaces the app:
 `usePersonaApp(persona, openApp)` opens one per persona and closes the old one on switch and
 unmount (or close it in your own effect's cleanup). One tab is one device per store, and each persona has its own store.
 

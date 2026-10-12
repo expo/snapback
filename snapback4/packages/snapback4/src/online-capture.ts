@@ -50,7 +50,7 @@ function parse(key: string, text: string | null, url: string): CaptureRecord | "
       && typeof r.id === "string" && typeof r.op === "string" && r.op.length > 0 && Object.hasOwn(r, "args")
       && typeof r.viewer === "string" && typeof r.storeId === "string" && r.storeId.length > 0 && typeof r.at === "number"
       && a && typeof a.key === "string" && typeof a.epoch === "string" && typeof a.principal === "string" && typeof a.source === "string"
-      && a.principal === r.viewer && key === recordKey(url, a.source, a.principal, r.id, r.nonce)) return r;
+      && (a.kind === undefined || a.kind === "persona") && a.principal === r.viewer && key === recordKey(url, a.source, a.principal, r.id, r.nonce)) return r;
   } catch { /* A malformed record never becomes an executable write. */ }
   return;
 }
@@ -110,7 +110,7 @@ export class OnlineCapture {
         this.sequence = Math.max(this.sequence, found.seq);
       }
       const record: CaptureRecord = { v: 1, key, nonce, runtime: this.runtime, seq: ++this.sequence, id, op, args,
-        viewer: this.viewer, url: this.url, storeId, authority: { key: stamp.key, epoch: stamp.epoch, principal: stamp.principal, source }, at: Date.now() };
+        viewer: this.viewer, url: this.url, storeId, authority: { ...(stamp.kind ? { kind: stamp.kind } : {}), key: stamp.key, epoch: stamp.epoch, principal: stamp.principal, source }, at: Date.now() };
       const text = JSON.stringify(record);
       if (bytes(text) > RECORD_BYTES) return refuse("the write exceeds the browser write journal's 64 KiB record; it was not admitted", "reduce the arguments, then retry");
       if (held >= JOURNAL_RECORDS || total + bytes(key) + bytes(text) > JOURNAL_BYTES)

@@ -1,9 +1,9 @@
 import type { DeviceCore } from "./local-device.ts";
 import type { Refusal } from "./contract.ts";
-import { logoutEpoch, sessionEpoch, StorageWarning } from "./app-storage.ts";
+import { logoutEpoch, sessionEpoch, storeKey, StorageWarning } from "./app-storage.ts";
 import { admissionRefusal, browserAdmission } from "./admission.ts";
 
-export interface AdmissionAuthority { key: string; epoch: string; principal: string; source?: string | undefined }
+export interface AdmissionAuthority { kind?: "persona"; key: string; epoch: string; principal: string; source?: string | undefined }
 export interface AdmissionAuthorityContext {
   capture(): AdmissionAuthority;
   // Ownership exists even when a wrapped/asynchronous store has no reader.
@@ -29,9 +29,12 @@ export const attachAdmissionAuthority = (core: DeviceCore, options: object) => {
  * A rotation may replace a bearer in the same epoch; logout/account changes
  * must not promote an older, as-yet-unadmitted journal record. */
 export async function sameAdmissionAuthority(stamp: AdmissionAuthority, context: AdmissionAuthorityContext, viewer: string): Promise<boolean> {
-  if (!context.read) return false;
   const current = context.capture();
   if (!stamp.source || stamp.source !== current.source || stamp.key !== current.key || stamp.principal !== viewer) return false;
+  // @ref LLP 3000.013.000#17 — personas have principal custody, no session epoch.
+  if (stamp.kind === "persona" || current.kind === "persona") return stamp.kind === "persona" && current.kind === "persona"
+    && stamp.principal === current.principal && stamp.epoch === "0" && current.epoch === "0";
+  if (!context.read) return false;
   const raw = await context.read(stamp.key);
   if (!raw || logoutEpoch(raw) !== null) return false;
   let session: { principal?: unknown };
@@ -45,3 +48,10 @@ export async function sameAdmissionAuthority(stamp: AdmissionAuthority, context:
 export const admissionAuthorityRefusal = (): Refusal => ({ code: "E_AUTH", family: "auth",
   message: "the session changed before this journaled write was admitted", site: "client.mutate",
   rewrite: "restore the current app session; submit again only if the write is still intended", guide: "writes" });
+
+/** Stable dev principal scope, disjoint from every session authority source. */
+export function personaAdmissionAuthority(url: string, principal: string, source: string): AdmissionAuthorityContext {
+  const stamp: AdmissionAuthority = { kind: "persona", key: storeKey("session", url, principal) + ".persona",
+    epoch: "0", principal, source: "persona:" + source };
+  return { capture: () => stamp, read: undefined, recheck() {} };
+}
