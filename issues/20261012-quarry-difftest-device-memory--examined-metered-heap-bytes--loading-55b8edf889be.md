@@ -1,0 +1,297 @@
+# Quarry differential test: device-memory--examined-metered-heap-bytes--loading
+
+**Status:** Open
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 3
+**Confidence:** 5
+**Systems:** Snapback 4, Quarry, database testing
+**Date:** 2026-10-12
+**Failure signature:** `device-memory--examined-metered-heap-bytes--loading`
+**Detected at:** `1c47f02cd8faca7b0997644f4cc111711f7c8291`
+**Seed:** `43531`
+**Related:** LLP 3000.035 §5.1
+
+## Observation
+
+The oracle `{"Device": {"ceiling": 1, "phase": "examined", "store": "memory"}}` disagreed on
+`examined-metered-heap_bytes`. The shrunk case reproduced the signature twice.
+Diagnosis is pending: inspect for an engine defect, binder defect, harness
+defect or underspecified point. No engine or binder change was made by the runner.
+
+## Replay
+
+The server-against-device oracle needs no database: it runs the engine on
+SQLite and the device on its native SQLite and memory stores.
+
+```sh
+python3 snapback4/scripts/difftest-tickets.py extract issues/20261012-quarry-difftest-device-memory--examined-metered-heap-bytes--loading-55b8edf889be.md /tmp/quarry-replay
+cd snapback4
+cargo run --release -p snapback4-difftest -- replay /tmp/quarry-replay
+```
+
+## case.q
+
+````quarry
+table items:
+  bucket: int
+  until: time ?
+  read <- allow
+  insert <- allow
+  update <- allow
+  delete <- allow
+  expire at .until
+  sync public
+
+query run(key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):
+  return count(items where .bucket = bucket)
+````
+
+## case.json (typed inputs, both raw outcomes and continuation)
+
+````json
+{
+  "version": 1,
+  "case": {
+    "seed": 43531,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "until",
+              "ty": {
+                "Nullable": "Time"
+              }
+            }
+          ],
+          "keys": [],
+          "rule": "Allow",
+          "residency": "Public",
+          "expire": "until"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Count",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r0",
+          "until": 346718
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r3",
+          "until": null
+        }
+      ],
+      [
+        "items",
+        {
+          "bucket": 0,
+          "id": "r4",
+          "until": null
+        }
+      ]
+    ],
+    "principal": "bob",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "missing",
+      "n": 0
+    },
+    "clock": 347219,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 11459,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "device-memory--examined-metered-heap-bytes--loading",
+    "oracle": {
+      "Device": {
+        "store": "memory",
+        "phase": "examined",
+        "ceiling": 1
+      }
+    },
+    "field": "examined-metered-heap_bytes",
+    "left": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "loading": true,
+        "metered": {
+          "examined": 2,
+          "heap_bytes": 7,
+          "index_entries": 0,
+          "output_bytes": 6,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 5
+        },
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "right": {
+      "kind": "projection",
+      "value": {
+        "complete": false,
+        "cut": "meter",
+        "loading": true,
+        "metered": {
+          "examined": 2,
+          "heap_bytes": 614,
+          "index_entries": 0,
+          "output_bytes": 6,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 5
+        },
+        "nextExpiry": null,
+        "tables": [
+          "items"
+        ],
+        "unknown": false
+      }
+    },
+    "continuation": [],
+    "store_trace": {
+      "left": [
+        {
+          "kind": "query",
+          "value": {
+            "capped_at": [
+              "examined",
+              "programs.run.0"
+            ],
+            "complete": false,
+            "cut": "meter",
+            "data": "Null",
+            "metered": {
+              "examined": 2,
+              "heap_bytes": 7,
+              "index_entries": 0,
+              "output_bytes": 6,
+              "rows_written": 0,
+              "rule_probes": 0,
+              "steps": 5
+            },
+            "seq": 1,
+            "tables": [
+              "items"
+            ],
+            "unavailable": true
+          }
+        }
+      ],
+      "right": [
+        {
+          "kind": "device-call",
+          "value": {
+            "raw": {
+              "ok": {
+                "complete": false,
+                "cut": "meter",
+                "decorationExpiry": null,
+                "loading": true,
+                "metered": {
+                  "examined": 8193,
+                  "heap_bytes": 614,
+                  "index_entries": 0,
+                  "output_bytes": 6,
+                  "rows_written": 0,
+                  "rule_probes": 0,
+                  "steps": 5
+                },
+                "nextExpiry": null,
+                "retained": false,
+                "scopes": {
+                  "items": [
+                    {}
+                  ]
+                },
+                "tables": [
+                  "items"
+                ],
+                "unknown": false,
+                "watermark": 1
+              }
+            },
+            "reply": {
+              "complete": false,
+              "cut": "meter",
+              "decorationExpiry": null,
+              "loading": true,
+              "metered": {
+                "examined": 2,
+                "heap_bytes": 614,
+                "index_entries": 0,
+                "output_bytes": 6,
+                "rows_written": 0,
+                "rule_probes": 0,
+                "steps": 5
+              },
+              "nextExpiry": null,
+              "retained": false,
+              "scopes": {
+                "items": [
+                  {}
+                ]
+              },
+              "tables": [
+                "items"
+              ],
+              "unknown": false,
+              "watermark": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "shrink_attempts": 118
+}
+````
+
+## Recurrences
+
+- 2026-10-12: run `20261012T000004Z-bbc18bf6`, seed `43531`, commit `1c47f02cd8faca7b0997644f4cc111711f7c8291`.
+
+When resolved, keep the case as a regression, record the resolution, and move
+this ticket to `issues/closed/`.
