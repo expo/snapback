@@ -507,13 +507,17 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
 pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
     let Some(first) = merge.lanes.first() else { return true };
     let Some(table) = schema.table(&first.scan.table) else { return false };
-    let mut suffix: Option<Vec<(String, ColumnType)>> = None;
+    let mut suffix: Option<(&crate::schema::Index, usize)> = None;
     merge.lanes.iter().all(|lane| {
         let scan = &lane.scan;
         let Some(index) = table.index(&scan.index) else { return false };
-        let total_unique = index.unique && index.components.iter().all(|component| component.key_type(table).is_some_and(|kind| !kind.is_optional()));
-        let lane_suffix = merge_position(table, index, scan.prefix.len());
-        let same = suffix.get_or_insert_with(|| lane_suffix.clone()) == &lane_suffix;
+        let plain = index.components.iter().all(|component| component.column().is_some());
+        let total_unique = index.unique && plain && index.components.iter().all(|component| component.column()
+            .and_then(|column| table.columns.get(column)).is_some_and(|kind| !kind.is_optional()));
+        let same = match suffix {
+            Some((first_index, first_prefix)) => same_merge_position(table, first_index, first_prefix, index, scan.prefix.len()),
+            None => { suffix = Some((index, scan.prefix.len())); true }
+        };
         let authority = if lane.membership() { membership_branch(schema, lane) }
             else if lane.system() { lane.source.is_none() }
             else if lane.grant() { lane.source.is_none() && covering_grant(schema, scan).is_some() }
@@ -522,8 +526,7 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
             && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && !scan.existence && same
             && scan.prefix.len() < index.components.len() && index.word_component().is_none()
-            && index.components.iter().all(|component| component.column().is_some())
-            && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
+            && plain && (total_unique || index.components.last().and_then(|component| component.column()).is_some_and(|c| c == "id"))
             && authority
     })
 }
@@ -540,26 +543,32 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     if source.existence || source.prefix.len() >= source_index.components.len()
         || source_index.components.get(source.prefix.len()).and_then(|part| part.column()) != Some(source_column)
         || !scan_visibility(schema, source).decided_true { return false; }
-    let prefix_columns: Vec<String> = source_index.components.iter().take(source.prefix.len()).filter_map(|part| part.column().cloned()).collect();
     let Bound::Literal(take) = source.take else { return false };
-    if schema.group_bound(&source.table, &prefix_columns).is_none_or(|cap| cap > take) { return false; }
+    let prefix_has = |field: &String| source_index.components.iter().take(source.prefix.len())
+        .any(|part| part.column() == Some(field));
+    let cap = source_table.constraints.iter().filter_map(|constraint| match constraint {
+        crate::schema::Constraint::Cap { by, max } if by.iter().all(prefix_has) && !source_table.cap_exempts_null(by) => Some(*max),
+        _ => None,
+    }).min();
+    if cap.is_none_or(|cap| cap > take) { return false; }
     let Some(outer_table) = schema.table(&lane.scan.table) else { return false };
     let Some(outer_index) = outer_table.index(&lane.scan.index) else { return false };
-    let mut outer_column = None;
+    let mut outer_column: Option<&String> = None;
     for (part, key) in outer_index.components.iter().zip(&lane.scan.prefix) {
         let (Some(column), Some(expr)) = (part.column(), key.scalar()) else { return false };
         if matches!(expr, Expr::Field { base, name } if matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding) && name == source_column)
-            && outer_column.replace(column.clone()).is_some() { return false; }
+            && outer_column.replace(column).is_some() { return false; }
     }
     let Some(outer_column) = outer_column else { return false };
     if outer_column == "id" { return false; }
-    let fixed: BTreeMap<&String, &Expr> = source_index.components.iter().zip(&source.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
-    outer_table.rules.read.disjuncts().into_iter().any(|rule| {
+    let fixed = |column: &String| source_index.components.iter().zip(&source.prefix)
+        .find_map(|(part, key)| (part.column() == Some(column)).then(|| key.scalar()).flatten());
+    any_disjunct(&outer_table.rules.read, &|rule| {
         let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
         let Some(probe_index) = source_table.index(index) else { return false };
         if table != &source.table || !probe_index.unique || !probe_index.is_plain() || probe_index.components.len() != key.len() { return false; }
-        let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == &outer_column) }
-            else { fixed.get(column).is_some_and(|expr| term_matches_expr(term, expr)) };
+        let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == outer_column) }
+            else { fixed(column).is_some_and(|expr| term_matches_expr(term, expr)) };
         probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
             && equalities.iter().all(|(column, term)| matches(column, term))
     })
@@ -570,13 +579,29 @@ fn term_matches_expr(term: &RuleTerm, expr: &Expr) -> bool {
         (RuleTerm::Literal(a), Expr::Literal(b)) => a == b, _ => false }
 }
 
-/// A lane's merge position columns: the index components after its prefix,
-/// then `id` when they do not end in it (LLP 3000.007.000 §1).
-pub fn merge_position(table: &Table, index: &crate::schema::Index, prefix_len: usize) -> Vec<(String, ColumnType)> {
-    let mut columns: Vec<(String, ColumnType)> = index.components.iter().skip(prefix_len)
-        .filter_map(|component| Some((component.key_name()?.clone(), component.key_type(table)?))).collect();
-    if columns.last().is_none_or(|(name, _)| name != "id") { columns.push(("id".into(), table.columns["id"].clone())); }
-    columns
+/// Compare two merge positions without allocating their cursor descriptors.
+/// Each position is the index columns after its prefix, then `id` when absent.
+fn same_merge_position(table: &Table, left: &crate::schema::Index, left_prefix: usize,
+    right: &crate::schema::Index, right_prefix: usize) -> bool {
+    let parts = |index: &crate::schema::Index, prefix| {
+        let suffix = index.components.len().saturating_sub(prefix);
+        suffix + usize::from(index.components.last().and_then(|part| part.column()).is_none_or(|column| column != "id"))
+    };
+    let left_len = parts(left, left_prefix);
+    if left_len != parts(right, right_prefix) { return false; }
+    (0..left_len).all(|position| merge_position_part(table, left, left_prefix, position)
+        == merge_position_part(table, right, right_prefix, position))
+}
+
+fn merge_position_part<'a>(table: &'a Table, index: &'a crate::schema::Index, prefix: usize,
+    position: usize) -> Option<(&'a str, &'a ColumnType)> {
+    match index.components.get(prefix + position) {
+        Some(component) => {
+            let column = component.column()?;
+            table.columns.get(column).map(|kind| (column.as_str(), kind))
+        }
+        None => Some(("id", &table.columns["id"])),
+    }
 }
 
 /// The guard a branch merge's grant lane is decided by: the page guards of

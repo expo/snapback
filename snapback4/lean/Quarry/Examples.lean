@@ -538,7 +538,15 @@ def merged : List Example := [
     case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d2","owner":"bob","at":2},{"id":"d1","owner":"alice","at":1}],"complete":false,"next":null}"# } ]
+    expected := r#"{"kind":"answer","data":[{"id":"d2","owner":"bob","at":2},{"id":"d1","owner":"alice","at":1}],"complete":false,"next":null}"# },
+  { name := "page-row-id-membership-owner-alternatives-not-merged"
+    source := "LLP 3000.036.001 §14: a reserved row-id membership shape cannot enter the older decided-alternative case"
+    case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,
+              program := query [.ret (.page "documents" [] (some (.or
+                (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "at") (int 1)))
+                (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "at") (int 2))))) ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","at":1}],"complete":false,"next":null}"# } ]
 
 
 /-! ## Referential actions (LLP 3000.039) -/

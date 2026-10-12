@@ -342,6 +342,25 @@ def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch)
     | .membership t key => membershipEligible sch t key
   if topOr && party && membership && eligible && leaves.length + 1 ≤ 8 then some leaves else none
 
+/-- A capped owner-or-membership shape is reserved for PAGE even when one of
+its stricter eligibility checks declines. This mirrors the compiler's fallback
+fence, including row-id targets and sources whose pins do not prove admission. -/
+def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
+  match r.accessLeaves with
+  | none => false
+  | some leaves =>
+    let topOr := match r with | .or _ _ => true | _ => false
+    let party := leaves.any fun b => match b with | .party _ => true | _ => false
+    let membership := leaves.any fun b => match b with | .membership _ _ => true | _ => false
+    let capped := leaves.all fun b => match b with
+      | .party _ => true
+      | .membership t key => match sch.table? t with
+        | none => false
+        | some td =>
+          let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
+          td.caps.any fun cap => cap.columns.all fun c => fixed.any (·.1 == c)
+    topOr && party && membership && capped
+
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its
 holder may read. A probe's target row must be readable by its own read rule
 given the probe's key (`byForm`), where a pinned row column is an unknown
@@ -432,6 +451,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.
     let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
+    let reservedMembership := td.read.ownerMembershipReserved sch
     let case1Candidate := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
     -- The grant lane is the read as written, planned as the single-index page
     -- is: its prefix is the page's pins off the order (an equality on the
@@ -447,8 +467,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
           pins.any (·.1 == pair.2)
             || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
       | .party _ => false
-    let case1 := if pinnedMembership then false else case1Candidate
-    let case2 := if !guards || pinnedMembership then false else match td.read.branchParties sch guardPins true with
+    let case1 := if reservedMembership || pinnedMembership then false else case1Candidate
+    let case2 := if !guards || reservedMembership || pinnedMembership then false else match td.read.branchParties sch guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
