@@ -111,6 +111,9 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("insert", "writes"), ("update", "writes"), ("upsert", "writes"), ("delete", "writes"),
     // @ref LLP 3000.007#20.1 — wave 7: section words builders guessed (`--section statements`, `react`, `money`).
     ("statements", "writes"), ("statement", "writes"), ("money", "types"), ("currency", "types"),
+    ("household", "sharing"), ("households", "sharing"), ("multi-tenant", "sharing"), ("tenant", "sharing"), ("membership", "sharing"),
+    ("sealed", "expire"), ("sealed bid", "expire"), ("sealed bids", "expire"), ("blind", "expire"), ("reveal", "expire"),
+    ("roster", "cheatsheet"), ("rosters", "cheatsheet"), ("probe", "cheatsheet"), ("positional", "cheatsheet"),
     ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
     ("persona", "personas"), ("persona picker", "personas"), ("switch persona", "personas"), ("picker", "personas"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
@@ -153,6 +156,10 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("division", "Limits"), ("reserved", "Quarry"), ("reserved words", "Quarry"), ("subpaths", "Client subpaths"),
     ("statements", "Details"), ("statement", "Details"), ("loops", "Loops"), ("loop", "Loops"),
     ("react", "React"), ("hooks", "React"),
+    ("household", "A group's private list"), ("households", "A group's private list"), ("multi-tenant", "A group's private list"),
+    ("tenant", "A group's private list"), ("membership", "A group's private list"),
+    ("sealed", "Sealed"), ("sealed bid", "Sealed"), ("sealed bids", "Sealed"), ("blind", "Sealed"), ("reveal", "Sealed"),
+    ("roster", "Roles and rosters"), ("rosters", "Roles and rosters"), ("probe", "Roles and rosters"), ("positional", "Roles and rosters"),
 ];
 
 /// The section an alias names in its card, if it names one: (card, heading words).
@@ -453,6 +460,100 @@ sources and says `complete: false`. A meter cut of an ordinary aggregate returns
 An expiring row-keyed range read returns `{ value: L, recountPending: true }`
 with `complete: false`, the current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another.
+
+
+## Sealed until a deadline
+
+A read rule cannot name `now`, so access that *begins* at a time (sealed bids,
+blind reviews, answers revealed after an exam) is the absence of a row that
+expires then. Issuing an RFQ writes a public `seals` row with `expire at
+.until`, its deadline (`after insert` makes the seal mandatory; `unique rfq`
+and no update or delete rule keep it). The buyer's copy of each bid is read
+under `not exists seals[.rfq]`, so it appears to the buyer when the seal
+expires, on the server's clock, with no job. Bidding requires the seal. The
+supplier reads its own bid from `bids`; the buyer's copy is a second table,
+written in the same mutation and checked column by column against it, because
+one table per audience keeps both pages `complete` (one `or` across
+supplier and buyer would never be). Test it with fixture seals already past
+and not yet past their `until`, or `snapback4 clock advance` on `dev`.
+
+```quarry
+use personas alice, bob, carol
+
+table rfqs:
+  buyer: principal
+  title: text 3..100
+  deadline: time
+  immutable buyer, title, deadline
+  public 'anyone may read an RFQ and its deadline'
+  insert <- .buyer = viewer
+  after insert <- exists seals[.id]
+  online only
+
+table seals:
+  rfq: rfqs
+  until: time
+  unique rfq
+  immutable rfq, until
+  public 'a seal says only that bids are still sealed, and until when'
+  insert <- created rfqs[.rfq] and .rfq.buyer = viewer and .rfq.deadline = .until
+  expire at .until
+  online only
+
+table bids:
+  rfq: rfqs
+  supplier: principal
+  buyer: principal
+  cents: int
+  unique rfq, supplier else ALREADY_BID
+  immutable rfq, supplier, buyer, cents
+  read <- .supplier = viewer
+  insert <- .supplier = viewer and .buyer = .rfq.buyer and exists seals[.rfq]
+  online only
+
+table opened:
+  bid: bids
+  rfq: rfqs
+  buyer: principal
+  supplier: principal
+  cents: int
+  unique bid
+  immutable bid, rfq, buyer, supplier, cents
+  read <- .buyer = viewer and not exists seals[.rfq]
+  insert <- created bids[.bid] and .rfq = .bid.rfq and .buyer = .bid.buyer and .supplier = .bid.supplier and .cents = .bid.cents
+  online only
+
+query myBid(rfq: rfqs):
+  return bids[rfq, viewer]
+
+query revealed(rfq: rfqs, c: cursor ?):
+  return opened where .rfq = rfq and .buyer = viewer first 100 by .id after c
+
+mutation issue(title: text 3..100, minutes: int):
+  require minutes >= 1 and minutes <= 43200 else BAD_DEADLINE
+  r = insert rfqs { buyer: viewer, title, deadline: now + minutes * 1m }
+  insert seals { rfq: r.id, until: r.deadline }
+  return r
+
+mutation bid(rfq: rfqs, cents: int):
+  r = rfqs[rfq] ! else NOT_FOUND
+  require exists seals[rfq] else CLOSED
+  require cents > 0 else BAD_AMOUNT
+  b = insert bids { rfq, supplier: viewer, buyer: r.buyer, cents }
+  insert opened { bid: b.id, rfq, buyer: r.buyer, supplier: viewer, cents }
+  return b
+```
+
+Cases (alice's RFQ `r1` sealed until 2100 and `r2` already past, each with one bid by bob):
+
+```jsonl
+{"as":"alice","op":"revealed","args":{"rfq":"r1"},"expect":"complete","count":0,"label":"sealed until the deadline"}
+{"as":"alice","op":"revealed","args":{"rfq":"r2"},"expect":"complete","count":1,"label":"the seal expired: the buyer reads every bid"}
+{"as":"carol","op":"revealed","args":{"rfq":"r2"},"expect":"complete","count":0,"label":"another supplier never does"}
+{"as":"carol","op":"bid","args":{"rfq":"r2","cents":500},"expect":"CLOSED"}
+{"as":"carol","op":"bid","args":{"rfq":"r1","cents":800}}
+{"as":"carol","op":"bid","args":{"rfq":"r1","cents":750},"expect":"ALREADY_BID"}
+```
 
 ## Operations
 

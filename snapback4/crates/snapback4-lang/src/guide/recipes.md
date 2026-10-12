@@ -32,6 +32,9 @@ The pattern under every recipe: rules say who may touch a row at all, a
 answers with your code, and the table's sync line (or `online only`) says
 whose device holds it. `guide refusals` gives the order the checks run in.
 
+On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
+deadline (`guide sealed`); roster tables and probe keys (`guide rosters`).
+
 ## Roles: admin, staff and members
 
 Everyone signed in is a member. A `roles` row makes a principal staff or an

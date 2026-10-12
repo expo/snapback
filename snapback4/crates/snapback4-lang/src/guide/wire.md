@@ -39,6 +39,13 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
   new write.
 - Values: `time` is Unix milliseconds; `bytes` is lowercase hex; a reference is
   its row's id string. Numbers: see below.
+- Uploads: `POST /assets` with the file's bytes as the raw body (not JSON, not multipart; the
+  server sniffs JPEG, PNG, WebP or MP4 and ignores `Content-Type`), as the uploader, answers
+  `{asset: {id, type, bytes, width, height, duration}}`, or `{denied}`: `E_ASSET_TYPE` (other
+  bytes), `E_ASSET_TOO_LARGE`, 400 for an empty body, 401 `E_AUTH`, 413 past 64 MiB. Pass the
+  asset to a mutation's `image`/`video` argument as `{"id": "<asset id>"}`; `GET /assets/<id>`
+  returns the bytes to a viewer the row's read rule admits, else 404 `E_ASSET_UNKNOWN`.
+  `curl -X POST $U/assets -H 'x-snapback-persona: alice' --data-binary @receipt.png`
 - A job is not a client call (E_OP): a schedule fires it, and in dev
   `/dev/jobs/<job>` or `snapback4 run <job>` runs one.
 - GET `/changes?since=<seq>&wait=25` long-polls. It answers `{seq, tables,
@@ -146,6 +153,6 @@ A refusal is `{code, family, message, site?, rule?, rewrite?, guide?}`, and
 local refusal for the same mistake, before anything is sent; the wire's code is
 `E_ID_REUSED`.
 
-The full reference, including `/assets`, the rest of `/auth`, worker and action
+The full reference, including the rest of `/assets` (one-view images, ranges), the rest of `/auth`, worker and action
 doors, and clock headers, is "The wire" in CLIENT-AND-OPERATIONS.md §5, which
 ships in the package beside README.md.
