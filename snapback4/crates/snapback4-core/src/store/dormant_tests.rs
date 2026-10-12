@@ -983,6 +983,13 @@ fn restoration_into_a_narrower_table_or_column_retains_source_values_and_definit
         activate(&mut e,&retired,2).unwrap();
         activate(&mut e,&narrow,3).unwrap();
         assert_eq!(e.store().count("rows").unwrap(),0);
+        let status=e.store_mut().release_status(0,None,None).unwrap();let event=status["events"].as_array().unwrap().last().unwrap();
+        let items=e.store_mut().release_status(0,None,event["id"].as_u64()).unwrap();
+        let restored=items["items"].as_array().unwrap().iter().find(|i|i["key"]==if retired.contains("table rows") {"column:rows.status"} else {"table:rows"}).unwrap();
+        assert_eq!(restored["restored_rows"],0);
+        assert_ne!(restored["action"],"restored");
+        // Whole-table reintroduction also restores its byId index definition.
+        assert_eq!(event["summary"]["restored_items"],if retired.contains("table rows") {0} else {1});
         // Retiring the field again must preserve the original stored type/value.
         activate(&mut e,&retired,4).unwrap();
         activate(&mut e,wide,5).unwrap();
@@ -1047,6 +1054,7 @@ fn audit_keeps_before_after_and_partial_restoration_counts() {
 #[test]
 fn expiry_of_an_active_row_does_not_audit_its_dormant_cells_as_restored() {
     let wide="table parents:\n  public\ntable rows:\n  parent: parents\n  immutable parent\n  until: time\n  expire at .until\n  extra: int default 7\n  read through .parent\n";
+    for reintroduce in [false,true] {
     let mut e=engine(wide);
     let parent=wire::row_from_json(&e.schema().tables["parents"],&serde_json::json!({"id":"p"})).unwrap();
     let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","parent":"p","until":50,"extra":42})).unwrap();
@@ -1055,10 +1063,75 @@ fn expiry_of_an_active_row_does_not_audit_its_dormant_cells_as_restored() {
     // First activation keeps the same lifetime, so the unswept expired image and its cell remain stored.
     activate(&mut e,&retired,2).unwrap();
     let changed=retired.replace("  read through .parent","  public").replace("  expire at .until\n","");
+    let changed=if reintroduce {changed.replace("  public", "  extra: int default 7\n  public")} else {changed};
     activate(&mut e,&changed,3).unwrap();
     let status=e.store_mut().release_status(0,None,None).unwrap();let event=status["events"].as_array().unwrap().last().unwrap();
     let items=e.store_mut().release_status(0,None,event["id"].as_u64()).unwrap();
     let item=items["items"].as_array().unwrap().iter().find(|i|i["key"]=="column:rows.extra").unwrap();
     assert_eq!(item["before_rows"],1);assert_eq!(item["after_rows"],0);assert_eq!(item["restored_rows"],0);
     assert_ne!(item["action"],"partially restored");
+    assert_ne!(item["action"],"restored");
+    assert_eq!(event["summary"]["restored_items"],0);
+    }
+}
+
+#[test]
+fn late_readthrough_retirement_is_not_a_narrowed_restoration_in_audit() {
+    let wide="table parents:\n  public\ntable rows:\n  parent: parents\n  immutable parent\n  until: time default 50\n  expire at .until\n  status: enum('live','new')\n  extra: int default 7\n  read through .parent\n";
+    let mut e=engine(wide);
+    let parent=wire::row_from_json(&e.schema().tables["parents"],&serde_json::json!({"id":"p"})).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","parent":"p","until":50,"status":"new","extra":42})).unwrap();
+    e.seed_at([("parents".into(),parent),("rows".into(),row)],0).unwrap();
+    let narrow=wide.replace("enum('live','new')","enum('live')").replace("  extra: int default 7\n","");
+    activate(&mut e,&narrow,2).unwrap();
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    activate(&mut e,&wide.replace("default 50","default 60"),3).unwrap();
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    let status=e.store_mut().release_status(0,None,None).unwrap();let event=status["events"].as_array().unwrap().last().unwrap();
+    assert_eq!(event["summary"]["narrowed_restored"],0);
+    assert_eq!(event["summary"]["restored_items"],0);
+    let items=e.store_mut().release_status(0,None,event["id"].as_u64()).unwrap();
+    for key in ["rows:rows","column:rows.extra"] {
+        let item=items["items"].as_array().unwrap().iter().find(|i|i["key"]==key).unwrap();
+        assert_eq!(item["restored_rows"],0);assert_eq!(item["action"],"removed without restoration");
+    }
+}
+
+#[test]
+fn initially_dangling_keep_reference_restores_after_table_then_type_dormancy() {
+    let wide="table parents:\n  public\ntable children:\n  parent: parents on delete keep\n  status: enum('live','new')\n  public\n";
+    let mut e=engine(wide);
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"never-existed","status":"new"}));
+    activate(&mut e,"table parents:\n  public\n",2).unwrap();
+    activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),3).unwrap();
+    activate(&mut e,wide,4).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),1);
+    assert_eq!(e.store().rows("children").unwrap()[0].field("parent").unwrap(),&Value::Id("never-existed".into()));
+}
+
+#[test]
+fn removing_readthrough_cannot_revive_an_expired_narrowed_source_lifetime() {
+    let wide="table parents:\n  public\ntable rows:\n  parent: parents\n  immutable parent\n  until: time default 50\n  expire at .until\n  status: enum('live','new')\n  read through .parent\n";
+    let mut e=engine(wide);
+    let parent=wire::row_from_json(&e.schema().tables["parents"],&serde_json::json!({"id":"p"})).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","parent":"p","until":50,"status":"new"})).unwrap();
+    e.seed_at([("parents".into(),parent),("rows".into(),row)],0).unwrap();
+    activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),2).unwrap();
+    activate(&mut e,&wide.replace("  read through .parent","  public").replace("  expire at .until\n",""),3).unwrap();
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    assert_eq!(e.store().conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+    let status=e.store_mut().release_status(0,None,None).unwrap();let event=status["events"].as_array().unwrap().last().unwrap();
+    assert_eq!(event["summary"]["narrowed_restored"],0);
+}
+
+#[test]
+fn true_format_two_store_allows_deletion_before_its_first_upgrade() {
+    let mut e=engine(V1);
+    seed(&mut e,"rows",serde_json::json!({"id":"gone","n":1,"status":"active"}));
+    e.store().conn().execute_batch("UPDATE _meta SET value='snapback4-release-store-2' WHERE key='version'; DROP TABLE _dormant_narrow_rows;").unwrap();
+    mutate(&mut e,"remove","legacy-delete");
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    assert_eq!(e.store().meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"));
+    activate(&mut e,V1,1).unwrap();
+    assert_eq!(e.store().meta("version").unwrap().as_deref(),Some(dormant::VERSION));
 }

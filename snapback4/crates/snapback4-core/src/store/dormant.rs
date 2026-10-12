@@ -97,7 +97,7 @@ fn add_reference(
         )?;
     tx.conn().execute(
         "INSERT OR IGNORE INTO _dormant_refs VALUES(?1,?2,?3,?4,?5,?6)",
-        params![t, id, column, parent_t, parent_id, invalid],
+        params![t, id, column, parent_t, parent_id, if invalid {2} else {0}],
     )?;
     Ok(())
 }
@@ -385,6 +385,8 @@ pub(super) fn transition(
             )?;
             Ok(())
         })?;
+        let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+        tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
         tx.conn()
             .execute("DELETE FROM _dormant_rows WHERE t=?1", [t])?;
         tx.conn()
@@ -470,8 +472,8 @@ pub(super) fn transition(
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         for column in table.columns.keys() {
-            let restored:u64=tx.conn().query_row("SELECT COUNT(*) FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![t,column],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
-            if restored>0 {tx.set_meta(&format!("activation_column_restored:{name}.{column}"),&restored.to_string())?;}
+            let ids=tx.conn().prepare("SELECT v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)")?.query_map(params![t,column],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+            if !ids.is_empty() {tx.set_meta(&format!("activation_column_restored_ids:{name}.{column}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;}
             tx.conn().execute(
                 "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",
                 params![t, column],
@@ -601,7 +603,9 @@ pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str, name: &str) -> Result<(), Ru
         "UPDATE _dormant_refs SET invalid=1 WHERE parent_t=?1 AND parent_id=?2 AND invalid=0",
         params![t, id],
     )?;
-    tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?3) WHERE home_table=?1 AND home_id=?2 AND (home_column IN (SELECT column_name FROM _dormant_values WHERE t=?4 AND id=?2))",params![name,id,crate::now_ms(),t])?;
+    let narrowed=super::narrowed::present(tx.conn())?;
+    let home=if narrowed {" OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?4 AND id=?2)"} else {""};
+    tx.conn().execute(&format!("UPDATE _assets SET released_at=COALESCE(released_at,?3) WHERE home_table=?1 AND home_id=?2 AND (home_column IN (SELECT column_name FROM _dormant_values WHERE t=?4 AND id=?2){home})"),params![name,id,crate::now_ms(),t])?;
     tx.conn().execute(
         "DELETE FROM _dormant_values WHERE t=?1 AND id=?2",
         params![t, id],
@@ -610,6 +614,7 @@ pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str, name: &str) -> Result<(), Ru
         "DELETE FROM _dormant_rows WHERE t=?1 AND id=?2",
         params![t, id],
     )?;
+    if narrowed {tx.conn().execute("DELETE FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id])?;}
     tx.conn().execute(
         "DELETE FROM _dormant_refs WHERE t=?1 AND id=?2",
         params![t, id],

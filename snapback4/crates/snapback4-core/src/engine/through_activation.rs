@@ -140,16 +140,18 @@ impl<'a> Retirement<'a> {
             .filter_map(|name| {
                 let next = &next.tables[&name];
                 let old = previous.table(&name)?;
-                (next.through != old.through
-                    || next.through.is_some()
-                        && (next.expire != old.expire
-                            || next.expire.as_ref().is_some_and(|field| {
-                                old.defaults.get(field) != next.defaults.get(field)
-                            })))
-                .then_some((name, old))
+                Self::changes_lifetime(next,old).then_some((name, old))
             })
             .collect();
         Self { affected, now }
+    }
+
+    fn changes_lifetime(next:&Table,old:&Table) -> bool {
+        next.through != old.through || next.through.is_some() && (next.expire != old.expire || next.expire.as_ref().is_some_and(|field|old.defaults.get(field)!=next.defaults.get(field)))
+    }
+
+    pub(crate) fn retires_image(next:&Table,old:&Table,row:&Value,now:i64) -> bool {
+        Self::changes_lifetime(next,old) && old.expired(row,now)
     }
 
     pub(crate) fn affects(&self, name: &str) -> bool {

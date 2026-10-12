@@ -522,3 +522,23 @@ fn following_reply_stamps_the_engine_selected_after_request_intake() {
     assert_eq!(body(&reply)["generation"],2,"{reply}");
     assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 2\r\n"),"{reply}");
 }
+
+#[test]
+fn action_reply_stamps_admission_after_switch_during_request_intake() {
+    let directory=ReaderTestDirectory::new();let host=directory.host();
+    let first=format!("use server\n{READER_SCHEMA}\naction work() returns {{ n: int }} <- allow\n");
+    release::apply(&host.shared,&directory.0,candidate(&directory.0,2,&first,None,0)).unwrap();
+    let (entered,waiting)=mpsc::channel();let barrier=Arc::new((Mutex::new(false),Condvar::new()));let stalled=barrier.clone();
+    *lock(&host.shared.request_work)=Some(Arc::new(move||{
+        entered.send(()).unwrap();let (state,wake)=&*stalled;let mut ready=lock(state);
+        while !*ready {ready=wake.wait(ready).unwrap();}
+    }));
+    let address=host.address;let payload="{\"id\":\"intake-action\",\"args\":{\"n\":2}}";
+    let wire=format!("POST /a/work?wait=0 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}",payload.len());
+    let task=thread::spawn(move||exchange(address,&wire));waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+    let next=first.replace("action work()", "action work(n: int)");
+    let switched=release::apply(&host.shared,&directory.0,candidate(&directory.0,3,&next,Some(2),1)).unwrap();assert_eq!(switched["generation"],3);
+    *lock(&barrier.0)=true;barrier.1.notify_all();let reply=task.join().unwrap();
+    assert_eq!(body(&reply)["state"],"pending","{reply}");assert_eq!(body(&reply)["generation"],3,"{reply}");
+    assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 3\r\n"),"{reply}");
+}

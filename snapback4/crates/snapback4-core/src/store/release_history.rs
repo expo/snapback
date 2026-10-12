@@ -116,6 +116,21 @@ pub(crate) fn inventory(
     Ok(out)
 }
 
+// @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — only rows surviving every activation phase count as restored.
+pub(crate) fn finalize_restorations(tx:&Tx<'_>) -> Result<(),RuntimeError> {
+    let entries=tx.conn().prepare("SELECT key,value FROM _meta WHERE key LIKE 'activation_narrowed_restored_ids:%' OR key LIKE 'activation_column_restored_ids:%' OR key LIKE 'activation_table_restored_ids:%'")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
+    let mut narrowed=0u64;
+    for (key,ids) in entries {
+        let (prefix,path)=key.split_once(':').expect("activation restoration key");
+        let table=if prefix=="activation_column_restored_ids" {path.split_once('.').expect("column path").0} else {path};
+        let count:u64=tx.conn().query_row("SELECT COUNT(*) FROM r WHERE t=?1 AND id IN (SELECT value FROM json_each(?2))",params![tx.num(table)?,ids],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
+        tx.set_meta(&format!("{}:{path}",prefix.trim_end_matches("_ids")),&count.to_string())?;
+        if prefix=="activation_narrowed_restored_ids" {narrowed+=count;}
+    }
+    tx.set_meta("activation_narrowed_restored",&narrowed.to_string())?;
+    Ok(())
+}
+
 pub(crate) fn event(
     tx: &Tx<'_>,
     operation: &str,

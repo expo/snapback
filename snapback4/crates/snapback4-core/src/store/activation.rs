@@ -234,9 +234,6 @@ impl Store {
                 let message=format!("{label} changed");
                 if !report.changes.contains(&message){report.changes.push(message);}
             }
-            let retired=tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);
-            let restored=tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);
-            if retired>0 || restored>0 {report.changes.insert(0,format!("{retired} rows dormant, {restored} restored"));}
         }
 
         report.phase("preflight", &mut phase);

@@ -93782,3 +93782,25 @@ Final ref-check follows this entry. No push, publication or new root report file
 
 Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
 zero errors and zero unchecked. The tracked worktree is committed without push.
+
+
+### 2026-10-12 — Wave 9 REL second round: retained type narrowing and request admission
+
+Amended LLP 3000.000.000 §9: incompatible present authoritative values become
+per-row dormant storage on selection, with closed reference-dependent visibility,
+restoration of historical defaults/lifetimes and active-population cache rebuilds.
+No fallback grammar is introduced; hidden rows are the declared policy. Both
+device stores replace images/acquisition on changed generation while preserving
+outbox custody, since an additive literal default can restore an incompatible
+historical cell. HAND owns the shipped-device compatibility floor; DX owns the
+client/evolution guide pointer.
+
+Release HTTP one-shot requests hold a fair admission lease through lookup,
+decoding and execution/result capture, released before network output. Replies
+carry the executing generation in their envelope/header. Added coherent snapshot
+preview, latest/no-op selection, executable SQL inspection, widening advisories,
+compact adoption output and the deploy password checklist. SERVER lifecycle and
+guide deploy are REL-owned. Independent reviews exposed restoration, reference
+lifetime, expiry, exact asset pruning and audit edge cases; each correction has
+regression coverage. Final qualification and verdicts are recorded in the root
+WORKSTREAM-REPORT.md and verbatim llp/reviews artifacts. No push/publication.

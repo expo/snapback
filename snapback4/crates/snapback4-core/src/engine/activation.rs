@@ -68,7 +68,8 @@ impl Engine {
             }
         }
         let prior_items = std::cell::RefCell::new(Vec::new());
-        store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |conn| {
+        let population=std::cell::Cell::new(None);
+        let outcome=store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |conn| {
             Store::check_selected_release(conn, expected_release)?;
             if let Some(backend) = expected_backend { backend.check(conn)?; }
             if let Some(options)=release {
@@ -130,6 +131,7 @@ impl Engine {
             Ok(())
         }, |tx| {
             if let Some(options)=release {
+                crate::store::release_history::finalize_restorations(tx)?;
                 let mut items=crate::store::release_history::inventory(tx.conn(),None,usize::MAX)?;
                 let dormant_items=items.len();
                 let mut restored_items=0usize;
@@ -145,14 +147,29 @@ impl Engine {
                     if restored>0 {item.action="partially restored".into();restored_items+=1;}
                 }
                 let remaining:std::collections::BTreeSet<_>=items.iter().map(|i|i.key.clone()).collect();
-                let restored=prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned().map(|mut i|{
-                    i.action="restored".into();i.before_rows=Some(i.rows);i.after_rows=Some(0);i.restored_rows=Some(i.rows);i.before_sample_ids=Some(i.sample_ids.clone());i
-                }).collect::<Vec<_>>();
-                restored_items+=restored.len();items.extend(restored);
+                for mut item in prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned() {
+                    let restored=if matches!(item.kind.as_str(),"rows"|"column") {
+                        let prefix=if item.kind=="rows" {"activation_narrowed_restored"} else {"activation_column_restored"};
+                        tx.meta(&format!("{prefix}:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
+                    } else if item.kind=="table" {
+                        tx.meta(&format!("activation_table_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
+                    } else {item.rows};
+                    item.action=if restored>0 || item.rows==0 {"restored"} else {"removed without restoration"}.into();
+                    item.before_rows=Some(item.rows);item.after_rows=Some(0);item.restored_rows=Some(restored);item.before_sample_ids=Some(item.sample_ids.clone());
+                    if restored>0 || item.rows==0 {restored_items+=1;}
+                    items.push(item);
+                }
+                population.set(Some((tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0))));
                 crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
-                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored') OR key LIKE 'activation_narrowed_restored:%' OR key LIKE 'activation_column_restored:%'",[])?;
+                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored') OR key LIKE 'activation_narrowed_restored:%' OR key LIKE 'activation_column_restored:%' OR key LIKE 'activation_table_restored:%' OR key LIKE 'activation_table_restored_ids:%' OR key LIKE 'activation_narrowed_restored_ids:%' OR key LIKE 'activation_column_restored_ids:%'",[])?;
             }
             crate::store::opening::Metadata::read(tx)
-        })
+        });
+        if outcome.is_ok() {
+            if let Some((retained,restored))=population.get().filter(|(a,b)|*a>0 || *b>0) {
+                store.adoption_report.changes.insert(0,format!("{retained} rows dormant, {restored} restored"));
+            }
+        }
+        outcome
     }
 }

@@ -108,6 +108,11 @@ pub(super) fn transition(
         if incompatible(next, &name, &row) {
             continue;
         }
+        // Retained source deadlines precede projection, including removal of read-through itself.
+        if crate::engine::through_activation::Retirement::retires_image(table,&old,&row,now) {
+            tx.delete(&name,&old,&row)?;
+            continue;
+        }
         // Actual deletion/reuse never recaptures a different parent lifetime.
         let invalid_columns = tx
             .conn()
@@ -220,7 +225,6 @@ pub(super) fn transition(
                         }
                         super::dormant::capture_through_parent(tx, name, old, id, column, &row)?;
                         // Nominal keep references may already be dangling. They have no bound lifetime.
-                        tx.conn().execute("UPDATE _dormant_refs SET invalid=2 WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1",params![t,id,column])?;
                     }
                 }
                 tx.conn()
@@ -236,12 +240,12 @@ pub(super) fn transition(
     }
     // Consume only rows that survived the closed population, not hidden dependents.
     let restored:u64=tx.conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",[],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
-    let restored_tables=tx.conn().prepare("SELECT c.name,COUNT(*) FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id) GROUP BY n.t")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
-    for (name, count) in restored_tables {
-        tx.set_meta(
-            &format!("activation_narrowed_restored:{name}"),
-            &count.to_string(),
-        )?;
+    let restored_rows=tx.conn().prepare("SELECT c.name,n.id FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
+    let mut restored_tables:std::collections::BTreeMap<String,Vec<String>>=std::collections::BTreeMap::new();
+    for (name,id) in restored_rows {restored_tables.entry(name).or_default().push(id);}
+    for (name, ids) in restored_tables {
+        tx.set_meta(&format!("activation_narrowed_restored:{name}"),&ids.len().to_string())?;
+        tx.set_meta(&format!("activation_narrowed_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
     }
     tx.set_meta("activation_narrowed_retained", &newly_retained.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;

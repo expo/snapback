@@ -923,8 +923,8 @@ test("FF1 adoption control: compatible widening waits for acquisition after inte
   assert.equal(f.client.link(), "offline");
   assert.equal(f.client.acquired, false, "offline readiness cannot certify previous-generation images");
   const read = await f.client.query({ kind: "query", name: "marker" }, {});
-  assert.equal(read.data, "A2", "the adopted interpreter remains readable offline");
-  assert.equal(read.fresh, false);
+  assert.equal(read.data, undefined, "an unacquired generation cannot publish a cached answer");
+  assert.equal(read.denied?.code, "E_OFFLINE", JSON.stringify(read));
 });
 
 for (const mode of ["snapshot", "stream"]) for (const failure of ["healthy", "media", "host"]) {
