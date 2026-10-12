@@ -268,6 +268,9 @@ pub(in crate::bind) fn program_absence_is_raw(
     read: &ReadExpr,
 ) -> bool {
     let Some(table) = schema.table(&read.table) else { return false };
+    // A through child inherits its parent's visibility outside the child's
+    // compiled rule. A raw rule witness can still see the live child.
+    if table.through.is_some() { return false; }
     if table.rules.read.is_uniformly_readable() { return true; }
     if read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() {
         return false;

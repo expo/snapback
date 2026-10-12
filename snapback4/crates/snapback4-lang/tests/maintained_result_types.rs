@@ -120,6 +120,16 @@ table readableBans:
   unique principal
   read <- .principal = viewer
   online only
+table hiddenParents:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  online only
+table inheritedChildren:
+  parent: hiddenParents
+  immutable parent
+  read through .parent
+  online only
 view hiddenUnbannedCounts: count entries by .owner
   read <- not exists hiddenBans[viewer]
   online only
@@ -138,6 +148,9 @@ view hiddenCompositeCounts: count entries by .owner
 view hiddenEitherCounts: count entries by .owner
   read <- .owner = viewer or not exists hiddenBans[viewer]
   online only
+view inheritedAbsenceCounts: count entries by .owner
+  read <- not exists inheritedChildren['child']
+  online only
 view publicGateCounts: count entries by .owner
   read <- allow
   online only
@@ -152,6 +165,7 @@ view absentGateCounts: count entries by .owner
         ("hidden", "not exists hiddenBans[viewer]", "hiddenUnbannedCounts"),
         ("composite", "owner = viewer and not exists hiddenBans[viewer]", "hiddenCompositeCounts"),
         ("either", "owner = viewer or not exists hiddenBans[viewer]", "hiddenEitherCounts"),
+        ("inherited", "not exists inheritedChildren['child']", "inheritedAbsenceCounts"),
     ] {
         let hidden = compile(&[(
             "schema.q".into(),
