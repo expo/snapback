@@ -473,15 +473,21 @@ impl Merge {
         self.view.is_none() && !self.lanes.is_empty()
             && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE)))
     }
-    /// The cursor descriptor's index field: the branch set, in lane order.
+    /// The cursor descriptor's index field: a bounded digest of the branch
+    /// set, in lane order. Legal labels repeated across eight lanes can
+    /// otherwise exceed the token bound before its position is encoded.
+    // @ref LLP 3000.036.001#5 — both plan identity and pin scope have bounded digests
     pub fn branch_descriptor(&self) -> String {
-        let mut name = String::from(BRANCH_DESCRIPTOR);
-        for (n, lane) in self.lanes.iter().enumerate() {
-            if n > 0 { name.push('|'); }
-            name.push_str(&lane.scan.index);
-            if lane.grant() { name.push_str("+grant"); }
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(b"branch-merge-v1\0");
+        hash.update((self.lanes.len() as u64).to_be_bytes());
+        for lane in &self.lanes {
+            hash.update((lane.scan.index.len() as u64).to_be_bytes());
+            hash.update(lane.scan.index.as_bytes());
+            hash.update([u8::from(lane.grant())]);
         }
-        name
+        format!("{BRANCH_DESCRIPTOR}{:x}", hash.finalize())
     }
 }
 

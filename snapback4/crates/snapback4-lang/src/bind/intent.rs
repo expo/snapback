@@ -61,6 +61,13 @@ impl Requests {
     }
     pub(super) fn error_count(&self) -> usize { self.errors.len() }
 
+    pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
+        let Some(name) = &read.index else { return false };
+        self.indexes.get(&(table.decl.name.clone(), name.clone()))
+            .or_else(|| table.indexes.iter().find(|index| &index.name == name))
+            .is_some_and(|index| super::key_bound::plain_index_fits(table, index))
+    }
+
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)
     }

@@ -41,7 +41,8 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) 
         // after its pins (lane planning never pins an order column).
         if order.get_or_insert_with(|| lane.order_keys.clone()) != &lane.order_keys || lane.index.is_none() { return None; }
         // An index holds at most 8 components; a lane never makes a program refuse.
-        if lane.keys.len() + lane.order_keys.len() > 8 { return None; }
+        if lane.keys.len() + lane.order_keys.len() > 8
+            || !candidate.branch_index_fits(&tables[&read.table], &lane) { return None; }
         lanes.push(MergeLane { admission: read.filter.clone(), nulls: None, distinct: None, branch: Some(if grant { GRANT_LANE } else { BRANCH_LANE }.into()),
             planned: Some(Box::new(lane)), project: None, table: None, prefix: Vec::new(), columns: None, loop_: None, site: read.site.clone() });
     }
@@ -65,7 +66,7 @@ pub(super) fn exists(tables: &Tables, requests: &mut Requests, read: &ReadExpr, 
         let mut lane = read.clone();
         lane.filter = intent::conjunction(conjuncts);
         candidate.read(tables, &mut lane, false);
-        if !decided(tables, &lane) { return None; }
+        if !decided(tables, &lane) || !candidate.branch_index_fits(&tables[&read.table], &lane) { return None; }
         reads.push(Expr::Exists { read: lane, site: site.clone() });
     }
     if candidate.error_count() != errors { return None; }

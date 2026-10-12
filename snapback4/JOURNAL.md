@@ -92689,3 +92689,22 @@ File assets and the pinned-parent page guard each landed within their own
 branch's budget; together the Linux web device measures 651,704 B gzip,
 264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
 the reason in `metrics/wasm-budget.json`.
+
+## 2026-10-12 — MERGE round-5 confirmation and revision 6
+
+Fresh, mutually blind reviews of revision 5 at `c8f0810607` are preserved
+verbatim in `llp/reviews/3000.036.001-merged-pages.r5.{gpt,muse}.md`.
+GPT (`gpt-6.1-sol`, high) found two material size-bound gaps and two minor
+items; Muse (`muse-spark-1.3-contributor`, high) returned READY WITH CHANGES
+for the existence wording. Its prescribed wrapper completed through the
+API-key fallback after plan quota errors; no key was read or logged here.
+
+Revision 6 bounds the branch descriptor with a length-framed SHA-256 digest
+of ordered index names and grant flags, checks actual prospective lane
+indexes against the shared portable key/label bounds before committing
+optional plans, suppresses nested grant-lane completeness notes through the
+whole-body IR walk, and documents case-1-only existence expansion. The
+31-test merged-page target passes, including a cursor over eight repeated
+507-byte index names, a 2,028-byte original key whose party indexes would
+need 2,166 bytes, and the nested-shape note assertion. Final integrated
+measurements and quality-bar results follow after merging the newer loop tip.

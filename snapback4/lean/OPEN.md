@@ -348,8 +348,8 @@ rule hides?**
   (`Rule.disclosing`: a pinned column is an unknown value, nested `or`/`not`
   disclose nothing); the grant lane counts toward the 8, and a guarded page
   whose first order column is pinned is not merged. A helper's page is never
-  merged (`Ctx.inHelper`), as in the engine. `exists` over branches (case 1,
-  or case 2 without guards) is decided as well.
+  merged (`Ctx.inHelper`), as in the engine. `exists` over branches (case 1
+  only) is decided as well.
 - *Engine (observed):* agrees on `complete` for all 1,343 compared
   non-uniform pages (60,000-case run of 2026-10-08). A `count` or `sum` whose
   read rule its pins do not decide is refused at check (`E_QUARRY_BOUND`).

@@ -727,6 +727,7 @@ fn a_merge_inside_a_returned_shape_requires_the_branch_merge_capability() {
     let program = &b.programs.iter().find(|p| p.program.name == "nested").unwrap().program;
     assert!(snapback4_core::ir::body_merges(&program.body).iter().any(|m| m.branches()), "the inline page is a branch merge");
     assert!(b.schema.required_capabilities().contains("branch-merge-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
 }
 
 /// GPT r4 #3: each lane's prefix fits a token; together they would not. The
@@ -749,4 +750,47 @@ query mine(folder: text <=400, c: cursor ?):
     assert_eq!(branch_merges(&clean(source), "mine").first().map(|m| m.0), Some(3), "grant, owner and assignee lanes");
     let (got, _) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide.clone()))]);
     assert_eq!(got, vec!["t2", "t1"]);
+}
+
+/// GPT r5 #1: eight legal 507-byte index labels cannot be copied into next.
+#[test]
+fn repeated_long_index_names_have_a_bounded_cursor_descriptor() {
+    let index = "x".repeat(507);
+    let alternatives = (1..=8).map(|n| format!(".board = {n}")).collect::<Vec<_>>().join(" or ");
+    let source = format!("table members:\n  board: int\n  principal: principal\n  unique board, principal\n  read <- .principal = viewer\n  online only\ntable cards:\n  board: int\n  at: int\n  by {index}: board, at, id\n  read <- exists members[.board, viewer]\n  online only\nquery mine(c: cursor ?):\n  return cards where {alternatives} last 1 by .at after c\n");
+    let b = clean(&source);
+    assert_eq!(branch_merges(&b, "mine").first().map(|m| m.0), Some(8));
+    let mut rows = Vec::new();
+    for (name, board) in [("c1", 1), ("c2", 8)] {
+        rows.push(("cards", vec![("id", id(name)), ("board", Value::Int(board)), ("at", Value::Int(board))]));
+    }
+    for (name, board) in [("m1", 1), ("m8", 8)] {
+        rows.push(("members", vec![("id", id(name)), ("board", Value::Int(board)), ("principal", id("alice"))]));
+    }
+    let mut e = engine(&source, rows);
+    let first = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    let token = first.next.as_ref().expect("two matches need a cursor");
+    let position = snapback4_core::cursor::decode_cursor(e.schema(), token).unwrap();
+    assert_eq!(position.index.len(), 68);
+    let (got, complete) = walk(&mut e, "mine", "alice", &[]);
+    assert_eq!(got, vec!["c2", "c1"]);
+    assert!(complete.into_iter().all(|c| c));
+}
+
+/// GPT r5 #2: the original 2028-byte key fits; adding a party would not.
+#[test]
+fn branch_key_bytes_that_exceed_the_portable_bound_keep_the_original_scan() {
+    let source = TASKS.replace("  at: int", "  folder: text <=435\n  at: int")
+        + "query mine(folder: text <=435, c: cursor ?):\n  return tasks where .folder = folder last 1 by .at after c\n";
+    let b = clean(&source);
+    assert!(branch_merges(&b, "mine").is_empty());
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-merge-v1"));
+    let wide: String = std::iter::repeat_n('\u{1F600}', 435).collect();
+    let mut row = task("t1", "alice", None, 1);
+    row.1.push(("folder", Value::String(wide.clone())));
+    let mut e = engine(&source, vec![row]);
+    let (got, complete) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide))]);
+    assert_eq!(got, vec!["t1"]);
+    assert!(complete.into_iter().all(|c| !c));
 }
