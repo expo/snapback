@@ -52,7 +52,9 @@ impl Binder<'_> {
             let before = binding.fields.len();
             binding.fields.retain(|key, _| key.first().is_none_or(|k| k != POINT && k != maintain_types::AUTHORIZATION));
             if before != binding.fields.len() {
-                binding.revision += 1;
+                // A write invalidates these transaction facts, not the local's
+                // value. Keep assignment revisions stable so an automatic job
+                // sweep does not mistake a guard operand for an accumulator.
                 self.scopes.last_mut().unwrap().insert(name, binding);
             }
         }

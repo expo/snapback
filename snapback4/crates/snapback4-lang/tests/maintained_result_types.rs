@@ -129,3 +129,50 @@ query stale(owner: principal, next: principal):
         bound.diagnostics
     );
 }
+
+#[test]
+fn authorization_facts_do_not_turn_job_guard_inputs_into_accumulators() {
+    checked(
+        r#"
+table parents:
+  expiresAt: time
+  read <- allow
+table children:
+  parent: parents
+  unique parent
+job prune(periodStart: time, periodEnd: time):
+  cutoff = periodEnd - 7d
+  for parent in parents:
+    if parent.expiresAt < cutoff:
+      child = children[parent = parent.id]
+      if child != null:
+        delete children[child]
+"#,
+    );
+}
+
+#[test]
+fn a_write_clears_probe_authorization_without_changing_assignment_revisions() {
+    let bound = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{SOURCE}
+mutation stale(owner: principal):
+  require owner = viewer else NOT_ALLOWED
+  require exists moderators[viewer] else NOT_MODERATOR
+  delete moderators[viewer]
+  return narrowCounts[owner] + 1
+"#
+        )
+        .into(),
+    )]);
+    assert!(
+        bound
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+        "{:#?}",
+        bound.diagnostics
+    );
+}
