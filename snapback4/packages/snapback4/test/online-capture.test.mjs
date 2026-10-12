@@ -394,7 +394,7 @@ test("a second opener that sees a surviving capture beside a committed intent ke
   await waitFor(() => srv.posts.includes(id), "A admitted and sent it");
   assert.notEqual(storage.getItem(record.key), null, "A's removal failed: the capture survives beside P");
   const b = await open(t, srv, store, authority());
-  await waitFor(() => srv.posts.filter(post => post === id).length === 2, "B's recovery took the known-pending branch and replays it");
+  await waitFor(() => srv.posts.filter(post => post === id).length === 2, "B's start() replays P from its opening read; its recovery meets the surviving capture beside it");
   const held = await journal(store);
   assert.equal(held.pending.filter(intent => intent.id === id).length, 1);
   assert.ok(held.captured.includes(`${id}:${record.nonce}`), "the marker is kept");
