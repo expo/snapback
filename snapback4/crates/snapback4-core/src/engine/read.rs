@@ -117,6 +117,19 @@ fn rule_probe_sites_heap(rule: &crate::schema::RuleExpr) -> u64 {
     word_heap::vec_growth::<(String, String)>(count).saturating_add(names)
 }
 
+fn metered_dependency_table(
+    meter: &mut crate::meter::Meter,
+    read_tables: &mut BTreeSet<String>,
+    table: &str,
+) -> Result<(), RuntimeError> {
+    if !read_tables.contains(table) {
+        meter.heap(word_heap::text(table)
+            + word_heap::insertion::<String, ()>(read_tables.len()))?;
+        read_tables.insert(table.to_owned());
+    }
+    Ok(())
+}
+
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
 #[derive(Clone)]
 struct WordRead {
@@ -197,20 +210,11 @@ impl<'r> Runner<'r> {
         }
     }
 
-    fn metered_dependency_table(&mut self, table: &str) -> Result<(), RuntimeError> {
-        if !self.read_tables.contains(table) {
-            self.meter.heap(word_heap::text(table)
-                + word_heap::insertion::<String, ()>(self.read_tables.len()))?;
-            self.read_tables.insert(table.to_owned());
-        }
-        Ok(())
-    }
-
     fn metered_aggregate_source_dependency(&mut self, table: &str) -> Result<(), RuntimeError> {
-        let source = self.schema.maintain_for(table)
-            .filter(|maintain| self.schema.tables[&maintain.source].is_expiring())
-            .map(|maintain| maintain.source.clone());
-        if let Some(source) = source { self.metered_dependency_table(&source)?; }
+        if let Some(maintain) = self.schema.maintain_for(table)
+            .filter(|maintain| self.schema.tables[&maintain.source].is_expiring()) {
+            metered_dependency_table(&mut self.meter, &mut self.read_tables, &maintain.source)?;
+        }
         Ok(())
     }
 
@@ -221,12 +225,12 @@ impl<'r> Runner<'r> {
         let mut sites = Vec::new();
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
-            let row_key = self.schema.maintain_for(&table)
-                .and_then(|maintain| maintain.row_key.as_ref())
-                .map(|key| key.table.clone());
-            if let Some(row_key) = row_key { self.metered_dependency_table(&row_key)?; }
+            if let Some(row_key) = self.schema.maintain_for(&table)
+                .and_then(|maintain| maintain.row_key.as_ref()) {
+                metered_dependency_table(&mut self.meter, &mut self.read_tables, &row_key.table)?;
+            }
             self.metered_aggregate_source_dependency(&table)?;
-            self.metered_dependency_table(&table)?;
+            metered_dependency_table(&mut self.meter, &mut self.read_tables, &table)?;
         }
         self.meter.release_row_heap(site_mark, site_heap);
         Ok(())
@@ -308,7 +312,7 @@ impl<'r> Runner<'r> {
             // A projected view uses its member's acquisition; absence beyond that
             // horizon is unknown even though the projection has no order columns.
             if self.schema.tables[&k.table].sync.as_ref().is_none_or(|s| s.horizon.is_some()) {
-                if metered { self.metered_dependency_table(&k.table)?; }
+                if metered { metered_dependency_table(&mut self.meter, &mut self.read_tables, &k.table)?; }
                 else { self.read_tables.insert(k.table.clone()); }
                 // A held point value is checked against the member by live_row_view.
                 let index_def = &self.schema.tables[table].indexes[index];
@@ -331,7 +335,7 @@ impl<'r> Runner<'r> {
         }
         let source = &self.schema.tables[&maintain.source];
         if self.schema.maintain_subset_unknown(table) || (source.is_expiring() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
-            if metered { self.metered_dependency_table(&maintain.source)?; }
+            if metered { metered_dependency_table(&mut self.meter, &mut self.read_tables, &maintain.source)?; }
             else { self.read_tables.insert(maintain.source.clone()); }
             self.unknown_fact(table, index, key, site);
         }
@@ -983,7 +987,7 @@ impl<'r> Runner<'r> {
         // Borrow that verdict; do not reallocate identical sets for every word.
         if word.is_none() {
             if metered_domain {
-                self.metered_dependency_table(&scan.table)?;
+                metered_dependency_table(&mut self.meter, &mut self.read_tables, &scan.table)?;
                 self.metered_rule_dependencies(&table.rules.read)?;
                 self.aggregate_read_coverage_inner(&scan.table, &scan.index, &prefix, &scan.site, true)?;
             } else {
