@@ -537,3 +537,52 @@ fn farm_require_lints() {
     }
     println!("{hits:?}");
 }
+
+// ---- 17.6: every E_QUARRY_RULE_HOP site in one run (lane 062) ----
+
+#[test]
+fn every_rule_hop_site_is_reported_in_one_check() {
+    let schema = "table events:
+  organizer: principal
+  host: principal
+  immutable organizer, host
+  read <- allow
+  online only
+table tiers:
+  event: events
+  immutable event
+  read <- allow
+  online only
+table sponsorships:
+  tier: tiers
+  sponsor: principal
+  immutable tier, sponsor
+  read <- .sponsor = viewer or exists events[.tier.event, organizer = viewer] or .tier.event.host = viewer
+  insert <- .sponsor = viewer
+  online only
+table fulfillments:
+  sponsorship: sponsorships
+  note: text 1..80
+  immutable sponsorship
+  read <- exists events[id = .sponsorship.tier.event, organizer = viewer]
+  online only
+table perks:
+  sponsorship: sponsorships
+  immutable sponsorship
+  read through .sponsorship
+  online only
+";
+    let b = bound(schema);
+    let hops: Vec<&Diagnostic> = b.diagnostics.iter().filter(|d| d.code == "E_QUARRY_RULE_HOP" && d.cascade_of.is_none()).collect();
+    // One problem per rule: sponsorships' names its second hop, and the table reading through it.
+    assert_eq!(hops.len(), 2, "{:#?}", b.diagnostics);
+    let sponsorships = hops.iter().find(|d| d.site.line == 16).unwrap();
+    assert!(sponsorships.message.contains("hops at 1 more site too: schema.q:16:") && sponsorships.message.contains("(`.tier.event.host = viewer`)"), "{sponsorships}");
+    assert!(sponsorships.message.contains("perks reads through sponsorships"), "{sponsorships}");
+    assert!(hops.iter().any(|d| d.site.line == 23), "the other table's hop in the same run: {hops:#?}");
+    // Each site listed is a site the rule refuses alone: removing the first hop leaves the second as the problem.
+    let fixed = schema.replace("exists events[.tier.event, organizer = viewer] or ", "");
+    let again = bound(&fixed);
+    let hop = again.diagnostics.iter().find(|d| d.code == "E_QUARRY_RULE_HOP" && d.site.line == 16).unwrap_or_else(|| panic!("{:#?}", again.diagnostics));
+    assert!(!hop.message.contains("more site"), "{hop}");
+}

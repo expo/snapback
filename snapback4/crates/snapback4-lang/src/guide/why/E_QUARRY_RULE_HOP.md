@@ -22,3 +22,5 @@ refuse. The located diagnostic supplies a mutation check using the actual
 names: bind each parent with `! else FORBIDDEN`, then `require` the predicate
 before writing. An authorized null field is a value; an unavailable parent
 never becomes a value that negation can turn into authority.
+
+One problem is printed per rule; when the rule hops more than once, its message names every other hop's site, and a table that reads `through` this one is named (its copy of the rule is checked once this one binds), so one pass repairs them all.

@@ -195,7 +195,8 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
             (Effect::Read, Some((reason, _)), None) => RuleExpr::Public { reason: reason.clone() },
             (_, _, Some(rule)) => match bind_rule(catalog, info, rule) {
                 Ok(bound) => bound,
-                Err(diagnostic) => {
+                Err(mut diagnostic) => {
+                    if diagnostic.code == "E_QUARRY_RULE_HOP" && diagnostic.cascade_of.is_none() { every_hop(catalog, info, rule, &mut diagnostic); }
                     diagnostics.push(diagnostic);
                     RuleExpr::Deny
                 }
@@ -469,6 +470,43 @@ fn audience_split(catalog: &Catalog, info: &TableInfo, rule: &RuleExpr) -> Strin
             roles.join(", "), owners.iter().map(|owner| format!(".{owner} = viewer")).collect::<Vec<_>>().join(" or "), roles.join(" or "));
     }
     format!("give each reader a row in a membership table synced to its members, and read through it: `table {table}Readers:` with `item: {table}`, `reader: principal`, `unique item, reader`, `immutable item, reader`, `read <- .reader = viewer`, `insert <- created {table}[.item] or exists {table}Readers[.item, viewer]`, `sync`; then here `read <- exists {table}Readers[.id, viewer]` and `sync to {table}Readers[.id] by .reader` (guide sharing){online}")
+}
+
+/// A rule stops binding at its first refused hop, so `check` printed one
+/// site per rule and builders fixed hops one run at a time (wave 7 lane 062).
+/// Each `and`/`or` operand is bound alone to find the rule's other hops,
+/// which the one diagnostic names (its rewrite already repairs every hop it
+/// can), and a table that reads through this one is named: its copy of the
+/// rule is checked only once this rule binds.
+// @ref LLP 3000.036#17.6 — every E_QUARRY_RULE_HOP site in one run.
+fn every_hop(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl, diagnostic: &mut Diagnostic) {
+    fn leaves<'a>(value: &'a Expr, out: &mut Vec<&'a Expr>) {
+        match value {
+            Expr::Binary { op, left, right, .. } if op == "and" || op == "or" => { leaves(left, out); leaves(right, out); }
+            other => out.push(other),
+        }
+    }
+    let mut parts = Vec::new();
+    leaves(&rule.value, &mut parts);
+    let mut more: Vec<String> = Vec::new();
+    for part in parts {
+        let single = RuleDecl { value: part.clone(), ..rule.clone() };
+        if let Err(other) = bind_rule(catalog, info, &single) && other.code == "E_QUARRY_RULE_HOP" && other.site != diagnostic.site {
+            let text = crate::print::expression(part);
+            let text = text.strip_prefix('(').and_then(|t| t.strip_suffix(')')).map(str::to_owned).unwrap_or(text);
+            let entry = format!("{} (`{text}`)", other.site);
+            if !more.contains(&entry) { more.push(entry); }
+        }
+    }
+    if !more.is_empty() {
+        diagnostic.message = format!("{}; this {} rule hops at {} more site{} too: {} — the rewrite repairs every hop it names; repair the rest the same way", diagnostic.message, rule.effect.word(), more.len(), if more.len() == 1 { "" } else { "s" }, more.join(", "));
+    }
+    if rule.effect == Effect::Read {
+        let children: Vec<&str> = catalog.tables.iter().filter(|(_, child)| child.through.as_ref().is_some_and(|t| t.parent == info.decl.name)).map(|(name, _)| name.as_str()).collect();
+        if !children.is_empty() {
+            diagnostic.message = format!("{}; {} read{} through {}, so {} copy of this rule is checked once it binds", diagnostic.message, children.join(", "), if children.len() == 1 { "s" } else { "" }, info.decl.name, if children.len() == 1 { "its" } else { "their" });
+        }
+    }
 }
 
 /// Bind a rule expression over a table's focal row.
