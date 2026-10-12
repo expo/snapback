@@ -232,7 +232,7 @@ pub(super) fn target(
             ("value", TypeKind::Int),
             ("recountPending", TypeKind::Bool),
         ]
-        .map(|(name, kind)| ColumnDecl { sequence: None, written_by: None, readable_by_audience: false,
+        .map(|(name, kind)| ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false,
             name: name.into(),
             type_: ScalarType {
                 kind,

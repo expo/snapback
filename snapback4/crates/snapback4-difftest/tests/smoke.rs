@@ -237,12 +237,15 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.domain.is_some() || case.program.tables[0].rule == snapback4_difftest::ast::Rule::TwoParty {
             dims.push("branches");
         }
+        if case.program.kids.is_some() {
+            dims.push("references");
+        }
         if dims.is_empty() {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 8, "{seen:?}");
+    assert_eq!(seen.len(), 9, "{seen:?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

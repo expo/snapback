@@ -78,16 +78,16 @@ table rooms:
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int [M..N] | time (milliseconds) | bool
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video|file <=N
   tags: [text <=20] <=8               -- [T] 1..N inclusive; [T] <=N means 0..N
-  parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
+  parentId: rooms ? on delete set null -- `?`: optional (null if absent); every table has an `id`
   createdAt: time default now          -- omitted on insert; evaluated on the writing host
   read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
   insert <- .ownerId = viewer
   update (old, next) <- old.ownerId = viewer and next.ownerId = viewer   -- an update rule may name both images
-  delete <- deny
+  cap 50 by parentId
   after insert <- exists members[roomId = .id, principal = .ownerId, role = 'admin']                 -- a row that must exist by the end of the mutation that inserted this one
   sync to members[.id]                -- each row reaches every principal with a members row whose roomId is this row's id
 table members:
-  roomId: rooms
+  roomId: rooms on delete cascade
   principal: principal
   role: enum('member', 'admin')
   joinedAt: time
@@ -195,7 +195,7 @@ table ledger:
   delete <- deny
 
 table likes:
-  postId: posts
+  postId: posts on delete keep
   principal: principal
   at: time
   unique postId, principal

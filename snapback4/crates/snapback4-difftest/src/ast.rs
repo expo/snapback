@@ -452,6 +452,39 @@ pub struct Program {
     /// `run`'s argument `a` declared `int M..N`, `int M..` or `int ..N` (LLP 3000.040 §5).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arg_bound: Option<(Option<i64>, Option<i64>)>,
+    /// Rows referencing `items` with a delete action (LLP 3000.039), and
+    /// optionally rows restricting those (`widen.rs`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kids: Option<Kids>,
+}
+
+/// `kids.item: items` with `on delete <action>` (undeclared when `None`),
+/// readable by everyone or by its owner, synced or online; `notes.kid: kids`
+/// (undeclared, so restrict) when `notes`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Kids {
+    pub action: Option<String>,
+    pub nullable: bool,
+    pub owner_read: bool,
+    pub synced: bool,
+    pub notes: bool,
+}
+impl Kids {
+    pub fn source(&self) -> String {
+        let action = self.action.as_ref().map_or(String::new(), |a| format!(" on delete {a}"));
+        let mut out = format!("table kids:\n  item: items{}{action}\n  owner: principal\n", if self.nullable { " ?" } else { "" });
+        if matches!(self.action.as_deref(), Some("cascade" | "set null")) { out += "  cap 4 by item\n"; }
+        out += &format!("  read <- {}\n  insert <- allow\n  update <- allow\n  delete <- allow\n", if self.owner_read { ".owner = viewer" } else { "allow" });
+        out += match (self.synced, self.owner_read) { (true, true) => "  sync to .owner\n", (true, false) => "  sync public\n", _ => "  online only\n" };
+        if self.notes {
+            out += &format!("\ntable notes:\n  kid: kids\n  read <- allow\n  insert <- allow\n  delete <- allow\n{}", if self.synced { "  sync public\n" } else { "  online only\n" });
+        }
+        out
+    }
+    /// The kids `observe` reads after a mutation: those naming `key`, as the viewer may.
+    fn observed(&self) -> String {
+        format!("kids where .item = key{} first 10 by .id", if self.owner_read { " and .owner = viewer" } else { "" })
+    }
 }
 const SIGNATURE: &str = "key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
 const WIDE_SIGNATURE: &str = "key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
@@ -475,6 +508,9 @@ impl Program {
         let mut declarations = self.tables.iter().map(Table::source).collect::<Vec<_>>();
         if self.helper {
             declarations.push("fn identity(x: int): x\n".into());
+        }
+        if let Some(kids) = &self.kids {
+            declarations.push(kids.source());
         }
         if self.reverse {
             declarations.reverse();
@@ -571,7 +607,10 @@ impl Program {
         } else {
             out += &format!("  return {result}\n");
         }
-        if mutation {
+        if mutation && let Some(kids) = &self.kids {
+            let (signature, item) = if self.wide() { ("key: id, k2: id", "[items[key], items[k2]]") } else { ("key: id", "items[key]") };
+            out += &format!("\nquery observe({signature}):\n  return {{ item: {item}, kids: {} }}\n", kids.observed());
+        } else if mutation {
             if self.wide() {
                 out += "\nquery observe(key: id, k2: id):\n  return [items[key], items[k2]]\n";
             } else {

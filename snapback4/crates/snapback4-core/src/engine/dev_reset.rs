@@ -47,6 +47,7 @@ impl Engine {
         let tables: Vec<String> = tx.conn()
             .prepare("SELECT name FROM main.sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'")?
             .query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        // @ref LLP 3000.039#6.5 — every table empties together: no referential action runs, and no reference is left naming a removed row.
         for table in &tables {
             if KEPT.contains(&table.as_str()) { continue; }
             let quoted = format!("\"{}\"", table.replace('"', "\"\""));

@@ -264,7 +264,7 @@ fn r1_a_rule_with_a_party_no_pin_can_select_prints_no_form_and_says_so() {
     assert!(n.rewrite.starts_with("Branch on the grant and pin `.author` for everyone else; together they return exactly the rows the read rule admits, and every page is complete:"), "{n}");
 }
 
-// ---- R2: N_DELETE_ORPHANS honours the zero-count guard, and the guard compiles ----
+// ---- R2: the delete-site note honours the zero-count guard, and the guard compiles ----
 
 fn mutate(engine: &mut Engine, op: &str, viewer: &str, pairs: &[(&str, Value)]) -> String {
     match engine.mutate(op, None, Context::new(viewer, args(pairs))) {
@@ -295,19 +295,19 @@ mutation rsvp(night: nights):
 ";
 
 #[test]
-fn r2_a_zero_count_guard_on_the_deleted_row_silences_n_delete_orphans() {
+fn r2_a_zero_count_guard_on_the_deleted_row_silences_the_delete_note() {
     let guarded = format!("{NIGHTS}mutation cancelNight(night: nights):\n  n = nights[night] ! else NOT_FOUND\n  require n.host = viewer else NOT_HOST\n  require rsvpCount[night] = 0 else HAS_RSVPS\n  delete nights[night]\n");
     let b = clean(&guarded);
-    assert!(note(&b, "N_DELETE_ORPHANS").is_none(), "{:#?}", b.notes);
-    // Without the guard the note stays, and names the guard that silences it.
+    assert!(note(&b, "N_DELETE_RESTRICTED").is_none(), "{:#?}", b.notes);
+    // Without the guard the note stays and names the declarations that silence it.
     let bare = format!("{NIGHTS}mutation cancelNight(night: nights):\n  delete nights[night]\n");
     let b = clean(&bare);
-    let n = note(&b, "N_DELETE_ORPHANS").unwrap_or_else(|| panic!("{:#?}", b.notes));
-    assert!(n.rewrite.contains("`view rsvpsByNight: count rsvps by .night`") && n.rewrite.contains("`require rsvpsByNight[<the deleted id>] = 0 else HAS_RSVPS`") && n.rewrite.contains("also silences this note"), "{n}");
+    let n = note(&b, "N_DELETE_RESTRICTED").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.rewrite.contains("`night: nights on delete cascade`") && n.rewrite.contains("any declaration silences this note"), "{n}");
     // A filtered count proves nothing about the other children: the note stays.
     let filtered = NIGHTS.replace("view rsvpCount: count rsvps by .night", "view rsvpCount: count rsvps where .guest != 'x' by .night");
     let b = clean(&format!("{filtered}mutation cancelNight(night: nights):\n  require rsvpCount[night] = 0 else HAS_RSVPS\n  delete nights[night]\n"));
-    assert!(note(&b, "N_DELETE_ORPHANS").is_some(), "{:#?}", b.notes);
+    assert!(note(&b, "N_DELETE_RESTRICTED").is_some(), "{:#?}", b.notes);
     // The guard runs: a guest's hidden RSVP blocks the host's delete.
     let mut engine = engine(&guarded, vec![("nights", vec![("id", id("n1")), ("host", id("hana"))]), ("nights", vec![("id", id("n2")), ("host", id("hana"))])]);
     assert_eq!(mutate(&mut engine, "rsvp", "gus", &[("night", id("n1"))]), "ok");
@@ -328,7 +328,7 @@ fn r2_a_not_exists_guard_over_private_children_prints_the_zero_count_and_it_runs
     assert_eq!((*view, *check), ("view sightingsCount: count sightings by .cat", "require sightingsCount[cat] = 0 else HAS_SIGHTINGS"), "{d}");
     let repaired = format!("{tables}{view}\n  read <- allow\nmutation removeCat(cat: cats):\n  c = cats[cat] ! else NOT_FOUND\n  require c.owner = viewer else NOT_OWNER\n  {check}\n  delete cats[cat]\n");
     let b = clean(&repaired);
-    assert!(note(&b, "N_DELETE_ORPHANS").is_none(), "the applied rewrite also silences the orphans note: {:#?}", b.notes);
+    assert!(note(&b, "N_DELETE_RESTRICTED").is_none(), "the applied rewrite also silences the delete-site note: {:#?}", b.notes);
     let mut engine = engine(&repaired, vec![("cats", vec![("id", id("tom")), ("owner", id("olive"))]), ("cats", vec![("id", id("kit")), ("owner", id("olive"))])]);
     assert_eq!(mutate(&mut engine, "report", "rae", &[("cat", id("tom"))]), "ok");
     assert_eq!(mutate(&mut engine, "removeCat", "olive", &[("cat", id("tom"))]), "HAS_SIGHTINGS", "rae's sighting is hidden from olive and still counts");

@@ -17,7 +17,7 @@ impl ColumnOwner {
 }
 
 impl Schema {
-    fn private_owner(&self, name: &str) -> Option<&ColumnOwner> {
+    pub(crate) fn private_owner(&self, name: &str) -> Option<&ColumnOwner> {
         // Privacy also holds before admission: a duplicate ordinary declaration
         // must never shadow a private one in a raw schema.
         self.maintains.iter().filter(|m| m.target == name).find_map(|m| m.private.as_ref())

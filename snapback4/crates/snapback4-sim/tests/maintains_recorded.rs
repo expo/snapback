@@ -221,7 +221,7 @@ fn forged_program_payloads_and_system_jobs_are_refused_including_noop_updates() 
 fn clique_fixture_matches_the_hand_copied_model() {
     let mut recorded = engine(SOURCE);
     let hand = SOURCE.replace("  note: text", "  copiedAuthor: principal ?\n  copiedAt: time ?\n  copiedParent: posts ?\n  copiedHour: int ?\n  note: text")
-        .replace("  parentId: posts ?", "  replyAuthor: principal ?\n  parentId: posts ?")
+        .replace("  parentId: posts ? on delete keep", "  replyAuthor: principal ?\n  parentId: posts ? on delete keep")
         .replace("hour(postId.at)", "copiedHour").replace("postId.authorId", "copiedAuthor")
         .replace("postId.parentId", "copiedParent").replace("postId.at", "copiedAt").replace("parentId.authorId", "replyAuthor").replace("where copiedParent", "where .copiedParent");
     let mut copied = engine(&hand);

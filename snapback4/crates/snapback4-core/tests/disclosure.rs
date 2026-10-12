@@ -144,7 +144,7 @@ fn following_filter_cannot_use_a_private_immutable_field() {
         .source
         .replace("at: time default 0 written by .authorId", "at: time")
         .replacen(
-            "parentId: posts ?",
+            "parentId: posts ? on delete keep",
             "parentId: posts ? default null written by .authorId",
             1,
         );
@@ -345,7 +345,7 @@ fn generated_private_rule_admission() {
 fn following_repost_timestamp_requires_audience_visibility() {
     for compat in [false,true] {
         let pair = cases::safe_following_for(compat);
-        let source = pair.source.replace("  postId: posts\n  at: time", "  postId: posts\n  at: time default 0 written by .actorId");
+        let source = pair.source.replace("  postId: posts on delete keep\n  at: time", "  postId: posts on delete keep\n  at: time default 0 written by .actorId");
         assert_ne!(source,pair.source);
         let b = crate::generated::runtime_compile(&[("reposts.q".into(),source.clone())]);
         assert!(b.diagnostics.iter().any(|d|d.code=="E_FIELD_AUTHORITY" && d.message.contains("timeline")),"{compat}: {:?}",b.diagnostics);

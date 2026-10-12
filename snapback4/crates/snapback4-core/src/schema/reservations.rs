@@ -15,6 +15,12 @@ pub const COUNTER: usize = 6;
 pub const CAPTURE: usize = 7;
 pub const BIRTH: usize = 8;
 pub const VIEW_READ: usize = 9;
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActionEvents {
+    pub heap_per_write: u64,
+    pub steps_per_write: u64,
+    pub tables: Vec<String>,
+}
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WriteReservation {
     pub prices: [Price; 8],
@@ -23,6 +29,9 @@ pub struct WriteReservation {
     pub birth: Option<Price>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub view_read: Option<Price>,
+    /// Complete event price/envelope survives projection of private maintains.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action_events: Option<ActionEvents>,
     /// Data-dependent skipped work cannot be admitted from a fixed price.
     pub server_only: bool,
 }
@@ -33,7 +42,7 @@ impl WriteReservation {
     #[cfg(feature = "sqlite")]
     fn is_zero(&self) -> bool {
         self.prices == [[0; 7]; 8] && self.birth.unwrap_or_default() == [0; 7]
-            && self.view_read.unwrap_or_default() == [0; 7] && !self.server_only
+            && self.view_read.unwrap_or_default() == [0; 7] && self.action_events.is_none() && !self.server_only
     }
 }
 fn add(to: &mut Price, price: Price) {
@@ -139,6 +148,30 @@ pub fn reservation(schema: &Schema, source: &str) -> Option<WriteReservation> {
         plan.server_only |= !simple_counter(schema, f);
     }
     plan.prices[CAPTURE] = capture_price(schema, table);
+    // @ref LLP 3000.039#5.1 — export event pricing and affected tables before projection removes private maintained-column derivations.
+    if table.on_delete.values().any(|action| action.writes()) {
+        let mut row_tables = BTreeSet::from([source.to_owned()]);
+        for m in &schema.maintains {
+            if m.source == source || m.row_key.as_ref().is_some_and(|key| key.table == source) {
+                row_tables.insert(m.target.clone());
+                if let Some(owner) = &m.private { row_tables.insert(owner.table.clone()); }
+            }
+        }
+        let (mut image, mut dependents) = (0_u64, 0_u64);
+        let mut tables = BTreeSet::new();
+        for name in &row_tables {
+            image = image.max(row_copy_ceiling(schema.table(name)?));
+            if schema.visible(name) { tables.insert(name.clone()); }
+            let mut count = 0;
+            for (receiver, _, sync) in schema.synced() {
+                if matches!(&sync.audience, Audience::Target { table, .. } if table == name) { tables.insert(receiver.to_owned()); count += 1; }
+            }
+            dependents = dependents.max(count);
+        }
+        let metadata = tables.iter().map(|name| 1024 + 4 * crate::rows::MAX_INDEX_KEY_BYTES as u64 + 4 * name.len() as u64).max().unwrap_or(0);
+        plan.action_events = Some(ActionEvents { steps_per_write: dependents, heap_per_write: image.saturating_mul(2).saturating_add(metadata.saturating_mul(2 + 2 * dependents)), tables: tables.into_iter().collect() });
+    }
+
     Some(plan)
 }
 

@@ -235,7 +235,7 @@ fn recorded_projection<H: Host>(mut host: H) {
     use snapback4_core::schema::Constraint;
     use snapback4_core::{ir::{Expr,Stmt},value::object};
     let source = SOURCE.replace("  online only", "  sync public")
-        .replacen("  at: time", "  parentId: posts ?\n  immutable parentId\n  at: time", 1)
+        .replacen("  at: time", "  parentId: posts ? on delete keep\n  immutable parentId\n  at: time", 1)
         .replace("selected: count likes where .active by postId", "selected: count likes where postId.parentId = null by postId")
         .replace("  active: bool", "  immutable postId\n  active: bool");
     let (mut server, mut backend) = compile(&source);

@@ -5,14 +5,14 @@ table parents:
   insert <- allow
   sync public
 table members:
-  parent: parents
+  parent: parents on delete keep
   principal: principal
   unique parent, principal
   public
   insert <- allow
   sync public
 table children:
-  parent: parents
+  parent: parents on delete keep
   public
   insert <- .parent.owner = viewer and .parent.owner = viewer and exists members[.parent, .parent.owner]
   update (old, next) <- old.parent.owner = viewer and next.parent.owner = viewer

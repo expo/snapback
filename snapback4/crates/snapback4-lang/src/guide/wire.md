@@ -174,7 +174,8 @@ decoded, the operation runs, and everything it refuses is **200**: a query
 answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
 checks made while it runs — a missing required argument, text outside its
 bounds, `''` for a `text 1..500` argument too (`why.code` E_INPUT) — rules (E_RULE), constraints
-(E_CONSTRAINT), `NOT_FOUND`, the program's own `require … else CODE` (with
+(E_CONSTRAINT), a delete that rows still reference (E_REFERENCED, naming the
+referencing column), `NOT_FOUND`, the program's own `require … else CODE` (with
 `why.site` and `why.rule`), and a reused write id (E_ID_REUSED). A retryable
 refusal is 503 instead. So branch on the body, not only the status; for an
 `add(body: text <=200)` mutation:

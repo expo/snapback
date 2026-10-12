@@ -63,7 +63,7 @@ function sameAnswer(actual,published,message,operation='query') {
   }
   assert.deepEqual(actual,published,message);
 }
-import {fixtures,ordinary} from './helpers/schema-capability-fixtures.mjs';
+import {fixtures,ordinary,legacyOrdinary} from './helpers/schema-capability-fixtures.mjs';
 function storedSchema(path) {
   assert.ok(existsSync(path),`missing engine store ${path}`);
   const db=new DatabaseSync(path,{readOnly:true});
@@ -255,12 +255,12 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   const release=join(dir,'release');const deployed=run(binary,['deploy',release],'',next.cwd);assert.equal(deployed.status,0,deployed.stdout+deployed.stderr);
   // Keep source old-readable: the refusal must come from the persisted schema.
   const releaseSource=join(release,'releases/1/snapback/schema.q');
-  writeFileSync(releaseSource,f.plain);assert.equal(readFileSync(releaseSource,'utf8'),f.plain);
+  writeFileSync(releaseSource,f.legacyPlain??f.plain);assert.equal(readFileSync(releaseSource,'utf8'),f.legacyPlain??f.plain);
   const releaseStore=join(release,'store.sqlite'),releaseBefore=dump(releaseStore);
   const served=run(legacy.binary,['serve',release,'--port','0'],'',next.cwd);
   assert.notEqual(served.status,0);assert.match(served.stdout+served.stderr,storedUnknown);
   assert.equal(dump(releaseStore),releaseBefore,'old serve did not write');
-  writeFileSync(join(next.cwd,'snapback/schema.q'),f.plain);
+  writeFileSync(join(next.cwd,'snapback/schema.q'),f.legacyPlain??f.plain);
   const beforeRun=dump(store);
   const wrote=run(legacy.binary,['run',f.op,JSON.stringify(f.args),'--as','alice'],'',next.cwd);
   assert.match(wrote.stdout+wrote.stderr,storedUnknown);
@@ -319,7 +319,7 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
 },async t=>{
   const {dir,legacy,current,run,native,app,start,request}=await harness(t);
   const control='use identity guests\n'+ordinary;
-  const newApp=await app('new',control,fixtures[1].seed),oldApp=await app('old',control,fixtures[1].seed,legacy.binary);
+  const newApp=await app('new',control,fixtures[1].seed),oldApp=await app('old','use identity guests\n'+legacyOrdinary,fixtures[1].seed,legacy.binary);
   assert.ok(Buffer.isBuffer(newApp.backendBytes));assert.ok(Buffer.isBuffer(oldApp.backendBytes));
   markers(newApp.backend.schema,[]);
   const apply={op:'apply',page:newApp.page,first:true,viewer:'dev:alice'},query={op:'query',name:'posts',viewer:'dev:alice',args:{},now:1000};
@@ -363,7 +363,8 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
   assert.notEqual(served.status,0);
-  assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release/);
+  // The release source spells `on delete keep` (LLP 3000.039), which 0.2.33 cannot parse: either refusal fails closed.
+  assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release|E_QUARRY_SYNTAX/);
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
   t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');

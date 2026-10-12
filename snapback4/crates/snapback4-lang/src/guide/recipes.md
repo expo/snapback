@@ -1,4 +1,4 @@
-# Recipes: roles, two parties, booking and schedules
+# Recipes: roles, two parties, booking, deleting and schedules
 
 Each recipe is one compiled schema for an app shape that otherwise takes several cards to assemble.
 Copy one whole, then rename its tables; each says how it syncs, how to test it and which refusals to expect.
@@ -246,7 +246,7 @@ table slots:
   sync public last 500 by .startsAt
 
 table bookings:
-  slot: slots
+  slot: slots on delete restrict         -- a slot with seats taken is not deleted (the default, declared)
   guest: principal
   at: time default now
   unique slot, guest else ALREADY_BOOKED 'You already hold a seat.'
@@ -286,13 +286,12 @@ mutation removeSlot(slot: slots):
   delete slots[slot]
 ```
 
-A delete does not cascade: a removed slot would leave its bookings naming
-a deleted row (N_DELETE_ORPHANS). `removeSlot` refuses while any booking
-exists, by the public count: `require not exists bookings[slot = slot]` is
-refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
-bookings, and a count is the one fact about them the host may see. The
-`require taken[slot] = 0` guard is what silences N_DELETE_ORPHANS; any
-unfiltered `count child by .ref` view does the same for its child table.
+`slot: slots on delete restrict` refuses a slot's delete while a booking
+names it (E_REFERENCED); `on delete cascade` would cancel the guests'
+bookings instead (`guide writes`). `removeSlot` checks first, by the public
+count, to answer with its own code: `require not exists bookings[slot = slot]`
+is refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
+bookings, and a count is the one fact about them the host may see.
 
 Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 
@@ -304,6 +303,26 @@ Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 {"as":"carol","op":"book","args":{"slot":"s1"}}
 {"as":"alice","op":"removeSlot","args":{"slot":"s1"},"expect":"HAS_BOOKINGS","label":"alice hosts s1; carol still holds its seat"}
 ```
+
+## Deleting: cascade, restrict, set null, keep
+
+```quarry
+table projects:
+  owner: principal
+  read <- .owner = viewer
+  delete <- .owner = viewer
+table tasks:
+  project: projects on delete cascade   -- deleted with it; needs a cap
+  cap 500 by project
+  read <- allow
+table comments:
+  task: tasks on delete restrict        -- the default: refuses E_REFERENCED
+  read <- allow
+mutation dropProject(id: projects):
+  delete projects[id]                   -- its tasks too, unless a comment names one
+```
+
+`set null` clears an optional reference no rule reads; `keep` leaves rows naming the deleted one (the 0.4 meaning, N_DELETE_RESTRICTED). The parent's delete authorizes the cascade and reserves its worst case (E_CASCADE_BOUND); its deleter must read the row (N_DELETE_NEEDS_READ). Others can hold your row under restrict, so their likes and RSVPs should cascade. Expiry fires nothing.
 
 ## Schedules: close at a time, remind ahead, catch up
 

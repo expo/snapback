@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_WRITE_DENIED" | "N_DELETE_ORPHANS" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -34,7 +34,8 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_NEVER_COMPLETE" if form && summary.contains("the closest form is") => "fix: use the closest form below (one arm stays `complete: false`), or accept `complete: false`",
         "N_NEVER_COMPLETE" if form => "fix: use the complete form below, or accept `complete: false`",
         "N_NEVER_COMPLETE" => "fix: pin the scope, or accept `complete: false`",
-        "N_DELETE_ORPHANS" => "fix: guard the delete, or delete or keep the children",
+        "N_DELETE_RESTRICTED" => "fix: declare the reference's `on delete`, or guard the delete",
+        "N_DELETE_NEEDS_READ" => "review: some deleters get NOT_FOUND",
         "N_PATCH_CLEARS" => "review: an omitted argument clears this column",
         "N_WRITE_DENIED" | "N_REQUIRE_REFUSED" => "fix: this write refuses E_RULE for callers you admit",
         "N_READ_DENIED" => "fix: this read always refuses",

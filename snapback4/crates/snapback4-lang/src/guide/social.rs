@@ -94,6 +94,8 @@ message. Loading keeps a stable placeholder; only `absent` says unavailable.
 `partial` is uncertain coverage, never absence; `denied` hides the quote.
 Table rules may hide rows as absence: neither state proves deletion. No old
 quote is cached across withdrawal. Test by holding the point read before settling it.
+Replies remain when their original message is deleted (`replyTo` chooses
+`on delete keep`); the quote becomes unavailable.
 Reply saves only `replyTo`; the composer stays above the history owner. Pass
 `onJump` to the quote. `useJumpToMessage` keeps visible targets in place; otherwise
 it opens `history({ conversation, through: ordinal })`, one indexed 20-row window

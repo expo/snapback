@@ -231,6 +231,12 @@ pub struct Runner<'a> {
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
+    /// Tables a delete's referential actions may write (LLP 3000.039 §4.2):
+    /// their events are not counted in the reply.
+    pub(crate) action_tables: BTreeSet<String>,
+    /// The engine's own write for a referential action is running: it
+    /// consults no rule of the row it writes (LLP 3000.039 §4.1).
+    pub(crate) engine_action: bool,
     pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
@@ -374,6 +380,8 @@ impl<'a> Runner<'a> {
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
+            action_tables: BTreeSet::new(),
+            engine_action: false,
             capture_prepaid: false,
             maintain_heap: 0,
             timeline_authority: None,

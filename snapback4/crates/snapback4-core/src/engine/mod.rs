@@ -1224,6 +1224,7 @@ impl Engine {
         let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events: Vec<Event> = runner.events.take();
+        let action_tables = std::mem::take(&mut runner.action_tables);
         let outbox = std::mem::take(&mut runner.outbox);
         let rows_written = runner.rows_written;
         let mut read_tables = runner.read_tables.clone();
@@ -1243,7 +1244,7 @@ impl Engine {
                     partition::append(&tx, seq, &events)?;
                     effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
                 }
-                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events), replayed: false }
+                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
             }
             Err(error) if error.is_refusal() => {
                 tx.rollback_to("program")?;

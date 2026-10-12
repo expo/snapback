@@ -21,7 +21,12 @@ writes card:
 * **upsert** — patches an existing target as an update; inserts an absent
   one, where an incomplete image or insert-rule denial is `NOT_FOUND`.
 * **delete** — `NOT_FOUND` for a missing or unreadable refused target,
-  `E_RULE` for a readable one whose delete rule refuses.
+  `E_RULE` for a readable one whose delete rule refuses. A row that
+  `restrict`, `cascade` or `set null` references name also needs read
+  authority (`NOT_FOUND`); then its delete closes over `cascade` references,
+  refuses `E_REFERENCED` while a `restrict` reference names a closure row
+  from outside the closure, clears `set null` references outside it, and
+  removes the closure (LLP 3000.039 §3).
 
 The order in which checks run when several fail is not documented; the
 model's order is OPEN W1–W6.
@@ -154,6 +159,62 @@ def insertId (fs : List (String × Scalar)) : Except Stop (List Nat) :=
   | some (.id x) => pure x
   | _ => throw eInput
 
+/-! ## Referential actions (LLP 3000.039 §3) -/
+
+/-- Every reference that names table `t` and carries an action:
+`(child table, column, action)`. -/
+def referencing (sch : Schema) (t : String) : List (String × String × OnDelete) :=
+  sch.tables.flatMap fun td => td.cols.filterMap fun c =>
+    match c.ref, c.onDelete with
+    | some p, some a => if p == t then some (td.name, c.name, a) else none
+    | _, _ => none
+
+/-- Row `k` names the row with id `i` through column `c`. -/
+def names (k : Row) (c : String) (i : List Nat) : Bool := k.get c == .id i
+
+def inClosure (cl : List (String × Row)) (t : String) (r : Row) : Bool :=
+  cl.any fun p => p.1 == t && p.2.id == r.id
+
+/-- The rows one step of cascades reaches from `(t, r)`. -/
+def cascadeKids (sch : Schema) (s : Store) (t : String) (r : Row) : List (String × Row) :=
+  (referencing sch t).flatMap fun (c, col, a) =>
+    if a == .cascade then ((s c).filter fun k => names k col r.id).map fun k => (c, k) else []
+
+/-- Breadth-first closure over `cascade` references, each row once; `fuel`
+bounds the walk (the store's row count suffices). -/
+def closure (sch : Schema) (s : Store) : Nat → List (String × Row) → List (String × Row) → List (String × Row)
+  | 0, _, acc => acc
+  | _ + 1, [], acc => acc
+  | f + 1, (t, r) :: rest, acc =>
+    let new := (cascadeKids sch s t r).foldl (fun n p => if inClosure (acc ++ n) p.1 p.2 then n else n ++ [p]) []
+    closure sch s f (rest ++ new) (acc ++ new)
+
+/-- Some `restrict` reference names a closure row from outside the closure. -/
+def restricted (sch : Schema) (s : Store) (cl : List (String × Row)) : Bool :=
+  cl.any fun (t, r) => (referencing sch t).any fun (c, col, a) =>
+    a == .restrict && (s c).any fun k => names k col r.id && !inClosure cl c k
+
+def clearCol (r : Row) (c : String) : Row :=
+  { r with cols := r.cols.map fun p => if p.1 == c then (p.1, Scalar.null) else p }
+
+/-- Clear every `set null` reference that names a closure row from outside it. -/
+def setNulls (sch : Schema) (cl : List (String × Row)) (s : Store) : Store :=
+  cl.foldl (fun s (t, r) => (referencing sch t).foldl (fun s (c, col, a) =>
+    if a == .setNull then
+      ((s c).filter fun k => names k col r.id && !inClosure cl c k).foldl
+        (fun s k => s.replaceRow c k (clearCol k col)) s
+    else s) s) s
+
+def storeSize (sch : Schema) (s : Store) : Nat := sch.tables.foldl (fun n td => n + (s td.name).length) 0
+
+/-- The store after deleting `old` from `t` with its referential actions, or
+`E_REFERENCED`. With no action-carrying reference into `t`, exactly
+`removeRow` (LLP 3000.039 §1). -/
+def refDelete (sch : Schema) (s : Store) (t : String) (old : Row) : Except Stop Store :=
+  let cl := closure sch s (storeSize sch s + 1) [(t, old)] [(t, old)]
+  if restricted sch s cl then throw (.refuse "E_REFERENCED")
+  else pure (cl.foldl (fun s p => s.removeRow p.1 p.2) (setNulls sch cl s))
+
 /-- Apply one write to the store. -/
 def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
   | .insert t fields ifAbsent =>
@@ -195,6 +256,7 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       | some old => do
         guardE (td.delete.eval s cx.viewer { self := some old })
           (if readable cx.schema s cx.viewer t old then eRule else notFound)
-        pure (.null, s.removeRow t old)
+        guardE ((referencing cx.schema t).isEmpty || readable cx.schema s cx.viewer t old) notFound
+        pure (.null, ← refDelete cx.schema s t old)
 
 end Quarry

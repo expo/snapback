@@ -93029,3 +93029,149 @@ lines; ref-check passes. The locked wasm build repeats 2,192,240 B raw /
 661,645 B gzip; budget 662,145 B, measurement plus 500 B, for both features.
 The completed child RFC leaves current/; its document and reviews remain.
 Evidence: `reports/20261012-ws-merge-integration/`. No push or publication.
+
+## 2026-10-12 — Referential actions: a reference declares what deleting its row does (LLP 3000.039)
+
+The author asked for the end-game answer to LLP 3000.036 §15.8. A reference
+column now says `on delete restrict | cascade | set null | keep`; an
+undeclared one is `restrict`, so deleting a row a live row still references
+refuses `E_REFERENCED` naming the referencing column. This is a deliberate
+behavior change (no users depend on stability): `check` names every delete
+it changes (`N_DELETE_RESTRICTED`, replacing `N_DELETE_ORPHANS`), `on delete
+keep` restores the old meaning, and `keep` is spelled by absence in the
+schema, so all-keep schemas stay byte-identical and capability-free.
+
+- **Design**, reviewed blind three rounds (GPT gpt-6.1-sol and Muse
+  muse-spark-1.3-contributor; records under `llp/reviews/3000.039-*`): the
+  parent's delete authorizes a declared cascade or set null; a delete closes
+  over cascades, probes restrict references outside the closure (reporting
+  the first occupied one in schema order), clears set-null references
+  outside it and removes children first, each from its current image; set
+  null only on optional references no rule of any table reads; cascade and
+  set null need `cap N by <reference>` and a schema-fixed reservation that
+  `check` proves fits (`E_CASCADE_BOUND`); every published trace (meter,
+  touched tables, change footprint, event count, physical allowance) is
+  schema-fixed; a device predicts only over referencing groups it holds
+  current and whole, else queues. No background sweep: the recipes (lower
+  the cap, a job, mark and sweep) cover unbounded relations.
+- **Behavior changes to know**: a table that restrict/cascade/set-null
+  references name needs its deleter to read the row (`N_DELETE_NEEDS_READ`
+  where the rules' shapes cannot show it); every such reference gets an
+  index (`$reference:<column>`), so writes to it maintain one more index —
+  the RP calibration's `index_entries` ceilings rose by exactly 2 (README
+  amendment). Expiry fires no action.
+- **Fixtures that pin legacy bytes** (capability-free control, RX legacy
+  identity, recorded attribution, following view, timeline capability,
+  maintained columns, derived clique, adoption) spell their references
+  `on delete keep`: their frozen meaning. The JS capability fence keeps a
+  `legacyOrdinary` source for the published 0.2.33 binary.
+- **Verification**: compiler, engine and device unit tests; device scenarios
+  on both stores; an exhaustive simulator check of cascades, restrict and
+  disclosure over every two-operation sequence (three opt-in); the Lean
+  model gains references, `refDelete` and `refDelete_without_actions`
+  (35/35 examples); `run-lean` over 100,000 seeds with a `kids` reference
+  family (all actions, ~3,800 delete cases compared) finds only the four
+  classified open signatures; `run-devices` seeds 0–2999 finds no new
+  signature.
+- **Wasm budget**: 648,672 → 661,877 B gzip on Linux (+13,205 B); budget
+  662,377 B with the reason in `metrics/wasm-budget.json`. About 11 KB is the
+  web device predicting the cascade; queueing such deletes on the web only is
+  the lever if the diet needs it.
+
+- **What felt good:** the existing held-group proof, reservation plans and
+  change-evidence widening gave every soundness requirement a place to live.
+- **What was hard:** disclosure is everywhere a delete is observable — the
+  meter, the touched tables, footprints, event counts, the physical
+  allowance, refusal order — and each review round found another channel.
+- **Fourth round** (revision 3 with its code; GPT NOT READY, Muse READY WITH
+  CHANGES): the code fell short of its own reservation and two interactions
+  leaked or corrupted. Fixed: walks stream four-row pages and keep identities
+  only (a restrict probe streams a row per seek past the closure, the root
+  included — a self-referencing root had hidden an outside holder); set null
+  rereads each row before clearing it (a buffered image overwrote another
+  clear's maintained count); the reply's event count is decided by the
+  static action envelope, not by which rows actions reached; the reservation
+  prices the pages and charges output. The shipped Following recipe's
+  `feed.eventId` now says `on delete keep` (its inbox purges lazily behind
+  tombstones; the new restrict default refused `deletePost`). run-lean 100k
+  and run-devices 0–2999 match the earlier runs signature for signature;
+  wasm 662,137 B gzip, within the raised budget.
+
+## 2026-10-12 — REF continuation: revision-5 fixes and integration qualification
+
+LLP 3000.039 revision 5 closes the round-5 GPT findings: gather a set-null
+group before writing, bypass child read rules in action constraint checks,
+sum concurrently held phase heaps, queue retained noncurrent device history,
+and require a dominating zero-count guard on the deleted key. The continuation
+also conservatively invalidates count guards across rebinding, control flow
+and helper calls, and binds status proofs to the individual delete site.
+Regression coverage exercises reset/reseed reference indexes and cap counts,
+retained read-through history on both device adapters, and hidden file-asset
+release through a cascade. The retired orphan diagnostic is now
+N_DELETE_RESTRICTED; development reset remains an atomic store-wide clearing
+and reseed under LLP 3000.007 §20.25.
+
+Locked Linux wasm build (Rust 1.97.0, Binaryen 132): 2,196,072 B raw /
+664,818 B gzip. The inherited cap was 652,204 B and refused this build by
+12,614 B. Set 665,318 B, exactly measured gzip plus the inherited 500 B host
+allowance. Against the recorded 0.4.23 integration artifact (2,157,263 /
+651,704 B), the whole-artifact difference is +38,809 B raw / +13,114 B gzip.
+The control was not rebuilt, and no independent per-function attribution,
+macOS measurement or runtime meter ceiling increase is claimed.
+
+The review and quality-bar results are recorded in WORKSTREAM-REPORT.md at
+the worktree root when the continuation finishes; unavailable providers are
+recorded as failed attempts, never as reviews.
+
+REF revision 7 qualification update: prepaid lifetime probes and retained
+action-event reservations, including audience scope receivers, measure
+2,198,002 B raw / 665,520 B gzip on the locked Linux build. Compared with
+the revision-5 measurement above: +1,930 B raw / +702 B gzip. The 665,318 B
+intermediate cap is exceeded by 202 B; final cap 666,020 B is measured gzip
+plus the existing 500 B host allowance. The recorded 0.4.23 integration
+artifact was 2,157,263 / 651,704 B, so the whole-artifact REF difference is
++40,739 B raw / +13,816 B gzip. No rebuilt integration control, macOS
+measurement, per-function attribution or runtime meter ceiling change is
+claimed. Targeted language suites pass (21 reference-action tests and
+16 wave-7 rule tests), with cumulative event-heap and hidden grant-revocation
+regressions.
+
+REF revision 8 final: source-write plans export action-event prices and
+visible destination envelopes before private derivations are projected out.
+Every action's audience transition steps are priced; diagnostic status keys
+are stable names/literals. Fresh GPT gpt-6.1-sol and Muse Spark 1.3 reviews
+both mark `4cdfad3975` READY, verbatim under LLP 3000.039's round-8 records.
+Targeted suites: 22 language reference-action tests, 3 device tests (including
+maintained-column projection parity), and 16 wave-7 rule tests pass.
+
+Locked Linux final wasm: 2,199,518 B raw / 666,206 B gzip. Set 666,706 B,
+exactly measured gzip plus the existing 500 B host allowance. Against the
+revision-7 measurement above: +1,516 B raw / +686 B gzip. Against recorded
+0.4.23 integration: +42,255 B raw / +14,502 B gzip. The integration control
+was not rebuilt; these are whole-artifact comparisons. No Mac measurement,
+per-function attribution or runtime meter ceiling increase is claimed.
+
+Quality-bar fixture reconciliation: alternate-key authorization grants and
+work rows explicitly `keep` their record reference so their deletion tests
+remain about read authority. The clock schedule test now counts both hourly
+and daily jobs: its five-hour jump can cross 06:00 UTC, so a fixed expected
+counter of two was a time-of-day assumption. Product clock behavior is unchanged.
+The final workstream report records the full checks and inherited Lean
+OPEN C2/W4 signatures.
+
+REF client qualification: 47 of 48 delete/reset client files initially
+passed. The social receipt-badge cancellation scenario queued without
+prediction because `messages.replyTo` inherited restrict and its complete
+reply group is not held offline. The starter now explicitly declares
+`on delete keep`: replies outlive deletion of their quoted original and
+the point quote becomes unavailable. The social guide states that choice;
+the unchanged receipt-badge regression verifies restored prediction.
+
+## 2026-10-12 — Integration 2: referential actions into sb4-loop
+
+Merge sb4-ws-ref after OPS, LANG2 and merged owner-or-X pages, preserving
+both histories and all nine generator dimensions. Keep the existing UTC
+clock-test correction: only `tick` increments the counter; the daily job is
+a no-op. Lean check passes 53/53 examples, 54 audited theorems and seven
+oracle fixtures. The final integrated wasm budget and qualification follow
+after W8C joins this branch. No push or publication.

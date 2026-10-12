@@ -1008,8 +1008,17 @@ query post(postId: posts):
     let unguarded_again = e.mutate("unchecked", None, context(&args(id("visible"), 1))).unwrap();
     assert!(matches!(unguarded.state, WriteState::Sent { .. }));
     assert_eq!(guarded.metered.examined, unguarded_again.metered.examined + 1);
+    // LLP 3000.039: an undeclared reference is `on delete restrict`, so the
+    // vote that names the post refuses its delete; dangling votes never do.
+    let refused = e.mutate("removePost", None, context(&[("postId", id("visible"))])).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "E_REFERENCED"), "{refused:?}");
+    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))));
+    // `on delete keep` declares the old meaning: the vote stays and names a deleted post.
+    let mut e = engine(&source.replace("  postId: posts\n", "  postId: posts on delete keep\n"));
+    e.seed([("posts".into(), object([("id", id("visible")), ("author", id("dev:alice"))]))]).unwrap();
+    mutation(&mut e, "unchecked", &args(id("visible"), 1));
     mutation(&mut e, "removePost", &[("postId", id("visible"))]);
-    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))), "deleting a target does not cascade to references");
+    assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))), "keep does not cascade to references");
     assert_eq!(query(&mut e, "post", &[("postId", id("visible"))]), Value::Null);
 }
 

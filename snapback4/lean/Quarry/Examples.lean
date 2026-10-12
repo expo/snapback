@@ -484,8 +484,51 @@ def merged : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# } ]
 
-/-- Every example. -/
-def all : List Example := examples ++ merged
+
+/-! ## Referential actions (LLP 3000.039) -/
+
+def refCol (n t : String) (a : Option OnDelete) (nullable := false) : ColDecl := { name := n, nullable, ref := some t, onDelete := a }
+
+/-- Projects cascade to their tasks (hidden from the project's owner); a note
+restricts its task; a tag's optional task is cleared. -/
+def projectsSchema : Schema := { tables := [
+  { name := "projects", cols := [c "owner"], read := .allow, delete := .eq (self "owner") .viewer },
+  { name := "tasks", cols := [refCol "project" "projects" (some .cascade), c "owner"],
+    read := .eq (self "owner") .viewer, delete := .eq (self "owner") .viewer },
+  { name := "notes", cols := [refCol "task" "tasks" (some .restrict)], read := .allow },
+  { name := "tags", cols := [refCol "task" "tasks" (some .setNull) (nullable := true)], read := .allow },
+  { name := "logs", cols := [refCol "task" "tasks" none], read := .allow }] }
+
+def projectStore (note : Bool) : Store := mkStore [
+  ("projects", [mkRow "p" [("owner", I "alice")]]),
+  ("tasks", [mkRow "t1" [("project", I "p"), ("owner", I "bob")], mkRow "t2" [("project", I "p"), ("owner", I "bob")]]),
+  ("notes", if note then [mkRow "n" [("task", I "t1")]] else []),
+  ("tags", [mkRow "g" [("task", I "t2")]]),
+  ("logs", [mkRow "l" [("task", I "t1")]])]
+
+def refExamples : List Example := [
+  { name := "delete-cascade"
+    source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
+    case := { schema := projectsSchema, store := projectStore false, viewer := alice,
+              program := mutation [.write none (.delete "projects" [("id", idE "p")])] }
+    tables := ["projects", "tasks", "tags", "logs"]
+    expected := r#"{"kind":"committed","result":null,"store":{"projects":[],"tasks":[],"tags":[{"id":"g","task":null}],"logs":[{"id":"l","task":"t1"}]}}"# },
+  { name := "delete-restrict-through-cascade"
+    source := "LLP 3000.039 §3 step 4: a restrict reference to a closure row refuses E_REFERENCED"
+    case := { schema := projectsSchema, store := projectStore true, viewer := alice,
+              program := mutation [.write none (.delete "projects" [("id", idE "p")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
+  { name := "delete-referenced-needs-read"
+    source := "LLP 3000.039 §3 step 1: a referenced row's deleter must read it (NOT_FOUND)"
+    case := { schema := projectsSchema, store := projectStore false, viewer := alice,
+              program := mutation [.write none (.delete "tasks" [("id", idE "t1")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# }
+]
+
+/-- Every example: the guide cards' and the referential actions'. -/
+def all : List Example := examples ++ merged ++ refExamples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=

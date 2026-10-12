@@ -70,6 +70,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.036#12 — a decoder that orders only int/time in insert rules refuses a money or decimal order by name.
     ("insert-rule-order-units", |s| s.tables.values().any(|t| ordered_units(t, &t.rules.insert))),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
+    // @ref LLP 3000.039#8 — an older engine or device must not delete with the old (orphaning) semantics.
+    ("reference-actions", |s| s.tables.values().any(|t| !t.on_delete.is_empty())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),

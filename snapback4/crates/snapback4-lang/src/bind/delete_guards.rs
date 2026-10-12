@@ -1,102 +1,71 @@
-//! N_DELETE_ORPHANS: a mutation deletes a row that other tables reference and
-//! writes none of those tables. A reference is a typed id with no cascade, so
-//! the children stay and point at a deleted row (wave 5 lane 081: cancelling a
-//! screening kept its RSVPs; the roster listed them, `screeningCard` was null).
-//! This states what happens; it does not change it. Whether a parent delete
-//! should refuse while children exist or cascade is an open design question
-//! (LLP 3000.036 §15.8). A read-through child already refuses the delete
-//! (E_PARENT_HAS_CHILDREN), so it is not named here.
-// @ref LLP 3000.036#15.8 — a note, not a semantic: parent deletes do not cascade.
-use super::{catalog::Catalog, intent_walk as walk};
-use crate::{ast::*, diag::Diagnostic};
+//! Guards that prove a delete finds no referencing row (LLP 3000.036 §16.2,
+//! §17.4), for `N_DELETE_RESTRICTED` (LLP 3000.039 §7): an unfiltered count
+//! of the child by the reference required zero, a `sum` view over a
+//! count-like column, or a status the deleted row must hold that every child
+//! insert flips away from. Where such a guard holds, the `restrict` default
+//! cannot refuse that delete, so `check` does not name it. (These proofs were
+//! the 0.4 orphans note's silencers; under 0.5 an undeclared reference
+//! refuses instead of orphaning, and the note became `N_DELETE_RESTRICTED`.)
+// @ref LLP 3000.039#7 — the wave 6–7 guards prove no child exists, so the restrict default cannot change that delete.
+use super::catalog::Catalog;
+use crate::ast::*;
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(super) fn notes(catalog: &mut Catalog) {
-    // parent table -> [(child table, reference column)]
-    let mut children: BTreeMap<&str, Vec<(&str, &str)>> = BTreeMap::new();
-    // A child counted through a recorded path (`count likes by .postId.authorId`)
-    // is kept on purpose: its contribution outlives the target (guide maintains).
-    let recorded = |child: &str, column: &str| catalog.maintains.values().any(|m| m.source == child
-        && m.by.iter().any(|key| key.trim_start_matches('.').starts_with(&format!("{column}."))));
-    for (name, info) in &catalog.tables {
-        if info.maintained.is_some() || info.decl.ephemeral.is_some() { continue; }
-        for (column, ty) in &info.columns {
-            let TypeKind::Ref { table: parent } = &ty.kind else { continue };
-            if info.through.as_ref().is_some_and(|through| &through.reference == column) || recorded(name, column) { continue; }
-            if parent != name { children.entry(parent.as_str()).or_default().push((name.as_str(), column.as_str())); }
+/// What one deleting program's guards prove, from the whole catalog.
+pub(super) struct Guards {
+    /// count view -> (child, reference): includes `sum`s over count-like columns.
+    pub counts: BTreeMap<String, (String, String)>,
+    /// sum view -> (child, reference, summed column), not count-like.
+    pub sums: BTreeMap<String, (String, String, String)>,
+    facts: Facts,
+    all: Vec<ProgramDecl>,
+    functions: Vec<FunctionDecl>,
+}
+
+impl Guards {
+    pub fn new(catalog: &Catalog) -> Self {
+        // A count of the child by the reference (`view rsvpCount: count rsvps by
+        // .night`, no filter): `require rsvpCount[night] = 0` before the delete
+        // is the documented guard that no child exists, as a direct read is.
+        // @ref LLP 3000.036#16.2 — wave 6 R2: the count-view guard handles the children.
+        let mut counts: BTreeMap<String, (String, String)> = catalog.maintains.iter().filter_map(|(name, m)| {
+            let [by] = m.by.as_slice() else { return None };
+            (m.aggregate == "count" && m.filter.is_none() && m.row_key.is_none()).then(|| (name.clone(), (m.source.clone(), by.trim_start_matches('.').to_owned())))
+        }).collect();
+        let facts = Facts {
+            immutable: catalog.tables.iter().map(|(name, info)| (name.clone(), info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(|c| c.trim_start_matches('.').to_owned())).collect())).collect(),
+            inserts: catalog.tables.iter().map(|(name, info)| (name.clone(), info.decl.rules.iter().filter(|rule| rule.effect == crate::ast::Effect::Insert).map(|rule| rule.value.clone()).collect())).collect(),
+        };
+        let all: Vec<ProgramDecl> = catalog.documents.iter().flat_map(|doc| doc.programs.clone()).collect();
+        let functions: Vec<FunctionDecl> = catalog.documents.iter().flat_map(|doc| doc.functions.clone()).collect();
+        // A `sum` by the reference proves "no children" only when every row adds at
+        // least one: the summed column is count-like (17.4). Otherwise it is named,
+        // so the note can say why it does not silence it.
+        // @ref LLP 3000.036#17.4 — wave 7 lanes 024 034: a zero sum is a zero count only for a column every row holds ≥ 1 in.
+        let mut sums: BTreeMap<String, (String, String, String)> = BTreeMap::new();
+        for (name, m) in &catalog.maintains {
+            let ([by], Some(column)) = (m.by.as_slice(), m.column.as_ref()) else { continue };
+            if m.aggregate != "sum" || m.filter.is_some() || m.row_key.is_some() { continue; }
+            let by = by.trim_start_matches('.').to_owned();
+            let column = column.trim_start_matches('.').to_owned();
+            if count_like(&facts, &all, &functions, &m.source, &column) { counts.insert(name.clone(), (m.source.clone(), by)); }
+            else { sums.insert(name.clone(), (m.source.clone(), by, column)); }
         }
+        Self { counts, sums, facts, all, functions }
     }
-    if children.is_empty() { return; }
-    // A count of the child by the reference (`view rsvpCount: count rsvps by
-    // .night`, no filter): `require rsvpCount[night] = 0` before the delete is
-    // the documented guard that no child exists, as a direct read is.
-    // @ref LLP 3000.036#16.2 — wave 6 R2: the count-view guard handles the children.
-    let mut counts: BTreeMap<String, (String, String)> = catalog.maintains.iter().filter_map(|(name, m)| {
-        let [by] = m.by.as_slice() else { return None };
-        (m.aggregate == "count" && m.filter.is_none() && m.row_key.is_none()).then(|| (name.clone(), (m.source.clone(), by.trim_start_matches('.').to_owned())))
-    }).collect();
-    let facts = Facts {
-        immutable: catalog.tables.iter().map(|(name, info)| (name.clone(), info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(|c| c.trim_start_matches('.').to_owned())).collect())).collect(),
-        inserts: catalog.tables.iter().map(|(name, info)| (name.clone(), info.decl.rules.iter().filter(|rule| rule.effect == crate::ast::Effect::Insert).map(|rule| rule.value.clone()).collect())).collect(),
-    };
-    let all: Vec<ProgramDecl> = catalog.documents.iter().flat_map(|doc| doc.programs.clone()).collect();
-    let functions: Vec<FunctionDecl> = catalog.documents.iter().flat_map(|doc| doc.functions.clone()).collect();
-    // A `sum` by the reference proves "no children" only when every row adds at
-    // least one: the summed column is count-like (17.4). Otherwise it is named,
-    // so the note can say why it does not silence it.
-    // @ref LLP 3000.036#17.4 — wave 7 lanes 024 034: a zero sum is a zero count only for a column every row holds ≥ 1 in.
-    let mut sums: BTreeMap<String, (String, String, String)> = BTreeMap::new();
-    for (name, m) in &catalog.maintains {
-        let ([by], Some(column)) = (m.by.as_slice(), m.column.as_ref()) else { continue };
-        if m.aggregate != "sum" || m.filter.is_some() || m.row_key.is_some() { continue; }
-        let by = by.trim_start_matches('.').to_owned();
-        let column = column.trim_start_matches('.').to_owned();
-        if count_like(&facts, &all, &functions, &m.source, &column) { counts.insert(name.clone(), (m.source.clone(), by)); }
-        else { sums.insert(name.clone(), (m.source.clone(), by, column)); }
+
+    /// The program requires a status of the deleted `parent` row that every
+    /// program keeps false while a `child` row names it through `reference`.
+    // @ref LLP 3000.036#17.4 — wave 7 lane 021: a status the deleted row must hold, which every child insert flips away from.
+    pub fn status_guarded(&self, program: &ProgramDecl, site: &crate::diag::Site, parent: &str, child: &str, reference: &str) -> bool {
+        let Some(decl) = self.all.iter().find(|decl| decl.name == program.name && decl.site == program.site) else { return false };
+        status_guarded(&self.facts, &self.all, &self.functions, decl, site, parent, child, reference)
     }
-    let mut notes = Vec::new();
-    for doc in &mut catalog.documents {
-        for program in doc.programs.iter_mut().filter(|program| !matches!(program.kind, ProgramKind::Query) && !program.native) {
-            let mut written = BTreeSet::new();
-            let mut counted: BTreeSet<(String, String)> = BTreeSet::new();
-            let mut summed: Vec<(String, String, String, String)> = Vec::new();
-            let mut deletes: Vec<(String, crate::diag::Site)> = Vec::new();
-            // A program that writes or reads a child table (a cleanup loop, or a
-            // `require not exists child where …` guard) is taken to handle it.
-            let mut visit = |value: &mut Expr| match value {
-                Expr::Write { op, table, site, .. } => {
-                    written.insert(table.clone());
-                    if *op == WriteOp::Delete && !deletes.iter().any(|(seen, _)| seen == table) { deletes.push((table.clone(), site.clone())); }
-                }
-                Expr::Read(read) | Expr::Exists { read, .. } => {
-                    if let Some(counts) = counts.get(&read.table) { counted.insert(counts.clone()); }
-                    if let Some((child, by, column)) = sums.get(&read.table) && !summed.iter().any(|(view, ..)| view == &read.table) {
-                        summed.push((read.table.clone(), child.clone(), by.clone(), column.clone()));
-                    }
-                    written.insert(read.table.clone());
-                }
-                _ => {}
-            };
-            walk::statements(&mut program.prelude, &mut visit);
-            walk::statements(&mut program.body, &mut visit);
-            let decl = all.iter().find(|decl| decl.name == program.name && decl.site == program.site);
-            for (parent, site) in deletes {
-                let Some(kept) = children.get(parent.as_str()) else { continue };
-                let kept: Vec<_> = kept.iter().filter(|(child, column)| !written.contains(*child) && !counted.contains(&((*child).to_owned(), (*column).to_owned()))
-                    // @ref LLP 3000.036#17.4 — wave 7 lane 021: a status the deleted row must hold, which every child insert flips away from.
-                    && !decl.is_some_and(|decl| status_guarded(&facts, &all, &functions, decl, &parent, child, column))).collect();
-                let Some((child, column)) = kept.first() else { continue };
-                let sum = summed.iter().find(|(_, c, by, _)| c == child && by == column).map(|(view, _, _, summed)| format!(
-                    "; the `{view}` guard does not prove there are none: it sums {child}.{summed}, and a row whose .{summed} is 0 (or rows that cancel) sums to 0 too — count the rows instead (`view {child}By{}: count {child} by .{column}`), or make the column count-like (every insert rule branch requires `.{summed} >= 1`, `immutable {summed}`, and no job writes {child})", capital(column)))
-                    .unwrap_or_default();
-                let named = kept.iter().map(|(child, column)| format!("{child}.{column}")).collect::<Vec<_>>().join(", ");
-                notes.push(Diagnostic::new(&site, "N_DELETE_ORPHANS",
-                    format!("{} {}: `delete {parent}[…]` keeps the rows that reference it ({named}); a reference does not cascade, so they name a deleted {parent} row and reading it through them gives null{sum}", if program.kind == ProgramKind::Job { "job" } else { "mutation" }, program.name),
-                    format!("to refuse the delete while children exist, count them by the reference and require zero (`view {child}By{}: count {child} by .{column}` with `read <- allow` — it discloses only the count per {parent} row — then `require {child}By{}[<the deleted id>] = 0 else HAS_{}` before the delete; that guard also silences this note, and `require not exists {child}[{column} = …]` over rows the caller cannot all read is refused E_STRUCTURAL_FANOUT); or delete or retarget them in {} first (`for row in {child} where .{column} = <the deleted id>:` then `delete {child}[row.id]`; `check` then says what bound and admission the loop needs); or keep the {parent} row and mark it instead (`update {parent}[…] {{ … }}`) if the {child} rows should stay readable", capital(column), capital(column), child.to_ascii_uppercase(), program.name)).guide("writes"));
-            }
-        }
+
+    /// Why a `sum` guard the program reads does not prove there are none.
+    pub fn sum_reason(&self, view: &str, child: &str, column: &str, summed: &str) -> String {
+        format!("; the `{view}` guard does not prove there are none: it sums {child}.{summed}, and a row whose .{summed} is 0 (or rows that cancel) sums to 0 too — count the rows instead (`view {child}By{}: count {child} by .{column}`), or make the column count-like (every insert rule branch requires `.{summed} >= 1`, `immutable {summed}`, and no job writes {child})", capital(column))
     }
-    catalog.planner_notes.extend(notes);
 }
 
 fn capital(text: &str) -> String {
@@ -222,15 +191,32 @@ fn count_like(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl], ta
 /// row, and no child is moved to another parent. Rows written outside the
 /// programs (a fixture, `POST /seed`) are the author's to keep consistent.
 // @ref LLP 3000.036#17.4 — sound over every program write; anything the walk cannot see (a native job, `as`, a helper's write) refuses the proof.
-fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl], decl: &ProgramDecl, parent: &str, child: &str, reference: &str) -> bool {
+fn stable_key(value: &Expr) -> bool {
+    matches!(value, Expr::Name { name, .. } if name != "new") || matches!(value, Expr::Literal { .. })
+}
+
+fn stable_bindings(decl: &ProgramDecl) -> bool {
+    let mut bound: BTreeSet<&str> = decl.args.iter().map(|arg| arg.name.as_str()).collect();
+    for statement in decl.prelude.iter().chain(&decl.body) {
+        match statement {
+            Stmt::Bind { names, .. } if names.iter().any(|name| !bound.insert(name.as_str())) => return false,
+            Stmt::If { .. } | Stmt::For { .. } | Stmt::As { .. } => return false,
+            _ => {}
+        }
+    }
+    true
+}
+
+fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl], decl: &ProgramDecl, site: &crate::diag::Site, parent: &str, child: &str, reference: &str) -> bool {
+    if !stable_bindings(decl) { return false; }
     let strip = |e: &Expr| match e { Expr::Assert { value, .. } => (**value).clone(), other => other.clone() };
     let key_of = |e: &Expr| match strip(e) {
-        Expr::Read(read) if read.table == parent && read.keys.len() == 1 && read.filter.is_none() && read.range.is_none() => Some(crate::print::expression(&read.keys[0].value)),
+        Expr::Read(read) if read.table == parent && read.keys.len() == 1 && read.filter.is_none() && read.range.is_none() && stable_key(&read.keys[0].value) => Some(crate::print::expression(&read.keys[0].value)),
         _ => None,
     };
     // The delete, at the top level of the body.
     let Some((at, key)) = decl.body.iter().enumerate().find_map(|(i, s)| match s {
-        Stmt::Expr { value: Expr::Write { op: WriteOp::Delete, table, keys, condition: None, .. }, .. } if table == parent && keys.len() == 1 => Some((i, crate::print::expression(&keys[0].value))),
+        Stmt::Expr { value: Expr::Write { op: WriteOp::Delete, table, keys, condition: None, site: delete_site, .. }, .. } if delete_site == site && table == parent && keys.len() == 1 && stable_key(&keys[0].value) => Some((i, crate::print::expression(&keys[0].value))),
         _ => None,
     }) else { return false };
     // Names bound to that row before it.
@@ -269,7 +255,7 @@ fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl]
         let admitted = |value: &str| literals.contains(value) == *admitted_listed;
         // A flip: an unconditional update of the parent, by key, to a literal status the guard refuses.
         let flip = |write: &Expr| match write {
-            Expr::Write { op: WriteOp::Update, table, keys, fields, condition: None, if_absent: false, .. } if table == parent && keys.len() == 1 =>
+            Expr::Write { op: WriteOp::Update, table, keys, fields, condition: None, if_absent: false, .. } if table == parent && keys.len() == 1 && stable_key(&keys[0].value) =>
                 match field(fields, column) { Some(Some(Expr::Literal { value: Literal::Str(text), .. })) if !admitted(text) => Some(crate::print::expression(&keys[0].value)), _ => None },
             _ => None,
         };
@@ -282,11 +268,13 @@ fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl]
         if helpers.iter().any(|w| sets_admitted(w) || moves_child(w) || matches!(w, Expr::Write { op: WriteOp::Insert | WriteOp::Upsert, table, .. } if table == child)) { return false; }
         all.iter().all(|program| {
             let found = program_writes(program);
+            if found.iter().any(|(write, _)| matches!(write, Expr::Write { op: WriteOp::Insert | WriteOp::Upsert, table, .. } if table == child)) && !stable_bindings(program) { return false; }
             let rebound = |name: &str| program.body.iter().chain(&program.prelude).filter(|s| matches!(s, Stmt::Bind { names, .. } if names.iter().any(|n| n == name))).count() > 1;
             found.iter().all(|(write, path)| {
                 if sets_admitted(write) || moves_child(write) { return false; }
                 let Expr::Write { op: WriteOp::Insert | WriteOp::Upsert, table, fields, .. } = write else { return true };
                 if table != child { return true; }
+                if !matches!(field(fields, reference), Some(None)) && !matches!(field(fields, reference), Some(Some(value)) if stable_key(value)) { return false; }
                 let Some(value) = field_text(fields, reference) else { return false };
                 if value.split(|c: char| !c.is_alphanumeric() && c != '_').next().is_some_and(rebound) { return false; }
                 // An earlier statement of the same list, or of an enclosing list before the branch holding the insert.

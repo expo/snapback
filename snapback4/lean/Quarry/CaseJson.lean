@@ -214,7 +214,16 @@ partial def stmt (j : Json) : D Stmt := do
 
 def table (j : Json) : D TableDecl := do
   let cols ← (← arr j "cols").toList.mapM fun c => do
-    return ({ name := ← str c "name", nullable := ← (← field c "nullable").getBool? } : ColDecl)
+    let ref := match optField c "ref" with
+      | some (.str t) => some t
+      | _ => none
+    let onDelete ← match optField c "onDelete" with
+      | some (.str "restrict") => pure (some OnDelete.restrict)
+      | some (.str "cascade") => pure (some OnDelete.cascade)
+      | some (.str "setNull") => pure (some OnDelete.setNull)
+      | none => pure none
+      | some x => throw s!"unknown onDelete {x}"
+    return ({ name := ← str c "name", nullable := ← (← field c "nullable").getBool?, ref, onDelete } : ColDecl)
   let uniques ← (← arr j "uniques").toList.mapM fun u => do
     (← u.getArr?).toList.mapM fun c => c.getStr?
   let codes ← (← arr j "uniqueCodes").toList.mapM fun c => match c with

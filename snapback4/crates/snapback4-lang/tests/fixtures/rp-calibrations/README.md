@@ -30,3 +30,10 @@ page and outcome JSON consumed by `reservation-app-headroom.test.mjs` in wasm.
 The backend is split into schema and programs so no file exceeds 256 KB.
 Regenerate current fixtures with `UPDATE_RP_APP_CASES=1`; that does not disable
 headroom, commit or prediction assertions.
+
+Amendment (2026-10-12, LLP 3000.039): every `index_entries` ceiling rises by
+exactly 2. Both apps' `messages.quote: messages ?` is now an `on delete
+restrict` reference (the new default), and a reference that restricts is
+probed through an index leading with it: each `send` writes that index's two
+entries. Every other field and every other byte of the ceiling is unchanged;
+the measurement was not regenerated from the candidate.

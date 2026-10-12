@@ -119,3 +119,43 @@ fn a_refused_reseed_leaves_the_store_untouched() {
     assert_eq!((rows(&engine), engine.store().seq().unwrap(), engine.store().meta("store_id").unwrap()), before);
     assert_eq!(count(&mut engine, "L1"), Value::Int(1));
 }
+
+/// A reset empties every table together, so no referential action runs and
+/// no reference is left naming a removed row (LLP 3000.039 §6.5); the reseed
+/// rebuilds the reference indexes, so the next delete cascades and restricts
+/// over exactly the reseeded rows.
+#[test]
+fn a_reset_bypasses_referential_actions_and_the_reseed_feeds_them() {
+    let source = "use personas alice
+table boards:
+  public 'boards'
+  delete <- allow
+table cards:
+  board: boards on delete cascade
+  cap 10 by board
+  public 'cards'
+  delete <- allow
+table pins:
+  card: cards
+  public 'pins'
+mutation drop(id: boards):
+  delete boards[id]
+";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::new_at(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program), NOW).unwrap();
+    let row = |table: &str, fields: &[(&str, &str)]| (table.to_owned(), object(fields.iter().map(|(k, v)| (*k, Value::Id((*v).into())))));
+    // A pin restricts the board's cascade: an ordinary delete refuses.
+    engine.seed_at([row("boards", &[("id", "B")]), row("cards", &[("id", "C"), ("board", "B")]), row("pins", &[("id", "P"), ("card", "C")])], NOW).unwrap();
+    let drop = |engine: &mut Engine, board: &str| match engine.mutate("drop", None, Context::new("dev:alice", [("id".to_owned(), Value::Id(board.into()))].into()).at(NOW)).unwrap().state {
+        WriteState::Sent { .. } => "ok".to_owned(),
+        WriteState::Failed { why, .. } => why.code,
+    };
+    assert_eq!(drop(&mut engine, "B"), "E_REFERENCED");
+    // The reset empties boards, cards and pins at once; it refuses nothing.
+    engine.dev_reset_at(vec![row("boards", &[("id", "B2")]), row("cards", &[("id", "C2"), ("board", "B2")])], NOW).unwrap();
+    assert_eq!(rows(&engine).iter().filter(|r| r.contains(" B ") || r.contains(" C ") || r.contains(" P ")).count(), 0);
+    // The reseeded card is found through its reference index: the cascade takes it.
+    assert_eq!(drop(&mut engine, "B2"), "ok");
+    assert!(engine.store().rows("cards").unwrap().is_empty());
+}

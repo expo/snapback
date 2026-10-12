@@ -427,8 +427,9 @@ card/recipes/4:addSlot | eligible
 card/recipes/4:book | never
 card/recipes/4:cancel | eligible
 card/recipes/4:removeSlot | never
-card/recipes/5:host | never
-card/recipes/5:rsvp | never
+card/recipes/5:dropProject | never
+card/recipes/6:host | never
+card/recipes/6:rsvp | never
 card/refusals/1:checkin | never
 card/refusals/1:createRoom | eligible
 card/refusals/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

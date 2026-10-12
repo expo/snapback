@@ -5,14 +5,14 @@ table parents:
   insert <- allow
   sync public
 table members:
-  parent: parents
+  parent: parents on delete keep
   principal: principal
   unique parent, principal
   public
   insert <- allow
   sync public
 table children:
-  parent: parents
+  parent: parents on delete keep
   public
   insert <- allow
   update <- allow

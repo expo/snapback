@@ -315,6 +315,7 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
                                 value: Literal::Number("0".into()),
                                 site: clause.site.clone(),
                             }),
+                            on_delete: None,
                             sequence: None,
                             written_by: None,
                             readable_by_audience: false,
