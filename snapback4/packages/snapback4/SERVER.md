@@ -91,8 +91,9 @@ not advance a login epoch or cancel a captured click. Recovery submits the
 original operation/id for current-release rejudgment and receipt replay. Persona
 journals use their fixed dev principal epoch; personas remain refused by serve.
 
-The local control socket lives in the private deployment directory (0700), is
-0600 and checks same-UID peer credentials. It accepts only numeric immutable
+The local control socket lives under `/tmp/snapback4-<uid>/` (0700), uses a
+hash of the canonical deployment path, is 0600 and checks same-UID peer credentials.
+Existing runtime directories with the wrong owner, type or mode are refused. It accepts only numeric immutable
 release ids bound to content and database identity; no public HTTP/admin door is
 added. Keep the directory and its sidecars private. If the local owner is an older,
 unreachable server or another CLI, `E_STORE_BUSY` names the stop/retry sequence.

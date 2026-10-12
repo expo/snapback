@@ -25,6 +25,59 @@ const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(120);
 const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
+// @ref LLP 3000.000.000#51-path-independent-control-address — real host, deploy and rollback under the default platform temp root.
+#[test]
+fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
+    use std::os::unix::{ffi::OsStrExt, fs::FileTypeExt};
+    use sha2::{Digest, Sha256};
+    let root = Directory::new();
+    let dir = Directory(root.0.join("long-project-component".repeat(7)));
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    let schema = "query version():\n  return 1\n";
+    fs::write(dir.0.join("snapback/schema.q"), schema).unwrap();
+    assert!(dir.0.as_os_str().as_bytes().len() > 108);
+    let deployment = dir.0.join("release");
+    let release = deployment.to_str().unwrap();
+    let deployed = dir.run(&["deploy", release]);
+    assert!(deployed.status.success(), "{deployed:?}");
+    let canonical = deployment.canonicalize().unwrap();
+    let hash = Sha256::digest(canonical.as_os_str().as_bytes());
+    let socket = PathBuf::from(format!("/tmp/snapback4-{}/{}.sock", unsafe { libc::geteuid() },
+        hash.iter().map(|b| format!("{b:02x}")).collect::<String>()));
+    assert!(socket.as_os_str().as_bytes().len() < 104);
+    let mut host = Host::start(&dir, &["serve", release]);
+    assert!(fs::symlink_metadata(&socket).unwrap().file_type().is_socket());
+    let minted = dir.run(&["token", "--release", release, "--service", "probe"]);
+    assert!(minted.status.success(), "{minted:?}");
+    let credential = format!("Authorization: Bearer {}", String::from_utf8(minted.stdout).unwrap().trim());
+    assert_eq!(post_as(host.port, "/q/version", json!({"args":{}}), &credential)["data"], 1);
+    // Another host cannot take ownership or disconnect the first socket.
+    let second = dir.run(&["serve", release, "--port", "0"]);
+    assert!(!second.status.success(), "{second:?}");
+    assert!(String::from_utf8_lossy(&second.stderr).contains("E_STORE_BUSY"), "{second:?}");
+    fs::write(dir.0.join("snapback/schema.q"), schema.replace("return 1", "return 2")).unwrap();
+    // Address discovery does not depend on the serving shell's runtime env.
+    let deployed = Command::new(BIN).current_dir(&dir.0).args(["deploy", release])
+        .env("XDG_RUNTIME_DIR", dir.0.join("different-runtime")).output().unwrap();
+    assert!(deployed.status.success(), "{deployed:?}");
+    assert!(String::from_utf8_lossy(&deployed.stdout).contains("activated in the running server"), "{deployed:?}");
+    assert_eq!(post_as(host.port, "/q/version", json!({"args":{}}), &credential)["data"], 2);
+    let rolled = dir.run(&["rollback", release]);
+    assert!(rolled.status.success(), "{rolled:?}");
+    assert_eq!(post_as(host.port, "/q/version", json!({"args":{}}), &credential)["data"], 1);
+    assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
+    assert!(!socket.exists(), "graceful exit must remove the owned socket");
+
+    // SIGKILL leaves a stale entry; a new exclusive owner replaces it.
+    let mut host = Host::start(&dir, &["serve", release]);
+    assert_eq!(host.signal(libc::SIGKILL).signal(), Some(libc::SIGKILL));
+    assert!(socket.exists());
+    let mut host = Host::start(&dir, &["serve", release]);
+    assert_eq!(post_as(host.port, "/q/version", json!({"args":{}}), &credential)["data"], 1);
+    assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
+    assert!(!socket.exists());
+}
+
 #[test]
 fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     use std::os::unix::process::CommandExt;

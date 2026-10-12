@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 #[cfg(unix)]
 use std::os::unix::{
     ffi::OsStrExt,
-    fs::{FileTypeExt, MetadataExt, PermissionsExt},
+    fs::{DirBuilderExt, FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     net::{UnixListener, UnixStream},
 };
 use std::{
@@ -17,7 +17,6 @@ use std::{
 
 const INPUT: usize = 4096;
 const OUTPUT: usize = 64 * 1024;
-pub(crate) const SOCKET: &str = ".release-control.sock";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "kebab-case", deny_unknown_fields)]
@@ -118,26 +117,47 @@ fn socket_entry(path: &Path) -> io::Result<fs::Metadata> {
     Ok(m)
 }
 
+// @ref LLP 3000.000.000#51-path-independent-control-address — fixed short runtime root, independent of shell environment.
 #[cfg(unix)]
-fn address(dir: &Path) -> io::Result<(Option<fs::File>, PathBuf)> {
-    let path = dir.join(SOCKET);
-    #[cfg(target_os = "linux")]
-    if path.as_os_str().as_bytes().len() >= 100 {
-        use std::os::{fd::AsRawFd, unix::fs::OpenOptionsExt};
-        // The socket still lives in the deployment directory. Descriptor
-        // addressing avoids sockaddr_un's short pathname limit on Linux.
-        let directory = fs::OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
-            .open(dir)?;
-        let short = PathBuf::from(format!(
-            "/proc/self/fd/{}/{}",
-            directory.as_raw_fd(),
-            SOCKET
-        ));
-        return Ok((Some(directory), short));
+fn private_directory(path: &Path, create: bool) -> io::Result<()> {
+    if create {
+        match fs::DirBuilder::new().mode(0o700).create(path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e),
+        }
     }
-    Ok((None, path))
+    // Do not chmod or follow an existing entry. A stranger can pre-create a
+    // name in /tmp, but cannot turn that into a capability or chmod target.
+    let directory = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
+        .open(path)?;
+    directory_metadata(&directory.metadata()?, unsafe { libc::geteuid() })
+}
+
+#[cfg(unix)]
+fn directory_metadata(m: &fs::Metadata, uid: u32) -> io::Result<()> {
+    if !m.is_dir() || m.uid() != uid || m.permissions().mode() & 0o7777 != 0o700 {
+        return Err(io::Error::other(
+            "release control runtime directory must be a same-owner 0700 directory",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn address(dir: &Path, create: bool) -> io::Result<PathBuf> {
+    let directory = PathBuf::from(format!("/tmp/snapback4-{}", unsafe { libc::geteuid() }));
+    private_directory(&directory, create)?;
+    let canonical = dir.canonicalize()?;
+    // Bind the address to immutable deployment source, even when two
+    // deployments symlink their database to the same store. The actual
+    // database path/inode is separately checked in every envelope.
+    Ok(directory.join(format!(
+        "{}.sock",
+        crate::native::digest(canonical.as_os_str().as_bytes())
+    )))
 }
 
 /// Only called while the exclusive database sidecar is held, so stale socket
@@ -152,27 +172,45 @@ pub(crate) struct Listener {
 #[cfg(unix)]
 impl Listener {
     pub(crate) fn bind(dir: &Path, store: &Path) -> Result<Self, String> {
-        let path = dir.join(SOCKET);
+        let identity = identity(store)?;
+        let path = address(dir, true).map_err(|e| e.to_string())?;
         match fs::symlink_metadata(&path) {
             Ok(_) => {
                 socket_entry(&path).map_err(|e| e.to_string())?;
+                match UnixStream::connect(&path) {
+                    Ok(_) => {
+                        return Err("release control socket already has a live listener".into());
+                    }
+                    Err(e)
+                        if matches!(
+                            e.kind(),
+                            io::ErrorKind::ConnectionRefused | io::ErrorKind::NotFound
+                        ) => {}
+                    Err(e) => return Err(e.to_string()),
+                }
                 fs::remove_file(&path).map_err(|e| e.to_string())?;
             }
             Err(e) if e.kind() == io::ErrorKind::NotFound => {}
             Err(e) => return Err(e.to_string()),
         }
-        let (_directory, address) = address(dir).map_err(|e| e.to_string())?;
-        let listener = UnixListener::bind(&address)
+        let listener = UnixListener::bind(&path)
             .map_err(|e| format!("release control {}: {e}", path.display()))?;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
-        listener.set_nonblocking(true).map_err(|e| e.to_string())?;
-        let m = socket_entry(&path).map_err(|e| e.to_string())?;
-        Ok(Self {
+        let m = fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+        let owned = Self {
             listener,
             path,
             inode: (m.dev(), m.ino()),
-            identity: identity(store)?,
-        })
+            identity,
+        };
+        // Establish cleanup custody before any fallible setup after bind.
+        fs::set_permissions(&owned.path, fs::Permissions::from_mode(0o600))
+            .map_err(|e| e.to_string())?;
+        owned
+            .listener
+            .set_nonblocking(true)
+            .map_err(|e| e.to_string())?;
+        socket_entry(&owned.path).map_err(|e| e.to_string())?;
+        Ok(owned)
     }
     fn handle(
         &self,
@@ -243,20 +281,23 @@ impl Drop for Listener {
 #[cfg(unix)]
 pub(crate) fn request(dir: &Path, command: Command) -> Result<Value, String> {
     let store = dir.join("store.sqlite");
-    let path = dir.join(SOCKET);
     let unavailable = |reason: String| {
         let owner_path = store.canonicalize().unwrap_or_else(|_| store.clone());
         let detail = if reason.contains("No such file or directory") {
             "this deployment has no release control socket".to_owned()
-        } else { reason };
+        } else {
+            reason
+        };
         format!(
             "{}; release control unavailable: {detail}; stop `snapback4 serve {}`, rerun the exact command, then `snapback4 serve {}`",
-            crate::store_owner::busy(&owner_path), dir.display(), dir.display()
+            crate::store_owner::busy(&owner_path),
+            dir.display(),
+            dir.display()
         )
     };
+    let path = address(dir, false).map_err(|e| unavailable(e.to_string()))?;
     let before = socket_entry(&path).map_err(|e| unavailable(e.to_string()))?;
-    let (_directory, address) = address(dir).map_err(|e| unavailable(e.to_string()))?;
-    let mut stream = UnixStream::connect(&address).map_err(|e| unavailable(e.to_string()))?;
+    let mut stream = UnixStream::connect(&path).map_err(|e| unavailable(e.to_string()))?;
     peer(&stream).map_err(|e| unavailable(e.to_string()))?;
     let after = socket_entry(&path).map_err(|e| unavailable(e.to_string()))?;
     if (before.dev(), before.ino()) != (after.dev(), after.ino()) {
@@ -350,7 +391,7 @@ mod tests {
     #[test]
     fn socket_permissions_and_entry_types_are_enforced() {
         let dir = Directory::new(false);
-        let path = dir.0.join(SOCKET);
+        let path = address(&dir.0, true).unwrap();
         fs::write(&path, "not a socket").unwrap();
         assert!(
             Listener::bind(&dir.0, &dir.0.join("store.sqlite"))
@@ -384,6 +425,70 @@ mod tests {
         assert!(!path.exists());
     }
     #[test]
+    fn runtime_directory_refuses_permissions_symlinks_files_and_wrong_owner() {
+        let dir = Directory::new(false);
+        let runtime = dir.0.join("runtime");
+        private_directory(&runtime, true).unwrap();
+        private_directory(&runtime, false).unwrap();
+        let m = fs::metadata(&runtime).unwrap();
+        assert!(directory_metadata(&m, m.uid().wrapping_add(1)).is_err());
+        for mode in [0o755, 0o777, 0o1700] {
+            fs::set_permissions(&runtime, fs::Permissions::from_mode(mode)).unwrap();
+            assert!(private_directory(&runtime, true).is_err());
+            assert!(private_directory(&runtime, false).is_err());
+            assert_eq!(fs::metadata(&runtime).unwrap().mode() & 0o7777, mode);
+        }
+        fs::remove_dir(&runtime).unwrap();
+        fs::write(&runtime, "untouched").unwrap();
+        assert!(private_directory(&runtime, true).is_err());
+        assert_eq!(fs::read(&runtime).unwrap(), b"untouched");
+        fs::remove_file(&runtime).unwrap();
+        std::os::unix::fs::symlink(&dir.0, &runtime).unwrap();
+        assert!(private_directory(&runtime, true).is_err());
+    }
+
+    #[test]
+    fn stale_socket_is_replaced_but_a_live_listener_is_preserved() {
+        let dir = Directory::new(false);
+        let store = dir.0.join("store.sqlite");
+        let path = address(&dir.0, true).unwrap();
+        let stale = UnixListener::bind(&path).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        drop(stale); // Process death leaves the socket entry behind.
+        let live = Listener::bind(&dir.0, &store).unwrap();
+        let inode = live.inode;
+        assert!(
+            Listener::bind(&dir.0, &store)
+                .err()
+                .unwrap()
+                .contains("live listener")
+        );
+        let m = fs::symlink_metadata(&path).unwrap();
+        assert_eq!((m.dev(), m.ino()), inode);
+        drop(live);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn cleanup_preserves_a_replacement_and_canonical_aliases_share_an_address() {
+        let dir = Directory::new(false);
+        let other = Directory::new(false);
+        let store = dir.0.join("store.sqlite");
+        let listener = Listener::bind(&dir.0, &store).unwrap();
+        let path = listener.path.clone();
+        assert_ne!(path, address(&other.0, true).unwrap());
+        let alias = dir.0.join("alias");
+        std::os::unix::fs::symlink(&dir.0, &alias).unwrap();
+        assert_eq!(path, address(&alias, false).unwrap());
+        assert!(path.as_os_str().as_bytes().len() < 104);
+        fs::remove_file(&path).unwrap();
+        fs::write(&path, "replacement").unwrap();
+        drop(listener);
+        assert_eq!(fs::read(&path).unwrap(), b"replacement");
+        fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
     fn rejected_store_identity_does_not_execute_command() {
         let dir = Directory::new(false);
         let listener = Listener::bind(&dir.0, &dir.0.join("store.sqlite")).unwrap();
@@ -392,7 +497,7 @@ mod tests {
             let (mut stream, _) = listener.listener.accept().unwrap();
             listener.handle(&mut stream, |_| panic!("wrong identity admitted"));
         });
-        let mut stream = UnixStream::connect(dir.0.join(SOCKET)).unwrap();
+        let mut stream = UnixStream::connect(address(&dir.0, true).unwrap()).unwrap();
         stream.write_all(br#"{"identity":"wrong","command":{"command":"status","after":0,"items_after":null,"event":null}}"#).unwrap();
         stream.shutdown(std::net::Shutdown::Write).unwrap();
         let mut reply = String::new();
@@ -417,7 +522,7 @@ mod tests {
                 Ok(json!({"committed":true}))
             });
         });
-        let mut stream = UnixStream::connect(dir.0.join(SOCKET)).unwrap();
+        let mut stream = UnixStream::connect(address(&dir.0, true).unwrap()).unwrap();
         let envelope = Envelope {
             identity: identity(&dir.0.join("store.sqlite")).unwrap(),
             command: Command::Prune {
@@ -435,7 +540,6 @@ mod tests {
         finished.recv_timeout(Duration::from_secs(10)).unwrap();
         task.join().unwrap();
     }
-    #[cfg(target_os = "linux")]
     #[test]
     fn long_deployment_path_uses_same_private_socket() {
         let dir = Directory::new(true);
@@ -459,6 +563,6 @@ mod tests {
             2
         );
         task.join().unwrap();
-        assert!(!dir.0.join(SOCKET).exists());
+        assert!(!address(&dir.0, true).unwrap().exists());
     }
 }
