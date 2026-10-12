@@ -255,6 +255,56 @@ fn membership_discovery_component_limit_stops_before_model_comparison() {
 }
 
 #[test]
+fn eight_component_total_unique_membership_agrees_with_the_model() {
+    if !model_built() { return; }
+    let source = "table groups:\n  a: int\n  b: int\n  c: int\n  d: int\n  e: int\n  f: int\n  g: int\n  principal: principal\n  unique a, b, c, d, e, f, g, principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: groups\n  at: int\n  read <- .owner = viewer or exists groups[id = .parent, principal = viewer, a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let check = |include_witness: bool, expected: &[&str]| {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().any(|merge| merge.branches()), "{:#?}", bound.notes);
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let group = |id: &str, principal: &str| json!({"id":id,"a":0,"b":0,"c":0,"d":0,"e":0,"f":0,"g":0,"principal":principal});
+        let mut rows: Vec<(String, serde_json::Value)> = vec![
+            ("groups".into(), group("g0", "bob")),
+            ("documents".into(), json!({"id":"owned","owner":"alice","parent":"g0","at":1})),
+            ("documents".into(), json!({"id":"denied","owner":"bob","parent":"g0","at":3})),
+        ];
+        if include_witness {
+            rows.extend([
+                ("groups".into(), group("g1", "alice")),
+                ("documents".into(), json!({"id":"shared","owner":"bob","parent":"g1","at":2})),
+            ]);
+        }
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let actual = engine.query("run", snapback4_core::Context::new(
+            "alice",
+            [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+        )).unwrap();
+        let module = lean::module(source).unwrap();
+        let case = module.case("run", module.store(&rows).unwrap(), "alice",
+            module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+        let modeled = lean::ask(&case).unwrap();
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
+        assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+        let ids = actual.data.as_array().unwrap().iter().map(|row| match row.field("id").unwrap() {
+            snapback4_core::Value::Id(id) => id.as_str(), other => panic!("{other:?}"),
+        }).collect::<Vec<_>>();
+        assert_eq!(ids, expected);
+        assert!(actual.complete && actual.next.is_none(), "{actual:?}");
+    };
+    check(true, &["shared", "owned"]);
+    check(false, &["owned"]);
+}
+
+#[test]
 fn membership_filter_pins_and_labels_stop_before_model_comparison() {
     let filtered = "table memberships:
   parent: text <=100
