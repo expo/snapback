@@ -92658,3 +92658,17 @@ authority behavior changed. JS helpers already preserve the body on refusal.
 Validation: binary suite 385 passed / 4 ignored, CLI friction 19 passed; two
 client files (online-session, headless-registration) passed 16 tests. Added
 coverage for HTTP 401/403 bodies and the real failed-login/disabled-guest path.
+
+## 2026-10-12 — OPS: default fixtures and installed Expo versions (wave 8 DT5)
+
+Test now announces and uses the project's fixtures directory when no explicit
+fixture was given, including its declared cases. An explicit fixture wins; the
+default path uses the existing isolated in-memory fixture engine. Check warns
+on stderr if installed snapback4 and snapback4-expo versions differ, naming
+both versions and the single coupled upgrade command. JSON stdout stays valid.
+
+CLI regressions cover a failing default case, explicit override, malformed rows,
+fixture isolation, version mismatch in text/JSON and matching versions. The
+19-test cli_friction suite passed; the final full package run includes the same
+tests. Serve's regression was additionally bounded and hardened for an occupied
+first range port, equals spelling, held listener and real PID readiness.

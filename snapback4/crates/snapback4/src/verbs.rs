@@ -26,11 +26,13 @@ mod test_cases;
 /// A fixture directory's case file: not a table's rows.
 pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
+mod package_versions;
 mod latency;
 mod run_admission;
 pub(crate) mod run_forward;
 mod run_refusal;
 
+#[derive(Clone)]
 pub struct Options {
     pub positionals: Vec<String>,
     pub flags: BTreeMap<String, String>,
@@ -43,8 +45,9 @@ pub fn parse(args: &[String]) -> Options {
     let mut json = false;
     let mut iter = args.iter().skip(1).peekable();
     while let Some(arg) = iter.next() {
-        if arg == "--json" {
+        if arg == "--json" || arg == "--json-objects" {
             json = true;
+            if arg == "--json-objects" { flags.insert("json-objects".into(), String::new()); }
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
@@ -209,6 +212,7 @@ pub fn check(options: &Options) -> i32 {
     }
     let project = project_or_exit();
     let started = Instant::now();
+    package_versions::warn(&project);
     let mut bound = match fix::checked(if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() }) {
         Ok(bound) => bound,
         Err(code) => return code,
@@ -1097,6 +1101,13 @@ pub fn why(options: &Options) -> i32 {
 /// ceilings, so a builder reads numbers instead of being refused on a bound.
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
+    let mut defaults = options.clone();
+    if !defaults.flags.contains_key("fixture") && project.root.join("fixtures").is_dir() {
+        let fixture = project.root.join("fixtures");
+        eprintln!("test: using {} (default fixture directory; override with --fixture <dir>)", fixture.display());
+        defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
+    }
+    let options = &defaults;
     let bound = compile_or_exit(&project, options.json);
     // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
     // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.

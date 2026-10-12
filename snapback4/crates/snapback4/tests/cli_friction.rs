@@ -665,32 +665,77 @@ fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
     assert!(text(&project.run(&["rollback", "--help"])).contains("--allow-destructive"));
     let output = project.run(&["deploy", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
-    for port in ["0".to_owned(), {
-        let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let p = held.local_addr().unwrap().port();
-        format!("{p}-{p}")
-    }] {
-        let mut child = Command::new(BIN).current_dir(&project.0)
-            .args(["serve", "deployment", "--port", &port])
+    let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let taken = held.local_addr().unwrap().port();
+    for port in ["0".to_owned(), format!("{taken}-{}", taken + 20)] {
+        let child = Command::new(BIN).current_dir(&project.0)
+            .args(["serve", "deployment", &format!("--port={port}")])
             .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
-        let mut line = String::new();
-        BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let mut server = Dev(child);
+        let stdout = server.0.stdout.take().unwrap();
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut line = String::new();
+            let result = BufReader::new(stdout).read_line(&mut line).map(|_| line);
+            let _ = send.send(result);
+        });
+        let line = receive.recv_timeout(Duration::from_secs(20)).expect("serve URL deadline").unwrap();
         let url = line.trim();
         assert!(url.starts_with("http://127.0.0.1:"), "{line:?}");
         let actual: u16 = url.rsplit(':').next().unwrap().parse().unwrap();
         assert_ne!(actual, 0);
-        if port != "0" { assert_eq!(port, format!("{actual}-{actual}")); }
-        let mut logs = BufReader::new(server.0.stderr.take().unwrap());
-        loop {
-            let mut line = String::new();
-            assert!(logs.read_line(&mut line).unwrap() > 0, "missing ready line");
-            if line.contains("SNAPBACK4_READY") {
-                assert!(line.contains("verb=serve") && line.contains(&format!("url={url}")), "{line}");
-                break;
+        if port != "0" { assert!(actual > taken && actual <= taken + 20); }
+        assert!(std::net::TcpListener::bind(("127.0.0.1", actual)).is_err(), "the printed listener is held");
+        let stderr = server.0.stderr.take().unwrap();
+        let (send, receive) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut logs = BufReader::new(stderr);
+            loop {
+                let mut line = String::new();
+                match logs.read_line(&mut line) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) if line.contains("SNAPBACK4_READY") => { let _ = send.send(line); break; }
+                    _ => {},
+                }
             }
-        }
+        });
+        let ready = receive.recv_timeout(Duration::from_secs(20)).expect("serve ready deadline");
+        assert!(ready.contains("verb=serve") && ready.contains(&format!("url={url}")) && ready.contains(&format!("pid={}", server.0.id())), "{ready}");
         assert_eq!(http(url, "GET", "/schema", None, "").0, 401);
         drop(server);
     }
+}
+
+#[test]
+fn test_uses_default_fixtures_and_explicit_fixture_overrides_them() {
+    let project = Project::new("use personas alice\ntable notes:\n  body: text <=20\n  public\nquery all():\n  return notes first 10 by .id\n");
+    project.write("fixtures/notes.jsonl", "{\"id\":\"one\",\"body\":\"seeded\"}\n");
+    project.write("fixtures/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"all\",\"count\":2}\n");
+    let output = project.run(&["test"]);
+    assert!(!output.status.success(), "the default case must fail: {}", text(&output));
+    assert!(text(&output).contains("default fixture directory"), "{}", text(&output));
+    assert!(!project.0.join(".snapback4/store.sqlite").exists(), "default fixtures must not create or mutate the dev store");
+    project.write("override/notes.jsonl", "{\"id\":\"other\",\"body\":\"explicit\"}\n");
+    project.write("override/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"all\",\"count\":1}\n");
+    let output = project.run(&["test", "--fixture", "override"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(!text(&output).contains("default fixture directory"));
+    project.write("fixtures/notes.jsonl", "bad json\n");
+    assert!(!project.run(&["test"]).status.success());
+}
+
+#[test]
+fn check_warns_about_installed_expo_core_version_mismatch() {
+    let project = Project::new("query alive():\n  return true\n");
+    project.write("node_modules/snapback4/package.json", r#"{"version":"0.4.23"}"#);
+    project.write("node_modules/snapback4-expo/package.json", r#"{"version":"0.4.22"}"#);
+    for flags in [&["check"][..], &["check", "--json"]] {
+        let output = project.run(flags);
+        assert!(output.status.success(), "{}", text(&output));
+        let warning = String::from_utf8_lossy(&output.stderr);
+        assert!(warning.contains("snapback4 0.4.23") && warning.contains("snapback4-expo 0.4.22") && warning.contains("bun add snapback4@latest snapback4-expo@latest"), "{warning}");
+        if flags.contains(&"--json") { serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap(); }
+    }
+    project.write("node_modules/snapback4-expo/package.json", r#"{"version":"0.4.23"}"#);
+    assert!(!text(&project.run(&["check"])).contains("WARNING"));
 }
