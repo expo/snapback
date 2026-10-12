@@ -243,6 +243,48 @@ query documents(c: cursor ?):
 }
 
 #[test]
+fn membership_page_gate_prices_filter_pins_and_synthesized_labels() {
+    let filtered = |folder_bound| format!("table memberships:
+  parent: text <=100
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=100
+  folder: text <={folder_bound}
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  online only
+query documents(folder: text <={folder_bound}, c: cursor ?):
+  return documents where .folder = folder last 2 by .at after c
+");
+    assert!(module(&filtered(300)).program("documents").is_ok());
+    assert_eq!(reason(&module(&filtered(400)), "documents"), "page-membership-key-bound");
+
+    let owner = "o".repeat(480);
+    let long_label = format!("table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  {owner}: principal
+  parent: text <=40
+  at: int
+  read <- .{owner} = viewer or exists memberships[.parent, viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    assert_eq!(reason(&module(&long_label), "documents"), "page-membership-key-bound");
+}
+
+#[test]
 fn live_reference_predicate_emits_an_authorized_point_read_before_the_field() {
     let m = module("table tags:\n  rank: int\n  read <- allow\n  online only\ntable items:\n  tag: tags\n  read <- allow\n  online only\nquery q():\n  return items where .tag.rank = 1 first 2 by .id\n");
     let b = body(&m, "q");

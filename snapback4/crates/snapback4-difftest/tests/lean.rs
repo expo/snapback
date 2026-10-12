@@ -137,6 +137,49 @@ query run(c: cursor ?):
 }
 
 #[test]
+fn membership_filter_pins_and_labels_stop_before_model_comparison() {
+    let filtered = "table memberships:
+  parent: text <=100
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=100
+  folder: text <=400
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  online only
+query run(folder: text <=400, c: cursor ?):
+  return documents where .folder = folder last 2 by .at after c
+";
+    execute::compile(filtered).unwrap();
+    assert_eq!(lean::module(filtered).unwrap().program("run").unwrap_err().reason, "page-membership-key-bound");
+
+    let owner = "o".repeat(480);
+    let long_label = format!("table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  {owner}: principal
+  parent: text <=40
+  at: int
+  read <- .{owner} = viewer or exists memberships[.parent, viewer]
+  online only
+query run(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    execute::compile(&long_label).unwrap();
+    assert_eq!(lean::module(&long_label).unwrap().program("run").unwrap_err().reason, "page-membership-key-bound");
+}
+
+#[test]
 fn canonical_values_and_signatures() {
     use snapback4_core::Value;
     let row: Value = Value::Row([("id".to_string(), Value::Id("r0".into())), ("n".to_string(), Value::Int(-3)), ("t".to_string(), Value::String("é".into()))].into_iter().collect());

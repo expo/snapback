@@ -47,7 +47,7 @@
 
 use crate::ast::{self, Document, Effect, Expr, KeyPart, Literal, ObjectField, OnDelete, Order, ReadExpr, Stmt, TypeKind, WriteOp};
 use serde_json::{Map, Value as Json, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// A construct outside the model's core fragment.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -1002,10 +1002,87 @@ fn model_column_bytes(kind: &Kind) -> usize {
     }
 }
 
-fn model_plain_index_fits(table: &Table, columns: &[String]) -> bool {
-    columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+fn model_title(value: &str) -> String {
+    let mut chars = value.chars();
+    chars.next().map(|first| first.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default()
+}
+
+fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String]) -> bool {
+    let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return false };
+    if let Some(index) = decl.indexes.iter().filter(|index| index.is_plain() && index.columns == columns).min_by_key(|index| &index.name) {
+        return table.name.len().saturating_add(index.name.len()) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES;
+    }
+    let mut components = columns.to_vec();
+    if components.len() > 1 && components.last().is_some_and(|column| column == "id") { components.pop(); }
+    let base = format!("by{}", components.iter().map(|column| model_title(column)).collect::<String>());
+    // `$intent:{base}:` plus the ordinary 16-byte digest suffix. A collision
+    // can only lengthen the suffix, so a name already over budget cannot be a
+    // physical PAGE lane on every store.
+    let generated = "$intent:".len().saturating_add(base.len()).saturating_add(1 + 16);
+    table.name.len().saturating_add(generated) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES
+}
+
+fn model_plain_index_fits(module: &LeanModule, table: &Table, columns: &[String]) -> bool {
+    model_index_label_fits(module, table, columns) && columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
         bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
     }) <= PORTABLE_KEY_BYTES
+}
+
+fn model_independent(expression: &Expr) -> bool {
+    match expression {
+        Expr::Literal { .. } | Expr::Name { .. } => true,
+        Expr::Member { base, .. } | Expr::Unary { value: base, .. } => model_independent(base),
+        Expr::Binary { left, right, .. } => model_independent(left) && model_independent(right),
+        Expr::Call { args, .. } | Expr::Array { items: args, .. } => args.iter().all(model_independent),
+        _ => false,
+    }
+}
+
+fn model_equality_column(table: &Table, expression: &Expr) -> Option<String> {
+    if let Expr::Binary { op, left, right, .. } = expression && op == "=" {
+        if let Some(column) = column_of(left) && model_independent(right) && table.col(column).is_some() { return Some(column.into()) }
+        if let Some(column) = column_of(right) && model_independent(left) && table.col(column).is_some() { return Some(column.into()) }
+    }
+    let value = if let Expr::Unary { op, value, .. } = expression && op == "not" { value.as_ref() } else { expression };
+    let column = column_of(value)?;
+    matches!(table.col(column), Some(Kind::Bool)).then(|| column.into())
+}
+
+fn model_pin_columns(table: &Table, expressions: &[&Expr], order: &[String]) -> Vec<String> {
+    expressions.iter().filter_map(|expression| model_equality_column(table, expression))
+        .filter(|column| column != "id" && !order.contains(column)).collect::<BTreeSet<_>>().into_iter().collect()
+}
+
+fn model_lane_columns(mut pins: Vec<String>, order: &[String]) -> Vec<String> {
+    for column in order {
+        if !pins.contains(column) { pins.push(column.clone()); }
+    }
+    if !pins.iter().any(|column| column == "id") { pins.push("id".into()); }
+    pins
+}
+
+/// Equality prefixes for the original system scan and for each PAGE filter
+/// alternative. Pins are sorted like the planner's `BTreeMap`, then the
+/// shared order and id suffix are appended separately by the caller.
+fn model_page_pins(table: &Table, read: &ReadExpr) -> (Vec<String>, Vec<Vec<String>>) {
+    let Some(filter) = read.filter.as_deref() else { return (Vec::new(), vec![Vec::new()]) };
+    let mut conjuncts = Vec::new();
+    flatten_and(filter, &mut conjuncts);
+    let system = model_pin_columns(table, &conjuncts, &read.order_keys);
+    let ors: Vec<_> = conjuncts.iter().enumerate().filter(|(_, expression)| matches!(expression, Expr::Binary { op, .. } if op == "or")).collect();
+    let [(position, expression)] = ors.as_slice() else { return (system.clone(), vec![system]) };
+    let mut alternatives = Vec::new();
+    flatten_or(expression, &mut alternatives);
+    let rest: Vec<_> = conjuncts.iter().enumerate().filter_map(|(at, expression)| (at != *position).then_some(*expression)).collect();
+    let branches: Option<Vec<Vec<String>>> = alternatives.into_iter().map(|alternative| {
+        let mut parts = Vec::new();
+        flatten_and(alternative, &mut parts);
+        let alternative_pins = model_pin_columns(table, &parts, &read.order_keys);
+        if alternative_pins.is_empty() { return None }
+        parts.extend(rest.iter().copied());
+        Some(model_pin_columns(table, &parts, &read.order_keys))
+    }).collect();
+    (system.clone(), branches.filter(|branches| branches.len() >= 2).unwrap_or_else(|| vec![system]))
 }
 
 fn party_column<'a>(table: &Table, expression: &'a Expr) -> Option<&'a str> {
@@ -1049,6 +1126,8 @@ fn membership_physical(module: &LeanModule, expression: &Expr) -> Option<(String
     let (source_parent, target_parent) = target?;
     let ceiling = snapback4_core::Ceilings::default().examined;
     if !source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling && by.iter().all(|column| fixed.contains(column))) { return None }
+    fixed.sort();
+    fixed.dedup();
     let mut source_key = fixed;
     if !source_key.contains(&source_parent) { source_key.push(source_parent); }
     if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
@@ -1071,16 +1150,15 @@ fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bo
     }
     if parties.is_empty() || memberships.is_empty() { return false }
     if memberships.iter().any(|(source, columns, _)| module.tables.iter().find(|table| table.name == *source)
-        .is_none_or(|table| !model_plain_index_fits(table, columns))) { return true }
-    let mut lane_prefixes = parties;
-    lane_prefixes.extend(memberships.into_iter().map(|(_, _, parent)| parent));
-    lane_prefixes.into_iter().any(|prefix| {
-        let mut columns = vec![prefix];
-        for column in &read.order_keys {
-            if !columns.contains(column) { columns.push(column.clone()); }
-        }
-        if !columns.iter().any(|column| column == "id") { columns.push("id".into()); }
-        !model_plain_index_fits(target, &columns)
+        .is_none_or(|table| !model_plain_index_fits(module, table, columns))) { return true }
+    let (system_pins, branches) = model_page_pins(target, read);
+    if !model_plain_index_fits(module, target, &model_lane_columns(system_pins, &read.order_keys)) { return true }
+    branches.into_iter().any(|branch| {
+        parties.iter().chain(memberships.iter().map(|(_, _, parent)| parent)).any(|prefix| {
+            let mut pins = branch.clone();
+            if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
+            !model_plain_index_fits(module, target, &model_lane_columns(pins, &read.order_keys))
+        })
     })
 }
 
