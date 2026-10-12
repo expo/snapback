@@ -70,7 +70,7 @@ fn check_change(
                 .message
                 .replace("its rows are lost", "its rows become dormant")
                 .replace("its values are lost", "its values become dormant");
-            if options.flags.contains_key("verbose") || options.flags.contains_key("check") { println!(
+            if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("check")) { println!(
                 "  {:?}: {message}",
                 if step.change == snapback4_core::successor::Change::Destructive {
                     "Retained"

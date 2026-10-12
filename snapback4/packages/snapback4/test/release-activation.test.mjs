@@ -937,6 +937,14 @@ test('REL mutation decoding and many-item previews report complete plans', {time
     const saved=state(join(deployment,'store.sqlite'));
     const plan=run('rollback',deployment,'--to','1','--check');
     assert.match(plan,/1 dormant narrowed rows/);assert.match(plan,/rows:items/);
+    for(const flags of [[],['--verbose']]) {
+      const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
+      assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
+      assert.equal(structured.plan.generation,3);
+      assert.ok(structured.plan.items.some(item=>item.key==='rows:items' && item.rows===1));
+    }
+    const checked=JSON.parse(run('check','--store',join(deployment,'store.sqlite'),'--release','1','--json'));
+    assert.equal(checked.preview,true);assert.ok(checked.steps.length>0);
     assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
     run('rollback',deployment,'--to','1');
     for(const args of [{v:'new'},{v:7},{v:'old',extra:true}]) {
