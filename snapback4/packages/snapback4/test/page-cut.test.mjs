@@ -43,7 +43,7 @@ test('wasm pages preserve predicate candidates and held-group logical meters', {
     const result=await core.call({op:'query',name,viewer:'dev:alice',args:{c},now:100,spent:{examined:0,index_entries:0,rule_probes:0,steps:0,heap_bytes:0,output_bytes:0,rows_written:0,...spent}});
     assert.ok(result.ok,JSON.stringify(result));assert.equal(result.ok.unknown,false);return result.ok;
   };
-  for(const [name,expected] of [['flagged',['t1','t2']],['ascending',['t2','t1']],['lookahead',['t1','t2']]])for(const remaining of [1,2,3,4,5]){
+  for(const [name,expected] of [['flagged',['t1','t2']],['ascending',['t2','t1']],['single',['t1','t2']]])for(const remaining of [1,2,3,4,5]){
     const first=await query(name,null,{examined:8192-remaining});
     const rows=first.data.map(r=>r.id);let next=first.next;
     for(let n=0;next&&n<4;n++) {const page=await query(name,next);rows.push(...page.data.map(r=>r.id));next=page.next;}

@@ -31,7 +31,7 @@ fn predicates<H: Host>(host: &mut H) {
     ]).unwrap();
     let mut device = host.open("cut", Some(backend.clone())).unwrap();
     for (n, page) in snapshot_pages(&mut engine, "alice", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
-    for (op, expected) in [("flagged", vec!["t1", "t2"]), ("ascending", vec!["t2", "t1"]), ("lookahead", vec!["t1", "t2"])] {
+    for (op, expected) in [("flagged", vec!["t1", "t2"]), ("ascending", vec!["t2", "t1"]), ("single", vec!["t1", "t2"])] {
         for budget in 1..=5 {
             let args = [("c", Value::Null)];
             let ceilings = Ceilings { examined: budget, ..Default::default() };
@@ -91,7 +91,9 @@ fn group_meter<H: Host>(host: &mut H) {
         assert!(baseline.metered.rule_probes > 0);
         for dimension in ["examined", "index_entries", "rule_probes", "steps", "heap_bytes", "output_bytes"] {
             let value = serde_json::to_value(&baseline.metered).unwrap()[dimension].as_u64().unwrap();
-            for n in [0, 1, value.saturating_sub(1), value, value + 1] {
+            let mut boundaries = vec![0, 1, value.saturating_sub(1), value, value + 1];
+            if dimension == "heap_bytes" { boundaries.extend([18032, 18194]); }
+            for n in boundaries {
                 let mut limits = serde_json::to_value(Ceilings::default()).unwrap(); limits[dimension] = json!(n);
                 let ceilings: Ceilings = serde_json::from_value(limits).unwrap();
                 engine.set_ceilings(ceilings);
@@ -117,3 +119,15 @@ fn group_meter<H: Host>(host: &mut H) {
 }
 #[test] fn memory_group_prefix_meter_matches_server() { group_meter(&mut Memory::new()); }
 #[test] fn sqlite_group_prefix_meter_matches_server() { group_meter(&mut Sqlite::new("group-meter")); }
+
+// @ref LLP 3000.007#5.6 — later non-uniform reads keep inherited cuts private.
+#[test]
+fn an_inherited_cut_still_classifies_the_later_private_scan() {
+    let source = "table padding:\n  public\n  online only\ntable tasks:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery later():\n  spent = padding first 2 by .id\n  return tasks first 1 by .id\n";
+    let (mut engine, _) = compile(source);
+    engine.seed(["p1", "p2"].map(|key| ("padding".into(), object([("id", id(key))])))).unwrap();
+    engine.set_ceilings(Ceilings { examined: 1, ..Default::default() });
+    let out = engine.query("later", context("alice", &[])).unwrap();
+    assert!(!out.complete && out.data.as_array().unwrap().is_empty());
+    assert_eq!(out.cut, None, "non-uniform classification must precede public cut reporting");
+}

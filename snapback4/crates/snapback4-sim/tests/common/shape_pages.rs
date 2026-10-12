@@ -862,12 +862,17 @@ fn reference_predicate_cut_retries_the_unfinished_row() {
     ];
     rows.extend((0..8191).map(|n| ("padding".into(), object([("id", id(&format!("p{n:05}")))]))));
     with_fixture(&source, rows, |q| {
-        let first = q("flagged", ctx(None)).unwrap();
+        let cx = |next| { let mut cx = ctx(next); cx.args.remove("q"); cx };
+        let first = q("flagged", cx(None)).unwrap();
         assert!(ids(&first).is_empty() && !first.complete);
         let next = first.next.expect("retry reference candidate");
         assert!(decode_cursor(&Schema::default(), &next).unwrap().inclusive);
-        let follow = q("flagged", ctx(Some(next))).unwrap();
+        let follow = q("flagged", cx(Some(next))).unwrap();
         assert_eq!(ids(&follow), ["t1", "t2"]);
-        assert!(follow.complete && follow.next.is_none());
+        assert!(follow.complete);
+        if let Some(next) = follow.next {
+            let end = q("flagged", cx(Some(next))).unwrap();
+            assert!(ids(&end).is_empty() && end.complete && end.next.is_none());
+        }
     });
 }

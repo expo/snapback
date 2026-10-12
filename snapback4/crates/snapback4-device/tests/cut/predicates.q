@@ -15,5 +15,5 @@ query flagged(c: cursor ?):
   return tasks where .owner = viewer and .meta.ok = true last 2 by .at after c
 query ascending(c: cursor ?):
   return tasks where .owner = viewer and .meta.ok = true first 2 by .at after c
-query lookahead(c: cursor ?):
+query single(c: cursor ?):
   return tasks where .owner = viewer and .meta.ok = true last 1 by .at after c

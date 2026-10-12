@@ -32,3 +32,30 @@ What landing it takes:
   deterministic parity tests in `snapback4-device/tests/branch_merge.rs`
   cover them meanwhile (data and `complete`, not meters).
 - Owner: the lead session (device meters are core, LLP 3000 decision 4).
+
+
+## Resolution — 2026-10-12, CUT
+
+Implemented in `6735294f4a`, with a follow-up narrowing the admission stop:
+ordinary uniform delivered queries reserve the same static read-rule probe
+allowance and rule scratch as the server's prefix verdict. Devices continue to
+trust delivery; logical admission is paid even when physical evaluation is
+skipped. Prediction retains its earlier allowance. The device stops a capped
+reservation before discovering rows. Server classification and preauthorized
+lane-attempt charges remain intact.
+
+LLP 3000.007 §20.24.6 records the contract. `cut.rs` sweeps six meter dimensions
+for direct and branch-merged group pages on acquired memory/SQLite devices;
+`page-cut.test.mjs` checks the actual wasm count and zero-probe cut. The existing
+1,000-lane test now asserts 1,001 probes on both server and device. The generator
+now draws live held-group pages and membership delivery to the principal;
+reference predicates on groups retain a single pinned domain because they do
+not satisfy automatic merge totality. No meter field is normalized by the oracle.
+
+Matching discovery keeps its earlier meter, a scoped exception documented in
+§20.24.1 and §20.24.6. Its separate inherited prefix-key heap discrepancy is
+tracked by `issues/20261012-snapback4-matching-prefix-heap-meter-parity.md`;
+ordinary page qualification makes no matching-parity claim.
+
+Closed. Final commands/results and independent review dispositions are in
+`WORKSTREAM-REPORT.md` and the committed CUT qualification report.

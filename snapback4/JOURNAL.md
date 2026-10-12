@@ -93049,3 +93049,23 @@ The generator now draws group-synced pages and reference-member predicates;
 coverage distinguishes both. The fresh wasm measures 661,463 B gzip against
 661,645 B on the base, within the unchanged 662,145 B budget. Full-suite,
 campaign and independent review results are recorded by the workstream report.
+
+
+### 2026-10-12 — CUT review corrections and qualification scope
+
+Muse and fresh Codex reviews of `6735294f4a` both returned NOT READY. Accepted:
+the unconditional admission bail affected server matching attempt charges and
+private-cut classification; it now stops only a device reservation. Accepted:
+the simulator fixture supplied an undeclared `q` argument; it now supplies the
+cursor alone, and follows a full filtered page's exclusive continuation through
+its final empty page. The 1,000-lane meter assertion now uses equal logical
+probes. Matching keeps its earlier discovery meter; Codex's inherited prefix-key
+heap discrepancy is explicitly ticketed rather than claimed fixed here.
+
+The new group-generator cases hold both audiences and keep items live, isolating
+ordinary uniform prefix-meter parity from inherited expired-candidate examination
+and non-total-disjunction completeness differences. Reference predicates on a
+group keep one pinned domain; online cases still draw the planner fallback.
+The final rebuilt web device is 661,531 B gzip (114 B below the 661,645 B base),
+within the unchanged 662,145 B budget. Exact results and deferrals are recorded
+in the CUT report; independent review artifacts remain verbatim in llp/reviews/.

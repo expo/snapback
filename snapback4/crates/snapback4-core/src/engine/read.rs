@@ -167,14 +167,15 @@ impl<'r> Runner<'r> {
 
     // @ref LLP 3000.007#20.24.6 — trusted delivery avoids physical probes,
     // not the logical prefix verdict or its scratch admission.
-    fn reserve_delivered_scan(&mut self, table: &Table, visibility: rules::Visibility, admitted: bool) -> Result<(), RuntimeError> {
-        if self.device && !self.context.is_system()
+    fn reserve_delivered_scan(&mut self, table: &Table, visibility: rules::Visibility, admitted: bool, query: bool) -> Result<bool, RuntimeError> {
+        if self.device && (query || self.meter.cut == crate::meter::Cut::Abort) && !self.context.is_system()
             && admitted && visibility.uniform && !visibility.decided_true && !table.rules.read.is_uniformly_readable() {
             let allowance = [(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))];
             if self.meter.cut == crate::meter::Cut::Abort { self.authorized_scan(&allowance, |_, _| Ok(()))?; }
             else { self.authorized_scratch(self.rule_scratch(&table.rules.read), &allowance, |_, _| Ok(()))?; }
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     }
 
     // @ref LLP 3000.014#5-what-derives-from-the-capture — source invalidation is schema-derived, including empty and denied groups.
@@ -456,8 +457,7 @@ impl<'r> Runner<'r> {
         let mut admitted = !parent_pinned && (self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         let mut prefix_expiry = super::expiry::Pending::default();
         self.private_scan_authority(&scan.table, visibility.uniform, admitted)?;
-        self.reserve_delivered_scan(table, visibility, admitted)?;
-        if self.read_capped() { return Ok(None); }
+        self.reserve_delivered_scan(table, visibility, admitted, false)?;
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -926,8 +926,10 @@ impl<'r> Runner<'r> {
         let parent_pinned = table.through.as_ref().is_some_and(|t| index.columns().iter().take(prefix.len()).any(|f| f == &t.reference));
         let always_visible = aggregate_parent == Some(true) || !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
-        if word.is_none() { self.reserve_delivered_scan(table, visibility, always_visible)?; }
-        if self.read_capped() { return Ok((Vec::new(), Vec::new())); }
+        let delivered = word.is_none() && self.reserve_delivered_scan(table, visibility, always_visible, true)?;
+        // Stop only a device's logical admission cut; preauthorized server
+        // and matching lanes retain their attempted-read charges.
+        if delivered && self.read_capped() { return Ok((Vec::new(), Vec::new())); }
         // @ref LLP 3000.036#12 — a row-independent grant (a staff role, a
         // service seat) that holds for this caller makes every row readable:
         // the page is decided once, as a uniform page is. Its static probe
