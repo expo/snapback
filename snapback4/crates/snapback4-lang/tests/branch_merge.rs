@@ -190,6 +190,47 @@ fn owner_or_staff_is_one_query_complete_for_everyone() {
 }
 
 #[test]
+fn a_capped_fixed_probe_remains_an_ordinary_static_grant() {
+    let source = "table access:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  cap 16 by principal
+  read <- allow
+  online only
+
+table items:
+  owner: principal
+  bucket: int
+  score: int
+  read <- .owner = viewer or exists access[0, viewer]
+  online only
+
+query items(bucket: int, c: cursor ?):
+  return items where .bucket = bucket last 1 by .score after c
+";
+    let b = clean(source);
+    assert_eq!(branch_merges(&b, "items").first().map(|merge| merge.0), Some(2));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+
+    let rows = vec![
+        ("access", vec![("id", id("a1")), ("bucket", Value::Int(0)), ("principal", id("alice"))]),
+        ("items", vec![("id", id("i1")), ("owner", id("bob")), ("bucket", Value::Int(1)), ("score", Value::Int(1))]),
+        ("items", vec![("id", id("i2")), ("owner", id("alice")), ("bucket", Value::Int(1)), ("score", Value::Int(2))]),
+        ("items", vec![("id", id("i3")), ("owner", id("bob")), ("bucket", Value::Int(2)), ("score", Value::Int(3))]),
+    ];
+    let mut e = engine(source, rows);
+    let bucket = [("bucket", Value::Int(1))];
+    let (granted, complete) = walk(&mut e, "items", "alice", &bucket);
+    assert_eq!(granted, ["i2", "i1"]);
+    assert!(complete.into_iter().all(|value| value));
+    let (owned, complete) = walk(&mut e, "items", "bob", &bucket);
+    assert_eq!(owned, ["i1"]);
+    assert!(complete.into_iter().all(|value| value));
+}
+
+#[test]
 fn a_grant_the_caller_cannot_read_keeps_the_single_read() {
     // A hidden roster (`read <- deny`) is not a usable grant (LLP 3000.036 §12.1):
     // the page reads as written and stays never complete.

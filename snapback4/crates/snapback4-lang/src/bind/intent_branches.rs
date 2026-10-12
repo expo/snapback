@@ -162,6 +162,10 @@ fn owner_membership_shape(tables: &Tables, read: &ReadExpr) -> bool {
 
 fn membership_probe_capped(tables: &Tables, predicate: &Expr) -> bool {
     let Expr::Exists { read, .. } = predicate else { return false };
+    // PAGE reserves only a probe with one target-row component. A fully fixed
+    // capped probe is an ordinary static grant and remains eligible for the
+    // older branch merge.
+    if membership_target(predicate).is_none() { return false; }
     let Some(table) = tables.get(&read.table) else { return false };
     let columns = if read.keys.iter().all(|key| key.column.is_some()) {
         read.keys.iter().filter_map(|key| key.column.clone()).collect::<Vec<_>>()

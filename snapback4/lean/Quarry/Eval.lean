@@ -306,6 +306,16 @@ def Term.fixedExpr : Term → Option Expr
   | .lit v => some (.lit (.s v))
   | _ => none
 
+/-- The single target-row column in a membership probe, including `id` for
+the fallback fence. A fully fixed probe is an ordinary static grant. -/
+def membershipTarget (key : List (String × Term)) : Option String := do
+  let dynamic := key.filterMap fun p => match p.2 with
+    | .col .self outer => some outer
+    | _ => none
+  let [target] := dynamic | none
+  if key.all (fun p => p.2.fixedExpr.isSome || p.2 == .col .self target)
+  then some target else none
+
 /-- The one row-dependent `(source column, target column)` of a membership
 probe. Every other exact-key component must be viewer/literal fixed. -/
 def membershipColumns (key : List (String × Term)) : Option (String × String) := do
@@ -358,7 +368,8 @@ def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
         | none => false
         | some td =>
           let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
-          td.caps.any fun cap => cap.columns.all fun c => fixed.any (·.1 == c)
+          (membershipTarget key).isSome
+            && td.caps.any fun cap => cap.columns.all fun c => fixed.any (·.1 == c)
     topOr && party && membership && capped
 
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its

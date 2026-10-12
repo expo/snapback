@@ -101,10 +101,12 @@ def roomStore : Store := mkStore [
                 mkRow "x3" [("roomId", I "r2"), ("body", T "secret")]])]
 
 /-- LLP 3000.036 §12.1's staff console: `read <- .owner = viewer or exists
-staff[viewer]`, with each staff member able to read their own staff row
-(`hiddenRoster`: nobody can, `read <- deny`). -/
+staff[viewer]`, with each staff member able to read their own capped staff row.
+The fully fixed probe remains a static grant (`hiddenRoster`: nobody can read
+it, `read <- deny`). -/
 def console (hiddenRoster : Bool := false) : Schema := { tables := [
   { name := "staff", cols := [c "principal"], uniques := [["principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
     read := if hiddenRoster then .deny else .eq (self "principal") .viewer },
   { name := "tickets", cols := [c "owner"]
     read := .or (.eq (self "owner") .viewer) (.probe "staff" [("principal", .viewer)]) }] }
