@@ -455,6 +455,9 @@ pub fn features(case: &Case) -> Vec<String> {
         && matches!(body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
     if membership_branch {
         out.push("branch-rule-membership".into());
+        if case.program.membership_named_reordered {
+            out.push("branch-rule-membership-named-reordered".into());
+        }
     }
     if where_branch || rules[0] == Rule::TwoParty || membership_branch {
         let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
@@ -692,6 +695,7 @@ fn membership_page(case: &mut Case, seed: u64) {
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
     case.program.guard = None;
+    case.program.membership_named_reordered = rng.pick(2) == 0;
 }
 
 /// The variants of the first two streams (`generate`).

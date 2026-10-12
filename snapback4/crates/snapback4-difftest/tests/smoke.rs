@@ -265,6 +265,7 @@ fn lean_generator_reaches_a_capped_unpinned_membership_page() {
         let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
         read == &Rule::OwnerOrWitness
             && case.program.domain.as_deref() == Some("true")
+            && case.program.membership_named_reordered
             && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
     }).expect("membership-page stream must be reachable");
     let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
@@ -272,7 +273,11 @@ fn lean_generator_reaches_a_capped_unpinned_membership_page() {
     assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
     let features = snapback4_difftest::lean::features(&case);
     assert!(features.iter().any(|feature| feature == "branch-rule-membership"), "{features:?}\n{}", case.program.source());
+    assert!(features.iter().any(|feature| feature == "branch-rule-membership-named-reordered"), "{features:?}\n{}", case.program.source());
     assert!(features.iter().any(|feature| feature == "branch-merged"), "{features:?}\n{}", case.program.source());
+    let coverage = snapback4_difftest::coverage::features(&case);
+    assert!(coverage.contains("read/branch-rule-membership-named-reordered"), "{coverage:?}");
+    assert!(case.program.source().contains("exists access[principal = viewer, bucket = .bucket]"));
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

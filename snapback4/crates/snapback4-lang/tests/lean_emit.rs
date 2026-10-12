@@ -243,6 +243,29 @@ query documents(c: cursor ?):
 }
 
 #[test]
+fn reordered_named_membership_key_emits_the_same_page_fragment() {
+    let source = |probe| format!("table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[{probe}]
+  online only
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    let positional = module(&source(".parent, viewer"));
+    let named = module(&source("principal = viewer, parent = .parent"));
+    assert_eq!(body(&named, "documents"), body(&positional, "documents"));
+}
+
+#[test]
 fn membership_page_gate_prices_filter_pins_and_synthesized_labels() {
     let filtered = |folder_bound| format!("table memberships:
   parent: text <=100

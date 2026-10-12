@@ -31,7 +31,12 @@ pub fn features(case: &Case) -> BTreeSet<String> {
     let where_branch = case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "));
     if where_branch || read_rule == Some(&Rule::TwoParty) || membership_branch {
         out.insert("read/branch-shape".into());
-        if membership_branch { out.insert("read/branch-rule-membership".into()); }
+        if membership_branch {
+            out.insert("read/branch-rule-membership".into());
+            if case.program.membership_named_reordered {
+                out.insert("read/branch-rule-membership-named-reordered".into());
+            }
+        }
         let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
         let merged = bound.programs.iter().filter(|p| p.program.name == "run")
             .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));

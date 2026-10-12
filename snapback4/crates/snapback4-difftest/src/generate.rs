@@ -236,6 +236,7 @@ pub fn base(seed: u64) -> Case {
             residual: None,
             domain: None,
             guard: None,
+            membership_named_reordered: false,
             prelude: vec![],
             time_arg: false,
             arg_bound: None,

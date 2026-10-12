@@ -180,6 +180,20 @@ query run(c: cursor ?):
 }
 
 #[test]
+fn reordered_named_membership_key_agrees_with_the_model() {
+    if !model_built() { return; }
+    let case = (0..2_000)
+        .map(lean::generate)
+        .find(|case| case.program.membership_named_reordered)
+        .expect("named membership-page stream must be reachable");
+    let source = case.program.source();
+    assert!(source.contains("exists access[principal = viewer, bucket = .bucket]"), "{source}");
+    execute::compile(&source).unwrap();
+    let checked = lean::compare(&case, &source).unwrap();
+    assert!(matches!(checked.verdict, Verdict::Pass), "{:?}\n{source}", checked.verdict);
+}
+
+#[test]
 fn canonical_values_and_signatures() {
     use snapback4_core::Value;
     let row: Value = Value::Row([("id".to_string(), Value::Id("r0".into())), ("n".to_string(), Value::Int(-3)), ("t".to_string(), Value::String("é".into()))].into_iter().collect());

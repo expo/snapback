@@ -454,6 +454,10 @@ pub struct Program {
     /// `if` (LLP 3000.036 §15.4; Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guard: Option<String>,
+    /// Spell the owner-or-membership probe with reordered named key arguments
+    /// (`principal = viewer, bucket = .bucket`) instead of positional arguments.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub membership_named_reordered: bool,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -518,6 +522,14 @@ impl Program {
     }
     pub fn source(&self) -> String {
         let mut declarations = self.tables.iter().map(Table::source).collect::<Vec<_>>();
+        if self.membership_named_reordered {
+            for declaration in &mut declarations {
+                *declaration = declaration.replace(
+                    ".owner = viewer or exists access[.bucket, viewer]",
+                    ".owner = viewer or exists access[principal = viewer, bucket = .bucket]",
+                );
+            }
+        }
         if self.helper {
             declarations.push("fn identity(x: int): x\n".into());
         }
