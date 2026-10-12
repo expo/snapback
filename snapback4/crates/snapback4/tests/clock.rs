@@ -780,8 +780,7 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     let morning = &advanced["schedules"][1];
     assert_eq!(morning["period"], "every 1d at 06:00 UTC");
     if morning["fired"] == false { assert!(morning["reason"].as_str().unwrap().contains("schedule times are UTC"), "{advanced}"); }
-    let first_ticks = 1 + i64::from(morning["fired"].as_bool().unwrap());
-    assert_eq!(host.query("counters")[0]["n"], first_ticks, "{advanced}");
+    assert_eq!(host.query("counters")[0]["n"], 1, "{advanced}");
     drop(host);
     let (host, log) = start(&["dev", "--no-watch"]);
     assert!(log.contains("schedule ticker is held until") && log.contains("--resume-clock"), "{log}");
@@ -799,9 +798,7 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert!(log.contains("--resume-clock: offset +") && !log.contains("N_CLOCK_STORE_AHEAD") && !log.contains("is held until"), "{log}");
     let resumed = host.post("/dev/clock/advance", json!({"duration":"1h"}));
     assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
-    // Either advance can cross 06:00 UTC; both schedules run the same job.
-    let resumed_ticks = 1 + i64::from(resumed["schedules"][1]["fired"].as_bool().unwrap());
-    assert_eq!(host.query("counters")[0]["n"], first_ticks + resumed_ticks, "{resumed}");
+    assert_eq!(host.query("counters")[0]["n"], 2, "{resumed}");
 }
 
 // Wave 4 of the app farm: the time card's look-back sweep catches up
