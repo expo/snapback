@@ -149,16 +149,36 @@ fn pin(table: &TableInfo, conjunct: &Expr) -> bool {
 }
 
 /// The planned read's prefix decides the read rule: every column the rule
-/// reads is pinned (with the self-witness proof), or a `.col = viewer`
-/// disjunct's column is pinned to `viewer` (the core's `rule_true`).
+/// reads is pinned (with the self-witness proof), or the rule is true by the
+/// pins' form (the core's `rule_true`, and the Lean model's `Rule.byForm`).
 pub(super) fn decided(tables: &Tables, planned: &ReadExpr) -> bool {
     let Some(table) = tables.get(&planned.table) else { return false };
     if super::intent_lanes::prefix_decides_rule(tables, planned) { return true; }
-    let Some(rule) = read_rule(table) else { return false };
-    let mut list = Vec::new();
-    disjuncts(rule, &mut list);
-    list.iter().filter_map(|disjunct| party(table, disjunct))
-        .any(|column| planned.keys.iter().any(|key| key.column.as_deref() == Some(column.as_str()) && is_viewer(&key.value)))
+    read_rule(table).is_some_and(|rule| by_form(rule, planned))
+}
+
+/// `allow`, `.col = viewer` pinned to `viewer`, `.col = 'x'` pinned to `'x'`,
+/// and `or`/`and` of those.
+fn by_form(rule: &Expr, planned: &ReadExpr) -> bool {
+    let pinned = |column: &str| planned.keys.iter().find(|key| key.column.as_deref() == Some(column)).map(|key| &key.value);
+    match rule {
+        Expr::Name { name, .. } if name == "allow" => true,
+        Expr::Binary { op, left, right, .. } if op == "or" => by_form(left, planned) || by_form(right, planned),
+        Expr::Binary { op, left, right, .. } if op == "and" => by_form(left, planned) && by_form(right, planned),
+        Expr::Binary { op, left, right, .. } if op == "=" => {
+            let (column, value) = match (intent::column(left), intent::column(right)) {
+                (Some(column), None) => (column, right.as_ref()),
+                (None, Some(column)) => (column, left.as_ref()),
+                _ => return false,
+            };
+            match (value, pinned(column)) {
+                (value, Some(pin)) if is_viewer(value) => is_viewer(pin),
+                (Expr::Literal { value, .. }, Some(Expr::Literal { value: pin, .. })) => value == pin && *value != Literal::Null,
+                _ => false,
+            }
+        }
+        _ => false,
+    }
 }
 
 fn read_rule(table: &TableInfo) -> Option<&Expr> {
@@ -201,6 +221,10 @@ fn total(value: &Expr) -> bool {
         Expr::Literal { .. } | Expr::Name { .. } | Expr::Focal { .. } => true,
         Expr::Member { base, .. } => total(base),
         Expr::Unary { op, value, .. } => op == "not" && total(value),
+        // A time window (`now - 7d`): the server clock plus a literal far from the
+        // integer bounds, the same value for every row, never an overflow.
+        Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "+" | "-") => matches!(left.as_ref(), Expr::Name { name, .. } if name == "now")
+            && matches!(right.as_ref(), Expr::Literal { value: Literal::Number(n), .. } if n.parse::<i64>().is_ok_and(|n| n.unsigned_abs() <= 1 << 52)),
         Expr::Binary { op, left, right, .. } => matches!(op.as_str(), "=" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "in") && total(left) && total(right),
         Expr::Array { items, .. } => items.iter().all(total),
         _ => false,

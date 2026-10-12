@@ -106,7 +106,12 @@ fn a_guarded_staff_branch_is_complete_and_check_agrees() {
 }
 
 #[test]
-fn a_guard_that_does_not_imply_the_grant_keeps_the_note_and_the_runtime_agrees() {
+fn a_guard_that_does_not_imply_the_grant_needs_no_proof_once_the_page_merges() {
+    // LLP 3000.036.001: `items last 50 by .at, .id` under `.owner = viewer or G`
+    // reads the grant's branch for holders and the owner's branch for everyone
+    // else, so whatever guard surrounds it, every caller's page is complete and
+    // `check` prints no note. The guard analysis of LLP 3000.036 §13.1 remains for
+    // pages the merge does not cover (arithmetic in the predicate, below).
     let manager = "exists staff[principal = viewer, role = 'manager']";
     let cases = [
         // Staff is weaker than the manager grant: an intern reaches the page.
@@ -125,11 +130,19 @@ fn a_guard_that_does_not_imply_the_grant_keeps_the_note_and_the_runtime_agrees()
         let source = desk(grant, query);
         let b = bound(&source);
         assert!(b.diagnostics.is_empty(), "{source}\n{:#?}", b.diagnostics);
-        let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("a caller without the grant reaches the page:\n{source}\n{:#?}", b.notes));
+        assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "the merged page is complete for every caller:\n{source}\n{:#?}", b.notes);
+        let mut merged = engine(&source);
+        let pairs: Vec<_> = [("c", Value::Null), ("open", Value::Bool(open))].into_iter().filter(|(k, _)| query.contains("open") || *k != "open").collect();
+        let outcome = merged.query("q", Context::new(outsider, args(&pairs))).unwrap();
+        assert!(outcome.complete, "{outsider} reads the owner's branch:\n{source}");
+        // With arithmetic on a row column the page keeps one index: the note
+        // names the grant, and the outsider's page is capped.
+        let single = source.replace("items last 50 by .at, .id", "items where .at + 1 > 0 last 50 by .at, .id");
+        let b = bound(&single);
+        let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("a caller without the grant reaches the page:\n{single}\n{:#?}", b.notes));
         assert!(n.message.contains("except for callers"), "{n}");
-        let mut engine = engine(&source);
-        let outcome = engine.query("q", Context::new(outsider, args(&[("c", Value::Null), ("open", Value::Bool(open))].into_iter().filter(|(k, _)| query.contains("open") || *k != "open").collect::<Vec<_>>()))).unwrap();
-        assert!(!outcome.complete, "{outsider} reaches the page without the grant, so the runtime answers capped:\n{source}");
+        let mut capped = engine(&single);
+        assert!(!capped.query("q", Context::new(outsider, args(&pairs))).unwrap().complete, "{outsider}:\n{single}");
     }
 }
 
@@ -149,7 +162,10 @@ fn an_if_guarded_staff_pass_is_admitted_and_runs_for_staff() {
 
 #[test]
 fn a_never_complete_note_says_how_tests_and_clients_treat_the_page() {
-    let two_party = "table tasks:\n  owner: principal\n  assignee: principal\n  at: time\n  read <- .owner = viewer or .assignee = viewer\n  insert <- .owner = viewer\n  online only\nquery mine(c: cursor ?):\n  return tasks last 20 by .at after c\n";
+    // The page merges its parties (LLP 3000.036.001) unless its predicate has arithmetic.
+    let merged = "table tasks:\n  owner: principal\n  assignee: principal\n  at: time\n  n: int\n  read <- .owner = viewer or .assignee = viewer\n  insert <- .owner = viewer\n  online only\nquery mine(c: cursor ?):\n  return tasks last 20 by .at after c\n";
+    assert!(note(&clean(merged), "N_NEVER_COMPLETE").is_none());
+    let two_party = &merged.replace("return tasks last 20", "return tasks where .n + 1 > 0 last 20");
     let b = bound(two_party);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
     for words in ["test.cases.jsonl", "the default passes it", "\"there may be more\", not an error", "one query per party"] {
@@ -160,7 +176,7 @@ fn a_never_complete_note_says_how_tests_and_clients_treat_the_page() {
     let repaired = format!("{}{declarations}\n", two_party.split("query mine").next().unwrap());
     assert!(note(&clean(&repaired), "N_NEVER_COMPLETE").is_none(), "{repaired}");
     // With a grant, the line says who expects `complete`.
-    let staffed = desk("exists staff[viewer]", "query q(c: cursor ?):\n  return items last 50 by .at, .id after c\n");
+    let staffed = desk("exists staff[viewer]", "query q(c: cursor ?):\n  return items where .at + 1 > 0 last 50 by .at, .id after c\n");
     let b = bound(&staffed);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap();
     assert!(n.message.contains("run it as a caller `exists staff[viewer]` admits to expect `complete`") && n.message.contains("the complete form for everyone is `if` on the grant, pinning `.owner` otherwise"), "{n}");

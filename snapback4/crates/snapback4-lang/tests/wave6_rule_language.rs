@@ -208,7 +208,15 @@ fn r1_two_parties_and_a_grant_print_one_query_per_party_each_with_the_grant() {
     assert!(complete["mgr"] && complete["sam"] && !complete["hal"], "{complete:?}");
     // Both parties on the row and the grant: 0.4.21 split per party and dropped the grant.
     let row = format!("{CHECKINS}table checkins:\n  credential: credentials\n  holder: principal\n  scanner: principal\n  at: time\n  immutable credential, holder, scanner\n  read <- .holder = viewer or .scanner = viewer or exists roles[viewer]\n  online only\n");
-    let all = "query allCheckins(c: cursor ?):\n  return checkins last 50 by .at after c\n";
+    // As written, the page merges both parties and the grant (LLP 3000.036.001):
+    // no note, and every caller's page is complete.
+    let merged = "query allCheckins(c: cursor ?):\n  return checkins last 50 by .at after c\n";
+    let b = clean(&format!("{row}{merged}"));
+    assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{:#?}", b.notes);
+    let mut e = engine(&format!("{row}{merged}"), checkin_rows(true));
+    for viewer in ["mgr", "hal", "sam", "zed"] { assert!(page(&mut e, "allCheckins", viewer, &[("c", Value::Null)]).0, "{viewer}"); }
+    // With arithmetic in the predicate it keeps one index: one query per party, each with the grant.
+    let all = "query allCheckins(c: cursor ?):\n  return checkins where .at + 1 > 0 last 50 by .at after c\n";
     let n = note(&bound(&format!("{row}{all}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert_eq!(query_names(&printed_form(&n)), ["allCheckinsAsHolder", "allCheckinsAsScanner"], "{n}");
     let complete = rewrite_admits_the_same_readers(&row, all, || checkin_rows(true), &["mgr", "hal", "sam", "zed"], &[("c", Value::Null)]);
@@ -223,10 +231,13 @@ fn r1_a_rule_with_a_party_no_pin_can_select_prints_no_form_and_says_so() {
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(!n.rewrite.contains("query everything"), "no code is printed: {n}");
     assert!(n.rewrite.contains("there is no single complete form") && n.message.contains("there is no single complete form: keep the query and expect `capped`"), "{n}");
-    // The two-disjunct shapes 0.4.21 printed correctly still print the same code.
+    // The two-disjunct shapes 0.4.21 printed correctly merge as written (LLP
+    // 3000.036.001); with arithmetic in the predicate they print the same code.
     let owner = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable reqs:\n  author: principal\n  at: time\n  read <- .author = viewer or exists staff[viewer]\n  online only\nquery q(c: cursor ?):\n  return reqs last 50 by .at after c\n";
-    let n = note(&bound(owner), "N_NEVER_COMPLETE").unwrap().clone();
-    assert_eq!(printed_form(&n), "query q(c: cursor ?):\n  if exists staff[viewer]:\n    return reqs last 50 by .at after c\n  return reqs where .author = viewer last 50 by .at after c", "{n}");
+    assert!(note(&bound(owner), "N_NEVER_COMPLETE").is_none());
+    let owner = owner.replace("return reqs last 50", "return reqs where .at + 1 > 0 last 50");
+    let n = note(&bound(&owner), "N_NEVER_COMPLETE").unwrap().clone();
+    assert_eq!(printed_form(&n), "query q(c: cursor ?):\n  if exists staff[viewer]:\n    return reqs where .at + 1 > 0 last 50 by .at after c\n  return reqs where .author = viewer and .at + 1 > 0 last 50 by .at after c", "{n}");
     assert!(n.rewrite.starts_with("Branch on the grant and pin `.author` for everyone else; together they return exactly the rows the read rule admits, and every page is complete:"), "{n}");
 }
 

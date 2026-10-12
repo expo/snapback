@@ -322,7 +322,10 @@ schedule drawEveryMinute every 1m: drawDue
 
 #[test]
 fn never_complete_names_the_missing_pin_as_code() {
-    let two_party = note("table swaps:
+    // LLP 3000.036.001: the two-party page now reads as the merge of its
+    // parties and is complete; arithmetic on a row column keeps the
+    // single-index plan, whose note prints one query per party.
+    let swaps = "table swaps:
   requester: principal
   owner: principal
   at: time
@@ -330,7 +333,10 @@ fn never_complete_names_the_missing_pin_as_code() {
   online only
 query mine(c: cursor ?):
   return swaps where .at > 0 first 20 by .id after c
-", "N_NEVER_COMPLETE");
+";
+    let merged = bound(swaps);
+    assert!(merged.diagnostics.is_empty() && !merged.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:#?}", merged.notes);
+    let two_party = note(&swaps.replace(".at > 0", ".at + 1 > 0"), "N_NEVER_COMPLETE");
     assert!(two_party.rewrite.contains("swaps where .requester = viewer") && two_party.rewrite.contains("swaps where .owner = viewer"), "{two_party}");
     let parent = note("table boards:
   owner: principal
@@ -362,6 +368,7 @@ query discussion(card: cards, c: cursor ?):
   online only
 table tickets:
   owner: principal
+  n: int
   read <- .owner = viewer or exists staff[viewer]
   online only
 query inbox(c: cursor ?):
@@ -370,10 +377,14 @@ query inbox(c: cursor ?):
 ";
     // LLP 3000.036 §12.1: the required, readable grant decides the page for
     // every caller who reaches it, so the guarded inbox has no note; unguarded,
-    // the note says staff pages are complete.
+    // the page merges the grant with the owner's range (LLP 3000.036.001) and
+    // has none either; with arithmetic on a row column, the note says staff
+    // pages are complete.
     let guarded = bound(staff_source);
     assert!(guarded.diagnostics.is_empty() && !guarded.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:#?}", guarded.notes);
-    let staff = note(&staff_source.replace("  require exists staff[viewer] else NOT_STAFF\n", ""), "N_NEVER_COMPLETE");
+    let unguarded = bound(&staff_source.replace("  require exists staff[viewer] else NOT_STAFF\n", ""));
+    assert!(unguarded.diagnostics.is_empty() && !unguarded.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:#?}", unguarded.notes);
+    let staff = note(&staff_source.replace("  require exists staff[viewer] else NOT_STAFF\n", "").replace("tickets first 20", "tickets where .n + 1 > 0 first 20"), "N_NEVER_COMPLETE");
     assert!(staff.message.contains("except for callers `exists staff[viewer]` admits") && staff.rewrite.contains("complete: true"), "{staff}");
 }
 
