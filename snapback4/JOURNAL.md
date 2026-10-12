@@ -92635,3 +92635,34 @@ File assets and the pinned-parent page guard each landed within their own
 branch's budget; together the Linux web device measures 651,704 B gzip,
 264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
 the reason in `metrics/wasm-budget.json`.
+
+
+## 2026-10-12 — W8C: wave 8 regressions and defects
+
+Worktree `sb4-ws-w8c`, continuing from clean `sb4-loop` (no earlier lane commits).
+R2 reset now primes adopted schedules at the reset clock inside the same
+transaction; a next crossed boundary fires once, and a bad reseed rolls it back.
+
+R1 extends the existing browser capture/IndexedDB journal to dev personas,
+scoped by backend, persona principal and storage namespace with no session
+epoch. Default persona web apps ship no device when nothing syncs. Public
+construction/ready reports unwritable configurations; private custody still
+recovers older intent under known-sync and unknown schema decisions. Opening
+failure and failed store retirement release runtime locks without dropping
+captures. The same capture/commit/marker/race tests run for sessions/personas;
+Chromium covers navigation, reload replay, principal isolation, schema changes,
+storage failure and reset. LLP 3000.013.000 §17 records the amendment and review
+dispositions; fresh Sol and Muse both returned READY. Muse plan calls hit
+quota 429, then the wrapper Meta fallback completed the reviews. Complete
+stdout is recorded, including the initial quota errors.
+
+R4 names readable pinned-parent runtime pages N_CONDITIONAL_COMPLETE rather
+than “never complete”, without changing the runtime authority proof. Capped
+fixture expectations that now complete say “now complete — update the case”.
+NA4 guide recipes and notes show the keyed parent guard, T[] complete read,
+audience branches and seller write authority; a readable parent alone is no
+proof about a copied child owner. NA2 diagnostics name stored cap keys, cap's
+E_CONSTRAINT, maintained sum spelling, principal lookup keys, redundant
+inherited aggregate rules and calendar-number/time units. Starters select
+journal/device from identity and schema; PageHook comments match matchRead.
+Validation and per-item commits are recorded in root WORKSTREAM-REPORT.md.
