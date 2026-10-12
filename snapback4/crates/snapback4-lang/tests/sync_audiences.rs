@@ -242,7 +242,7 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
 #[test]
 fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
     let card = snapback4_lang::guide::card("sharing").unwrap();
-    for recipe in ["### An owner or a team", "**A buyer and a seller.**", "**A tenant and the staff.**", "**An org roster.**", "**A team the owner manages, and children of the team.**", "**Open groups.**"] {
+    for recipe in ["### An owner or a team", "**A buyer and a seller.**", "**A tenant and the staff.**", "**An org roster.**", "**A team the owner manages, and children of the team.**", "**Open groups.**", "**A staff console, online.**", "### A group's private list, complete", "### An explicit parties table", "### Separate tables for tenant and staff"] {
         assert!(card.contains(recipe), "{recipe}");
     }
     let reference = card.split_once("## Reference").unwrap().1;
@@ -252,7 +252,7 @@ fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
     // Union recipes, the online staff console, explicit membership alternatives,
     // open groups and the private group list; tests/guide.rs compiles them too.
     let blocks = snapback4_lang::guide::quarry(card);
-    assert_eq!(blocks.len(), 13);
+    assert_eq!(blocks.len(), 12);
     for block in &blocks { clean(block); }
     // The union recipes really sync as unions.
     for block in &blocks[..4] {
