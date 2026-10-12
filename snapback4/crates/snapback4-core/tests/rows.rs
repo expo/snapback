@@ -141,16 +141,15 @@ fn adoption_names_legacy_index_count_and_rewrites_can_shrink_or_delete() {
 mod acquisition;
 fn mixed_acquisition(hidden: usize, readable: usize, deleted_selected: bool) -> (String, String) {
     let acquisition::Fixture { stream, snapshots: pages, .. } = acquisition::mixed_acquisition(hidden, readable, deleted_selected);
-    assert_eq!(stream.events.len(), readable.min(2));
-    assert!(stream.events.iter().all(|e| e.data.as_ref().unwrap().field("body").unwrap() == &Value::String("bob".into())));
-    assert_eq!(stream.acquisitions.len(), 2);
-    assert_eq!(stream.acquisitions[1].floor.as_deref() == Some("whole"), readable < 2);
+    // A public audience cannot acquire from an obsolete group join.
+    assert!(stream.events.is_empty() && stream.acquisitions.is_empty());
     let mut snapshots = Vec::new(); let mut floors = Vec::new();
     for page in pages {
         snapshots.extend(page.events); floors.extend(page.acquisitions.into_iter().filter_map(|a| a.floor));
     }
     assert_eq!(snapshots.len(), readable.min(2));
-    assert_eq!(floors, vec![stream.acquisitions[1].floor.clone().unwrap()]);
+    assert_eq!(floors.len(), 1);
+    assert_eq!(floors[0] == "whole", readable < 2);
     (serde_json::to_string(&stream).unwrap(), serde_json::to_string(&snapshots).unwrap())
 }
 
@@ -186,7 +185,7 @@ fn successful_activation_drops_the_retired_row_log_index() {
 
 #[test]
 fn renewal_chains_stop_at_expiry_scope_and_same_commit_revocation() {
-    use snapback4_core::{partition, schema::Horizon, value::canonical_json};
+    use snapback4_core::{partition, value::canonical_json};
     // (sequence, time, kind, expiry). Equality with expiry is already a gap;
     // a scope breaks authority even when the next join has the same sequence.
     let cases = [
@@ -197,8 +196,7 @@ fn renewal_chains_stop_at_expiry_scope_and_same_commit_revocation() {
         (vec![(2,2,"join",Some(1000)),(3,500,"join",Some(1500))], None),
     ];
     for (steps, expected) in cases { for limit in [1, 1000] {
-        let mut schema = common::schema(); schema.tables.remove("messages");
-        schema.tables.get_mut("writes").unwrap().sync.as_mut().unwrap().horizon = Some(Horizon { last: 2, by: "byBucket".into() });
+        let schema = acquisition::roster_schema();
         let mut engine = snapback4_core::Engine::memory(schema.clone(), []).unwrap();
         engine.seed_at((0..3).map(|n| ("writes".into(), object([("id",Value::Id(format!("r{n}"))),("bucket",Value::Int(n)),("body",Value::String("bob".into()))]))), 1).unwrap();
         let tx = engine.store_mut().transaction().unwrap();
@@ -208,6 +206,9 @@ fn renewal_chains_stop_at_expiry_scope_and_same_commit_revocation() {
             let data = if *kind == "join" { object([("expiresAt",expiry.map_or(Value::Null, Value::Int))]) } else { Value::Array(vec![]) };
             tx.append_log("p:bob", *seq, ord as u32, "writes", kind, "[]", Some(&canonical_json(&data))).unwrap();
         }
+        let lifetime = steps.iter().rev().find(|(_,_,kind,_)| *kind == "join").and_then(|(_,_,_,expiry)| *expiry);
+        let member = object([("id", Value::Id("staff-bob".into())), ("person", Value::Id("bob".into())), ("until", lifetime.map_or(Value::Null, Value::Int))]);
+        tx.put("staff", &schema.tables["staff"], &member, None).unwrap();
         let mut from = 1; let mut puts = Vec::new(); let mut markers = Vec::new();
         loop {
             let page = partition::stream(&tx, &schema, "bob", from, limit, 1800).unwrap();

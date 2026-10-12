@@ -529,8 +529,14 @@ for (const snapshot of [false, true]) test(`wasm review mixed-readable generated
     for (const [i, page] of f.pages.entries()) ok(await core.call({ op: "apply", first: snapshot && i === 0, page }));
     const query = c => core.call({ op: "query", name: "timeline", viewer: "bob", args: { c }, now: 3 }).then(ok);
     const read = await query(null);
-    assert.deepEqual(ids(read), f.readable ? ["r2", "r1"] : []); assert.equal(read.complete, true); assert.equal(read.unknown, false);
     const floors = (await persist.load(f.name)).filter(e => e.s === "m" && e.k.startsWith("device:acquisition-boundaries:")).map(e => e.v);
+    if (!snapshot) {
+      assert.equal(read.complete, false); assert.equal(read.unknown, true);
+      assert.deepEqual(floors, [], "an obsolete join cannot certify a public window");
+      observations.push({ pages: f.pages, read, floors });
+      continue;
+    }
+    assert.deepEqual(ids(read), f.readable ? ["r2", "r1"] : []); assert.equal(read.complete, true); assert.equal(read.unknown, false);
     assert.deepEqual(floors, [f.floor]);
     if (f.readable) {
       const below = await query(read.next); assert.equal(below.complete, false); assert.equal(below.unknown, true); assert.deepEqual(below.data, []);
@@ -551,7 +557,7 @@ for (const retained of [false, true]) for (const staged of [false, true]) test(`
   await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
   await post("/seed", [{ table: "posts", row: { id: "p4", group: "g", at: 4000 } }]);
   const first = await post("/sync", { from: before.watermark, stream: true, limit: 1 });
-  assert.deepEqual(first.events.map(e => e.id), ["p4", "p3"]); assert.equal(first.more, true);
+  assert.deepEqual(first.events.filter(e => e.kind === "put").map(e => e.id), ["p4", "p3"]); assert.equal(first.more, true);
   const floor = first.acquisitions[1].floor;
   ok(await core.call({ op: "apply", page: { ...first, snapshot_catchup: staged } }));
   for (const id of ["below", "duplicate-below"]) assert.equal((await post("/m/move", { id, args: { p: "p4", at: 500 } })).state, "sent");

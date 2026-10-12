@@ -92699,3 +92699,30 @@ their existing rows and boundaries; a scope names only the acquired group,
 never an id deleted in the acquiring commit. R2 keeps column-arm rows.
 The new traces run both real stores at page sizes 1 and 1,000, covering
 markers, live renewal, expired replacement and genuine acquisition.
+
+
+## 2026-10-12 — UNION revision 8: final bounded-round corrections
+
+The round-7 pair returned GPT NOT READY and Muse READY WITH CHANGES.
+GPT found lifetime column interpretation was incomplete in the epoch key,
+and old roster joins could synthesize a malformed scope after removal.
+The identity now includes authored/effective lifetime type/default and the
+membership through capture. Membership history and join expansion both
+require a current group audience. Regressions cover the expiry-default
+activation/sweep disclosure trace and every earlier watermark after roster
+removal on both real stores, at page sizes 1 and 1,000.
+The requested two further review rounds are exhausted. Revision 8 is not
+claimed reviewed or READY, and the RFC stays Draft. The remaining named
+coverage and hardening requests, including the late round-5 Muse review,
+are tracked in issues/20261012-union-bounded-review-followups.md.
+
+
+Revision 8 also limits the replacement scope to a live post-epoch
+acquisition with no ledger predecessor (plus the existing expired-
+predecessor case). Ordinary initial acquisitions keep their prior wire
+protocol. This is the conservative path needed for an epoch's missing
+baseline, not a new scope on every initial join. The old hand-written
+public-join fixture now verifies that obsolete joins cannot certify a public
+window; its snapshot privacy checks remain, and renewal fixtures use a
+real admitted roster audience. Both real stores and the wasm fixture
+consumer exercise that distinction.

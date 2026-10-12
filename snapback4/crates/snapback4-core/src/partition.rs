@@ -835,7 +835,10 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
         let reading = |owner: &crate::schema::Table, column: &String| (column.clone(), owner.columns.get(column).cloned(), owner.defaults.get(column).cloned());
         let content: Vec<_> = prefix.iter().map(|column| reading(table, column)).collect();
         let members: Vec<_> = binding.columns.iter().chain([&binding.principal]).map(|column| reading(target_table, column)).collect();
-        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, target_table.expire, table.through.as_ref().map(|t| &t.identity)])))
+        let lifetime = target_table.expire.as_ref().map(|column| reading(target_table, column));
+        let effective = target_table.expiry_column().map(|column| reading(target_table, &column.to_owned()));
+        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, lifetime, effective,
+            target_table.through, table.through.as_ref().map(|t| &t.identity)])))
     };
     schema.synced().filter(|(_, _, sync)| matches!(sync.audience, Audience::Target { .. }))
         .filter(|(name, _, _)| key(schema, name) != key(previous, name))
@@ -864,7 +867,9 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
     }
     // @ref LLP 3000.036.000.000#9 — joins and scopes logged under an audience the table no longer syncs to are not this audience's history.
     let epochs = audience_epochs(tx, schema)?;
-    let current_epoch = |event: &LogEvent| event.seq >= epochs.get(&event.table).copied().unwrap_or(0);
+    let current_epoch = |event: &LogEvent| schema.table(&event.table).and_then(|table| table.sync.as_ref())
+        .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. }))
+        && event.seq >= epochs.get(&event.table).copied().unwrap_or(0);
     // @ref LLP 3000#7 — a content page cannot establish authority from a truncated ledger.
     let previous: BTreeMap<_, _> = tx.memberships_before(&partition_of(principal), watermark)?.into_iter().filter(current_epoch).map(|event| ((event.table.clone(), event.id.clone()), event)).collect();
     let mut transitions: BTreeMap<(String, String), Vec<LogEvent>> = BTreeMap::new();
@@ -1160,6 +1165,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         if !live_join_chain(spans, start, &commit_times, now) { continue; }
         let Some(table) = schema.table(&event.table) else { continue };
         let Some(sync) = &table.sync else { continue };
+        if !matches!(sync.audience, Audience::Target { .. }) { continue; }
         let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;
         // A catch-up spanning an expired grant and its replacement must
         // retire the old until-revoked image before acquiring the new one.
@@ -1169,10 +1175,11 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
             && span.expires_at.is_some_and(|expiry| commit_times.get(&event.seq).is_some_and(|at| *at >= expiry)));
         let continuous = predecessor.is_some_and(|span| continuous_renewal(span, event.seq, event.ord, &commit_times));
         if continuous { continue; }
-        // @ref LLP 3000.036.000.000#4.4 — a live acquisition replaces the until-revoked group, including stale copies from before an epoch.
+        // @ref LLP 3000.036.000.000#4.4 — a first post-epoch acquisition with no predecessor replaces stale until-revoked copies.
         // This names only the group the currently live join chain grants,
         // never an id deleted in the acquiring commit. R2 keeps column-arm rows.
-        if expired_predecessor || table.leave == crate::schema::LeavePolicy::UntilRevoked {
+        let epoch_acquisition = predecessor.is_none() && tx.audience_epoch(&event.table)? > 0;
+        if expired_predecessor || epoch_acquisition && table.leave == crate::schema::LeavePolicy::UntilRevoked {
             let scope = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) };
             out.push(scope);
         }

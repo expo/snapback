@@ -1535,3 +1535,60 @@ fn a_first_post_epoch_renewal_keeps_history_without_granting_acquisition_history
         }
     }
 }
+
+#[test]
+fn an_expiry_default_change_starts_a_new_epoch_and_discloses_no_expired_ids() {
+    let source = "table members:\n  group: text <=10\n  person: principal\n  until: time ?\n  immutable group, person\n  unique group, person\n  expire at .until\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  sync\ntable notes:\n  group: text <=10\n  body: text <=10\n  read <- exists members[.group, viewer]\n  insert <- allow\n  delete <- allow\n  sync\nmutation remove(note: notes):\n  delete notes[note]\n  return null\n";
+    let old = compiled(source);
+    let new = compiled(&source.replace("until: time ?", &format!("until: time default {}", NOW + 200)));
+    let changed = snapback4_core::partition::changed_group_audiences(Some(&old.0), &new.0);
+    assert!(changed.contains(&"notes".into()), "{changed:?}");
+    for limit in [1, 1_000] {
+        let mut engine = Engine::memory(old.0.clone(), old.1.clone()).unwrap();
+        let alice = object([("id", id("ma")), ("group", Value::String("g".into())), ("person", id(ALICE))]);
+        let bob = object([("id", id("mb")), ("group", Value::String("g".into())), ("person", id(BOB)), ("until", Value::Int(NOW + 1_000))]);
+        engine.seed_at([("members".into(), alice.clone()), ("members".into(), bob)], NOW).unwrap();
+        // Preserve an older stored image with its optional field omitted;
+        // activation interprets required literal defaults without storing them.
+        engine.store().conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'", [snapback4_core::value::canonical_json(&alice)]).unwrap();
+        engine.adopt_at(new.0.clone(), new.1.clone(), NOW + 100).unwrap();
+        let (_, from) = engine.snapshot_at(ALICE, NOW + 150).unwrap();
+        engine.seed_at([("notes".into(), object([("id", id("x")), ("group", Value::String("g".into())), ("body", Value::String("x".into()))]))], NOW + 250).unwrap();
+        let mut context = Context::system().at(NOW + 260);
+        context.args.insert("note".into(), id("x"));
+        assert!(matches!(engine.mutate("remove", Some("remove-x"), context).unwrap().state, WriteState::Sent { .. }));
+        engine.sweep_expired(NOW + 300, 100).unwrap();
+        let mut watermark = from;
+        loop {
+            let page = engine.stream_at(ALICE, watermark, limit, NOW + 310).unwrap();
+            assert!(page.events.iter().all(|event| !(event.table == "notes" && event.id == "x")), "Alice never read x: {page:?}");
+            watermark = page.watermark;
+            if !page.more { break; }
+        }
+    }
+}
+
+#[test]
+fn removed_roster_joins_never_expand_under_an_owner_only_audience() {
+    let old = compiled(STAFF);
+    let new = compiled(&STAFF.replace("read <- .owner = viewer or exists staff[viewer]", "read <- .owner = viewer"));
+    for limit in [1, 1_000] {
+        let mut engine = Engine::memory(old.0.clone(), old.1.clone()).unwrap();
+        engine.seed_at((staff_world().seed)(), NOW).unwrap();
+        engine.adopt_at(new.0.clone(), new.1.clone(), NOW + 1).unwrap();
+        let baseline = epoch_snapshot_trace(&mut engine);
+        mutate(&mut engine, ALICE, "open", &[], 2);
+        let head = engine.seq().unwrap();
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), schema: new.0.public_projection(), programs: new.1.clone() };
+        let expected = engine.query("mine", Context::new(ALICE, BTreeMap::new()).at(NOW + 10)).unwrap().data;
+        for from in 0..=head {
+            let mut trace = if from == 0 { Vec::new() }
+                else if from == head { epoch_snapshot_trace(&mut engine) }
+                else { baseline.clone() };
+            epoch_stream_trace(&mut engine, from, limit, &mut trace);
+            assert!(trace.iter().flat_map(|p| p["events"].as_array().unwrap()).all(|e| !(e["table"] == "requests" && e["kind"] == "scope")), "removed group scopes cannot reappear");
+            epoch_trace_applies(snapback4_device::memory::MemoryStore::new(), backend.clone(), &trace, "mine", &json!({}), &expected);
+            epoch_trace_applies(snapback4_core::Store::memory().unwrap(), backend.clone(), &trace, "mine", &json!({}), &expected);
+        }
+    }
+}
