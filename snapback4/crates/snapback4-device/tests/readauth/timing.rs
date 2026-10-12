@@ -124,7 +124,7 @@ fn probes<S:DeviceStore>(mut store:S) {
     }
     engine.seed(rows).unwrap();
     for name in ["point","scan","merged","page","total","probe"] {
-        for budget in [0,1] {
+        for budget in [0,1,2] {
             let out=local::query(&Overlay(&tx),&b.schema,program(name),context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100),Ceilings{rule_probes:budget,..Default::default()});
             let out=out.unwrap();
             engine.set_ceilings(Ceilings{rule_probes:budget,..Default::default()});
