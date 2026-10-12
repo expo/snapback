@@ -1,912 +1,1493 @@
 [
   {
     "index": 0,
-    "id": "local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore, dispatchStore)#1",
+    "id": "local.ts:read:call({ op: \"meta\", key: \"write-history\" })#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 1,
-    "id": "local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1",
+    "id": "local.ts:lookup:call({ op: \"meta\", key: \"write-history\", lookup: true })#1",
     "recipe": "lookup",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 2,
-    "id": "local-receipts.ts:receiptBatch:queued()#1",
+    "id": "local.ts:save:terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 3,
-    "id": "local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1",
+    "id": "local.ts:refreshAcquired:call({ op: \"sync_state\", capture: false })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 4,
-    "id": "local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1",
+    "id": "local.ts:captureStore:call({ op: \"sync_state\", capture: false })#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 5,
-    "id": "local-receipts.ts:syncSettledWrites:queued()#1",
+    "id": "local.ts:call:history.persistPending()#1",
     "recipe": "pending",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 6,
-    "id": "local-receipts.ts:syncSettledWrites:sync()#1",
+    "id": "local.ts:call:work#1",
     "recipe": "postcommit",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 7,
-    "id": "local-receipts.ts:recoverReceipt:history.read(id, true)#1",
+    "id": "local.ts:call:media?.reconcile( [\"apply\", \"admit\", \"settle\"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined)#1",
     "recipe": "media",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 8,
-    "id": "local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1",
+    "id": "local.ts:sendPost:captureStore()#1",
     "recipe": "query",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 9,
-    "id": "local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1",
+    "id": "local.ts:sendPost:withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode, () => !versionBlocked())))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 10,
-    "id": "local-receipts.ts:lookupWrite:queued()#1",
+    "id": "local.ts:sendPost:holds.record((body as { id: string }).id, why.code)#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 11,
-    "id": "local-receipts.ts:lookupWrite:history.lookup(id)#1",
+    "id": "local.ts:sendPost:refusedSession(denied, request.revision)#1",
     "recipe": "auth",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 12,
-    "id": "local-receipts.ts:lookupWrite:queued()#2",
+    "id": "local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1",
     "recipe": "query",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 13,
-    "id": "local-receipts.ts:lookupWrite:history.read(id)#1",
+    "id": "local.ts:syncRound:history.persistPending()#1",
     "recipe": "pending",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 14,
-    "id": "local-receipts.ts:lookupWrite:history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))#1",
+    "id": "local.ts:syncRound:call({ op: \"state\" })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 15,
-    "id": "local-receipts.ts:terminalDeviceCall:call(reply => { durable = reply; })#1",
+    "id": "local.ts:syncRound:call({ op: \"sync_state\" })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 16,
-    "id": "local-receipts.ts:readQueued:call({ op: \"queued\" })#1",
+    "id": "local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal))#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 17,
-    "id": "local-receipts.ts:resolveClosingWrites:queued().catch(() => [])#1",
+    "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#1",
     "recipe": "auth",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 18,
-    "id": "local-receipts.ts:resolveClosingWrites:(seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined)#1",
+    "id": "local.ts:syncRound:call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 19,
-    "id": "writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1",
+    "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#1",
     "recipe": "reset",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 20,
-    "id": "writes.ts:acknowledged:this.read(id, true)#1",
+    "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })#1",
     "recipe": "reset",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 21,
-    "id": "writes.ts:acknowledged:this.keep(sent)#1",
+    "id": "local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => loadBackend(doFetch, base, request.headers, signal))#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 22,
-    "id": "writes.ts:persistPending:this.keep(write)#1",
+    "id": "local.ts:syncRound:call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 23,
-    "id": "writes.ts:read:this.keep(known)#1",
+    "id": "local.ts:syncRound:refreshAcquired(true)#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 24,
-    "id": "writes.ts:read:this.storage?.read()#1",
+    "id": "local.ts:syncRound:installNative(aborter.signal)#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 25,
-    "id": "writes.ts:lookup:this.read(id)#1",
+    "id": "local.ts:syncRound:refusedSession(error.denied, backendRevision)#1",
     "recipe": "auth",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 26,
-    "id": "writes.ts:lookup:this.storage.lookup()#1",
+    "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#2",
     "recipe": "auth",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 27,
-    "id": "local-exit.ts:exitTransport:response.json()#1",
+    "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 28,
-    "id": "local-exit.ts:exitTransport:held?.(entry, why)#1",
+    "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#2",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 29,
-    "id": "local-exit.ts:exitTransport:refused?.(entry, why)#1",
+    "id": "local.ts:syncRound:refreshAcquired()#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 30,
-    "id": "local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1",
+    "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 31,
-    "id": "local-exit-settlement.ts:exitRefusalSettlement:work#1",
+    "id": "local.ts:syncRound:queued()#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 32,
-    "id": "local-assets.ts:call:this.core.call(request)#1",
+    "id": "local.ts:probe:captureStore()#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 33,
-    "id": "local-assets.ts:home:this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })#1",
+    "id": "local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 34,
-    "id": "local-assets.ts:save:this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })#1",
+    "id": "local.ts:probe:readResponse(response)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 35,
-    "id": "local-assets.ts:drop:this.store.remove(id)#1",
+    "id": "local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 36,
-    "id": "local-assets.ts:check:this.home(entry.id, entry.home)#1",
+    "id": "local.ts:probe:pauseRefusal(response, { ...denied, retryable: true }, aborter.signal)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 37,
-    "id": "local-assets.ts:check:this.drop(entry.id)#1",
+    "id": "local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 38,
-    "id": "local-assets.ts:check:this.drop(entry.id)#2",
+    "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": true
   },
   {
     "index": 39,
-    "id": "local-assets.ts:check:this.save()#1",
+    "id": "local.ts:waitForChange:probe()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 40,
-    "id": "request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)#1",
+    "id": "local.ts:waitForChange:probe()#2",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 41,
-    "id": "request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode) }))#1",
+    "id": "local.ts:waitForChange:captureStore()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 42,
-    "id": "request-wait.ts:postForCaller:readResponse(response, decode)#1",
+    "id": "local.ts:waitForChange:withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal))#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 43,
-    "id": "local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1",
+    "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 44,
-    "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1",
+    "id": "local.ts:waitForChange:pauseRefusal(response, json.denied, aborter.signal)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 45,
-    "id": "local-sync.ts:syncTransport:legacyInput(response)#1",
+    "id": "local.ts:waitForChange:witnessRestore(json.store_id, json.seq, capture)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 46,
-    "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1",
+    "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": true
   },
   {
     "index": 47,
-    "id": "device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1",
+    "id": "local.ts:follow:waitForChange()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 48,
-    "id": "local-backend.ts:loadBackend:readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })#1",
+    "id": "local.ts:follow:network.once()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 49,
-    "id": "local-native.ts:installNativeAttempt:call({ op: \"state\" })#1",
+    "id": "local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": true
   },
   {
     "index": 50,
-    "id": "local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1",
+    "id": "local.ts:flush:flushOnce()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 51,
-    "id": "local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1",
+    "id": "local.ts:flushOnce:exitDone#1",
     "recipe": "exit",
     "classification": "optional",
     "absorbs": true
   },
   {
     "index": 52,
-    "id": "local-native.ts:installNativeAttempt:response.arrayBuffer()#1",
+    "id": "local.ts:flushOnce:media?.reconcile()#1",
     "recipe": "media",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 53,
-    "id": "local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1",
+    "id": "local.ts:flushOnce:exitDone#2",
     "recipe": "exit",
     "classification": "optional",
     "absorbs": true
   },
   {
     "index": 54,
-    "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
+    "id": "local.ts:flushOnce:deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 55,
-    "id": "pending-writes.ts:record:revision()#1",
+    "id": "local.ts:flushOnce:queued().catch(() => { retryFlush(); return undefined; })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 56,
-    "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
+    "id": "local.ts:flushOnce:network.once()#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 57,
-    "id": "clock.ts:wrapped:fetcher(input, init)#1",
+    "id": "local.ts:flushOnce:network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; let current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const prepared = await uploads.prepare(current); if (!prepared) return { ok: false as const }; if (\"cancelled\" in prepared) { const why = { code: \"E_UPLOAD_CANCELLED\", family: \"asset\", message: \"upload-and-place intent cancelled before placement dispatch\" }; await settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding); return { ok: true as const, json: { state: \"failed\", why }, obsoleteAuth: false }; } current = prepared.entry; const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || versionBlocked() || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; let response = await post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok && current.upload && !response.obsoleteAuth) { const why = (response.json.why ?? response.json.denied) as Refusal | undefined; if (why && !why.retryable) { const receipt = await uploads.finish(current, why); if (!receipt) return { ok: false as const }; response = { ...response, json: receipt }; } } if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 58,
-    "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
+    "id": "local.ts:flushOnce:exitDone#3",
     "recipe": "exit",
     "classification": "optional",
     "absorbs": true
   },
   {
     "index": 59,
-    "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
+    "id": "local.ts:flushOnce:queued()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 60,
-    "id": "changes.ts:changeFeed:reader.read()#1",
+    "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 61,
-    "id": "changes.ts:changeFeed:response.json()#1",
-    "recipe": "ordinary",
+    "id": "local.ts:flushOnce:uploads.prepare(current)#1",
+    "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 62,
-    "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
-    "recipe": "recovery",
+    "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding)#1",
+    "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 63,
-    "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
+    "id": "local.ts:flushOnce:call({ op: \"begin_send\", id: entry.id })#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 64,
-    "id": "local-search.ts:decode:reader.read()#1",
-    "recipe": "ordinary",
+    "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)#1",
+    "recipe": "recovery",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 65,
-    "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
-    "recipe": "early",
-    "classification": "optional",
+    "id": "local.ts:flushOnce:post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response)#1",
+    "recipe": "ordinary",
+    "classification": "required",
     "absorbs": false
   },
   {
     "index": 66,
-    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
-    "recipe": "early",
-    "classification": "optional",
+    "id": "local.ts:flushOnce:uploads.finish(current, why)#1",
+    "recipe": "upload",
+    "classification": "required",
     "absorbs": false
   },
   {
     "index": 67,
-    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
+    "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding)#1",
     "recipe": "ordinary",
-    "classification": "optional",
+    "classification": "required",
     "absorbs": false
   },
   {
     "index": 68,
-    "id": "local-search.ts:ordinarySearch:blocked()#1",
+    "id": "local.ts:flushOnce:syncUnobserved()#1",
     "recipe": "early",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 69,
-    "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))#1",
+    "id": "local.ts:flushOnce:syncUnobserved()#2",
     "recipe": "early",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 70,
-    "id": "local-search.ts:ordinarySearch:blocked()#2",
+    "id": "local.ts:flushOnce:syncUnobserved(outcome.state === \"sent\")#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 71,
-    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })#1",
-    "recipe": "replay",
-    "classification": "required",
+    "id": "local.ts:flushOnce:syncUnobserved()#3",
+    "recipe": "early",
+    "classification": "optional",
     "absorbs": false
   },
   {
     "index": 72,
-    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })#1",
-    "recipe": "replay",
-    "classification": "required",
+    "id": "local.ts:flushOnce:syncUnobserved()#4",
+    "recipe": "early",
+    "classification": "optional",
     "absorbs": false
   },
   {
     "index": 73,
-    "id": "local-query.ts:route:env.installNative(env.signal)#1",
-    "recipe": "replay",
-    "classification": "required",
+    "id": "local.ts:flushOnce:syncUnobserved()#5",
+    "recipe": "ordinary",
+    "classification": "optional",
     "absorbs": false
   },
   {
     "index": 74,
-    "id": "local-query.ts:route:server()#1",
+    "id": "local.ts:replayOnOpen:captureStore()#1",
     "recipe": "replay",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 75,
-    "id": "local-query.ts:route:blocked()#1",
+    "id": "local.ts:replayOnOpen:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
     "recipe": "replay",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 76,
-    "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
-    "recipe": "exit",
+    "id": "local.ts:replayOnOpen:response.json()#1",
+    "recipe": "replay",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 77,
-    "id": "local-query.ts:route:local()#1",
-    "recipe": "exit",
+    "id": "local.ts:replayOnOpen:refusedSession(head.denied ?? head.why, request.revision)#1",
+    "recipe": "replay",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 78,
-    "id": "local-query.ts:route:routeLocal(first)#1",
-    "recipe": "exit",
+    "id": "local.ts:replayOnOpen:witnessRestore(head.store_id, head.seq, capture)#1",
+    "recipe": "replay",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 79,
-    "id": "http-response.ts:readResponse:decode(response)#1",
-    "recipe": "ordinary",
+    "id": "local.ts:commit:history.read(write.id, true)#1",
+    "recipe": "exit",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 80,
+    "id": "local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 81,
+    "id": "local.ts:listenForExit:holds.record(entry.id, why.code)#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 82,
+    "id": "local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore, dispatchStore)#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 83,
+    "id": "local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 84,
+    "id": "local-receipts.ts:receiptBatch:queued()#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 85,
+    "id": "local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1",
+    "recipe": "ordinary",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 86,
+    "id": "local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1",
+    "recipe": "acknowledgement",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 87,
+    "id": "local-receipts.ts:syncSettledWrites:queued()#1",
+    "recipe": "ordinary",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 88,
+    "id": "local-receipts.ts:syncSettledWrites:sync()#1",
+    "recipe": "ordinary",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 89,
+    "id": "local-receipts.ts:recoverReceipt:history.read(id, true)#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 90,
+    "id": "local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1",
+    "recipe": "recovery",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 91,
+    "id": "local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1",
+    "recipe": "recovery",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 92,
+    "id": "local-receipts.ts:lookupWrite:queued()#1",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 93,
+    "id": "local-receipts.ts:lookupWrite:history.lookup(id)#1",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 94,
+    "id": "local-receipts.ts:lookupWrite:queued()#2",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 95,
+    "id": "local-receipts.ts:lookupWrite:history.read(id)#1",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 96,
+    "id": "local-receipts.ts:lookupWrite:history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))#1",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 97,
+    "id": "local-receipts.ts:terminalDeviceCall:call(reply => { durable = reply; })#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 98,
+    "id": "local-receipts.ts:readQueued:call({ op: \"queued\" })#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 99,
+    "id": "local-receipts.ts:resolveClosingWrites:queued().catch(() => [])#1",
+    "recipe": "closing",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 100,
+    "id": "local-receipts.ts:resolveClosingWrites:(seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined)#1",
+    "recipe": "closing",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 101,
+    "id": "writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 102,
+    "id": "writes.ts:acknowledged:this.read(id, true)#1",
+    "recipe": "ordinary",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 103,
+    "id": "writes.ts:acknowledged:this.keep(sent)#1",
+    "recipe": "acknowledgement",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 104,
+    "id": "writes.ts:persistPending:this.keep(write)#1",
+    "recipe": "pending",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 105,
+    "id": "writes.ts:read:this.keep(known)#1",
+    "recipe": "pending",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 106,
+    "id": "writes.ts:read:this.storage?.read()#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 107,
+    "id": "writes.ts:lookup:this.read(id)#1",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 108,
+    "id": "writes.ts:lookup:this.storage.lookup()#1",
+    "recipe": "lookup",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 109,
+    "id": "local-exit.ts:exitTransport:response.json()#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 110,
+    "id": "local-exit.ts:exitTransport:held?.(entry, why)#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 111,
+    "id": "local-exit.ts:exitTransport:refused?.(entry, why)#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 112,
+    "id": "local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 113,
+    "id": "local-exit-settlement.ts:exitRefusalSettlement:work#1",
+    "recipe": "exit",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 114,
+    "id": "local-assets.ts:call:this.core.call(request)#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 115,
+    "id": "local-assets.ts:home:this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 116,
+    "id": "local-assets.ts:save:this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 117,
+    "id": "local-assets.ts:drop:this.store.remove(id)#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 118,
+    "id": "local-assets.ts:check:this.home(entry.id, entry.home)#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 119,
+    "id": "local-assets.ts:check:this.drop(entry.id)#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 120,
+    "id": "local-assets.ts:check:this.drop(entry.id)#2",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 121,
+    "id": "local-assets.ts:check:this.save()#1",
+    "recipe": "media",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 122,
+    "id": "request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)#1",
+    "recipe": "query",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 123,
+    "id": "request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode) }))#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 124,
+    "id": "request-wait.ts:postForCaller:readResponse(response, decode)#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 125,
+    "id": "local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1",
+    "recipe": "legacy",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 126,
+    "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1",
+    "recipe": "ordinary",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 127,
+    "id": "local-sync.ts:syncTransport:legacyInput(response)#1",
+    "recipe": "legacy",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 128,
+    "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1",
+    "recipe": "legacy",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 129,
+    "id": "device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1",
+    "recipe": "probe",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 130,
+    "id": "local-backend.ts:loadBackend:readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })#1",
+    "recipe": "adoption",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 131,
+    "id": "local-native.ts:installNativeAttempt:call({ op: \"state\" })#1",
+    "recipe": "adoption",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 132,
+    "id": "local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1",
+    "recipe": "native",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 133,
+    "id": "local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1",
+    "recipe": "native",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 134,
+    "id": "local-native.ts:installNativeAttempt:response.arrayBuffer()#1",
+    "recipe": "native",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 135,
+    "id": "local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1",
+    "recipe": "native",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 136,
+    "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
+    "recipe": "hold",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 137,
+    "id": "pending-writes.ts:record:revision()#1",
+    "recipe": "hold",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 138,
+    "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
+    "recipe": "hold",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 139,
+    "id": "clock.ts:wrapped:fetcher(input, init)#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 140,
+    "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
+    "recipe": "clock",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 141,
+    "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 142,
+    "id": "changes.ts:changeFeed:reader.read()#1",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 143,
+    "id": "changes.ts:changeFeed:response.json()#1",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 144,
+    "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 145,
+    "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 146,
+    "id": "local-search.ts:decode:reader.read()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 147,
+    "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 148,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 149,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 150,
+    "id": "local-search.ts:ordinarySearch:blocked()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 151,
+    "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 152,
+    "id": "local-search.ts:ordinarySearch:blocked()#2",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 153,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 154,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 155,
+    "id": "local-query.ts:route:env.installNative(env.signal)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 156,
+    "id": "local-query.ts:route:server()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 157,
+    "id": "local-query.ts:route:blocked()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 158,
+    "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 159,
+    "id": "local-query.ts:route:local()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 160,
+    "id": "local-query.ts:route:routeLocal(first)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 161,
+    "id": "http-response.ts:readResponse:decode(response)#1",
+    "recipe": "queryDecode",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 162,
     "id": "http-response.ts:readResponse:response.json()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 81,
+    "index": 163,
     "id": "uploads.ts:change:this.env.call(request)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 82,
+    "index": 164,
     "id": "uploads.ts:uploadAndPlace:blobArrayBuffer(bytes)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 83,
+    "index": 165,
     "id": "uploads.ts:uploadAndPlace:this.change({ op: \"admit_upload\", entry })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 84,
+    "index": 166,
     "id": "uploads.ts:uploads:this.env.queued()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 85,
+    "index": 167,
     "id": "uploads.ts:uploadIntent:this.env.queued()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 86,
+    "index": 168,
     "id": "uploads.ts:uploadIntent:this.env.write(id)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 87,
+    "index": 169,
     "id": "uploads.ts:retryUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"queued\" })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 88,
+    "index": 170,
     "id": "uploads.ts:discardUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"cancelling\" })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 89,
+    "index": 171,
     "id": "uploads.ts:serverUploads:this.env.capture()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 90,
+    "index": 172,
     "id": "uploads.ts:serverUploads:this.request(`${this.env.base}/assets/intents?store_id=${encodeURIComponent(capture.store_id)}&after=${encodeURIComponent(after)}`,{headers:credentials.headers})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 91,
+    "index": 173,
     "id": "uploads.ts:cancelServerUpload:this.env.capture()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 92,
+    "index": 174,
     "id": "uploads.ts:cancelServerUpload:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:\"POST\",headers:credentials.headers},true)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 93,
+    "index": 175,
     "id": "uploads.ts:request:response.json()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 94,
+    "index": 176,
     "id": "uploads.ts:request:work#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 95,
+    "index": 177,
     "id": "uploads.ts:request:waitForCaller(work, this.env.signal ?? new AbortController().signal,()=>acknowledged)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 96,
+    "index": 178,
     "id": "uploads.ts:finish:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/finish?store_id=${encodeURIComponent(entry.upload.store_id)}`, { method: \"POST\", headers: credentials.headers, body: JSON.stringify({ op: entry.op, args: entry.args, why: {code:why.code.slice(0,128),family:why.family.slice(0,128),message:why.message.slice(0,4096),retryable:false,...(why.guide?{guide:why.guide.slice(0,128)}:{})} }) })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 97,
+    "index": 179,
     "id": "uploads.ts:prepare:this.env.capture()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 98,
+    "index": 180,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: { code: \"E_STORE_REPLACED\", family: \"store\", message: \"upload belongs to its original viewer and backend store\" } })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 99,
+    "index": 181,
     "id": "uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/cancel?store_id=${encodeURIComponent(u.store_id)}`, { method: \"POST\", headers: credentials.headers })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 100,
+    "index": 182,
     "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"cancelling\",why:result.json.denied??storeError(\"cancellation acknowledgement is unknown\")})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 101,
+    "index": 183,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"uploading\" })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 102,
+    "index": 184,
     "id": "uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/declare?store_id=${encodeURIComponent(u.store_id)}`, { method:\"POST\", headers:credentials.headers, body:JSON.stringify({digest:hexBytes(sha256(bytes)),placement:{op:entry.op,args:u.original_args,argument:u.argument},...(u.file?{file:u.file}:{})})})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 103,
+    "index": 185,
     "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:declaration.json.denied??storeError(\"intent declaration was not accepted\")})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 104,
+    "index": 186,
     "id": "uploads.ts:prepare:waitForCaller(uploadAsset(this.env.base, credentials.headers, this.env.fetch, bytes, current, u.file ? { file: u.file } : undefined, { id: entry.id, store: u.store_id, signal: this.env.signal }), this.env.signal ?? new AbortController().signal)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 105,
+    "index": 187,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: result.why })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 106,
+    "index": 188,
     "id": "uploads.ts:prepare:this.change({ op: \"upload_ready\", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 107,
+    "index": 189,
     "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:error})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 108,
+    "index": 190,
     "id": "assets.ts:uploadAsset:doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 109,
+    "index": 191,
     "id": "assets.ts:uploadAsset:response.json()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 110,
+    "index": 192,
     "id": "assets.ts:uploadAsset:new Promise(resolve => setTimeout(resolve, delay))#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 111,
+    "index": 193,
     "id": "app-uploads.ts:uploadAndPlace:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 112,
+    "index": 194,
     "id": "app-uploads.ts:uploads:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 113,
+    "index": 195,
     "id": "app-uploads.ts:uploads:uploads.uploads()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 114,
+    "index": 196,
     "id": "app-uploads.ts:uploadIntent:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 115,
+    "index": 197,
     "id": "app-uploads.ts:uploadIntent:uploads.uploadIntent(id)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 116,
+    "index": 198,
     "id": "app-uploads.ts:retryUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 117,
+    "index": 199,
     "id": "app-uploads.ts:discardUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 118,
+    "index": 200,
     "id": "app-uploads.ts:serverUploads:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 119,
+    "index": 201,
     "id": "app-uploads.ts:serverUploads:uploads.serverUploads(after)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 120,
+    "index": 202,
     "id": "app-uploads.ts:cancelServerUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 121,
+    "index": 203,
     "id": "web-upload-admission.ts:authorizeUpload:storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 122,
+    "index": 204,
     "id": "web-upload-admission.ts:authorizeUpload:sameAdmissionAuthority(stamp, context, viewer)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 123,
+    "index": 205,
     "id": "web-upload-admission.ts:authorizeUpload:execute()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 124,
+    "index": 206,
     "id": "web-upload-admission.ts:recoverUploadHistory:receiptHistory(persist, name)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 125,
+    "index": 207,
     "id": "web-upload-admission.ts:recoverUploadHistory:invoke({op:\"check_upload_receipt\",entry,write:known})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 126,
+    "index": 208,
     "id": "web-upload-admission.ts:check:recoverUploadHistory(invoke,persist,name,entry)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 127,
+    "index": 209,
     "id": "web-upload-admission.ts:preflightUpload:authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 128,
+    "index": 210,
     "id": "web-upload-admission.ts:preflightUpload:check()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 129,
-    "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
+    "index": 211,
+    "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 212,
+    "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
+    "recipe": "media",
+    "classification": "optional",
     "absorbs": false
   }
 ]

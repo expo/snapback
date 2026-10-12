@@ -317,6 +317,4 @@ Every Quarry example compiles in the suite; the language card also runs. The cha
 | Expo | [§7](./CLIENT-AND-OPERATIONS.md#7-expo) |
 | Exclusions | [§8](./CLIENT-AND-OPERATIONS.md#8-not-in-this-release) |
 | Actions, routes and action-bound identity (`use server`) | `guide actions` / `guide routes` / [SERVER.md](./SERVER.md) (OIDC bound-session recovery is protocol-double-only; repaired-engine qualification is pending) |
-
-Durable offline capture and placement: [OFFLINE-UPLOADS.md](./OFFLINE-UPLOADS.md)
-(`useUpload`, `uploadAndPlace`, typed retry/cancellation and the Exact adapter contract).
+Durable offline capture and placement: [OFFLINE-UPLOADS.md](./OFFLINE-UPLOADS.md) (`useUpload`, `uploadAndPlace`, typed retry/cancellation and the Exact adapter contract).

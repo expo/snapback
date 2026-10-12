@@ -68,7 +68,7 @@ pub(super) fn validate<T: DeviceTx>(tx: &T, entry: &mut Queued, programs: &BTree
             return Err(refused("E_UPLOAD_ARGUMENT","normalize file metadata: filename at most 255 UTF-8 bytes and media type at most 128 bytes"));
         }
     }
-    let envelope=json!({"op":entry.op,"args":entry.args,"argument":upload.get("argument"),"file":upload.get("file")});
+    let envelope=json!({"op":entry.op,"args":entry.args,"argument":upload.get("argument").cloned(),"file":upload.get("file").cloned()});
     if encoded(&envelope)?.len()>96<<10{return Err(refused("E_UPLOAD_ARGUMENT","complete placement metadata exceeds 96 KiB; pass row references and normalized filename/type"));}
     let argument = string(upload, "argument")?;
     let args = entry.args.as_object().ok_or_else(|| RuntimeError::Input("placing args must be an object".into()))?;

@@ -94,3 +94,262 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
         let upload = upload.write(&body)?;
         // Logout while disk I/O was in flight cannot publish a new asset.
         principal_of(&request, shared).map_err(|_| snapback4_core::RuntimeError::Auth("sign in again".into()))?;
+        let mut engine = lock(&shared.engine);
+        crate::release_requests::stamp(engine.generation());
+        if let Some(expected) = expected_store {
+            if engine.store().meta("store_id")?.as_ref() != Some(expected) { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"upload store changed during disk write".into()}); }
+        }
+        engine.finish_asset(upload)
+    })();
+    match stored {
+        Ok(asset) => {
+            let mut facts = json!({ "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration });
+            if let Some(name) = asset.name { facts["name"] = json!(name); }
+            respond(request, 200, json!({ "asset": facts }))
+        }
+        Err(error) => {
+            let refusal = error.refusal();
+            snapback4_core::diagnostic!("{} at POST /assets: {}", refusal.code, refusal.message);
+            respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) }))
+        }
+    }
+}
+
+pub fn serve(request: Request, id: &str, shared: &Shared) {
+    let (principal, _, scope) = match principal_of(&request, shared) {
+        Ok(capability) => capability,
+        Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+    };
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
+        return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "no asset is served under that id to this viewer").guide("assets")) }));
+    }
+    let _transfer = shared.asset_transfers.enter(id, &principal);
+    let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
+    let granted = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.asset_access_request(&principal, id, shared.now(), range_requested)};
+    let grant = match granted {
+        Ok(grant) => grant,
+        Err(error) => {
+            let refusal = error.refusal();
+            let status = match refusal.code.as_str() {
+                "E_ASSET_VIEWED" => 410,
+                "E_ASSET_RANGE" => 416,
+                "E_ASSET_UNKNOWN" => 404,
+                _ if refusal.retryable => 503,
+                _ => 500,
+            };
+            return respond(request, status, json!({ "denied": refusal_json(&refusal) }));
+        }
+    };
+    // @ref LLP 3000.033#1.5 — refuse only an otherwise successful once grant,
+    // after authorization/range/viewed checks and before opening any bytes.
+    if grant.once && scope == snapback4_core::identity::SessionScope::Read {
+        return respond(request, 403, json!({"denied": Refusal::new("E_ASSET_READ_ONLY", "asset", "this read session cannot consume a view-once asset").guide("read-only")}));
+    }
+    let Ok(mut file) = std::fs::File::open(&grant.path) else {
+        return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")) }));
+    };
+    let total = grant.bytes;
+    let range = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range"))
+        .map(|h| byte_range(h.value.as_str(), total)).unwrap_or(ByteRange::Ignore);
+    if range == ByteRange::Unsatisfiable {
+        let mut response = Response::empty(416);
+        if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
+        response.add_header(Header::from_bytes("Content-Range", format!("bytes */{total}")).unwrap());
+        response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
+        response.add_header(Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap());
+        for header in cors(&request).into_iter().chain(crate::serve::latency::header()) { response.add_header(header); }
+        let _ = request.respond_checked_with_completion(response, |_| crate::serve::latency::finished(true));
+        return;
+    }
+    let attachment = grant.kind == snapback4_core::assets::AssetKind::File;
+    let content_type = if attachment && grant.content_type.starts_with("text/") { format!("{}; charset=utf-8", grant.content_type) } else { grant.content_type.clone() };
+    let mut headers = vec![
+        Header::from_bytes("Content-Type", content_type.as_str()).unwrap(),
+        Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
+        Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
+        Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, content-disposition, x-snapback-asset-home").unwrap(),
+    ];
+    // @ref LLP 3000.038#5 — a file is always a download: never rendered inline, never sniffed, nothing active even if navigated to.
+    if attachment {
+        let name = grant.name.as_deref().unwrap_or("file");
+        headers.push(Header::from_bytes("Content-Disposition", snapback4_core::assets::attachment_disposition(name)).unwrap());
+        headers.push(Header::from_bytes("Content-Security-Policy", "default-src 'none'; sandbox").unwrap());
+    }
+    // @ref LLP 3000.019#3.5 — only the download's ledger home authorizes retention.
+    if let Some((table, row, column)) = &grant.home {
+        let receipt = json!({"store_id":grant.store_id,"table":table,"row":row,"column":column}).to_string();
+        // Percent-encoded UTF-8 keeps arbitrary row identities safe in an ASCII header.
+        let encoded: String = receipt.bytes().map(|byte| format!("%{byte:02X}")).collect();
+        headers.push(Header::from_bytes("X-Snapback-Asset-Home", encoded).unwrap());
+    }
+    headers.extend(cors(&request));
+    headers.extend(crate::serve::latency::header());
+    let (status, start, length) = match range {
+        ByteRange::Satisfiable(start, end) => {
+            headers.push(Header::from_bytes("Content-Range", format!("bytes {start}-{end}/{total}")).unwrap());
+            (206, start, end - start + 1)
+        }
+        ByteRange::Ignore => (200, 0, total),
+        ByteRange::Unsatisfiable => unreachable!("handled above"),
+    };
+    if start > 0 && file.seek(SeekFrom::Start(start)).is_err() {
+        return respond(request, 500, json!({ "denied": refusal_json(&Refusal::new("E_STORE", "store", "cannot read the bytes")) }));
+    }
+    let reader = ExactReader { inner: file.take(length), remaining: length };
+    let mut response = Response::new(tiny_http::StatusCode(status), headers, reader, Some(length as usize), None);
+    if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
+    if status == 206 {
+        response = response.with_status_code(206);
+    }
+    // @ref LLP 3000.019#3.7 — finish before reader disposal and one-view bookkeeping.
+    let delivered = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
+    if grant.once && delivered.is_ok() {
+        if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, shared.now()) {
+            snapback4_core::diagnostic!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
+        }
+    }
+}
+
+/// `io::copy` considers an early EOF successful. Convert it to an error so a
+/// truncated asset cannot consume a one-view grant after a short response.
+struct ExactReader<R> {
+    inner: R,
+    remaining: u64,
+}
+
+impl<R: io::Read> io::Read for ExactReader<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        if self.remaining == 0 || buffer.is_empty() {
+            return Ok(0);
+        }
+        let wanted = buffer.len().min(self.remaining as usize);
+        let read = self.inner.read(&mut buffer[..wanted])?;
+        if read == 0 {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "the asset ended before its recorded byte count"));
+        }
+        self.remaining -= read as u64;
+        Ok(read)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ByteRange {
+    Ignore,
+    Unsatisfiable,
+    Satisfiable(u64, u64),
+}
+
+/// One `bytes=a-b` range, clamped. A valid interval outside the file is
+/// distinguished from malformed syntax so the former receives HTTP 416.
+fn byte_range(header: &str, total: u64) -> ByteRange {
+    let Some((unit, spec)) = header.trim().split_once('=') else { return ByteRange::Ignore; };
+    if !unit.eq_ignore_ascii_case("bytes") || spec.contains(',') { return ByteRange::Ignore; }
+    let Some((start, end)) = spec.split_once('-') else { return ByteRange::Ignore; };
+    if end.contains('-') { return ByteRange::Ignore; }
+    let parse = |part: &str| -> Result<Option<u64>, ()> {
+        let part = part.trim();
+        if part.is_empty() { Ok(None) } else { part.parse().map(Some).map_err(|_| ()) }
+    };
+    let (start, end) = match (parse(start), parse(end)) {
+        (Ok(start), Ok(end)) if start.is_some() || end.is_some() => (start, end),
+        _ => return ByteRange::Ignore,
+    };
+    match (start, end) {
+        (Some(start), end) => {
+            if total == 0 || start >= total { return ByteRange::Unsatisfiable; }
+            let end = end.unwrap_or(total - 1).min(total - 1);
+            if start > end { ByteRange::Unsatisfiable } else { ByteRange::Satisfiable(start, end) }
+        }
+        (None, Some(0)) => ByteRange::Unsatisfiable,
+        (None, Some(suffix)) if total > 0 => ByteRange::Satisfiable(total.saturating_sub(suffix), total - 1),
+        (None, Some(_)) => ByteRange::Unsatisfiable,
+        (None, None) => ByteRange::Ignore,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn byte_ranges_distinguish_invalid_and_unsatisfiable_requests() {
+        assert_eq!(byte_range("bytes=1-3", 10), ByteRange::Satisfiable(1, 3));
+        assert_eq!(byte_range("bytes=8-30", 10), ByteRange::Satisfiable(8, 9));
+        assert_eq!(byte_range("bytes=-3", 10), ByteRange::Satisfiable(7, 9));
+        assert_eq!(byte_range("bytes=10-20", 10), ByteRange::Unsatisfiable);
+        assert_eq!(byte_range("bytes=7-3", 10), ByteRange::Unsatisfiable);
+        assert_eq!(byte_range("bytes=-0", 10), ByteRange::Unsatisfiable);
+        assert_eq!(byte_range("bytes=wat", 10), ByteRange::Ignore);
+        assert_eq!(byte_range("items=1-3", 10), ByteRange::Ignore);
+    }
+}
+
+/// A durable cancellation tombstone closes cancellation versus staged-file commit.
+pub fn cancel(request: Request, id: &str, shared: &Shared) {
+    let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({"denied":refusal_json(&why)})) };
+    if id.is_empty() || id.len() > 128 || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+        return respond(request, 400, json!({"denied":Refusal::new("E_INPUT","input","invalid upload intent id")}));
+    }
+    let params = crate::serve::query_params(request.url());
+    let mut engine = lock(&shared.engine);
+    let result = if params.get("store_id") != engine.store().meta("store_id").ok().flatten().as_ref() {
+        Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"cancellation belongs to another backend store".into()})
+    } else { engine.cancel_asset_intent(&principal,id) };
+    drop(engine);
+    match result { Ok(()) => respond(request,200,json!({"ok":true})), Err(e) => respond(request,200,json!({"denied":refusal_json(&e.refusal())})) }
+}
+
+/// Finalize only a reported terminal refusal; an existing bound execution always wins.
+pub fn finish(request: Request, id: &str, body: Vec<u8>, shared: &Shared) {
+    let principal = match principal_of(&request,shared) { Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)})) };
+    let params = crate::serve::query_params(request.url());
+    let result = (|| {
+        let payload: serde_json::Value = serde_json::from_slice(&body).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
+        if serde_json::to_vec(&payload).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?.len()>96<<10 {return Err(snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"finalization envelope exceeds 96 KiB".into()});}
+        let name = payload.get("op").and_then(serde_json::Value::as_str).ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs op".into()))?;
+        let args = payload.get("args").ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs args".into()))?;
+        let why: Refusal = serde_json::from_value(payload.get("why").cloned().unwrap_or_default()).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
+        let mut engine = lock(&shared.engine);
+        if params.get("store_id") != engine.store().meta("store_id")?.as_ref() { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"finalization belongs to another backend store".into()}); }
+        engine.finish_asset_intent(&principal,id,name,args,&why)
+    })();
+    match result { Ok(outcome) => respond(request,200,outcome.receipt(Some(id))), Err(error)=>respond(request,200,json!({"denied":refusal_json(&error.refusal())})) }
+}
+
+/// Owner-only pinned-intent inventory gives storage-loss victims a bounded cleanup path.
+pub fn intents(request: Request, shared: &Shared) {
+    let principal = match principal_of(&request,shared) { Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)})) };
+    let params=crate::serve::query_params(request.url());
+    let mut engine=lock(&shared.engine);
+    let result=(|| {
+        if params.get("store_id") != engine.store().meta("store_id")?.as_ref() { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"intent inventory requires the current backend store_id".into()}); }
+        let after=params.get("after").map(String::as_str).unwrap_or("");
+        if after.len()>128 { return Err(snapback4_core::RuntimeError::Input("invalid intent continuation".into())); }
+        engine.pending_asset_intents(&principal,after)
+    })();
+    drop(engine);
+    match result {Ok(json)=>respond(request,200,json),Err(error)=>respond(request,200,json!({"denied":refusal_json(&error.refusal())}))}
+}
+
+/// A bounded declaration binds byte fingerprint and placement before any byte request.
+pub fn declare(request:Request,id:&str,body:Vec<u8>,shared:&Shared){
+    let principal=match principal_of(&request,shared){Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)}))};
+    let params=crate::serve::query_params(request.url());
+    let result=(||{
+        if id.is_empty()||id.len()>128||!id.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'||b==b'_'){return Err(snapback4_core::RuntimeError::Input("invalid upload intent id".into()));}
+        let payload:serde_json::Value=serde_json::from_slice(&body).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?;
+        if serde_json::to_vec(&payload).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?.len()>96<<10 {return Err(snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"declaration envelope exceeds 96 KiB".into()});}
+        let digest=payload["digest"].as_str().filter(|s|s.len()==64&&s.bytes().all(|b|b.is_ascii_digit()||(b'a'..=b'f').contains(&b))).ok_or_else(||snapback4_core::RuntimeError::Input("declaration needs SHA-256 of the selected bytes".into()))?;
+        let placement=&payload["placement"];
+        let argument=placement["argument"].as_str().filter(|a|!a.is_empty()).ok_or_else(||snapback4_core::RuntimeError::Input("declaration needs its asset argument".into()))?;
+        if placement["op"].as_str().is_none()||!placement["args"].is_object()||placement["args"].get(argument).is_some(){return Err(snapback4_core::RuntimeError::Input("declare op and placing args omitting the asset argument".into()));}
+        let file=payload.get("file").map(|f|snapback4_core::assets::sanitize_name(f["name"].as_str().unwrap_or("")));
+        let declared=payload.get("file").and_then(|f|snapback4_core::assets::declared_type(f["type"].as_str()));
+        let fingerprint=snapback4_core::value::digest(&(digest,file,declared));
+        let mut engine=lock(&shared.engine);
+        if params.get("store_id")!=engine.store().meta("store_id")?.as_ref(){return Err(snapback4_core::RuntimeError::Structural{code:"E_STORE_REPLACED",message:"declaration belongs to another backend store".into()});}
+        engine.declare_asset_intent(&principal,id,&fingerprint,placement)
+    })();
+    match result{Ok(())=>respond(request,200,json!({"ok":true})),Err(error)=>respond(request,200,json!({"denied":refusal_json(&error.refusal())}))}
+}

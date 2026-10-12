@@ -140,3 +140,14 @@ return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 
 ## Inspection, proxies and TLS
 
+`snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json`
+returns positional rows under `columns`; `--json-objects` returns object rows
+with direct boolean columns as true/false. Schema-qualified relations, recursive
+or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can
+show expired stored rows; it is an operator tool, not an app query surface.
+Bind loopback behind a TLS proxy. Forward Authorization and preserve response
+bodies; allow long polls without buffering or early timeouts. Non-loopback
+HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS.
+Identity rate keys use the socket peer, not forwarded headers. Serve refuses
+personas and dev doors even through a local proxy; see SERVER.md for capacity.
+For the `--json-objects` envelope fields, see `snapback4 sql --help`.

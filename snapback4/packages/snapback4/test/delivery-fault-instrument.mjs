@@ -374,6 +374,14 @@ export function awaitBoundary() {
 // failure with a surviving capture and no leaked runtime lock; Chromium
 // exercises store replacement observed by a read and lock release.
 
+// HAND: initialBackend is the former constructor-only schema/session fallback,
+// before delivery owners exist; its extracted awaits cannot deliver mutations.
+// Engine probes/wasm preparation likewise precede store opening. Runtime wasm
+// worker restart remains covered by web-worker-control and artifact pin tests.
+// Compatibility signal wrappers change the existing safe-read sites without
+// adding delivery I/O; mutation settlement keeps its original transport await.
+// The existing recipes exercise these exact sites; queued write custody and
+// mutation dispatch/settlement classifications remain unchanged.
 // MEDIA: uploads/assets add admission, dependency, transport and refusal-finalization
 // boundaries. app-uploads adds the public session facade before the same device
 // operations. upload-delivery-matrix exercises every selected await with transient
