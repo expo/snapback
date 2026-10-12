@@ -1170,3 +1170,49 @@ fn whole_table_transfer_preserves_full_source_lifetime_until_classification() {
         if until>50 {assert_eq!(e.store().rows("rows").unwrap()[0].field("until").unwrap(),&Value::Int(until));}
     }
 }
+
+#[test]
+fn asset_byte_narrowing_hides_and_restores_scalar_optional_and_list_rows() {
+    let bytes=b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01";
+    for kind in ["image <=1000","image <=1000 ?","[image <=1000] <=4","[image <=1000] <=4 ?"] {
+        let wide=format!("table rows:\n  status: enum('live','new')\n  photo: {kind}\n  public\n");
+        let mut e=engine(&wide);let asset=e.store_asset("alice",bytes,100).unwrap();
+        let handle=serde_json::json!({"id":asset.id});
+        let value=if kind.starts_with('[') {serde_json::json!([handle])} else {handle};
+        let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","status":"new","photo":value})).unwrap();
+        e.seed_at([("rows".into(),row)],101).unwrap();
+        let control=kind.ends_with('?') || kind.starts_with('[');
+        if control {
+            let value=if kind.ends_with('?') {serde_json::Value::Null} else {serde_json::json!([])};
+            let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"control","status":"live","photo":value})).unwrap();
+            e.seed_at([("rows".into(),row)],101).unwrap();
+        }
+        let visible=usize::from(control) as u64;
+        assert!(e.asset_access("alice",&asset.id,102).is_ok());
+        let narrow=wide.replace("<=1000","<=10");activate(&mut e,&narrow,2).unwrap();
+        assert_eq!(e.store().count("rows").unwrap(),visible);
+        assert_eq!(e.asset_access("alice",&asset.id,103).unwrap_err().code(),"E_ASSET_UNKNOWN");
+        assert_eq!(e.store().asset(&asset.id).unwrap().unwrap().released_at,None);
+        assert_eq!(e.sweep_assets(4_000_000).unwrap(),0,"claimed dormant assets outlive the unclaimed TTL");
+        activate(&mut e,&wide,3).unwrap();assert_eq!(e.store().count("rows").unwrap(),visible+1);
+        // An already dormant image must remain hidden when another incompatible type is selected.
+        activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),4).unwrap();
+        activate(&mut e,&narrow,5).unwrap();assert_eq!(e.store().count("rows").unwrap(),visible);
+        activate(&mut e,&wide,6).unwrap();assert!(e.asset_access("alice",&asset.id,104).is_ok());
+    }
+}
+
+#[test]
+fn file_allowlist_and_kind_narrowing_preserve_retained_asset_facts() {
+    let wide="table rows:\n  document: file <=1000 ('application/pdf','text/plain') ?\n  public\n";
+    let mut e=engine(wide);let asset=e.store_file("alice",b"a plain document",Some("text/plain"),"note.txt",100).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","document":{"id":asset.id}})).unwrap();
+    e.seed_at([("rows".into(),row)],101).unwrap();
+    for (n,narrow) in [wide.replace("('application/pdf','text/plain')","('application/pdf')"),wide.replace("file <=1000 ('application/pdf','text/plain')","image <=1000")].iter().enumerate() {
+        activate(&mut e,narrow,2+(n as u64)*2).unwrap();assert_eq!(e.store().count("rows").unwrap(),0);
+        assert_eq!(e.store().asset(&asset.id).unwrap().unwrap().released_at,None);
+        activate(&mut e,wide,3+(n as u64)*2).unwrap();
+        assert_eq!(e.store().count("rows").unwrap(),1);assert!(e.asset_access("alice",&asset.id,102).is_ok());
+        assert_eq!(e.store().rows("rows").unwrap()[0].field("document").unwrap().field("name").unwrap(),&Value::String("note.txt".into()));
+    }
+}

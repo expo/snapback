@@ -133,7 +133,7 @@ pub(super) fn candidate(
             return Err(RuntimeError::Structural {
                 code: "E_ADOPT",
                 message: format!(
-                    "table {name}: {}; rewrite: repair the named values under the current release, or deploy a bridge with optional/literal-default columns using --restore-dormant, backfill through a bridge mutation, then deploy required types; inspect: snapback4 sql \"SELECT * FROM {name}\" --release <dir>",
+                    "table {name}: {}; rewrite: repair the named values under the current release, or deploy a bridge with optional/literal-default columns using --restore-dormant, backfill through a bridge mutation, then deploy required types; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
                     bad.describe()
                 ),
             });
@@ -234,7 +234,7 @@ fn groups(
         return Err(RuntimeError::Structural {
             code: "E_ADOPT",
             message: format!(
-                "{label}: {}; limit {max}; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM {name}\" --release <dir>",
+                "{label}: {}; limit {max}; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
                 bad.describe()
             ),
         });
@@ -279,7 +279,7 @@ pub(super) fn detail(
             Ok(())
         })?;
         return Ok(format!(
-            "{}; source table {}: {}; rewrite: repair source values through a bridge or remove/change the maintain, then `snapback4 deploy <dir> --restore-dormant`; inspect: snapback4 sql \"SELECT * FROM {}\" --release <dir>",
+            "{}; source table {}: {}; rewrite: repair source values through a bridge or remove/change the maintain, then `snapback4 deploy <dir> --restore-dormant`; inspect: snapback4 sql \"SELECT * FROM [{}]\" --release <dir>",
             step.message,
             maintain.source,
             samples
@@ -382,7 +382,7 @@ pub(super) fn detail(
         Ok(())
     })?;
     Ok(format!(
-        "{}; {}; inspect: snapback4 sql \"SELECT * FROM {name}\" --release <dir>",
+        "{}; {}; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
         step.message,
         samples.describe()
     ))

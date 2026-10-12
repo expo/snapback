@@ -11,13 +11,23 @@ pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
     )?)
 }
 
-fn incompatible(schema: &Schema, name: &str, row: &Value) -> bool {
+fn incompatible(tx:&Tx<'_>,schema: &Schema, name: &str, row: &Value) -> Result<bool,RuntimeError> {
     let table = &schema.tables[name];
-    table.columns.iter().any(|(column, kind)| !table.engine_field(column) && !table.maintained.contains_key(column)
-        && row.field(column).is_ok_and(|value| crate::engine::validate::validate_column(name, column, kind, Some(value)).is_err()))
-        || table.constraints.iter().any(|c| matches!(c, Constraint::Text {field,min,format}
-            if !table.engine_field(field) && row.field(field).is_ok_and(|v| matches!(v, Value::String(s)
-                if crate::engine::validate::validate_text(field,s,*min,*format).is_err()))))
+    for (column,kind) in &table.columns {
+        if table.engine_field(column) || table.maintained.contains_key(column) {continue;}
+        if let Ok(value)=row.field(column) {
+            if crate::engine::validate::validate_column(name,column,kind,Some(value)).is_err() {return Ok(true);}
+            // @ref LLP 3000.038#1-the-type — asset facts belong to the ledger, including optional/list leaves.
+            match super::activation::validate_assets(tx,kind,Some(value)) {
+                Err(RuntimeError::Asset{code:"E_ASSET_TYPE"|"E_ASSET_TOO_LARGE",..})=>return Ok(true),
+                Err(error)=>return Err(error),
+                Ok(())=>(),
+            }
+        }
+    }
+    Ok(table.constraints.iter().any(|c| matches!(c, Constraint::Text {field,min,format}
+        if !table.engine_field(field) && !table.maintained.contains_key(field) && row.field(field).is_ok_and(|v| matches!(v, Value::String(s)
+            if crate::engine::validate::validate_text(field,s,*min,*format).is_err())))))
 }
 
 fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
@@ -105,7 +115,7 @@ pub(super) fn transition(
         super::dormant::check_owner(tx, &name, &old, next)?;
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if incompatible(next, &name, &row) {
+        if incompatible(tx,next, &name, &row)? {
             continue;
         }
         // Retained source deadlines precede projection, including removal of read-through itself.
@@ -184,7 +194,7 @@ pub(super) fn transition(
                     &mut row,
                     previous.and_then(|s| s.table(name)).unwrap_or(table),
                 );
-                let mut hidden = incompatible(next, name, &row);
+                let mut hidden = incompatible(tx,next, name, &row)?;
                 for (column, kind) in &table.columns {
                     let mut edges = Vec::new();
                     if let Ok(value) = row.field(column) {

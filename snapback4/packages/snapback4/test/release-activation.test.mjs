@@ -916,15 +916,15 @@ test('REL 16 concurrent callers remain request-safe over six hot switch pairs', 
 
 test('REL mutation decoding and many-item previews report complete plans', {timeout:hangBudget(3)}, async(t)=>{
   const {deployment,schema,run}=fixture(t);
-  const first=source.replace('  read <- allow','  read <- allow\n  update <- allow').replace('  body: text',"  status: enum('old') default 'old'\n  body: text")+`mutation echo(v: enum('old')):
+  const first=(source.replace('  read <- allow','  read <- allow\n  update <- allow').replace('  body: text',"  status: enum('old') default 'old'\n  body: text")+`mutation echo(v: enum('old')):
   return v
 query input(n: int):
   return n
-`;
+`).replaceAll('items','values');
   writeFileSync(schema,first);run('deploy',deployment);
   const columns=Array.from({length:20},(_,n)=>`  spare${n}: bool default false`).join('\n');
-  const second=first.replace('  body: text',columns+'\n  body: text').replaceAll("enum('old')","enum('old','new')")+`mutation setStatus(item: items):
-  update items[item] {status:'new'}
+  const second=first.replace('  body: text',columns+'\n  body: text').replaceAll("enum('old')","enum('old','new')")+`mutation setStatus(item: values):
+  update values[item] {status:'new'}
 `;
   writeFileSync(schema,second);run('deploy',deployment);
   await serve(deployment,async(url,headers)=>{
@@ -943,12 +943,12 @@ query input(n: int):
     run('sql',inspect[1],'--release',deployment,'--json');
     const saved=state(join(deployment,'store.sqlite'));
     const plan=run('rollback',deployment,'--to','1','--check');
-    assert.match(plan,/1 dormant narrowed rows/);assert.match(plan,/rows:items/);
+    assert.match(plan,/1 dormant narrowed rows/);assert.match(plan,/rows:values/);
     for(const flags of [[],['--verbose']]) {
       const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
       assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
       assert.equal(structured.plan.generation,3);
-      assert.ok(structured.plan.items.some(item=>item.key==='rows:items' && item.rows===1));
+      assert.ok(structured.plan.items.some(item=>item.key==='rows:values' && item.rows===1));
     }
     const checked=JSON.parse(run('check','--store',join(deployment,'store.sqlite'),'--release','1','--json'));
     assert.equal(checked.preview,true);assert.ok(checked.steps.length>0);
@@ -973,4 +973,14 @@ test('REL minimum-text widening warns in both deploy and rollback directions', {
   const widened=invoke('deploy',deployment);assert.equal(widened.status,0);assert.match(widened.stderr,/WARNING rollback compatibility: codes.code/);
   writeFileSync(schema,code(8));run('deploy',deployment);
   const rolled=invoke('rollback',deployment,'--to','2');assert.equal(rolled.status,0);assert.match(rolled.stderr,/WARNING rollback compatibility: codes.code/);
+  const media=(bound,types)=>`table documents:
+  photo: image <=${bound} ?
+  files: [file <=${bound} (${types})] <=4
+  public
+`;
+  writeFileSync(schema,media(10,"'application/pdf'"));run('deploy',deployment);
+  writeFileSync(schema,media(1000,"'application/pdf','text/plain'"));
+  const assets=invoke('deploy',deployment);assert.equal(assets.status,0);assert.match(assets.stderr,/documents.photo/);assert.match(assets.stderr,/documents.files/);
+  writeFileSync(schema,media(5,"'application/pdf'"));run('deploy',deployment);
+  const assetRollback=invoke('rollback',deployment,'--to','5');assert.equal(assetRollback.status,0);assert.match(assetRollback.stderr,/documents.photo/);assert.match(assetRollback.stderr,/documents.files/);
 });
