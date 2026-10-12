@@ -1412,3 +1412,35 @@ fn a_scope_of_an_earlier_audience_is_not_streamed() {
     // The members table kept its audience: its own scope still streams.
     assert!(page.events.iter().any(|event| event.table == "members" && event.kind == "scope"), "{:?}", page.events);
 }
+
+/// Round 5 (GPT finding 1): an existing row that enters a new arm with an
+/// image already expired at its commit's end names nothing to that arm. Bob
+/// buys and sells `o`; one commit makes Mallory the buyer and ends the row's
+/// life. Mallory could read `o` at neither boundary: she is sent nothing,
+/// then or after the sweep; Bob loses the row.
+#[test]
+fn an_expiring_move_into_another_arm_names_nothing_there() {
+    let source = "table orders:\n  buyer: principal\n  seller: principal\n  until: time\n  by byBuyer: buyer, id\n  by bySeller: seller, id\n  by byUntil: until\n  expire at .until\n  read <- .buyer = viewer or .seller = viewer\n  insert <- .seller = viewer\n  update <- allow\n  sync\nmutation hand(order: orders, who: principal):\n  o = orders[order] ! else NOT_FOUND\n  update orders[o] { buyer: who, until: now }\n  return null\n";
+    let (schema, programs) = compiled(source);
+    let mut engine = Engine::memory(schema, programs).unwrap();
+    engine.seed([("orders".to_owned(), object([("id", id("o")), ("buyer", id(BOB)), ("seller", id(BOB)), ("until", Value::Int(NOW * 10))]))]).unwrap();
+    let before = engine.seq().unwrap();
+    mutate(&mut engine, BOB, "hand", &[("order", id("o")), ("who", id(MALLORY))], 1);
+    let streams = |engine: &mut Engine, viewer: &str, at: i64| -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        for limit in [1, 1_000] {
+            let mut watermark = before;
+            loop {
+                let page = engine.stream_at(viewer, watermark, limit, at).unwrap();
+                out.extend(page.events.iter().filter(|event| event.id == "o").map(|event| (event.kind.clone(), event.seq.to_string())));
+                watermark = page.watermark;
+                if !page.more { break; }
+            }
+        }
+        out
+    };
+    assert!(streams(&mut engine, MALLORY, NOW + 10).is_empty(), "Mallory never could read o");
+    assert!(streams(&mut engine, BOB, NOW + 10).iter().any(|(kind, _)| kind == "del"), "Bob loses o");
+    engine.sweep_expired(NOW + 100, 100).unwrap();
+    assert!(streams(&mut engine, MALLORY, NOW + 100).is_empty(), "nor after the sweep");
+}

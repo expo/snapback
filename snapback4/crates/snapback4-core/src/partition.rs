@@ -827,7 +827,7 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
         let Audience::Target { table: target, prefix, .. } = &sync.audience else { return None };
         let binding = audience_binding(schema, name, table, sync).ok()?;
         let target_table = schema.table(target)?;
-        let reading = |owner: &Table, column: &String| (column.clone(), owner.columns.get(column).cloned(), owner.defaults.get(column).cloned());
+        let reading = |owner: &crate::schema::Table, column: &String| (column.clone(), owner.columns.get(column).cloned(), owner.defaults.get(column).cloned());
         let content: Vec<_> = prefix.iter().map(|column| reading(table, column)).collect();
         let members: Vec<_> = binding.columns.iter().chain([&binding.principal]).map(|column| reading(target_table, column)).collect();
         Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, target_table.expire, table.through.as_ref().map(|t| &t.identity)])))

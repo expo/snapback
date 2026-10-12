@@ -353,9 +353,10 @@ impl Runner<'_> {
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
-    /// At a program commit's end, retire every row the commit inserted whose
-    /// lifetime has already ended: it was never live at a commit boundary, so
-    /// it leaves no row for a later sweep to announce. Inside the commit the
+    /// At a program commit's end, retire every synced row the commit changed
+    /// and every row it inserted whose lifetime has already ended: its final
+    /// image was never live at a commit boundary, so it leaves no row for a
+    /// later sweep to announce. Inside the commit the
     /// row existed as written (an insert-then-update still works). Engine
     /// bookkeeping, unmetered: the device's prediction does not do it, and
     /// the program's metering is already recorded. Its work, returned, stays
@@ -366,16 +367,24 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
         let Some(now) = self.context.now else { return Ok(Default::default()) };
-        let mut born: Vec<(String, String)> = self.born_rows.keys().filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.is_expiring())).cloned().collect();
-        if born.is_empty() {
+        // @ref LLP 3000.036.000.000#3 — an expired final image never grants a new recipient the row's id.
+        // A row that existed before the commit and ends it already expired is
+        // retired too: accounted from the partitions it was in at the commit's
+        // start, it revokes there and announces nothing to a partition it only
+        // entered with its expiring image.
+        let mut changed: Vec<(String, String)> = self.born_rows.keys()
+            .chain(self.touched_rows.keys())
+            .filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.is_expiring()))
+            .cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        if changed.is_empty() {
             return Ok(Default::default());
         }
         // The log's order must not depend on a map's iteration order.
         let order = self.schema.through_order();
-        born.sort_by_key(|(name,id)| (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone()));
+        changed.sort_by_key(|(name,id)| (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone()));
         let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
         self.retiring = Some(Default::default());
-        let retired = born.iter().try_for_each(|(table_name, id)| {
+        let retired = changed.iter().try_for_each(|(table_name, id)| {
             let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(()) };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
             if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }

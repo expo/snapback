@@ -92540,3 +92540,17 @@ owner-only examples. Design in LLP 3000.007 §20.1.
 - Wasm: 651,233 B gzip on Linux against 648,672 B at the base (+2,561 B, the
   device's R2, per-arm boundaries and any-arm absence). Budget 649,324 →
   651,733 B (measurement + 500 B), reason in `metrics/wasm-budget.json`.
+
+
+## 2026-10-12 — UNION revision 6: expiry at the commit boundary
+
+Round 5's GPT review found an existing row that moved to a new recipient
+while ending its life could name its id to that recipient, immediately and
+again at the sweep. Commit retirement now considers changed synced rows as
+well as births; commit-start accounting revokes the previous recipients
+without announcing the expired image to a new one. The regression checks
+Bob's revocation and Mallory's empty stream at page sizes 1 and 1,000 before
+and after a sweep. Snapshot catch-up's R2 reads its private staged server
+images; ordinary/deferred stream application first withdraws predictions.
+The web build also needed the audience-epoch helper's Table type qualified
+outside the SQLite-only import. No wasm behavior changes in that repair.
