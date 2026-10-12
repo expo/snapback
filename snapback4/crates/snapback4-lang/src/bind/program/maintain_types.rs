@@ -55,11 +55,14 @@ impl Binder<'_> {
         let Some(parent) = self.schema.maintain_for(&read.table).and_then(|maintain| maintain.parent_key.as_ref()) else { return true };
         let Some(key) = group_keys(maintain, read).remove(&parent.reference) else { return false };
         let site = key.site().clone();
-        self.point_present(&ReadExpr {
+        let mut parent_read = ReadExpr {
             cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: parent.parent.clone(),
             keys: vec![ast::KeyPart { column: None, value: key, site: site.clone() }], seeks: Vec::new(), filter: None,
             index: None, range: None, matching: None, site,
-        })
+        };
+        if self.point_present(&parent_read) { return true; }
+        parent_read.keys[0].column = Some("id".into());
+        self.point_present(&parent_read)
     }
 
     /// Store a truth fact on every lexical root it depends on. Existing branch

@@ -749,6 +749,10 @@ job liveParent():
   for item in work:
     require exists parents['live'] else MISSING
     value = childCounts['live'] + 1
+job namedLiveParent():
+  for item in work:
+    require exists parents[id = 'live'] else MISSING
+    value = childCounts['live'] + 1
 job liveParentLoop():
   for parent in parents:
     value = childCounts[parent.id] + 1
@@ -818,6 +822,7 @@ job guardedExpired():
         .unwrap();
     for name in [
         "liveParent",
+        "namedLiveParent",
         "liveParentLoop",
         "directView",
         "handledMissing",
