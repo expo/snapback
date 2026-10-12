@@ -138,6 +138,15 @@ view hiddenCompositeCounts: count entries by .owner
 view hiddenEitherCounts: count entries by .owner
   read <- .owner = viewer or not exists hiddenBans[viewer]
   online only
+view publicGateCounts: count entries by .owner
+  read <- allow
+  online only
+view presentGateCounts: count entries by .owner
+  read <- exists publicGateCounts[viewer]
+  online only
+view absentGateCounts: count entries by .owner
+  read <- not exists publicGateCounts[viewer]
+  online only
 "#;
     for (name, guard, view) in [
         ("hidden", "not exists hiddenBans[viewer]", "hiddenUnbannedCounts"),
@@ -162,12 +171,15 @@ view hiddenEitherCounts: count entries by .owner
     let readable = compile(&[(
         "schema.q".into(),
         format!(
-            "{SOURCE}{tables}query readable(owner: principal):\n  require not exists readableBans[viewer] else BANNED\n  return readableUnbannedCounts[owner] + 1\nquery positive(owner: principal):\n  require exists hiddenBans[viewer] else NOT_BANNED\n  return hiddenBannedCounts[owner] + 1\nquery doublePositive(owner: principal):\n  require exists hiddenBans[viewer] else NOT_BANNED\n  return hiddenDoubleBannedCounts[owner] + 1\n"
+            "{SOURCE}{tables}query readable(owner: principal):\n  require not exists readableBans[viewer] else BANNED\n  return readableUnbannedCounts[owner] + 1\nquery positive(owner: principal):\n  require exists hiddenBans[viewer] else NOT_BANNED\n  return hiddenBannedCounts[owner] + 1\nquery doublePositive(owner: principal):\n  require exists hiddenBans[viewer] else NOT_BANNED\n  return hiddenDoubleBannedCounts[owner] + 1\nquery maintainedPresent(owner: principal):\n  require exists publicGateCounts[viewer] else NO_STORED_GROUP\n  return presentGateCounts[owner] + 1\nquery maintainedAbsent(owner: principal):\n  require not exists publicGateCounts[viewer] else STORED_GROUP\n  return absentGateCounts[owner] + 1\n"
         )
         .into(),
     )]);
     assert!(readable.diagnostics.is_empty(), "{:#?}", readable.diagnostics);
-    for name in ["readable", "positive", "doublePositive"] {
+    // Program `exists` on a maintained target tests stored-row presence: its
+    // authorized synthetic zero is null and therefore false, matching the raw
+    // witness domain used by another table rule.
+    for name in ["readable", "positive", "doublePositive", "maintainedPresent", "maintainedAbsent"] {
         assert_eq!(result(&readable, name), &Ty::Int, "{name}");
     }
 }
