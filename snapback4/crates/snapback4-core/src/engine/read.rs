@@ -1600,6 +1600,7 @@ impl<'r> Runner<'r> {
         let mut inserted_binding = false;
         let mut seen = BTreeSet::new();
         let mut unique = Vec::new();
+        let null_is_witness = lane.membership() && rules::membership_null_distinct(self.schema, lane);
         for value in values {
             if !self.read_charge(MeterKind::Steps, 1)? { break; }
             if let Some(binding) = self.env.get_mut(&lane.binding) {
@@ -1611,7 +1612,7 @@ impl<'r> Runner<'r> {
             }
             let key = self.expr(distinct)?;
             let value = std::mem::replace(self.env.get_mut(&lane.binding).expect("lane binding"), Value::Null);
-            if key == Value::Null { continue; }
+            if key == Value::Null && !null_is_witness { continue; }
             let bytes = crate::json_codec::value_bytes(&key).map_err(|error| RuntimeError::Store(error.to_string()))?;
             let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
             self.meter.heap(word_heap::allocation(bytes)

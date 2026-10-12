@@ -535,6 +535,18 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
 /// exact witness for the outer rule branch that the dynamic prefix opens.
 // @ref LLP 3000.036.001#14 — membership discovery proves each parent range.
 fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    membership_witness(schema, lane, false)
+}
+
+/// A null discovered value may open a target lane only when the matching
+/// point witness identifies its row without that nullable component. A by-id
+/// probe with `parent = null` does; a nullable natural unique does not.
+// @ref LLP 3000.036.001#14 — fixed-id witnesses preserve nullable residual equality without treating nullable natural keys as points.
+pub(crate) fn membership_null_distinct(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    membership_witness(schema, lane, true)
+}
+
+fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinct: bool) -> bool {
     let Some(source) = lane.source.as_ref().and_then(crate::ir::LaneSource::scan) else { return false };
     let Some(Expr::Field { base, name: source_column }) = lane.distinct.as_ref() else { return false };
     if !matches!(base.as_ref(), Expr::Variable(name) if name == &lane.binding) { return false; }
@@ -575,8 +587,11 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
         if table != &source.table || !probe_index.unique || !probe_index.is_plain() || probe_index.components.len() != key.len() { return false; }
         let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == outer_column) }
             else { fixed(column).is_some_and(|expr| term_matches_expr(term, expr)) };
-        probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
-            && equalities.iter().all(|(column, term)| matches(column, term))
+        if !probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
+            || !equalities.iter().all(|(column, term)| matches(column, term)) { return false; }
+        !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column
+            && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer))
+                || matches!(expr, Expr::Literal(value) if value != &Value::Null))))
     })
 }
 
