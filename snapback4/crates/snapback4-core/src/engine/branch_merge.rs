@@ -35,6 +35,11 @@ impl Runner<'_> {
         let order = first.order;
         let suffix = Self::merge_suffix(table, index, first.prefix.len());
         let descriptor = merge.branch_descriptor();
+        // Every lane's evaluated pins, in lane order: the token's scope, so a
+        // cursor never resumes a page whose arguments or viewer changed
+        // (Muse round 3, finding 1), as a direct page's scope does.
+        let prefixes = merge.lanes.iter().map(|lane| self.prefix_values(&lane.scan)).collect::<Result<Vec<_>, _>>()?;
+        let scope: Vec<Value> = prefixes.iter().flatten().cloned().collect();
         self.record_shape_cursor(site, None);
         let mut after = None;
         if first.opaque_cursor && let Some(expr) = first.after.as_deref() {
@@ -46,9 +51,12 @@ impl Runner<'_> {
                     // @ref LLP 3000.036.001#5 — a token minted by another plan of this read (one index, or another branch set) restarts it.
                     if position.check_descriptor(&first.table, &descriptor, order, &suffix).is_err() {
                         if position.table == first.table {
-                            return Err(RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to another plan of this read; it now merges its branches (owner or another party): restart this read with a null cursor".into() });
+                            return Err(RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to another plan of this read; it now merges its branches: restart this read with a null cursor".into() });
                         }
                         return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Descriptor)));
+                    }
+                    if !position.scope.as_ref().is_some_and(|s| s.generation == self.context.generation && s.prefix == scope) {
+                        return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Scope)));
                     }
                     self.record_shape_cursor(site, Some(token));
                     after = Some((position.values, position.inclusive));
@@ -58,32 +66,33 @@ impl Runner<'_> {
         }
         let depth = self.page_depth;
         self.page_depth += 1;
-        let result = self.merge_branch_lanes(merge, take, after);
+        let result = self.merge_branch_lanes(merge, prefixes, take, after);
         self.page_depth = depth;
         let (page, has_more, next) = result?;
         self.note_value_source_page(has_more);
         if depth == 0 && first.opaque_cursor {
             let next = next.filter(|_| self.word_cut_at.is_none());
             self.record_page(site.to_owned(), PagePosition { variant: merge.variant, view_suffix: Some(suffix), table: first.table.clone(), index: descriptor, order,
-                prefix_len: 0, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(),
+                prefix_len: 0, prefix: Some(scope), merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(),
                 shape_resume: super::super::shaping::Resume::Never, next }, page.iter())?;
         }
         Ok(page)
     }
 
     /// The page and its continuation candidate (`None` when it ends).
-    fn merge_branch_lanes(&mut self, merge: &Merge, take: usize, after: Option<(Vec<Value>, bool)>) -> Result<(Vec<Value>, bool, Option<Vec<Value>>), RuntimeError> {
+    fn merge_branch_lanes(&mut self, merge: &Merge, prefixes: Vec<Vec<Value>>, take: usize, after: Option<(Vec<Value>, bool)>) -> Result<(Vec<Value>, bool, Option<Vec<Value>>), RuntimeError> {
         let order = merge.lanes[0].scan.order;
         let site = merge.site.as_str();
         // Grant lanes open first: a held grant makes its lane, the whole
         // `where`, a superset of every other lane, so the others are not read.
         let mut lanes: Vec<Lane> = Vec::with_capacity(merge.lanes.len());
         let mut covered = false;
-        for lane in merge.lanes.iter().filter(|lane| lane.grant()).chain(merge.lanes.iter().filter(|lane| !lane.grant())) {
+        let numbered: Vec<(&MergeLane, Vec<Value>)> = merge.lanes.iter().zip(prefixes).collect();
+        for (lane, prefix) in numbered.iter().filter(|(lane, _)| lane.grant()).chain(numbered.iter().filter(|(lane, _)| !lane.grant())) {
             if covered { break; }
             let mut scan = lane.scan.clone();
             scan.after = None;
-            let prefix = self.prefix_values(&scan)?;
+            let prefix = prefix.clone();
             let definition = &self.schema.tables[&scan.table];
             let index = &definition.indexes[&scan.index];
             let mut bounds = self.bounds(&scan, definition, index, None)?;

@@ -1389,6 +1389,10 @@ impl<'r> Runner<'r> {
         self.record_shape_cursor(&merge.site, None);
         // @ref LLP 3000.036.001#3 — a branch merge outside the lazy path keeps its branch-set descriptor.
         let (descriptor, view_suffix) = if merge.branches() { (merge.branch_descriptor(), Some(suffix.clone())) } else { (first.scan.index.clone(), None) };
+        // A branch merge's token is scoped to every lane's pins, as on its lazy path.
+        let branch_scope = if merge.branches() {
+            Some(merge.lanes.iter().map(|lane| self.prefix_values(&lane.scan)).collect::<Result<Vec<_>, _>>()?.concat())
+        } else { None };
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
@@ -1398,9 +1402,13 @@ impl<'r> Runner<'r> {
             if let Err(error) = position.check_descriptor(&first.scan.table, &descriptor, order, &suffix) {
                 // As the lazy branch merge does: another plan's token of this table restarts the read.
                 if merge.branches() && position.table == first.scan.table {
-                    return Err(RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to another plan of this read; it now merges its branches (owner or another party): restart this read with a null cursor".into() });
+                    return Err(RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to another plan of this read; it now merges its branches: restart this read with a null cursor".into() });
                 }
                 return Err(RuntimeError::Input(format!("cursor: {error}")));
+            }
+            if let Some(scope) = &branch_scope
+                && !position.scope.as_ref().is_some_and(|s| s.generation == self.context.generation && &s.prefix == scope) {
+                return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Scope)));
             }
             self.record_shape_cursor(&merge.site, Some(token));
         }
@@ -1466,7 +1474,7 @@ impl<'r> Runner<'r> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix, table: first.scan.table.clone(), index: descriptor, order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
+            self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix, table: first.scan.table.clone(), index: descriptor, order, prefix_len, prefix: branch_scope, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }

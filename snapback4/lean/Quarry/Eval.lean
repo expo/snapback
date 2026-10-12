@@ -330,6 +330,14 @@ def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String 
   let lane := (eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1
   (lane.map (·.1)).eraseDups.length + order.length + 1 ≤ 8 && decidedPins td lane
 
+/-- The pins the single-index planner keeps: the page's equalities and bare
+boolean conjuncts, except `id` and an order column other than the first,
+which stay seeks (`Requests::read`; GPT round 3, finding 3). -/
+def plannedPins (pins : List (String × Expr)) (filter : Option Expr) (order : List String) : List (String × Expr) :=
+  let fs := (filter.map Expr.conjuncts).getD []
+  (pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin).filter fun p =>
+    p.1 != "id" && (order.head? == some p.1 || !order.contains p.1)
+
 /-- The branch rule of LLP 3000.036.001 §2 (cases 1 and 2; a grant branch is
 complete for its holders as `granted` is, and empty for everyone else). -/
 def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
@@ -346,20 +354,23 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
         if 2 ≤ as.length && as.length ≤ 8 && as.all (fun a => a.conjuncts.any (eligiblePin td))
         then some (as.map Expr.conjuncts) else none
       | _ => none
+    -- The planner pins a bare boolean conjunct too (`where .flag`); the
+    -- emitter leaves it in the filter.
+    let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
     let case1 := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
     -- The grant lane is the read as written, planned as the single-index page
     -- is: its prefix is the page's pins off the order (an equality on the
     -- first order column would become a pin there and change its order, so
     -- such a page is not merged), and it counts toward the 8 lanes.
     let guardPins := pins.filter fun p => p.1 != "id" && !order.contains p.1
-    let case2 := match td.read.branchParties sch guardPins guards with
+    let case2 := if !guards then false else match td.read.branchParties sch guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
-        let guarded := td.read.disjuncts.any fun d => d.party?.isNone
+        -- The grant lane is always planned (the system reads it whole).
         ps.all (fun c => c != "id" && !order.contains c)
-          && bases.length * ps.length + (if guarded then 1 else 0) ≤ 8
-          && (!guarded || (!(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
-                && (guardPins.map (·.1)).eraseDups.length + order.length + 1 ≤ 8))
+          && bases.length * ps.length + 1 ≤ 8
+          && !(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
+          && (guardPins.map (·.1)).eraseDups.length + order.length + 1 ≤ 8
           && bases.all fun a => ps.all fun c => laneDecided td order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
     total && (case1 || case2)
@@ -545,7 +556,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
         | none => pure none
         | some a => do parseCursor order (← ev a).1
       let formed := match cx.schema.table? t with
-        | some td => decidedPins td pins
+        | some td => decidedPins td (plannedPins pins f order)
         | none => false
       let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f order
       let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur (formed || merged) merged
@@ -560,7 +571,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       -- `exists` over branches is an `or` of decided existence reads, for
       -- parties only (LLP 3000.036.001 §8); its pins' form decides it too.
       let formed := match cx.schema.table? t with
-        | some td => decidedPins td pins
+        | some td => decidedPins td (plannedPins pins f [])
         | none => false
       let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f [] false
       existsRead cx vw t ps (filt f) (formed || merged)

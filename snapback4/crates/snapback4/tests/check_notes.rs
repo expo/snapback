@@ -138,7 +138,9 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
         assert!(output.status.success(), "{output:?}");
         String::from_utf8(output.stdout).unwrap()
     };
-    let online = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  online only\nquery all():\n  return tickets first 50 by .at\nmutation open(at: time):\n  return insert tickets { owner: viewer, at }\n";
+    // Arithmetic in the predicate keeps one index, so the owner-or-staff page
+    // still draws its note (as written it merges, LLP 3000.036.001).
+    let online = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  online only\nquery all():\n  return tickets where .at + 1 > 0 first 50 by .at\nmutation open(at: time):\n  return insert tickets { owner: viewer, at }\n";
     fs::write(dir.join("snapback/schema.q"), online).unwrap();
     let plain = run(&["check"]);
     assert!(!plain.contains("never predict"), "{plain}");

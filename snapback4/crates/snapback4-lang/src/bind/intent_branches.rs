@@ -109,16 +109,19 @@ fn branches(tables: &Tables, requests: &Requests, read: &ReadExpr, grants: bool)
     if disjunct_list.len() < 2 { return None; }
     let pinned: Vec<String> = conjuncts.iter().filter_map(|conjunct| intent::equality(conjunct, table).map(|(column, _)| column)).collect();
     let mut parties = Vec::new();
-    let mut granted = false;
     for disjunct in &disjunct_list {
         if let Some(column) = party(table, disjunct) { if !parties.contains(&column) { parties.push(column); } }
-        else if columns_within(disjunct, &pinned) { granted = true; }
+        else if columns_within(disjunct, &pinned) { /* a guard: the grant lane reads it */ }
         else { return None; }
     }
-    if parties.is_empty() || (granted && !grants) { return None; }
+    // `exists` takes case 1 only: an `or` of party reads misses rows for the
+    // system, which every rule admits, and a guard lane has no existence form.
+    if parties.is_empty() || !grants { return None; }
     let base = alternatives.unwrap_or_else(|| vec![conjuncts.clone()]);
-    let mut out = Vec::new();
-    if granted { out.push((conjuncts, true)); }
+    // The grant lane, the read as written, is read for a caller its guards
+    // admit and for the system (which every rule admits); a rule of parties
+    // alone has no guard, so the lane is the system's only.
+    let mut out = vec![(conjuncts, true)];
     for branch in &base {
         for column in &parties {
             let mut lane = vec![viewer_pin(column, &read.site)];

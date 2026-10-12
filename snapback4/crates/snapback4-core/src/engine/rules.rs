@@ -539,10 +539,14 @@ pub fn merge_position(table: &Table, index: &crate::schema::Index, prefix_len: u
 // @ref LLP 3000.036.001#2 — every non-party disjunct must be a usable guard, or the read binds as its grant lane alone.
 pub fn covering_grant(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
+    let party = |d: &RuleExpr| matches!(d, RuleExpr::Eq(RuleTerm::Field(_), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(_)));
+    let others: Vec<&RuleExpr> = table.rules.read.disjuncts().into_iter().filter(|d| !party(d)).collect();
+    // A rule of parties alone: the grant lane holds for nobody but the system,
+    // which reads every row (GPT round 3, finding 1).
+    if others.is_empty() { return Some(RuleExpr::Deny); }
     let guard = page_guard_decision(schema, scan)?;
     let guards: Vec<&RuleExpr> = match &guard { RuleExpr::Or(guards) => guards.iter().collect(), one => vec![one] };
-    let party = |d: &RuleExpr| matches!(d, RuleExpr::Eq(RuleTerm::Field(_), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(_)));
-    table.rules.read.disjuncts().into_iter().filter(|d| !party(d)).all(|d| guards.contains(&d)).then_some(guard)
+    others.into_iter().all(|d| guards.contains(&d)).then_some(guard)
 }
 
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and

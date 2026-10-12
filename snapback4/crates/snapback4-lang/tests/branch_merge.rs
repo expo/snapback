@@ -288,7 +288,8 @@ query owned(c: cursor ?):
 ");
     let b = clean(&source);
     assert_eq!(branch_merges(&b, "mine"), vec![(2, true)]);
-    assert_eq!(branch_merges(&b, "all"), vec![(2, true)]);
+    // The rule's parties, and the grant lane the system reads whole.
+    assert_eq!(branch_merges(&b, "all"), vec![(3, true)]);
     // A page its own pins decide keeps its single-index plan.
     assert_eq!(branch_merges(&b, "owned"), vec![]);
 }
@@ -310,8 +311,9 @@ query open(c: cursor ?):
 ";
     let b = clean(source);
     assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
-    // `.at < 3` pins nothing, so `where` has no branches: one lane per party.
-    assert_eq!(branch_merges(&b, "open"), vec![(3, true)]);
+    // `.at < 3` pins nothing, so `where` has no branches: one lane per party,
+    // and the grant lane (the system's).
+    assert_eq!(branch_merges(&b, "open"), vec![(4, true)]);
     let job = |name: &'static str, owner: &str, helper: Option<&str>, reviewer: Option<&str>, done: bool, at: i64| ("jobs", vec![("id", id(name)), ("owner", id(owner)),
         ("helper", helper.map_or(Value::Null, id)), ("reviewer", reviewer.map_or(Value::Null, id)), ("done", Value::Bool(done)), ("at", Value::Int(at))]);
     let rows = vec![job("j1", "ann", None, None, false, 1), job("j2", "bob", Some("ann"), None, true, 2), job("j3", "bob", None, Some("ann"), true, 5),
@@ -637,4 +639,52 @@ query rare(c: cursor ?):
     e.set_ceilings(Default::default());
     let rest = e.query("rare", Context::new("alice", BTreeMap::from([("c".to_owned(), Value::String(next))]))).unwrap();
     assert_eq!(ids(&rest.data), vec!["r04", "r03"]);
+}
+
+// ---- round 3 (llp/reviews/3000.036.001-merged-pages.r3.*) ----
+
+/// GPT r3 #1: the system reads every row, which a rule of parties' branches
+/// miss; the grant lane, read whole for the system, keeps them.
+#[test]
+fn the_system_reads_every_row_of_a_merged_page() {
+    let source = format!("{TASKS}
+query all(c: cursor ?):
+  return tasks last 20 by .at after c
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 20 by .at after c
+");
+    let mut e = engine(&source, tasks());
+    let all = e.query("all", { let mut cx = snapback4_core::Context::system(); cx.args.insert("c".into(), Value::Null); cx }).unwrap();
+    assert_eq!(ids(&all.data).len(), tasks().len(), "{all:?}");
+    // A `where` of parties is the system's own filter: no task is owned by it.
+    let mine = e.query("mine", { let mut cx = snapback4_core::Context::system(); cx.args.insert("c".into(), Value::Null); cx }).unwrap();
+    assert!(ids(&mine.data).is_empty());
+}
+
+/// Muse r3 #1: a branch token is scoped to every lane's pins, so a page whose
+/// arguments (or viewer) changed refuses the cursor instead of skipping rows.
+#[test]
+fn a_branch_cursor_is_scoped_to_its_lanes_pins() {
+    let source = format!("{TASKS}
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 1 by .at after c
+");
+    let mut e = engine(&source, tasks());
+    let ctx = |viewer: &str, c: Value| Context::new(viewer, BTreeMap::from([("c".to_owned(), c)]));
+    let next = e.query("mine", ctx("alice", Value::Null)).unwrap().next.expect("continues");
+    assert!(e.query("mine", ctx("alice", Value::String(next.clone()))).is_ok());
+    // Bob's lanes pin bob: alice's position is not his.
+    let error = e.query("mine", ctx("bob", Value::String(next))).unwrap_err();
+    assert_eq!(error.code, "E_INPUT", "{error:?}");
+}
+
+/// GPT r3 #2: an older device must not run a merged plan nor decode its
+/// cursors; the backend names the capability it needs, and an older decoder
+/// refuses it by name.
+#[test]
+fn a_merged_plan_requires_the_branch_merge_capability() {
+    let merged = clean(&format!("{TASKS}query mine(c: cursor ?):\n  return tasks where .owner = viewer or .assignee = viewer last 2 by .at after c\n"));
+    assert!(merged.schema.required_capabilities().contains("branch-merge-v1"));
+    let single = clean(&format!("{TASKS}query owned(c: cursor ?):\n  return tasks where .owner = viewer last 2 by .at after c\n"));
+    assert!(!single.schema.required_capabilities().contains("branch-merge-v1"));
 }
