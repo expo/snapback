@@ -1043,3 +1043,22 @@ fn audit_keeps_before_after_and_partial_restoration_counts() {
     assert_eq!(item["before_rows"],2);assert_eq!(item["after_rows"],1);assert_eq!(item["restored_rows"],1);
     assert_eq!(item["action"],"partially restored");
 }
+
+#[test]
+fn expiry_of_an_active_row_does_not_audit_its_dormant_cells_as_restored() {
+    let wide="table parents:\n  public\ntable rows:\n  parent: parents\n  immutable parent\n  until: time\n  expire at .until\n  extra: int default 7\n  read through .parent\n";
+    let mut e=engine(wide);
+    let parent=wire::row_from_json(&e.schema().tables["parents"],&serde_json::json!({"id":"p"})).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","parent":"p","until":50,"extra":42})).unwrap();
+    e.seed_at([("parents".into(),parent),("rows".into(),row)],0).unwrap();
+    let retired=wide.replace("  extra: int default 7\n","");
+    // First activation keeps the same lifetime, so the unswept expired image and its cell remain stored.
+    activate(&mut e,&retired,2).unwrap();
+    let changed=retired.replace("  read through .parent","  public").replace("  expire at .until\n","");
+    activate(&mut e,&changed,3).unwrap();
+    let status=e.store_mut().release_status(0,None,None).unwrap();let event=status["events"].as_array().unwrap().last().unwrap();
+    let items=e.store_mut().release_status(0,None,event["id"].as_u64()).unwrap();
+    let item=items["items"].as_array().unwrap().iter().find(|i|i["key"]=="column:rows.extra").unwrap();
+    assert_eq!(item["before_rows"],1);assert_eq!(item["after_rows"],0);assert_eq!(item["restored_rows"],0);
+    assert_ne!(item["action"],"partially restored");
+}

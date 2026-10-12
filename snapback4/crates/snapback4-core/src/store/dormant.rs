@@ -470,6 +470,8 @@ pub(super) fn transition(
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         for column in table.columns.keys() {
+            let restored:u64=tx.conn().query_row("SELECT COUNT(*) FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![t,column],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
+            if restored>0 {tx.set_meta(&format!("activation_column_restored:{name}.{column}"),&restored.to_string())?;}
             tx.conn().execute(
                 "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",
                 params![t, column],

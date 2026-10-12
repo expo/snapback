@@ -1,4 +1,4 @@
-//! A new generation reads images delivered before a required literal default.
+//! Every generation reacquires authoritative images, including literal-default additions.
 mod common;
 use common::*;
 use snapback4_core::{Value, wire};
@@ -23,7 +23,8 @@ fn scenario<H: Host>(host: &mut H, reopen_with_backend: bool) {
     } else {
         device.adopt(next).unwrap();
     }
-    // No post-adoption snapshot: these are the three images held before it.
+    assert_eq!(device.query("all", "dev:alice", &serde_json::json!({}), 1000).unwrap_err().code,"E_PREDICT","generation replacement requires reacquisition");
+    for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate(){device.apply(page,i==0).unwrap();}
     let read = device.query("all", "dev:alice", &serde_json::json!({}), 1000).unwrap();
     assert!(read.complete);
     assert_eq!(read.data.as_array().unwrap().len(), 3, "{}", host.label());
@@ -37,19 +38,19 @@ fn scenario<H: Host>(host: &mut H, reopen_with_backend: bool) {
 }
 
 #[test]
-fn literal_default_images_on_both_device_stores() {
+fn literal_default_additions_reacquire_on_both_device_stores() {
     for reopen in [false, true] {
         let mut sqlite = Sqlite::new("defaults");
         scenario(&mut sqlite, reopen);
         let store = snapback4_core::Store::open_read_only(&sqlite.path("defaults")).unwrap();
-        assert!(store.rows("messages").unwrap().iter().all(|row| row.field("tombstone").is_err()));
+        assert!(store.rows("messages").unwrap().iter().all(|row| row.field("tombstone").unwrap()==&Value::Bool(false)));
         let mut memory = Memory::new();
         scenario(&mut memory, reopen);
         let held = memory.held("defaults");
         let rows: Vec<Value> = held.iter().filter(|((kind, _), _)| *kind == 'r').filter_map(|(_, value)| value.as_ref())
             .map(|text| serde_json::from_str(text).unwrap()).collect();
         assert_eq!(rows.len(), 3);
-        assert!(rows.iter().all(|row| row.field("tombstone").is_err()));
+        assert!(rows.iter().all(|row| row.field("tombstone").unwrap()==&Value::Bool(false)));
     }
 }
 

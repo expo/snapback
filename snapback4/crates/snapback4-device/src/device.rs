@@ -406,14 +406,6 @@ fn invalidate_native(metadata: &mut BTreeMap<String, String>) {
     metadata.insert(NATIVE_GENERATION.to_owned(), String::new());
 }
 
-// @ref LLP 3000.007#18.3 — retained images stay acquired only for the same public table set.
-// BTreeMap order compares the sets without building another collection.
-// Legacy $recount/$basis work tables on either side are not partition evidence.
-fn same_public_tables(from: &Schema, to: &Schema) -> bool {
-    from.visible_tables().map(|(name, _)| name)
-        .eq(to.visible_tables().map(|(name, _)| name))
-}
-
 pub(crate) fn reset_for_install<T: DeviceTx>(tx: &T, metadata: &BTreeMap<String, String>, drop_images: bool) -> Result<(), RuntimeError> {
     let old = meta_u64(tx, GENERATION)?;
     let changed = metadata.get(GENERATION).is_some_and(|new| new != &old.to_string());
@@ -480,10 +472,9 @@ impl<S: DeviceStore> Device<S> {
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
-        let keep_images = reset && previous.as_ref()
-            .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
-        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| same_public_tables(&old.schema, &backend.schema))
-            && store.meta(ACQUIRED)? == Some(held.to_string());
+        // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — source additions can restore incompatible dormant cells; generation replacement clears every base image.
+        let keep_images = false;
+        let keep_acquired = false;
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         if reset {
@@ -582,8 +573,7 @@ impl<S: DeviceStore> Device<S> {
     }
 
     /// The backend changed (a new generation from `/schema`): adopt it and
-    /// keep it; a literal-default addition keeps the old images readable.
-    /// A changed generation still requests a fresh snapshot.
+    /// keep it. A changed generation replaces base images and requests a fresh snapshot.
     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
         self.adopt_captured(backend, BTreeMap::new())
     }
@@ -609,12 +599,10 @@ impl<S: DeviceStore> Device<S> {
         let obsolete_native = adopted_store != self.store_identity || cached_native.filter(|s| !s.is_empty()).as_deref() != self.native_digest.as_deref();
         let replacement = required.as_ref().is_some_and(|value| !value.is_empty());
         let reset = backend.generation != self.generation;
-        let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
-        // @ref LLP 3000.007#18.3 — literal-default-only evolution keeps already acquired images readable.
-        // Added public tables require acquisition; legacy server work tables
-        // synthesized by older web devices are not part of the partition.
-        let keep_acquired = keep_images && same_public_tables(&self.schema, &backend.schema)
-            && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
+        // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — schema shape alone cannot certify the release's active population.
+        let keep_images = false;
+        // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — a release can hide restored data even when its added columns have literal defaults.
+        let keep_acquired = false;
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());

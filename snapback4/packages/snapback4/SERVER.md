@@ -110,7 +110,8 @@ Every changed execution identity gets a fresh monotone generation, including
 rollback/forward and native-only wasm changes. Equal schema/program/module content
 retains its generation unless the final active/dormant population changes, which
 requires replica replacement; the activation revision still advances. Existing clients
-learn the new backend, replace obsolete partitions and reacquire; old watermarks,
+learn the new backend, clear base images/acquisition even for literal-default-only
+changes (restored dormant values cannot be certified from shape alone), and reacquire; old watermarks,
 late pages and late native module fetches cannot mix with the new generation.
 This includes union audiences and merged pages: all their acquired arms/scopes
 and continuation positions belong to that generation. They reacquire before

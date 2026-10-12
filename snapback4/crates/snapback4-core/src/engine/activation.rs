@@ -140,7 +140,7 @@ impl Engine {
                     item.before_sample_ids=Some(before.map_or_else(Vec::new,|i|i.sample_ids));
                     let restored=if item.kind=="rows" {
                         tx.meta(&format!("activation_narrowed_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
-                    } else if item.kind=="column" {count.saturating_sub(item.rows)} else {0};
+                    } else if item.kind=="column" {tx.meta(&format!("activation_column_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)} else {0};
                     item.restored_rows=Some(restored);
                     if restored>0 {item.action="partially restored".into();restored_items+=1;}
                 }
@@ -150,7 +150,7 @@ impl Engine {
                 }).collect::<Vec<_>>();
                 restored_items+=restored.len();items.extend(restored);
                 crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
-                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored') OR key LIKE 'activation_narrowed_restored:%'",[])?;
+                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored') OR key LIKE 'activation_narrowed_restored:%' OR key LIKE 'activation_column_restored:%'",[])?;
             }
             crate::store::opening::Metadata::read(tx)
         })

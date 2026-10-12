@@ -286,3 +286,24 @@ fn release_changes_reacquire_union_arms_and_merged_pages_without_old_membership(
         audience_release(&mut Sqlite::new("release-audiences"), limit);
     }
 }
+
+fn restored_literal_column<H:Host>(host:&mut H) {
+    let wide=bound("table rows:\n  status: enum('live','new') default 'live'\n  public\n  sync public\nquery all():\n  return rows[] first 20 by byId\n");
+    let retired=bound("table rows:\n  public\n  sync public\nquery all():\n  return rows[] first 20 by byId\n");
+    let narrow=bound("table rows:\n  status: enum('live') default 'live'\n  public\n  sync public\nquery all():\n  return rows[] first 20 by byId\n");
+    let mut e=Engine::new_release(Store::memory().unwrap(),wide.schema.clone(),wide.programs.iter().map(|p|p.program.clone()),1,None).unwrap();
+    seed(&mut e,"rows",serde_json::json!({"id":"r","status":"new"}));
+    e.adopt_release(retired.schema.clone(),retired.programs.iter().map(|p|p.program.clone()),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let mut device=host.open("literal-retention",Some(backend(&e,&retired))).unwrap();
+    for (i,page) in snapshot_pages(&mut e,"alice",10).iter().enumerate(){device.apply(page,i==0).unwrap();}
+    assert_eq!(device.query("all","alice",&serde_json::json!({}),1000).unwrap().data.as_array().unwrap().len(),1);
+    assert!(snapback4_core::successor::keeps_literal_default_images(&retired.schema,&narrow.schema),"fixture must exercise the formerly retained-image shape");
+    e.adopt_release(narrow.schema.clone(),narrow.programs.iter().map(|p|p.program.clone()),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    device.adopt(backend(&e,&narrow)).unwrap();
+    assert_eq!(device.query("all","alice",&serde_json::json!({}),1000).unwrap_err().code,"E_PREDICT","a new generation cannot certify a now-dormant row through its literal default");
+    for (i,page) in snapshot_pages(&mut e,"alice",10).iter().enumerate(){device.apply(page,i==0).unwrap();}
+    assert!(device.query("all","alice",&serde_json::json!({}),1000).unwrap().data.as_array().unwrap().is_empty());
+    host.close("literal-retention",device);
+}
+#[test]
+fn literal_column_restoration_cannot_keep_dormant_images_on_either_store(){restored_literal_column(&mut Memory::new());restored_literal_column(&mut Sqlite::new("literal-retention"));}

@@ -912,16 +912,16 @@ test("FF1 adoption audit: committed generation invalidates before a thrown sync_
   assert.ok(notices.every(read => read.data !== "A"));
 });
 
-test("FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up", async t => {
+test("FF1 adoption control: compatible widening waits for acquisition after interrupted catch-up", async t => {
   const f = await fixture(t);
   assert.equal(f.client.acquired, true);
   f.widenBackend(); f.onAdopt(() => f.offline(true));
   await f.client.sync();
   const state = ok(await f.core.call({ op: "sync_state", capture: false }));
   assert.equal(state.generation, 2);
-  assert.equal(state.acquired, true, "literal-default widening preserves native acquisition");
+  assert.equal(state.acquired, false, "a changed generation replaces native acquisition even for literal defaults");
   assert.equal(f.client.link(), "offline");
-  assert.equal(f.client.acquired, true, "the successful readiness read revalidates retained acquisition");
+  assert.equal(f.client.acquired, false, "offline readiness cannot certify previous-generation images");
   const read = await f.client.query({ kind: "query", name: "marker" }, {});
   assert.equal(read.data, "A2", "the adopted interpreter remains readable offline");
   assert.equal(read.fresh, false);
