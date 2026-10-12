@@ -1,0 +1,37 @@
+   Compiling snapback4-core v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 1.07s
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-d6c77740c1d46752)
+
+running 16 tests
+test generation::ring_gap_invalidates_every_requested_name_including_a_removed_table ... ok
+test layered::drop_guard_restores_updates_deletes_and_panics ... ok
+test layered::routes_reads_and_drop_guard_undoes_durable_write_and_store_error ... ok
+test expiry_joins_and_hidden_deadlines_with_no_durable_records_or_replay ... ok
+test expired_points_skip_rules_and_durable_queries_do_not_lock_the_hub ... ok
+test seed_and_load_refuse_ephemeral_tables ... ok
+test renewal_requires_insert_authority_and_revocation_affects_reads ... ok
+snapback4: atomic adoption: unestimated write pause for activation cleanup/rewrite; source rows []; 0 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 1 stored rows and 2 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test durable_to_ephemeral_activation_deletes_rows_and_indexes ... ok
+test generation::preservation_certifies_inserts_but_not_delete_sweep_or_ring_gaps ... ok
+test generation::adoption_fences_an_already_established_snapshot_and_rebinds_hub ... ok
+test generation::memory_mutation_does_not_need_sqlite_writer_lock_and_restart_is_empty ... ok
+test generation::ring_filters_interests_and_overflow_covers_the_interest ... ok
+test paired_world_capacity_depends_on_declared_size_not_private_payload ... ok
+test failures_after_a_write_undo_every_row_and_epoch ... ok
+test capacity_refusals_restore_rows_and_sweep_before_admission ... ok
+test generation_admission_rechecks_life_clauses_and_effect_facts ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/upload_intents.rs (target/debug/deps/upload_intents-6379febb461cb34b)
+
+running 6 tests
+test collected_receipts_never_create_a_second_asset ... ok
+test terminal_pre_program_refusal_gets_bound_receipt_and_unpins ... ok
+test adoption_to_ephemeral_refuses_media_before_effect_and_finalizes_durably ... ok
+test cancellation_wins_against_a_late_staged_upload ... ok
+test duplicate_staged_uploads_commit_one_file_and_pin_until_cancellation ... ok
+test ledger_reopen_and_owner_inventory_recover_lost_device_custody ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

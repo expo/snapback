@@ -1,0 +1,62 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:458:51
+    |
+458 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4)
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:766:4
+    |
+766 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (bin "snapback4" test) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 49.45s
+     Running unittests src/main.rs (target/debug/deps/snapback4-249aad199e5def95)
+
+running 18 tests
+test serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second ... ok
+test verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution ... ok
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+test serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [items=1]; 0 row projections, 0 index row builds, 0 capture fills, 1 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test serve::tests::ephemeral_tests::legacy_poll_reply_has_base_shape_plus_change_evidence ... ok
+test serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check ... ok
+snapback4: atomic adoption: unestimated write pause for activation cleanup/rewrite; source rows []; 0 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; additional unestimated retirement pause: 3 stored rows and 7 index entries; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses ... ok
+test serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200 ... ok
+test serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty ... ok
+test serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve ... ok
+test serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock ... ok
+test serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock ... ok
+test serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced ... ok
+test serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked ... ok
+test serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock ... ok
+test serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait ... ok
+snapback4: atomic adoption: estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [items=1]; 0 row projections, 0 index row builds, 0 capture fills, 1 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time
+test serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps ... ok
+test serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance ... ok
+test serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 1.56s
+

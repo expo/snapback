@@ -1,0 +1,32 @@
+✔ Expo save: private selected bytes, filename and handle disposal (completed=true) (15.534489ms)
+✔ Expo save: private selected bytes, filename and handle disposal (completed=false) (0.50738ms)
+✔ Expo save refuses missing module and denied reads; failures always release handles (1.176704ms)
+✔ Chromium (worker=false): offline byte custody transfers to a new tab after reload and places once; IDB abort and pagehide stay fenced (4420.076611ms)
+✔ Chromium (worker=true): offline byte custody transfers to a new tab after reload and places once; IDB abort and pagehide stay fenced (3660.21948ms)
+✔ Chromium (worker=false): shared receipts cannot bypass live input or lose entering ownership across orphan histories (978.332033ms)
+✔ Chromium (worker=true): shared receipts cannot bypass live input or lose entering ownership across orphan histories (4999.706684ms)
+✔ AppProvider useUpload captures offline, resumes a kept id, and fences the retired public facade (3096.412559ms)
+✔ memory: captured bytes survive reopen; lost upload reply and failed readiness dedup before one placement (3130.650017ms)
+✔ sqlite: captured bytes survive reopen; lost upload reply and failed readiness dedup before one placement (2579.766851ms)
+✔ wire upload id dedup compares bytes and metadata, isolates owners, survives cancel and sniffs audio (170.800749ms)
+✔ public guarded capability rejects ordinary terminal id reuse and scopes subscriptions (88.77545ms)
+✔ close stops waiting for a hung upload and fences its late response without losing custody (1065.733863ms)
+✔ file capture normalizes bounded metadata before custody; a shared ordinary receipt survives a full local history (1060.475059ms)
+✔ default orphan adoption preserves conflicting bytes and the entire source suffix (18.665453ms)
+✔ opening recovery cannot evict applicable shared ownership before upload preflight (12.555042ms)
+✔ acknowledged remote cancellation survives original-owner retirement (0.679859ms)
+✔ transfer protects shared ownership from source-history trimming (10.151719ms)
+✔ remote cancellation owns response body through lifetime abort (10.045791ms)
+✔ matching shared receipt cannot erase conflicting live orphan custody (7.674004ms)
+✔ entering shared ownership survives histories of earlier orphans in the same pass (9.236967ms)
+✔ readiness schema refusal persists blocked reason and stops automatic uploads (7.087515ms)
+✔ HTTP media placement cannot execute after durable-to-ephemeral adoption (553.816062ms)
+✔ HTTP declaration and refusal finalization enforce persisted metadata bounds (189.848154ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14184.798068
