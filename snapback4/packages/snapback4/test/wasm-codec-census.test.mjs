@@ -1,7 +1,7 @@
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — suite-speed wiring proof; artifact families remain a separate measurement.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { census, webSources as sources, selectWebSources, mask, items, allow, refusalAllow, core, device } from './wasm-codec-census.mjs';
+import { census, webSources as sources, selectWebSources, mask, items, allow, refusalAllow, streamingAllow, core, device } from './wasm-codec-census.mjs';
 
 test('web-reachable typed JSON calls all use the codec funnel', () => {
   assert.deepEqual(census(sources()), [], 'direct serde family outside json_codec.rs');
@@ -311,4 +311,19 @@ test('a representation needs a visible, reviewed, decoder-free derive list on th
   assert.match(unknown[0], /unresolvable derive NewDerive: not on the census's reviewed list.*if that derive decodes/);
   assert.doesNotMatch(unknown[0], /Deserialize content buffering/);
   assert.match(check('#[derive(Deserialize)] #[serde(untagged)] enum Read { X }')[0], /Deserialize content buffering/);
+});
+
+// Registry regeneration must not turn an inherited streaming call into a general bypass.
+test('streaming exceptions bind exact owner, line and single consumption', () => {
+  for (const entry of streamingAllow) {
+    const original = sources().get(entry.file);
+    for (const changed of [
+      original.replace(`fn ${entry.item}(`, 'fn moved('),
+      original.replace(entry.line, entry.line + '\n' + entry.line),
+      original.replace(entry.line, 'serde_json::from_value(value);'),
+    ]) {
+      const mutant = sources(); mutant.set(entry.file, changed);
+      assert.ok(census(mutant).some(error => error.includes('consumed')), entry.item);
+    }
+  }
 });

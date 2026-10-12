@@ -92719,3 +92719,14 @@ confirmation is READY (`llp/reviews/3000.036.001-merged-pages.r6-key-bounds.gpt.
 All 33 merged-page tests pass, including the added 480-byte owner-column
 label fallback and oversized existence-index fallback. Neither correction
 changes device execution or the measured wasm artifact.
+
+## 2026-10-12 — MERGE integration: regenerate the codec census
+
+The page/query client files passed. The additional codec census found two
+inherited calls absent from its registry: file JSON verification through
+`IgnoredAny`, and `stored_value_bytes` streaming to its allocation-counting
+writer. Their behavior is unchanged. Exact function/line entries now name
+these calls; the census still requires exactly one consumption, and new
+mutation controls reject renamed owners, duplicate calls and changed lines.
+All 27 codec-census checks pass. The integrated delivery-await boundary was
+also regenerated with no delta, and its classification check passes.
