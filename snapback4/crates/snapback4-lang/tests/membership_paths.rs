@@ -132,3 +132,56 @@ fn nullable_unique_membership_source_keeps_the_original_scan() {
         assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
     }
 }
+
+#[test]
+fn eight_component_source_unique_omits_its_logical_id_suffix() {
+    let source = "table groups:
+  a: int
+  b: int
+  c: int
+  d: int
+  e: int
+  f: int
+  g: int
+  principal: principal
+  unique a, b, c, d, e, f, g, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: groups
+  at: int
+  read <- .owner = viewer or exists groups[id = .parent, principal = viewer, a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0]
+  online only
+query documents(c: cursor ?):
+  return documents last 10 by .at after c
+";
+    let bound = clean(source);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter()
+        .any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    assert!(bound.schema.required_capabilities().contains("branch-membership-v1"));
+    let source_indexes = &bound.schema.tables["groups"].indexes;
+    assert!(source_indexes.values().any(|index| index.unique && index.components.len() == 8));
+    assert!(source_indexes.values().all(|index| index.components.len() <= 8));
+
+    let group = |id: &str, principal: &str| ("groups".into(), object([
+        ("id", Value::Id(id.into())), ("a", Value::Int(0)), ("b", Value::Int(0)),
+        ("c", Value::Int(0)), ("d", Value::Int(0)), ("e", Value::Int(0)),
+        ("f", Value::Int(0)), ("g", Value::Int(0)), ("principal", Value::Id(principal.into())),
+    ]));
+    let document = |id: &str, owner: &str, parent: &str, at| ("documents".into(), object([
+        ("id", Value::Id(id.into())), ("owner", Value::Id(owner.into())),
+        ("parent", Value::Id(parent.into())), ("at", Value::Int(at)),
+    ]));
+    for (witness, expected) in [(false, 1), (true, 2)] {
+        let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|program| program.program.clone())).unwrap();
+        let mut rows = vec![group("g0", "bob"), document("owned", "alice", "g0", 1),
+            document("denied", "bob", "g0", 3)];
+        if witness { rows.extend([group("g1", "alice"), document("shared", "bob", "g1", 2)]); }
+        engine.seed(rows).unwrap();
+        let page = engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+        assert!(page.complete && page.next.is_none(), "{page:?}");
+        assert_eq!(page.data.as_array().unwrap().len(), expected);
+    }
+}

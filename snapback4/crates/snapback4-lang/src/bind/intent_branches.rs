@@ -118,7 +118,7 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             // a true read-rule disjunct, matching the core validator.
             if !membership_source_witness(tables, synthesized, table, predicate, source)
                 || !membership_source_capped(tables, source) || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
-                || source.keys.len() + source.order_keys.len() > 8
+                || candidate.branch_index_width(source_table, source).is_none_or(|width| width > 8)
                 || !candidate.branch_index_fits(source_table, source) { return None; }
             push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
                 lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
