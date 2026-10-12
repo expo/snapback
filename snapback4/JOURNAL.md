@@ -92832,3 +92832,36 @@ docs-budget self-contained screen test passes. Ref-check is clean. Full Rust
 package verification and the complete per-item mapping are in the workstream
 report. Two actual independent reviews and dispositions are retained; no RFC
 status changed and no rollback/hot-deploy semantics were edited.
+
+## 2026-10-12 — MERGE final integrated qualification
+
+`10609408d5` also incorporates the newer `sb4-loop` tip `ccc3d40730`:
+CLI/auth/production-guide changes, unchanged MERGE engine/planner source.
+Both journal histories and both clock-test corrections survive. Affected
+latest-loop checks pass: 119 guide and 542 CLI tests (four declared ignores).
+Final page/query/census/budget client run: 14 files, 96 pass. Readauth:
+701 entries, 399 mutation occurrences, 84 private write sites; regenerated
+ordering and its recheck pass. Delivery-await census passes with no delta;
+codec census passes all 27 checks. Final language: 1,708 pass, 14 ignores.
+
+The original full Rust command's only product failure was the corrected
+UTC-dependent clock assertion. It also never launched 37 core executables
+that disappeared during the run; those targets were rebuilt in an isolated
+target directory and all pass (334 tests, two ignores). The original log
+is retained as interrupted evidence, not reported as green.
+
+The final fresh wasm rebuild measures 2,174,378 B raw / 658,353 B gzip and
+repeats exactly. Set 658,853 B, measurement + the existing 500 B headroom.
+This supersedes the earlier 657,042 B result after the newer integration and
+fresh rebuild; no per-feature cause, rebuilt control, Mac measurement or
+runtime-ceiling change is claimed.
+
+`run` 20,000 cases: zero disagreements. `run-lean` 100,000: 1,042 in four
+existing signatures; `run-devices` 3,000: 224 in existing signatures. No new
+signatures; all three oracle reports' counts exactly match the inherited
+revision-5 campaigns. Exit-1 differential results remain explicit. Lean's
+audit passes 48 theorems, 47 examples and five oracle fixtures. Docs budget:
+319/320 lines and the named self-containment check pass. Reference check:
+zero errors/unchecked. Evidence under `reports/20261012-merged-owner-pages/`;
+root `WORKSTREAM-REPORT.md` lists changes, commits, checks and deferrals.
+No push or publication.

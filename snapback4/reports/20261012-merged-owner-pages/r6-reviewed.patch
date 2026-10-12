@@ -1,0 +1,312 @@
+diff --git a/llp/3000.036.001-merged-pages-for-owner-or-x-lists.rfc.md b/llp/3000.036.001-merged-pages-for-owner-or-x-lists.rfc.md
+index 429532efe5..11bded1242 100644
+--- a/llp/3000.036.001-merged-pages-for-owner-or-x-lists.rfc.md
++++ b/llp/3000.036.001-merged-pages-for-owner-or-x-lists.rfc.md
+@@ -1,11 +1,11 @@
+ # LLP 3000.036.001: Merged pages for owner-or-X lists
+ 
+ **Type:** RFC
+-**Status:** Implemented (revision 5, branch `sb4-ws-merge`, merged with `sb4-loop` 0.4.23, 2026-10-12); not yet integrated
++**Status:** Implemented (revision 6, branch `sb4-ws-merge`, merged with `sb4-loop` 0.4.23, 2026-10-12); not yet integrated
+ **Systems:** Snapback 4 language (`snapback4-lang`: intent planning `bind/intent_branches.rs`, planned-merge binding `bind/program/views.rs`, `N_NEVER_COMPLETE`, the reads/indexes/sharing/recipes/cheatsheet cards), core (`snapback4-core`: `ir.rs` lane identities, `engine/branch_merge.rs`, the page walk's grant arm and frontier, `rules::branch_merge_lazy` and `covering_grant`, cursor versions 4 and 5), the device (`snapback4-device`, both stores), the Lean model (`snapback4/lean`: OPEN C8 and C2, `Proofs/Branches.lean`), the difftest generator (`widen.rs`) and its Lean features
+ **Author:** Claude Opus 5.5 for Charlie Cheever (workstream MERGE)
+ **Date:** 2026-10-12
+-**Revised:** 2026-10-12 (revision 5: GPT's round-4 review, NOT READY; a member through a reference is not total, the capability walks the whole body, the token's scope is a digest of the lanes' pins; §13); 2026-10-12 (revision 4: round-3 reviews, both NOT READY; case 2 always plans its grant lane, which the system reads whole; `exists` merges case 1 only; branch tokens are scoped to every lane's pins; capability `branch-merge-v1` fences older devices; the Lean model normalizes the planner's pins; §13); 2026-10-12 (revision 3: round-2 reviews, GPT NOT READY and Muse READY WITH CHANGES; the grant lane is planned as the read as written, clock arithmetic is not total, the frontier capture is armed and scoped to its lane, the eager path's foreign token restarts the read, and the Lean model mirrors the planner's guard, helper, existence and lane-count conditions; §13); 2026-10-12 (revision 2: merged with 0.4.23, whose LN workstream made a disjunct the page's pins decide a page guard (LLP 3000.036 §16.3); case 2 now takes such guards beside parties, §2, §3, §9, §13); 2026-10-12 (revision 1: implemented; folds the blind GPT and Muse reviews of the draft, both NOT READY — totality, inclusive shape positions, the frontier continuation, order-column and index-width exclusions, seats on devices, the encoding and the downgrade; dispositions in §13); 2026-10-12 (draft for review, first numbered 3000.038, renumbered here because sibling workstreams took 3000.038)
++**Revised:** 2026-10-12 (revision 6: round-5 GPT size-bound and nested-note findings; bounded descriptor digest, portable-key fallback, case-1-only existence wording; §13); 2026-10-12 (revision 5: GPT's round-4 review, NOT READY; a member through a reference is not total, the capability walks the whole body, the token's scope is a digest of the lanes' pins; §13); 2026-10-12 (revision 4: round-3 reviews, both NOT READY; case 2 always plans its grant lane, which the system reads whole; `exists` merges case 1 only; branch tokens are scoped to every lane's pins; capability `branch-merge-v1` fences older devices; the Lean model normalizes the planner's pins; §13); 2026-10-12 (revision 3: round-2 reviews, GPT NOT READY and Muse READY WITH CHANGES; the grant lane is planned as the read as written, clock arithmetic is not total, the frontier capture is armed and scoped to its lane, the eager path's foreign token restarts the read, and the Lean model mirrors the planner's guard, helper, existence and lane-count conditions; §13); 2026-10-12 (revision 2: merged with 0.4.23, whose LN workstream made a disjunct the page's pins decide a page guard (LLP 3000.036 §16.3); case 2 now takes such guards beside parties, §2, §3, §9, §13); 2026-10-12 (revision 1: implemented; folds the blind GPT and Muse reviews of the draft, both NOT READY — totality, inclusive shape positions, the frontier continuation, order-column and index-width exclusions, seats on devices, the encoding and the downgrade; dispositions in §13); 2026-10-12 (draft for review, first numbered 3000.038, renumbered here because sibling workstreams took 3000.038)
+ **Related:** [LLP 3000](./3000-snapback4.explainer.md) (§7 2026-09-13 "wide uniform merges read heads"), [LLP 3000.007.000](./3000.007.000-merge-position-and-drain-cut-continuation.spec.md) (the merge position and the drain-cut continuation), [LLP 3000.027](./3000.027-top-n-answer-is-complete.rfc.md), [LLP 3000.035](./3000.035-quarry-semantics-in-lean.plan.md) (the Lean model), [LLP 3000.036](./3000.036-what-the-app-farm-asks-of-the-rule-language.rfc.md) §12.1 (readable grants), §12.2, §13.2, §16.1 (owner-or-X lists and the complete form), [LLP 3000.036.000](./3000.036.000-sharing-shapes-at-sync-and-union-audiences.rfc.md) §4 (union audiences, orthogonal), the reviews `llp/reviews/3000.036.001-merged-pages.{gpt,muse}.md`, the ticket `issues/20261012-snapback4-device-group-page-rule-probe-meter.md`
+ 
+ ## 0. Summary
+@@ -165,8 +165,8 @@ deciding pin is never left residual), the page's order then `id` the suffix;
+ the planner reuses a declared index with exactly those columns or synthesizes
+ one. The expansion is dropped, and the read planned as written, when a branch
+ does not decide the rule (by the binder's check), the branches' order columns
+-differ, an index would exceed 8 components, or planning a branch raised a
+-diagnostic: a program that compiled before still compiles. The result is the
++differ, an index would exceed 8 components, or a branch exceeds the portable 2,048-byte key or 512-byte label bound,
++or planning a branch raised a diagnostic: a program that compiled before still compiles. The result is the
+ existing `MergeExpr` with planned lanes, each carrying the branch identity
+ `$or` (or `$or:grant`) in the field views use for theirs; the planned-merge
+ binding passes it through to the IR `MergeLane.branch`. No IR type gains a
+@@ -243,9 +243,8 @@ runs the plan with the identities stripped and compares every page.
+   `grant_decision` restricts to grants whose every fact the caller can read.
+   The number of lanes opened (one when a grant holds) carries the same bit.
+   A grant charges the rule's static probe count on either verdict.
+-- **The token.** The version-4 descriptor names the branch set's index
+-  names, as every token already names its table and index: schema facts, not
+-  data.
++- **The token.** The version-4 descriptor hashes the branch set's index
++  names and grant flags: schema facts. It does not encode row data.
+ - **Across pages.** The position is shared by every plan of the page, so a
+   grant gained or lost between pages continues correctly from the same
+   cursor; completeness is per page, as for every page.
+@@ -262,17 +261,18 @@ branches hold.
+ The token is **version 4**, or **version 5** when inclusive:
+ 
+ ```
+-[4 | 5, table, "$or:<lane index 1>|<lane index 2>|…", order, suffix, values, scope]
++[4 | 5, table, "$or:<branch-set SHA-256>", order, suffix, values, scope]
+ ```
+ 
+ the layout of version 3 (an inclusive direct token), so the device decodes it
+ with the same code (sharing it saved 646 B of the web device). The index
+-field names the branch set in lane order (`+grant` marks a grant lane);
++field hashes the branch set in lane order: a domain marker, lane count, and
++each index name with its byte length and grant flag, all unambiguously framed;
+ `scope` carries the argument-presence variant as other tokens do; the suffix
+ is the shared typed position. Encoding picks 4 or 5 exactly for a branch
+ descriptor, and decoding re-encodes and compares, so a version-4 or -5 token
+-without one, or a branch descriptor in an older version, is refused. Eight
+-synthesized index names stay well inside the 4,096-byte token bound.
++without one, or a branch descriptor in an older version, is refused. The descriptor is bounded even when eight lanes reuse a legal 507-byte
++index name: it is `$or:` followed by a SHA-256 digest, never the labels themselves.
+ 
+ - **Inclusive positions.** An unfinished first returned shape records its
+   row's position inclusively (`shaping.rs`), on merges too (GPT review,
+@@ -290,7 +290,7 @@ synthesized index names stay well inside the 4,096-byte token bound.
+   canonical encoding), and the generation, as a direct page's carries its
+   prefix. The digest, not the prefixes: lanes that each fit the index key
+   bound can together exceed the token's 4,096 bytes (three 1,600-byte folder
+-  pins; GPT round 4, finding 3). A cursor followed with other arguments, a cursor followed with other arguments,
++  pins; GPT round 4, finding 3). A cursor followed with other arguments,
+   or by another viewer (a party pin is the viewer), refuses `cursor: …
+   different prefix or generation` (`E_INPUT`) instead of resuming lanes over
+   ranges it never saw (Muse round 3, finding 1).
+@@ -372,7 +372,7 @@ generator draws the shape once it is decided.
+ | `first` / `last` | Both directions; the heap orders by the shared position. |
+ | `after c` | §5. A cursorless top-N merge is complete when it fills (LLP 3000.027 §1). |
+ | Returned shapes | The page owns the merge site; shape positions use the shared suffix; inclusive positions as §5. |
+-| `exists t where W` | Case 1, or case 2 without grants: `exists (branch 1) or … or exists (branch k)`, each a decided existence read, so `true` or `false`, never §15.12's "true or unavailable". With a grant, unchanged (§12 Q3). |
++| `exists t where W` | Case 1 only: `exists (branch 1) or … or exists (branch k)`, each a decided existence read, so `true` or `false`, never §15.12's "true or unavailable". With a grant, unchanged (§12 Q3). |
+ | `count`, `sum`, `min`, `max` | Unchanged (`E_QUARRY_BOUND` for an undecided total; §12 Q4). |
+ | Search (`matching`) | Unchanged; `N_NEVER_COMPLETE` keeps the membership-search rewrite (§12 Q5). |
+ | Maintained views, row views, ephemeral and timeline tables, `read through` | Unchanged (excluded in §2). |
+@@ -398,7 +398,7 @@ helper's body; case 2 takes usable guards, `Rule.usableGuard`, which mirrors
+ the core's `disclosing` (a pinned column is an unknown value; nested `or` and
+ `not` disclose nothing), counts the grant lane toward the 8, and declines a
+ guarded page whose first order column is pinned). `exists` over branches
+-(case 1, or case 2 without guards) is decided too (`existsRead`'s verdict).
++(case 1 only) is decided too (`existsRead`'s verdict).
+ The party-and-guard half of "nothing missed" is §2.1's argument; the proofs
+ cover the party half (`parties_cover_view`). `pageRead` takes the syntactic verdict and
+ ors it with LN's; the page's rows, order and cursor do not change, and a
+@@ -588,7 +588,7 @@ material) and `.r3.muse.md` (NOT READY, one material, six minor), both of
+ 
+ `llp/reviews/3000.036.001-merged-pages.r4.gpt.md` (NOT READY, three
+ material) of `48acdb4544`. Muse's round-4 run stopped before reviewing (its
+-subscription quota was exhausted); its review is of revision 5. Revision 5:
++subscription quota was exhausted); round 5 below supplies its review of revision 5. Revision 5:
+ 
+ - **GPT 1** (`.meta.ok` is total yet binds to a read; a cut inside it lets
+   the frontier pass the row) — accepted: a member of anything but the row is
+@@ -606,3 +606,26 @@ subscription quota was exhausted); its review is of revision 5. Revision 5:
+   bytes) — accepted: the scope is a digest (§5). Test
+   `a_cursor_over_wide_lane_prefixes_fits_its_token` (fails without the fix).
+ 
++
++### Round 5 (revision 5)
++
++The fresh GPT review at `c8f0810607`,
++`llp/reviews/3000.036.001-merged-pages.r5.gpt.md`, is NOT READY (two material,
++two minor). Muse's independent review of the same snapshot,
++`llp/reviews/3000.036.001-merged-pages.r5.muse.md`, is READY WITH CHANGES
++(one minor, the same existence wording as GPT 4); the wrapper's API-key
++fallback completed after quota errors. Revision 6 addresses all findings:
++
++- **GPT 1** — the branch descriptor is now a bounded SHA-256 digest of
++  ordered index identities and grant flags. A regression walks eight lanes
++  reusing a legal 507-byte index name. Versions 4/5 and the separate pin-scope
++  digest remain; tokens from the earlier unpublished descriptor restart.
++- **GPT 2** — before committing optional branch plans, check their actual
++  selected indexes against the same portable key/label bounds as schema
++  admission. An oversized lane drops the expansion and its speculative
++  indexes. A regression compiles and executes the original scan when its
++  2,028-byte key fits but a party lane would require 2,166 bytes.
++- **GPT 3** — grant-lane note suppression uses `ir::body_merges`, including
++  nested shapes, and the existing capability regression now checks the note.
++- **GPT 4** — §8, §9 and Lean OPEN C8 say `exists` expands case 1 only,
++  matching the binder, model and round-3 disposition.
+diff --git a/snapback4/crates/snapback4-core/src/ir.rs b/snapback4/crates/snapback4-core/src/ir.rs
+index 546bec279e..638e47fbee 100644
+--- a/snapback4/crates/snapback4-core/src/ir.rs
++++ b/snapback4/crates/snapback4-core/src/ir.rs
+@@ -473,15 +473,21 @@ impl Merge {
+         self.view.is_none() && !self.lanes.is_empty()
+             && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE)))
+     }
+-    /// The cursor descriptor's index field: the branch set, in lane order.
++    /// The cursor descriptor's index field: a bounded digest of the branch
++    /// set, in lane order. Legal labels repeated across eight lanes can
++    /// otherwise exceed the token bound before its position is encoded.
++    // @ref LLP 3000.036.001#5 — both plan identity and pin scope have bounded digests
+     pub fn branch_descriptor(&self) -> String {
+-        let mut name = String::from(BRANCH_DESCRIPTOR);
+-        for (n, lane) in self.lanes.iter().enumerate() {
+-            if n > 0 { name.push('|'); }
+-            name.push_str(&lane.scan.index);
+-            if lane.grant() { name.push_str("+grant"); }
++        use sha2::{Digest, Sha256};
++        let mut hash = Sha256::new();
++        hash.update(b"branch-merge-v1\0");
++        hash.update((self.lanes.len() as u64).to_be_bytes());
++        for lane in &self.lanes {
++            hash.update((lane.scan.index.len() as u64).to_be_bytes());
++            hash.update(lane.scan.index.as_bytes());
++            hash.update([u8::from(lane.grant())]);
+         }
+-        name
++        format!("{BRANCH_DESCRIPTOR}{:x}", hash.finalize())
+     }
+ }
+ 
+diff --git a/snapback4/crates/snapback4-lang/src/bind/intent.rs b/snapback4/crates/snapback4-lang/src/bind/intent.rs
+index 175b6b4cc3..1f2a5f8d76 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/intent.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/intent.rs
+@@ -61,6 +61,13 @@ impl Requests {
+     }
+     pub(super) fn error_count(&self) -> usize { self.errors.len() }
+ 
++    pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
++        let Some(name) = &read.index else { return false };
++        self.indexes.get(&(table.decl.name.clone(), name.clone()))
++            .or_else(|| table.indexes.iter().find(|index| &index.name == name))
++            .is_some_and(|index| super::key_bound::plain_index_fits(table, index))
++    }
++
+     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
+         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)
+     }
+diff --git a/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs b/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs
+index dc2b210320..a1557082c4 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs
+@@ -41,7 +41,8 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr)
+         // after its pins (lane planning never pins an order column).
+         if order.get_or_insert_with(|| lane.order_keys.clone()) != &lane.order_keys || lane.index.is_none() { return None; }
+         // An index holds at most 8 components; a lane never makes a program refuse.
+-        if lane.keys.len() + lane.order_keys.len() > 8 { return None; }
++        if lane.keys.len() + lane.order_keys.len() > 8
++            || !candidate.branch_index_fits(&tables[&read.table], &lane) { return None; }
+         lanes.push(MergeLane { admission: read.filter.clone(), nulls: None, distinct: None, branch: Some(if grant { GRANT_LANE } else { BRANCH_LANE }.into()),
+             planned: Some(Box::new(lane)), project: None, table: None, prefix: Vec::new(), columns: None, loop_: None, site: read.site.clone() });
+     }
+@@ -65,7 +66,7 @@ pub(super) fn exists(tables: &Tables, requests: &mut Requests, read: &ReadExpr,
+         let mut lane = read.clone();
+         lane.filter = intent::conjunction(conjuncts);
+         candidate.read(tables, &mut lane, false);
+-        if !decided(tables, &lane) { return None; }
++        if !decided(tables, &lane) || !candidate.branch_index_fits(&tables[&read.table], &lane) { return None; }
+         reads.push(Expr::Exists { read: lane, site: site.clone() });
+     }
+     if candidate.error_count() != errors { return None; }
+diff --git a/snapback4/crates/snapback4-lang/src/bind/key_bound.rs b/snapback4/crates/snapback4-lang/src/bind/key_bound.rs
+index 8907195213..5774803e9c 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/key_bound.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/key_bound.rs
+@@ -22,6 +22,19 @@ fn column_bytes(kind: &ColumnType) -> usize {
+     }
+ }
+ 
++/// Optional branch planning must not introduce a later key-bound refusal.
++/// Use the same column sizes and appended identity as the schema check.
++// @ref LLP 3000.036.001#3 — oversized branch indexes leave the original read intact
++pub(super) fn plain_index_fits(table: &super::catalog::TableInfo, index: &crate::ast::IndexDecl) -> bool {
++    table.decl.name.len().saturating_add(index.name.len()) <= MAX_INDEX_LABEL_BYTES
++        && index.words.is_none() && index.computed.is_empty()
++        && index.columns.iter().fold(ID_BYTES, |bytes, column| {
++            let size = table.columns.get(column).map(|ty| column_bytes(&crate::types::scalar_to_column(ty)))
++                .unwrap_or(if column == "id" { ID_BYTES } else { usize::MAX });
++            bytes.saturating_add(size)
++        }) <= MAX_INDEX_KEY_BYTES
++}
++
+ // @ref LLP 3000.009#4.3 — bound components, encoding overhead and the id.
+ pub(super) fn check(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Diagnostic>) {
+     for (name, table) in &schema.tables {
+diff --git a/snapback4/crates/snapback4-lang/src/bind/mod.rs b/snapback4/crates/snapback4-lang/src/bind/mod.rs
+index 4fb7fcc11b..d37bea1bd2 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/mod.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/mod.rs
+@@ -689,7 +689,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
+         }
+         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
+         // @ref LLP 3000.036.001#8 — a branch merge's grant lane is decided per caller before it opens.
+-        let grant_lanes: Vec<*const snapback4_core::ir::Scan> = merges(&bound.program.body).into_iter()
++        let grant_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
+             .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant()).map(|lane| &lane.scan as *const _)).collect();
+ 
+         for scan in snapback4_core::ir::scans(&bound.program) {
+diff --git a/snapback4/crates/snapback4-lang/tests/branch_merge.rs b/snapback4/crates/snapback4-lang/tests/branch_merge.rs
+index c3f87b8661..9b0d81c0a9 100644
+--- a/snapback4/crates/snapback4-lang/tests/branch_merge.rs
++++ b/snapback4/crates/snapback4-lang/tests/branch_merge.rs
+@@ -727,6 +727,7 @@ fn a_merge_inside_a_returned_shape_requires_the_branch_merge_capability() {
+     let program = &b.programs.iter().find(|p| p.program.name == "nested").unwrap().program;
+     assert!(snapback4_core::ir::body_merges(&program.body).iter().any(|m| m.branches()), "the inline page is a branch merge");
+     assert!(b.schema.required_capabilities().contains("branch-merge-v1"));
++    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+ }
+ 
+ /// GPT r4 #3: each lane's prefix fits a token; together they would not. The
+@@ -750,3 +751,46 @@ query mine(folder: text <=400, c: cursor ?):
+     let (got, _) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide.clone()))]);
+     assert_eq!(got, vec!["t2", "t1"]);
+ }
++
++/// GPT r5 #1: eight legal 507-byte index labels cannot be copied into next.
++#[test]
++fn repeated_long_index_names_have_a_bounded_cursor_descriptor() {
++    let index = "x".repeat(507);
++    let alternatives = (1..=8).map(|n| format!(".board = {n}")).collect::<Vec<_>>().join(" or ");
++    let source = format!("table members:\n  board: int\n  principal: principal\n  unique board, principal\n  read <- .principal = viewer\n  online only\ntable cards:\n  board: int\n  at: int\n  by {index}: board, at, id\n  read <- exists members[.board, viewer]\n  online only\nquery mine(c: cursor ?):\n  return cards where {alternatives} last 1 by .at after c\n");
++    let b = clean(&source);
++    assert_eq!(branch_merges(&b, "mine").first().map(|m| m.0), Some(8));
++    let mut rows = Vec::new();
++    for (name, board) in [("c1", 1), ("c2", 8)] {
++        rows.push(("cards", vec![("id", id(name)), ("board", Value::Int(board)), ("at", Value::Int(board))]));
++    }
++    for (name, board) in [("m1", 1), ("m8", 8)] {
++        rows.push(("members", vec![("id", id(name)), ("board", Value::Int(board)), ("principal", id("alice"))]));
++    }
++    let mut e = engine(&source, rows);
++    let first = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
++    let token = first.next.as_ref().expect("two matches need a cursor");
++    let position = snapback4_core::cursor::decode_cursor(e.schema(), token).unwrap();
++    assert_eq!(position.index.len(), 68);
++    let (got, complete) = walk(&mut e, "mine", "alice", &[]);
++    assert_eq!(got, vec!["c2", "c1"]);
++    assert!(complete.into_iter().all(|c| c));
++}
++
++/// GPT r5 #2: the original 2028-byte key fits; adding a party would not.
++#[test]
++fn branch_key_bytes_that_exceed_the_portable_bound_keep_the_original_scan() {
++    let source = TASKS.replace("  at: int", "  folder: text <=435\n  at: int")
++        + "query mine(folder: text <=435, c: cursor ?):\n  return tasks where .folder = folder last 1 by .at after c\n";
++    let b = clean(&source);
++    assert!(branch_merges(&b, "mine").is_empty());
++    assert!(has_note(&b, "N_NEVER_COMPLETE"));
++    assert!(!b.schema.required_capabilities().contains("branch-merge-v1"));
++    let wide: String = std::iter::repeat_n('\u{1F600}', 435).collect();
++    let mut row = task("t1", "alice", None, 1);
++    row.1.push(("folder", Value::String(wide.clone())));
++    let mut e = engine(&source, vec![row]);
++    let (got, complete) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide))]);
++    assert_eq!(got, vec!["t1"]);
++    assert!(complete.into_iter().all(|c| !c));
++}
+diff --git a/snapback4/lean/OPEN.md b/snapback4/lean/OPEN.md
+index 87593c6160..734789da85 100644
+--- a/snapback4/lean/OPEN.md
++++ b/snapback4/lean/OPEN.md
+@@ -348,8 +348,8 @@ rule hides?**
+   (`Rule.disclosing`: a pinned column is an unknown value, nested `or`/`not`
+   disclose nothing); the grant lane counts toward the 8, and a guarded page
+   whose first order column is pinned is not merged. A helper's page is never
+-  merged (`Ctx.inHelper`), as in the engine. `exists` over branches (case 1,
+-  or case 2 without guards) is decided as well.
++  merged (`Ctx.inHelper`), as in the engine. `exists` over branches (case 1
++  only) is decided as well.
+ - *Engine (observed):* agrees on `complete` for all 1,343 compared
+   non-uniform pages (60,000-case run of 2026-10-08). A `count` or `sum` whose
+   read rule its pins do not decide is refused at check (`E_QUARRY_BOUND`).
