@@ -80,10 +80,13 @@ function dump(path) {
   finally {db.close();}
 }
 // Content snapshot includes symlink targets without following them twice.
-function files(path) {
-  return readdirSync(path,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name)).map(entry=>{
+function files(path,releaseRoot=true) {
+  // SQLite read-only opens can create empty WAL/SHM sidecars. Compare durable
+  // release files here, plus the full logical store and main-file bytes below.
+  // @ref LLP 3000.033#1.3 — transient journal/shared-memory residue is not committed state.
+  return readdirSync(path,{withFileTypes:true}).filter(entry=>!releaseRoot||!['store.sqlite-wal','store.sqlite-shm'].includes(entry.name)).sort((a,b)=>a.name.localeCompare(b.name)).map(entry=>{
     const child=join(path,entry.name);
-    return [entry.name,entry.isDirectory()?files(child):entry.isSymbolicLink()?{link:readlinkSync(child)}:createHash('sha256').update(readFileSync(child)).digest('hex')];
+    return [entry.name,entry.isDirectory()?files(child,false):entry.isSymbolicLink()?{link:readlinkSync(child)}:createHash('sha256').update(readFileSync(child)).digest('hex')];
   });
 }
 function noEffectKeys(path) {
@@ -376,13 +379,15 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   try {assert.equal(closedStore.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get().busy,0);} finally {closedStore.close();}
   // Let the old compiler reach the store gate rather than stop at new source syntax.
   writeFileSync(join(release,'releases/1/snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
-  const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
+  const releaseLogical=dump(join(release,'store.sqlite')),releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const releaseDoctor=run(legacy.binary,['doctor','--release',release],'',newApp.cwd);
   releaseStoreRefusal(releaseDoctor,join(release,'store.sqlite'));
+  assert.equal(dump(join(release,'store.sqlite')),releaseLogical,'refused release doctor preserves every table');
   assert.deepEqual(files(release),releaseBefore,'refused release doctor preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused release doctor preserves every SQLite byte');
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
   releaseStoreRefusal(served,join(release,'store.sqlite'));
+  assert.equal(dump(join(release,'store.sqlite')),releaseLogical,'refused mixed-version serve preserves every table');
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
   t.diagnostic('published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes');
