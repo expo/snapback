@@ -92519,3 +92519,46 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — File assets: a third kind beside image and video (LLP 3000.038)
+
+App-farm builders of receipts, contracts, sheet music, data rooms and lab
+results needed PDFs and were refused. The author approved a `file` type:
+`file <=N` or `file <=N ('application/pdf', ...)`, the image contract (one
+home, the home row's read rule, release and sweep), no transcoding. LLP
+1006 §13a had the deferred design; this lands it with one change, the
+per-column allow-list, checked at placement like the byte bound so the
+upload stays column-less.
+
+- **Verification.** Only types Snapback can check against the bytes may be
+  listed (PDF, plain/CSV/Markdown text, JSON, PNG/JPEG/WebP/GIF, zip and the
+  three OOXML types); HTML, SVG, XML and JavaScript are compile errors. The
+  upload (`POST /assets?as=file&name=`) declares its type in Content-Type;
+  a mismatch with the magic number (or invalid UTF-8/JSON for text) is
+  E_ASSET_TYPE. Undeclared binaries are named by their bytes; text never is.
+- **Bounds.** A file upload streams at most the schema's largest file bound
+  (413 E_ASSET_TOO_LARGE, before reading when Content-Length says so).
+- **Delivery.** Always an attachment: Content-Disposition with an ASCII
+  fallback and RFC 8187 name, nosniff, `default-src 'none'; sandbox`, text
+  as `text/plain; charset=utf-8`. HTML uploaded as text/plain is served as
+  text. Ranges work; `once` is refused on file columns.
+- **Names.** `_assets` gains `name` (added in place to older stores); the
+  filename keeps its last segment, loses control and bidi characters and
+  leading dots, at most 255 bytes, `file` when empty.
+- **Client.** `upload(bytes, { file: {} })`; `asset(id)` and `useAsset`
+  report `name`; `saveAsset` (`snapback4/client`) and `useSaveAsset` save on
+  demand. The contract gains an optional `UploadOptions` argument and an
+  optional `name` on `Asset`/`AssetRead`: additive, proposed here per the
+  one-owner rule; nothing existing changes shape.
+- **Device.** Upload receipts predict `file` arguments; a receipt of the
+  other kind never predicts (the server refuses the kind). Retained files
+  keep their name offline.
+- **wasm budget rises 2,116 B.** The same Linux build of 3add6058b7 measures
+  2,147,888 B raw / 648,672 B gzip; this tree 2,156,339 B / 650,940 B
+  (+2,268 B, 1,616 B over 649,324). The bytes are the device's share: two
+  serde struct variants (`ColumnType::File`, `ArgType::File` with the
+  allow-list), their display and match arms, and the receipt kind check.
+  Budget 651,440 B (measurement + 500 B), reason in `metrics/wasm-budget.json`.
+- **Deferred.** A native Expo document picker and "save to Files" helper
+  (`upload` and `asset` already work with React Native Blobs); audio types;
+  HEIC; previews.

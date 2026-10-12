@@ -472,7 +472,7 @@ fn constraint_refusals_record_their_clause_for_the_dev_log() {
     let b = clean(source);
     let sites = b.refusal_sites.clone();
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    engine.store().record_asset(&Asset { id: "pic".into(), owner: "ann".into(), kind: AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None }).unwrap();
+    engine.store().record_asset(&Asset { id: "pic".into(), owner: "ann".into(), kind: AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None, name: None }).unwrap();
     engine.seed([("items".to_owned(), object([("id", Value::Id("i0".into())), ("owner", Value::Id("ann".into())), ("name", Value::String("old".into())), ("kind", Value::String("a".into())), ("photo", Value::Null)]))]).unwrap();
     let mut run = |op: &str, id: &str, pairs: &[(&str, Value)]| {
         let trace = RefusalTrace::default();

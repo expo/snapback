@@ -18,10 +18,15 @@ pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args:
         match kind {
             ArgType::Optional(inner) if *value != Value::Null => resolve(tx, viewer, inner, value)?,
             ArgType::List { of: Some(inner), .. } | ArgType::ListRange { of: Some(inner), .. } => if let Value::Array(items) = value { for item in items { resolve(tx, viewer, inner, item)?; } },
-            ArgType::Image { .. } | ArgType::Video { .. } => {
+            ArgType::Image { .. } | ArgType::Video { .. } | ArgType::File { .. } => {
                 let id = value.field("id")?.as_str()?;
                 let facts = tx.meta(&upload_key(viewer, id))?.ok_or_else(|| RuntimeError::Prediction("this device has no server upload facts; the server must judge this asset".into()))?;
-                *value = wire::from_json(kind, &decoded::<Json>(&facts)?).map_err(RuntimeError::Input)?;
+                let facts = decoded::<Json>(&facts)?;
+                // @ref LLP 3000.038#3 — only a file upload's facts carry a name; a kind mismatch is the server's to refuse.
+                if facts.get("name").is_some() != matches!(kind, ArgType::File { .. }) {
+                    return Err(RuntimeError::Prediction("this upload is another asset kind; the server must judge this asset".into()));
+                }
+                *value = wire::from_json(kind, &facts).map_err(RuntimeError::Input)?;
             }
             _ => {}
         }
@@ -37,6 +42,8 @@ fn media_type(kind: &ColumnType) -> Option<bool> {
         ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => media_type(inner),
         ColumnType::Image { once, .. } => Some(*once),
         ColumnType::Video { .. } => Some(false),
+        // @ref LLP 3000.038#6 — a file is retained and revoked like an ordinary image; it is never once.
+        ColumnType::File { .. } => Some(false),
         _ => None,
     }
 }
@@ -47,7 +54,7 @@ fn element<'a>(kind: &ColumnType, value: Option<&'a Value>, id: &str) -> Option<
     match (kind, value) {
         (ColumnType::Optional(inner), value) => element(inner, value, id),
         (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(items))) => items.iter().find_map(|v| element(of, Some(v), id)),
-        (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(value)) if asset_id(Some(value)) == Some(id) => Some(value),
+        (ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. }, Some(value)) if asset_id(Some(value)) == Some(id) => Some(value),
         _ => None,
     }
 }
@@ -142,6 +149,7 @@ impl<S: DeviceStore> Device<S> {
         // @ref LLP 3000.023#10 — disjoint commits need not repeat this authorized home read.
         home["tables"] = json!(read.tables);
         home["type"] = json!(asset.field("type").ok().and_then(|v| v.as_str().ok()));
+        if let Some(name) = asset.field("name").ok().and_then(|v| v.as_str().ok()) { home["name"] = json!(name); }
         tx.rollback()?;
         Ok(home)
     }

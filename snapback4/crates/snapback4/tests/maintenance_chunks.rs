@@ -121,7 +121,7 @@ fn asset_slices_reserve_only_their_prefix_and_forget_every_reserved_asset() {
     for n in 0..5 {
         e.store().record_asset(&Asset { id: format!("a{n}"), owner: "reader".into(), kind: AssetKind::Image,
             content_type: "image/png".into(), bytes: 1, width: Some(1), height: Some(1), duration: None,
-            created_at: 0, home: None, released_at: None }).unwrap();
+            created_at: 0, home: None, released_at: None, name: None }).unwrap();
     }
     let mut first = e.prepare_asset_sweep_for(86_400_000, Duration::ZERO).unwrap();
     assert_eq!(first.len(), 1);

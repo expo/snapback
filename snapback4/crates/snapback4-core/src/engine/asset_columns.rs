@@ -18,7 +18,7 @@ pub(super) fn contains(kind: &ColumnType, value: Option<&Value>, id: &str) -> bo
     match (kind, value) {
         (ColumnType::Optional(inner), value) => contains(inner, value, id),
         (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(values))) => values.iter().any(|v| contains(of, Some(v), id)),
-        (ColumnType::Image { .. } | ColumnType::Video { .. }, value) => asset_id(value) == Some(id),
+        (ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. }, value) => asset_id(value) == Some(id),
         _ => false,
     }
 }
@@ -29,7 +29,7 @@ fn values<'a>(kind: &ColumnType, value: Option<&'a Value>, out: &mut BTreeMap<&'
         (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Some(Value::Array(items))) => {
             for item in items { values(of, Some(item), out); }
         }
-        (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(value)) => {
+        (ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. }, Some(value)) => {
             if let Some(id) = asset_id(Some(value)) { out.insert(id, value); }
         }
         _ => {}
@@ -54,7 +54,7 @@ impl Runner<'_> {
     }
 
     fn asset_facts(&self, table: &str, column: &str, kind: &ColumnType, value: &Value, before: &BTreeMap<&str, &Value>) -> Result<Value, RuntimeError> {
-        let (wanted, max) = match kind {
+        let (wanted, max, types) = match kind {
             ColumnType::Optional(inner) if *value != Value::Null => return self.asset_facts(table, column, inner, value, before),
             ColumnType::List { of, max } | ColumnType::ListRange { of, max, .. } => {
                 if let Value::Array(items) = value {
@@ -64,8 +64,9 @@ impl Runner<'_> {
                 }
                 return Ok(value.clone()); // ordinary row validation diagnoses the shape
             }
-            ColumnType::Image { max, .. } => (AssetKind::Image, *max),
-            ColumnType::Video { max } => (AssetKind::Video, *max),
+            ColumnType::Image { max, .. } => (AssetKind::Image, *max, &[][..]),
+            ColumnType::Video { max } => (AssetKind::Video, *max, &[][..]),
+            ColumnType::File { max, types } => (AssetKind::File, *max, &types[..]),
             _ => return Ok(value.clone()),
         };
         let Some(id) = asset_id(Some(value)) else { return Ok(value.clone()) };
@@ -74,7 +75,8 @@ impl Runner<'_> {
         let Some(asset) = self.tx.asset(id)? else {
             if self.context.is_system() {
                 let mut map = value.as_object()?.clone();
-                for fact in crate::assets::FACTS { map.entry(fact.to_owned()).or_insert(Value::Null); }
+                let facts: &[&str] = if wanted == AssetKind::File { &crate::assets::FILE_FACTS } else { &crate::assets::FACTS };
+                for fact in facts { map.entry((*fact).to_owned()).or_insert(Value::Null); }
                 return Ok(Value::Map(map.into()));
             }
             return Err(unknown());
@@ -82,6 +84,11 @@ impl Runner<'_> {
         if asset.owner != self.context.viewer && !self.context.is_system() { return Err(unknown()); }
         if asset.kind != wanted {
             return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{table}.{column} takes {} and {id} is {}", wanted.word(), asset.kind.word()) });
+        }
+        // @ref LLP 3000.038#3 — placement checks the column's allow-list, as it checks the byte bound.
+        if wanted == AssetKind::File && !crate::assets::file_accepts(types, &asset.content_type) {
+            let accepted = if types.is_empty() { crate::assets::FILE_TYPES.join(", ") } else { types.join(", ") };
+            return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{table}.{column} accepts {accepted}; {id} is {}", asset.content_type) });
         }
         if asset.bytes > u64::from(max) {
             return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("{table}.{column} takes at most {max} bytes; {id} is {}", asset.bytes) });
@@ -139,7 +146,7 @@ mod tests {
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
         let store = Store::memory().unwrap();
         for id in ["a","b","c","d"] {
-            store.record_asset(&Asset {id:id.into(),owner:"alice".into(),kind:AssetKind::Image,content_type:"image/png".into(),bytes:24,width:Some(1),height:Some(1),duration:None,created_at:0,home:None,released_at:None}).unwrap();
+            store.record_asset(&Asset {id:id.into(),owner:"alice".into(),kind:AssetKind::Image,content_type:"image/png".into(),bytes:24,width:Some(1),height:Some(1),duration:None,created_at:0,home:None,released_at: None, name: None}).unwrap();
         }
         (store,serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap())
     }

@@ -92,3 +92,5 @@ fn image_list_http_once_is_per_element_and_survives_reorder() {
     fetch(&host, &b, "bob", 200);
     fetch(&host, &b, "bob", 410);
 }
+
+mod files;
