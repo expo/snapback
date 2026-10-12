@@ -443,6 +443,19 @@ pub fn features(case: &Case) -> Vec<String> {
     if items.effects.is_some() {
         out.push("items-effect-rules".into());
     }
+    // LLP 3000.036.001: branch pages (the merged plan is decided by OPEN C8's branch rule).
+    if let Some(domain) = &case.program.domain {
+        out.push(format!("branch-where-{}", if domain.contains("helper") { "parties" } else { "buckets" }));
+    }
+    if rules[0] == Rule::TwoParty {
+        out.push("branch-rule-two-party".into());
+    }
+    if case.program.domain.is_some() || rules[0] == Rule::TwoParty {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
+        let merged = bound.programs.iter().filter(|p| p.program.name == "run")
+            .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));
+        out.push(format!("branch-{}", if merged { "merged" } else { "single-index" }));
+    }
     // Widened shapes (`widen.rs`) inside the model's fragment.
     if matches!(body, Body::Block(_)) {
         out.push("block".into());
@@ -667,6 +680,11 @@ fn variants(case: &mut Case, seed: u64) {
     if pick(4) == 0 {
         case.program.tables[1].effects = Some(vec![Rule::Deny, Rule::Allow, Rule::Allow, Rule::Allow]);
         case.program.tables[1].residency = Residency::Online;
+        // A hidden, open roster cannot carry a group audience (`E_SYNC`); the
+        // model has no residency, so the group-synced branch shape reads online.
+        if matches!(case.program.tables[0].residency, Residency::Group) {
+            case.program.tables[0].residency = Residency::Online;
+        }
     }
     if matches!(case.program.body, Body::Read { kind: crate::ast::Read::Page | crate::ast::Read::Bounded, .. }) && pick(2) == 0 {
         let orders: [&[&str]; 5] = [&["maybe"], &["maybe", "label"], &["flag", "score"], &["tag"], &["score"]];

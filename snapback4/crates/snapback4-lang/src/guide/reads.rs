@@ -26,7 +26,7 @@ Repeated `where` clauses combine with `and` in order.
 
 - A positional key names one row; use `where` for populations: E_QUARRY_POSITIONAL_SCAN.
 - Add a cursor if the screen pages: N_NO_CURSOR.
-- A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
+- Unpinned rule columns: N_NEVER_COMPLETE, unless pinned `or` parties merge.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
 - N_SHAPE_METER: maintained totals (guide views), previews, or queries.
 

@@ -84,9 +84,13 @@ A table that can grow pages with `first N` and a cursor instead.
 
 A private page is `complete` only when its scan pins every column its read
 rule reads (N_NEVER_COMPLETE prints the missing equality as code). Three shapes
-recur. A two-party row (buyer/seller, follower/followed, requester/owner) gets
-one query per party, each pinned to `viewer` and complete; show or merge them
-in the client. A child page pins the column its rule reads, read from the
+recur. A two-party row (buyer/seller, follower/followed, requester/owner) is
+one query: under `.requester = viewer or .owner = viewer`, `swaps first 20 by
+.id after c` (or `where .requester = viewer or .owner = viewer`) reads the
+merge of the two pinned ranges, a row in both once, with one cursor, and is
+complete. Each `or` branch must pin an index prefix that decides the rule, and
+the predicate must be comparisons (no arithmetic or calls); up to 8 branches.
+Otherwise the note prints one query per party. A child page pins the column its rule reads, read from the
 parent it already names: `parent = cards[card] ! else NOT_FOUND`, then
 `.board = parent.board`; copy that column onto the child as an immutable field
 and check it in the insert rule. A capacity check reads a count whose read rule
@@ -101,10 +105,8 @@ table swaps:
   read <- .requester = viewer or .owner = viewer
   insert <- .requester = viewer
   online only
-query swapsIAsked(c: cursor ?):
-  return swaps where .requester = viewer first 20 by .id after c
-query swapsOfMine(c: cursor ?):
-  return swaps where .owner = viewer first 20 by .id after c
+query mySwaps(c: cursor ?):
+  return swaps first 20 by .id after c
 
 table boards:
   owner: principal
@@ -164,7 +166,9 @@ A grant that reads no row field, such as `exists staff[viewer]` or
 `viewer = 'service:ops'`, admits every row to its holder. When it holds for
 the caller, and the caller may read the row that grants it (`read <-
 .principal = viewer` on `staff`), the page is decided once: a staff page is
-`complete`, and everyone else pages their own rows with `complete: false`.
+`complete`. When the rule's other disjuncts are parties (`.owner = viewer or
+exists staff[viewer]`), everyone else's page is their party range, complete
+too: one query serves both.
 A grant row its holder cannot read decides nothing; the note says when a
 grant is not used. The run never needs a guard, but `check` follows one: a
 page that only grant holders reach (`require exists staff[viewer] else …`,

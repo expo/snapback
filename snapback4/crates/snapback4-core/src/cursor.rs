@@ -78,8 +78,12 @@ pub fn encode_cursor(schema: &Schema, position: &CursorPosition) -> Result<Strin
         &position.suffix,
         &position.values,
     );
-    let bytes = if position.inclusive {
-        crate::json_codec::to_vec(&(3_u8, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, &position.scope))
+    // @ref LLP 3000.036.001#5 — a branch merge's position travels as version 4 or 5, so an older engine refuses it by version.
+    // Version 5 is its inclusive form: an unfinished first returned shape resumes at its row.
+    let branch = position.index.starts_with(crate::ir::BRANCH_DESCRIPTOR);
+    let bytes = if branch || position.inclusive {
+        let version: u8 = match (branch, position.inclusive) { (true, false) => 4, (true, true) => 5, _ => 3 };
+        crate::json_codec::to_vec(&(version, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, &position.scope))
     } else {
         match &position.scope {
             Some(scope) => crate::json_codec::to_vec(&(2_u8, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, scope)),
@@ -105,7 +109,8 @@ pub fn decode_cursor(schema: &Schema, token: &str) -> Result<CursorPosition, Cur
     }
     let raw: serde_json::Value = crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
     let version = raw.get(0).and_then(serde_json::Value::as_u64).ok_or(CursorError::Encoding)?;
-    let (tagged, scope): (Tagged, Option<CursorScope>) = if version == 3 {
+    let inclusive = version == 3 || version == 5;
+    let (tagged, scope): (Tagged, Option<CursorScope>) = if (3..=5).contains(&version) {
         let (v,t,i,o,s,k,scope): (u8,String,String,Order,Vec<CursorColumn>,Vec<Value>,Option<CursorScope>) = crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
         ((v,t,i,o,s,k),scope)
     } else if version == 2 {
@@ -114,7 +119,9 @@ pub fn decode_cursor(schema: &Schema, token: &str) -> Result<CursorPosition, Cur
     } else if version == u64::from(VERSION) {
         (crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?,None)
     } else { return Err(CursorError::Version(version.try_into().map_err(|_| CursorError::Encoding)?)); };
-    let position = CursorPosition { table: tagged.1, index: tagged.2, order: tagged.3, suffix: tagged.4, values: tagged.5, scope, inclusive: version == 3 };
+    let position = CursorPosition { table: tagged.1, index: tagged.2, order: tagged.3, suffix: tagged.4, values: tagged.5, scope, inclusive };
+    // Canonical re-encoding below also refuses a version-4 token whose
+    // descriptor is not a branch set, and a branch set in an older version.
     // Canonical re-encoding also validates the typed values; do it once.
     if encode_cursor(schema, &position)? != token {
         return Err(CursorError::Encoding);

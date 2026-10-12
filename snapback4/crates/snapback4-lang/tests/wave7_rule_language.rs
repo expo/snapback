@@ -130,10 +130,11 @@ fn r1_the_repeat_check_finds_the_0_4_22_phrase() {
 fn r1_every_complete_form_verdict_is_said_once() {
     let staff = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\n";
     let shapes = [
-        // a grant: the printed `if` form
-        format!("{staff}table tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  online only\nquery all():\n  return tickets first 50 by .at\n"),
+        // a grant: the printed `if` form (arithmetic in the predicate keeps one
+        // index; as written the page merges, LLP 3000.036.001)
+        format!("{staff}table tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  online only\nquery all():\n  return tickets where .at + 1 > 0 first 50 by .at\n"),
         // two parties and a grant: one query per party
-        format!("{staff}table notes:\n  author: principal\n  helper: principal\n  at: time\n  immutable author, helper\n  read <- .author = viewer or .helper = viewer or exists staff[viewer]\n  online only\nquery all():\n  return notes first 50 by .at\n"),
+        format!("{staff}table notes:\n  author: principal\n  helper: principal\n  at: time\n  immutable author, helper\n  read <- .author = viewer or .helper = viewer or exists staff[viewer]\n  online only\nquery all():\n  return notes where .at + 1 > 0 first 50 by .at\n"),
         // a pin only, no grant
         "table items:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer\n  online only\nquery all():\n  return items first 50 by .at\n".to_owned(),
         // an `exists` over rows the caller partly reads

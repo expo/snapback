@@ -134,9 +134,9 @@ theorem granted_perm {sch : Schema} {vw1 vw2 : View} (hp : ∀ t, (vw1 t).Perm (
 /-- **Scan order is determined by key order**: a page over two views that
 hold the same rows of each table, in any order, gives the same answer
 (the readable-grant verdict probes other tables, so all of them count). -/
-theorem pageRead_perm {cx : Ctx} {vw1 vw2 : View} {t : String} {ps filt order desc take cur}
+theorem pageRead_perm {cx : Ctx} {vw1 vw2 : View} {t : String} {ps filt order desc take cur fm mg}
     (hp : ∀ t', (vw1 t').Perm (vw2 t')) (hn : ((vw1 t).map Row.id).Nodup) :
-    pageRead cx vw1 t ps filt order desc take cur = pageRead cx vw2 t ps filt order desc take cur := by
+    pageRead cx vw1 t ps filt order desc take cur fm mg = pageRead cx vw2 t ps filt order desc take cur fm mg := by
   unfold pageRead decided
   rw [candidates_perm (hp t) hn, granted_perm hp]
 

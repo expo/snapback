@@ -58,6 +58,24 @@ fn query_names(code: &str) -> Vec<String> {
     code.lines().filter_map(|line| line.strip_prefix("query ")).map(|rest| rest.split('(').next().unwrap().to_owned()).collect()
 }
 
+/// LLP 3000.036.001: a page whose rule is parties and page guards (grants,
+/// parent probes its pins decide) reads as the merge of its branches. As
+/// written it draws no note and every viewer's page is complete, with the rows
+/// of `single`, the same query kept on one index by arithmetic in its predicate.
+fn merged_matches_single(schema: &str, query: &str, single: &str, rows: impl Fn() -> Rows, viewers: &[&str], pairs: &[(&str, Value)]) {
+    let merged = format!("{schema}{query}");
+    let b = clean(&merged);
+    assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{merged}\n{:#?}", b.notes);
+    let name = query.strip_prefix("query ").unwrap().split('(').next().unwrap();
+    let mut a = engine(&merged, rows());
+    let mut one = engine(&format!("{schema}{single}"), rows());
+    for viewer in viewers {
+        let (complete, ids) = page(&mut a, name, viewer, pairs);
+        assert!(complete, "{viewer}: the merged page is complete\n{merged}");
+        assert_eq!(ids, page(&mut one, name, viewer, pairs).1, "{viewer}");
+    }
+}
+
 // ---- R1: the owner-or-staff rewrite keeps every disjunct of the read rule ----
 
 /// Applies the printed form in place of `query`, then, for every viewer,
@@ -124,7 +142,9 @@ fn sightings_rows() -> Rows {
 
 #[test]
 fn r1_a_parent_owner_party_keeps_its_arm_and_the_rewrite_admits_the_same_readers() {
-    let query = "query sightingsFor(cat: cats, c: cursor ?):\n  return sightings where .cat = cat last 50 by .seenAt after c\n";
+    let merged = "query sightingsFor(cat: cats, c: cursor ?):\n  return sightings where .cat = cat last 50 by .seenAt after c\n";
+    let query = "query sightingsFor(cat: cats, c: cursor ?):\n  return sightings where .cat = cat and .seenAt + 1 > 0 last 50 by .seenAt after c\n";
+    merged_matches_single(SIGHTINGS, merged, query, sightings_rows, &["mo", "olive", "rae", "sid", "zed"], &[("cat", id("tom")), ("c", Value::Null)]);
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(n.rewrite.contains("if exists cats[cat, owner = viewer]:"), "the owner's arm is printed: {n}");
     assert!(n.rewrite.contains("every page is complete") && !n.rewrite.contains("stays `complete: false`"), "the owner's arm is decided at run time (LLP 3000.036 §16.3): {n}");
@@ -157,7 +177,8 @@ table offers:
 
 #[test]
 fn r1_the_keeper_of_a_sitting_keeps_every_offer_under_the_printed_form() {
-    let query = "query offersFor(sitting: sittings, c: cursor ?):\n  return offers where .sitting = sitting last 50 by .at after c\n";
+    let merged = "query offersFor(sitting: sittings, c: cursor ?):\n  return offers where .sitting = sitting last 50 by .at after c\n";
+    let query = "query offersFor(sitting: sittings, c: cursor ?):\n  return offers where .sitting = sitting and .at + 1 > 0 last 50 by .at after c\n";
     let rows = || -> Rows {
         vec![
             ("coordinators", vec![("id", id("c1")), ("principal", id("carol"))]),
@@ -166,6 +187,7 @@ fn r1_the_keeper_of_a_sitting_keeps_every_offer_under_the_printed_form() {
             ("offers", vec![("id", id("o2")), ("sitting", id("st")), ("sitter", id("dan")), ("at", Value::Int(2))]),
         ]
     };
+    merged_matches_single(OFFERS, merged, query, rows, &["carol", "alice", "bob", "dan", "zed"], &[("sitting", id("st")), ("c", Value::Null)]);
     let complete = rewrite_admits_the_same_readers(OFFERS, query, rows, &["carol", "alice", "bob", "dan", "zed"], &[("sitting", id("st")), ("c", Value::Null)]);
     assert!(complete.values().all(|done| *done), "the keeper's arm is decided too: {complete:?}");
 }
@@ -202,12 +224,22 @@ fn checkin_rows(holder_column: bool) -> Rows {
 fn r1_two_parties_and_a_grant_print_one_query_per_party_each_with_the_grant() {
     // The holder through the credential (a parent hop), the scanner on the row, and the grant.
     let hop = format!("{CHECKINS}table checkins:\n  credential: credentials\n  scanner: principal\n  at: time\n  immutable credential, scanner\n  read <- .scanner = viewer or .credential.holder = viewer or exists roles[viewer]\n  online only\n");
-    let query = "query checkinsFor(credential: credentials, c: cursor ?):\n  return checkins where .credential = credential last 50 by .at after c\n";
+    let merged = "query checkinsFor(credential: credentials, c: cursor ?):\n  return checkins where .credential = credential last 50 by .at after c\n";
+    let query = "query checkinsFor(credential: credentials, c: cursor ?):\n  return checkins where .credential = credential and .at + 1 > 0 last 50 by .at after c\n";
+    merged_matches_single(&hop, merged, query, || checkin_rows(false), &["mgr", "hal", "sam", "zed"], &[("credential", id("cr")), ("c", Value::Null)]);
     let complete = rewrite_admits_the_same_readers(&hop, query, || checkin_rows(false), &["mgr", "hal", "sam", "zed"], &[("credential", id("cr")), ("c", Value::Null)]);
     assert!(complete.values().all(|done| *done), "the holder's arm is decided too: {complete:?}");
     // Both parties on the row and the grant: 0.4.21 split per party and dropped the grant.
     let row = format!("{CHECKINS}table checkins:\n  credential: credentials\n  holder: principal\n  scanner: principal\n  at: time\n  immutable credential, holder, scanner\n  read <- .holder = viewer or .scanner = viewer or exists roles[viewer]\n  online only\n");
-    let all = "query allCheckins(c: cursor ?):\n  return checkins last 50 by .at after c\n";
+    // As written, the page merges both parties and the grant (LLP 3000.036.001):
+    // no note, and every caller's page is complete.
+    let merged = "query allCheckins(c: cursor ?):\n  return checkins last 50 by .at after c\n";
+    let b = clean(&format!("{row}{merged}"));
+    assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{:#?}", b.notes);
+    let mut e = engine(&format!("{row}{merged}"), checkin_rows(true));
+    for viewer in ["mgr", "hal", "sam", "zed"] { assert!(page(&mut e, "allCheckins", viewer, &[("c", Value::Null)]).0, "{viewer}"); }
+    // With arithmetic in the predicate it keeps one index: one query per party, each with the grant.
+    let all = "query allCheckins(c: cursor ?):\n  return checkins where .at + 1 > 0 last 50 by .at after c\n";
     let n = note(&bound(&format!("{row}{all}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert_eq!(query_names(&printed_form(&n)), ["allCheckinsAsHolder", "allCheckinsAsScanner"], "{n}");
     let complete = rewrite_admits_the_same_readers(&row, all, || checkin_rows(true), &["mgr", "hal", "sam", "zed"], &[("c", Value::Null)]);
@@ -222,10 +254,13 @@ fn r1_a_rule_with_a_party_no_pin_can_select_prints_no_form_and_says_so() {
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(!n.rewrite.contains("query everything"), "no code is printed: {n}");
     assert!(n.rewrite.contains("there is no single complete form") && n.message.contains("there is no single complete form: keep the query and expect `capped`"), "{n}");
-    // The two-disjunct shapes 0.4.21 printed correctly still print the same code.
+    // The two-disjunct shapes 0.4.21 printed correctly merge as written (LLP
+    // 3000.036.001); with arithmetic in the predicate they print the same code.
     let owner = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable reqs:\n  author: principal\n  at: time\n  read <- .author = viewer or exists staff[viewer]\n  online only\nquery q(c: cursor ?):\n  return reqs last 50 by .at after c\n";
-    let n = note(&bound(owner), "N_NEVER_COMPLETE").unwrap().clone();
-    assert_eq!(printed_form(&n), "query q(c: cursor ?):\n  if exists staff[viewer]:\n    return reqs last 50 by .at after c\n  return reqs where .author = viewer last 50 by .at after c", "{n}");
+    assert!(note(&bound(owner), "N_NEVER_COMPLETE").is_none());
+    let owner = owner.replace("return reqs last 50", "return reqs where .at + 1 > 0 last 50");
+    let n = note(&bound(&owner), "N_NEVER_COMPLETE").unwrap().clone();
+    assert_eq!(printed_form(&n), "query q(c: cursor ?):\n  if exists staff[viewer]:\n    return reqs where .at + 1 > 0 last 50 by .at after c\n  return reqs where .author = viewer and .at + 1 > 0 last 50 by .at after c", "{n}");
     assert!(n.rewrite.starts_with("Branch on the grant and pin `.author` for everyone else; together they return exactly the rows the read rule admits, and every page is complete:"), "{n}");
 }
 
@@ -325,8 +360,14 @@ fn a_parent_probe_guard_beside_a_grant_is_followed_and_the_runtime_agrees() {
     let (complete, ids) = page(&mut guarded, "gardenVisits", "gwen", &pairs);
     assert_eq!((complete, ids.len()), (true, 2), "the owner's page is decided by the pinned parent probe");
     assert_eq!(page(&mut guarded, "gardenVisits", "vic", &pairs), (true, BTreeSet::from(["k1".to_owned()])));
-    // The unguarded page: complete for staff and the owner, capped for a visitor.
-    let open = format!("{schema}query visits(garden: gardens, c: cursor ?):\n  return checkins where .garden = garden first 50 by .at after c\n");
+    // The unguarded page merges the visitor's branch with the guards (LLP
+    // 3000.036.001): complete for everyone. On one index (arithmetic in the
+    // predicate) it is complete for staff and the owner, capped for a visitor.
+    let merged = format!("{schema}query visits(garden: gardens, c: cursor ?):\n  return checkins where .garden = garden first 50 by .at after c\n");
+    assert!(note(&clean(&merged), "N_NEVER_COMPLETE").is_none());
+    let mut all = engine(&merged, rows());
+    assert_eq!(page(&mut all, "visits", "vic", &pairs), (true, BTreeSet::from(["k1".to_owned()])));
+    let open = format!("{schema}query visits(garden: gardens, c: cursor ?):\n  return checkins where .garden = garden and .at + 1 > 0 first 50 by .at after c\n");
     let b = clean(&open);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
     assert!(n.message.contains("except for callers `exists staff[viewer] or ") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");

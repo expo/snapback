@@ -55,7 +55,7 @@ elan.
 | Calendar | `Quarry/Calendar.lean` | The UTC builtins of LLP 3000.040 §2.2: `day`, `hour`, `bucket` as period ordinals; `month`, `year`, `monthStart`, `yearStart` over the proleptic Gregorian calendar, by a 400/100/4/1-year decomposition independent of the engine's algorithm. Unbounded `Int`; the evaluator refuses `E_OVERFLOW` outside i53. |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
 | Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
-| Examples | `Quarry/Examples.lean` | 45 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
+| Examples | `Quarry/Examples.lean` | 50 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
@@ -134,8 +134,9 @@ returned. Changing a witness row is a change of authority, not a disclosure.
 **Completeness soundness** (`Proofs/Disclosure.lean`, `Proofs/Continuation.lean`)
 
 - `pageRead_complete`: a page that leaves `complete` true was decided (by its
-  pins, or by a page guard: a readable grant or a pinned parent probe). It returned exactly the first N qualifying
-  visible rows after its cursor, in key order.
+  pins, by a page guard: a readable grant or a pinned parent probe, or by its
+  pins' form or its branches: OPEN C8). It returned exactly the first N
+  qualifying visible rows after its cursor, in key order.
 - `decided_store`, `pageRead_complete_store`: **a decided scan sees all of
   its rows or none**. The rows its pins select in the store are all readable
   to the caller, or none is, so a complete page omits no qualifying row. Its
@@ -144,6 +145,10 @@ returned. Changing a witness row is a change of authority, not a disclosure.
   columns are all pinned — none, for a grant — that holds over the caller's
   view with the pinned values makes every row the pins select readable;
   `Rule.eval_mono`, `Rule.eval_pin`).
+- `partyLeaves_cover`, `parties_cover_view` (`Proofs/Branches.lean`): under
+  a read rule of parties (`.owner = viewer or .helper = viewer`) every
+  visible row carries the viewer in a party column, so the merge of the party
+  ranges the engine reads misses no readable row (LLP 3000.036.001).
 - `walk_complete`: the same fact for the underlying candidate walk.
 - `cut_continuation`: a page cut by the ceiling, followed by the leading
   qualifying rows of its continuation from `next`, equals the uncut page.

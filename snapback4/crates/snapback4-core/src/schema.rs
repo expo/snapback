@@ -98,6 +98,10 @@ pub struct Execution {
     // @ref LLP 3000.017#2.4 — absent facts retain legacy schema bytes.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ephemeral: bool,
+    /// The operation reads a branch merge (LLP 3000.036.001): an older device
+    /// must not run its plan or decode its cursors (`branch-merge-v1`).
+    #[serde(default, rename = "branchMerge", skip_serializing_if = "std::ops::Not::not")]
+    pub branch_merge: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub renews: bool,
     #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]

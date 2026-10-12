@@ -33,6 +33,11 @@
 //!
 //! The last two draw from their own stream, so every earlier dimension's
 //! decisions are unchanged.
+//! - **branch pages** (LLP 3000.036.001), from their own stream: a page whose
+//!   `where` is an `or` of pinned branches (`.bucket = bucket or .bucket = 1`,
+//!   `.owner = viewer or .helper = viewer`), or whose read rule is two parties
+//!   (`.owner = viewer or .helper = viewer`, with a `helper` column), so the
+//!   merged plan, its cursor and its cuts meet every oracle.
 // @ref LLP 3000.035#5.1 — generator widening behind independent probabilities.
 use crate::{
     ast::*,
@@ -41,6 +46,7 @@ use crate::{
 use serde_json::{Value as Json, json};
 
 const STREAM: u64 = 0x5749_4445_4e5f_4757;
+const BRANCH_STREAM: u64 = 0x4252_414e_4348_4553;
 /// Clock gaps between operations (ms); 0 makes two operations simultaneous.
 const GAPS: [i64; 6] = [0, 1, 37, 500, 1000, 60_000];
 /// Offsets from an operation's clock at which a row expires.
@@ -224,6 +230,7 @@ pub fn widen(mut case: Case) -> Case {
         p.tables.push(tags_table(&mut rng));
         case.rows.extend(tags_rows(&mut rng));
     }
+    branches(&mut case);
     // Blocks.
     let p = &mut case.program;
     match &p.body {
@@ -285,6 +292,56 @@ pub fn widen(mut case: Case) -> Case {
         }
     }
     case
+}
+/// Branch pages (LLP 3000.036.001), drawn from their own stream so every
+/// other dimension's draws are unchanged.
+fn branches(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ BRANCH_STREAM);
+    if !matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, .. }) || rng.pick(4) != 0 {
+        return;
+    }
+    let shape = rng.pick(4);
+    let p = &mut case.program;
+    // A party rule's page drops its owner pin, so its branches decide it.
+    if shape < 2 && let Body::Read { owner, .. } = &mut p.body {
+        *owner = false;
+    }
+    match shape {
+        // Two parties in the read rule; `where` an `or` of the parties, or the bucket alone.
+        0 | 1 => {
+            p.tables[0].rule = Rule::TwoParty;
+            p.tables[0].residency = Residency::Online;
+            p.tables[0].columns.push(column("helper", Type::Nullable(Box::new(Type::Principal))));
+            if shape == 0 {
+                p.domain = Some("(.owner = viewer or .helper = viewer) and .bucket = bucket".into());
+            }
+            for (table, row) in &mut case.rows {
+                if table == "items" {
+                    row["helper"] = [Json::Null, json!("alice"), json!("bob")][rng.pick(3) as usize].clone();
+                }
+            }
+        }
+        // A bucket disjunction, under the case's rule (decided per bucket only by
+        // `Witness`; an owner page keeps its pin and its single-index plan).
+        // A group-synced table (`Residency::Group`) is not drawn yet: a held
+        // group's pinned page charges no rule probe on a device and one on the
+        // server, a parity gap the device oracle reports for every group page,
+        // merged or not (issues/20261012-snapback4-device-group-page-rule-probe-meter.md).
+        _ => {
+            p.domain = Some("(.bucket = bucket or .bucket = 1)".into());
+            if shape == 3 {
+                p.tables[0].rule = Rule::Witness;
+                p.tables[0].residency = Residency::Online;
+            }
+        }
+    }
+    if shape >= 2 {
+        for (table, row) in &mut case.rows {
+            if table == "items" {
+                row["bucket"] = json!(rng.pick(2));
+            }
+        }
+    }
 }
 fn projection(rng: &mut Rng) -> Vec<Proj> {
     let mut fields = vec![];

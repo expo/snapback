@@ -29,6 +29,8 @@ open Quarry
 #print axioms Rule.eval_perm
 #print axioms query_ignores_hidden_insert
 #print axioms pageRead_complete
+#print axioms partyLeaves_cover
+#print axioms parties_cover_view
 #print axioms decided_store
 #print axioms pageRead_complete_store
 #print axioms walk_complete

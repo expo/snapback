@@ -33,7 +33,8 @@ matches stay the same, but it requires acquired coverage and has no server
 fallback. Otherwise keep the server query and its incomplete absence verdict.
 
 Its rewrite renders the pin as code: the equality to add, the parent read that
-supplies it, or one query per party (guide indexes, "Private lists"). A
+supplies it, or one query per party when pins cannot merge (guide indexes,
+"Private lists"). A
 row-independent grant (`exists staff[viewer]`) whose row its holder may read
 decides the page once for that holder, as does a disjunct the pins decide
 (`exists boards[.board, owner = viewer]` under `.board = b`) whose row its
@@ -42,9 +43,9 @@ holder may read; `check` is silent after `require` or inside `if` of either.
 For several readers the printed form has one `if` arm per grant, one per
 disjunct the pins decide (`if exists cats[cat, owner = viewer]:` under `.cat
 = cat`), then the remaining party pinned, or one query per party; it prints
-only once proven to return exactly the rule's rows; every arm is complete.
+only if proven to return the rule's rows; every arm is complete.
 
-An incomplete page: the query's default `test.cases.jsonl` expectation passes
+An incomplete page: the default `test.cases.jsonl` expectation passes
 either answer (`"expect": "capped"` pins it; run it as a grant holder to expect
 `complete`). A client treats `complete: false` as "there may be more", not an error.
 

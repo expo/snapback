@@ -777,6 +777,9 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert_eq!(ticker["periodEnd"].as_i64().unwrap() - ticker["periodStart"].as_i64().unwrap(), 3_600_000);
     assert_eq!(ticker["run"]["state"], "done", "{advanced}");
     assert!(ticker["reason"].as_str().unwrap().contains("missed boundaries fire once"), "{advanced}");
+    // Count firings of the counter's target. The daily explanation fixture
+    // has its own target and may fire during either advance without changing n.
+    let advanced_ticks = advanced["schedules"].as_array().unwrap().iter().filter(|schedule| schedule["fired"] == true && schedule["target"] == "tick").count();
     let morning = &advanced["schedules"][1];
     assert_eq!(morning["period"], "every 1d at 06:00 UTC");
     if morning["fired"] == false { assert!(morning["reason"].as_str().unwrap().contains("schedule times are UTC"), "{advanced}"); }
@@ -798,7 +801,8 @@ fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     assert!(log.contains("--resume-clock: offset +") && !log.contains("N_CLOCK_STORE_AHEAD") && !log.contains("is held until"), "{log}");
     let resumed = host.post("/dev/clock/advance", json!({"duration":"1h"}));
     assert_eq!(resumed["schedules"][0]["fired"], true, "{resumed}");
-    assert_eq!(host.query("counters")[0]["n"], 2, "{resumed}");
+    let resumed_ticks = resumed["schedules"].as_array().unwrap().iter().filter(|schedule| schedule["fired"] == true && schedule["target"] == "tick").count();
+    assert_eq!(host.query("counters")[0]["n"], advanced_ticks + resumed_ticks, "{resumed}");
 }
 
 // Wave 4 of the app farm: the time card's look-back sweep catches up

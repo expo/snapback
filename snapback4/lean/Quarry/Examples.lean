@@ -399,10 +399,10 @@ def examples : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":true,"next":null}"# },
   { name := "page-grant-other"
-    source := "LLP 3000.036 §12.1: … and unchanged for everyone else"
+    source := "LLP 3000.036.001 §2 case 2: everyone else reads the owner's branch of the merged page, complete (§12.1's 'unchanged' before it)"
     case := { schema := console, store := consoleStore, viewer := bob, program := allTickets }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob"}],"complete":true,"next":null}"# },
   { name := "page-grant-hidden-roster"
     source := "LLP 3000.036 §12.1: a hidden roster (`read <- deny`) is not a grant; the rows stay readable through the rule's probe"
     case := { schema := console true, store := consoleStore, viewer := alice, program := allTickets }
@@ -414,10 +414,10 @@ def examples : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"},{"id":"k2","board":"b1","author":"bo"}],"complete":true,"next":null}"# },
   { name := "page-parent-guard-other"
-    source := "LLP 3000.036 §16.3: an author who does not own the board pages her own rows, `complete: false`"
+    source := "LLP 3000.036.001 §2 case 2: an author who does not own the board reads the author branch of the merged page, complete (§16.3's `complete: false` before it)"
     case := { schema := boardsSchema, store := boardStore, viewer := cps "ann", program := boardCards "b1" }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"}],"complete":false,"next":null}"# },
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"}],"complete":true,"next":null}"# },
   { name := "page-parent-guard-hidden"
     source := "LLP 3000.036 §16.1: a pin-decided probe its holders cannot read decides nothing"
     case := { schema := boardsSchema true, store := boardStore, viewer := cps "olga", program := boardCards "b1" }
@@ -437,9 +437,59 @@ def examples : List Example := [
     expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# }
 ]
 
+/-! ## Merged pages (LLP 3000.036.001) -/
+
+/-- Owner-or-assignee: a read rule of two parties. -/
+def tasks : Schema := { tables := [{
+  name := "tasks", cols := [c "owner", c "helper" (nullable := true), c "n"]
+  read := .or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer)
+  insert := .eq (self "owner") .viewer }] }
+
+def taskStore : Store := mkStore [("tasks", [
+  mkRow "k1" [("owner", I "alice"), ("helper", .null), ("n", N 2)],
+  mkRow "k2" [("owner", I "bob"), ("helper", I "alice"), ("n", N 0)],
+  mkRow "k3" [("owner", I "bob"), ("helper", .null), ("n", N 5)],
+  mkRow "k4" [("owner", I "carol"), ("helper", I "bob"), ("n", N 3)]])]
+
+def merged : List Example := [
+  { name := "page-parties-merged"
+    source := "LLP 3000.036.001 §2 case 2: a read rule of parties supplies the branches; the page is complete"
+    case := { schema := tasks, store := taskStore, viewer := alice,
+              program := query [.ret (.page "tasks" [] none [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2},{"id":"k2","owner":"bob","helper":"alice","n":0}],"complete":true,"next":null}"# },
+  { name := "page-where-branches"
+    source := "LLP 3000.036.001 §2 case 1: each alternative of the where's or pins a party; the page is complete"
+    case := { schema := tasks, store := taskStore, viewer := bob,
+              program := query [.ret (.page "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))) [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob","helper":"alice","n":0},{"id":"k3","owner":"bob","helper":null,"n":5},{"id":"k4","owner":"carol","helper":"bob","n":3}],"complete":true,"next":null}"# },
+  { name := "page-merged-lookahead"
+    source := "LLP 3000.036.001 §5: a merged page continues only when another matching row follows"
+    case := { schema := tasks, store := taskStore, viewer := alice, args := [("c", .null)],
+              program := query [.ret (.page "tasks" [] (some (.bin .gt (.dot "n") (int 1))) [] false 1 (some (.var "c")))] [p "c" true] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2}],"complete":true,"next":null}"# },
+  { name := "page-in-helper-not-merged"
+    source := "LLP 3000.036.001 §2: a shared helper's page keeps the single-index plan, never complete under parties"
+    case := { schema := tasks, store := taskStore, viewer := alice,
+              helpers := [{ name := "mine", params := [], body := .page "tasks" [] none [] false 10 none }],
+              program := query [.ret (.call "mine" [])] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2},{"id":"k2","owner":"bob","helper":"alice","n":0}],"complete":false,"next":null}"# },
+  { name := "exists-parties-false"
+    source := "LLP 3000.036.001 §8: exists over parties is an or of decided existence reads, so it answers false"
+    case := { schema := tasks, store := taskStore, viewer := cps "erin",
+              program := query [.ret (.exists_ "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))))] }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# } ]
+
+/-- Every example. -/
+def all : List Example := examples ++ merged
+
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=
-  examples.filterMap fun ex =>
+  all.filterMap fun ex =>
     let got := (run ex.case).toJson ex.tables
     match Json.parse ex.expected with
     | .ok want => if got == want then none else some (ex.name, want.compress, got.compress)

@@ -92628,6 +92628,60 @@ The same writing page builds to 274,853 B (88,485 B gzip) with no wasm, against
 (`scripts/measure-online-writes.mjs`). Persona apps and a durable online head
 floor are deferred. The number moved from 3000.038, which four lanes claimed
 the same night.
+## 2026-10-12 — Workstream MERGE: owner-or-X lists are one complete query (LLP 3000.036.001)
+
+`tasks where .owner = viewer or .assignee = viewer last 50 by .at after c`,
+or `tasks last 50 by .at after c` under that read rule, or owner-or-staff,
+now reads as a lazy k-way merge of the branch index ranges and answers
+`complete`. Design, review dispositions and exclusions in LLP 3000.036.001;
+the blind GPT (`gpt-6.1-sol`) and Muse (`muse-spark-1.3-contributor`) reviews
+of the draft, both NOT READY, are in `llp/reviews/3000.036.001-*`.
+
+- **Plan.** `bind/intent_branches.rs` expands an undecided query page whose
+  total predicate has one `or` of deciding pins, or whose read rule is parties
+  and readable grants, into planned lanes marked `$or`/`$or:grant` (no new IR
+  field; digests unchanged). `program/views.rs` re-checks with the core's
+  `branch_merge_lazy` and `covering_grant`; a hidden-roster grant binds the
+  read as written.
+- **Run.** `engine/branch_merge.rs`: lanes over different indexes, one shared
+  position (order then `id`), de-duplication by id; a held grant reads its
+  lane alone, an unheld one nothing; a seat is decided on a device, a role
+  probe is unknown there. After a cut the page stops at the frontier every
+  lane examined and continues from it.
+- **Cursor.** Versions 4 (exclusive) and 5 (inclusive, for an unfinished first
+  shape) on version 3's layout, naming the branch set; another plan's token
+  restarts the read with `E_CURSOR_INDEX`; 0.4.22 refuses them by version and
+  runs the plan as an eager merge.
+- **Wasm.** 2,159,570 B raw / 653,674 B gzip on Linux, +5,002 B over the
+  base's 648,672; budget 654,174 B (measurement + 500 B), reason in
+  `metrics/wasm-budget.json`. Sharing version 3's token layout saved 646 B.
+- **Lean.** OPEN C8 is "decided": pins by form (`Rule.byForm`) or branches
+  (`branchDecided`); a merged page's `next` needs a matching row (C2);
+  `parties_cover_view`. 40 theorems audited, 35/35 examples.
+- **Evidence.** `run-lean` seeds 0–99,999: 1,979 disagreements, all known
+  signatures; 3,459 merged pages compared, the 10 that disagreed all on the
+  known prelude `E_RULE~NOT_FOUND`, none on a page. `run-devices` seeds
+  0–2,999: no new signature (197 merged branch pages; group-synced tables are
+  not drawn yet, see the ticket below). `run` seeds 0–19,999: 0
+  disagreements in every rewrite and meter oracle, 1,314 merged pages.
+  Suites: `snapback4-core`, `-device`, `-sim`, `-difftest`, `-lang`,
+  `snapback4 --test check`/`check_notes`, `lean/check.sh`, and the client's
+  `read-*`, `local-*` and `bounded-following` (286 pass, 1 skipped).
+- **Found, not caused.** The first device campaign that drew a group-synced
+  table found that a held group's pinned page meters one rule probe on the
+  server and none on a device, merged or not:
+  `issues/20261012-snapback4-device-group-page-rule-probe-meter.md`.
+- **Docs.** The staff console, the roles board and the private two-party list
+  are single queries; the N_NEVER_COMPLETE page and the reads card say when
+  the merge applies. The wave 1–6 farm tests whose shapes now merge assert the
+  merged page and keep the note machinery covered with arithmetic in the
+  predicate, which keeps one index.
+- **What felt good:** the engine already had the merge position and the
+  drain-cut idea; a second index per lane was mostly bookkeeping. The Lean
+  model's surface syntax kept the pin forms the engine decides by.
+- **What was hard:** with a page per lane, a cut can only land while lanes
+  open, so the drain-cut continuation never fired; the frontier replaced it.
+  And twenty farm tests pinned the old "never complete" on purpose.
 
 ## 2026-10-12 — 0.4.23: the wasm budget rises 764 B for the integrated device
 
@@ -92635,6 +92689,69 @@ File assets and the pinned-parent page guard each landed within their own
 branch's budget; together the Linux web device measures 651,704 B gzip,
 264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
 the reason in `metrics/wasm-budget.json`.
+
+## 2026-10-12 — MERGE round-5 confirmation and revision 6
+
+Fresh, mutually blind reviews of revision 5 at `c8f0810607` are preserved
+verbatim in `llp/reviews/3000.036.001-merged-pages.r5.{gpt,muse}.md`.
+GPT (`gpt-6.1-sol`, high) found two material size-bound gaps and two minor
+items; Muse (`muse-spark-1.3-contributor`, high) returned READY WITH CHANGES
+for the existence wording. Its prescribed wrapper completed through the
+API-key fallback after plan quota errors; no key was read or logged here.
+
+Revision 6 bounds the branch descriptor with a length-framed SHA-256 digest
+of ordered index names and grant flags, checks actual prospective lane
+indexes against the shared portable key/label bounds before committing
+optional plans, suppresses nested grant-lane completeness notes through the
+whole-body IR walk, and documents case-1-only existence expansion. The
+31-test merged-page target passes, including a cursor over eight repeated
+507-byte index names, a 2,028-byte original key whose party indexes would
+need 2,166 bytes, and the nested-shape note assertion. Final integrated
+measurements and quality-bar results follow after merging the newer loop tip.
+
+## 2026-10-12 — MERGE: final optional-index bounds
+
+The focused revision-6 review found that a pending index's structural token
+is shorter than its emitted column-derived name. The optional planner now
+checks the emitted name through `intent::index_name`, including its collision
+suffix, and declared indexes through their actual names. Another fresh GPT
+confirmation is READY (`llp/reviews/3000.036.001-merged-pages.r6-key-bounds.gpt.md`).
+All 33 merged-page tests pass, including the added 480-byte owner-column
+label fallback and oversized existence-index fallback. Neither correction
+changes device execution or the measured wasm artifact.
+
+## 2026-10-12 — MERGE integration: regenerate the codec census
+
+The page/query client files passed. The additional codec census found two
+inherited calls absent from its registry: file JSON verification through
+`IgnoredAny`, and `stored_value_bytes` streaming to its allocation-counting
+writer. Their behavior is unchanged. Exact function/line entries now name
+these calls; the census still requires exactly one consumption, and new
+mutation controls reject renamed owners, duplicate calls and changed lines.
+All 27 codec-census checks pass. The integrated delivery-await boundary was
+also regenerated with no delta, and its classification check passes.
+
+## 2026-10-12 — MERGE quality bar: UTC-independent schedule assertion
+
+The full requested Rust run exposed an inherited clock-test assumption:
+`advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold`
+expected two counter increments from its hourly schedule, although its daily
+06:00 UTC schedule calls the same mutation and can fire during either advance.
+The assertion now checks the exact sum of schedules reported as fired.
+The full clock target and the CLI `check`/`check_notes` targets pass (125
+checks in total), and the final affected language crate passes. No scheduler
+or clock implementation changed.
+
+## 2026-10-12 — MERGE: integrated device budget
+
+The locked Linux revision-6 artifact measures 2,166,371 B raw / 657,042 B
+gzip, unchanged on a hash and size recheck. Set the budget to 657,542 B,
+measured gzip plus the existing 500 B cross-host headroom. Incoming 0.4.23
+recorded 651,704 B gzip / 652,204 B cap: a whole-artifact increase of 5,338 B,
+without a rebuilt control or per-feature attribution. The inherited revision-5
+run measured 658,195 B gzip; the bounded-descriptor artifact is 1,153 B smaller.
+No macOS measurement or runtime ceiling change is claimed. The final budget
+check passes.
 
 ## 2026-10-12 — OPS: production ports and rollback help (wave 8 DT3, DT1b)
 
@@ -92840,3 +92957,48 @@ The wasm rebuild exactly matches 2,174,248 B raw / 655,243 B gzip; budget
 headroom). `ref-check` passes. Both round-2 reviews were READY WITH CHANGES,
 with dispositions already recorded; neither remained NOT READY. LLP
 3000.040 §11 records the final checks and explicit deferrals. No push.
+
+## 2026-10-12 — MERGE final integrated qualification
+
+`10609408d5` also incorporates the newer `sb4-loop` tip `ccc3d40730`:
+CLI/auth/production-guide changes, unchanged MERGE engine/planner source.
+Both journal histories and both clock-test corrections survive. Affected
+latest-loop checks pass: 119 guide and 542 CLI tests (four declared ignores).
+Final page/query/census/budget client run: 14 files, 96 pass. Readauth:
+701 entries, 399 mutation occurrences, 84 private write sites; regenerated
+ordering and its recheck pass. Delivery-await census passes with no delta;
+codec census passes all 27 checks. Final language: 1,708 pass, 14 ignores.
+
+The original full Rust command's only product failure was the corrected
+UTC-dependent clock assertion. It also never launched 37 core executables
+that disappeared during the run; those targets were rebuilt in an isolated
+target directory and all pass (334 tests, two ignores). The original log
+is retained as interrupted evidence, not reported as green.
+
+The final fresh wasm rebuild measures 2,174,378 B raw / 658,353 B gzip and
+repeats exactly. Set 658,853 B, measurement + the existing 500 B headroom.
+This supersedes the earlier 657,042 B result after the newer integration and
+fresh rebuild; no per-feature cause, rebuilt control, Mac measurement or
+runtime-ceiling change is claimed.
+
+`run` 20,000 cases: zero disagreements. `run-lean` 100,000: 1,042 in four
+existing signatures; `run-devices` 3,000: 224 in existing signatures. No new
+signatures; all three oracle reports' counts exactly match the inherited
+revision-5 campaigns. Exit-1 differential results remain explicit. Lean's
+audit passes 48 theorems, 47 examples and five oracle fixtures. Docs budget:
+319/320 lines and the named self-containment check pass. Reference check:
+zero errors/unchecked. Evidence under `reports/20261012-merged-owner-pages/`;
+root `WORKSTREAM-REPORT.md` lists changes, commits, checks and deferrals.
+No push or publication.
+
+## 2026-10-12 — Integrate merged owner-or-X pages with OPS and LANG2
+
+Finish `sb4-ws-merge` into `sb4-loop`, keeping both LLP revised entries,
+both journals, and all generator dimensions (eight in the smoke census).
+Lean check passes: 50/50 examples, 53 audited theorems, seven oracle fixtures;
+AGENTS and the Lean README now state the real example count. The locked
+integrated Linux wasm measures 2,192,240 B raw / 661,645 B gzip. Its initial
+build fails the inherited 655,743 B cap as expected; set 662,145 B, exactly
+measurement + 500 B, for LANG2 bounded ints/calendar months/caps together
+with LLP 3000.036.001 merged owner-or-X pages. No per-feature attribution
+or macOS measurement is claimed; runtime ceilings are unchanged.

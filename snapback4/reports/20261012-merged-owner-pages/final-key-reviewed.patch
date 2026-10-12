@@ -1,0 +1,149 @@
+diff --git a/snapback4/crates/snapback4-lang/src/bind/intent.rs b/snapback4/crates/snapback4-lang/src/bind/intent.rs
+index 175b6b4cc3..29b720fccf 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/intent.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/intent.rs
+@@ -61,6 +61,18 @@ impl Requests {
+     }
+     pub(super) fn error_count(&self) -> usize { self.errors.len() }
+ 
++    pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
++        let Some(name) = &read.index else { return false };
++        if let Some(index) = self.indexes.get(&(table.decl.name.clone(), name.clone())) {
++            // A pending structural token is renamed after planning. Bound
++            // the emitted label, including its column names and collision suffix.
++            super::key_bound::plain_index_fits(table, index, &index_name(table, index))
++        } else {
++            table.indexes.iter().find(|index| &index.name == name)
++                .is_some_and(|index| super::key_bound::plain_index_fits(table, index, &index.name))
++        }
++    }
++
+     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
+         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)
+     }
+diff --git a/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs b/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs
+index dc2b210320..a1557082c4 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/intent_branches.rs
+@@ -41,7 +41,8 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr)
+         // after its pins (lane planning never pins an order column).
+         if order.get_or_insert_with(|| lane.order_keys.clone()) != &lane.order_keys || lane.index.is_none() { return None; }
+         // An index holds at most 8 components; a lane never makes a program refuse.
+-        if lane.keys.len() + lane.order_keys.len() > 8 { return None; }
++        if lane.keys.len() + lane.order_keys.len() > 8
++            || !candidate.branch_index_fits(&tables[&read.table], &lane) { return None; }
+         lanes.push(MergeLane { admission: read.filter.clone(), nulls: None, distinct: None, branch: Some(if grant { GRANT_LANE } else { BRANCH_LANE }.into()),
+             planned: Some(Box::new(lane)), project: None, table: None, prefix: Vec::new(), columns: None, loop_: None, site: read.site.clone() });
+     }
+@@ -65,7 +66,7 @@ pub(super) fn exists(tables: &Tables, requests: &mut Requests, read: &ReadExpr,
+         let mut lane = read.clone();
+         lane.filter = intent::conjunction(conjuncts);
+         candidate.read(tables, &mut lane, false);
+-        if !decided(tables, &lane) { return None; }
++        if !decided(tables, &lane) || !candidate.branch_index_fits(&tables[&read.table], &lane) { return None; }
+         reads.push(Expr::Exists { read: lane, site: site.clone() });
+     }
+     if candidate.error_count() != errors { return None; }
+diff --git a/snapback4/crates/snapback4-lang/src/bind/key_bound.rs b/snapback4/crates/snapback4-lang/src/bind/key_bound.rs
+index 8907195213..1274572c80 100644
+--- a/snapback4/crates/snapback4-lang/src/bind/key_bound.rs
++++ b/snapback4/crates/snapback4-lang/src/bind/key_bound.rs
+@@ -22,6 +22,19 @@ fn column_bytes(kind: &ColumnType) -> usize {
+     }
+ }
+ 
++/// Optional branch planning must not introduce a later key-bound refusal.
++/// Use the same column sizes and appended identity as the schema check.
++// @ref LLP 3000.036.001#3 — oversized branch indexes leave the original read intact
++pub(super) fn plain_index_fits(table: &super::catalog::TableInfo, index: &crate::ast::IndexDecl, emitted_name: &str) -> bool {
++    table.decl.name.len().saturating_add(emitted_name.len()) <= MAX_INDEX_LABEL_BYTES
++        && index.words.is_none() && index.computed.is_empty()
++        && index.columns.iter().fold(ID_BYTES, |bytes, column| {
++            let size = table.columns.get(column).map(|ty| column_bytes(&crate::types::scalar_to_column(ty)))
++                .unwrap_or(if column == "id" { ID_BYTES } else { usize::MAX });
++            bytes.saturating_add(size)
++        }) <= MAX_INDEX_KEY_BYTES
++}
++
+ // @ref LLP 3000.009#4.3 — bound components, encoding overhead and the id.
+ pub(super) fn check(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Diagnostic>) {
+     for (name, table) in &schema.tables {
+diff --git a/snapback4/crates/snapback4-lang/tests/branch_merge.rs b/snapback4/crates/snapback4-lang/tests/branch_merge.rs
+index c3f87b8661..36ea633ba3 100644
+--- a/snapback4/crates/snapback4-lang/tests/branch_merge.rs
++++ b/snapback4/crates/snapback4-lang/tests/branch_merge.rs
+@@ -727,6 +727,7 @@ fn a_merge_inside_a_returned_shape_requires_the_branch_merge_capability() {
+     let program = &b.programs.iter().find(|p| p.program.name == "nested").unwrap().program;
+     assert!(snapback4_core::ir::body_merges(&program.body).iter().any(|m| m.branches()), "the inline page is a branch merge");
+     assert!(b.schema.required_capabilities().contains("branch-merge-v1"));
++    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+ }
+ 
+ /// GPT r4 #3: each lane's prefix fits a token; together they would not. The
+@@ -750,3 +751,66 @@ query mine(folder: text <=400, c: cursor ?):
+     let (got, _) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide.clone()))]);
+     assert_eq!(got, vec!["t2", "t1"]);
+ }
++
++/// GPT r5 #1: eight legal 507-byte index labels cannot be copied into next.
++#[test]
++fn repeated_long_index_names_have_a_bounded_cursor_descriptor() {
++    let index = "x".repeat(507);
++    let alternatives = (1..=8).map(|n| format!(".board = {n}")).collect::<Vec<_>>().join(" or ");
++    let source = format!("table members:\n  board: int\n  principal: principal\n  unique board, principal\n  read <- .principal = viewer\n  online only\ntable cards:\n  board: int\n  at: int\n  by {index}: board, at, id\n  read <- exists members[.board, viewer]\n  online only\nquery mine(c: cursor ?):\n  return cards where {alternatives} last 1 by .at after c\n");
++    let b = clean(&source);
++    assert_eq!(branch_merges(&b, "mine").first().map(|m| m.0), Some(8));
++    let mut rows = Vec::new();
++    for (name, board) in [("c1", 1), ("c2", 8)] {
++        rows.push(("cards", vec![("id", id(name)), ("board", Value::Int(board)), ("at", Value::Int(board))]));
++    }
++    for (name, board) in [("m1", 1), ("m8", 8)] {
++        rows.push(("members", vec![("id", id(name)), ("board", Value::Int(board)), ("principal", id("alice"))]));
++    }
++    let mut e = engine(&source, rows);
++    let first = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
++    let token = first.next.as_ref().expect("two matches need a cursor");
++    let position = snapback4_core::cursor::decode_cursor(e.schema(), token).unwrap();
++    assert_eq!(position.index.len(), 68);
++    let (got, complete) = walk(&mut e, "mine", "alice", &[]);
++    assert_eq!(got, vec!["c2", "c1"]);
++    assert!(complete.into_iter().all(|c| c));
++}
++
++/// GPT r5 #2: the original 2028-byte key fits; adding a party would not.
++#[test]
++fn branch_key_bytes_that_exceed_the_portable_bound_keep_the_original_scan() {
++    let source = TASKS.replace("  at: int", "  folder: text <=435\n  at: int")
++        + "query mine(folder: text <=435, c: cursor ?):\n  return tasks where .folder = folder last 1 by .at after c\n";
++    let b = clean(&source);
++    assert!(branch_merges(&b, "mine").is_empty());
++    assert!(has_note(&b, "N_NEVER_COMPLETE"));
++    assert!(!b.schema.required_capabilities().contains("branch-merge-v1"));
++    let wide: String = std::iter::repeat_n('\u{1F600}', 435).collect();
++    let mut row = task("t1", "alice", None, 1);
++    row.1.push(("folder", Value::String(wide.clone())));
++    let mut e = engine(&source, vec![row]);
++    let (got, complete) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide))]);
++    assert_eq!(got, vec!["t1"]);
++    assert!(complete.into_iter().all(|c| !c));
++}
++
++/// The pending request label fits, but the emitted label includes the column.
++#[test]
++fn an_oversized_emitted_branch_index_label_keeps_the_original_scan() {
++    let owner = "o".repeat(480);
++    let source = TASKS.replace("owner", &owner)
++        + "query mine(c: cursor ?):\n  return tasks last 1 by .at after c\n";
++    let b = clean(&source);
++    assert!(branch_merges(&b, "mine").is_empty());
++    assert!(has_note(&b, "N_NEVER_COMPLETE"));
++    assert!(b.schema.tables["tasks"].indexes.keys().all(|name| name.len() + 5 <= 512));
++}
++
++#[test]
++fn oversized_existence_branch_indexes_keep_the_original_scan() {
++    let b = clean("table tasks:\n  bucket: text <=500\n  read <- .bucket = 'a' or .bucket = 'b'\n  online only\nquery any():\n  return exists tasks where .bucket = 'a' or .bucket = 'b'\n");
++    let program = &b.programs.iter().find(|p| p.program.name == "any").unwrap().program;
++    assert_eq!(snapback4_core::ir::scans(program).len(), 1);
++    assert!(has_note(&b, "N_NEVER_COMPLETE"));
++}

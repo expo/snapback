@@ -50,10 +50,8 @@ query itemsOf(list: lists, c: cursor ?):
   return items where .owner = viewer and .list = list first 50 by .id after c
 query openCount(list: lists):
   return openItems[viewer, list]
-query board(c: cursor ?):                 -- owner or staff on one page: branch on the grant; both complete
-  if exists staff[viewer]:
-    return requests last 50 by .id after c
-  return requests where .author = viewer last 50 by .id after c
+query board(c: cursor ?):                 -- owner or staff on one page: complete for both (guide indexes)
+  return requests last 50 by .id after c
 
 mutation addList(title: text 1..80):
   return insert lists { owner: viewer, title }

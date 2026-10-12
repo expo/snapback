@@ -83,6 +83,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("calendar-schedule", |s| s.schedules.iter().any(|schedule| schedule.months > 0)),
     ("timeline", |s| s.timelines.iter().any(|t| t.version == 1)),
     ("timeline-v2", |s| s.timelines.iter().any(|t| t.version == 2)),
+    // @ref LLP 3000.036.001#3 — an older device would page a merged plan as an eager merge and refuse its server cursors; it refuses the backend by name.
+    ("branch-merge-v1", |s| s.operations.values().any(|o| o.branch_merge)),
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
 ];

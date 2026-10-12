@@ -233,12 +233,16 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.arg_bound.is_some() {
             dims.push("bounded-arg");
         }
+        // LLP 3000.036.001: branch pages, from their own stream.
+        if case.program.domain.is_some() || case.program.tables[0].rule == snapback4_difftest::ast::Rule::TwoParty {
+            dims.push("branches");
+        }
         if dims.is_empty() {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 7, "{seen:?}");
+    assert_eq!(seen.len(), 8, "{seen:?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

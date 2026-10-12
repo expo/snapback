@@ -85,9 +85,10 @@ fn the_parent_owner_reads_a_decided_page_and_everyone_else_is_unchanged() {
         let olga = server(&mut engine, op, "olga", "b1");
         assert_eq!((ids(&olga), olga.complete), (vec!["c1".to_owned(), "c2".to_owned()], true), "{op}: {olga:?}");
     }
-    // ann is an author, not the owner: her own card; the unguarded page cannot
-    // prove "no more", the guarded arm pins her and is complete.
-    assert_eq!((ids(&server(&mut engine, "boardCards", "ann", "b1")), server(&mut engine, "boardCards", "ann", "b1").complete), (vec!["c1".to_owned()], false));
+    // ann is an author, not the owner: her own card. The unguarded page merges
+    // her author branch with the owner's guard (LLP 3000.036.001 §2 case 2), so
+    // it is complete, as the guarded arm that pins her is.
+    assert_eq!((ids(&server(&mut engine, "boardCards", "ann", "b1")), server(&mut engine, "boardCards", "ann", "b1").complete), (vec!["c1".to_owned()], true));
     assert_eq!((ids(&server(&mut engine, "guarded", "ann", "b1")), server(&mut engine, "guarded", "ann", "b1").complete), (vec!["c1".to_owned()], true));
     // A search `exists` over a decided scan proves absence too.
     assert_eq!(server(&mut engine, "anyCard", "olga", "b1"), Answer { data: json!(true), complete: true, unavailable: false });

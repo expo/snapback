@@ -380,7 +380,7 @@ fn page(engine: &mut Engine, query: &str, viewer: &str) -> snapback4_core::Query
 }
 
 #[test]
-fn a_staff_grant_makes_the_page_complete_for_staff_only() {
+fn a_staff_grant_makes_the_page_complete_for_staff_and_the_owners_branch_for_everyone_else() {
     let mut engine = seeded(&tickets("read <- .principal = viewer", "exists staff[viewer]"));
     // The granted page answers exactly as the same page over readable rows.
     let mut open = seeded(&tickets("read <- .principal = viewer", "true"));
@@ -392,9 +392,10 @@ fn a_staff_grant_makes_the_page_complete_for_staff_only() {
         // The same walk: only the grant's static probe charge differs.
         assert_eq!((staff.metered.examined, staff.metered.index_entries), (all.metered.examined, all.metered.index_entries), "{query}");
         assert_eq!(staff.metered.rule_probes, all.metered.rule_probes + 1, "{query}: one static probe for the grant");
-        // Everyone else walks per row, as before: own rows, never complete.
+        // Everyone else reads the owner's branch of the merged page (LLP
+        // 3000.036.001): own rows, complete.
         let alice = page(&mut engine, query, "alice");
-        assert!(!alice.complete, "{query}");
+        assert!(alice.complete, "{query}");
         assert_eq!(alice.data.as_array().unwrap().iter().filter(|row| row.field("owner").unwrap() != &Value::Id("alice".into())).count(), 0);
     }
 }
@@ -412,7 +413,7 @@ fn a_grant_the_caller_cannot_read_is_not_used() {
     let mut managers = seeded(&tickets("read <- exists staff[principal = viewer]", "exists staff[principal = viewer, role = 'manager']"));
     assert!(page(&mut managers, "everything", "tess").complete);
     let intern = page(&mut managers, "everything", "ian");
-    assert!(!intern.complete && intern.data.as_array().unwrap().is_empty());
+    assert!(intern.complete && intern.data.as_array().unwrap().is_empty(), "the owner's branch, empty");
     // A negated probe is never a grant.
     let mut negated = seeded(&tickets("read <- .principal = viewer", "not exists staff[viewer]"));
     assert!(!page(&mut negated, "everything", "alice").complete);
@@ -424,7 +425,8 @@ fn a_service_seat_reads_a_complete_page() {
     let service = page(&mut engine, "everything", "service:audit");
     assert!(service.complete);
     assert_eq!(service.data.as_array().unwrap().len(), 4);
-    assert!(!page(&mut engine, "everything", "alice").complete);
+    // A seat is a grant too: everyone else reads the owner's branch, complete.
+    assert!(page(&mut engine, "everything", "alice").complete);
 }
 
 const KILN: &str = "table staff:
@@ -500,7 +502,7 @@ fn a_grant_guard_that_does_not_dominate_the_pass_still_refuses_it() {
 // ---- #11 (analysis #12): owner-or-assignee lists print one query per party ----
 
 #[test]
-fn a_two_party_list_prints_the_authors_query_once_per_party_and_it_compiles() {
+fn a_two_party_list_is_one_merged_query_and_otherwise_prints_the_authors_query_once_per_party() {
     let table = "table tasks:
   owner: principal
   assignee: principal
@@ -516,7 +518,13 @@ fn a_two_party_list_prints_the_authors_query_once_per_party_and_it_compiles() {
         "query mine(c: cursor ?):\n  return tasks last 20 by .at after c\n",
         "query mine(open: bool, c: cursor ?):\n  return tasks where .done = open and (.owner = viewer or .assignee = viewer) last 20 by .at after c { id, title }\n",
     ] {
+        // LLP 3000.036.001: each is one complete query, the merge of its parties.
         let source = format!("{table}{query}");
+        let b = clean(&source);
+        assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{source}\n{:#?}", b.notes);
+        // A predicate with a call keeps the single-index plan: one query per party.
+        let source = source.replace("where .owner = viewer or .assignee = viewer last", "where (.owner = viewer or .assignee = viewer) and trim(.title) != '' last")
+            .replace("tasks last 20", "tasks where trim(.title) != '' last 20").replace(") last 20", ") and trim(.title) != '' last 20");
         let b = bound(&source);
         let n = b.notes.iter().find(|n| n.code == "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
         let declarations = n.rewrite.split_once("in the client:\n").unwrap_or_else(|| panic!("{n}")).1.split("\n\n").next().unwrap();
