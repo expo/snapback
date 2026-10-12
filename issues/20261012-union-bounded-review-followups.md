@@ -44,3 +44,29 @@ column-form printer; line() alone cannot infer columns from an index name.
 Current-audience guards now also prevent synthesized scopes from removed
 arms. Ignored semantic marker behavior is documented in §5.2; bad positions
 fail closed, and no ignored marker can certify a complete window.
+
+## Coordinator continuation (2026-10-12)
+
+The coordinator authorized two further pairs, rounds 8 and 9, on revision 8
+onward. Round 8: GPT READY WITH CHANGES (Low docs only); Muse READY WITH
+CHANGES (ancestor lifetime identity plus material coverage).
+
+Revision 9, commit `40908b7126`, implements the named disclosure follow-ups:
+
+- Exhaustive windowed two-/three-column worlds; two-column-plus-group worlds
+  with and without windows.
+- Equal-prefix window collision diagnosis with compiling online/all-rows repairs.
+- Two-prefix scopes, sparing each column and preserving another group; a
+  1,200-row alternating-owner roster leave, including a 600-row window.
+- Both-store snapshot limits 1–8/1,000, roster/team cross-table scope ordering,
+  blocking windowed epoch leave/rejoin/create, and compound rebirth chains.
+- Separate epoch identity assertions for content/group/recipient types, index,
+  capture and ancestor expiry defaults/types/columns. Ancestor interpretation is
+  now included in the fingerprint.
+- Explicit missing-table/sync/group-index errors in leave(), and a direct staged
+  unknown-scope error regression on both stores.
+
+Expiring group arms are refused on unions, including inherited expiry. A new
+regression pins that exclusion; the admitted single-group path adds renewal,
+expiry/sweep between pages and revival. This is not an expiring-union claim.
+The final authorized paired round and integrated qualification remain pending.
