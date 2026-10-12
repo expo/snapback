@@ -84,5 +84,11 @@ pub(super) fn validate(schema: &Schema, table_name: &str, table: &Table, sync: &
     for (audience, horizon) in &arms {
         sync_index_issues(table_name, table, sync, audience, *horizon, &mut |message| issue(issues, message));
     }
+    // Acquisition boundaries are found by window index: two arms on one index
+    // would share a boundary (round 3, GPT finding 2).
+    let windows: Vec<&str> = arms.iter().filter_map(|(_, horizon)| horizon.map(|h| h.by.as_str())).collect();
+    if windows.iter().collect::<BTreeSet<_>>().len() < windows.len() {
+        issue(issues, format!("{line}: two arms read one window index; order the window by columns no arm groups by"));
+    }
 }
 

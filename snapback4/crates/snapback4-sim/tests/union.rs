@@ -1253,3 +1253,102 @@ fn a_leave_keeps_every_spared_row_however_many_come_first() {
         assert!(task.complete && !unknown && task.data == Value::Null, "Bob's task z{n} left with the team");
     }
 }
+
+/// Round 3 (Muse finding 1): a row deleted and recreated under its id in one
+/// commit, in another team, keeps the deletion owed to the partition it left:
+/// the first incarnation's `del` survives the second's birth.
+#[test]
+fn a_row_recreated_elsewhere_in_one_commit_still_revokes_where_it_was() {
+    let source = format!("{TEAMS}\nmutation recreate(task: tasks, team: teams):\n  t = tasks[task] ! else NOT_FOUND\n  delete tasks[t]\n  return insert tasks {{ owner: viewer, team, title: 'x', at: now }}\n");
+    let (schema, programs) = compiled(&source);
+    let mut engine = Engine::memory(schema, programs).unwrap();
+    engine.seed(teams_seed()).unwrap();
+    // Mallory holds t1 only; Bob holds t2 only.
+    engine.seed([("members".to_owned(), object([("id", id("mm1")), ("team", id("t1")), ("principal", id(MALLORY))]))]).unwrap();
+    let (_, before) = engine.snapshot_at(MALLORY, NOW).unwrap();
+    // The commit deletes ka (Alice's, in t1) and recreates it under the same
+    // id as Alice's task in t2.
+    let args = [("task".to_owned(), id("ka")), ("team".to_owned(), id("t2"))].into();
+    let outcome = engine.mutate("recreate", Some("re"), Context::new(ALICE, args).at(NOW).with_ids(["ka".to_owned()])).unwrap();
+    assert!(matches!(outcome.state, WriteState::Sent { .. }), "{:?}", outcome.state);
+    let mallory = engine.stream_at(MALLORY, before, 1_000, NOW).unwrap();
+    let last = mallory.events.iter().rev().find(|event| event.table == "tasks" && event.id == "ka");
+    assert_eq!(last.map(|event| event.kind.as_str()), Some("del"), "Mallory held ka through t1 and must lose it: {:?}", mallory.events);
+    let bob = engine.stream_at(BOB, before, 1_000, NOW).unwrap();
+    assert!(bob.events.iter().any(|event| event.id == "ka" && event.kind == "put"), "Bob reads the new ka through t2: {:?}", bob.events);
+}
+
+/// Round 3 (Muse finding 2): R1 also covers a single group audience whose
+/// group column can change. A task moved between two teams its viewer holds
+/// logs a `put` to the new team and a `del` to the old; served from
+/// serve-time state, the `del` is the current image and the row stays.
+#[test]
+fn a_row_moved_between_two_held_groups_of_one_audience_stays() {
+    let source = "table teams:\n  name: text <=20\n  read <- exists members[.id, viewer]\n  insert <- deny\n  sync\ntable members:\n  team: teams\n  principal: principal\n  unique team, principal\n  immutable team, principal\n  read <- exists members[.team, viewer]\n  insert <- exists members[.team, viewer]\n  sync\ntable tasks:\n  team: teams\n  read <- exists members[.team, viewer]\n  insert <- exists members[.team, viewer]\n  update <- exists members[.team, viewer]\n  sync\nmutation move(task: tasks, team: teams):\n  t = tasks[task] ! else NOT_FOUND\n  update tasks[t] { team }\n  return null\n";
+    let (schema, programs) = compiled(source);
+    let mut engine = Engine::memory(schema, programs).unwrap();
+    engine.seed([
+        ("teams".to_owned(), object([("id", id("t1")), ("name", Value::String("a".into()))])),
+        ("teams".to_owned(), object([("id", id("t2")), ("name", Value::String("b".into()))])),
+        ("members".to_owned(), object([("id", id("m1")), ("team", id("t1")), ("principal", id(ALICE))])),
+        ("members".to_owned(), object([("id", id("m2")), ("team", id("t2")), ("principal", id(ALICE))])),
+        ("tasks".to_owned(), object([("id", id("k")), ("team", id("t1"))])),
+    ]).unwrap();
+    let (_, watermark) = engine.snapshot_at(ALICE, NOW).unwrap();
+    mutate(&mut engine, ALICE, "move", &[("task", id("k")), ("team", id("t2"))], 1);
+    let page = engine.stream_at(ALICE, watermark, 1_000, NOW).unwrap();
+    let last = page.events.iter().rev().find(|event| event.id == "k").expect("an event for k");
+    assert_eq!(last.kind, "put", "{:?}", page.events);
+}
+
+/// Round 3 (GPT finding 1): a stream from a watermark before the audience
+/// epoch reads no group log of the earlier audience. Alice was never in t2
+/// while a task of t2 was deleted; after the arm is removed, Alice joins and
+/// the union returns, a stream from 0 names no deletion she never could read.
+#[test]
+fn a_stream_from_before_the_epoch_reads_no_earlier_group_log() {
+    let union = compiled(TEAMS);
+    let owner_only = compiled(&TEAMS.replace("  read <- .owner = viewer or exists members[.team, viewer]\n", "  read <- .owner = viewer\n"));
+    let mut engine = Engine::memory(union.0.clone(), union.1.clone()).unwrap();
+    // Alice only in t1 here; Bob owns kb in t2.
+    engine.seed(teams_seed().into_iter().filter(|(table, row)| !(table == "members" && row.field("id").ok() == Some(&id("ma2")))).collect::<Vec<_>>()).unwrap();
+    mutate(&mut engine, BOB, "remove", &[("task", id("kb"))], 1);
+    engine.adopt(owner_only.0.clone(), owner_only.1.clone()).unwrap();
+    engine.seed([("members".to_owned(), object([("id", id("late")), ("team", id("t2")), ("principal", id(ALICE))]))]).unwrap();
+    engine.adopt(union.0.clone(), union.1.clone()).unwrap();
+    for limit in [1, 1_000] {
+        let mut watermark = 0;
+        loop {
+            let page = engine.stream_at(ALICE, watermark, limit, NOW).unwrap();
+            assert!(page.events.iter().all(|event| event.id != "kb"), "Alice never could read kb: {:?}", page.events);
+            watermark = page.watermark;
+            if !page.more { break; }
+        }
+    }
+}
+
+/// Round 3 (GPT finding 3): a renewal inside the acquiring commit is still
+/// that commit's acquisition. Mallory joins a group with one deadline, the
+/// same commit renews it and deletes a row of the group: she is never sent
+/// the row's id.
+#[test]
+fn a_renewal_inside_the_acquiring_commit_reads_nothing_of_that_commit() {
+    let source = "table members:\n  team: id\n  principal: principal\n  until: time\n  unique team, principal\n  by byUntil: until\n  immutable team, principal\n  expire at .until\n  read <- exists members[.team, viewer]\n  insert <- exists members[.team, viewer]\n  update <- exists members[.team, viewer]\n  sync\ntable notes:\n  team: id\n  immutable team\n  read <- exists members[.team, viewer]\n  insert <- exists members[.team, viewer]\n  delete <- exists members[.team, viewer]\n  sync\nmutation admitAndDrop(who: principal, note: notes):\n  m = insert members { team: 'g', principal: who, until: now + 100 }\n  update members[m] { until: now + 200 }\n  n = notes[note] ! else NOT_FOUND\n  delete notes[n]\n  return null\n";
+    let (schema, programs) = compiled(source);
+    let mut engine = Engine::memory(schema, programs).unwrap();
+    engine.seed([
+        ("members".to_owned(), object([("id", id("ma")), ("team", id("g")), ("principal", id(ALICE)), ("until", Value::Int(NOW * 10))])),
+        ("notes".to_owned(), object([("id", id("x")), ("team", id("g"))])),
+    ]).unwrap();
+    let (_, before) = engine.snapshot_at(MALLORY, NOW).unwrap();
+    mutate(&mut engine, ALICE, "admitAndDrop", &[("who", id(MALLORY)), ("note", id("x"))], 1);
+    for limit in [1, 1_000] {
+        let mut watermark = before;
+        loop {
+            let page = engine.stream_at(MALLORY, watermark, limit, NOW + 20).unwrap();
+            assert!(page.events.iter().all(|event| event.id != "x"), "Mallory never could read x: {:?}", page.events);
+            watermark = page.watermark;
+            if !page.more { break; }
+        }
+    }
+}

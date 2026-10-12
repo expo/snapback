@@ -923,12 +923,20 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     // @ref LLP 3000.036.000.000#3 — round 2 (GPT finding 1): no id from the acquiring commit.
     let renewals: Vec<u64> = held.values().flat_map(|spans| spans.iter().filter(|span| span.from_ord.is_some() && span.from > watermark).map(|span| span.from)).collect();
     let renewal_times = if renewals.is_empty() { BTreeMap::new() } else { tx.commit_times(&renewals)? };
+    let epochs = audience_epochs(tx, schema)?;
     for ((table, group), intervals) in &held {
         let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        // A renewal inside the acquiring commit is still that commit's
+        // acquisition (round 3, GPT finding 3): authority starts after it.
+        let mut acquired_at: Option<u64> = None;
         for (n, interval) in intervals.iter().enumerate() {
-            let acquired = interval.from_ord.is_some_and(|ord| !n.checked_sub(1).map(|i| &intervals[i])
+            let continuous = interval.from_ord.is_some_and(|ord| n.checked_sub(1).map(|i| &intervals[i])
                 .is_some_and(|prior| continuous_renewal(prior, interval.from, ord, &renewal_times)));
+            let acquired = interval.from_ord.is_some() && (!continuous || acquired_at == Some(interval.from));
+            acquired_at = acquired.then_some(interval.from);
             let from = if acquired { interval.from.saturating_add(1) } else { interval.from };
+            // @ref LLP 3000.036.000.000#9 — round 3 (GPT finding 1): a group's log before the audience epoch belongs to an earlier audience.
+            let from = from.max(epochs.get(table).copied().unwrap_or(0));
             if interval.to.is_none_or(|(seq, _)| seq > from) {
                 spans.push((group_partition(table, &group), from, interval.to.map(|(seq, _)| seq), interval.expires_at));
             }
@@ -993,6 +1001,15 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     }
     union_scopes(schema, principal, &mut events);
     Ok(StreamPage { images_at: Some(head), acquisitions, events, watermark: next, more, joined })
+}
+
+/// Whether a row can move between two groups of its group audience: some
+/// content group column is not immutable. A viewer in both groups follows
+/// both partitions, so the move's `del` must be decided at serve time too.
+// @ref LLP 3000.036.000.000#4.2 — round 3 (Muse finding 2): R1 covers a single group audience whose group can move.
+#[cfg(feature = "sqlite")]
+fn movable_group(table: &Table, sync: &Sync) -> bool {
+    matches!(&sync.audience, Audience::Target { prefix, .. } if prefix.iter().any(|column| !table.immutable_fields().any(|field| field == column)))
 }
 
 /// R2's input: a scope of a union table carries the recipient after the
@@ -1070,7 +1087,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         if event.kind != "join" {
             // @ref LLP 3000.036.000.000#4.2 — R1: a del of a row in two of the viewer's partitions is decided at serve time, as every put is.
             if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)
-                || table.sync.as_ref().is_some_and(Sync::is_union)) {
+                || table.sync.as_ref().is_some_and(|sync| sync.is_union() || movable_group(table, sync))) {
                 if let Some(row) = reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
                     if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
                         event.kind = "put".into();

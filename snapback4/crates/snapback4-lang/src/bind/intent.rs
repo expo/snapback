@@ -321,6 +321,18 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             let mut needs = audiences.remove(&table.decl.name).expect("planned sync audience");
             // @ref LLP 3000.036.000.000#5.1 — a union plans each arm's prefix index and, from a column-form window, each arm's own window index.
             if needs.len() > 1 {
+                // A union's window orders by columns no arm groups by, so each
+                // arm's window index is its own (round 3, GPT finding 2).
+                if let Some((last, SyncOrder::Columns(order))) = &sync.horizon {
+                    let grouped: Vec<&String> = order.iter().filter(|column| needs.iter().any(|need| need.prefix.contains(column))).collect();
+                    if !grouped.is_empty() {
+                        let kept: Vec<String> = order.iter().filter(|column| !grouped.contains(column)).cloned().collect();
+                        let rewrite = if kept.is_empty() { "last N by .at  -- order the window by a column no arm groups by".to_owned() } else { format!("last {last} by {}", SyncOrder::Columns(kept)) };
+                        requests.errors.push(crate::diag::syntax_with(&sync.site,
+                            format!("a union's window orders each arm's own group; it cannot order by {}, which an arm groups by", SyncOrder::Columns(grouped.into_iter().cloned().collect())), rewrite).guide("sharing"));
+                        continue;
+                    }
+                }
                 for need in &needs {
                     if let Some((target, columns)) = &need.inverse { requests.index(&tables[target], columns.clone(), None, &sync.site, false); }
                     if !need.prefix.is_empty() { requests.index(original, need.prefix.clone(), None, &sync.site, false); }

@@ -435,12 +435,14 @@ impl Audience {
         }
     }
 
-    /// `.owner` or `members[.team]`, as one arm of a `sync to` line.
+    /// `.owner` or `members[.team] by .principal`, as one arm of a `sync to`
+    /// line: the recipient is named, so the line binds when the target has
+    /// several principal columns (round 3, GPT finding 4).
     pub fn arm(&self) -> String {
         match self {
             Audience::Public => "public".to_owned(),
             Audience::Column(column) => format!(".{column}"),
-            Audience::Target { table, prefix, .. } => format!("{table}[{}]", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
+            Audience::Target { table, prefix, principal } => format!("{table}[{}] by .{principal}", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
         }
     }
 }
@@ -477,7 +479,7 @@ impl Sync {
             // has no `to` spelling, so a union holding one is the inferred `sync`.
             let mut arms: Vec<&Audience> = self.arms().map(|(audience, _)| audience).collect();
             arms.sort_by_key(|audience| matches!(audience, Audience::Target { .. }));
-            if arms.iter().any(|audience| matches!(audience, Audience::Target { prefix, .. } if prefix.is_empty())) { "sync".to_owned() }
+            if let Some(Audience::Target { principal, .. }) = arms.iter().find(|audience| matches!(audience, Audience::Target { prefix, .. } if prefix.is_empty())) { format!("sync by .{principal}") }
             else { format!("sync to {}", arms.iter().map(|audience| audience.arm()).collect::<Vec<_>>().join(" or ")) }
         } else {
             match &self.audience {

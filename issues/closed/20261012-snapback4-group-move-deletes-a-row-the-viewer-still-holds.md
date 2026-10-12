@@ -23,3 +23,12 @@ What landing it takes:
   are.
 - Simulator: a single-audience world with a `move` between two groups a
   viewer holds (the union world's `move` is the template); it fails today.
+
+**Resolved:** 2026-10-12, workstream UNION (round 3 of LLP 3000.036.000.000's
+review, Muse finding 2). R1 now also covers a single group audience with a
+content group column that is not `immutable` (`partition.rs`,
+`movable_group`): the move's `del` is served from serve-time state, so a
+viewer in both groups keeps the row. Pinned by
+`snapback4-sim/tests/union.rs`
+`a_row_moved_between_two_held_groups_of_one_audience_stays` (before the fix
+the stream's last event for the row was its `del`).

@@ -180,7 +180,7 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     let shares = "table plants:\n  owner: principal\n  read <- .owner = viewer or exists shares[.id, viewer]\n  insert <- .owner = viewer\n  sync\ntable shares:\n  plant: plants\n  principal: principal\n  unique plant, principal\n  immutable plant, principal\n  read <- .principal = viewer\n  insert <- created plants[.plant] or exists shares[.plant, viewer]\n  sync\n";
     let sync = clean(shares).schema.tables["plants"].sync.clone().unwrap();
     assert_eq!(sync.audience, Audience::Target { table: "shares".into(), prefix: vec!["id".into()], principal: "principal".into() });
-    assert_eq!(sync.line(), "sync to .owner or shares[.id]");
+    assert_eq!(sync.line(), "sync to .owner or shares[.id] by .principal");
     // The group arm keeps its grant rule: an owner who is not a member grants nothing.
     let grant = refusal(&shares.replace("created plants[.plant] or exists shares[.plant, viewer]", "exists plants[id = .plant, owner = viewer]"));
     assert!(grant.message.contains("independent grant"), "{grant:?}");
@@ -188,7 +188,18 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     let staff = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- deny\n  sync\ntable requests:\n  tenant: principal\n  read <- .tenant = viewer or exists staff[viewer]\n  insert <- .tenant = viewer\n  sync\n";
     let sync = clean(staff).schema.tables["requests"].sync.clone().unwrap();
     assert_eq!(sync.audience, Audience::Target { table: "staff".into(), prefix: vec![], principal: "principal".into() });
-    assert_eq!(sync.line(), "sync");
+    assert_eq!(sync.line(), "sync by .principal");
+    // Printed lines name the recipient, so they bind when the target has
+    // several principal columns (round 3, GPT finding 4).
+    let two_principals = shares.replace("  principal: principal\n  unique plant, principal", "  principal: principal\n  inviter: principal\n  unique plant, principal").replace("  sync\ntable shares:", "  sync by .principal\ntable shares:");
+    let printed = clean(&two_principals).schema.tables["plants"].sync.clone().unwrap().line();
+    assert_eq!(printed, "sync to .owner or shares[.id] by .principal");
+    clean(&two_principals.replace("  sync by .principal\ntable shares:", &format!("  {printed}\ntable shares:")));
+    // Two arms on one window index would share a boundary: the window cannot
+    // order by an arm's group column (round 3, GPT finding 2).
+    let collide = staff.replace("  tenant: principal\n", "  tenant: principal\n  at: time\n").replace("  insert <- .tenant = viewer\n  sync\n", "  insert <- .tenant = viewer\n  sync last 1 by .tenant, .at\n");
+    let refused = compile(&collide);
+    assert!(refused.diagnostics.iter().any(|d| d.message.contains("an arm groups by") && d.rewrite.starts_with("last 1 by .at")), "{:?}", refused.diagnostics);
     // A union window gives each arm its own window index, leading with its columns.
     let windowed = clean(&two.replace("  sync\n", "  at: time\n  sync last 50 by .at\n").replace("  read <-", "  at2: time ?\n  read <-"));
     let table = &windowed.schema.tables["orders"];
