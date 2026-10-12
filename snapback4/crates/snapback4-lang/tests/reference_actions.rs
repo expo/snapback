@@ -548,8 +548,8 @@ fn pending_event_images_are_reserved_beyond_the_action_closure() {
 #[test]
 fn a_hidden_cascade_grant_revocation_has_a_static_event_envelope() {
     let source = "table roots:\n  public 'roots'\n  delete <- allow\n  sync public\ntable members:\n  root: roots on delete cascade\n  principal: principal\n  unique root, principal\n  cap 2 by root\n  read <- .principal = viewer\n  sync\ntable content:\n  root: roots on delete keep\n  read <- exists members[.root, viewer]\n  sync\nmutation drop(root: roots):\n  delete roots[root]\n";
-    let run = |hidden: bool| {
-        let mut e = engine(source);
+    let run = |schema: &str, hidden: bool| {
+        let mut e = engine(schema);
         let mut rows = vec![row("roots", &[("id", id("p"))])];
         if hidden { rows.push(row("members", &[("id", id("m")), ("root", id("p")), ("principal", id("bob"))])); }
         e.seed_at(rows, 500).unwrap();
@@ -557,5 +557,30 @@ fn a_hidden_cascade_grant_revocation_has_a_static_event_envelope() {
         assert_eq!(refusal(&out), None, "{out:?}");
         (out.metered, out.tables, out.events)
     };
-    assert_eq!(run(false), run(true), "the hidden scope event is inside the static envelope");
+    assert_eq!(run(source, false), run(source, true), "the hidden scope event is inside the static envelope");
+    let mut many = source.to_owned();
+    for n in 0..100 { many.push_str(&format!("table extra{n}:\n  root: roots on delete keep\n  read <- exists members[.root, viewer]\n  sync\n")); }
+    let small = bound(source).schema.delete_reservation("roots").unwrap();
+    let large = bound(&many).schema.delete_reservation("roots").unwrap();
+    assert_eq!(large[0] - small[0], large[3] * 100, "every receiver's transition step is reserved");
+    assert_eq!(run(&many, false), run(&many, true), "100 hidden receiver transitions preserve the schema-fixed trace");
+
+}
+
+#[test]
+fn a_cascade_through_child_reserves_both_its_walk_and_lifetime_probe() {
+    let mut source = "table roots:\n  read <- allow\n  delete <- allow\ntable mids:\n  root: roots on delete cascade\n  cap 30 by root\n  read <- deny\ntable leaves:\n  mid: mids on delete cascade\n  cap 1 by mid\n  immutable mid\n  read through .mid\nmutation drop(root: roots):\n  delete roots[root]\n".to_owned();
+    for n in 0..132 { source.push_str(&format!("table pins{n}:\n  mid: mids\n  read <- allow\n")); }
+    let b = bound(&source);
+    assert_eq!(b.schema.delete_reservation("roots").unwrap()[2], 8_192);
+    let run = |hidden: bool| {
+        let mut e = engine(&source);
+        let mut rows = vec![row("roots", &[("id", id("p"))])];
+        if hidden { rows.extend([row("mids", &[("id", id("m")), ("root", id("p"))]), row("leaves", &[("id", id("l")), ("mid", id("m"))])]); }
+        e.seed_at(rows, 500).unwrap();
+        let out = e.mutate("drop", None, ctx("alice", &[("root", id("p"))])).unwrap();
+        assert_eq!(refusal(&out), None, "{out:?}");
+        (out.metered, out.tables, out.events)
+    };
+    assert_eq!(run(false), run(true));
 }

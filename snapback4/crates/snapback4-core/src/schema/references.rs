@@ -127,11 +127,12 @@ impl Schema {
         let derived: Vec<String> = self.maintains.iter().filter(|m| out.written.contains(&m.source) || m.row_key.as_ref().is_some_and(|k| out.written.contains(&k.table)))
             .flat_map(|m| [Some(m.target.clone()), m.private.as_ref().map(|owner| owner.table.clone())]).flatten().collect();
         out.written.extend(derived);
-        out.row_written = out.written.clone();
-        // Audience transitions log scope/join events in their receiver tables.
-        // Those tables belong to the same static publication envelope.
-        for (name, _, sync) in self.synced() {
-            if matches!(&sync.audience, Audience::Target { table, .. } if out.row_written.contains(table)) { out.written.insert(name.to_owned()); }
+        out.written.retain(|name| self.visible(name));
+        // Private derivations disappear from the device's projection; their
+        // event envelope is exported with each direct source's write price.
+        let sources: Vec<String> = out.written.iter().cloned().collect();
+        for source in sources {
+            if let Some(events) = self.write_reservation(&source).and_then(|plan| plan.action_events) { out.written.extend(events.tables); }
         }
         out
     }
@@ -217,7 +218,7 @@ impl Schema {
     /// table that can carry an action and every exported price. `None` when the
     /// closure is unbounded (a cycle or a missing cap) or a written table has no
     /// fixed write price. Heap is the closure's identity scratch plus the largest
-    /// single row's transient work: rows are processed one at a time.
+    /// single row's transient work, plus event images retained until commit.
     // @ref LLP 3000.039#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
     pub fn delete_reservation(&self, parent: &str) -> Option<Price> {
         let bounds = self.closure_bounds(parent)?;
@@ -280,26 +281,34 @@ impl Schema {
         // delete, with the root's and one page of child ids.
         // A set-null group is gathered whole (at most its cap) before it is cleared.
         price[4] = heap.saturating_add(identities.saturating_add(1 + REFERENCE_PAGE as u64 + gathered).saturating_mul(CLOSURE_IDENTITY_BYTES));
-        price[4] = price[4].saturating_add(self.retained_action_heap(parent, price[3]));
+        let mut receiver_steps = 0;
+        for (table, _) in &bounds {
+            for reference in self.referencing(table) {
+                if reference.action.writes() { receiver_steps = receiver_steps.max(self.write_reservation(reference.child)?.action_events?.steps_per_write); }
+            }
+        }
+        price[0] = price[0].saturating_add(price[3].saturating_mul(receiver_steps));
+        price[4] = price[4].saturating_add(self.retained_action_heap(parent, price[3])?);
         Some(price)
     }
 
     /// Event images remain live until commit, after action scratch is released.
     pub fn delete_event_heap(&self, parent: &str) -> Option<u64> {
-        Some(self.retained_action_heap(parent, self.delete_reservation(parent)?[3]))
+        self.retained_action_heap(parent, self.delete_reservation(parent)?[3])
     }
 
     // @ref LLP 3000.039#5.1 — two event images per priced row write, plus bounded keys and audience transitions, retained for the request lifetime.
-    fn retained_action_heap(&self, parent: &str, writes: u64) -> u64 {
-        let tables = self.action_tables(parent);
-        let (mut image, mut metadata, mut dependents) = (0_u64, 0_u64, 0_u64);
-        for name in &tables.row_written {
-            if let Some(table) = self.table(name) { image = image.max(crate::engine::row_copy_ceiling(table)); }
-            let receivers = self.synced().filter(|(_, _, sync)| matches!(&sync.audience, Audience::Target { table, .. } if table == name)).count() as u64;
-            dependents = dependents.max(receivers);
+    fn retained_action_heap(&self, parent: &str, writes: u64) -> Option<u64> {
+        let mut per_write = 0;
+        for (table, _) in self.closure_bounds(parent)? {
+            for reference in self.referencing(&table) {
+                if reference.action.writes() {
+                    let events = self.write_reservation(reference.child)?.action_events?;
+                    per_write = per_write.max(events.heap_per_write);
+                }
+            }
         }
-        for name in &tables.written { metadata = metadata.max(1024 + 4 * crate::rows::MAX_INDEX_KEY_BYTES as u64 + 4 * name.len() as u64); }
-        writes.saturating_mul(image.saturating_mul(2).saturating_add(metadata.saturating_mul(2 + 2 * dependents)))
+        Some(writes.saturating_mul(per_write))
     }
 
     /// One engine write (delete or set-null update) of a `table` row: fetch and
@@ -340,7 +349,6 @@ impl Schema {
 /// The tables a delete's actions may write or read (`Schema::action_tables`).
 #[derive(Clone, Debug, Default)]
 pub struct ActionTables {
-    pub row_written: BTreeSet<String>,
     pub written: BTreeSet<String>,
     pub read: BTreeSet<String>,
 }

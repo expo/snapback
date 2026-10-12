@@ -1,6 +1,7 @@
 use super::*;
 use snapback4_core::{Ceilings, ir::{Expr, Stmt}, value::object};
 
+// The fixture grants/reads exercise target authority; their references deliberately outlive the target.
 const BASE: &str = r#"
 table records:
   key: text <=30
@@ -14,13 +15,13 @@ table records:
   delete <- allow
   online only
 table grants:
-  record: records
+  record: records on delete keep
   principal: principal
   unique record, principal
   public
   online only
 table work:
-  record: records
+  record: records on delete keep
   read <- exists grants[.record, viewer]
   online only
 "#;

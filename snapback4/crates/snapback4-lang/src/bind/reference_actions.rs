@@ -105,6 +105,8 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
     for (name, column, chosen) in lowered {
         schema.tables.get_mut(&name).expect("bound table").on_delete.insert(column, chosen);
     }
+    // Event prices depend on the actions just lowered and must precede bound checks.
+    schema.prepare_write_reservations();
     // A cascade must end: no table reaches itself through cascades.
     let mut reported = BTreeSet::new();
     for name in schema.tables.keys().cloned().collect::<Vec<_>>() {

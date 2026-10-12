@@ -191,6 +191,10 @@ fn count_like(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl], ta
 /// row, and no child is moved to another parent. Rows written outside the
 /// programs (a fixture, `POST /seed`) are the author's to keep consistent.
 // @ref LLP 3000.036#17.4 — sound over every program write; anything the walk cannot see (a native job, `as`, a helper's write) refuses the proof.
+fn stable_key(value: &Expr) -> bool {
+    matches!(value, Expr::Name { name, .. } if name != "new") || matches!(value, Expr::Literal { .. })
+}
+
 fn stable_bindings(decl: &ProgramDecl) -> bool {
     let mut bound: BTreeSet<&str> = decl.args.iter().map(|arg| arg.name.as_str()).collect();
     for statement in decl.prelude.iter().chain(&decl.body) {
@@ -207,12 +211,12 @@ fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl]
     if !stable_bindings(decl) { return false; }
     let strip = |e: &Expr| match e { Expr::Assert { value, .. } => (**value).clone(), other => other.clone() };
     let key_of = |e: &Expr| match strip(e) {
-        Expr::Read(read) if read.table == parent && read.keys.len() == 1 && read.filter.is_none() && read.range.is_none() => Some(crate::print::expression(&read.keys[0].value)),
+        Expr::Read(read) if read.table == parent && read.keys.len() == 1 && read.filter.is_none() && read.range.is_none() && stable_key(&read.keys[0].value) => Some(crate::print::expression(&read.keys[0].value)),
         _ => None,
     };
     // The delete, at the top level of the body.
     let Some((at, key)) = decl.body.iter().enumerate().find_map(|(i, s)| match s {
-        Stmt::Expr { value: Expr::Write { op: WriteOp::Delete, table, keys, condition: None, site: delete_site, .. }, .. } if delete_site == site && table == parent && keys.len() == 1 => Some((i, crate::print::expression(&keys[0].value))),
+        Stmt::Expr { value: Expr::Write { op: WriteOp::Delete, table, keys, condition: None, site: delete_site, .. }, .. } if delete_site == site && table == parent && keys.len() == 1 && stable_key(&keys[0].value) => Some((i, crate::print::expression(&keys[0].value))),
         _ => None,
     }) else { return false };
     // Names bound to that row before it.
@@ -251,7 +255,7 @@ fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl]
         let admitted = |value: &str| literals.contains(value) == *admitted_listed;
         // A flip: an unconditional update of the parent, by key, to a literal status the guard refuses.
         let flip = |write: &Expr| match write {
-            Expr::Write { op: WriteOp::Update, table, keys, fields, condition: None, if_absent: false, .. } if table == parent && keys.len() == 1 =>
+            Expr::Write { op: WriteOp::Update, table, keys, fields, condition: None, if_absent: false, .. } if table == parent && keys.len() == 1 && stable_key(&keys[0].value) =>
                 match field(fields, column) { Some(Some(Expr::Literal { value: Literal::Str(text), .. })) if !admitted(text) => Some(crate::print::expression(&keys[0].value)), _ => None },
             _ => None,
         };
@@ -270,6 +274,7 @@ fn status_guarded(facts: &Facts, all: &[ProgramDecl], functions: &[FunctionDecl]
                 if sets_admitted(write) || moves_child(write) { return false; }
                 let Expr::Write { op: WriteOp::Insert | WriteOp::Upsert, table, fields, .. } = write else { return true };
                 if table != child { return true; }
+                if !matches!(field(fields, reference), Some(None)) && !matches!(field(fields, reference), Some(Some(value)) if stable_key(value)) { return false; }
                 let Some(value) = field_text(fields, reference) else { return false };
                 if value.split(|c: char| !c.is_alphanumeric() && c != '_').next().is_some_and(rebound) { return false; }
                 // An earlier statement of the same list, or of an enclosing list before the branch holding the insert.

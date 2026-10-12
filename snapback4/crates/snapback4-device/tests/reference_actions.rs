@@ -180,12 +180,13 @@ mutation drop(id: parents):
 /// gives the reservation the full schema gives (LLP 3000.039 §5.1).
 #[test]
 fn the_device_projection_prices_every_delete_as_the_server_does() {
-    for source in [PUBLIC.to_owned(), private()] {
+    for source in [PUBLIC.to_owned(), private(), PUBLIC.replace("table projects:\n  owner: principal", "table projects:\n  owner: principal\n  body: text <=1000 default ''\n  taskCount: count tasks by project")] {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let projected = bound.schema.public_projection();
         for name in bound.schema.tables.keys() {
             assert_eq!(bound.schema.delete_reservation(name), projected.delete_reservation(name), "{name}");
+            assert_eq!(bound.schema.action_tables(name).written, projected.action_tables(name).written, "{name}'s event envelope");
         }
     }
 }

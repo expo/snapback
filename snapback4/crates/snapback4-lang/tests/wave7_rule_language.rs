@@ -332,6 +332,8 @@ fn a_status_guard_every_child_insert_flips_away_from_silences_n_delete_restricte
     assert_eq!(mutate(&mut e, "withdraw", "ari", &[("artwork", id("w1"))]), "ALREADY_SOLD");
     // Any program that breaks the invariant keeps the note.
     let unsound = [
+        // Identically printed live reads can change between the flip and insert.
+        format!("{GALLERY}table links:\n  artwork: artworks on delete keep\n  read <- allow\n  update <- allow\nmutation recordSale(link: links, other: artworks, buyer: text 1..80):\n  update artworks[(links[link] ! else NOT_FOUND).artwork] {{ status: 'sold' }}\n  update links[link] {{ artwork: other }}\n  return insert sales {{ artwork: (links[link] ! else NOT_FOUND).artwork, buyer }}\n"),
         // The flip and insert must retain the same key across the insert program.
         format!("{GALLERY}{RECORD_SALE}")
             .replace("mutation recordSale(artwork: artworks, buyer:", "mutation recordSale(artwork: artworks, other: artworks, buyer:")
