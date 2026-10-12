@@ -119,3 +119,21 @@ fn a_refused_reseed_leaves_the_store_untouched() {
     assert_eq!((rows(&engine), engine.store().seq().unwrap(), engine.store().meta("store_id").unwrap()), before);
     assert_eq!(count(&mut engine, "L1"), Value::Int(1));
 }
+
+#[test]
+fn reset_primes_the_next_schedule_boundary_and_rolls_back_on_a_bad_seed() {
+    let source = format!("{SOURCE}\njob sweep():\n  for row in lists:\n    delete lists[row]\nschedule daily every 1d at 02:00: schedule.sweep\n");
+    let bound = snapback4_lang::compile(&[("schedule.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::new_at(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program), NOW).unwrap();
+    engine.fire_schedules(NOW).unwrap();
+    let next = NOW + 2 * 86_400_000;
+    assert_eq!(engine.fire_schedules(next).unwrap(), ["daily"]);
+    engine.dev_reset_at(vec![], NOW).unwrap();
+    assert!(engine.fire_schedules(NOW).unwrap().is_empty());
+    assert_eq!(engine.fire_schedules(next).unwrap(), ["daily"]);
+    assert!(engine.fire_schedules(next).unwrap().is_empty(), "one fire per boundary");
+    let before = dump(&engine, "SELECT key || '=' || value FROM _meta WHERE key LIKE 'schedule%' ORDER BY key");
+    assert!(engine.dev_reset_at(vec![("lists".into(), Value::Null)], NOW).is_err());
+    assert_eq!(dump(&engine, "SELECT key || '=' || value FROM _meta WHERE key LIKE 'schedule%' ORDER BY key"), before);
+}
