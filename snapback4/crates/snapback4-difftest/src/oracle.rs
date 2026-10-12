@@ -116,7 +116,7 @@ fn reads(e: &Expr) -> bool {
     match e {
         Expr::Score(_) | Expr::Present(_) => true,
         Expr::Binary(_, a, b) => reads(a) || reads(b),
-        Expr::Identity(a) | Expr::Assert(a) => reads(a),
+        Expr::Identity(a) | Expr::Assert(a) | Expr::Calendar(_, a) => reads(a),
         _ => false,
     }
 }

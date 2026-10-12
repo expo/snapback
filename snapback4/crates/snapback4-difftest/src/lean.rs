@@ -632,6 +632,14 @@ pub fn narrow(case: &mut Case) {
     for s in &mut case.steps {
         s.sweep = false;
     }
+    // Slot bounds are outside the model's fragment (LLP 3000.040 §1.8).
+    for t in &mut case.program.tables {
+        for c in &mut t.columns {
+            if matches!(c.ty, crate::ast::Type::IntRange(..)) {
+                c.ty = crate::ast::Type::Int;
+            }
+        }
+    }
 }
 
 pub fn run_bounded(seed: u64, cases: u64, out: &std::path::Path, seconds: Option<f64>) -> Result<Report, String> {
