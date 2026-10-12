@@ -28,7 +28,7 @@ impl Binder<'_> {
         let Some(expected) = substituted_rule(maintain, read) else {
             return ty.optional();
         };
-        if self.condition_known(&expected, true) || self.authorization_holds(&expected, true) {
+        if self.authorization_proved(&expected, true) {
             ty
         } else {
             ty.optional()
@@ -62,6 +62,39 @@ impl Binder<'_> {
                         .is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool))
                 })
             })
+    }
+
+    /// Facts may prove a read rule without restating the whole expression:
+    /// one admitted disjunct proves an `or`, while every conjunct proves an
+    /// `and`. This is the same propositional narrowing used by control flow.
+    fn authorization_proved(&self, condition: &A, truth: bool) -> bool {
+        if self.condition_known(condition, truth) || self.authorization_holds(condition, truth) {
+            return true;
+        }
+        match condition {
+            A::Unary { op, value, .. } if op == "not" => self.authorization_proved(value, !truth),
+            A::Binary {
+                op, left, right, ..
+            } if op == "and" && truth => {
+                self.authorization_proved(left, true) && self.authorization_proved(right, true)
+            }
+            A::Binary {
+                op, left, right, ..
+            } if op == "and" => {
+                self.authorization_proved(left, false) || self.authorization_proved(right, false)
+            }
+            A::Binary {
+                op, left, right, ..
+            } if op == "or" && truth => {
+                self.authorization_proved(left, true) || self.authorization_proved(right, true)
+            }
+            A::Binary {
+                op, left, right, ..
+            } if op == "or" => {
+                self.authorization_proved(left, false) && self.authorization_proved(right, false)
+            }
+            _ => false,
+        }
     }
 
     fn authorization_key(

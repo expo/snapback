@@ -5,11 +5,22 @@ table entries:
   owner: principal
   read <- allow
   online only
+table moderators:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
 view counts: count entries by .owner
   read <- .owner = viewer
   online only
 view publicCounts: count entries by .owner
   read <- allow
+  online only
+view broadCounts: count entries by .owner
+  read <- .owner = viewer or exists moderators[viewer]
+  online only
+view narrowCounts: count entries by .owner
+  read <- .owner = viewer and exists moderators[viewer]
   online only
 "#;
 
@@ -45,10 +56,24 @@ query surviving(owner: principal):
   return counts[owner] + 1
 query public(owner: principal):
   return publicCounts[owner]
+query stronger(owner: principal):
+  require owner = viewer else NOT_ALLOWED
+  return broadCounts[owner] + 1
+query conjuncts(owner: principal):
+  require owner = viewer else NOT_ALLOWED
+  require exists moderators[viewer] else NOT_MODERATOR
+  return narrowCounts[owner] + 1
 "#,
     );
     assert_eq!(result(&bound, "bare"), &Ty::Int.optional());
-    for name in ["own", "guarded", "surviving", "public"] {
+    for name in [
+        "own",
+        "guarded",
+        "surviving",
+        "public",
+        "stronger",
+        "conjuncts",
+    ] {
         assert_eq!(result(&bound, name), &Ty::Int, "{name}");
     }
 }
