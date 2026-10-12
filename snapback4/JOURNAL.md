@@ -93954,3 +93954,30 @@ follows this entry. No push or publication.
 
 Final ref-check passes: 541 LLP documents, 11,656 refs, zero errors and
 zero unchecked. All requested checks are reconciled; no requested red remains.
+
+
+## 2026-10-12 — Short private release control paths for 0.4.24
+
+The release-control socket no longer inherits the project's pathname length.
+Use a same-owner 0700 `/tmp/snapback4-<uid>/` and a SHA-256 name derived
+from the canonical deployment directory (95 bytes maximum), preserving
+separate immutable source boundaries for deployments sharing a database.
+Peer/store checks, command serialization and activation CAS remain intact.
+Stale sockets are checked and probed before replacement. Graceful shutdown
+joins control while retaining store ownership; a total five-second input
+deadline prevents continuing partial input from extending that join. Exact
+0600 socket permissions include refusal of special bits. LLP 3000.000.000
+§5.1 records the design, spelling caveat and fail-closed bind/chmod window.
+
+Product commits: 6d734776ae, bb3f4f0ac4, 0d5d042e57. Fresh final Codex
+and Muse reviews both return READY; six verbatim records and dispositions
+are retained in llp/reviews/. Final Linux full package suite: 1,093/0/11
+(passed/failed/ignored). Final Mac suite: 1,129/0/11, with DEFAULT TMPDIR
+under `/var/folders/` and a 10,240-descriptor verification shell. Initial
+Mac overload harness EMFILE at shell limit 256 is resolved by raising that
+limit; no overload code or assertion changes. Each platform also passes
+the nine named targets (267/0/0), focused release (42/0/1) and serve units
+(179/0/4). Nested summaries and reruns are not counted twice. Setup passes
+on both hosts; wasm gzip is 680,192 B Linux and 680,003 B Mac under the
+680,692 B budget. Ref-check accompanies the evidence commit. No publication
+or GitHub push; the Mac publication worktrees are untouched.
