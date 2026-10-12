@@ -24,7 +24,7 @@ import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observe
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
-import { admissionRefusal, browserAdmission, failedAdmission, sdkOwning, BROWSER_WRITE_FIX } from "./admission.ts";
+import { admissionRefusal, browserAdmission, failedAdmission, sdkOwning, BROWSER_WRITE_FIX, ONLINE_WRITE_FIX } from "./admission.ts";
 import { serverClock } from "./clock.ts";
 import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
@@ -180,7 +180,7 @@ export function createClient(options: ClientOptions): Client {
   // @ref LLP 3000.013#6.2 — say so at construction, not at the first refused click.
   if (!options.readOnly && !sdkOwning() && browserAdmission() && !warnedBrowserWrites) {
     warnedBrowserWrites = true;
-    console.warn(`snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use ${BROWSER_WRITE_FIX}; online-only tables need no sync lines. Pass readOnly: true to silence this.`);
+    console.warn(`snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use ${ONLINE_WRITE_FIX} when no table syncs, otherwise ${BROWSER_WRITE_FIX}. Pass readOnly: true to silence this.`);
   }
   const clock = serverClock(options.fetch ?? defaultFetch);
   // @ref LLP 3000.017#3.3 — ordinary responses discover schema capability without changing durable traffic.
@@ -1154,8 +1154,8 @@ export function createClient(options: ClientOptions): Client {
       // The bare online transport has no browser admission journal. An app's
       // private online custody may replay an intent it already persisted.
       if (browserAdmission() && !dispatch.owner) return failedAdmission<R>(id, admissionRefusal(
-        "this online client has no synchronous browser admission journal; a web device journals browser writes, also for online-only tables", "client.mutate",
-        BROWSER_WRITE_FIX));
+        "this online client has no synchronous browser admission journal; createApp journals browser writes: without a device when no table syncs, with webDevice() otherwise", "client.mutate",
+        `${ONLINE_WRITE_FIX} when no table syncs; otherwise ${BROWSER_WRITE_FIX}`));
       return mutationIds!.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });

@@ -92610,3 +92610,21 @@ runs 42 examples, and `run-lean` over 100,000 cases shows only the
 classified C2/W4 signatures. The web device grows 578 B gzip (649,250 B,
 inside the 649,324 B budget) after sharing the grant and prefix-row code.
 The ticket is closed.
+
+## 2026-10-12 — A browser write journal without the device (LLP 3000.013.000)
+
+The author ruled for path 2 of LLP 3000.013 §6.2: a JavaScript-only journal for
+browser apps whose schema syncs no table. A device-less browser `createApp`
+with `localStorageSessionStore()` now writes when `GET /schema` reports no
+synced table, or with `writes: "online"`. `mutate` captures the click in
+localStorage before it returns (`online-capture.ts`, one key per capture, the
+device journal's bounds); the existing online intent journal commits it under
+the journal and session Web Locks with the device's locked authority check and
+a transfer marker; recovery adopts gone runtimes' records once and replays
+them with their ids before new clicks. Two review rounds (GPT-6.1 Sol, Muse
+Spark 1.3) changed the design eleven ways; the reviews are in `llp/reviews/`.
+The same writing page builds to 274,853 B (88,485 B gzip) with no wasm, against
+2,503,672 B (766,377 B gzip) with `webDevice()`
+(`scripts/measure-online-writes.mjs`). Persona apps and a durable online head
+floor are deferred. The number moved from 3000.038, which four lanes claimed
+the same night.

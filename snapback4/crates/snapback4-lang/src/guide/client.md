@@ -72,7 +72,7 @@ Server/composed scopes preserve unrelated rooms; unknown selectors withdraw tabl
 Flashes: `inspect(client)`, `useInspection(import.meta.env.DEV)`: [pressure](CLIENT-AND-OPERATIONS.md#inspect-subscription-pressure).
 
 ## Expo and acquisition
-Writing browser apps need `createApp`+`webDevice()`, online-only too: ~650 KB gzip wasm at sign-in, not first paint. `nativeDevice`; Expo Go online. Acquisition/Workers: `guide sync`.
+Browser writes: `createApp`; no table syncs → no device (localStorage journal, no wasm); else `webDevice()`. `nativeDevice`; Expo Go online. Acquisition/Workers: `guide sync`.
 Every milestone: `npm run export:ios`; proof in the background: `witness status --wait`. Rebuild: `npm run native:smoke`. Acquisition/offline reopen/reconnect/write replay: `guide witness`.
 
 `readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`.
