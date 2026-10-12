@@ -93338,3 +93338,16 @@ Validation and per-item commits are recorded in root WORKSTREAM-REPORT.md.
   with multiple sync needs, preserving acquired completeness; online branch
   and service-seat surfaces remain. Snapshot-limit and epoch traces reproduce
   the regression and pass with the guard; branch-merge/audience suites pass.
+
+## 2026-10-12 — UNION integration cheatsheet repair
+
+A fresh affected-suite rerun after 7f76133984 found that the synced
+owner-or-staff cheatsheet board now emits N_NEVER_COMPLETE: preserving
+ordinary UNION device scans also leaves the bare online scan unpinned for
+non-staff. The guide now uses the diagnostic's explicit staff branch and
+owner-pinned fallback. Both return the rule's intended rows; this preserves
+the incoming guide's complete-page recipe alongside the offline union.
+The existing every_card_compiles_clean regression fails before this edit
+and the complete guide target passes afterward (119 tests). No runtime
+behavior changed. Revision 11 plus the runtime integration repair are in
+the commissioned round-10 paired review.
