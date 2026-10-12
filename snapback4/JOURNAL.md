@@ -93829,3 +93829,11 @@ no additional budget increase is needed. Against the worktree baseline
 2,245,422 / 679,351, the whole-artifact delta is +31,902 B raw / +9,975 B
 gzip. The client package rebuild passes. This supersedes the previous PAGE
 artifact measurement, with no runtime resource ceiling change or macOS claim.
+
+PAGE total-unique source qualification: the locked Linux web artifact after
+fully pinned unique membership discovery is 2,277,486 B raw / 689,461 B gzip.
+It passes the existing 689,645 B budget without another increase. Against
+the worktree baseline 2,245,422 / 679,351, the whole-artifact delta is
++32,064 B raw / +10,110 B gzip. This supersedes the previous PAGE artifact
+measurement; no per-feature attribution, macOS measurement or runtime
+resource-ceiling change.
