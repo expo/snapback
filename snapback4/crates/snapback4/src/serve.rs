@@ -987,6 +987,9 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post && path == "/seed" && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
     }
+    if path == "/dev/reset" && !shared.personas {
+        return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&dev_doors::reset_release()) }));
+    }
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
@@ -1025,7 +1028,7 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post {
         let ceiling = match path.as_str() {
             "/assets" => crate::assets::UPLOAD_CEILING,
-            "/seed" => SEED_REQUEST_CEILING,
+            "/seed" | "/dev/reset" => SEED_REQUEST_CEILING,
             "/sync" => SYNC_REQUEST_CEILING,
             path if path.starts_with("/auth/") => crate::auth::BODY_CEILING,
             path if path.starts_with("/following/") => 64 * 1024,
@@ -1480,6 +1483,7 @@ fn handle(mut request: Request, shared: &Shared) {
             crate::auth::handle(request, shared, &path, &body);
         }
         (Method::Post, "/seed") => dev_doors::seed(request, shared, &body),
+        (Method::Post, "/dev/reset") => dev_doors::reset(request, shared, &body),
         _ => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
     }
 }
