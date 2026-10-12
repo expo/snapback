@@ -635,6 +635,12 @@ pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
          Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
 }
 
+// @ref LLP 3000.011.003.000#8 — absent request ids stay absent; result.id is the row id.
+pub(crate) fn mutation_reply(mut body: Json) -> Json {
+    if body.get("id").is_some_and(Json::is_null) { body.as_object_mut().unwrap().remove("id"); }
+    body
+}
+
 pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl latency::Reply) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
@@ -1072,7 +1078,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
                     Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
-                    Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
+                    Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, mutation_reply(json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head }))); return; }
                     Ok(None) => {}
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
@@ -1288,14 +1294,14 @@ fn handle(mut request: Request, shared: &Shared) {
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
-                        let mut body = outcome.reply(id.as_deref());
+                        let mut body = mutation_reply(outcome.reply(id.as_deref()));
                         body["preserved"] = json!(preserved);
                         body["generation"] = json!(generation);
                         body["store_id"] = json!(store_id);
                         body["head"] = json!(head);
                         respond_timed(request, shared, 200, body);
                     }
-                    Err(refusal) => { respond_timed(request, shared, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
+                    Err(refusal) => { respond_timed(request, shared, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, mutation_reply(json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head }))) }
                 }
             }
         }

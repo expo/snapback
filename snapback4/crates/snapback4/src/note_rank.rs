@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -30,6 +30,8 @@ pub(crate) fn tier(code: &str) -> Tier {
 // @ref LLP 3000.036#17.7 — the verdict leads; the explanation follows it.
 pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
     match code {
+        "N_NO_PRODUCTION_WRITER" => "fix: add a production bootstrap writer",
+        "N_FIXTURE_ARGUMENT_DRIFT" => "fix: update the fixture arguments",
         "N_CONDITIONAL_COMPLETE" => "review: complete for the pinned parent audience; other callers may be capped",
         "N_NEVER_COMPLETE" if summary.contains("there is no single complete form") => "no one-query fix: expect `capped` and show what arrived",
         "N_NEVER_COMPLETE" if form && summary.contains("the closest form is") => "fix: use the closest form below (one arm stays `complete: false`), or accept `complete: false`",

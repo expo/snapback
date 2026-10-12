@@ -27,6 +27,8 @@ catch (error) { console.error(error.message); process.exit(2); }
 const exportLease = process.argv[2] === "witness" && ["export-lease", "export-publish"].includes(process.argv[3]);
 const child = spawn(binary, process.argv.slice(2), { stdio: exportLease ? ["inherit", "inherit", "inherit", 3] : "inherit", env: {
   ...process.env, SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("./witness-acquire.js", import.meta.url)),
+  SNAPBACK4_UPGRADE_HELPER: fileURLToPath(new URL("./upgrade.js", import.meta.url)),
+  SNAPBACK4_WEB_HELPER: fileURLToPath(new URL("./witness-web.js", import.meta.url)),
   SNAPBACK4_SUPERVISOR_PID: String(process.pid),
 } });
 const handlers = new Map(["SIGINT", "SIGTERM", "SIGHUP"].map(signal => [signal, () => { try { child.kill(signal); } catch { /* gone */ } }]));

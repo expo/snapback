@@ -5,6 +5,7 @@ mod preparation;
 mod preparation_deadline;
 mod smoke;
 mod acquire;
+mod web;
 mod simulator;
 mod ownership;
 mod recovery;
@@ -538,6 +539,7 @@ pub fn run(args: &[String]) -> i32 {
     if args.first().is_some_and(|arg| arg == "export-maintenance") { return retention::backstop(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-maintain") { return retention::maintain(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "export-cleanup") { return recovery::command(&args[1..]); }
+    if args.first().is_some_and(|arg| arg == "web") { return web::run(&args[1..]); }
     if args.first().is_some_and(|arg| arg == "acquire") { return acquire::run(&args[1..]); }
     let execute = || -> Result<()> {
         let invoked = now();

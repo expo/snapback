@@ -103,7 +103,7 @@ pub(super) fn failed(request: Request, shared: &Shared, id: Option<&str>, why: R
         request,
         shared,
         200,
-        json!({"state":"failed","id":id,"why":refusal_json(&why),"store_id":store_id,"head":head}),
+        super::mutation_reply(json!({"state":"failed","id":id,"why":refusal_json(&why),"store_id":store_id,"head":head})),
     );
 }
 
@@ -275,7 +275,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                 request,
                 shared,
                 200,
-                json!({"state":"sent","id":id,"result":wire::to_json(&out.result),"ephemeral":out.ephemeral,"store_id":store_id,"head":out.seq}),
+                super::mutation_reply(json!({"state":"sent","id":id,"result":wire::to_json(&out.result),"ephemeral":out.ephemeral,"store_id":store_id,"head":out.seq})),
             );
         }
         Err(why) => failed(request, why),

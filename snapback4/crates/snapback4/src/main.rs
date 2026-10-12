@@ -70,6 +70,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
+  upgrade [version]                upgrade core and installed adapters together, exactly pinned
+  witness web [dist] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--url URL]
   witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]
                                       prove fresh acquisition and retained cold restart on the native process device
   witness ios --build PROJECT --smoke [--udid ID] [--port N] [--artifacts DIR]
@@ -99,6 +101,9 @@ fn main() -> ExitCode {
     if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     quiet_broken_pipe(verb);
+    if args.iter().any(|a| a == "--help" || a == "-h") && ((verb == "witness" && args.get(1).is_some_and(|a| a == "web")) || verb == "upgrade") {
+        return ExitCode::from(if verb == "upgrade" { verbs::upgrade::run(&["--help".into()]) } else { verbs::witness::run(&["web".into(), "--help".into()]) } as u8);
+    }
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
         println!("{}", verb_help::page(verb, HELP).unwrap_or_else(|| HELP.to_owned()));
@@ -123,6 +128,7 @@ fn main() -> ExitCode {
             2
         }
         "init" | "new" => verbs::init(&options),
+        "upgrade" => verbs::upgrade::run(&args[1..]),
         "deploy" => verbs::deploy(&options),
         "rollback" => verbs::rollback(&options),
         "prune" => verbs::prune(&options),

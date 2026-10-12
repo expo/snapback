@@ -216,7 +216,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             // Repeats of a code share one line naming each query (wave 6 #25).
-            assert_eq!(text.matches("note: ").count(), if verbose { count } else { count.min(2) }, "{text}");
+            assert_eq!(text.matches("note: ").count(), if verbose { count + 1 } else { count.min(2) + 1 }, "{text}");
             if !verbose && count > 1 { assert!((1..count).all(|i| text.contains(&format!("query page{i} ("))), "{text}"); }
             assert_eq!(text.matches("  guide: reads").count(), if verbose { count } else { 0 });
             assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), if verbose { count } else { 0 });
@@ -231,7 +231,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
         }
         let output = p.run(&["check", "--json"]);
         assert!(output.status.success());
-        assert_eq!(parsed(&output)["notes"].as_array().unwrap().len(), count);
+        assert_eq!(parsed(&output)["notes"].as_array().unwrap().iter().filter(|n| n["code"] != "N_NO_PRODUCTION_WRITER").count(), count);
         assert!(output.stderr.is_empty());
     }
 }
@@ -880,7 +880,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
     let first = p.run(&["check", "--json"]);
     assert!(first.status.success(), "{first:?}");
     let first = parsed(&first);
-    assert_eq!(first["notes"].as_array().unwrap().len(), 5);
+    assert_eq!(first["notes"].as_array().unwrap().iter().filter(|n| n["code"] != "N_NO_PRODUCTION_WRITER").count(), 5);
     let summary = first["predictionSummary"].as_str().unwrap();
     assert!(summary.contains("chat.send (messages[messageId] (chat.q:83:22))"), "{summary}");
     for _ in 0..3 {
@@ -1130,7 +1130,7 @@ fn w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs() {
         assert_eq!(rows[0], "  alice zzPayload: 10 rows, 10210 bytes");
         assert!(report.contains("other 93 table/persona pairs: 93 rows, 1953 bytes"), "{report}");
         assert!(report.contains("total across personas: 110 rows, 12310 bytes"), "{report}");
-        assert!(text.lines().count() <= 18, "{} lines: {text}", text.lines().count());
+        assert!(report.lines().count() <= 13, "{} measurement lines: {report}", report.lines().count());
     }
 }
 
@@ -1673,4 +1673,50 @@ fn wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict()
     assert!(text.contains("now complete — update the case"), "{text}");
     fs::write(p.0.join("fixture/test.cases.jsonl"), "{\"op\":\"history\",\"as\":\"alice\",\"args\":{\"parent\":\"p\"},\"expect\":\"complete\"}\n{\"op\":\"history\",\"as\":\"bob\",\"args\":{\"parent\":\"p\"}}\n").unwrap();
     let fixed = p.run(&["test", "--fixture", "fixture"]); assert!(fixed.status.success(), "{fixed:?}");
+}
+
+#[test]
+fn production_writer_notes_cover_seed_only_and_bootstrap_cycles() {
+    let p = Project::new();
+    let tables = "use identity password\ntable staff:\n  principal: principal\n  unique principal\n  public\n  insert <- exists staff[viewer]\n  online only\nmutation addStaff(principal: principal):\n  return insert staff { principal }\ntable catalog:\n  title: text 1..80\n  public\n  online only\n";
+    p.source(tables);
+    let out = p.run(&["check", "--json"]);
+    assert!(out.status.success(), "{out:?}");
+    let json = parsed(&out);
+    let notes: Vec<_> = json["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_NO_PRODUCTION_WRITER").collect();
+    assert_eq!(notes.len(), 2, "{json}");
+    assert!(notes.iter().all(|n| n["rewrite"].as_str().unwrap().contains("first admin")));
+    p.source(&tables.replace("insert <- exists staff[viewer]", "insert <- exists staff[viewer] or viewer = 'service:bootstrap'"));
+    let out = p.run(&["check", "--json"]); assert!(out.status.success(), "{out:?}");
+    let json = parsed(&out);
+    assert_eq!(json["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_NO_PRODUCTION_WRITER").count(), 1);
+}
+
+#[test]
+fn fixture_arguments_are_checked_without_execution_and_saved_values_are_unknown() {
+    let p = Project::new();
+    p.source("use personas alice\nquery answer(n: int 1..5, text: text 2..8):\n  return n\n");
+    fs::create_dir(p.0.join("fixtures")).unwrap();
+    fs::write(p.0.join("fixtures/test.cases.jsonl"), "{\"op\":\"answer\",\"args\":{\"n\":6,\"text\":\"okay\"}}\n{\"op\":\"answer\",\"args\":{\"n\":2}}\n{\"op\":\"answer\",\"args\":{\"n\":\"$earlier\",\"text\":\"okay\"}}\n").unwrap();
+    let out = p.run(&["check", "--json"]); assert!(out.status.success(), "{out:?}");
+    let json = parsed(&out);
+    let notes: Vec<_> = json["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_FIXTURE_ARGUMENT_DRIFT").collect();
+    assert_eq!(notes.len(), 2, "{json}");
+    assert_eq!(notes[0]["site"]["line"], 1); assert_eq!(notes[1]["site"]["line"], 2);
+    assert!(!p.store().exists(), "check must not create or mutate a fixture store");
+}
+
+#[test]
+fn production_readiness_follows_positive_cycles_and_read_through_parents() {
+    let p = Project::new();
+    let notes = |source: &str| {
+        p.source(source); let out = p.run(&["check", "--json"]); assert!(out.status.success(), "{out:?}");
+        parsed(&out)["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_NO_PRODUCTION_WRITER").map(|n| n["message"].as_str().unwrap().split(':').next().unwrap().to_owned()).collect::<Vec<_>>()
+    };
+    let cycle = "use identity password\ntable a:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists b[viewer]\n  online only\ntable b:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists a[viewer]\n  online only\nmutation addA(principal: principal):\n  return insert a { principal }\nmutation addB(principal: principal):\n  return insert b { principal }\n";
+    assert_eq!(notes(cycle), ["a", "b"]);
+    assert!(notes(&cycle.replace("insert <- exists a[viewer]", "insert <- exists a[viewer] or viewer = 'service:bootstrap'")).is_empty());
+    let through = "use identity password\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- .parent.owner = viewer\n  online only\nmutation addChild(parent: parents):\n  return insert children { parent }\n";
+    assert_eq!(notes(through), ["children", "parents"]);
+    assert!(notes(&format!("{through}\nmutation addParent():\n  return insert parents {{ owner: viewer }}\n")).is_empty());
 }
