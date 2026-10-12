@@ -233,12 +233,17 @@ table officers:
   principal: principal
   unique principal
   read <- .principal = viewer
+table inboxItems:
+  meeting: meetings
+  principal: principal
+  read <- .principal = viewer
 view recusalCounts: count recusals by .meeting
   read <- exists meetings[.meeting, chair = viewer] or exists officers[viewer]
   online only
 view chairedMeetingCounts: count meetings by .chair
   read <- .chair = viewer
   online only
+view inheritedCounts: count inboxItems by .meeting, .principal
 query bare(meeting: meetings):
   return recusalCounts[meeting]
 query guarded(meeting: meetings):
@@ -249,6 +254,8 @@ query unrelated(meeting: meetings):
   return recusalCounts[meeting]
 query selfAuthorized():
   return chairedMeetingCounts[viewer]
+query inheritedSelfAuthorized(meeting: meetings):
+  return inheritedCounts[meeting, viewer]
 query rebound(a: principal, b: principal):
   key = a
   require key = viewer else NOT_OWNER
@@ -261,6 +268,7 @@ query rebound(a: principal, b: principal):
     assert!(notes.iter().any(|note| note.message.contains("query bare")), "{notes:#?}");
     assert!(notes.iter().any(|note| note.message.contains("query unrelated")), "{notes:#?}");
     assert!(notes.iter().any(|note| note.message.contains("query rebound")), "{notes:#?}");
+    assert!(!notes.iter().any(|note| note.message.contains("query inheritedSelfAuthorized")), "{notes:#?}");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|program| program.program)).unwrap();
     e.seed_at([
         ("meetings".into(), snapback4_core::value::object([("id", id("with")), ("chair", id("alice"))])),

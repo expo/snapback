@@ -2,7 +2,7 @@
 //! explicit authorization decision before the lookup.
 
 use super::catalog::Catalog;
-use crate::{ast::{Expr, ProgramKind, ReadExpr, Stmt}, diag::Diagnostic};
+use crate::{ast::{Effect, Expr, ProgramKind, ReadExpr, RuleDecl, Stmt}, diag::Diagnostic};
 use snapback4_core::schema::{RuleExpr, Schema};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -30,7 +30,8 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
                 let Some(info) = catalog.tables.get(&read.table) else { continue };
                 let Some(maintain) = &info.maintained else { continue };
                 let Some(table) = schema.table(&read.table) else { continue };
-                let expected = substituted_view_rule(maintain, read);
+                let expected = info.decl.rules.iter().find(|rule| rule.effect == Effect::Read)
+                    .and_then(|rule| substituted_view_rule(maintain, rule, read));
                 if expected.as_ref().is_some_and(|expected| constant_bool(expected) == Some(true))
                     || expected.as_ref().is_some_and(|expected| requirements.iter().any(|condition| canonical(condition.clone()) == canonical(expected.clone())))
                     || read.range.is_some() || read.keys.len() != maintain.by.len()
@@ -61,8 +62,7 @@ fn mentions_any(expression: &Expr, names: &[String]) -> bool {
 
 /// Exact substitution is deliberately conservative: an unrelated requirement
 /// must not hide the note, and a guard we cannot prove equivalent keeps it.
-fn substituted_view_rule(maintain: &crate::ast::MaintainDecl, read: &ReadExpr) -> Option<Expr> {
-    let rule = maintain.read.as_ref()?;
+fn substituted_view_rule(maintain: &crate::ast::MaintainDecl, rule: &RuleDecl, read: &ReadExpr) -> Option<Expr> {
     if maintain.by.len() != read.keys.len() { return None }
     let mut keys: BTreeMap<String, Expr> = maintain.by.iter().map(|field| field.trim_start_matches('.').to_owned())
         .zip(read.keys.iter().map(|key| key.value.clone())).collect();
