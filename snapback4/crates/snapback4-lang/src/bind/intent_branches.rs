@@ -110,7 +110,7 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             let Expr::Read(source) = source else { return None };
             candidate.read(tables, source, false);
             let source_table = tables.get(&source.table)?;
-            if membership_source_column(predicate) == Some("id")
+            if membership_source_column(tables, synthesized, table, predicate).as_deref() == Some("id")
                 && let Some(source_index) = source.index.as_ref().and_then(|name| source_table.indexes.iter().find(|index| &index.name == name))
                 && source.keys.len() == source_index.columns.len() && !source_table.total_unique(source_index) { return None; }
             // Uniform denial is not an empty discovery range. PAGE may commit
@@ -193,9 +193,11 @@ fn membership_target(predicate: &Expr) -> Option<String> {
     target
 }
 
-fn membership_source_column(predicate: &Expr) -> Option<&str> {
-    let Expr::Exists { read, .. } = predicate else { return None };
-    read.keys.iter().find_map(|key| intent::column(&key.value).and(key.column.as_deref()))
+fn membership_source_column(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>,
+    focal: &TableInfo, predicate: &Expr) -> Option<String> {
+    let Expr::Exists { read: probe, .. } = predicate else { return None };
+    let columns = super::intent_lanes::probe_columns(tables, synthesized, focal, probe)?;
+    probe.keys.iter().zip(columns).find_map(|(key, column)| intent::column(&key.value).map(|_| column))
 }
 
 fn owner_membership_shape(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, read: &ReadExpr) -> bool {

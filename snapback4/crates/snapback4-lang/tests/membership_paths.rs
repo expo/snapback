@@ -101,25 +101,34 @@ fn single_membership_engine(bound: &Bound, include_group: bool) -> Engine {
 // @ref LLP 3000.036.001#14 — a total one-row source key may return its implicit row id as the parent lane.
 #[test]
 fn total_unique_membership_source_uses_its_implicit_row_id() {
-    let bound = clean(SINGLE_MEMBERSHIP);
-    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
-    assert!(bound.schema.required_capabilities().contains("branch-membership-v1"));
-    let ask = |engine: &mut Engine, at| engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)])).at(at)).unwrap();
-    let mut live = single_membership_engine(&bound, true);
-    let before = ask(&mut live, 4); assert!(before.complete); assert_eq!(before.data.as_array().unwrap().len(), 2);
-    let after = ask(&mut live, 6); assert!(after.complete); assert_eq!(after.data.as_array().unwrap().len(), 1);
-    let mut missing = single_membership_engine(&bound, false);
-    let absent = ask(&mut missing, 4); assert!(absent.complete); assert_eq!(absent.data.as_array().unwrap().len(), 1);
+    let positional = SINGLE_MEMBERSHIP.replace("  unique principal\n", "  unique principal\n  unique id, principal\n")
+        .replace("exists groups[id = .parent, principal = viewer]", "exists groups[.parent, viewer]");
+    for source in [SINGLE_MEMBERSHIP.to_owned(), positional] {
+        let bound = clean(&source);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+        assert!(bound.schema.required_capabilities().contains("branch-membership-v1"));
+        let ask = |engine: &mut Engine, at| engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)])).at(at)).unwrap();
+        let mut live = single_membership_engine(&bound, true);
+        let before = ask(&mut live, 4); assert!(before.complete); assert_eq!(before.data.as_array().unwrap().len(), 2);
+        let after = ask(&mut live, 6); assert!(after.complete); assert_eq!(after.data.as_array().unwrap().len(), 1);
+        let mut missing = single_membership_engine(&bound, false);
+        let absent = ask(&mut missing, 4); assert!(absent.complete); assert_eq!(absent.data.as_array().unwrap().len(), 1);
+    }
 }
 
 #[test]
 fn nullable_unique_membership_source_keeps_the_original_scan() {
-    let bound = clean(&SINGLE_MEMBERSHIP.replace("principal: principal\n", "principal: principal ?\n"));
-    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
-    assert!(bound.schema.tables["documents"].indexes.iter().all(|(name, index)| !name.starts_with("$intent")
-        || !matches!(index.columns().as_slice(), [first, ..] if first == "owner" || first == "parent")));
-    assert_eq!(bound.schema.tables["groups"].indexes.values().filter(|index| index.columns() == ["principal"]).count(), 1);
-    assert_eq!(bound.schema.tables["groups"].indexes.len(), 3, "only byId, byExpiry and the declared unique remain");
-    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
-    assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
+    let named = SINGLE_MEMBERSHIP.replace("principal: principal\n", "principal: principal ?\n");
+    let positional = named.replace("  unique principal\n", "  unique principal\n  unique id, principal\n")
+        .replace("exists groups[id = .parent, principal = viewer]", "exists groups[.parent, viewer]");
+    for (source, source_indexes) in [(named, 3), (positional, 4)] {
+        let bound = clean(&source);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+        assert!(bound.schema.tables["documents"].indexes.iter().all(|(name, index)| !name.starts_with("$intent")
+            || !matches!(index.columns().as_slice(), [first, ..] if first == "owner" || first == "parent")));
+        assert_eq!(bound.schema.tables["groups"].indexes.values().filter(|index| index.columns() == ["principal"]).count(), 1);
+        assert_eq!(bound.schema.tables["groups"].indexes.len(), source_indexes, "only authored source indexes remain");
+        assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
+        assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
+    }
 }
