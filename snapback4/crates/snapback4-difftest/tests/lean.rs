@@ -194,6 +194,42 @@ fn reordered_named_membership_key_agrees_with_the_model() {
 }
 
 #[test]
+fn membership_extra_equalities_and_repeated_parties_agree_with_the_model() {
+    if !model_built() { return; }
+    let check = |source: &str, rows: Vec<(String, serde_json::Value)>| {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|program| program.program)).unwrap();
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let args = json!({"c":null});
+        let context = snapback4_core::Context::new("alice", [("c".into(), snapback4_core::Value::Null)].into_iter().collect());
+        let actual = engine.query("run", context).unwrap();
+        let module = lean::module(source).unwrap();
+        let case = module.case("run", module.store(&rows).unwrap(), "alice", module.tag_args("run", &args).unwrap(), None).unwrap();
+        let modeled = lean::ask(&case).unwrap();
+        assert_eq!(modeled["kind"], "answer", "{modeled}\n{source}");
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}\n{source}");
+        assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}\n{source}");
+        assert!(actual.complete && actual.next.is_none(), "{actual:?}\n{source}");
+    };
+    let rows = vec![
+        ("memberships".into(), json!({"id":"m","parent":"p","principal":"alice","role":"member"})),
+        ("documents".into(), json!({"id":"d1","owner":"bob","parent":"p","at":1})),
+        ("documents".into(), json!({"id":"d2","owner":"bob","parent":"p","at":2})),
+    ];
+    let extra = "table memberships:\n  parent: text <=40\n  principal: principal\n  role: text <=20\n  unique parent, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[parent = .parent, principal = viewer, role = 'member']\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    check(extra, rows.clone());
+
+    let repeated = extra.replace(" or exists memberships[parent = .parent, principal = viewer, role = 'member']",
+        " or .owner = viewer or .owner = viewer or .owner = viewer or .owner = viewer or .owner = viewer or .owner = viewer or exists memberships[parent = .parent, principal = viewer, role = 'member']");
+    check(&repeated, rows);
+}
+
+#[test]
 fn canonical_values_and_signatures() {
     use snapback4_core::Value;
     let row: Value = Value::Row([("id".to_string(), Value::Id("r0".into())), ("n".to_string(), Value::Int(-3)), ("t".to_string(), Value::String("é".into()))].into_iter().collect());

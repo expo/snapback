@@ -280,6 +280,31 @@ fn lean_generator_reaches_a_capped_unpinned_membership_page() {
     assert!(case.program.source().contains("exists access[principal = viewer, bucket = .bucket]"));
 }
 
+#[test]
+fn native_generator_exercises_capped_named_membership_pages() {
+    let case = (0..10_000).map(generate).find(|case| {
+        let table = &case.program.tables[0];
+        let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrWitness
+            && case.program.domain.as_deref() == Some("true")
+            && case.program.membership_named_reordered
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, project: None, .. })
+    }).expect("native membership-page stream must be reachable");
+    let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
+    assert_eq!(access.caps, vec![(16, vec!["principal".into()])]);
+    assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
+    let coverage = snapback4_difftest::coverage::features(&case);
+    assert!(coverage.contains("read/branch-rule-membership-named-reordered"), "{coverage:?}");
+    assert!(coverage.contains("read/branch-merged"), "{coverage:?}\n{}", case.program.source());
+    let mut report = Report::default();
+    campaign::check(&case, &mut report, |_| {});
+    assert!(!report.failed(), "{report:#?}\n{}", case.program.source());
+    assert!(report.by_oracle["repeat"].passed > 0, "{report:#?}");
+    assert!(report.by_oracle["rewrite-declarations"].passed > 0, "{report:#?}");
+    assert!(report.by_oracle["meter"].passed > 0, "{report:#?}");
+    assert!(report.rewrite_coverage["read/branch-rule-membership"] > 0, "{report:#?}");
+}
+
 /// The shrinker reduces the new shapes structurally: a planted predicate
 /// that holds while any `upsert` remains keeps exactly one statement and
 /// drops the projection, the other prelude steps, expiry and sweeps.

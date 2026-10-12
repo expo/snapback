@@ -38,6 +38,9 @@
 //!   `.owner = viewer or .helper = viewer`), or whose read rule is two parties
 //!   (`.owner = viewer or .helper = viewer`, with a `helper` column), so the
 //!   merged plan, its cursor and its cuts meet every oracle.
+//! - **bounded membership pages**, from their own stream: an unpinned page
+//!   whose owner-or-membership rule discovers at most 16 held groups, with
+//!   positional and reordered named membership probes.
 // @ref LLP 3000.035#5.1 — generator widening behind independent probabilities.
 use crate::{
     ast::*,
@@ -47,6 +50,7 @@ use serde_json::{Value as Json, json};
 
 const STREAM: u64 = 0x5749_4445_4e5f_4757;
 const BRANCH_STREAM: u64 = 0x4252_414e_4348_4553;
+const MEMBERSHIP_STREAM: u64 = 0x4d45_4d42_4552_4e41;
 /// Clock gaps between operations (ms); 0 makes two operations simultaneous.
 const GAPS: [i64; 6] = [0, 1, 37, 500, 1000, 60_000];
 /// Offsets from an operation's clock at which a row expires.
@@ -298,7 +302,34 @@ pub fn widen(mut case: Case) -> Case {
         }
     }
     references(&mut case);
+    membership_page(&mut case);
     case
+}
+
+/// Add the bounded focal owner-or-membership shape to the ordinary campaign,
+/// after other widening so its final plan reaches native rewrite and meter
+/// oracles. The access table in every base case already carries the cap and
+/// inverse principal index required for bounded discovery.
+fn membership_page(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ MEMBERSHIP_STREAM);
+    let Body::Read { kind: Read::Page | Read::Bounded, filter, owner, project, .. } = &mut case.program.body else { return };
+    if rng.pick(16) != 0 { return }
+    *filter = false;
+    *owner = false;
+    *project = None;
+    let items = &mut case.program.tables[0];
+    items.rule = Rule::OwnerOrWitness;
+    items.effects = None;
+    items.residency = Residency::Online;
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
+    access.rule = Rule::Allow;
+    access.effects = None;
+    access.residency = Residency::Public;
+    case.program.domain = Some("true".into());
+    case.program.order = Some(vec!["id".into()]);
+    case.program.residual = None;
+    case.program.guard = None;
+    case.program.membership_named_reordered = rng.pick(2) == 0;
 }
 /// Branch pages (LLP 3000.036.001), drawn from their own stream so every
 /// other dimension's draws are unchanged.
