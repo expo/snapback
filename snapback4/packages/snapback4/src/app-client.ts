@@ -284,10 +284,10 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       if (denied) return { denied, id: options?.id ?? mintId() };
       return raw.act(op, args, options);
     },
-    async upload(bytes) {
+    async upload(bytes, options) {
       const denied = await refusal();
       if (denied) return { ok: false, why: denied };
-      return raw.upload(bytes);
+      return raw.upload(bytes, options);
     },
     asset: assetReader(async (id, progress) => {
       progress("session");

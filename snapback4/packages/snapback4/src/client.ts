@@ -16,6 +16,7 @@ import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 // The card's words, from the module that returns them: `import { createClient, type Client } from "snapback4/client"`.
+export { saveAsset, type Saved } from "./files.ts";
 export type { Client, Principal, Session, Refusal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, ActOptions, MutateOptions, MutationPromise, PendingWrite, Link, Query, Mutation, Ephemeral, Action, ArgsOf, ResultOf, RowOf, Observed, ObserveOptions, Cursor } from "./contract.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { armReadExpiry, correctReadExpiries, readDeadlineWithdrawn } from "./read-expiry.ts";
@@ -1185,7 +1186,7 @@ export function createClient(options: ClientOptions): Client {
     onPendingWrites: pendingEvents.subscribe,
     acquired: false,
     onAcquired: () => () => {},
-    async upload(bytes) {
+    async upload(bytes, options) {
       if (readGate) return { ok: false, why: readOnlyRefusal() };
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
@@ -1194,7 +1195,7 @@ export function createClient(options: ClientOptions): Client {
       const requestHeaders = { ...headers };
       const sameSession = () => !refreshing && requestHeaders.authorization === headers.authorization;
       const uploaded = await waitForCaller(uploadAsset(base, requestHeaders, doFetch, bytes,
-        () => !storeRefusal && !closed && credentials && sameSession()), aborter.signal);
+        () => !storeRefusal && !closed && credentials && sameSession(), options), aborter.signal);
       // Uploads have no mutation id: an obsolete success cannot be replayed or
       // handed to another session. A stopped retry also returns this refusal.
       if (!uploaded || storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };

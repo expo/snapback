@@ -1504,7 +1504,8 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `usePersonaApp(persona, open)` | the `App` for a development persona, or null: opens it with `open(persona)`, closes it on switch and unmount |
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
 | `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
-| `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`), `denied` or `error` (`why`) |
+| `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`, a file's `name`), `denied` or `error` (`why`) |
+| `useSaveAsset()` | `{ save(id, name?), saving, why }`: a file saved on demand, through the browser's download |
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise` |
@@ -2154,6 +2155,34 @@ async function sendPhoto(client: Client, conversationId: string, file: Blob) {
 }
 ```
 
+A `file` column takes a document. `upload(bytes, { file: {} })`
+declares the File's own type and name (`{ file: { type, name } }` overrides);
+the server checks the type against the bytes, so a spoofed or HTML upload is
+`E_ASSET_TYPE`. A file downloads only as an attachment; `saveAsset` fetches it
+on demand and saves it under its name (`useSaveAsset()` in React), and
+`client.asset(id)` / `useAsset(id)` also report `name`:
+
+```tsx
+import type { Client } from "snapback4/contract";
+import { saveAsset } from "snapback4/client";
+import { useSaveAsset } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+async function addReceipt(client: Client, picked: File) {
+  const uploaded = await client.upload(picked, { file: {} }); // or { file: { type: "application/pdf", name: "receipt.pdf" } }
+  if (!uploaded.ok) return uploaded.why.message;               // E_ASSET_TYPE: not a type the column accepts
+  await client.mutate(api.addReceipt, { scan: { id: uploaded.asset.id } });
+  return `${uploaded.asset.name} (${uploaded.asset.bytes} bytes)`;
+}
+async function downloadReceipt(client: Client, id: string) {
+  const saved = await saveAsset(client, id); // the browser saves it under the file's name
+  return saved.ok ? saved.name : saved.why.message;
+}
+function ReceiptLink({ scan }: { scan: { id: string; name?: string | null } }) {
+  const { save, saving, why } = useSaveAsset();
+  return <button disabled={saving} title={why?.message} onClick={() => void save(scan.id)}>{scan.name ?? "Receipt"}</button>;
+}
+```
+
 An app with a device can retain ordinary viewed images and videos:
 
 ```ts
@@ -2263,7 +2292,8 @@ immediately; account switches replace the client. Raw sign-out returns `denied`
 with `E_AUTH` for a non-null id; null remains empty. Viewer discovery alone
 does not fetch again, nor does an offline link refetch a ready handle.
 
-An `image <=N` or `video <=N` column holds an upload: the client sends
+An `image <=N`, `video <=N` or `file <=N` column holds an upload (a file,
+its type and filename are described above); the client sends
 the bytes first (`upload` → `{ ok: true, asset: { id, type, bytes, width,
 height, duration } }` or `{ ok: false, why }`; the server sniffs JPEG,
 PNG, WebP and MP4 and refuses the rest with `E_ASSET_TYPE`, and anything
@@ -3097,9 +3127,12 @@ poll with N = 0 at that pace meanwhile, then hold again; the published client do
 online. Every reply of a query that may read `connected[p]`, refusals included,
 carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
 5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it. `POST /assets` (the file's bytes as the body,
-64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
+64 MiB at most) answers `{ asset }`; a document for a `file` column adds `?as=file&name=<filename>` and its
+declared `Content-Type`, checked against the bytes, and is read only up to the largest file column's bound.
+`GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
-uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{
+uses `Cache-Control: private, no-store`; a file is always `Content-Disposition: attachment` with
+`nosniff` and a sandboxing `Content-Security-Policy`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{
 "email", "password" }`) answer `{ "session": { principal, kind, token, expiresAt } }` or `{ "denied": Refusal
 }`; `POST /auth/logout` atomically authenticates and closes the presented live refresh/recovery family, then
 answers `{ "ok": true }`; a stale replaced bearer is 401 and cannot close or pretend to close its replacement.

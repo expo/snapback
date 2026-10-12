@@ -1262,7 +1262,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
-    async upload(bytes) {
+    async upload(bytes, options) {
       if (refreshing) await refreshing;
       const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
@@ -1270,7 +1270,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const request = requestCredentials();
       const sameSession = () => !refreshing && request.headers.authorization === headers.authorization;
       const uploaded = await waitForCaller(uploadAsset(base, request.headers, doFetch, bytes,
-        () => !unavailable() && link === "online" && sameSession()), aborter.signal);
+        () => !unavailable() && link === "online" && sameSession(), options), aborter.signal);
       const interrupted = (): Refusal | null => unavailable() ?? (!sameSession()
         ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
       let why = interrupted();
