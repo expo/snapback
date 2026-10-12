@@ -438,7 +438,11 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- first order column would become a pin there and change its order, so
     -- such a page is not merged), and it counts toward the 8 lanes.
     let guardPins := pins.filter fun p => p.1 != "id" && !order.contains p.1
-    let case2 := if !guards then false else match td.read.branchParties sch guardPins true with
+    let membershipRule := td.read.ownerMembership? sch
+    -- An exact owner-or-membership rule belongs wholly to PAGE's classifier.
+    -- When its target is already pinned the Rust planner keeps the original
+    -- scan; do not re-admit it as the older generic page-guard case.
+    let case2 := if !guards || membershipRule.isSome then false else match td.read.branchParties sch guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
@@ -451,7 +455,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- PAGE: one system descriptor, party descriptors and eligible capped
     -- membership descriptors. A dynamic cap does not count against eight;
     -- its static membership descriptor does.
-    let case3 := if !guards then false else match td.read.ownerMembership? sch with
+    let case3 := if !guards then false else match membershipRule with
       | some leaves =>
         let bases := alts.getD [[]]
         bases.length * leaves.length + 1 ≤ 8
