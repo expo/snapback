@@ -197,6 +197,14 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
         assert_eq!(horizon.last, 50);
         assert_eq!(table.indexes[&horizon.by].columns(), [audience.columns()[0].as_str(), "at", "id"]);
     }
+    // The printed line spells the window in column form, and it compiles (round 2, GPT finding 5).
+    let line = table.sync.as_ref().unwrap().line_in(table);
+    assert_eq!(line, "sync to .customer or .seller last 50 by .at, .id");
+    clean(&two.replace("  sync\n", &format!("  at: time\n  {line}\n")).replace("  read <-", "  at2: time ?\n  read <-"));
+    // Repeated branches, in either equality order, are one arm each (round 2, GPT finding 4).
+    for rule in [".customer = viewer or viewer = .customer or .seller = viewer", ".customer = viewer or .customer = viewer"] {
+        clean(&two.replace(".customer = viewer or .seller = viewer", rule));
+    }
     // A named window index cannot lead with both arms: the rewrite is the column form.
     let named = refusal(&two.replace("  sync\n", "  at: time\n  by byAt: customer, at, id\n  sync last 50 by byAt\n"));
     assert!(named.rewrite.starts_with("last 50 by .customer, .at"), "{named:?}");
@@ -206,6 +214,13 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     // Two group audiences are refused.
     let groups = "table a:\n  principal: principal\n  unique principal\n  read <- exists a[viewer]\n  insert <- deny\n  sync\ntable b:\n  principal: principal\n  unique principal\n  read <- exists b[viewer]\n  insert <- deny\n  sync\ntable notes:\n  read <- exists a[viewer] or exists b[viewer]\n  insert <- deny\n  sync\n";
     assert!(refusal(groups).message.contains("at most one group audience"));
+    // A union source keeps its aggregates online; a union-synced aggregate is refused even when hand-built.
+    let counted = clean(&format!("{two}view orderCount: count orders by .customer\n  read <- .customer = viewer\n"));
+    assert!(counted.schema.tables["orderCount"].sync.is_none(), "an aggregate over a union inherits no audience");
+    let mut schema = clean(&format!("{two}view orderCount: count orders by .seller\n  read <- .seller = viewer\n  online only\n")).schema;
+    let view = schema.tables.get_mut("orderCount").unwrap();
+    view.sync = Some(snapback4_core::schema::Sync { audience: Audience::Column("seller".into()), horizon: None, also: vec![SyncArm { audience: Audience::Column("seller".into()), horizon: None }] });
+    assert!(snapback4_core::schema::validate(&schema).iter().any(|issue| issue.message.contains("cannot sync to a union")));
     // The exclusions: delivered history, a public branch.
     assert!(refusal(&two.replace("  sync\n", "  retain delivered-history\n  sync\n")).message.contains("delivered-history"));
     assert!(refusal(&two.replace(".customer = viewer or .seller = viewer", "public or .seller = viewer")).code == "E_SYNC");

@@ -58,8 +58,9 @@ Refused on a union, each with a rewrite: a `public` branch (a public table
 and a private one, moving a row when it is shared), two group audiences
 (give the second group's readers rows in the first group's membership),
 `retain delivered-history`, a `read through` child (copy the branch
-columns onto the child and check them in its insert rule), a synced view or
-row-keyed view over it (make the view `online only`), a timeline, private
+columns onto the child and check them in its insert rule), a row-keyed view
+over it (a `view` over a union inherits no audience: the server answers
+it), a timeline, private
 `written by` fields, and a membership table with `expire at`. Adding or
 removing a branch is a new backend version: devices drop the table's rows
 and acquire them again before they answer offline.

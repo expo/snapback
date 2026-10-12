@@ -75,7 +75,11 @@ pub(super) fn audience_rule(name: &str, info: &TableInfo, rule: &RuleExpr) -> Ru
             && index.columns.iter().zip(key).all(|(component, term)|
                 if component == column { matches!(term, RuleTerm::Viewer) } else { matches!(term, RuleTerm::Field(field) if field == component) })
     };
-    let kept: Vec<RuleExpr> = terms.iter().filter(|term| !terms.iter().any(|other| absorbs(term, other))).map(|term| (*term).clone()).collect();
+    let mut kept: Vec<RuleExpr> = Vec::new();
+    for term in terms.iter().filter(|term| !terms.iter().any(|other| absorbs(term, other))) {
+        // A repeated branch is one audience, as the core folds it.
+        if !kept.iter().any(|seen| seen.normal_disjunct() == term.normal_disjunct()) { kept.push((*term).clone()); }
+    }
     match kept.len() {
         n if n == terms.len() => audience.clone(),
         1 => kept.into_iter().next().expect("one audience"),

@@ -493,6 +493,18 @@ impl Sync {
             None => audience,
         }
     }
+
+    /// The line as the author can write it: a union's windows are one
+    /// column-form window (`last N by .at`), never an index name, so it is
+    /// spelled from the first arm's window index without its group columns.
+    // @ref LLP 3000.036.000.000#2.1 — round 2 (GPT finding 5): a printed union window compiles.
+    pub fn line_in(&self, table: &Table) -> String {
+        let (Some(horizon), true) = (&self.horizon, self.is_union()) else { return self.line() };
+        let group = self.audience.columns();
+        let order: Vec<String> = table.index(&horizon.by).map(|index| index.columns().into_iter().filter(|column| !group.contains(column)).map(|column| format!(".{column}")).collect()).unwrap_or_default();
+        let line = Self { horizon: None, ..self.clone() }.line();
+        format!("{line} last {} by {}", horizon.last, if order.is_empty() { ".id".to_owned() } else { order.join(", ") })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -785,9 +797,22 @@ impl RuleExpr {
         let terms = audience.disjuncts();
         if terms.len() < 2 { return audience; }
         let absorbed = |term: &RuleExpr| terms.iter().any(|other| crate::engine::rules::self_probe_absorbs(table_name, table, term, other));
-        if !terms.iter().any(|term| absorbed(term)) { return audience; }
-        let mut kept: Vec<RuleExpr> = terms.iter().filter(|term| !absorbed(term)).map(|term| (*term).clone()).collect();
+        // @ref LLP 3000.036.000.000#2.2 — a repeated branch (in either equality order) is one audience.
+        let mut kept: Vec<RuleExpr> = Vec::new();
+        for term in terms.iter().filter(|term| !absorbed(term)) {
+            let normal = term.normal_disjunct();
+            if !kept.iter().any(|seen| seen.normal_disjunct() == normal) { kept.push((*term).clone()); }
+        }
+        if kept.len() == terms.len() { return audience; }
         std::borrow::Cow::Owned(if kept.len() == 1 { kept.pop().expect("one audience") } else { Self::Or(kept) })
+    }
+
+    /// A disjunct with `viewer = .col` spelled `.col = viewer`, for folding repeats.
+    pub fn normal_disjunct(&self) -> RuleExpr {
+        match self {
+            Self::Eq(RuleTerm::Viewer, other) => Self::Eq(other.clone(), RuleTerm::Viewer),
+            other => other.clone(),
+        }
     }
 
     /// The rule as Quarry text, for diagnostics and rewrites.
@@ -1257,6 +1282,11 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     // read every contributing row, so the aggregate's audience is its
     // source's audience, grouped by the audience columns.
     // @ref LLP 3000.036.000.000#5.4 — a count over a union source is not a count over any one arm's group.
+    // A union-synced aggregate would deliver a group's count to column-arm
+    // readers who read none of the group's rows: aggregates sync one audience.
+    if target.sync.as_ref().is_some_and(Sync::is_union) {
+        issue(issues, format!("maintain target {} cannot sync to a union of audiences; it syncs its source's one audience, or is `online only`", maintain.target));
+    }
     if target.sync.is_some() && source.sync.as_ref().is_some_and(Sync::is_union) {
         issue(issues, format!("maintain target {} cannot sync: its source {} syncs to a union of audiences, and a device would hold a count over rows only some of its readers hold; make the aggregate `online only`", maintain.target, maintain.source));
     }
@@ -1388,7 +1418,7 @@ pub(super) fn sync_index_issues(table_name: &str, table: &Table, sync: &Sync, au
     let group = audience.columns();
     if horizon.is_none() {
         if !group.is_empty() && !table.indexes.values().any(|index| index.is_plain() && index.columns().starts_with(&group)) {
-            issue(format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line(), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")),
+            issue(format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line_in(table), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")),
             );
         }
     }

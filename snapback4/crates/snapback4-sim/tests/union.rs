@@ -144,6 +144,7 @@ table tasks:
   at: time
   by byOwner: owner, id
   by byTeam: team, id
+  by aSearch: team, words(title), id
   read <- .owner = viewer or exists members[.team, viewer]
   insert <- .owner = viewer and exists members[.team, viewer]
   update (old, next) <- old.owner = viewer
@@ -158,6 +159,10 @@ query task(t: tasks):
   return tasks[t]
 query myCount():
   return count(tasks where .owner = viewer)
+query haveAny():
+  return exists tasks where .owner = viewer
+query teamHas(team: teams):
+  return exists tasks where .team = team
 
 mutation create(team: teams):
   return insert tasks { owner: viewer, team, title: 'x', at: now }
@@ -196,6 +201,21 @@ mutation moveThenGive(task: tasks, team: teams, to: principal):
   update tasks[t] { team }
   update tasks[t] { owner: to }
   return null
+mutation addThenRemove(team: teams, who: principal, task: tasks):
+  insert members { team, principal: who }
+  t = tasks[task] ! else NOT_FOUND
+  delete tasks[t]
+  return null
+mutation removeThenAdd(team: teams, who: principal, task: tasks):
+  t = tasks[task] ! else NOT_FOUND
+  delete tasks[t]
+  insert members { team, principal: who }
+  return null
+mutation addThenMove(team: teams, who: principal, task: tasks, to: teams):
+  insert members { team, principal: who }
+  t = tasks[task] ! else NOT_FOUND
+  update tasks[t] { team: to }
+  return null
 mutation bounce(task: tasks, via: teams):
   t = tasks[task] ! else NOT_FOUND
   home = t.team
@@ -216,7 +236,9 @@ fn teams_seed() -> Vec<(String, Value)> {
         member("ma2", "t2", ALICE),
         member("mb2", "t2", BOB),
         task("ka", ALICE, "t1", 1),
-        task("kb", BOB, "t2", 2),
+        // An empty title has no entry in the word index that sorts before byTeam:
+        // a leave must walk a plain index (round 2, GPT finding 2).
+        ("tasks".to_owned(), object([("id", id("kb")), ("owner", id(BOB)), ("team", id("t2")), ("title", Value::String(String::new())), ("at", Value::Int(2))])),
     ]
 }
 
@@ -257,6 +279,13 @@ fn teams_ops(now: &Rows) -> Vec<Op> {
             out.push(Op::new(actor, "remove", &[("task", id(task))]));
             out.push(Op::new(actor, "move", &[("task", id(task)), ("team", id(other))]));
             out.push(Op::new(actor, "bounce", &[("task", id(task)), ("via", id(other))]));
+            // Acquisition beside a delete or a move out, in one commit (round 2, GPT finding 1).
+            for who in PRINCIPALS {
+                if who == actor { continue; }
+                out.push(Op::new(actor, "addThenRemove", &[("team", id(&home)), ("who", id(who)), ("task", id(task))]));
+                out.push(Op::new(actor, "removeThenAdd", &[("team", id(&home)), ("who", id(who)), ("task", id(task))]));
+                out.push(Op::new(actor, "addThenMove", &[("team", id(&home)), ("who", id(who)), ("task", id(task)), ("to", id(other))]));
+            }
             for to in PRINCIPALS {
                 if to == actor { continue; }
                 out.push(Op::new(actor, "give", &[("task", id(task)), ("to", id(to))]));
@@ -288,6 +317,16 @@ fn teams_admits(now: &Rows, op: &Op) -> Option<bool> {
             Some(task) if reads(task) => Some(false),
             _ => None,
         },
+        "addThenRemove" | "removeThenAdd" | "addThenMove" => {
+            // The insert needs the caller in the team and the principal outside it;
+            // the lookup needs the task readable; the write needs its owner.
+            if member_of(now, op.arg("team"), op.arg("who")) { return None; }
+            match task {
+                Some(task) if reads(task) && member_of(now, op.arg("team"), a) => Some(owner(task)),
+                Some(task) if reads(task) => Some(false),
+                _ => if member_of(now, op.arg("team"), a) && op.kind == "removeThenAdd" { None } else if !member_of(now, op.arg("team"), a) { Some(false) } else { None },
+            }
+        }
         "leaveThenGive" => {
             if !member_of(now, op.arg("team"), a) { return None; }
             // After leaving, the task is readable only to its owner.
@@ -301,9 +340,10 @@ fn teams_admits(now: &Rows, op: &Op) -> Option<bool> {
 }
 
 fn teams_queries(now: &Rows, viewer: &str) -> Vec<(&'static str, Json, bool)> {
-    let mut out = vec![("myTasks", json!({}), true), ("myCount", json!({}), true)];
+    let mut out = vec![("myTasks", json!({}), true), ("myCount", json!({}), true), ("haveAny", json!({}), true)];
     for team in TEAM_IDS {
         out.push(("teamTasks", json!({"team": team}), member_of(now, team, viewer)));
+        out.push(("teamHas", json!({"team": team}), member_of(now, team, viewer)));
     }
     for task in now["tasks"].keys().chain(["gone".to_owned()].iter()) {
         out.push(("task", json!({"t": task}), true));
@@ -580,6 +620,49 @@ fn parties_world() -> World {
     }
 }
 
+// ---- three parties, spelled explicitly ----
+
+/// Two parties plus an agent, with the union written out: three column arms
+/// in one `also`-carrying declaration, a scope-free world whose rows sit in
+/// up to three of a viewer's partitions at once.
+fn three_world() -> World {
+    let source = PARTIES
+        .replace("  seller: principal\n  title", "  seller: principal\n  agent: principal\n  title")
+        .replace("  by bySeller: seller, id\n", "  by bySeller: seller, id\n  by byAgent: agent, id\n")
+        .replace("  read <- .buyer = viewer or .seller = viewer\n", "  read <- .buyer = viewer or .seller = viewer or .agent = viewer\n")
+        .replace("  delete <- .seller = viewer\n  sync\n", "  delete <- .seller = viewer\n  sync to .agent or .seller or .buyer\n")
+        .replace("mutation list(buyer: principal):\n  return insert orders { buyer, seller: viewer, title: 'x' }", "mutation list(buyer: principal):\n  return insert orders { buyer, seller: viewer, agent: buyer, title: 'x' }\nmutation appoint(order: orders, agent: principal):\n  o = orders[order] ! else NOT_FOUND\n  update orders[o] { agent }\n  return null");
+    assert!(source.contains("sync to .agent or .seller or .buyer") && source.contains("mutation appoint"), "the three-party source");
+    let readable = |now: &Rows, p: &str| -> Rows { [("orders".to_owned(), now["orders"].iter().filter(|(_, row)| ["buyer", "seller", "agent"].iter().any(|c| field(row, c) == p)).map(|(k, v)| (k.clone(), v.clone())).collect())].into() };
+    World {
+        name: "three parties",
+        source,
+        seed: || {
+            let order = |key: &str, buyer: &str, seller: &str, agent: &str| ("orders".to_owned(), object([("id", id(key)), ("buyer", id(buyer)), ("seller", id(seller)), ("agent", id(agent)), ("title", Value::String("x".into()))]));
+            vec![order("oa", BOB, ALICE, MALLORY), order("ob", BOB, BOB, BOB)]
+        },
+        readable,
+        ops: |now| {
+            let mut out = parties_world().ops.clone()(now);
+            for actor in PRINCIPALS {
+                for order in now["orders"].keys() {
+                    for who in PRINCIPALS { out.push(Op::new(actor, "appoint", &[("order", id(order)), ("agent", id(who))])); }
+                }
+            }
+            out
+        },
+        admits: |now, op| match op.kind {
+            "list" => Some(true),
+            _ => match now["orders"].get(op.arg("order")) {
+                Some(row) if ["buyer", "seller", "agent"].iter().any(|c| field(row, c) == op.actor) => Some(field(row, "seller") == op.actor),
+                _ => None,
+            },
+        },
+        column_arms: |_| &["buyer", "seller", "agent"],
+        ..parties_world()
+    }
+}
+
 // ---- the harness ----
 
 struct Backend {
@@ -732,13 +815,14 @@ fn drain(b: &Backend, engine: &mut Engine, viewer: &'static str, from: u64, limi
                 },
                 "scope" => {
                     let data = event.data.as_ref().map(wire::to_json).unwrap_or(Json::Null);
-                    let group = data.as_array().and_then(|items| items.first()).and_then(Json::as_str).unwrap_or("").to_owned();
+                    let roster = (b.world.group_column)(&event.table).is_none();
+                    // A roster's one group is empty; a union scope's last element is its recipient.
+                    let group = if roster { String::new() } else { data.as_array().and_then(|items| items.first()).and_then(Json::as_str).unwrap_or("").to_owned() };
                     let arms = (b.world.column_arms)(&event.table);
                     if !arms.is_empty() && data.as_array().and_then(|items| items.last()).and_then(Json::as_str) != Some(viewer) {
                         errs.push(format!("a union scope does not name its recipient [{at}: {data}]"));
                     }
-                    let roster = (b.world.group_column)(&event.table).is_none();
-                    if !roster && !history.groups.contains(&(event.table.clone(), group.clone())) {
+                    if !history.groups.contains(&(event.table.clone(), group.clone())) {
                         errs.push(format!("DISCLOSED a scope naming a group the viewer never held [{at}: {data}]"));
                     }
                 }
@@ -915,7 +999,10 @@ fn check_real(b: &Backend, engine: &mut Engine, device: &mut Real, viewer: &str,
         match (local, server) {
             (Ok(local), Ok(server)) => {
                 let certified = local.complete && !unknown && !local.unavailable;
-                if certified && local.data != server.data {
+                // A server `exists` over a per-row rule with no readable match is
+                // unavailable, never false (LLP 3000.036 §15.11); only a server
+                // answer can contradict the device.
+                if certified && !server.unavailable && local.data != server.data {
                     errs.push(format!("a device page claims complete and differs from the server [{at}: device {} server {}]", wire::to_json(&local.data), wire::to_json(&server.data)));
                 }
                 // A carried windowed device may legitimately defer after deletions.
@@ -1074,10 +1161,15 @@ fn two_parties_every_sequence_of_two_writes() {
 #[ignore = "opt-in: SNAPBACK4_EXHAUSTIVE_DEPTH (default 3)"]
 fn every_world_deeper() {
     let depth = depth();
-    for world in [windowed_world(), staff_world(), parties_world()] {
+    for world in [windowed_world(), staff_world(), parties_world(), three_world()] {
         let name = world.name;
         assert_clean(name, exhaust(world, depth), depth);
     }
+}
+
+#[test]
+fn three_parties_every_sequence_of_two_writes() {
+    assert_clean("three parties", exhaust(three_world(), BLOCKING_DEPTH), BLOCKING_DEPTH);
 }
 
 #[test]

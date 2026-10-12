@@ -914,11 +914,23 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { images_at: Some(head), acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
+    // A group acquired by a join reads its log after the join's commit: the
+    // join's expansion delivers the group's rows as they are now, and an
+    // event of that same commit (a row deleted or moved out beside the join)
+    // names a row the joiner never held at a commit boundary (D2). A
+    // continuous renewal keeps reading from its own commit, as its
+    // predecessor span ends there and no expansion follows it.
+    // @ref LLP 3000.036.000.000#3 — round 2 (GPT finding 1): no id from the acquiring commit.
+    let renewals: Vec<u64> = held.values().flat_map(|spans| spans.iter().filter(|span| span.from_ord.is_some() && span.from > watermark).map(|span| span.from)).collect();
+    let renewal_times = if renewals.is_empty() { BTreeMap::new() } else { tx.commit_times(&renewals)? };
     for ((table, group), intervals) in &held {
         let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        for interval in intervals {
-            if interval.to.is_none_or(|(seq, _)| seq > interval.from) {
-                spans.push((group_partition(table, &group), interval.from, interval.to.map(|(seq, _)| seq), interval.expires_at));
+        for (n, interval) in intervals.iter().enumerate() {
+            let acquired = interval.from_ord.is_some_and(|ord| !n.checked_sub(1).map(|i| &intervals[i])
+                .is_some_and(|prior| continuous_renewal(prior, interval.from, ord, &renewal_times)));
+            let from = if acquired { interval.from.saturating_add(1) } else { interval.from };
+            if interval.to.is_none_or(|(seq, _)| seq > from) {
+                spans.push((group_partition(table, &group), from, interval.to.map(|(seq, _)| seq), interval.expires_at));
             }
         }
     }

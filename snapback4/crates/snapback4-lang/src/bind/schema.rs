@@ -42,7 +42,8 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
     for maintain in catalog.maintains.values() {
         if maintain.row_key.is_some() || maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
-        let sync = schema.tables.get(&maintain.source).and_then(|t| t.sync.clone());
+        // @ref LLP 3000.036.000.000#5.4 — an aggregate over a union source is answered by the server: it inherits no audience.
+        let sync = schema.tables.get(&maintain.source).and_then(|t| t.sync.clone()).filter(|sync| !sync.is_union());
         if let Some(sync) = sync {
             let aliases = super::maintains::inherited_aliases(&catalog.tables[&maintain.source], maintain);
             let output = |column: &String| aliases.iter().find_map(|(out, capture)| (capture == column).then(|| out.clone()))
@@ -514,7 +515,7 @@ fn audience_split(_catalog: &Catalog, info: &TableInfo, rule: &RuleExpr) -> Stri
     }
     if disjuncts.len() > 1 && let Some(branch) = disjuncts.iter().find(|disjunct| !whole(disjunct)) {
         let arms: Vec<String> = disjuncts.iter().filter(|disjunct| whole(disjunct)).map(|disjunct| disjunct.quarry()).collect();
-        return format!("each `or` branch of a synced read rule is one whole audience, `.column = viewer` or `exists group[.columns, viewer]`, and `{}` is not: keep its extra condition in the queries and mutations (`where ...`, `require ... else CODE`) and read under `{}`, which syncs as a union (guide sharing){online}",
+        return format!("each `or` branch of a synced read rule is one whole audience, `.column = viewer` or `exists group[.columns, viewer]`, and `{}` is not: keep its extra condition in the queries and mutations (`where ...`, `require ... else CODE`) and read under `{}`, which syncs as a union; or give its readers rows in a membership table synced to its members and read through it (guide sharing){online}",
             branch.quarry(), if arms.is_empty() { ".owner = viewer or exists members[.group, viewer]".to_owned() } else { arms.join(" or ") });
     }
     format!("give each reader a row in a membership table synced to its members, and read through it: `table {table}Readers:` with `item: {table}`, `reader: principal`, `unique item, reader`, `immutable item, reader`, `read <- .reader = viewer`, `insert <- created {table}[.item] or exists {table}Readers[.item, viewer]`, `sync`; then here `read <- exists {table}Readers[.id, viewer]` and `sync to {table}Readers[.id] by .reader` (guide sharing){online}")

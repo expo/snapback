@@ -1307,7 +1307,7 @@ fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, gro
     if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
     let Some(sync) = &table.sync else { return Ok(()) };
     let prefix = audience_prefix(table);
-    let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
+    let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
     let Some(index) = index else { return Ok(()) };
     let mut bounds = Bounds::default();
     loop {

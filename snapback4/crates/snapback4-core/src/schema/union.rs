@@ -7,7 +7,7 @@ use super::*;
 // @ref LLP 3000.036.000.000#2.2 — every disjunct is one arm and every arm one disjunct, so each partition's recipients are readers and every reader has a partition.
 pub(super) fn validate(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
-    let line = sync.line();
+    let line = sync.line_in(table);
     let arms: Vec<(&Audience, Option<&Horizon>)> = sync.arms().collect();
     if sync.also.iter().any(|arm| !matches!(arm.audience, Audience::Column(_))) {
         issue(issues, format!("{line}: a union's further arms are principal columns; its one group audience is its first arm"));
