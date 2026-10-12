@@ -207,7 +207,7 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
 /// The meter a reservation exceeds for a mutation (or a job), if any.
 fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
     let c = if job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };
-    let limits = [(price[3], c.rows_written, "rows written"), (price[2], c.examined, "rows examined"), (price[1], c.index_entries, "index entries"), (price[0], c.steps, "steps"), (price[4], c.heap_bytes, "heap bytes"), (price[6], c.rule_probes, "rule probes")];
+    let limits = [(price[3], c.rows_written, "rows written"), (price[2], c.examined, "rows examined"), (price[1], c.index_entries, "index entries"), (price[0], c.steps, "steps"), (price[4], c.heap_bytes, "heap bytes"), (price[5], c.output_bytes, "output bytes"), (price[6], c.rule_probes, "rule probes")];
     limits.iter().find(|(used, limit, _)| used > limit).map(|(used, limit, kind)| format!("{used} {kind} (a {} may use {limit})", if job { "job chunk" } else { "mutation" }))
 }
 

@@ -85,7 +85,7 @@ fn world(tasks: usize) -> Engine {
 #[test]
 fn cascade_deletes_hidden_children_and_the_trace_is_schema_fixed() {
     let mut empty = world(0);
-    let mut full = world(3);
+    let mut full = world(9);
     let a = empty.mutate("dropProject", None, ctx("alice", &[("id", id("p"))])).unwrap();
     let b = full.mutate("dropProject", None, ctx("alice", &[("id", id("p"))])).unwrap();
     assert_eq!(refusal(&a), None, "{a:?}");
@@ -195,6 +195,87 @@ mutation dropRoot(id: roots):
         assert_eq!(why.code, "E_REFERENCED");
         assert!(why.message.contains("xx.a"), "{why:?}");
     }
+}
+
+#[test]
+fn a_self_reference_on_the_root_does_not_hide_an_outside_holder() {
+    let source = r#"
+table nodes:
+  parent: nodes ?
+  read <- allow
+  delete <- allow
+mutation drop(id: nodes):
+  delete nodes[id]
+"#;
+    // a names itself and sorts first under its own id; b names a from outside.
+    let mut e = engine(source);
+    e.seed_at(vec![row("nodes", &[("id", id("a")), ("parent", id("a"))]), row("nodes", &[("id", id("b")), ("parent", id("a"))])], 500).unwrap();
+    let out = e.mutate("drop", None, ctx("alice", &[("id", id("a"))])).unwrap();
+    assert_eq!(refusal(&out).as_deref(), Some("E_REFERENCED"), "{out:?}");
+    // A row that names only itself is no holder.
+    assert_eq!(refusal(&e.mutate("drop", None, ctx("alice", &[("id", id("b"))])).unwrap()), None);
+    assert_eq!(refusal(&e.mutate("drop", None, ctx("alice", &[("id", id("a"))])).unwrap()), None);
+    assert_eq!(count(&e, "nodes"), 0);
+}
+
+#[test]
+fn set_null_writes_each_row_from_its_current_image() {
+    let source = r#"
+table categories:
+  read <- allow
+  delete <- allow
+table nodes:
+  category: categories ? on delete set null
+  parent: nodes ? on delete keep
+  filed: count nodes where .category != null by parent
+  cap 20 by category
+  read <- allow
+  delete <- allow
+  online only
+mutation dropCategory(id: categories):
+  delete categories[id]
+"#;
+    // Clearing a's category recounts b's `filed`; b's own clear must not write back its stale count.
+    let mut e = engine(source);
+    let mut rows = vec![row("categories", &[("id", id("c"))]), row("nodes", &[("id", id("a")), ("category", id("c")), ("parent", id("b"))]), row("nodes", &[("id", id("b")), ("category", id("c")), ("parent", Value::Null)])];
+    // More rows than a page, so the walk resumes past what it already cleared.
+    for i in 0..7 { rows.push(row("nodes", &[("id", id(&format!("n{i}"))), ("category", id("c")), ("parent", Value::Null)])); }
+    e.seed_at(rows, 500).unwrap();
+    let out = e.mutate("dropCategory", None, ctx("alice", &[("id", id("c"))])).unwrap();
+    assert_eq!(refusal(&out), None, "{out:?}");
+    let nodes = e.store().rows("nodes").unwrap();
+    assert_eq!(nodes.len(), 9);
+    assert!(nodes.iter().all(|n| n.field("category").is_ok_and(|c| *c == Value::Null)), "{nodes:?}");
+    let b = nodes.iter().find(|n| n.field("id").is_ok_and(|i| *i == id("b"))).unwrap();
+    assert_eq!(b.field("filed").unwrap(), &Value::Int(0), "{b:?}");
+}
+
+#[test]
+fn the_reply_counts_events_by_schema_not_by_what_actions_reached() {
+    let source = r#"
+table projects:
+  tasks: count tasks by project
+  read <- allow
+  delete <- allow
+  online only
+table tasks:
+  project: projects on delete keep
+  bucket: projects on delete cascade
+  cap 10 by bucket
+  read <- deny
+  online only
+mutation drop(id: projects):
+  delete projects[id]
+"#;
+    // The same readable root, one task naming it either way; only the hidden bucket differs.
+    let run = |bucket: &str| {
+        let mut e = engine(source);
+        e.seed_at(vec![row("projects", &[("id", id("p"))]), row("projects", &[("id", id("q"))]), row("tasks", &[("id", id("t")), ("project", id("p")), ("bucket", id(bucket))])], 500).unwrap();
+        let out = e.mutate("drop", None, ctx("alice", &[("id", id("p"))])).unwrap();
+        assert_eq!(refusal(&out), None, "{out:?}");
+        (out.events, out.tables, out.metered)
+    };
+    assert_eq!(run("q"), run("p"));
 }
 
 fn diagnostics(source: &str) -> Vec<String> {

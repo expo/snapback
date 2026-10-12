@@ -733,10 +733,6 @@ impl Runner<'_> {
             }
         }
         self.rows_written += 1;
-        // @ref LLP 3000.038#4.2 — rows a delete's actions change, derived rows included, are not counted in the reply.
-        if self.in_reference_actions && let Some(id) = old.or(new).and_then(|row| row.field("id").ok()).and_then(|id| id.as_str().ok()) {
-            self.action_rows.insert((table_name.to_owned(), id.to_owned()));
-        }
         if origin == Origin::Maintained { self.charge_maintain(MeterKind::RowsWritten, 1)?; }
         else { self.meter.charge(MeterKind::RowsWritten, 1)?; }
         let table = self.schema.table(table_name).expect("validated");

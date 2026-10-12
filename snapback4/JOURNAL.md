@@ -92573,3 +92573,16 @@ schema, so all-keep schemas stay byte-identical and capability-free.
 - **What was hard:** disclosure is everywhere a delete is observable — the
   meter, the touched tables, footprints, event counts, the physical
   allowance, refusal order — and each review round found another channel.
+- **Fourth round** (revision 3 with its code; GPT NOT READY, Muse READY WITH
+  CHANGES): the code fell short of its own reservation and two interactions
+  leaked or corrupted. Fixed: walks stream four-row pages and keep identities
+  only (a restrict probe streams a row per seek past the closure, the root
+  included — a self-referencing root had hidden an outside holder); set null
+  rereads each row before clearing it (a buffered image overwrote another
+  clear's maintained count); the reply's event count is decided by the
+  static action envelope, not by which rows actions reached; the reservation
+  prices the pages and charges output. The shipped Following recipe's
+  `feed.eventId` now says `on delete keep` (its inbox purges lazily behind
+  tombstones; the new restrict default refused `deletePost`). run-lean 100k
+  and run-devices 0–2999 match the earlier runs signature for signature;
+  wasm 662,137 B gzip, within the raised budget.

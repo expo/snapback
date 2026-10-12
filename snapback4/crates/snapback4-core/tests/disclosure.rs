@@ -144,7 +144,7 @@ fn following_filter_cannot_use_a_private_immutable_field() {
         .source
         .replace("at: time default 0 written by .authorId", "at: time")
         .replacen(
-            "parentId: posts ?",
+            "parentId: posts ? on delete keep",
             "parentId: posts ? default null written by .authorId",
             1,
         );

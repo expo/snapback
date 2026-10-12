@@ -42,6 +42,8 @@ pub fn reference_index_name(column: &str) -> String { format!("{REFERENCE_INDEX_
 /// Heap a closure keeps per reached row: its table and id (an id is at most
 /// 144 canonical bytes) and the set and queue entries holding them.
 pub const CLOSURE_IDENTITY_BYTES: u64 = 384;
+/// Child rows a cascade or set-null walk reads per seek (LLP 3000.038 §5.1).
+pub const REFERENCE_PAGE: usize = 4;
 
 impl Schema {
     /// Whether rows of `name` take part in referential actions, as child or
@@ -227,21 +229,34 @@ impl Schema {
                 identities = identities.saturating_add(n);
             }
             for r in self.referencing(table) {
+                // A capped walk holds one page of child images per seek.
                 let row = crate::engine::row_copy_ceiling(r.table);
-                heap = heap.max(row.saturating_mul(4));
+                heap = heap.max(row.saturating_mul(REFERENCE_PAGE as u64));
                 let seeks = if r.table.expiry_column().is_some() && r.table.through.as_ref().is_none_or(|t| t.reference != r.column) { 2 } else { 1 };
+                // A walk over a capped group: a seek per page, and a last, short page per range.
+                let walk = |cap: u64| seeks * n + cap.saturating_mul(n) / REFERENCE_PAGE as u64;
                 match r.action {
                     // A read-through child's probe: three seeks per closure row (LLP 3000.014 §6).
                     OnDelete::Restrict if r.table.through.as_ref().is_some_and(|t| t.reference == r.column) =>
                         if table != parent { add(&mut price, [3_u64, 0, 3, 0, 0, 0, 0].map(|v| v.saturating_mul(n))); },
-                    // One probe per closure row, which may skip the closure rows that name it.
-                    OnDelete::Restrict => add(&mut price, [2 * seeks * n + rows_of(r.child), seeks * n, seeks * n + rows_of(r.child) + n, 0, 0, 0, 0]),
-                    OnDelete::Cascade => add(&mut price, [2 * seeks * n, seeks * n, seeks * n, 0, 0, 0, 0]),
+                    // One probe per closure row, a row per seek: it may skip the closure
+                    // rows that name it (each names one target per reference), then stops
+                    // at its first outside witness.
+                    OnDelete::Restrict => {
+                        let probe = seeks * n + rows_of(r.child) + n;
+                        add(&mut price, [2 * probe, probe, seeks * n + rows_of(r.child) + n, 0, 0, 0, 0]);
+                    }
+                    OnDelete::Cascade => {
+                        let pages = walk(u64::from(self.reference_cap(r.child, r.column)?));
+                        add(&mut price, [2 * pages, pages, seeks * n, 0, 0, 0, 0]);
+                    }
                     OnDelete::SetNull => {
-                        let cleared = u64::from(self.reference_cap(r.child, r.column)?).saturating_mul(n);
+                        let cap = u64::from(self.reference_cap(r.child, r.column)?);
+                        let cleared = cap.saturating_mul(n);
                         let unit = self.unit_write(r.child)?;
                         heap = heap.max(unit[4]);
-                        add(&mut price, [2 * seeks * n, seeks * n, seeks * n, 0, 0, 0, 0]);
+                        let pages = walk(cap);
+                        add(&mut price, [2 * pages, pages, seeks * n, 0, 0, 0, 0]);
                         add(&mut price, [unit[0], unit[1], unit[2] + 1, unit[3], 0, unit[5], unit[6]].map(|v| v.saturating_mul(cleared)));
                     }
                     OnDelete::Keep => {}
@@ -250,8 +265,9 @@ impl Schema {
         }
         // The root is read again, current, before its own removal.
         price[2] = price[2].saturating_add(1);
-        // The closure's identities (table and id) are held until the last delete.
-        price[4] = heap.saturating_add(identities.saturating_mul(CLOSURE_IDENTITY_BYTES));
+        // The closure's identities (table and id) are held until the last
+        // delete, with the root's and one page of child ids.
+        price[4] = heap.saturating_add(identities.saturating_add(1 + REFERENCE_PAGE as u64).saturating_mul(CLOSURE_IDENTITY_BYTES));
         Some(price)
     }
 

@@ -86,8 +86,8 @@ fn paths_in_by_equality_calendar_and_exactly_one_hop() {
         let b = snapback4_lang::compile(&[("bad.q".into(), source)]);
         assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN" && d.guide == "maintains" && (d.message.contains(message) || d.rewrite.contains(message))), "{message}: {:?}", b.diagnostics);
     }
-    let source = SOURCE.replace("parentId: posts ?", "parentId: posts").replace("by postId.authorId", "by postId.parentId.authorId");
-    assert!(source.contains("parentId: posts\n") && !source.contains("parentId: posts ?"));
+    let source = SOURCE.replace("parentId: posts ? on delete keep", "parentId: posts on delete keep").replace("by postId.authorId", "by postId.parentId.authorId");
+    assert!(source.contains("parentId: posts on delete keep\n") && !source.contains("parentId: posts ?"));
     let b = snapback4_lang::compile(&[("required-chain.q".into(), source)]);
     assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN" && d.guide == "maintains" && d.message.contains("one hop")), "{:?}", b.diagnostics);
 }

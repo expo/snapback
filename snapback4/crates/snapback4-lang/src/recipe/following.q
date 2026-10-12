@@ -80,7 +80,7 @@ table removedEvents:               -- compact tombstones for deleted public sour
 
 table feed:                        -- private inbox, with app post references
   readerId: principal
-  eventId: posts
+  eventId: posts on delete keep      -- a removed event is purged lazily, behind its tombstone
   actorId: principal
   authorId: principal
   postId: id

@@ -26,10 +26,13 @@ impl Runner<'_> {
         };
         // @ref LLP 3000.038#4.2 — what the commit publishes is fixed by the schema, not by the rows the actions reach.
         let closure = schema.action_tables(table_name);
-        for table in &closure.written { if schema.visible(table) { self.written_tables.insert(table.clone()); } }
+        for table in &closure.written {
+            if schema.visible(table) { self.written_tables.insert(table.clone()); }
+            self.action_tables.insert(table.clone());
+        }
         for table in &closure.read { self.read_tables.insert(table.clone()); }
         if !closure.written.is_empty() { self.tx.widen_change_evidence(); }
-        for (kind, amount) in [(MeterKind::Steps, price[0]), (MeterKind::IndexEntries, price[1]), (MeterKind::Examined, price[2]), (MeterKind::RowsWritten, price[3]), (MeterKind::RuleProbes, price[6])] {
+        for (kind, amount) in [(MeterKind::Steps, price[0]), (MeterKind::IndexEntries, price[1]), (MeterKind::Examined, price[2]), (MeterKind::RowsWritten, price[3]), (MeterKind::OutputBytes, price[5]), (MeterKind::RuleProbes, price[6])] {
             if amount > 0 { self.meter.charge(kind, amount)?; }
         }
         let mark = self.meter.mark();
@@ -37,25 +40,18 @@ impl Runner<'_> {
         // @ref LLP 3000.038#3 — draw the reservation's rows from the request's physical allowance before the first seek.
         if !self.context.is_system() { self.tx.draw(table_name, price[2])?; }
         let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::unbounded(), Cut::Abort));
-        let outer = std::mem::replace(&mut self.in_reference_actions, true);
         let result = self.reference_closure(table_name, old);
-        self.in_reference_actions = outer;
         self.meter = meter;
         self.meter.release_heap(mark);
         result
     }
 
-    /// Steps 3–6.
+    /// Steps 3–6. The walk holds identities, never images: each child scan
+    /// streams `PAGE` rows per seek, and every write rereads its row current.
     fn reference_closure(&mut self, root_table: &str, root: &Value) -> Result<(), RuntimeError> {
         let schema = self.schema;
-        let key = |table: &str, row: &Value| -> Result<(String, String), RuntimeError> { Ok((table.to_owned(), row.field("id")?.as_str()?.to_owned())) };
-        let mut seen: BTreeSet<(String, String)> = BTreeSet::from([key(root_table, root)?]);
-        // The closure keeps identities only (images are re-read before each
-        // write), plus how many closure rows name each target through each
-        // reference: what a restrict probe must skip (LLP 3000.038 §5.1).
-        let mut reached: Vec<(String, String)> = Vec::new();
+        let mut seen: BTreeSet<(String, String)> = BTreeSet::from([(root_table.to_owned(), root.field("id")?.as_str()?.to_owned())]);
         // (Vectors, not maps: the web device pays for every new collection type.)
-        let mut naming: Vec<(String, String, String)> = Vec::new();
         let mut visits: Vec<(String, Value)> = vec![(root_table.to_owned(), root.field("id")?.clone())];
         // 3. Close over cascades, breadth first. Every reached row's referencing groups must be held on a device.
         let mut next = 0;
@@ -65,50 +61,53 @@ impl Runner<'_> {
             for r in schema.referencing(&table) {
                 if self.device && !through_reference(&r) { self.prove_reference_held(&r, &id)?; }
                 if r.action != OnDelete::Cascade { continue; }
-                for child in self.live_children(&r, &id)? {
-                    let child_key = key(r.child, &child)?;
-                    if !seen.insert(child_key.clone()) { continue; }
-                    for column in r.table.on_delete.keys() {
-                        if let Ok(target) = child.field(column).and_then(|value| value.as_str()) {
-                            naming.push((r.child.to_owned(), column.clone(), target.to_owned()));
-                        }
-                    }
-                    visits.push((r.child.to_owned(), child.field("id")?.clone()));
-                    reached.push(child_key);
-                }
+                self.each_child(&r, &id, true, &mut |_, child| {
+                    if seen.insert((r.child.to_owned(), child.as_str()?.to_owned())) { visits.push((r.child.to_owned(), child)); }
+                    Ok(true)
+                })?;
             }
         }
-        // 4. Restrict: every probe runs; the first occupied reference in schema order is reported.
-        let mut occupied: Vec<(String, String, String)> = Vec::new();
+        // 4. Restrict: every probe runs, streaming past closure rows (the root
+        // included) to the first outside witness; the first occupied reference
+        // in schema order is reported. One reference's probes visit each closure
+        // row at most once, plus one witness per probe (LLP 3000.038 §5.1).
+        let mut occupied: Option<(String, String, String)> = None;
         for (table, id) in &visits {
             for r in schema.referencing(table) {
                 if r.action != OnDelete::Restrict || through_reference(&r) { continue; }
-                // Skip only the closure rows that name this one: each closure row names
-                // one target per reference, so one reference's probes visit each closure
-                // row at most once, plus one witness per probe (LLP 3000.038 §5.1).
-                let target = id.as_str()?;
-                let inside = naming.iter().filter(|(child, column, named)| child == r.child && column == r.column && named == target).count();
-                let outside = self.children_page(&r, id, inside + 1)?.into_iter().any(|row| key(r.child, &row).is_ok_and(|k| !seen.contains(&k)));
-                if outside { occupied.push((r.child.to_owned(), r.column.to_owned(), table.clone())); }
+                let mut outside = false;
+                self.each_child(&r, id, false, &mut |_, child| {
+                    outside = !seen.contains(&(r.child.to_owned(), child.as_str()?.to_owned()));
+                    Ok(!outside)
+                })?;
+                let candidate = (r.child.to_owned(), r.column.to_owned(), table.clone());
+                if outside && occupied.as_ref().is_none_or(|o| candidate < *o) { occupied = Some(candidate); }
             }
         }
-        if let Some((child, column, parent)) = occupied.into_iter().min() {
+        if let Some((child, column, parent)) = occupied {
             #[cfg(feature = "sqlite")]
             self.refusing_clause(&child, &format!("{column}: {parent} (on delete restrict)"));
             let via = if parent == root_table { String::new() } else { format!(", through a {parent} row this delete cascades to") };
             return Err(RuntimeError::Structural { code: "E_REFERENCED", message: format!("{root_table} at {} is still referenced through {child}.{column} (on delete restrict){via}; delete or retarget those rows first, or declare the reference's action (guide writes)", self.statement_site) });
         }
-        // 5. Set null outside the closure, each from its current image.
+        // 5. Set null outside the closure, each row reread current before its write.
         for (table, id) in &visits {
             for r in schema.referencing(table) {
                 if r.action != OnDelete::SetNull { continue; }
-                for row in self.live_children(&r, id)? {
-                    if seen.contains(&key(r.child, &row)?) { continue; }
-                    self.clear_reference(r.child, r.column, row)?;
-                }
+                self.each_child(&r, id, true, &mut |runner, child| {
+                    let identity = (r.child.to_owned(), child.as_str()?.to_owned());
+                    if seen.contains(&identity) { return Ok(true); }
+                    let current = runner.metered_scan(|runner, allowance| runner.tx.get(allowance, &identity.0, &identity.1))?;
+                    if let Some(current) = current.filter(|row| row.field(r.column).is_ok_and(|v| v == id)) {
+                        runner.clear_reference(r.child, r.column, current)?;
+                    }
+                    Ok(true)
+                })?;
             }
         }
         // 6. Delete the closure, children first, each from its current image.
+        let reached: Vec<(String, String)> = visits[1..].iter().map(|(t, id)| Ok((t.clone(), id.as_str()?.to_owned()))).collect::<Result<_, RuntimeError>>()?;
+        drop(visits);
         for (table, id) in deletion_order(schema, &reached) {
             let current = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &table, &id))?;
             let Some(current) = current else { continue };
@@ -117,50 +116,57 @@ impl Runner<'_> {
         Ok(())
     }
 
-    /// The live rows referencing `id` through a writing reference: at most its cap.
-    fn live_children(&mut self, r: &Referencing<'_>, id: &Value) -> Result<Vec<Value>, RuntimeError> {
-        let cap = self.schema.reference_cap(r.child, r.column).map_or(usize::MAX, |cap| cap as usize);
-        let rows = self.children_page(r, id, cap.saturating_add(1))?;
-        // Activation validates caps and every write keeps them; more than the cap
-        // is a store that broke its own invariant, never a hidden-row count.
-        if rows.len() > cap { return Err(RuntimeError::Schema(format!("{}.{} holds more rows than its cap for one {} row", r.child, r.column, r.column))); }
-        Ok(rows)
-    }
-
-    /// Up to `limit` live rows referencing `id` through `r`, through its index:
-    /// seeks that start at the live suffix, so an expired backlog is never visited.
-    fn children_page(&mut self, r: &Referencing<'_>, id: &Value, limit: usize) -> Result<Vec<Value>, RuntimeError> {
+    /// Streams the ids of the live rows referencing `id` through `r` to
+    /// `visit`, through its index, until `visit` answers false. A capped walk
+    /// (cascade, set null) reads `PAGE` rows per seek and holds at most the
+    /// reference's cap; a restrict probe reads one row per seek, so it examines
+    /// nothing past its witness. Images are dropped before `visit` runs. Seeks
+    /// start at the live suffix, so an expired backlog is never visited.
+    fn each_child(&mut self, r: &Referencing<'_>, id: &Value, capped: bool, visit: &mut dyn FnMut(&mut Self, Value) -> Result<bool, RuntimeError>) -> Result<(), RuntimeError> {
         let schema = self.schema;
         let index = schema.reference_index(r.child, r.column).ok_or_else(|| RuntimeError::Schema(format!("{}.{} has no reference index", r.child, r.column)))?.to_owned();
+        let (cap, page_rows) = if capped { (schema.reference_cap(r.child, r.column).map_or(u64::MAX, u64::from), PAGE) } else { (u64::MAX, 1) };
         // @ref LLP 3000.038#2.3 — seek on the effective deadline (a read-through child's `$deadline`), so no expired row is visited.
-        let expiring = r.table.expiry_column().is_some() && !through_reference(r);
-        let mut rows = Vec::new();
-        if expiring {
+        let ranges = if r.table.expiry_column().is_some() && !through_reference(r) {
             let now = self.context.now.ok_or_else(|| RuntimeError::Input("delete clock is not pinned".into()))?;
-            for (prefix, bounds) in [(vec![id.clone(), Value::Null], Bounds::default()), (vec![id.clone()], Bounds { gt: Some(Value::Int(now)), ..Default::default() })] {
-                rows.extend(self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, &prefix, &bounds, Dir::Asc, limit))?.into_iter().map(|(row, _)| row));
-            }
-            rows.truncate(limit);
+            vec![(vec![id.clone(), Value::Null], None), (vec![id.clone()], Some(Value::Int(now)))]
         } else {
-            rows.extend(self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, std::slice::from_ref(id), &Bounds::default(), Dir::Asc, limit))?.into_iter().map(|(row, _)| row));
-        }
-        let full = rows.len() >= limit;
-        let mut live = Vec::with_capacity(rows.len());
-        for row in rows {
-            if self.device {
-                // @ref LLP 3000.014#5 — retained history is outside the quantifier; only a live, current (or own provisional) row is a witness.
-                if self.tx.retained_row(r.child, &row)? && !self.tx.current_row(r.child, &row)? { continue; }
-                if self.expired(r.table, &row) || !(self.tx.current_row(r.child, &row)? || self.is_provisional(r.child, &row)?) {
-                    return Err(RuntimeError::Prediction(format!("deleting needs a current image of every {} row that references it; queued without a local delete", r.child)));
+            vec![(vec![id.clone()], None)]
+        };
+        let (mut live, mut skipped) = (0_u64, 0_usize);
+        for (prefix, gt) in ranges {
+            let mut bounds = Bounds { gt, ..Default::default() };
+            loop {
+                let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, &prefix, &bounds, Dir::Asc, page_rows))?;
+                let more = page.len() == page_rows;
+                if let Some((_, key)) = page.last() { bounds.after = crate::key::decode(key).map(|v| v.into_iter().skip(prefix.len()).collect()); }
+                let mut ids = Vec::with_capacity(page.len());
+                for (row, _) in page {
+                    if self.device {
+                        // @ref LLP 3000.014#5 — retained history is outside the quantifier; only a live, current (or own provisional) row is a witness.
+                        if self.tx.retained_row(r.child, &row)? && !self.tx.current_row(r.child, &row)? {
+                            // A device wades through at most a page of retained history per scan.
+                            skipped += 1;
+                            if skipped > PAGE { return Err(RuntimeError::Prediction(format!("deleting needs every {} row that references it held; queued without a local delete", r.child))); }
+                            continue;
+                        }
+                        if self.expired(r.table, &row) || !(self.tx.current_row(r.child, &row)? || self.is_provisional(r.child, &row)?) {
+                            return Err(RuntimeError::Prediction(format!("deleting needs a current image of every {} row that references it; queued without a local delete", r.child)));
+                        }
+                    } else if self.expired(r.table, &row) { continue; }
+                    live += 1;
+                    // Activation validates caps and every write keeps them; more than the cap
+                    // is a store that broke its own invariant, never a hidden-row count.
+                    if live > cap { return Err(RuntimeError::Schema(format!("{}.{} holds more rows than its cap for one {} row", r.child, r.column, r.column))); }
+                    ids.push(row.field("id")?.clone());
                 }
-            } else if self.expired(r.table, &row) { continue; }
-            live.push(row);
+                for child in ids {
+                    if !visit(self, child)? { return Ok(()); }
+                }
+                if !more { break; }
+            }
         }
-        // A device that skipped retained history may have stopped short of a witness.
-        if self.device && full && live.len() < limit {
-            return Err(RuntimeError::Prediction(format!("deleting needs every {} row that references it held; queued without a local delete", r.child)));
-        }
-        Ok(live)
+        Ok(())
     }
 
     /// A device predicts only over a referencing group it holds completely.
@@ -196,6 +202,10 @@ impl Runner<'_> {
         })
     }
 }
+
+/// Rows a child scan holds per seek: the reservation's transient `4 × row`
+/// (LLP 3000.038 §5.1, `Schema::delete_reservation`).
+const PAGE: usize = crate::schema::references::REFERENCE_PAGE;
 
 fn through_reference(r: &Referencing<'_>) -> bool {
     r.table.through.as_ref().is_some_and(|t| t.reference == r.column)
