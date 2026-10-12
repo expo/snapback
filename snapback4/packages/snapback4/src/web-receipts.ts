@@ -3,14 +3,14 @@ import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { Persistence } from "./web.ts";
 import { claimStore } from "./web-ownership.ts";
 
-type TerminalReceipt = Exclude<Write, { state: "pending" }>;
+type TerminalReceipt = Exclude<Write, { state: "pending" }> & { upload_identity?: { fingerprint: string; op: string; viewer: string; store_id: string } };
 
 export function terminalReceipts(text: string | null | undefined): TerminalReceipt[] {
   if (!text) return [];
   // Only value-free terminal records cross tab boundaries, never outbox data.
-  return (JSON.parse(text) as Write[]).flatMap(write => write.state === "sent"
-    ? [{ state: "sent", id: write.id, seq: write.seq, replayed: true } as TerminalReceipt]
-    : write.state === "failed" ? [{ state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } } as TerminalReceipt] : []);
+  return (JSON.parse(text) as (Write & {upload_identity?:TerminalReceipt["upload_identity"]})[]).flatMap(write => write.state === "sent"
+    ? [{ state: "sent", id: write.id, seq: write.seq, replayed: true, ...(write.upload_identity?{upload_identity:write.upload_identity}:{}) } as TerminalReceipt]
+    : write.state === "failed" ? [{ state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` }, ...(write.upload_identity?{upload_identity:write.upload_identity}:{}) } as TerminalReceipt] : []);
 }
 
 export async function receiptHistory(persist: Persistence, name: string): Promise<TerminalReceipt[]> {

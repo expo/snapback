@@ -8,6 +8,7 @@ import { witnessRuntime } from "./witness-runtime";
 import type { WitnessContainer } from "./witness-core";
 
 interface Snapback4Native extends WitnessContainer {
+  saveAsset(hex: string, name: string): Promise<boolean>;
   readonly documentDirectory: string;
   open(path: string, backend: string | null): Promise<number>;
   call(handle: number, request: string): Promise<string>;
@@ -60,3 +61,12 @@ export const nativeDevice: DeviceOpener = {
     return core;
   },
 };
+
+import { saveWithHost } from "./save-asset";
+import type { Client } from "snapback4/contract";
+/** Presents the native save/share sheet; cancellation is a typed refusal. */
+export function saveAsset(client: Pick<Client, "asset">, id: string, name?: string) {
+  return saveWithHost(client, id, name, native ? (hex, filename) => native.saveAsset(hex, filename) : undefined);
+}
+export { uploadAndPlace, type UploadIntent, type UploadAndPlaceOptions } from "snapback4/local";
+export { useUpload } from "snapback4/react";

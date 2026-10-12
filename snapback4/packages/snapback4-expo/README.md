@@ -102,3 +102,7 @@ app and install the exact exported bundle/assets. Native changes rebuild;
 `npm run native:smoke` always runs Xcode. Both routes retain the same loaded-file
 hash and prime/offline/restart proof. Automatic smoke creates and removes its own
 recorded simulator, with project and device leases held through cleanup.
+
+For durable offline media, use the local client's `uploadAndPlace` or `useUpload`
+(re-exported here). `saveAsset(client, id, name?)` presents the iOS save/share sheet
+from authorized or retained bytes. See [the shared upload contract](../snapback4/OFFLINE-UPLOADS.md).

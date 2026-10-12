@@ -1,3 +1,4 @@
+import { recoverUploadHistory } from "./web-upload-admission.ts";
 import type { Persistence, Change } from "./web.ts";
 import type { AdmissionAuthorityContext } from "./admission-authority.ts";
 import { AdmissionJournal, journalStores, journalStoreBinding } from "./web-journal.ts";
@@ -49,7 +50,8 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
       });
       if (recovered.history && !await shareReceipts(persist, name, recovered.history)) { waitForLock(`${name}:receipts`); continue; }
       const entries = recovered.entries.sort((a, b) => a.seq - b.seq);
-      const existing = new Set(((await tx.invoke({ op: "queued" })).ok as Queued[]).map(e => e.id));
+      const destinationEntries=(await tx.invoke({op:"queued"})).ok as Queued[];
+      const existing=new Set(destinationEntries.map(e=>e.id)),existingMedia=new Set(destinationEntries.filter(e=>e.upload).map(e=>e.id));
       const transfers = new Map(recovered.markers.filter(c => c.v !== null).map(c => [c.k, JSON.parse(c.v!)]));
       const removed = new Set<string>();
       let unresolved = false;
@@ -59,10 +61,16 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
         if (binding === "retire") { removed.add(entry.id); continue; }
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!recovered.state.store_id || !destination.store_id)) { unresolved = true; continue; }
-        if ((!known || recovered.state.store_id === destination.store_id) && !existing.has(entry.id)) {
+        if(entry.upload||existingMedia.has(entry.id)){
+          const receipt=await recoverUploadHistory(tx.invoke,persist,name,entry as unknown as Record<string,unknown>);
+          if(receipt?.denied){if((receipt.denied as {code?:string}).code==="E_WRITE_ID_REUSE"){unresolved=true;retry=true;break;}throw new Error(JSON.stringify(receipt.denied));}
+          if(receipt){removed.add(entry.id);continue;}
+        }
+        if ((!known || recovered.state.store_id === destination.store_id) && (!existing.has(entry.id)||entry.upload||existingMedia.has(entry.id))) {
           dirty = true;
           const next = await tx.invoke({ op: "next_submission" });
           const reply = await tx.invoke({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } });
+          if(["E_UPLOAD_QUOTA","E_WRITE_ID_REUSE"].includes(reply.denied?.code??"")){unresolved=true;retry=true;break;}
           if (reply.denied) throw new Error(JSON.stringify(reply));
           existing.add(entry.id);
         }

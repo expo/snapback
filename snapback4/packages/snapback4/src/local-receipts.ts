@@ -6,8 +6,8 @@ type Terminal = Exclude<Write, { state: "pending" }>;
 export function publicWrite(write: Terminal): Terminal;
 export function publicWrite(write: Write | undefined): Write | undefined;
 export function publicWrite(write: Write | undefined): Write | undefined {
-  if (!write || !("store_id" in write)) return write;
-  const { store_id: _binding, ...outcome } = write;
+  if (!write || (!("store_id" in write) && !("upload_identity" in write))) return write;
+  const { store_id: _binding, upload_identity: _identity, ...outcome } = write as Write & {store_id?:string;upload_identity?:unknown};
   return outcome;
 }
 type Call = (request: Record<string, unknown>) => Promise<{ denied?: Refusal }>;

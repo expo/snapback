@@ -1,3 +1,7 @@
+import { immediateUpload } from "./local-upload.ts";
+import { DeviceUploads } from "./uploads.ts";
+export { blobArrayBuffer } from "./assets.ts";
+export { uploadAndPlace, hasUploads, type UploadIntent, type UploadAndPlaceOptions, type UploadClient } from "./uploads.ts";
 import { LocalNetwork } from "./local-network.ts";
 import { intervalChanges, type Changes, type Footprint } from "./query-dependencies.ts";
 import { QueryCustody } from "./query-custody.ts";
@@ -56,7 +60,7 @@ export type { AcquisitionMarker } from "./local-sync.ts"; export type { MediaSto
 import { mintId } from "./client.ts";
 import { type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetQueue } from "./asset-download.ts";
-import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
+import { assetSource, fetchAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
@@ -302,7 +306,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (request.op === "queued" && Array.isArray(result.ok)) queryCustody.recovered(result.ok as Queued[]);
       if (request.op === "settle" && !result.denied) queryCustody.settled(String(request.id));
       if (!result.denied && request.op === "apply" && (result.ok as { published?: boolean })?.published === true) answers.published(Number((request.page as { watermark?: number }).watermark));
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
+      if (!result.denied && ["apply", "admit", "admit_upload", "upload_state", "upload_ready", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       const touched = (result.ok as { touched?: string[] } | undefined)?.touched;
       const cut = request.op === "apply" ? publishedApplyCut(request.page as Record<string, unknown>, (result.ok as { published?: boolean })?.published) : undefined;
@@ -1091,7 +1095,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = await network.run(async () => {
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
-          const current = (await queued()).find(current => current.id === entry.id);
+          let current = (await queued()).find(current => current.id === entry.id);
           if (!current) return { ok: true as const, retired: true as const };
           if (settling.has(entry.id)) return { ok: false as const };
           settling.add(entry.id);
@@ -1101,6 +1105,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity;
           if (!binding) return { ok: false as const };
           try {
+            const prepared = await uploads.prepare(current);
+            if (!prepared) return { ok: false as const };
+            if ("cancelled" in prepared) {
+              const why = { code: "E_UPLOAD_CANCELLED", family: "asset", message: "upload-and-place intent cancelled before placement dispatch" };
+              await settleReceipt(history, receiptCall, { state: "failed", id: entry.id, why }, undefined, binding);
+              return { ok: true as const, json: { state: "failed", why }, obsoleteAuth: false };
+            }
+            current = prepared.entry;
             const revision = credentialRevision;
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
@@ -1108,7 +1120,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
             if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const };
             ordinarySending = entry.id;
-            const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
+            let response = await post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response);
+            if (response.ok && current.upload && !response.obsoleteAuth) {
+              const why = (response.json.why ?? response.json.denied) as Refusal | undefined;
+              if (why && !why.retryable) {
+                const receipt = await uploads.finish(current, why);
+                if (!receipt) return { ok: false as const };
+                response = { ...response, json: receipt };
+              }
+            }
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
@@ -1168,7 +1188,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   let stopHost: void | (() => void);
   const followingHistory = new FollowingHistory(() => backend, () => notifyFollowing(client));
+  const uploads = new DeviceUploads({ base, viewer: principal, fetch: doFetch, signal: aborter.signal, current: () => !closed && !sessionDead && !rotating && !partitionDenied,
+    unavailable: () => unavailable() ?? partitionDenied, capture: captureStore, credentials: requestCredentials,
+    entry: (id, op, args) => mutationEntry(id, ++submissions, op, args, principal, clock.issuedDeviceNow(), backend!, true),
+    call: receiptCall, queued, write: id => client.write(id), notify: pending.notify, flush: () => { void flush(); }, subscribe: pending.subscribe });
   const client: LocalClient = {
+    uploadAndPlace: uploads.uploadAndPlace.bind(uploads), uploads: uploads.uploads.bind(uploads), uploadIntent: uploads.uploadIntent.bind(uploads),
+    retryUpload: uploads.retryUpload.bind(uploads), discardUpload: uploads.discardUpload.bind(uploads), onUploads: uploads.onUploads,
+    serverUploads: uploads.serverUploads.bind(uploads), cancelServerUpload: uploads.cancelServerUpload.bind(uploads),
     residency: () => readResidency(call, unavailable),
     now: clock.issuedDeviceNow,
     act(op, args, options) {
@@ -1262,41 +1289,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
-    async upload(bytes, options) {
-      if (refreshing) await refreshing;
-      const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
-      if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
-      if (link !== "online") return { ok: false as const, why: offline() };
-      const request = requestCredentials();
-      const sameSession = () => !refreshing && request.headers.authorization === headers.authorization;
-      const uploaded = await waitForCaller(uploadAsset(base, request.headers, doFetch, bytes,
-        () => !unavailable() && link === "online" && sameSession(), options), aborter.signal);
-      const interrupted = (): Refusal | null => unavailable() ?? (!sameSession()
-        ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
-      let why = interrupted();
-      if (!uploaded || why) return { ok: false, why: why! };
-      if (uploaded.ok) {
-        let finish!: () => void;
-        const keeping = new Promise<void>(resolve => { finish = resolve; });
-        active.add(keeping); // Close must wait for receipt cleanup as well as its write.
-        try {
-          const stored = await core.call({ op: "upload_facts", viewer: principal, asset: uploaded.asset }) as { denied?: Refusal };
-          // No helper-promise gap between this check and settling upload().
-          why = interrupted();
-          if (why) {
-            // A cleanup refusal cannot replace the upload's session refusal.
-            await core.call({ op: "forget_upload_facts", viewer: principal, id: uploaded.asset.id });
-            return { ok: false, why };
-          }
-          return stored.denied ? { ok: false, why: stored.denied } : uploaded;
-        } finally { active.delete(keeping); finish(); }
-      }
-      await refusedSession(uploaded.why, credentialRevision);
-      why = interrupted();
-      if (why) return { ok: false, why };
-      if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
-      return uploaded;
-    },
+    upload: immediateUpload({ get refreshing() { return refreshing; }, unavailable, get partitionDenied() { return partitionDenied; }, get link() { return link; },
+      base, requestCredentials, headers, doFetch, aborter, active, core, principal, refusedSession, get credentialRevision() { return credentialRevision; }, setLink }),
     asset: assetReader(async (id, progress) => {
       const denied = unavailable(); if (denied) return { denied };
       progress("media"); await media!.reconcile(); if (refreshing) { progress("refresh"); await refreshing; } // @ref LLP 3000.008.002.000#6 — reconcile expiry, then wait for the active bearer.

@@ -5,6 +5,7 @@ import type { evaluateLocal } from "./local-query.ts";
 export type LocalResult<R> = Awaited<ReturnType<typeof evaluateLocal<R>>> & { incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined };
 
 export interface Queued {
+  upload?: import("./uploads.ts").UploadDependency;
   id: string;
   seq: number;
   op: string;

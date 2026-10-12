@@ -1,3 +1,4 @@
+import { captureUploadAuthority, authorizeUpload, recoverUploadHistory, preflightUpload } from "./web-upload-admission.ts";
 import { drainChanges } from "./web-drain.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { afterStoreLock } from "./app-storage.ts";
@@ -291,6 +292,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           };
           const dispatch = () => {
             if (!suspended || closing || !device) return;
+            const candidates = [...committed.values()].filter(e => successSequence(e) == null).sort((a, b) => a.seq - b.seq);
+            if (candidates[0]?.upload && candidates[0].upload.state !== "placing") return;
             const entries: PendingSend[] = [...committed.values()].filter(e => successSequence(e) == null).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids, store_id: e.receipt_store?.id ?? journal.boundStore(e.id) ?? undefined }));
             if (entries.length) flush(entries, () => beginSend(entries[0]!.id));
@@ -328,6 +331,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
             const denied = capture(request);
             if (denied) return Promise.resolve({ denied });
           }
+          const uploadStamp=captureUploadAuthority(request,journal.authority);
           const admission = prepared.get(request);
           prepared.delete(request);
           if (admission) { request = { ...request, entry: admission.entry }; admissions.add(admission.entry.id); }
@@ -337,6 +341,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               // a failed call discards its uncommitted memory. Reopen lazily
               // on the kept backend, with no store copy on successful calls.
               if (!device) await restore();
+              if(request.op==="admit_upload"){
+                const ownership=await preflightUpload(request.entry as Record<string,unknown>,input=>JSON.parse(device!.call(JSON.stringify(input))),persist,name,uploadStamp,journal.authority);
+                if(!ownership.continue_upload){await settle([],()=>committedReply?.(ownership));return ownership;}
+              }
               await recoverOpening();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const execute = async (): Promise<Record<string, unknown>> => {
@@ -387,6 +395,10 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                     return { denied: bindingRefusal(binding === "defer" ? "defer" : "retire") };
                   }
                 }
+                if(request.op==="admit_upload"){
+                  const known=await recoverUploadHistory(input=>JSON.parse(device!.call(JSON.stringify(input))),persist,name,request.entry as Record<string,unknown>);
+                  if(known){await settle([],()=>committedReply?.(known));return known;}
+                }
                 const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId, request.expected_generation as number | undefined, request.expected_backend as string | undefined) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
                 if (request.op === "queued" && Array.isArray(reply.ok)) {
                   reply.ok = reply.ok.map(entry => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
@@ -394,7 +406,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
                 try {
-                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply), request.op === "begin_send" || request.op === "hold_write", current);
+                  await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply), request.op === "begin_send" || request.op === "hold_write" || request.op === "upload_state", current);
                 } catch (error) {
                   if (error === staleCollection) { discard(); return { ok: true }; }
                   if (!admission || !writeRefusal(reply)) throw error;
@@ -409,7 +421,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 const denied = { denied: admissionAuthorityRefusal() };
                 await settle(journal.refused(admission), () => committedReply?.(denied));
                 return denied;
-              }) : await execute();
+              }) : uploadStamp && journal.authority ? await authorizeUpload(uploadStamp,journal.authority,String((request.entry as Queued | undefined)?.viewer??""),execute) : await execute();
               const observesStore = request.op === "observe_store" || request.op === "apply";
               if (!reply.denied && (request.op === "adopt" || observesStore)) {
                 await recoverOrphans();
@@ -526,7 +538,8 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       for (const change of saved) if (change.s === "o") latest.set(change.k, change.v);
       const entries = [...latest.values()].filter((v): v is string => v !== null).map(v => JSON.parse(v) as { id: string; seq: number; sent_seq?: number | null; observed_seq?: number | null });
       entries.sort((a, b) => a.seq - b.seq);
-      const existing = new Set((JSON.parse(device.call(JSON.stringify({ op: "queued" }))).ok as { id: string }[]).map(e => e.id));
+      const destinationEntries=JSON.parse(device.call(JSON.stringify({op:"queued"}))).ok as Queued[];
+      const existing=new Set(destinationEntries.map(e=>e.id)),existingMedia=new Set(destinationEntries.filter(e=>e.upload).map(e=>e.id));
       const transfers = new Map(saved.filter(c => c.s === "j" && c.v !== null).map(c => [c.k, JSON.parse(c.v!) as { recovered: boolean; storeId: string }]));
       const removed: Change[] = [];
       let unresolved = false;
@@ -537,10 +550,16 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         if (binding === "retire") { removed.push({ s: "o", k: entry.id, v: null }); continue; }
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!source || !destination)) { unresolved = true; continue; }
-        if ((!known || source === destination) && !existing.has(entry.id)) {
+        if(("upload" in entry)||existingMedia.has(entry.id)){
+          const receipt=await recoverUploadHistory(input=>JSON.parse(device.call(JSON.stringify(input))),persist,name,entry as Record<string,unknown>);
+          if(receipt?.denied){if((receipt.denied as {code?:string}).code==="E_WRITE_ID_REUSE"){unresolved=true;retry=true;break;}throw new Error(JSON.stringify(receipt.denied));}
+          if(receipt){removed.push({s:"o",k:entry.id,v:null});continue;}
+        }
+        if ((!known || source === destination) && (!existing.has(entry.id)||("upload" in entry)||existingMedia.has(entry.id))) {
           destinationDirty = true;
           const next = JSON.parse(device.call(JSON.stringify({ op: "next_submission" }))) as { ok?: number };
           const reply = JSON.parse(device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } })));
+          if(["E_UPLOAD_QUOTA","E_WRITE_ID_REUSE"].includes(reply.denied?.code??"")){unresolved=true;retry=true;break;}
           if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
           existing.add(entry.id);
         }

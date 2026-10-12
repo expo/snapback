@@ -1,3 +1,4 @@
+import { guardUploads } from "./app-uploads.ts";
 import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
 import { guardFollowing, notifyFollowing } from "./following-transport.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
@@ -304,6 +305,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       cleanups.add(stop); return () => { cleanups.delete(stop); stop(); };
     },
   };
+  guardUploads(client,raw,refusal,valid,why,listen);
   guardFollowing(client, raw, refusal, () => valid() && followingAdmissions === 0);
   guardPendingIntents(client, raw, valid, refusal);
   forwardIntentObserver(client, raw, valid);
