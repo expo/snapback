@@ -614,13 +614,18 @@ fn merge_position_part<'a>(table: &'a Table, index: &'a crate::schema::Index, pr
 pub fn covering_grant(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     let party = |d: &RuleExpr| matches!(d, RuleExpr::Eq(RuleTerm::Field(_), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(_)));
-    let others: Vec<&RuleExpr> = table.rules.read.disjuncts().into_iter().filter(|d| !party(d)).collect();
+    let pinned = scan_pinned(table, scan);
+    let pinned_map: BTreeMap<_, _> = pinned.iter().map(|(column, value)| (*column, *value)).collect();
+    // `page_guard_decision` returns these prefix-simplified forms. Compare
+    // the read rule in the same domain, including exact boolean pins.
+    let others: Vec<RuleExpr> = table.rules.read.disjuncts().into_iter().filter(|d| !party(d))
+        .map(|disjunct| simplify_prefix(disjunct, &scan.table, table, &pinned_map)).collect();
     // A rule of parties alone: the grant lane holds for nobody but the system,
     // which reads every row (GPT round 3, finding 1).
     if others.is_empty() { return Some(RuleExpr::Deny); }
     let guard = page_guard_decision(schema, scan)?;
     let guards: Vec<&RuleExpr> = match &guard { RuleExpr::Or(guards) => guards.iter().collect(), one => vec![one] };
-    others.into_iter().all(|d| guards.contains(&d)).then_some(guard)
+    others.iter().all(|d| guards.contains(&d)).then_some(guard)
 }
 
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and

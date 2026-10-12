@@ -190,6 +190,37 @@ fn owner_or_staff_is_one_query_complete_for_everyone() {
 }
 
 #[test]
+fn covering_grants_share_boolean_prefix_normalization() {
+    for (name, column, guard, predicate, selected, other) in [
+        ("allow", "bool", "allow and exists staff[viewer]", ".enabled = true", Value::Bool(true), Value::Bool(false)),
+        ("not-deny", "bool", "not deny and exists staff[viewer]", ".enabled = true", Value::Bool(true), Value::Bool(false)),
+        ("bare", "bool", ".enabled and exists staff[viewer]", ".enabled = true", Value::Bool(true), Value::Bool(false)),
+        ("not", "bool", "not .enabled and exists staff[viewer]", ".enabled = false", Value::Bool(false), Value::Bool(true)),
+        ("ne", "bool", ".enabled != true and exists staff[viewer]", ".enabled = false", Value::Bool(false), Value::Bool(true)),
+        ("double-not", "bool", "not not .enabled and exists staff[viewer]", ".enabled = true", Value::Bool(true), Value::Bool(false)),
+        ("optional-null", "bool ?", ".enabled != true and exists staff[viewer]", ".enabled = null", Value::Null, Value::Bool(false)),
+    ] {
+        let source = format!("table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  enabled: {column}\n  at: int\n  read <- .owner = viewer or ({guard})\n  online only\nquery tickets(c: cursor ?):\n  return tickets where {predicate} last 1 by .at after c\n");
+        let b = clean(&source);
+        assert_eq!(branch_merges(&b, "tickets"), vec![(2, true)], "{name}");
+        assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{name}: {:#?}", b.notes);
+        let rows = vec![
+            ("staff", vec![("id", id("s1")), ("principal", id("sam"))]),
+            ("tickets", vec![("id", id("k1")), ("owner", id("alice")), ("enabled", selected.clone()), ("at", Value::Int(1))]),
+            ("tickets", vec![("id", id("k2")), ("owner", id("bob")), ("enabled", selected), ("at", Value::Int(2))]),
+            ("tickets", vec![("id", id("k3")), ("owner", id("alice")), ("enabled", other), ("at", Value::Int(3))]),
+        ];
+        let mut e = engine(&source, rows);
+        let (staff, complete) = walk(&mut e, "tickets", "sam", &[]);
+        assert_eq!(staff, ["k2", "k1"], "{name}");
+        assert!(complete.iter().all(|value| *value), "{name}: {complete:?}");
+        let (owner, complete) = walk(&mut e, "tickets", "alice", &[]);
+        assert_eq!(owner, ["k1"], "{name}");
+        assert!(complete.iter().all(|value| *value), "{name}: {complete:?}");
+    }
+}
+
+#[test]
 fn a_capped_fixed_probe_remains_an_ordinary_static_grant() {
     let source = "table access:
   bucket: int
