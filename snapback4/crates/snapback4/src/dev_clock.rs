@@ -64,6 +64,16 @@ impl Clock {
         // Production grace is elapsed real time, unaffected by wall-clock corrections.
         if self.dev { self.now() } else { self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64 }
     }
+    /// Back to wall time: the offset `--clock-offset` and every advance added
+    /// is dropped (a development reset's `{"clock":"reset"}`).
+    pub fn reset(&mut self) -> Result<i64, Refusal> {
+        if !self.dev { return Err(release()); }
+        self.revision += 1;
+        self.base = snapback4_core::now_ms();
+        self.started = Instant::now();
+        #[cfg(test)] { self.frozen = false; }
+        Ok(self.base)
+    }
     pub fn advance(&mut self, milliseconds: i64) -> Result<i64, Refusal> {
         if !self.dev { return Err(release()); }
         if milliseconds <= 0 { return Err(input("clock advance cannot move backwards; use a positive duration such as +2m")); }

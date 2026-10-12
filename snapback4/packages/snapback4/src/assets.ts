@@ -6,7 +6,8 @@
 
 import { downloadAsset, assetQueue } from "./asset-download.ts";
 import type { AssetProgress } from "./asset-progress.ts";
-import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
+import type { Asset, AssetRead, Refusal, Uploaded, UploadOptions } from "./contract.ts";
+import { dispositionName, uploadFile } from "./files.ts";
 
 export type Bytes = Blob | ArrayBuffer | Uint8Array;
 
@@ -37,11 +38,18 @@ function readBlob(blob: Blob, method: "readAsArrayBuffer" | "readAsDataURL"): Pr
   });
 }
 
+// The types a server serves: media, and the verifiable file types (LLP 3000.038 §2).
+const SERVED = ["image/jpeg", "image/png", "image/webp", "video/mp4", "application/pdf", "text/plain", "text/csv", "text/markdown",
+  "application/json", "image/gif", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation"];
+
 async function blobDataURL(blob: Blob, type: string, bytes: number): Promise<string> {
-  if (!["image/jpeg", "image/png", "image/webp", "video/mp4"].includes(type)) throw new Error("unsupported asset media type");
-  const result = await readBlob(blob, "readAsDataURL"), prefix = `data:${type};base64,`;
-  const encoded = result.slice(prefix.length), padding = (3 - bytes % 3) % 3;
-  if (!result.startsWith(prefix) || encoded.length !== 4 * Math.ceil(bytes / 3)
+  if (!SERVED.includes(type)) throw new Error("unsupported asset media type");
+  const result = await readBlob(blob, "readAsDataURL"), marker = result.indexOf(";base64,");
+  // A text file's Blob may carry `; charset=utf-8` between its type and the encoding.
+  const header = marker < 0 ? "" : result.slice(0, marker), encoded = result.slice(marker + ";base64,".length), padding = (3 - bytes % 3) % 3;
+  const declared = header.startsWith(`data:${type}`) && (header.length === `data:${type}`.length || /^;\s*charset=utf-8$/i.test(header.slice(`data:${type}`.length)));
+  if (!declared || encoded.length !== 4 * Math.ceil(bytes / 3)
     || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)
     || (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0) !== padding) throw new Error("invalid asset data URI");
   return result;
@@ -58,8 +66,12 @@ function ownBlob(blob: Blob): () => void {
   };
 }
 
-export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, canRetry: () => boolean = () => true): Promise<Uploaded> {
+export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, canRetry: () => boolean = () => true, options?: UploadOptions): Promise<Uploaded> {
   const { "content-type": _json, ...auth } = headers;
+  // @ref LLP 3000.038#3 — a file names its kind, filename and declared type; the server checks the type against the bytes.
+  const file = options?.file ? uploadFile(bytes, options.file) : undefined;
+  const target = file ? `${base}/assets?as=file&name=${encodeURIComponent(file.name)}` : `${base}/assets`;
+  const contentType = file?.type ?? "application/octet-stream";
   // Caller-owned buffers may change during admission backoff. Every attempt
   // sends the same selected byte range, including inputs from another realm.
   // Native Blob rejects buffer parts; its fetch accepts an owned buffer view.
@@ -71,7 +83,7 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
   try {
     let waited = 0;
     for (let attempt = 0; ; attempt++) {
-      const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
+      const response = await doFetch(target, { method: "POST", headers: { ...auth, "content-type": contentType }, body });
       let json: { asset?: Asset; denied?: Refusal } | null;
       try { json = await response.json(); }
       catch { return { ok: false, why: invalidResponse(response.status, "upload") }; }
@@ -112,18 +124,21 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
     progress("retention");
     const retained = await viewed?.(blob, response);
     if (retained) return retained;
-    const type = response.headers.get("content-type") ?? blob.type, bytes = blob.size;
+    // A text file is served with `; charset=utf-8`; the handle reports the media type.
+    const type = ((response.headers.get("content-type") ?? blob.type).split(";")[0] ?? "").trim(), bytes = blob.size;
+    const name = dispositionName(response.headers.get("content-disposition"));
+    const named = name === undefined ? {} : { name };
     progress("display");
     let url: string;
     try { url = URL.createObjectURL(blob); } catch {
       // @ref LLP 3000.011.005.000#8 — a host without working object URLs uses a transient copy, never a file
       let dataURL = await blobDataURL(blob, type, bytes);
-      return { get url() { return dataURL; }, type, bytes, revoke: () => { dataURL = ""; } };
+      return { get url() { return dataURL; }, type, bytes, ...named, revoke: () => { dataURL = ""; } };
     }
     const releaseHandle = release;
     release = undefined;
     let revoked = false;
-    return { url, type, bytes, revoke: () => {
+    return { url, type, bytes, ...named, revoke: () => {
       if (revoked) return;
       revoked = true;
       try { URL.revokeObjectURL(url); } finally { releaseHandle(); }

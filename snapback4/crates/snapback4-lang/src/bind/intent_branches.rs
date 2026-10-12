@@ -97,15 +97,18 @@ fn branches(tables: &Tables, requests: &Requests, read: &ReadExpr, grants: bool)
         }) {
         return Some(alternatives.iter().map(|alternative| (alternative.clone(), false)).collect());
     }
-    // Case 2: the read rule is parties and readable grants.
+    // Case 2: the read rule is parties and page guards: readable grants, and
+    // disjuncts the page's own pins decide (LLP 3000.036 §16.3), which the
+    // binding check confirms with the core's `covering_grant`.
     let mut disjunct_list = Vec::new();
     disjuncts(rule, &mut disjunct_list);
     if disjunct_list.len() < 2 { return None; }
+    let pinned: Vec<String> = conjuncts.iter().filter_map(|conjunct| intent::equality(conjunct, table).map(|(column, _)| column)).collect();
     let mut parties = Vec::new();
     let mut granted = false;
     for disjunct in &disjunct_list {
         if let Some(column) = party(table, disjunct) { if !parties.contains(&column) { parties.push(column); } }
-        else if row_independent(disjunct) { granted = true; }
+        else if columns_within(disjunct, &pinned) { granted = true; }
         else { return None; }
     }
     if parties.is_empty() || (granted && !grants) { return None; }
@@ -205,12 +208,29 @@ fn party(table: &TableInfo, value: &Expr) -> Option<String> {
     (table.columns.get(column)?.kind == TypeKind::Principal).then(|| column.to_owned())
 }
 
-/// A rule disjunct that reads no column of the row: a role or a seat.
-fn row_independent(value: &Expr) -> bool {
+/// A rule disjunct every row column of which the page pins: none for a role
+/// or a seat, the parent's column for a parent probe under its pin.
+fn columns_within(value: &Expr, pinned: &[String]) -> bool {
     let mut copy = value.clone();
-    let mut focal = false;
-    super::intent_walk::expression(&mut copy, &mut |value| if matches!(value, Expr::Focal { .. }) { focal = true; });
-    !focal
+    let mut within = true;
+    super::intent_walk::expression(&mut copy, &mut |value| {
+        if let Expr::Member { base, name, .. } = value && matches!(base.as_ref(), Expr::Focal { .. }) && !pinned.contains(name) { within = false; }
+        else if let Expr::Focal { .. } = value { /* reached through a member, checked there */ }
+    });
+    within && !has_focal_without_member(value)
+}
+
+/// A bare `.` (the whole row) is not a pinned column.
+fn has_focal_without_member(value: &Expr) -> bool {
+    match value {
+        Expr::Focal { .. } => true,
+        Expr::Member { base, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => false,
+        Expr::Member { base, .. } | Expr::Unary { value: base, .. } => has_focal_without_member(base),
+        Expr::Binary { left, right, .. } => has_focal_without_member(left) || has_focal_without_member(right),
+        Expr::Exists { read, .. } => read.keys.iter().any(|key| has_focal_without_member(&key.value)) || read.filter.as_deref().is_some_and(has_focal_without_member),
+        Expr::Call { args, .. } | Expr::Array { items: args, .. } => args.iter().any(has_focal_without_member),
+        _ => false,
+    }
 }
 
 /// A predicate whose evaluation never refuses: comparisons, `in` and boolean

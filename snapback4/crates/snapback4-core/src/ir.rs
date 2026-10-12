@@ -73,6 +73,11 @@ pub enum ArgType {
     Bytes { max: u32 },
     Image { max: u32 },
     Video { max: u32 },
+    File {
+        max: u32,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        types: Vec<String>,
+    },
     Int,
     Bool,
     Time,

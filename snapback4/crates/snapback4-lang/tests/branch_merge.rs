@@ -526,3 +526,49 @@ query mine(c: cursor ?):
         assert_eq!(walk(&mut old, "mine", viewer, &[]).0, walk(&mut new, "mine", viewer, &[]).0, "{viewer}");
     }
 }
+
+/// LLP 3000.036 §16.3 meets the merge: a party and a parent probe the page's
+/// pin decides. The guard is a grant lane over the pinned range: the parent's
+/// owner reads it whole, everyone else their party branch; both complete. A
+/// parent its holders cannot read is no guard, and the page keeps one index.
+#[test]
+fn a_pinned_parent_guard_is_a_branch_beside_its_party() {
+    let schema = |parent_read: &str| format!("table boards:
+  owner: principal
+  immutable owner
+  read <- {parent_read}
+  online only
+table cards:
+  board: boards
+  author: principal
+  at: int
+  immutable board, author
+  read <- .author = viewer or exists boards[.board, owner = viewer]
+  insert <- .author = viewer
+  online only
+query cards(board: boards, c: cursor ?):
+  return cards where .board = board last 2 by .at after c
+");
+    let rows = || vec![("boards", vec![("id", id("b1")), ("owner", id("olga"))]), ("boards", vec![("id", id("b2")), ("owner", id("pat"))]),
+        ("cards", vec![("id", id("k1")), ("board", id("b1")), ("author", id("ann")), ("at", Value::Int(1))]),
+        ("cards", vec![("id", id("k2")), ("board", id("b1")), ("author", id("bo")), ("at", Value::Int(2))]),
+        ("cards", vec![("id", id("k3")), ("board", id("b1")), ("author", id("ann")), ("at", Value::Int(3))]),
+        ("cards", vec![("id", id("k4")), ("board", id("b2")), ("author", id("ann")), ("at", Value::Int(4))])];
+    let open = schema("allow");
+    let b = clean(&open);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert_eq!(branch_merges(&b, "cards"), vec![(2, true)]);
+    let mut merged = engine(&open, rows());
+    let board = [("board", id("b1"))];
+    assert_eq!(walk(&mut merged, "cards", "olga", &board), (vec!["k3".into(), "k2".into(), "k1".into()], vec![true, true]));
+    assert_eq!(walk(&mut merged, "cards", "ann", &board).0, vec!["k3", "k1"]);
+    assert!(walk(&mut merged, "cards", "ann", &board).1.iter().all(|c| *c));
+    assert_eq!(walk(&mut merged, "cards", "pat", &board), (vec![], vec![true]), "another board's owner: empty, complete");
+    // A hidden parent: the probe is no guard, so the page reads as written.
+    let hidden = schema("deny");
+    let b = clean(&hidden);
+    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert_eq!(branch_merges(&b, "cards"), vec![]);
+    let mut capped = engine(&hidden, rows());
+    assert!(!walk(&mut capped, "cards", "ann", &board).1.iter().all(|c| *c));
+}

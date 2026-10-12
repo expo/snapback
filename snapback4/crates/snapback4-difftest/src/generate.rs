@@ -234,6 +234,7 @@ pub fn base(seed: u64) -> Case {
             order: None,
             residual: None,
             domain: None,
+            guard: None,
             prelude: vec![],
         },
         rows,

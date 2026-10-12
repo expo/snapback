@@ -874,7 +874,7 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let compact = p.run(&["check"]);
     assert!(compact.status.success());
     let compact = String::from_utf8(compact.stdout).unwrap();
-    assert!(compact.contains("N_MAINTAIN_SYNCED: 2 synced maintains: likeCounts, ownerCounts."), "{compact}");
+    assert!(compact.contains("N_MAINTAIN_SYNCED: no action for an online app. 2 synced maintains: likeCounts, ownerCounts."), "{compact}");
     assert!(compact.contains("createPost, like, repost would stop predicting"), "{compact}");
     assert!(!compact.contains("maintain likeCounts:"), "{compact}");
     let output = p.run(&["check", "--residency", "--verbose"]);
@@ -1583,8 +1583,9 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let card = snapback4_lang::guide::card(keyword).unwrap();
         assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword} --full prints the whole card");
         let (_, default) = guide(&[keyword]);
-        if card.lines().count() <= snapback4_lang::guide::FULL_LINES || snapback4_lang::guide::sections(card).is_empty() {
-            assert_eq!(default, full, "{keyword}: a short card prints whole");
+        // Wave 7: piped (as here and in agents' tools), a card up to the piped cap prints whole too.
+        if card.lines().count() <= snapback4_lang::guide::PIPED_FULL_LINES || snapback4_lang::guide::sections(card).is_empty() {
+            assert_eq!(default, full, "{keyword}: a card up to {} lines prints whole when piped", snapback4_lang::guide::PIPED_FULL_LINES);
         } else {
             // Piped, as here and in agents' tools, the overview also prints section 1 (wave 6);
             // the terminal form is the index-only overview (`guide::overview`, under 70 lines).
@@ -1612,9 +1613,13 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     let (code, audience) = guide(&["sync", "--section", "audience"]);
     assert_eq!(code, Some(0), "{audience}");
     assert!(audience.contains("# Sync") && audience.contains("sync to .col") && audience.lines().count() < 80, "one short section: {audience}");
-    let (code, spread) = guide(&["client", "--section", "React"]);
+    // Wave 7: the client card has a React section now; a word whose mentions tie across sections still lists them.
+    let (code, react) = guide(&["client", "--section", "React"]);
+    assert_eq!(code, Some(0), "{react}");
+    assert!(react.contains("## React hooks") && react.contains("matchRead") && !react.contains("## Row queries"), "{react}");
+    let (code, spread) = guide(&["rules", "--section", "Named"]);
     assert_eq!(code, Some(0), "{spread}");
-    assert!(spread.contains("its mentions span") && spread.contains("snapback4/react") && !spread.contains("nearest heading"), "{spread}");
+    assert!(spread.contains("its mentions span") && !spread.contains("nearest heading"), "{spread}");
     let (code, near) = guide(&["types", "--section", "Detials"]);
     assert_eq!(code, Some(1));
     assert!(near.contains("nearest heading: 2. Details") && near.contains("no line mentions it"), "{near}");

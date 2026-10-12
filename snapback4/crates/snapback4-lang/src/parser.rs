@@ -1067,6 +1067,31 @@ impl Parser {
                     self.take("<=")?;
                     TypeKind::Video { max: self.number()? }
                 }
+                // `file` is a type only before `<=`: a table named `file` stays a reference.
+                // @ref LLP 3000.038#1 — the allow-list names only types the server can verify against the bytes.
+                "file" if self.at("<=") => {
+                    self.take("<=")?;
+                    let max = self.number()?;
+                    let mut types = Vec::new();
+                    if self.maybe("(") {
+                        while !self.at(")") {
+                            let value = self.take_kind(Kind::Str)?;
+                            if let Some(why) = snapback4_core::assets::file_type_refusal(&value.value) {
+                                return Err(syntax_with(&value.site, why, format!("file <={max} ('application/pdf', 'text/plain')")).guide("assets"));
+                            }
+                            if types.contains(&value.value) {
+                                return Err(syntax_with(&value.site, format!("'{}' is listed twice", value.value), "list each media type once"));
+                            }
+                            types.push(value.value);
+                            if !self.maybe(",") { break; }
+                        }
+                        self.take(")")?;
+                        if types.is_empty() {
+                            return Err(syntax_with(&site, "a file allow-list needs at least one media type", format!("file <={max} ('application/pdf'), or file <={max} for every verifiable type")).guide("assets"));
+                        }
+                    }
+                    TypeKind::File { max, types }
+                }
                 "cursor" => TypeKind::Cursor,
                 "id" => TypeKind::Id,
                 "principal" => TypeKind::Principal,
@@ -1102,6 +1127,7 @@ impl Parser {
             match &mut kind {
                 TypeKind::Image { once, .. } => *once = true,
                 TypeKind::Video { .. } => return Err(syntax_with(&site, "once is only specified for image columns; video ranges are unspecified", "use photo: image <=10000000 once, or remove once from the video column")),
+                TypeKind::File { .. } => return Err(syntax_with(&site, "once is only specified for image columns; a downloaded file is saved by the browser, so one view cannot be kept", "remove once from the file column; use image <=10000000 once for one-view photos").guide("assets")),
                 _ => return Err(syntax_with(&site, "once is only specified for image columns", "remove once from this column; use image <=10000000 once for one-use images")),
             }
         }

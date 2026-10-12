@@ -4,8 +4,9 @@ import { api } from "../snapback/generated/api.ts";
 // Your first read, to replace: api.OP is your first query that takes no
 // required arguments. matchRead names the Read's states; `...otherwiseAll`
 // renders every state you do not name (loading, partial, denied), and
-// readPresentation(read).why is the refusal when there is one.
+// readPresentation(read).why is the refusal when there is one. A handler you
+// add (`partial: rows => …`, `denied: why => …`) wins wherever you write it.
 function FirstRead() {
   const read = useQuery(api.OP, {});
-  return <p>api.OP: {matchRead(read, { present: data => JSON.stringify(data).slice(0, 200), absent: () => "nothing yet", ...otherwiseAll(other => readPresentation(other).why?.message ?? "…") })}</p>;
+  return <p>api.OP: {matchRead(read, { ...otherwiseAll(other => readPresentation(other).why?.message ?? "…"), present: data => JSON.stringify(data).slice(0, 200), absent: () => "nothing yet" })}</p>;
 }

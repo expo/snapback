@@ -37,6 +37,9 @@ pub enum Rule {
     Witness,
     /// `.owner = viewer or exists access[.bucket, viewer]` (Lean variants).
     OwnerOrWitness,
+    /// `.owner = viewer or exists access[0, viewer]`: a readable grant that
+    /// reads no row column (LLP 3000.036 §12.1; Lean variants).
+    OwnerOrGrant,
     /// `.principal = viewer`, for `access` (Lean variants).
     Member,
     /// `update (old, next) <- old.owner = viewer and next.owner = viewer`.
@@ -56,6 +59,7 @@ impl Rule {
             Self::Owner => ".owner = viewer",
             Self::Witness => "exists access[.bucket, viewer]",
             Self::OwnerOrWitness => ".owner = viewer or exists access[.bucket, viewer]",
+            Self::OwnerOrGrant => ".owner = viewer or exists access[0, viewer]",
             Self::Member => ".principal = viewer",
             Self::NamedBoth => "old.owner = viewer and next.owner = viewer",
             Self::NamedNext => "next.owner = viewer",
@@ -231,6 +235,8 @@ pub enum Read {
     /// A loop over a bounded page summing a related row's column:
     /// `for row in <page>: t = tags[row.tag] ...` (the planner's `For` path).
     Fold,
+    /// A search `exists <domain>` (LLP 3000.036 §15.12; Lean variants).
+    Exists,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Write {
@@ -389,6 +395,11 @@ pub struct Program {
     /// a disjunction of pinned branches (LLP 3000.036.001).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub domain: Option<String>,
+    /// A last domain conjunct that reads no row column (`exists access[bucket,
+    /// viewer]`, `a < b`): a returned page's guard the compiler lowers to an
+    /// `if` (LLP 3000.036 §15.4; Lean variants).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guard: Option<String>,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -458,6 +469,9 @@ impl Program {
                 if let Some(residual) = &self.residual {
                     domain += &format!(" and {residual}");
                 }
+                if let Some(guard) = &self.guard {
+                    domain += &format!(" and {guard}");
+                }
                 let order = self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "));
                 let shape = project.as_ref().map_or(String::new(), |fields| {
                     let mut f = vec!["id"];
@@ -476,6 +490,7 @@ impl Program {
                         }
                     ),
                     Read::Count => format!("count({domain})"),
+                    Read::Exists => format!("exists {domain}"),
                     Read::Sum => format!("sum({domain}, .score)"),
                     Read::Min => format!("min({domain}, .score)"),
                     Read::Max => format!("max({domain}, .score)"),

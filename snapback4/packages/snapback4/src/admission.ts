@@ -15,6 +15,8 @@ export const admitNow = (core: DeviceCore, request: Record<string, unknown>) => 
 };
 export const browserAdmission = () => typeof window !== "undefined" && typeof window.location !== "undefined";
 export const BROWSER_WRITE_FIX = "createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() })";
+/** A browser app whose schema syncs no table (LLP 3000.013.000). */
+export const ONLINE_WRITE_FIX = "createApp({ url, sessionStore: localStorageSessionStore() })";
 let sdkClients = 0;
 /** Clients createApp opens for its own tiers are not the bare browser client
  * that createClient's construction warning is about. */

@@ -92520,6 +92520,114 @@ card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
 
+## 2026-10-12 — A development store reset: `POST /dev/reset` (author-approved)
+
+Test runners can now isolate tests against one running `snapback4 dev`.
+`POST /dev/reset` (and `snapback4 reset [--port N] [--seed <fixture dir|rows.json>]
+[--clock reset]`) empties the store in one SQLite transaction and can reseed it
+with `/seed`'s rows in the same transaction; a refused row resets nothing.
+"Fresh" keeps `_meta`, `_catalog` and `_generations` and service seats (the dev
+worker's session, `token` seats) and empties every other table it finds, so a
+table added later is emptied by default. The store takes a new `store_id`, and
+the reset is itself a commit, so the head keeps counting; clients treat it as a
+replaced store (local re-acquires, online halts `E_STORE_REPLACED`), and no
+client change was needed. The dev clock is kept unless `{"clock":"reset"}`.
+`serve` refuses it like `/seed`. A reset with a 20-row reseed takes ~1.4 ms
+median over HTTP in the debug build. Design in LLP 3000.007 §20.25; documented
+in `guide wire`, `guide testing` (a per-test recipe) and CLIENT-AND-OPERATIONS
+§5. `Engine::seed_at`'s body moved to `seed_rows` so the reset can run it inside
+its own transaction.
+
+- **What felt good:** the client side already handled a replaced store end to
+  end; the reset only had to look like one.
+- **What was hard:** choosing what survives. Personas need no rows, but the dev
+  worker holds a real session; keeping `service:` seats is what lets the worker
+  keep running across resets.
+
+## 2026-10-12 — File assets: a third kind beside image and video (LLP 3000.038)
+
+App-farm builders of receipts, contracts, sheet music, data rooms and lab
+results needed PDFs and were refused. The author approved a `file` type:
+`file <=N` or `file <=N ('application/pdf', ...)`, the image contract (one
+home, the home row's read rule, release and sweep), no transcoding. LLP
+1006 §13a had the deferred design; this lands it with one change, the
+per-column allow-list, checked at placement like the byte bound so the
+upload stays column-less.
+
+- **Verification.** Only types Snapback can check against the bytes may be
+  listed (PDF, plain/CSV/Markdown text, JSON, PNG/JPEG/WebP/GIF, zip and the
+  three OOXML types); HTML, SVG, XML and JavaScript are compile errors. The
+  upload (`POST /assets?as=file&name=`) declares its type in Content-Type;
+  a mismatch with the magic number (or invalid UTF-8/JSON for text) is
+  E_ASSET_TYPE. Undeclared binaries are named by their bytes; text never is.
+- **Bounds.** A file upload streams at most the schema's largest file bound
+  (413 E_ASSET_TOO_LARGE, before reading when Content-Length says so).
+- **Delivery.** Always an attachment: Content-Disposition with an ASCII
+  fallback and RFC 8187 name, nosniff, `default-src 'none'; sandbox`, text
+  as `text/plain; charset=utf-8`. HTML uploaded as text/plain is served as
+  text. Ranges work; `once` is refused on file columns.
+- **Names.** `_assets` gains `name` (added in place to older stores); the
+  filename keeps its last segment, loses control and bidi characters and
+  leading dots, at most 255 bytes, `file` when empty.
+- **Client.** `upload(bytes, { file: {} })`; `asset(id)` and `useAsset`
+  report `name`; `saveAsset` (`snapback4/client`) and `useSaveAsset` save on
+  demand. The contract gains an optional `UploadOptions` argument and an
+  optional `name` on `Asset`/`AssetRead`: additive, proposed here per the
+  one-owner rule; nothing existing changes shape.
+- **Device.** Upload receipts predict `file` arguments; a receipt of the
+  other kind never predicts (the server refuses the kind). Retained files
+  keep their name offline.
+- **wasm budget rises 2,116 B.** The same Linux build of 3add6058b7 measures
+  2,147,888 B raw / 648,672 B gzip; this tree 2,156,339 B / 650,940 B
+  (+2,268 B, 1,616 B over 649,324). The bytes are the device's share: two
+  serde struct variants (`ColumnType::File`, `ArgType::File` with the
+  allow-list), their display and match arms, and the receipt kind check.
+  Budget 651,440 B (measurement + 500 B), reason in `metrics/wasm-budget.json`.
+- **Deferred.** A native Expo document picker and "save to Files" helper
+  (`upload` and `asset` already work with React Native Blobs); audio types;
+  HEIC; previews.
+
+## 2026-10-12 — The Lean model catches up, and a pinned parent probe decides a page
+
+Three engine changes of 2026-10-11 (LLP 3000.036 §12.1 readable grants,
+§15.4 where guards, §15.12 search `exists`) had landed without the Lean
+model, whose hosts had no `lake`. The model now decides a scan by its pins
+or by a page guard evaluated over the caller's view, answers a search
+`exists` `true` on a visible match, `false` only when decided and otherwise
+unavailable, and the emitter translates grants, emits `exists t[key]` as a
+point read and applies the compiler's where-guard lowering. `lean::generate`
+draws all three from a third independent stream.
+
+Then the deferred §16.3 change: a read-rule disjunct whose row columns the
+scan's prefix pins, and whose probed rows its holders can read, is a page
+guard on the server (`rules::page_guard_decision`, evaluated once with the
+prefix's values), so the board owner's cards and the leader's roster are
+`complete: true`. `check` follows `if`/`require` on the pinned probe, the
+copy-the-principal recipe is gone, devices are unchanged (a union rule
+cannot sync). The model's C8 gained the same arm with `Rule.eval_pin`,
+`granted_readable` and `decided_store`; `./check.sh` audits 46 theorems and
+runs 42 examples, and `run-lean` over 100,000 cases shows only the
+classified C2/W4 signatures. The web device grows 578 B gzip (649,250 B,
+inside the 649,324 B budget) after sharing the grant and prefix-row code.
+The ticket is closed.
+
+## 2026-10-12 — A browser write journal without the device (LLP 3000.013.000)
+
+The author ruled for path 2 of LLP 3000.013 §6.2: a JavaScript-only journal for
+browser apps whose schema syncs no table. A device-less browser `createApp`
+with `localStorageSessionStore()` now writes when `GET /schema` reports no
+synced table, or with `writes: "online"`. `mutate` captures the click in
+localStorage before it returns (`online-capture.ts`, one key per capture, the
+device journal's bounds); the existing online intent journal commits it under
+the journal and session Web Locks with the device's locked authority check and
+a transfer marker; recovery adopts gone runtimes' records once and replays
+them with their ids before new clicks. Two review rounds (GPT-6.1 Sol, Muse
+Spark 1.3) changed the design eleven ways; the reviews are in `llp/reviews/`.
+The same writing page builds to 274,853 B (88,485 B gzip) with no wasm, against
+2,503,672 B (766,377 B gzip) with `webDevice()`
+(`scripts/measure-online-writes.mjs`). Persona apps and a durable online head
+floor are deferred. The number moved from 3000.038, which four lanes claimed
+the same night.
 ## 2026-10-12 — Workstream MERGE: owner-or-X lists are one complete query (LLP 3000.036.001)
 
 `tasks where .owner = viewer or .assignee = viewer last 50 by .at after c`,

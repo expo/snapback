@@ -2,8 +2,10 @@
 
 An Expo (React Native) app over the Snapback 4 backend in `snapback/*.q`,
 started from the Snapback 4 Expo starter. Development and production builds
-open the native device and work offline; Expo Go uses the online client; web
-uses the wasm device.
+open the native device; Expo Go uses the online client; web uses the wasm
+device.
+
+OFFLINE
 
 ADVISORIES
 

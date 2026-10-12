@@ -537,7 +537,7 @@ fn a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_pr
 fn w2_complete_patch_upsert_with_a_foreign_asset_is_one_word_absent_or_hidden() {
     let source = format!("{}\nmutation completeAsset(key: text <=80, photo: image <=1000):\n  upsert records[key = key] {{owner: 'alice', secret: 'supplied', frozen: 'fixed', amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
     unchanged_pair(&source, "completeAsset", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), 7);
-    let asset = snapback4_core::assets::Asset { id: "foreign-upload".into(), owner: "carol".into(), kind: snapback4_core::assets::AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 1000, home: None, released_at: None };
+    let asset = snapback4_core::assets::Asset { id: "foreign-upload".into(), owner: "carol".into(), kind: snapback4_core::assets::AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 1000, home: None, released_at: None, name: None };
     let mut pair = Vec::new();
     for hidden in [false, true] {
         let mut e = world(&source, hidden, 7);

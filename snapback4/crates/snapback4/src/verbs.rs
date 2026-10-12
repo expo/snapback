@@ -23,6 +23,8 @@ pub use sql::sql;
 mod residency;
 mod test_fixture;
 mod test_cases;
+/// A fixture directory's case file: not a table's rows.
+pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod latency;
 mod run_admission;
@@ -311,7 +313,8 @@ pub fn check(options: &Options) -> i32 {
         }
     }
     if details && !options.json {
-        print_prediction(&bound, options.flags.contains_key("verbose"));
+        // @ref LLP 3000.036#17.7 — with every table online only, "never predicts" is every mutation and needs no action: verbose keeps it.
+        if options.flags.contains_key("verbose") || bound.schema.synced().next().is_some() { print_prediction(&bound, options.flags.contains_key("verbose")); }
         if !options.flags.contains_key("verbose") { println!("check --verbose for explanations, rewrites and execution details; why <op> for one operation"); }
     }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", present(&residency::facts(&bound))); }
@@ -1130,7 +1133,8 @@ pub fn test(options: &Options) -> i32 {
     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
     let mut skipped = Vec::new();
     let mut near = Vec::new();
-    let (mut complete, mut capped, mut refused_derived) = (0usize, 0usize, 0usize);
+    let (mut complete, mut capped, mut refused_derived, mut expected) = (0usize, 0usize, 0usize, 0usize);
+    let explicit = options.flags.get("fixture").map(|fixture| test_cases::explicit(fixture, &bound.personas)).unwrap_or_default();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
             continue;
@@ -1142,36 +1146,79 @@ pub fn test(options: &Options) -> i32 {
         }
         for persona in &personas {
             let principal = if persona.contains(':') { persona.clone() } else { persona_principal(persona) };
-            // Arguments come from the data: a reference is the table's first
-            // row, a principal is the persona, a text is the shortest that
-            // fits. What cannot be derived is named, never skipped silently.
-            let mut args = BTreeMap::new();
+            let name = &program.program.name;
+            let cases: Vec<&test_cases::Explicit> = explicit.iter().filter(|case| case.op == *name && case.principal == principal).collect();
+            // Arguments: the persona's own case for this query when it has
+            // one (the builder's choice, run as written); otherwise derived
+            // from the data: a reference is a row of its table, preferring
+            // one whose answer is not empty (the first row is often another
+            // persona's, hidden), a principal is the persona, a text is the
+            // shortest that fits. What cannot be derived is named, never
+            // skipped silently.
+            // @ref LLP 3000.036#15.2 — wave 7: derived arguments tested nothing when the first row was hidden from the persona.
+            let mut candidates: Vec<(BTreeMap<String, snapback4_core::Value>, Option<&str>)> = Vec::new();
+            if let Some(case) = cases.iter().find(|case| case.args.is_some()) {
+                let decoded: Option<BTreeMap<_, _>> = case.args.as_ref().and_then(Json::as_object).and_then(|fields| fields.iter().map(|(arg, value)| {
+                    let kind = program.program.args.get(arg)?;
+                    wire::from_json(kind, value).ok().map(|value| (arg.clone(), value))
+                }).collect());
+                if let Some(args) = decoded { candidates.push((args, Some(case.at.as_str()))); }
+            }
             let mut missing = Vec::new();
-            for (name, kind) in &program.program.args {
-                match sample_arg(&engine, kind, &principal) {
-                    Some(value) => {
-                        args.insert(name.clone(), value);
+            if candidates.is_empty() {
+                let rows = program.program.args.values().filter_map(|kind| match kind { ir::ArgType::Ref { table } => engine.store().rows(table).ok().map(|rows| rows.len()), _ => None }).max().unwrap_or(1).clamp(1, DERIVED_ROWS);
+                for at in 0..rows {
+                    let mut args = BTreeMap::new();
+                    for (arg, kind) in &program.program.args {
+                        match sample_arg(&engine, kind, &principal, at) {
+                            Some(value) => { args.insert(arg.clone(), value); }
+                            None if at == 0 => missing.push(format!("{arg}: {}", arg_word(kind))),
+                            None => {}
+                        }
                     }
-                    None => missing.push(format!("{name}: {}", arg_word(kind))),
+                    if !missing.is_empty() { break; }
+                    candidates.push((args, None));
                 }
             }
             if !missing.is_empty() {
-                skipped.push(format!("{} ({persona}): needs {}", program.program.name, missing.join(", ")));
+                skipped.push(format!("{name} ({persona}): needs {}", missing.join(", ")));
                 continue;
             }
+            // The first answer with rows wins; else the first answer; else the first refusal.
+            let mut chosen: Option<(usize, BTreeMap<String, snapback4_core::Value>, Option<&str>, Result<snapback4_core::QueryOutcome, snapback4_core::Refusal>, f64)> = None;
+            let tried = candidates.len();
+            for (args, source) in candidates {
+                let started = Instant::now();
+                let result = engine.query(name, Context::new(principal.clone(), args.clone()));
+                let ms = started.elapsed().as_secs_f64() * 1000.0;
+                let rank = match &result { Ok(outcome) if !empty_answer(&outcome.data) => 0, Ok(_) => 1, Err(_) => 2 };
+                if chosen.as_ref().is_none_or(|(best, ..)| rank < *best) { chosen = Some((rank, args, source, result, ms)); }
+                if rank == 0 || source.is_some() { break; }
+            }
+            let Some((rank, args, source, result, ms)) = chosen else { continue };
             let shown = if args.is_empty() { String::new() } else { format!(" {}", serde_json::to_string(&args.iter().map(|(k, v)| (k.clone(), wire::to_json(v))).collect::<serde_json::Map<_, _>>()).unwrap_or_default()) };
-            let started = Instant::now();
-            let derived = !args.is_empty();
-            match engine.query(&program.program.name, Context::new(principal, args)) {
+            let arguments = shown.clone();
+            let shown = match source { Some(at) => format!("{shown} (from {at})"), None => shown };
+            let derived = !args.is_empty() && source.is_none();
+            let label = format!("{name} ({persona})");
+            match result {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
                     if outcome.complete { complete += 1 } else { capped += 1 }
                     // @ref LLP 3000.007#20.22.1 — report approach to a ceiling on the fixture, separately from actual cuts.
                     if outcome.capped_at.is_none() && outcome.word_cut_at.is_none() {
-                        if let Some(cost) = crate::serve::read_cost::near_ceiling(m, ceilings) { near.push(format!("{} ({persona}) {cost}", program.program.name)); }
+                        if let Some(cost) = crate::serve::read_cost::near_ceiling(m, ceilings) { near.push(format!("{label} {cost}")); }
                     }
-                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                    let empty = if derived && rank == 1 && tried > 1 { format!(" — empty for each of {tried} derived rows: give it yours in {}", test_cases::FILE) } else { String::new() };
+                    println!("      {label:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {ms:.1} ms{shown}{empty}", m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes);
+                }
+                // A refusal the persona's own case expects is what the builder
+                // asked for: say so instead of suggesting a case that exists.
+                Err(refusal) if cases.iter().any(|case| case.expect.as_deref() == Some(refusal.code.as_str())) => {
+                    expected += 1;
+                    let at = cases.iter().find(|case| case.expect.as_deref() == Some(refusal.code.as_str())).map(|case| case.at.as_str()).unwrap_or_default();
+                    println!("      {label:<28} refused {} as expected ({at}){}", refusal.code, if source == Some(at) { arguments } else { shown });
                 }
                 Err(refusal) if refusal.family == "rule" => {
                     // A program's own `require` refusing this persona is
@@ -1181,16 +1228,18 @@ pub fn test(options: &Options) -> i32 {
                     // lane 059: an argument-free gate counted as denied).
                     // @ref LLP 3000.036#15.2 — the derived pass never fails on the program's own require.
                     refused_derived += 1;
-                    let name = format!("{} ({persona})", program.program.name);
-                    if derived {
-                        println!("      {name:<28} refused {} on derived arguments{shown} — give it yours in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"args\":{{..}}}}", refusal.code, test_cases::FILE, program.program.name);
+                    if let Some(at) = source {
+                        println!("      {label:<28} refused {} on your arguments{shown} — the case at {at} runs below", refusal.code);
+                    } else if derived {
+                        let rows = if tried > 1 { format!(" (each of {tried} rows)") } else { String::new() };
+                        println!("      {label:<28} refused {} on derived arguments{shown}{rows} — give it yours in {}: {{\"op\":\"{name}\",\"as\":\"{persona}\",\"args\":{{..}}}}", refusal.code, test_cases::FILE);
                     } else {
-                        println!("      {name:<28} refused {} by its own require (not a failure: {persona} is not admitted) — pin it in {}: {{\"op\":\"{}\",\"as\":\"{persona}\",\"expect\":\"{}\"}}", refusal.code, test_cases::FILE, program.program.name, refusal.code);
+                        println!("      {label:<28} refused {} by its own require (not a failure: {persona} is not admitted) — pin it in {}: {{\"op\":\"{name}\",\"as\":\"{persona}\",\"expect\":\"{}\"}}", refusal.code, test_cases::FILE, refusal.code);
                     }
                 }
                 Err(refusal) => {
                     failures += 1;
-                    println!("      {:<28} denied {}: {}{shown}", format!("{} ({persona})", program.program.name), refusal.code, refusal.message);
+                    println!("      {label:<28} denied {}: {}{shown}", refusal.code, refusal.message);
                 }
             }
         }
@@ -1210,18 +1259,40 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    println!("test: {complete} complete, {capped} capped, {refused_derived} refused by their own require (on derived or no arguments), {} not run, {failures} denied{}",
+    let verdict = if failures > 0 || failed_cases > 0 { "FAIL" } else { "pass" };
+    println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} refused by their own require (on derived or no arguments), {} not run, {failures} denied{} — {verdict}",
         skipped.len(), if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }
 
-/// A plausible argument for `test`, from the store and the persona.
-fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &str) -> Option<snapback4_core::Value> {
+/// The most rows of a referenced table the sweep tries for one query and persona.
+const DERIVED_ROWS: usize = 16;
+
+/// No rows to show: null, or an empty list or page.
+fn empty_answer(data: &snapback4_core::Value) -> bool {
+    use snapback4_core::Value;
+    match data {
+        Value::Null => true,
+        Value::Array(items) => items.is_empty(),
+        Value::Map(fields) | Value::Row(fields) => fields.get("items").is_some_and(|items| matches!(items, Value::Array(items) if items.is_empty())),
+        _ => false,
+    }
+}
+
+/// A plausible argument for `test`, from the store and the persona; a
+/// reference is row `at` of its table (wrapping), so the sweep can try
+/// several rows for one the persona reads.
+fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &str, at: usize) -> Option<snapback4_core::Value> {
     use snapback4_core::Value;
     Some(match kind {
         ir::ArgType::Optional(_) | ir::ArgType::Cursor => Value::Null,
         ir::ArgType::Principal => Value::Id(principal.to_owned()),
-        ir::ArgType::Ref { table } => engine.store().rows(table).ok()?.into_iter().next()?.field("id").ok()?.clone(),
+        ir::ArgType::Ref { table } => {
+            let rows = engine.store().rows(table).ok()?;
+            let count = rows.len().min(DERIVED_ROWS);
+            if count == 0 { return None; }
+            rows.into_iter().nth(at % count)?.field("id").ok()?.clone()
+        }
         ir::ArgType::Text { min, format, .. } => Value::String(match format {
             Some(snapback4_core::schema::TextFormat::Url) => "https://example.com/".to_owned(),
             Some(snapback4_core::schema::TextFormat::Handle) => "a".repeat((*min).max(3) as usize),
@@ -1241,7 +1312,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
         ir::ArgType::Id => "an id".into(),
         ir::ArgType::List { .. } | ir::ArgType::ListRange { .. } => "a list".into(),
         ir::ArgType::Json { .. } => "json".into(),
-        ir::ArgType::Bytes { .. } | ir::ArgType::Image { .. } | ir::ArgType::Video { .. } => "bytes".into(),
+        ir::ArgType::Bytes { .. } | ir::ArgType::Image { .. } | ir::ArgType::Video { .. } | ir::ArgType::File { .. } => "bytes".into(),
         other => format!("{other:?}").to_lowercase(),
     }
 }

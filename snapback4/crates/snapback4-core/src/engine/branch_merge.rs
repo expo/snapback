@@ -105,12 +105,12 @@ impl Runner<'_> {
                         continue;
                     };
                     // @ref LLP 3000.036.001#7 — a device decides a seat (`viewer = 'service:x'`), which reads no row;
-                    // a role probe it does not decide (LLP 3000.036 §12.1): the read is unknown and the client asks the server.
+                    // a probe guard (a role, a pinned parent) it does not decide (LLP 3000.036 §12.1): the read is unknown and the client asks the server.
                     if self.device && rules::rule_probes(&rule) > 0 {
                         self.unknown_fact(&scan.table, &scan.index, &prefix, site);
                         continue;
                     }
-                    let (allowed, pending) = self.grant_verdict(definition, &rule)?;
+                    let (allowed, pending) = self.grant_verdict(definition, index, &prefix, &rule)?;
                     if !allowed { continue; }
                     grant = Some(pending);
                 }

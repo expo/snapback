@@ -63,15 +63,25 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>) {
         let port = number_after(&text, "127.0.0.1:");
         let web_port = number_after(&text, "localhost:");
         let ports = [(port, web_port), (None, web_port), (port, None), (None, None)];
+        // The offline paragraph names the schema's synced tables when init
+        // wrote it; any of them (or 0.4.22's unconditional claim) still matches.
+        let masked = starter::without_offline(&text);
         let matched = ports.into_iter().find(|&(port, web_port)| {
             [(Body::Todos, false), (Body::Home(None), false), (Body::Home(None), true)].iter()
-                .any(|(body, personas)| text == super::localize(path, &super::without_design_references(&starter::readme(platform, &title, body, *personas)), port, web_port))
+                .any(|(body, personas)| masked == starter::without_offline(&super::localize(path, &super::without_design_references(&starter::readme(platform, &title, body, *personas, &starter::Offline::Unknown)), port, web_port)))
         });
         let Some((port, web_port)) = matched else { continue };
-        let wanted = super::localize(path, &super::without_design_references(&starter::readme(platform, &title, &wanted_body, personas)), port, web_port);
+        let wanted = super::localize(path, &super::without_design_references(&starter::readme(platform, &title, &wanted_body, personas, &own.offline)), port, web_port);
         if wanted == text { continue; }
         let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
-        let why = format!("the unmodified starter README describes {}; adapt rewrites it to describe {about}", if text.starts_with("# Todos") { "the todo starter (its todos table and guest sign-in)" } else { "the Home screen for another schema" });
+        let only_offline = !text.starts_with("# Todos") && starter::without_offline(&wanted) == masked;
+        // A schema that does not compile right now says nothing about what it syncs.
+        if only_offline && own.offline == starter::Offline::Unknown { continue; }
+        let why = if only_offline {
+            "the unmodified starter README says what works offline for another schema; adapt rewrites that paragraph from the tables your snapback/*.q syncs".to_owned()
+        } else {
+            format!("the unmodified starter README describes {}; adapt rewrites it to describe {about}", if text.starts_with("# Todos") { "the todo starter (its todos table and guest sign-in)" } else { "the Home screen for another schema" })
+        };
         found.push(Leftover { path, why, rewrite: Some(wanted) });
     }
 }

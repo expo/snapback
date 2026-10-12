@@ -1,7 +1,9 @@
 # TITLE
 
 A Vite + React app over the Snapback 4 backend in `snapback/*.q`, started from
-the Snapback 4 web starter. It works offline and syncs when the link returns.
+the Snapback 4 web starter.
+
+OFFLINE
 
 ```sh
 npm install
