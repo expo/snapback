@@ -93351,3 +93351,28 @@ The existing every_card_compiles_clean regression fails before this edit
 and the complete guide target passes afterward (119 tests). No runtime
 behavior changed. Revision 11 plus the runtime integration repair are in
 the commissioned round-10 paired review.
+
+## 2026-10-12 — UNION revision 12: full, non-expiring audiences only
+
+The coordinator's conditional narrowing is triggered. Fresh GPT round 10
+on revision 11 plus the planner integration reproduced expiry-before-join
+then sweep announcing an unreadable content id, with/without windows and
+limits 1/2/1,000; the provider stopped before a final verdict. The actual
+partial output is retained, not counted READY. Instead of extending expiry
+support again, check now refuses union content/membership expiry and any
+union or membership acquisition window, including inherited ancestors.
+Diagnostics name the source and give a compiling online-only rewrite;
+dropping only a union sync window permits a full non-expiring replica.
+
+Per-arm window planning, printing and device boundary selection are removed;
+full unions, ordinary pagination, per-arm snapshots and leave sparing remain.
+Legacy further-arm horizon fields are retained only so admission rejects
+them instead of silently discarding old experimental data. Single-audience
+windows/expiry and generic epoch/commit accounting retain their regressions.
+The current simulator has five full-row worlds and named both-store scope,
+bulk, snapshot-limit, rebirth and epoch traces; old windowed-world evidence
+is historical. Refusal regressions cover the reproduced source and direct/
+inherited scopes in binder/core, with working rewrites. The sharing guide
+uses explicit population caps and the full replica; cost advice never offers
+a refused union horizon. LLP 3000.036.000.000 and the follow-up ticket record
+the narrowing. Fresh paired review of revision 12 is pending.

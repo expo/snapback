@@ -31,7 +31,8 @@ table tasks:
   read <- .owner = viewer or exists members[.team, viewer]
   insert <- .owner = viewer and exists members[.team, viewer]
   update <- .owner = viewer
-  sync last 200 by .at
+  cap 200
+  sync
 ```
 
 - `sync` infers the union from the read rule; `sync to .owner or members[.team]` spells it. Each `or` branch is one whole audience: `.column = viewer` or one `exists group[.columns, viewer]`.
@@ -46,12 +47,10 @@ one `exists members[.group..., viewer]` branch, which keeps every rule of a
 group audience (a unique group and principal key, and an insert rule that
 proves the caller's grant). A device holds a row while any branch admits its
 viewer: giving a task away keeps it on a teammate's device, and leaving the
-team keeps the tasks the leaver owns. A union window (`last N by .at`) keeps
-the newest N rows of each branch's own group: the owner's newest N, and each
-held team's newest N; a page is complete on the device when it reads one
-branch's window (`tasks where .owner = viewer last 50 by .at`, or `.team =
-team` for a held team); other pages ask the server. A union window is
-written as columns, never a named index.
+team keeps the tasks the leaver owns. Each device replicates every readable
+row; pages and lookups run offline over that full replica. The examples use
+whole-table caps to bound their populations; a cap refuses further inserts
+at the declared limit. Union acquisition windows and expiry are refused.
 
 Refused on a union, each with a rewrite: a `public` branch (a public table
 and a private one, moving a row when it is shared), two group audiences
@@ -60,7 +59,10 @@ and a private one, moving a row when it is shared), two group audiences
 columns onto the child and check them in its insert rule), a row-keyed view
 over it (a `view` over a union inherits no audience: the server answers
 it), a timeline, private
-`written by` fields, and a membership table with `expire at`. Adding or
+`written by` fields, `last N by ...` on the union or its direct/inherited
+membership scopes, and direct/inherited `expire at` on content or membership
+scopes. Use `online only` to preserve the read rule, expiry and queries; or
+remove only the sync window to replicate every readable row. Adding or
 removing a branch is a new backend version: devices drop the table's rows
 and acquire them again before they answer offline.
 
@@ -71,11 +73,10 @@ never predict (offline they queue).
 ### An owner or a team
 
 The example above. A task's owner reads it in any team; a teammate reads every
-task of the team. `myTasks` reads the owner's window, and a page of a held
-team (`tasks where .team = team last 50 by .at`) reads the team's window, so
-both answer offline. Online, the server answers the team page
-`complete: false` (`N_NEVER_COMPLETE`: it decides a page only from a branch
-that reads no column of the row). A child that both read carries both
+task of the team. `myTasks` reads the owner's rows, and a page of a held
+team (`tasks where .team = team last 50 by .at`) reads the team's rows;
+both answer offline from the full replica. Online, pinning `.team` decides
+the membership grant for the page, so a held-team page is complete too. A child that both read carries both
 branches' columns, copied from its task and checked by the insert rule:
 
 ```quarry
@@ -105,7 +106,8 @@ table tasks:
   insert <- .owner = viewer and exists members[.team, viewer]
   update <- .owner = viewer
   delete <- .owner = viewer
-  sync last 200 by .at
+  cap 200
+  sync
 
 table steps:
   task: tasks
@@ -116,7 +118,8 @@ table steps:
   immutable task, owner, team
   read <- .owner = viewer or exists members[.team, viewer]
   insert <- .owner = .task.owner and .team = .task.team and (.owner = viewer or exists members[.team, viewer])
-  sync last 500 by .at
+  cap 500
+  sync
 
 mutation newTeam(name: text <=80):
   t = insert teams { name }
@@ -156,7 +159,8 @@ table orders:
   read <- .buyer = viewer or .seller = viewer
   insert <- .buyer = viewer
   update <- .seller = viewer
-  sync last 500 by .at
+  cap 500
+  sync
 
 mutation placeOrder(seller: principal, item: text <=200):
   return insert orders { buyer: viewer, seller, item, at: now }
@@ -179,7 +183,7 @@ query sales(c: cursor ?):
 tenant branch and a roster branch (a membership with no group key is one
 group, below). Every staff device holds every request, a tenant's device
 holds its own, and a staff member who leaves the roster keeps only the
-requests they filed themselves. `queue` reads the staff window and `mine`
+requests they filed themselves. `queue` reads staff-visible rows and `mine`
 the tenant's, so both answer offline; the grant decides `queue` for staff on
 the server too.
 
@@ -201,7 +205,8 @@ table requests:
   read <- .tenant = viewer or exists staff[viewer]
   insert <- .tenant = viewer
   update <- exists staff[viewer]
-  sync last 1000 by .at
+  cap 1000
+  sync
 
 mutation file(title: text <=200):
   return insert requests { tenant: viewer, title, at: now }

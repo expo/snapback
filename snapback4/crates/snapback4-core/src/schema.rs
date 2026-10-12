@@ -414,7 +414,7 @@ pub struct Sync {
     pub also: Vec<SyncArm>,
 }
 
-/// One further arm of a union audience, with its own window.
+/// One further arm of a union audience. Its legacy window field is refused at admission.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyncArm {
     pub audience: Audience,
@@ -474,10 +474,10 @@ impl Sync {
         !self.also.is_empty()
     }
 
-    /// Every arm with its window: the first arm, then the union's others.
+    /// Every arm: the first arm, then the union's horizon-free others.
     // @ref LLP 3000.036.000.000#2.3 — the group arm, when present, is always the first.
     pub fn arms(&self) -> impl Iterator<Item = (&Audience, Option<&Horizon>)> {
-        std::iter::once((&self.audience, self.horizon.as_ref())).chain(self.also.iter().map(|arm| (&arm.audience, arm.horizon.as_ref())))
+        std::iter::once((&self.audience, self.horizon.as_ref())).chain(self.also.iter().map(|arm| (&arm.audience, None)))
     }
 
     /// The principal columns of a union's column arms, in arm order.
@@ -486,8 +486,9 @@ impl Sync {
     }
 
     /// The arm whose window index is `index`, if any.
-    pub fn arm_by_window(&self, index: &str) -> Option<(&Audience, &Horizon)> {
-        self.arms().find_map(|(audience, horizon)| horizon.filter(|h| h.by == index).map(|h| (audience, h)))
+    pub fn single_window(&self, index: &str) -> Option<(&Audience, &Horizon)> {
+        if self.is_union() { return None; }
+        self.horizon.as_ref().filter(|h| h.by == index).map(|h| (&self.audience, h))
     }
 
     pub fn line(&self) -> String {
@@ -513,17 +514,9 @@ impl Sync {
         }
     }
 
-    /// The line as the author can write it: a union's windows are one
-    /// column-form window (`last N by .at`), never an index name, so it is
-    /// spelled from the first arm's window index without its group columns.
-    // @ref LLP 3000.036.000.000#2.1 — round 2 (GPT finding 5): a printed union window compiles.
-    pub fn line_in(&self, table: &Table) -> String {
-        let (Some(horizon), true) = (&self.horizon, self.is_union()) else { return self.line() };
-        let group = self.audience.columns();
-        let order: Vec<String> = table.index(&horizon.by).map(|index| index.columns().into_iter().filter(|column| !group.contains(column)).map(|column| format!(".{column}")).collect()).unwrap_or_default();
-        let line = Self { horizon: None, ..self.clone() }.line();
-        format!("{line} last {} by {}", horizon.last, if order.is_empty() { ".id".to_owned() } else { order.join(", ") })
-    }
+    /// A union has no window; single-audience lines keep their existing spelling.
+    pub fn line_in(&self, _table: &Table) -> String { self.line() }
+
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

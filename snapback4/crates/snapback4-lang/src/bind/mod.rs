@@ -542,6 +542,22 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         };
         // A group of one row (the table's own id), or a group a `cap` bounds,
         // cannot grow: nothing to horizon.
+        // @ref LLP 3000.036.000.000#8 — a union cannot be repaired by adding a window.
+        if sync.is_union() {
+            let global_cap = table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if by.is_empty()));
+            let bounded = global_cap || sync.arms().all(|(arm, _)| {
+                let columns = arm.columns();
+                columns == ["id"] || table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if *by == columns))
+                    || !columns.is_empty() && table.indexes.values().any(|index| index.unique && index.is_plain() && !index.columns().is_empty() && index.columns().iter().all(|column| columns.contains(&column.to_string())))
+            });
+            if !bounded {
+                let site = catalog.site_for(&format!("tables.{name}"));
+                notes.push(Diagnostic::new(&site, "N_NO_HORIZON",
+                    format!("table {name}: `{}` replicates every readable row; union audiences admit no acquisition window, so measure cold-start cost with `check --residency`", sync.line()),
+                    "online only  -- keep this read rule and queries; or declare intended caps for every audience group").guide("sharing"));
+            }
+            continue;
+        }
         if prefix == ["id"] || table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if *by == prefix)) {
             continue;
         }

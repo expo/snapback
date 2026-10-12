@@ -94,9 +94,7 @@ struct World {
     /// The queries a real device answers for a viewer: (name, args, whether
     /// the viewer reads the query's pins, so the answer must be complete).
     queries: fn(&Rows, &str) -> Vec<(&'static str, Json, bool)>,
-    /// With windows a device holds a subset of the readable rows: the newest
-    /// row of each arm group it holds, and nothing it may not read.
-    newest: Option<fn(&Rows, &str) -> BTreeSet<(String, String)>>,
+
 }
 
 fn id(s: &str) -> Value {
@@ -364,44 +362,6 @@ fn teams_world() -> World {
         group_column: |table| match table { "teams" => Some("id"), "members" | "tasks" => Some("team"), _ => None },
         column_arms: |table| if table == "tasks" { &["owner"] } else { &[] },
         queries: teams_queries,
-        newest: None,
-    }
-}
-
-// ---- the windowed owner-or-team world ----
-
-/// The same world with a window of one row per arm group (§5): the owner's
-/// newest task, and each held team's newest task.
-fn windowed_world() -> World {
-    let source = TEAMS
-        .replace("  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n  update (old, next) <- old.owner = viewer\n  delete <- .owner = viewer\n  sync\n",
-                 "  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n  update (old, next) <- old.owner = viewer\n  delete <- .owner = viewer\n  sync last 1 by .at\n")
-        .replace("query myTasks():\n  return tasks where .owner = viewer first 20 by .id\nquery teamTasks(team: teams):\n  return tasks where .team = team first 20 by .id\nquery task(t: tasks):\n  return tasks[t]\nquery myCount():\n  return count(tasks where .owner = viewer)\n",
-                 "query myLatest():\n  return tasks where .owner = viewer last 1 by .at\nquery myTasks():\n  return tasks where .owner = viewer last 5 by .at\nquery teamLatest(team: teams):\n  return tasks where .team = team last 1 by .at\nquery teamTasks(team: teams):\n  return tasks where .team = team last 5 by .at\nquery task(t: tasks):\n  return tasks[t]\n");
-    assert!(source.contains("sync last 1 by .at") && source.contains("myLatest"), "the windowed source");
-    World {
-        name: "owner or team, windowed",
-        source,
-        newest: Some(|now, p| {
-            let readable = teams_readable(now, p);
-            let newest = |rows: Vec<(&String, &Json)>| rows.into_iter().max_by_key(|(key, row)| (row["at"].as_i64().unwrap_or(0), (*key).clone())).map(|(key, _)| key.clone());
-            let mut out = BTreeSet::new();
-            if let Some(key) = newest(readable["tasks"].iter().filter(|(_, row)| field(row, "owner") == p).collect()) { out.insert(("tasks".to_owned(), key)); }
-            for team in TEAM_IDS {
-                if member_of(now, team, p) && let Some(key) = newest(readable["tasks"].iter().filter(|(_, row)| field(row, "team") == team).collect()) { out.insert(("tasks".to_owned(), key)); }
-            }
-            out
-        }),
-        queries: |now, viewer| {
-            let mut out = vec![("myLatest", json!({}), true), ("myTasks", json!({}), false)];
-            for team in TEAM_IDS {
-                out.push(("teamLatest", json!({"team": team}), member_of(now, team, viewer)));
-                out.push(("teamTasks", json!({"team": team}), false));
-            }
-            for task in now["tasks"].keys() { out.push(("task", json!({"t": task}), false)); }
-            out
-        },
-        ..teams_world()
     }
 }
 
@@ -525,7 +485,6 @@ fn staff_world() -> World {
             for request in now["requests"].keys().chain(["gone".to_owned()].iter()) { out.push(("request", json!({"r": request}), true)); }
             out
         },
-        newest: None,
     }
 }
 
@@ -616,7 +575,6 @@ fn parties_world() -> World {
             for order in now["orders"].keys().chain(["gone".to_owned()].iter()) { out.push(("order", json!({"o": order}), true)); }
             out
         },
-        newest: None,
     }
 }
 
@@ -663,102 +621,6 @@ fn three_world() -> World {
     }
 }
 
-// ---- independent windows of two/three column arms ----
-fn windowed_parties_world(three: bool) -> World {
-    let mut world = if three {
-        three_world()
-    } else {
-        parties_world()
-    };
-    world.source = world
-        .source
-        .replace("  title: text <=20", "  at: time\n  title: text <=20")
-        .replace("title: 'x' }", "title: 'x', at: now }")
-        .replace("  sync\n", "  sync last 1 by .at\n")
-        .replace(
-            "  sync to .agent or .seller or .buyer\n",
-            "  sync to .agent or .seller or .buyer last 1 by .at\n",
-        )
-        .replace("first 20 by .id", "last 1 by .at");
-    world.source.push_str("\nquery anyBuys():\n  return exists orders where .buyer = viewer\nquery buyCount():\n  return count(orders where .buyer = viewer)\n");
-    if three {
-        world
-            .source
-            .push_str("\nquery agencies():\n  return orders where .agent = viewer last 1 by .at\n");
-    }
-    world.seed = || {
-        let row = |k: &str, buyer: &str, seller: &str, agent: &str, at: i64| {
-            (
-                "orders".into(),
-                object([
-                    ("id", id(k)),
-                    ("buyer", id(buyer)),
-                    ("seller", id(seller)),
-                    ("agent", id(agent)),
-                    ("at", Value::Int(at)),
-                    ("title", Value::String("x".into())),
-                ]),
-            )
-        };
-        vec![
-            row("oa", BOB, ALICE, MALLORY, 1),
-            row("ob", BOB, BOB, BOB, 2),
-            row("oc", ALICE, BOB, ALICE, 3),
-        ]
-    };
-    if !three {
-        world.seed = || {
-            (windowed_parties_world(true).seed)()
-                .into_iter()
-                .map(|(t, mut row)| {
-                    if let Value::Row(fields) = &mut row {
-                        fields.remove("agent");
-                    }
-                    (t, row)
-                })
-                .collect()
-        };
-    }
-    world.name = if three {
-        "three parties, windowed"
-    } else {
-        "two parties, windowed"
-    };
-    world.newest = Some(|now, p| {
-        ["buyer", "seller", "agent"]
-            .into_iter()
-            .filter_map(|c| {
-                now["orders"]
-                    .iter()
-                    .filter(|(_, row)| field(row, c) == p)
-                    .max_by_key(|(key, row)| (row["at"].as_i64().unwrap(), (*key).clone()))
-                    .map(|(key, _)| ("orders".into(), key.clone()))
-            })
-            .collect()
-    });
-    world.queries = if three {
-        |_, _| {
-            vec![
-                ("buys", json!({}), true),
-                ("sales", json!({}), true),
-                ("agencies", json!({}), true),
-                ("anyBuys", json!({}), false),
-                ("buyCount", json!({}), false),
-            ]
-        }
-    } else {
-        |_, _| {
-            vec![
-                ("buys", json!({}), true),
-                ("sales", json!({}), true),
-                ("anyBuys", json!({}), false),
-                ("buyCount", json!({}), false),
-            ]
-        }
-    };
-    world
-}
-
 fn two_columns_group_readable(now: &Rows, p: &str) -> Rows {
     let mut rows = teams_readable(now, p);
     rows.get_mut("tasks").unwrap().extend(
@@ -770,100 +632,33 @@ fn two_columns_group_readable(now: &Rows, p: &str) -> Rows {
     rows
 }
 
-fn two_columns_group_world(windowed: bool) -> World {
-    let mut world = if windowed {
-        windowed_world()
-    } else {
-        teams_world()
-    };
-    world.source = world
-        .source
-        .replace(
-            "  owner: principal\n  team",
-            "  owner: principal\n  reviewer: principal\n  team",
-        )
-        .replace(
-            ".owner = viewer or exists members",
-            ".owner = viewer or .reviewer = viewer or exists members",
-        )
-        .replace(
-            "owner: viewer, team, title",
-            "owner: viewer, reviewer: viewer, team, title",
-        );
-    world.source.push_str(if windowed {
-        "\nquery reviews():\n  return tasks where .reviewer = viewer last 1 by .at\n"
-    } else {
-        "\nquery reviews():\n  return tasks where .reviewer = viewer first 20 by .id\n"
-    });
-    world.seed = || {
-        teams_seed()
-            .into_iter()
-            .map(|(t, mut row)| {
-                if t == "tasks" {
-                    if let Value::Row(fields) = &mut row {
-                        fields.insert("reviewer".into(), id(ALICE));
-                    }
-                }
-                (t, row)
-            })
-            .collect()
-    };
+fn two_columns_group_world() -> World {
+    let mut world = teams_world();
+    world.source = world.source
+        .replace("  owner: principal\n  team", "  owner: principal\n  reviewer: principal\n  team")
+        .replace(".owner = viewer or exists members", ".owner = viewer or .reviewer = viewer or exists members")
+        .replace("owner: viewer, team, title", "owner: viewer, reviewer: viewer, team, title");
+    world.source.push_str("\nquery reviews():\n  return tasks where .reviewer = viewer first 20 by .id\n");
+    world.seed = || teams_seed().into_iter().map(|(t, mut row)| {
+        if t == "tasks" && let Value::Row(fields) = &mut row { fields.insert("reviewer".into(), id(ALICE)); }
+        (t, row)
+    }).collect();
     world.readable = two_columns_group_readable;
-    world.column_arms = |t| {
-        if t == "tasks" {
-            &["owner", "reviewer"]
-        } else {
-            &[]
-        }
+    world.column_arms = |t| if t == "tasks" { &["owner", "reviewer"] } else { &[] };
+    world.name = "two columns and group";
+    world.queries = |now, p| {
+        let mut q = teams_queries(now, p);
+        q.push(("reviews", json!({}), true));
+        q
     };
-    world.name = if windowed {
-        "two columns and group, windowed"
-    } else {
-        "two columns and group"
-    };
-    if windowed {
-        world.newest = Some(|now, p| {
-            let mut newest = windowed_world().newest.unwrap()(now, p);
-            if let Some((k, _)) = now["tasks"]
-                .iter()
-                .filter(|(_, row)| field(row, "reviewer") == p)
-                .max_by_key(|(k, row)| (row["at"].as_i64().unwrap(), (*k).clone()))
-            {
-                newest.insert(("tasks".into(), k.clone()));
-            }
-            newest
-        });
-        world.queries = |now, p| {
-            let mut q = windowed_world().queries.clone()(now, p);
-            q.push(("reviews", json!({}), true));
-            q
-        };
-    } else {
-        world.queries = |now, p| {
-            let mut q = teams_queries(now, p);
-            q.push(("reviews", json!({}), true));
-            q
-        };
-    }
     world
 }
 
 #[test]
-fn pure_column_windows_every_sequence_of_two_writes() {
-    for three in [false, true] {
-        let w = windowed_parties_world(three);
-        let name = w.name;
-        assert_clean(name, exhaust(w, BLOCKING_DEPTH), BLOCKING_DEPTH);
-    }
-}
-
-#[test]
 fn two_columns_plus_group_every_sequence_of_two_writes() {
-    for windowed in [false, true] {
-        let w = two_columns_group_world(windowed);
-        let name = w.name;
-        assert_clean(name, exhaust(w, BLOCKING_DEPTH), BLOCKING_DEPTH);
-    }
+    let w = two_columns_group_world();
+    let name = w.name;
+    assert_clean(name, exhaust(w, BLOCKING_DEPTH), BLOCKING_DEPTH);
 }
 
 // ---- the harness ----
@@ -1067,25 +862,7 @@ fn check_node(b: &Backend, engine: &mut Engine, head: u64, now: &Rows, state: &m
             rows.entry(event.table.clone()).or_default().insert(event.id.clone(), event.data.as_ref().map(image).unwrap_or(Json::Null));
         }
         let want = (b.world.readable)(now, p);
-        match b.world.newest {
-            None => if rows != want { errs.push(format!("a snapshot is not the rows the rules admit [{p} holds {rows:?}; the rules admit {want:?}]")); },
-            // With windows a snapshot is the newest rows of each arm group, all readable.
-            Some(newest) => {
-                let windows = newest(now, p);
-                for (table, held) in &rows {
-                    for (key, row) in held {
-                        if want.get(table).and_then(|rows| rows.get(key)) != Some(row) { errs.push(format!("a snapshot holds a row the rules do not admit [{p}: {table}/{key}]")); }
-                        if windows.iter().any(|(t, _)| t == table) && !windows.contains(&(table.clone(), key.clone())) { errs.push(format!("a snapshot holds a row outside every arm's window [{p}: {table}/{key}]")); }
-                    }
-                }
-                for (table, key) in &windows {
-                    if !rows.get(table).is_some_and(|rows| rows.contains_key(key)) { errs.push(format!("a snapshot lacks the newest row of an arm group [{p}: {table}/{key}]")); }
-                }
-                for (table, rows_now) in &want {
-                    if !windows.iter().any(|(t, _)| t == table) && rows.get(table) != Some(rows_now) { errs.push(format!("a snapshot of an unwindowed table is not the rows the rules admit [{p}: {table}]")); }
-                }
-            }
-        }
+        if rows != want { errs.push(format!("a snapshot is not the rows the rules admit [{p} holds {rows:?}; the rules admit {want:?}]")); }
         if watermark != head { errs.push(format!("a snapshot is not at the head [{p} at {watermark}; head {head}]")); }
         let bootstrapped = Device { viewer: p, watermark, rows };
         // A device that will apply only the first page of its next stream.
@@ -1110,19 +887,10 @@ fn check_node(b: &Backend, engine: &mut Engine, head: u64, now: &Rows, state: &m
         let want = (b.world.readable)(now, synced.viewer);
         for (table, rows) in &want {
             let held = synced.rows.get(table).cloned().unwrap_or_default();
-            match b.world.newest {
-                None => if &held != rows {
-                    errs.push(format!("a synced device does not hold exactly what the rules admit [{} holds {table} {held:?}; the rules admit {rows:?}]", synced.viewer));
-                },
-                Some(_) => for (key, row) in &held {
-                    if rows.get(key) != Some(row) { errs.push(format!("a synced device holds a row the rules do not admit now [{}: {table}/{key}]", synced.viewer)); }
-                },
+            if &held != rows {
+                errs.push(format!("a synced device does not hold exactly what the rules admit [{} holds {table} {held:?}; the rules admit {rows:?}]", synced.viewer));
             }
         }
-        // A window is not maintained at exactly N (NOT-DOING: exact horizon
-        // maintenance): after deletions a carried device may hold fewer rows
-        // than the window, and its pages then defer to the server (checked
-        // by the real device below), so only over-holding is checked here.
         keep(synced, &mut devices);
         // Commits between stream pages: apply one page now, the rest later.
         let mut partial = device.clone();
@@ -1231,7 +999,7 @@ fn check_real(b: &Backend, engine: &mut Engine, device: &mut Real, viewer: &str,
                     errs.push(format!("a device page claims complete and differs from the server [{at}: device {} server {}]", wire::to_json(&local.data), wire::to_json(&server.data)));
                 }
                 // A carried windowed device may legitimately defer after deletions.
-                if must && !certified && (b.world.newest.is_none() || label == "fresh" || label == "root") {
+                if must && !certified {
                     errs.push(format!("a device page the viewer's partition covers is not certified [{at}: complete {} unknown {unknown}]", local.complete));
                 }
             }
@@ -1374,11 +1142,6 @@ fn depth() -> usize {
 }
 
 #[test]
-fn owner_or_team_windowed_every_sequence_of_two_writes() {
-    assert_clean("owner or team, windowed", exhaust(windowed_world(), BLOCKING_DEPTH), BLOCKING_DEPTH);
-}
-
-#[test]
 fn owner_or_staff_every_sequence_of_two_writes() {
     assert_clean("owner or staff", exhaust(staff_world(), BLOCKING_DEPTH), BLOCKING_DEPTH);
 }
@@ -1392,7 +1155,7 @@ fn two_parties_every_sequence_of_two_writes() {
 #[ignore = "opt-in: SNAPBACK4_EXHAUSTIVE_DEPTH (default 3)"]
 fn every_world_deeper() {
     let depth = depth();
-    for world in [windowed_world(), staff_world(), parties_world(), three_world()] {
+    for world in [teams_world(), staff_world(), parties_world(), three_world(), two_columns_group_world()] {
         let name = world.name;
         assert_clean(name, exhaust(world, depth), depth);
     }
@@ -1622,8 +1385,8 @@ fn a_scope_of_an_earlier_audience_is_not_streamed() {
 /// life. Mallory could read `o` at neither boundary: she is sent nothing,
 /// then or after the sweep; Bob loses the row.
 #[test]
-fn an_expiring_move_into_another_arm_names_nothing_there() {
-    let source = "table orders:\n  buyer: principal\n  seller: principal\n  until: time\n  by byBuyer: buyer, id\n  by bySeller: seller, id\n  by byUntil: until\n  expire at .until\n  read <- .buyer = viewer or .seller = viewer\n  insert <- .seller = viewer\n  update <- allow\n  sync\nmutation hand(order: orders, who: principal):\n  o = orders[order] ! else NOT_FOUND\n  update orders[o] { buyer: who, until: now }\n  return null\n";
+fn an_expiring_move_into_another_audience_names_nothing_there() {
+    let source = "table orders:\n  buyer: principal\n  seller: principal\n  until: time\n  by byBuyer: buyer, id\n  by bySeller: seller, id\n  by byUntil: until\n  expire at .until\n  read <- .buyer = viewer\n  insert <- .seller = viewer\n  update <- allow\n  sync\nmutation hand(order: orders, who: principal):\n  o = orders[order] ! else NOT_FOUND\n  update orders[o] { buyer: who, until: now }\n  return null\n";
     let (schema, programs) = compiled(source);
     let mut engine = Engine::memory(schema, programs).unwrap();
     engine.seed([("orders".to_owned(), object([("id", id("o")), ("buyer", id(BOB)), ("seller", id(BOB)), ("until", Value::Int(NOW * 10))]))]).unwrap();
@@ -1692,10 +1455,13 @@ fn stream_trace_at(engine: &mut Engine, from: u64, limit: usize, now: i64, trace
 
 #[test]
 fn an_obsolete_scope_does_not_shift_a_later_window_acquisition() {
-    let source = windowed_world().source;
+    let source = TEAMS.replace(".owner = viewer or exists members[.team, viewer]", "exists members[.team, viewer]")
+        .replace("  sync\n\nquery myTasks", "  sync last 1 by .at\n\nquery myTasks")
+        .replace("query myCount():\n  return count(tasks where .owner = viewer)\n", "")
+        + "\nquery newest():\n  return tasks last 1 by .at\n";
     let old = compiled(&source);
     let new = compiled(&format!("{}\ntable staff:\n  principal: principal\n  unique principal\n  read <- exists staff[viewer]\n  insert <- exists staff[viewer]\n  sync\n",
-        source.replace("  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n", "  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n")));
+        source.replace("  read <- exists members[.team, viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n", "  read <- exists staff[viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n")));
     for limit in [1, 1_000] {
         let mut engine = Engine::memory(old.0.clone(), old.1.clone()).unwrap();
         engine.seed_at(teams_seed(), NOW).unwrap();
@@ -1706,11 +1472,10 @@ fn an_obsolete_scope_does_not_shift_a_later_window_acquisition() {
         engine.seed_at([("staff".to_owned(), object([("id", id("a-staff")), ("principal", id(ALICE))]))], NOW + 2).unwrap();
         epoch_stream_trace(&mut engine, from, limit, &mut trace);
         let backend = snapback4_device::device::Backend { generation: engine.generation(), schema: new.0.public_projection(), programs: new.1.clone() };
-        // The group window is now the whole staff roster; querying the owner's
-        // own window is still certified, and exercises application of its peers' markers.
-        let expected = engine.query("myLatest", Context::new(ALICE, BTreeMap::new()).at(NOW + 10)).unwrap().data;
-        epoch_trace_applies(snapback4_device::memory::MemoryStore::new(), backend.clone(), &trace, "myLatest", &json!({}), &expected);
-        epoch_trace_applies(snapback4_core::Store::memory().unwrap(), backend, &trace, "myLatest", &json!({}), &expected);
+        // The new single-audience window covers the roster's empty group.
+        let expected = engine.query("newest", Context::new(ALICE, BTreeMap::new()).at(NOW + 10)).unwrap().data;
+        epoch_trace_applies(snapback4_device::memory::MemoryStore::new(), backend.clone(), &trace, "newest", &json!({}), &expected);
+        epoch_trace_applies(snapback4_core::Store::memory().unwrap(), backend, &trace, "newest", &json!({}), &expected);
     }
 }
 
@@ -1895,13 +1660,10 @@ fn compare_trace<S: snapback4_device::store::DeviceStore>(
 fn snapshots_at_every_small_page_size_certify_each_union_arm_on_both_stores() {
     for world in [
         teams_world(),
-        windowed_world(),
         staff_world(),
         parties_world(),
         three_world(),
-        windowed_parties_world(false),
-        windowed_parties_world(true),
-        two_columns_group_world(true),
+        two_columns_group_world(),
     ] {
         let b = backend(world);
         let mut engine = b.fresh();
@@ -1931,16 +1693,8 @@ fn snapshots_at_every_small_page_size_certify_each_union_arm_on_both_stores() {
 fn two_prefix_scopes_spare_both_column_keepers_without_crossing_groups() {
     let source = "table members:\n  area: text <=20\n  lane: text <=20\n  principal: principal\n  unique area, lane, principal\n  immutable area, lane, principal\n  read <- .principal = viewer\n  insert <- exists members[.area, .lane, viewer]\n  delete <- .principal = viewer\n  sync\ntable notes:\n  area: text <=20\n  lane: text <=20\n  owner: principal\n  reviewer: principal\n  at: time\n  read <- .owner = viewer or .reviewer = viewer or exists members[.area, .lane, viewer]\n  insert <- .owner = viewer and exists members[.area, .lane, viewer]\n  sync\nquery mine():\n  return notes where .reviewer = viewer first 20 by .id\nmutation leave(area: text, lane: text):\n  m = members[area, lane, viewer] ! else NOT_MEMBER\n  delete members[m]\n  return null\n";
     let (schema, programs) = compiled(source);
-    for windowed in [false, true] {
-        let (schema, programs) = if windowed {
-            compiled(
-                &source
-                    .replace("  sync\nquery mine", "  sync last 3 by .at\nquery mine")
-                    .replace("first 20 by .id", "last 3 by .at"),
-            )
-        } else {
-            (schema.clone(), programs.clone())
-        };
+    {
+        let (schema, programs) = (schema.clone(), programs.clone());
         let mut engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
         let member = |key: &str, lane: &str| {
             (
@@ -2058,17 +1812,8 @@ fn check_spared_trace<S: snapback4_device::store::DeviceStore>(
 
 #[test]
 fn a_large_roster_scope_walks_interleaved_owners_across_500_row_batches() {
-    for windowed in [false, true] {
-        let source = if windowed {
-            STAFF
-                .replace(
-                    "  sync\n\nquery mine",
-                    "  sync last 600 by .at\n\nquery mine",
-                )
-                .replace("first 20 by .id", "last 1 by .at")
-        } else {
-            STAFF.replace("first 20 by .id", "first 2000 by .id")
-        };
+    {
+        let source = STAFF.replace("first 20 by .id", "first 2000 by .id");
         let (schema, programs) = compiled(&source);
         let mut engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
         let mut seed = vec![(
@@ -2323,8 +2068,8 @@ fn rebirth_chains_disclose_only_commit_boundary_audiences() {
 }
 
 #[test]
-fn windowed_epoch_leave_rejoin_create_is_blocking_on_both_stores() {
-    let b = backend(windowed_world());
+fn epoch_leave_rejoin_create_is_blocking_on_both_stores() {
+    let b = backend(teams_world());
     // Change the group arm before the three separate commits.
     let (mut schema, programs) = compiled(&b.world.source);
     schema.tables.get_mut("members").unwrap().defaults.insert(
@@ -2358,7 +2103,7 @@ fn windowed_epoch_leave_rejoin_create_is_blocking_on_both_stores() {
         mutate(&mut engine, ALICE, "create", &[("team", id("t1"))], 3);
         epoch_stream_trace(&mut engine, from, limit, &mut trace);
         let b = Backend {
-            world: windowed_world(),
+            world: teams_world(),
             schema: schema.clone(),
             programs: programs.clone(),
         };
@@ -2479,7 +2224,7 @@ fn renewal_epoch_and_sweep_between_pages_name_only_previously_readable_ids() {
     // An expiring group is still outside the union contract, including read-through lifetimes.
     let refused = snapback4_lang::compile(&[(
         "bad.q".into(),
-        synced.replace(
+        synced.replace("sync last 2 by .at", "sync").replace(
             "  at: time\n  read <- exists",
             "  owner: principal\n  at: time\n  read <- .owner = viewer or exists",
         ),

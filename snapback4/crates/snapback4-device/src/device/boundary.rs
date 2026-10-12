@@ -56,8 +56,8 @@ impl Boundaries {
     pub fn marker(&mut self, tx: &dyn crate::store::StreamTx, schema: &Schema, marker: &wire::Acquisition, snapshot: bool) -> Result<(), RuntimeError> {
         let valid = (|| {
             let table = schema.table(&marker.table)?;
-            // @ref LLP 3000.036.000.000#5.2 — a union arm's marker names its own window index and group.
-            let (audience, _) = table.sync.as_ref()?.arm_by_window(&marker.index)?;
+            // Acquisition markers belong only to a single-audience window.
+            let (audience, _) = table.sync.as_ref()?.single_window(&marker.index)?;
             let columns = audience.columns();
             if columns.len() != marker.group.len() { return None; }
             let group = columns.iter().zip(&marker.group).map(|(column, value)| wire::column_from_json(&table.columns[column], value)).collect::<Result<Vec<_>, _>>().ok()?;
@@ -97,31 +97,21 @@ impl Boundaries {
         }
         Ok(())
     }
-    /// Whether an unheld row's put is inside an acquired window. A union row
-    /// is admitted when some arm's window admits it, or when no arm has a
-    /// finished floor for the row's group under that arm.
-    // @ref LLP 3000.036.000.000#5.2 — the device holds the union of the arms' windows.
+    /// Whether an unheld row's put is inside its single-audience acquired window.
     pub fn accept(&mut self, tx: &dyn crate::store::StreamTx, name: &str, table: &Table, row: &Value, held: bool) -> Result<bool, RuntimeError> {
         if held { return Ok(true); }
         let Some(sync) = &table.sync else { return Ok(true) };
-        let mut floored = false;
-        for (audience, horizon) in sync.arms() {
-            let Some(horizon) = horizon else { return Ok(true) };
-            let k = key(name, &horizon.by, &snapback4_core::partition::arm_group(audience, row))?;
-            self.ensure(tx, &k)?;
-            match self.values.get(&k) {
-                // No boundary for this arm's group: a union asks its other arms.
-                None if sync.is_union() => continue,
-                None | Some(None) => return Ok(true),
-                Some(Some(floor)) if floor == "whole" || floor == "unknown" => return Ok(true),
-                Some(Some(floor)) => {
-                    let index = table.index(&horizon.by).expect("horizon index");
-                    if snapback4_core::rows::index_key(index, row, row.field("id")?.as_str()?) >= snapback4_core::value::decode_bytes_hex(floor).unwrap_or_default() { return Ok(true); }
-                    floored = true;
-                }
+        let Some(horizon) = &sync.horizon else { return Ok(true) };
+        let k = key(name, &horizon.by, &snapback4_core::partition::arm_group(&sync.audience, row))?;
+        self.ensure(tx, &k)?;
+        match self.values.get(&k) {
+            None | Some(None) => Ok(true),
+            Some(Some(floor)) if floor == "whole" || floor == "unknown" => Ok(true),
+            Some(Some(floor)) => {
+                let index = table.index(&horizon.by).expect("horizon index");
+                Ok(snapback4_core::rows::index_key(index, row, row.field("id")?.as_str()?) >= snapback4_core::value::decode_bytes_hex(floor).unwrap_or_default())
             }
         }
-        Ok(!floored)
     }
     pub fn scope(&mut self, tx: &dyn crate::store::StreamTx, name: &str, table: &Table, group: &[Value]) -> Result<(), RuntimeError> {
         if let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref()) {
@@ -151,7 +141,7 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), Runtime
 
 pub(super) fn read(boundaries: &Boundaries, schema: &Schema, name: &str, index: &str, prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> {
     let Some(table) = schema.table(name) else { return Ok(None) };
-    let Some((audience, _)) = table.sync.as_ref().and_then(|sync| sync.arm_by_window(index)) else { return Ok(None) };
+    let Some((audience, _)) = table.sync.as_ref().and_then(|sync| sync.single_window(index)) else { return Ok(None) };
     let width = audience.columns().len();
     if prefix.len() < width { return Ok(None); }
     Ok(boundaries.values.get(&key(name, index, &prefix[..width])?).and_then(|floor| floor.as_ref()).and_then(|floor| {

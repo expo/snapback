@@ -10,7 +10,7 @@ pub(super) struct AudienceNeed {
 
 // @ref LLP 3000.013#2.2 — planning consumes the same admitted rule/index order as sync binding.
 /// One need per arm: a single audience has one; a union one per disjunct
-/// (LLP 3000.036.000.000 §2.1), each with its own prefix index and window.
+/// (LLP 3000.036.000.000 §2.1), each with its own prefix index. Union windows are refused.
 pub(super) fn needs(table: &TableInfo, catalog: &Catalog) -> Vec<AudienceNeed> {
     let empty = || AudienceNeed { prefix: Vec::new(), inverse: None };
     let Some(sync) = &table.decl.sync else { return vec![empty()]; };

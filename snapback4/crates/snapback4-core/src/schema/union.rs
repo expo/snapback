@@ -3,12 +3,36 @@ use super::*;
 
 /// A union of audiences (LLP 3000.036.000.000 §2.2): the audience rule is
 /// exactly the `or` of the arms, each a whole disjunct; principal-column
-/// arms and at most one group arm; each arm with its own index and window.
+/// arms and at most one group arm; each arm with its own index and no window or expiry.
 // @ref LLP 3000.036.000.000#2.2 — every disjunct is one arm and every arm one disjunct, so each partition's recipients are readers and every reader has a partition.
 pub(super) fn validate(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
     let line = sync.line_in(table);
     let arms: Vec<(&Audience, Option<&Horizon>)> = sync.arms().collect();
+    // @ref LLP 3000.036.000.000#8 — union arms have no acquisition windows or direct/inherited expiry.
+    if sync.horizon.is_some() || sync.also.iter().any(|arm| arm.horizon.is_some()) {
+        issue(issues, format!("{line}: union audiences cannot have `last N by ...`; use `online only` to keep the read rule and queries, or remove the sync window to replicate every readable row"));
+        return;
+    }
+    let mut scopes = vec![table_name.to_owned()];
+    if let Audience::Target { table, .. } = &sync.audience { scopes.push(table.clone()); }
+    for root in scopes {
+        let mut name = root.as_str();
+        let mut seen = BTreeSet::new();
+        while seen.insert(name) {
+            let Some(scope) = schema.table(name) else { break };
+            if scope.is_expiring() {
+                issue(issues, format!("{line}: union audiences cannot expire: {name} has direct or inherited `expire at`; use `online only` to keep the read rule, expiry and queries"));
+                return;
+            }
+            if scope.sync.as_ref().is_some_and(|sync| sync.horizon.is_some() || sync.also.iter().any(|arm| arm.horizon.is_some())) {
+                issue(issues, format!("{line}: union audiences cannot depend on windowed scope {name} (direct or inherited); use `online only` to keep the read rule and queries"));
+                return;
+            }
+            let Some(through) = &scope.through else { break };
+            name = &through.parent;
+        }
+    }
     if sync.also.iter().any(|arm| !matches!(arm.audience, Audience::Column(_))) {
         issue(issues, format!("{line}: a union's further arms are principal columns; its one group audience is its first arm"));
         return;
@@ -71,24 +95,12 @@ pub(super) fn validate(schema: &Schema, table_name: &str, table: &Table, sync: &
         if target.columns.get(principal) != Some(&ColumnType::Principal) {
             issue(issues, format!("sync to {target_name} reads principals from {target_name}.{principal}, which is not a principal column"));
         }
-        // §8.8: the synthetic expiry scope is covered by R2, but no simulator world has an expiring union yet.
-        if target.is_expiring() { issue(issues, format!("{line}: a union's group audience cannot expire ({target_name} has `expire at`) in this version")); }
         match audience_binding(schema, table_name, table, sync) {
             Err(why) => issue(issues, why),
             Ok(binding) => target_grant_issues(schema, table_name, target_name, target, principal, &binding, &mut |message| issue(issues, message)),
         }
     }
-    // Every arm has a window or none does, all with one `last`.
-    let lasts: BTreeSet<Option<u32>> = arms.iter().map(|(_, horizon)| horizon.map(|h| h.last)).collect();
-    if lasts.len() > 1 { issue(issues, format!("{line}: every arm of a union keeps the same window (`last N by .column`), or none does")); }
-    for (audience, horizon) in &arms {
-        sync_index_issues(table_name, table, sync, audience, *horizon, &mut |message| issue(issues, message));
-    }
-    // Acquisition boundaries are found by window index: two arms on one index
-    // would share a boundary (round 3, GPT finding 2).
-    let windows: Vec<&str> = arms.iter().filter_map(|(_, horizon)| horizon.map(|h| h.by.as_str())).collect();
-    if windows.iter().collect::<BTreeSet<_>>().len() < windows.len() {
-        issue(issues, format!("{line}: two arms read one window index; order the window by columns no arm groups by"));
+    for (audience, _) in &arms {
+        sync_index_issues(table_name, table, sync, audience, None, &mut |message| issue(issues, message));
     }
 }
-

@@ -525,7 +525,7 @@ impl Parser {
             return Err(syntax_with(&self.peek().site.clone(), format!("unexpected {} after `{written}`", self.peek().value), format!("end the sync line after `{written}`; a window is `last N by .column, .id` or `last N by indexName`")));
         }
         self.newline()?;
-        Ok(SyncDecl { audience, horizon, own_keys, site, windows: Default::default() })
+        Ok(SyncDecl { audience, horizon, own_keys, site })
     }
 
     fn parse_retention(&mut self) -> Fallible<(String, Site)> {

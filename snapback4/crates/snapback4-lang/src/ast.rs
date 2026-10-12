@@ -335,9 +335,6 @@ pub struct SyncDecl {
     pub horizon: Option<(u32, SyncOrder)>,
     pub own_keys: Option<String>,
     pub site: Site,
-    /// A union's planned window index per arm, keyed by the arm's audience
-    /// columns (filled by intent planning from a column-form window).
-    pub windows: std::collections::BTreeMap<Vec<String>, String>,
 }
 
 // @ref LLP 3000.019#3.1 — column intent resolves to the same ordinary index as a named window.

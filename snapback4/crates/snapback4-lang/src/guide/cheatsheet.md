@@ -42,7 +42,8 @@ table requests:                           -- owner or staff: a union, so `sync` 
   title: text 1..200
   read <- .author = viewer or exists staff[viewer]
   insert <- .author = viewer
-  sync last 500 by .id
+  cap 500
+  sync
 
 query myLists(c: cursor ?):               -- a page; pass the answer's `next` back as `c`
   return lists where .owner = viewer last 20 by .at after c   -- `last` reads newest first; `first` oldest first

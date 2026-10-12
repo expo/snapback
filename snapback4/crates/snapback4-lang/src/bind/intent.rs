@@ -340,30 +340,11 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         // unique key already supplies the corresponding recipient enumeration.
         if let Some(sync) = &mut table.decl.sync {
             let mut needs = audiences.remove(&table.decl.name).expect("planned sync audience");
-            // @ref LLP 3000.036.000.000#5.1 — a union plans each arm's prefix index and, from a column-form window, each arm's own window index.
+            // @ref LLP 3000.036.000.000#2.2 — every admitted union arm has a plain prefix index; no arm has a window.
             if needs.len() > 1 {
-                // A union's window orders by columns no arm groups by, so each
-                // arm's window index is its own (round 3, GPT finding 2).
-                if let Some((last, SyncOrder::Columns(order))) = &sync.horizon {
-                    let grouped: Vec<&String> = order.iter().filter(|column| needs.iter().any(|need| need.prefix.contains(column))).collect();
-                    if !grouped.is_empty() {
-                        let kept: Vec<String> = order.iter().filter(|column| !grouped.contains(column)).cloned().collect();
-                        let rewrite = if kept.is_empty() { "last N by .at  -- order the window by a column no arm groups by".to_owned() } else { format!("last {last} by {}", SyncOrder::Columns(kept)) };
-                        requests.errors.push(crate::diag::sync_error(&sync.site,
-                            format!("a union's window orders each arm's own group; it cannot order by {}, which an arm groups by", SyncOrder::Columns(grouped.into_iter().cloned().collect())), rewrite).guide("sharing"));
-                        continue;
-                    }
-                }
                 for need in &needs {
                     if let Some((target, columns)) = &need.inverse { requests.index(&tables[target], columns.clone(), None, &sync.site, false); }
                     if !need.prefix.is_empty() { requests.index(original, need.prefix.clone(), None, &sync.site, false); }
-                    if let Some((_, SyncOrder::Columns(order))) = &sync.horizon {
-                        let mut columns = need.prefix.clone();
-                        for column in order { if !columns.contains(column) { columns.push(column.clone()); } }
-                        if !columns.iter().any(|column| column == "id") { columns.push("id".into()); }
-                        let name = requests.index(original, columns, None, &sync.site, true);
-                        sync.windows.insert(need.prefix.clone(), name);
-                    }
                 }
                 continue;
             }
@@ -497,11 +478,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         for (value, _) in &mut table.decl.final_exists { walk::expression(value, &mut resolve); }
         if let Some((_, SyncOrder::Index(by))) = table.decl.sync.as_mut().and_then(|sync| sync.horizon.as_mut())
             && let Some(name) = names.get(&(table.decl.name.clone(), by.clone())) { *by = name.clone(); }
-        if let Some(sync) = table.decl.sync.as_mut() {
-            for by in sync.windows.values_mut() {
-                if let Some(name) = names.get(&(table.decl.name.clone(), by.clone())) { *by = name.clone(); }
-            }
-        }
+
     }
     for doc in &mut catalog.documents { walk::document(doc, &mut resolve); }
     for read in catalog.extremum_domains.values_mut() {

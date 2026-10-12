@@ -23,8 +23,8 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             if matches!(scan.take, ir::Bound::Meter) || bound.constraint_domains.contains(&scan.site) { continue; }
             let Some(sync) = &table.sync else { continue; };
             let Some(window) = &sync.horizon else { continue; };
-            // @ref LLP 3000.036.000.000#5.3 — a union page certifies through any one arm's window.
-            if sync.arm_by_window(&scan.index).is_some() && scan.order == ir::Order::Desc { continue; }
+            // Only a single-audience window constrains device scan order.
+            if sync.single_window(&scan.index).is_some() && scan.order == ir::Order::Desc { continue; }
             let Some(index) = table.index(&window.by).filter(|index| index.is_plain()) else { continue; };
             let audience_columns = match &sync.audience { Audience::Public => Vec::new(), Audience::Column(column) => vec![column.clone()], Audience::Target { prefix, .. } => prefix.clone() };
             let prefix = audience_columns.len();

@@ -340,7 +340,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
         return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{source}`"), rewrite));
     }
     // The rule's order is the bound order, however the line spells the arms.
-    if arms.len() > 1 { return bind_union_windows(info, sync, implied); }
+    if arms.len() > 1 { return bind_union(catalog, info, sync, implied); }
     let audience = arms.into_iter().next().expect("one audience");
     let horizon = match &sync.horizon {
         Some((last, SyncOrder::Index(by))) => {
@@ -375,34 +375,39 @@ fn canonical(mut arms: Vec<Audience>) -> Vec<Audience> {
     arms
 }
 
-/// A union's windows: one per arm, planned from the column form.
-// @ref LLP 3000.036.000.000#5.1 — every arm keeps the newest N rows of its own group, through its own window index.
-fn bind_union_windows(info: &TableInfo, sync: &SyncDecl, arms: Vec<Audience>) -> Fallible<Sync> {
-    // Equal prefixes share the planner's key and cannot distinguish boundaries.
-    // @ref LLP 3000.036.000.000#5.1 — window markers identify each arm by its distinct index.
+/// The admitted union has whole, non-expiring and horizon-free audiences.
+// @ref LLP 3000.036.000.000#8 — windowed/expiring union arms are refused rather than partially delivered.
+fn bind_union(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, arms: Vec<Audience>) -> Fallible<Sync> {
     if sync.horizon.is_some() {
-        let mut prefixes = std::collections::BTreeSet::new();
-        if let Some(arm) = arms.iter().find(|arm| !prefixes.insert(arm.columns())) {
-            return Err(sync_error(&sync.site,
-                format!("two union arms group by the same columns ({}); their window markers cannot distinguish the arms", arm.columns().join(", ")),
-                "online only  -- keep this read rule; or remove `last N by ...` to sync every readable row").guide("sharing"));
+        return Err(sync_error(&sync.site,
+            "union audiences cannot have `last N by ...`",
+            "online only  -- keep this read rule and queries; or remove the sync window to replicate every readable row").guide("sharing"));
+    }
+    let scopes = std::iter::once(info.decl.name.as_str()).chain(arms.iter().filter_map(|arm| match arm {
+        Audience::Target { table, .. } => Some(table.as_str()), _ => None,
+    }));
+    for root in scopes {
+        let mut name = root;
+        let mut seen = BTreeSet::new();
+        while seen.insert(name) {
+            let Some(scope) = catalog.tables.get(name) else { break };
+            if scope.decl.expire.is_some() || scope.decl.ephemeral.is_some() || scope.through.as_ref().is_some_and(|t| t.expiring) {
+                return Err(sync_error(&sync.site,
+                    format!("union audiences cannot expire: {name} has direct or inherited `expire at`"),
+                    "online only  -- keep this read rule, expiry and queries").guide("sharing"));
+            }
+            if scope.decl.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
+                return Err(sync_error(&sync.site,
+                    format!("union audiences cannot depend on windowed scope {name} (direct or inherited)"),
+                    "online only  -- keep this read rule and queries").guide("sharing"));
+            }
+            let Some(through) = &scope.through else { break };
+            name = &through.parent;
         }
     }
-    let windows: Vec<Option<Horizon>> = match &sync.horizon {
-        None => arms.iter().map(|_| None).collect(),
-        Some((last, SyncOrder::Index(by))) => {
-            // The repair orders by what the named index orders by, without any arm's group columns (round 4, GPT finding 3).
-            let grouped: Vec<String> = arms.iter().flat_map(Audience::columns).collect();
-            let order = info.indexes.iter().find(|index| &index.name == by).map(|index| index.columns.iter().filter(|column| column.as_str() != "id" && !grouped.contains(column)).map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")).filter(|order| !order.is_empty()).unwrap_or_else(|| ".id".into());
-            return Err(sync_error(&sync.site, format!("a union's window names its order by columns: each arm keeps its newest {last} rows through its own index, and one named index ({by}) cannot lead with every arm's columns"),
-                format!("last {last} by {order}  -- in place of `last {last} by {by}`")).guide("sync"));
-        }
-        Some((last, SyncOrder::Columns(_))) => arms.iter().map(|arm| sync.windows.get(&arm.columns()).map(|by| Horizon { last: *last, by: by.clone() })
-            .ok_or_else(|| sync_error(&sync.site, format!("the window of `{}` was not planned", arm.arm()), "sync  -- infer the union from the read rule"))).collect::<Fallible<Vec<_>>>()?.into_iter().map(Some).collect(),
-    };
-    let mut pairs = arms.into_iter().zip(windows);
-    let (audience, horizon) = pairs.next().expect("a union has arms");
-    Ok(Sync { audience, horizon, also: pairs.map(|(audience, horizon)| core::SyncArm { audience, horizon }).collect() })
+    let mut arms = arms.into_iter();
+    let audience = arms.next().expect("a union has arms");
+    Ok(Sync { audience, horizon: None, also: arms.map(|audience| core::SyncArm { audience, horizon: None }).collect() })
 }
 
 fn bind_column_arm(info: &TableInfo, sync: &SyncDecl, column: &str) -> Fallible<Audience> {

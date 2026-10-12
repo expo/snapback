@@ -105,11 +105,11 @@ sync to .col [last N by .at]                   each row reaches the principal in
 sync to t[.a, .b] [by .col] [last N by .at]    each row reaches every principal with a
                                                  row in t whose (a, b) match; `by .col` names
                                                  the recipient column when t has several
-sync to .col or t[.a] [last N by .at]          a union: every arm's readers hold the row
+sync to .col or t[.a]                         a horizon-free, non-expiring union
 ```
 
 `sync [last N by .at]` infers its audience from the read rule. Explicit `sync public` and `sync to ...` remain valid and must agree with that rule.
-The read rule must be exactly the audience — `public`, `.col = viewer`, `exists t[.a, .b, viewer]`, or a union: an `or` of `.col = viewer` branches and at most one `exists` branch, each whole (`guide sharing`; a union window keeps each branch's newest N) — so a device never holds a row it may not read and never misses one it may; a branch that is not a whole audience, or an extra conjunct, is
+The read rule must be exactly the audience — `public`, `.col = viewer`, `exists t[.a, .b, viewer]`, or a union: an `or` of `.col = viewer` branches and at most one `exists` branch, each whole (`guide sharing`; unions replicate every readable row and refuse windows or direct/inherited expiry) — so a device never holds a row it may not read and never misses one it may; a branch that is not a whole audience, or an extra conjunct, is
 refused with the rewrite. Declare `unique a, b, principal` on the target; the compiler supplies
 the recipient lookup index; when it
 has several principal columns, `by .col` names the recipient. Every insert

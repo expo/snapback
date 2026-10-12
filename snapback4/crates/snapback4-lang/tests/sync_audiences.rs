@@ -195,32 +195,18 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     let printed = clean(&two_principals).schema.tables["plants"].sync.clone().unwrap().line();
     assert_eq!(printed, "sync to .owner or shares[.id] by .principal");
     clean(&two_principals.replace("  sync by .principal\ntable shares:", &format!("  {printed}\ntable shares:")));
-    // Two arms on one window index would share a boundary: the window cannot
-    // order by an arm's group column (round 3, GPT finding 2).
-    let collide = staff.replace("  tenant: principal\n", "  tenant: principal\n  at: time\n").replace("  insert <- .tenant = viewer\n  sync\n", "  insert <- .tenant = viewer\n  sync last 1 by .tenant, .at\n");
-    let refused = compile(&collide);
-    assert!(refused.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.message.contains("an arm groups by") && d.rewrite.starts_with("last 1 by .at")), "{:?}", refused.diagnostics);
-    // A union window gives each arm its own window index, leading with its columns.
-    let windowed = clean(&two.replace("  sync\n", "  at: time\n  sync last 50 by .at\n").replace("  read <-", "  at2: time ?\n  read <-"));
-    let table = &windowed.schema.tables["orders"];
-    for (audience, horizon) in table.sync.as_ref().unwrap().arms() {
-        let horizon = horizon.expect("every arm has a window");
-        assert_eq!(horizon.last, 50);
-        assert_eq!(table.indexes[&horizon.by].columns(), [audience.columns()[0].as_str(), "at", "id"]);
+    // Every union window is refused, including named and equal-prefix forms.
+    for window in ["last 1 by .at", "last 1 by byAt"] {
+        let source = two.replace("  sync\n", &format!("  at: time\n  by byAt: customer, at, id\n  sync {window}\n"));
+        let d = refusal(&source);
+        assert!(d.message.contains("union audiences cannot have"), "{d:?}");
+        clean(&source.replace(&format!("sync {window}"), &d.rewrite));
+        clean(&source.replace(&format!("sync {window}"), "sync"));
     }
-    // The printed line spells the window in column form, and it compiles (round 2, GPT finding 5).
-    let line = table.sync.as_ref().unwrap().line_in(table);
-    assert_eq!(line, "sync to .customer or .seller last 50 by .at, .id");
-    clean(&two.replace("  sync\n", &format!("  at: time\n  {line}\n")).replace("  read <-", "  at2: time ?\n  read <-"));
     // Repeated branches, in either equality order, are one arm each (round 2, GPT finding 4).
     for rule in [".customer = viewer or viewer = .customer or .seller = viewer", ".customer = viewer or .customer = viewer"] {
         clean(&two.replace(".customer = viewer or .seller = viewer", rule));
     }
-    // A named window index cannot lead with both arms: the rewrite is the column form.
-    let named = refusal(&two.replace("  sync\n", "  at: time\n  by byAt: customer, at, id\n  sync last 50 by byAt\n"));
-    assert!(named.rewrite.starts_with("last 50 by .at  --"), "{named:?}");
-    // The repair compiles (round 4, GPT finding 3).
-    clean(&two.replace("  sync\n", "  at: time\n  by byAt: customer, at, id\n  sync last 50 by .at\n"));
     // A branch with an extra condition is not a whole audience.
     let partial = refusal(&two.replace("read <- .customer = viewer or .seller = viewer", "read <- .customer = viewer or (.seller = viewer and .customer = .seller)"));
     assert!(partial.message.contains("do not make private rows public") && partial.rewrite.contains("is not") && partial.rewrite.contains("`.customer = viewer`"), "{partial:?}");
@@ -264,10 +250,10 @@ fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
 }
 
 #[test]
-fn equal_union_window_prefixes_name_the_collision_and_offer_a_working_repair() {
+fn equal_union_window_prefixes_are_refused_with_a_working_repair() {
     let source = "table grants:\n  owner: principal\n  person: principal\n  unique owner, person\n  immutable owner, person\n  read <- exists grants[.owner, viewer]\n  insert <- exists grants[.owner, viewer]\n  sync by .person\ntable notes:\n  owner: principal\n  at: time\n  read <- .owner = viewer or exists grants[.owner, viewer]\n  insert <- .owner = viewer and exists grants[.owner, viewer]\n  sync by .person last 1 by .at\n";
     let d = refusal(source);
-    assert!(d.message.contains("same columns (owner)") && d.message.contains("cannot distinguish"), "{d:?}");
+    assert!(d.message.contains("union audiences cannot have"), "{d:?}");
     clean(&source.replace("sync by .person last 1 by .at", &d.rewrite));
     clean(&source.replace("sync by .person last 1 by .at", "sync by .person"));
 }
