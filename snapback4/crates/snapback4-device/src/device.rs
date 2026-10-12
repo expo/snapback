@@ -1303,12 +1303,13 @@ fn spared(table: &Table, keeper: Option<&str>, row: &Value) -> bool {
 /// was delivered (`delivered-history`). On a union, rows that name the
 /// recipient in a column arm stay.
 fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, group: &[Value], keeper: Option<&str>) -> Result<(), RuntimeError> {
-    let Some(table) = schema.table(table_name) else { return Ok(()) };
+    let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("scope names unknown table {table_name}")))?;
+    let sync = table.sync.as_ref().ok_or_else(|| RuntimeError::Schema(format!("scope names unsynced table {table_name}")))?;
+    if !matches!(sync.audience, Audience::Target { .. }) { return Err(RuntimeError::Schema(format!("scope names a non-group audience on {table_name}"))); }
     if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
-    let Some(sync) = &table.sync else { return Ok(()) };
     let prefix = audience_prefix(table);
     let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
-    let Some(index) = index else { return Ok(()) };
+    let index = index.ok_or_else(|| RuntimeError::Schema(format!("scope has no group index on {table_name}")))?;
     let mut bounds = Bounds::default();
     loop {
         let rows = tx.scan(table_name, &index, group, &bounds, Dir::Asc, 500)?;
@@ -1368,3 +1369,6 @@ mod publication_round6;
 
 #[cfg(all(test, feature = "native"))]
 mod publication_round7;
+
+#[cfg(test)]
+mod union_hardening_tests;

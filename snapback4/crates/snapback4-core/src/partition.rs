@@ -837,8 +837,19 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
         let members: Vec<_> = binding.columns.iter().chain([&binding.principal]).map(|column| reading(target_table, column)).collect();
         let lifetime = target_table.expire.as_ref().map(|column| reading(target_table, column));
         let effective = target_table.expiry_column().map(|column| reading(target_table, &column.to_owned()));
+        // Inherited lifetime inputs can change without changing capture types.
+        // Bind the entire finite parent chain, including default interpretation.
+        let mut ancestors = Vec::new();
+        let mut next = target_table.through.as_ref().map(|t| t.parent.as_str());
+        let mut seen = std::collections::BTreeSet::new();
+        while let Some(parent) = next {
+            if !seen.insert(parent) { break; }
+            let Some(owner) = schema.table(parent) else { break; };
+            ancestors.push((parent, &owner.columns, &owner.defaults, &owner.expire, &owner.through));
+            next = owner.through.as_ref().map(|t| t.parent.as_str());
+        }
         Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, lifetime, effective,
-            target_table.through, table.through.as_ref().map(|t| &t.identity)])))
+            target_table.through, table.through.as_ref().map(|t| &t.identity), ancestors])))
     };
     schema.synced().filter(|(_, _, sync)| matches!(sync.audience, Audience::Target { .. }))
         .filter(|(name, _, _)| key(schema, name) != key(previous, name))

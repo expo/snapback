@@ -262,3 +262,12 @@ fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
     assert!(snapback4_lang::guide::card("sync").unwrap().contains("`guide sharing`"));
     assert!(snapback4_lang::guide::explain_code("E_SYNC").unwrap().contains("guide sharing"));
 }
+
+#[test]
+fn equal_union_window_prefixes_name_the_collision_and_offer_a_working_repair() {
+    let source = "table grants:\n  owner: principal\n  person: principal\n  unique owner, person\n  immutable owner, person\n  read <- exists grants[.owner, viewer]\n  insert <- exists grants[.owner, viewer]\n  sync by .person\ntable notes:\n  owner: principal\n  at: time\n  read <- .owner = viewer or exists grants[.owner, viewer]\n  insert <- .owner = viewer and exists grants[.owner, viewer]\n  sync by .person last 1 by .at\n";
+    let d = refusal(source);
+    assert!(d.message.contains("same columns (owner)") && d.message.contains("cannot distinguish"), "{d:?}");
+    clean(&source.replace("sync by .person last 1 by .at", &d.rewrite));
+    clean(&source.replace("sync by .person last 1 by .at", "sync by .person"));
+}

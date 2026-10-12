@@ -208,7 +208,8 @@ pub(super) fn stage_left<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage
     let mut candidates = Candidates::default();
     candidates.left = tx.meta(key)?.map(|v| decoded(&v)).transpose()?.unwrap_or_default();
     for event in &page.events { if event.kind == "scope" {
-        candidates.leave(schema, &event.table, &scope_group(&schema.tables[&event.table], event)?)?;
+        let table = schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("scope names unknown table {}", event.table)))?;
+        candidates.leave(schema, &event.table, &scope_group(table, event)?)?;
     } }
     tx.set_meta(key, &encoded(&candidates.left)?)
 }

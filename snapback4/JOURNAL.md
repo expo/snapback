@@ -92726,3 +92726,12 @@ public-join fixture now verifies that obsolete joins cannot certify a public
 window; its snapshot privacy checks remain, and renewal fixtures use a
 real admitted roster audience. Both real stores and the wasm fixture
 consumer exercise that distinction.
+
+- 2026-10-12, UNION continuation: round 8 on revision 8 returned GPT READY WITH
+  CHANGES (one Low doc mismatch), Muse READY WITH CHANGES (ancestor lifetime
+  identity and named coverage). Revision 9 binds ancestor expiry interpretation,
+  makes scope backstops fail closed, diagnoses equal-prefix window collisions,
+  and adds blocking multiple-column/window, multi-prefix, interleaved bulk leave,
+  snapshot-limit, cross-table and epoch/rebirth witnesses. Expiring union groups
+  remain refused; renewal/sweep traces stay on the admitted single-group path.
+  Final commissioned paired review pending; no author acceptance or push.

@@ -378,6 +378,16 @@ fn canonical(mut arms: Vec<Audience>) -> Vec<Audience> {
 /// A union's windows: one per arm, planned from the column form.
 // @ref LLP 3000.036.000.000#5.1 — every arm keeps the newest N rows of its own group, through its own window index.
 fn bind_union_windows(info: &TableInfo, sync: &SyncDecl, arms: Vec<Audience>) -> Fallible<Sync> {
+    // Equal prefixes share the planner's key and cannot distinguish boundaries.
+    // @ref LLP 3000.036.000.000#5.1 — window markers identify each arm by its distinct index.
+    if sync.horizon.is_some() {
+        let mut prefixes = std::collections::BTreeSet::new();
+        if let Some(arm) = arms.iter().find(|arm| !prefixes.insert(arm.columns())) {
+            return Err(sync_error(&sync.site,
+                format!("two union arms group by the same columns ({}); their window markers cannot distinguish the arms", arm.columns().join(", ")),
+                "online only  -- keep this read rule; or remove `last N by ...` to sync every readable row").guide("sharing"));
+        }
+    }
     let windows: Vec<Option<Horizon>> = match &sync.horizon {
         None => arms.iter().map(|_| None).collect(),
         Some((last, SyncOrder::Index(by))) => {

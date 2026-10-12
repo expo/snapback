@@ -643,7 +643,7 @@ fn three_world() -> World {
         },
         readable,
         ops: |now| {
-            let mut out = parties_world().ops.clone()(now);
+            let mut out = parties_world().ops(now);
             for actor in PRINCIPALS {
                 for order in now["orders"].keys() {
                     for who in PRINCIPALS { out.push(Op::new(actor, "appoint", &[("order", id(order)), ("agent", id(who))])); }
@@ -660,6 +660,209 @@ fn three_world() -> World {
         },
         column_arms: |_| &["buyer", "seller", "agent"],
         ..parties_world()
+    }
+}
+
+// ---- independent windows of two/three column arms ----
+fn windowed_parties_world(three: bool) -> World {
+    let mut world = if three {
+        three_world()
+    } else {
+        parties_world()
+    };
+    world.source = world
+        .source
+        .replace("  title: text <=20", "  at: time\n  title: text <=20")
+        .replace("title: 'x' }", "title: 'x', at: now }")
+        .replace("  sync\n", "  sync last 1 by .at\n")
+        .replace(
+            "  sync to .agent or .seller or .buyer\n",
+            "  sync to .agent or .seller or .buyer last 1 by .at\n",
+        )
+        .replace("first 20 by .id", "last 1 by .at");
+    world.source.push_str("\nquery anyBuys():\n  return exists orders where .buyer = viewer\nquery buyCount():\n  return count(orders where .buyer = viewer)\n");
+    if three {
+        world
+            .source
+            .push_str("\nquery agencies():\n  return orders where .agent = viewer last 1 by .at\n");
+    }
+    world.seed = || {
+        let row = |k: &str, buyer: &str, seller: &str, agent: &str, at: i64| {
+            (
+                "orders".into(),
+                object([
+                    ("id", id(k)),
+                    ("buyer", id(buyer)),
+                    ("seller", id(seller)),
+                    ("agent", id(agent)),
+                    ("at", Value::Int(at)),
+                    ("title", Value::String("x".into())),
+                ]),
+            )
+        };
+        vec![
+            row("oa", BOB, ALICE, MALLORY, 1),
+            row("ob", BOB, BOB, BOB, 2),
+            row("oc", ALICE, BOB, ALICE, 3),
+        ]
+    };
+    if !three {
+        world.seed = || {
+            windowed_parties_world(true).seed()
+                .into_iter()
+                .map(|(t, mut row)| {
+                    if let Value::Row(fields) = &mut row {
+                        fields.remove("agent");
+                    }
+                    (t, row)
+                })
+                .collect()
+        };
+    }
+    world.name = if three {
+        "three parties, windowed"
+    } else {
+        "two parties, windowed"
+    };
+    world.newest = Some(|now, p| {
+        ["buyer", "seller", "agent"]
+            .into_iter()
+            .filter_map(|c| {
+                now["orders"]
+                    .iter()
+                    .filter(|(_, row)| field(row, c) == p)
+                    .max_by_key(|(key, row)| (row["at"].as_i64().unwrap(), (*key).clone()))
+                    .map(|(key, _)| ("orders".into(), key.clone()))
+            })
+            .collect()
+    });
+    world.queries = if three {
+        |_, _| {
+            vec![
+                ("buys", json!({}), true),
+                ("sales", json!({}), true),
+                ("agencies", json!({}), true),
+                ("anyBuys", json!({}), false),
+                ("buyCount", json!({}), false),
+            ]
+        }
+    } else {
+        |_, _| {
+            vec![
+                ("buys", json!({}), true),
+                ("sales", json!({}), true),
+                ("anyBuys", json!({}), false),
+                ("buyCount", json!({}), false),
+            ]
+        }
+    };
+    world
+}
+
+fn two_columns_group_readable(now: &Rows, p: &str) -> Rows {
+    let mut rows = teams_readable(now, p);
+    rows.get_mut("tasks").unwrap().extend(
+        now["tasks"]
+            .iter()
+            .filter(|(_, row)| field(row, "reviewer") == p)
+            .map(|(k, v)| (k.clone(), v.clone())),
+    );
+    rows
+}
+
+fn two_columns_group_world(windowed: bool) -> World {
+    let mut world = if windowed {
+        windowed_world()
+    } else {
+        teams_world()
+    };
+    world.source = world
+        .source
+        .replace(
+            "  owner: principal\n  team",
+            "  owner: principal\n  reviewer: principal\n  team",
+        )
+        .replace(
+            ".owner = viewer or exists members",
+            ".owner = viewer or .reviewer = viewer or exists members",
+        )
+        .replace(
+            "owner: viewer, team, title",
+            "owner: viewer, reviewer: viewer, team, title",
+        );
+    world.source.push_str(if windowed {
+        "\nquery reviews():\n  return tasks where .reviewer = viewer last 1 by .at\n"
+    } else {
+        "\nquery reviews():\n  return tasks where .reviewer = viewer first 20 by .id\n"
+    });
+    world.seed = || {
+        teams_seed()
+            .into_iter()
+            .map(|(t, mut row)| {
+                if t == "tasks" {
+                    if let Value::Row(fields) = &mut row {
+                        fields.insert("reviewer".into(), id(ALICE));
+                    }
+                }
+                (t, row)
+            })
+            .collect()
+    };
+    world.readable = two_columns_group_readable;
+    world.column_arms = |t| {
+        if t == "tasks" {
+            &["owner", "reviewer"]
+        } else {
+            &[]
+        }
+    };
+    world.name = if windowed {
+        "two columns and group, windowed"
+    } else {
+        "two columns and group"
+    };
+    if windowed {
+        world.newest = Some(|now, p| {
+            let mut newest = windowed_world().newest.unwrap()(now, p);
+            if let Some((k, _)) = now["tasks"]
+                .iter()
+                .filter(|(_, row)| field(row, "reviewer") == p)
+                .max_by_key(|(k, row)| (row["at"].as_i64().unwrap(), (*k).clone()))
+            {
+                newest.insert(("tasks".into(), k.clone()));
+            }
+            newest
+        });
+        world.queries = |now, p| {
+            let mut q = windowed_world().queries.clone()(now, p);
+            q.push(("reviews", json!({}), true));
+            q
+        };
+    } else {
+        world.queries = |now, p| {
+            let mut q = teams_queries(now, p);
+            q.push(("reviews", json!({}), true));
+            q
+        };
+    }
+    world
+}
+
+#[test]
+fn pure_column_windows_every_sequence_of_two_writes() {
+    for three in [false, true] {
+        let w = windowed_parties_world(three);
+        let name = w.name;
+        assert_clean(name, exhaust(w, BLOCKING_DEPTH), BLOCKING_DEPTH);
+    }
+}
+
+#[test]
+fn two_columns_plus_group_every_sequence_of_two_writes() {
+    for windowed in [false, true] {
+        let w = two_columns_group_world(windowed);
+        let name = w.name;
+        assert_clean(name, exhaust(w, BLOCKING_DEPTH), BLOCKING_DEPTH);
     }
 }
 
@@ -1470,13 +1673,17 @@ fn epoch_snapshot_trace(engine: &mut Engine) -> Vec<Json> {
 }
 
 fn epoch_stream_trace(engine: &mut Engine, from: u64, limit: usize, trace: &mut Vec<Json>) {
+    stream_trace_at(engine,from,limit,NOW+10,trace);
+}
+
+fn stream_trace_at(engine: &mut Engine, from: u64, limit: usize, now: i64, trace: &mut Vec<Json>) {
     let mut watermark = from;
     loop {
-        let page = engine.stream_at(ALICE, watermark, limit, NOW + 10).unwrap();
+        let page = engine.stream_at(ALICE, watermark, limit, now).unwrap();
         assert!(page.acquisitions.iter().all(|marker| marker.at <= page.events.len()), "marker past page: {page:?}");
         let events: Vec<_> = page.events.iter().map(|e| json!({"data": e.data.as_ref().map(wire::to_json), "id": e.id, "kind": e.kind, "seq": e.seq, "table": e.table})).collect();
         trace.push(json!({"acknowledged": {}, "events": events, "generation": engine.generation(), "joined": page.joined,
-            "more": page.more, "now": NOW + 10, "snapshot": false, "watermark": page.watermark, "acquisitions": page.acquisitions, "images_at": page.images_at}));
+            "more": page.more, "now": now, "snapshot": false, "watermark": page.watermark, "acquisitions": page.acquisitions, "images_at": page.images_at}));
         assert!(page.watermark > watermark || !page.more, "empty page must advance");
         watermark = page.watermark;
         if !page.more { break; }
@@ -1590,5 +1797,772 @@ fn removed_roster_joins_never_expand_under_an_owner_only_audience() {
             epoch_trace_applies(snapback4_device::memory::MemoryStore::new(), backend.clone(), &trace, "mine", &json!({}), &expected);
             epoch_trace_applies(snapback4_core::Store::memory().unwrap(), backend.clone(), &trace, "mine", &json!({}), &expected);
         }
+    }
+}
+
+// Named disclosure follow-ups: vary wire pagination while applying to both stores.
+fn snapshot_trace_at(engine: &mut Engine, viewer: &str, limit: usize) -> Vec<Json> {
+    let mut trace = Vec::new();
+    let mut after = None;
+    loop {
+        let page = engine
+            .snapshot_acquisition_page_at(viewer, after.as_deref(), limit, NOW + 10)
+            .unwrap();
+        let next = page.next.map(|n| n.encode());
+        let events: Vec<_> = page.events.iter().map(|e| json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(wire::to_json)})).collect();
+        assert!(page.acquisitions.iter().all(|a| a.at <= events.len()));
+        trace.push(json!({"snapshot":true,"watermark":page.watermark,"generation":engine.generation(),"after":after,"next":next,"more":next.is_some(),"now":NOW + 10,"held":page.held,"acquisitions":page.acquisitions,"events":events}));
+        after = next;
+        if after.is_none() {
+            return trace;
+        }
+    }
+}
+
+fn compare_trace<S: snapback4_device::store::DeviceStore>(
+    store: S,
+    b: &Backend,
+    engine: &mut Engine,
+    viewer: &str,
+    trace: &[Json],
+) {
+    let backend = snapback4_device::device::Backend {
+        generation: engine.generation(),
+        schema: b.schema.clone(),
+        programs: b.programs.clone(),
+    };
+    let mut device = snapback4_device::device::Device::open_store(store, Some(backend)).unwrap();
+    for (n, page) in trace.iter().enumerate() {
+        device
+            .apply(&serde_json::from_value(page.clone()).unwrap(), n == 0)
+            .unwrap();
+    }
+    let now = b.tables(engine);
+    for (query, args, known) in (b.world.queries)(&now, viewer) {
+        let (local, unknown, _) = device.query_with_coverage(query, viewer, &args, NOW + 10);
+        let server = engine.query(
+            query,
+            Context::new(
+                viewer,
+                args.as_object()
+                    .unwrap()
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            wire::from_json(
+                                &b.programs.iter().find(|p| p.name == query).unwrap().args[k],
+                                v,
+                            )
+                            .unwrap(),
+                        )
+                    })
+                    .collect(),
+            )
+            .at(NOW + 10),
+        );
+        match (local, server) {
+            (Ok(local), Ok(server)) => {
+                if known {
+                    assert!(
+                        local.complete && !unknown,
+                        "{query}: {local:?}, unknown={unknown}"
+                    );
+                }
+                if local.complete && !unknown && !local.unavailable && !server.unavailable {
+                    assert_eq!(local.data, server.data, "{query} for {viewer}");
+                }
+            }
+            (Err(local), Err(server)) => assert_eq!(local.code, server.code),
+            (Ok(local), Err(server)) => assert!(
+                !local.complete || unknown,
+                "{query}: local {local:?} vs server {server:?}"
+            ),
+            (Err(local), Ok(_)) => assert!(
+                unknown || matches!(local.code.as_str(), "E_OFFLINE" | "E_UNAVAILABLE"),
+                "{query}: {local:?}"
+            ),
+        }
+    }
+}
+
+#[test]
+fn snapshots_at_every_small_page_size_certify_each_union_arm_on_both_stores() {
+    for world in [
+        teams_world(),
+        windowed_world(),
+        staff_world(),
+        parties_world(),
+        three_world(),
+        windowed_parties_world(false),
+        windowed_parties_world(true),
+        two_columns_group_world(true),
+    ] {
+        let b = backend(world);
+        let mut engine = b.fresh();
+        for viewer in PRINCIPALS {
+            for limit in [1, 2, 3, 4, 5, 6, 7, 8, 1000] {
+                let trace = snapshot_trace_at(&mut engine, viewer, limit);
+                compare_trace(
+                    snapback4_device::memory::MemoryStore::new(),
+                    &b,
+                    &mut engine,
+                    viewer,
+                    &trace,
+                );
+                compare_trace(
+                    snapback4_core::store::Store::memory().unwrap(),
+                    &b,
+                    &mut engine,
+                    viewer,
+                    &trace,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn two_prefix_scopes_spare_both_column_keepers_without_crossing_groups() {
+    let source = "table members:\n  area: text <=20\n  lane: text <=20\n  principal: principal\n  unique area, lane, principal\n  immutable area, lane, principal\n  read <- .principal = viewer\n  insert <- exists members[.area, .lane, viewer]\n  delete <- .principal = viewer\n  sync\ntable notes:\n  area: text <=20\n  lane: text <=20\n  owner: principal\n  reviewer: principal\n  at: time\n  read <- .owner = viewer or .reviewer = viewer or exists members[.area, .lane, viewer]\n  insert <- .owner = viewer and exists members[.area, .lane, viewer]\n  sync\nquery mine():\n  return notes where .reviewer = viewer first 20 by .id\nmutation leave(area: text, lane: text):\n  m = members[area, lane, viewer] ! else NOT_MEMBER\n  delete members[m]\n  return null\n";
+    let (schema, programs) = compiled(source);
+    for windowed in [false, true] {
+        let (schema, programs) = if windowed {
+            compiled(
+                &source
+                    .replace("  sync\nquery mine", "  sync last 3 by .at\nquery mine")
+                    .replace("first 20 by .id", "last 3 by .at"),
+            )
+        } else {
+            (schema.clone(), programs.clone())
+        };
+        let mut engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
+        let member = |key: &str, lane: &str| {
+            (
+                "members".into(),
+                object([
+                    ("id", id(key)),
+                    ("area", Value::String("a".into())),
+                    ("lane", Value::String(lane.into())),
+                    ("principal", id(ALICE)),
+                ]),
+            )
+        };
+        let note = |key: &str, lane: &str, owner: &str, reviewer: &str, at: i64| {
+            (
+                "notes".into(),
+                object([
+                    ("id", id(key)),
+                    ("area", Value::String("a".into())),
+                    ("lane", Value::String(lane.into())),
+                    ("owner", id(owner)),
+                    ("reviewer", id(reviewer)),
+                    ("at", Value::Int(at)),
+                ]),
+            )
+        };
+        engine
+            .seed([
+                member("m1", "x"),
+                member("m2", "y"),
+                note("owner", "x", ALICE, BOB, 1),
+                note("reviewer", "x", BOB, ALICE, 2),
+                note("private", "x", BOB, BOB, 3),
+                note("other", "y", BOB, BOB, 4),
+            ])
+            .unwrap();
+        let mut trace = snapshot_trace_at(&mut engine, ALICE, 1);
+        let from = engine.seq().unwrap();
+        mutate(
+            &mut engine,
+            ALICE,
+            "leave",
+            &[
+                ("area", Value::String("a".into())),
+                ("lane", Value::String("x".into())),
+            ],
+            1,
+        );
+        epoch_stream_trace(&mut engine, from, 1, &mut trace);
+        assert!(
+            trace
+                .iter()
+                .flat_map(|p| p["events"].as_array().unwrap())
+                .filter(|e| e["kind"] == "scope" && e["table"] == "notes")
+                .all(|e| e["data"] == json!(["a", "x", ALICE]))
+        );
+        let expected = engine
+            .query("mine", Context::new(ALICE, BTreeMap::new()).at(NOW + 10))
+            .unwrap()
+            .data;
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            schema,
+            programs,
+        };
+        check_spared_trace(
+            snapback4_device::memory::MemoryStore::new(),
+            backend.clone(),
+            &trace,
+            &["owner", "reviewer", "other"],
+            &["private"],
+            "notes",
+            "mine",
+            &expected,
+        );
+        check_spared_trace(
+            snapback4_core::store::Store::memory().unwrap(),
+            backend,
+            &trace,
+            &["owner", "reviewer", "other"],
+            &["private"],
+            "notes",
+            "mine",
+            &expected,
+        );
+    }
+}
+
+fn check_spared_trace<S: snapback4_device::store::DeviceStore>(
+    store: S,
+    backend: snapback4_device::device::Backend,
+    trace: &[Json],
+    kept: &[&str],
+    gone: &[&str],
+    table: &str,
+    query: &str,
+    expected: &Value,
+) {
+    let mut device = snapback4_device::device::Device::open_store(store, Some(backend)).unwrap();
+    for (n, page) in trace.iter().enumerate() {
+        device
+            .apply(&serde_json::from_value(page.clone()).unwrap(), n == 0)
+            .unwrap();
+    }
+    let (answer, unknown, _) = device.query_with_coverage(query, ALICE, &json!({}), NOW + 10);
+    let answer = answer.unwrap();
+    assert!(answer.complete && !unknown, "{answer:?}, unknown={unknown}");
+    assert_eq!(&answer.data, expected);
+    assert_eq!(
+        device.store().witness_count(table).unwrap(),
+        kept.len() as u64,
+        "the committed store keeps every spared row and removes {} revoked rows",
+        gone.len()
+    );
+}
+
+#[test]
+fn a_large_roster_scope_walks_interleaved_owners_across_500_row_batches() {
+    for windowed in [false, true] {
+        let source = if windowed {
+            STAFF
+                .replace(
+                    "  sync\n\nquery mine",
+                    "  sync last 600 by .at\n\nquery mine",
+                )
+                .replace("first 20 by .id", "last 1 by .at")
+        } else {
+            STAFF.replace("first 20 by .id", "first 2000 by .id")
+        };
+        let (schema, programs) = compiled(&source);
+        let mut engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
+        let mut seed = vec![(
+            "staff".into(),
+            object([("id", id("sa")), ("principal", id(ALICE))]),
+        )];
+        let mut kept = Vec::new();
+        let mut gone = Vec::new();
+        for n in 0..1200 {
+            let key = format!("r{n:04}");
+            let owner = if n % 2 == 0 {
+                kept.push(key.clone());
+                ALICE
+            } else {
+                gone.push(key.clone());
+                BOB
+            };
+            seed.push((
+                "requests".into(),
+                object([
+                    ("id", id(&key)),
+                    ("owner", id(owner)),
+                    ("title", Value::String("x".into())),
+                    ("at", Value::Int(n)),
+                ]),
+            ));
+        }
+        engine.seed(seed.clone()).unwrap();
+        for limit in [1, 1000] {
+            let mut trace = snapshot_trace_at(&mut engine, ALICE, limit);
+            let from = engine.seq().unwrap();
+            // Rebuild below for the second pagination variant.
+            mutate(&mut engine, ALICE, "quit", &[], 1);
+            epoch_stream_trace(&mut engine, from, limit, &mut trace);
+            let expected = engine
+                .query("mine", Context::new(ALICE, BTreeMap::new()).at(NOW + 10))
+                .unwrap()
+                .data;
+            let backend = snapback4_device::device::Backend {
+                generation: engine.generation(),
+                schema: schema.clone(),
+                programs: programs.clone(),
+            };
+            let kept: Vec<_> = kept.iter().map(String::as_str).collect();
+            let gone: Vec<_> = gone.iter().map(String::as_str).collect();
+            check_spared_trace(
+                snapback4_device::memory::MemoryStore::new(),
+                backend.clone(),
+                &trace,
+                &kept,
+                &gone,
+                "requests",
+                "mine",
+                &expected,
+            );
+            check_spared_trace(
+                snapback4_core::store::Store::memory().unwrap(),
+                backend,
+                &trace,
+                &kept,
+                &gone,
+                "requests",
+                "mine",
+                &expected,
+            );
+            engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
+            engine.seed(seed.clone()).unwrap();
+        }
+    }
+}
+
+#[test]
+fn epoch_identity_changes_for_each_interpretation_and_inherited_lifetime_input() {
+    use snapback4_core::schema::{ColumnDefault, ColumnType, Index};
+    let (schema, _) = compiled(TEAMS);
+    for input in [
+        "content-type",
+        "group-type",
+        "recipient-type",
+        "index",
+        "capture",
+        "ancestor-default",
+        "ancestor-expiry-type",
+        "ancestor-expiry-column",
+    ] {
+        let mut before = schema.clone();
+        if input.starts_with("ancestor") || input == "capture" {
+            let mut parent = before.tables["members"].clone();
+            parent.columns.insert(
+                "until".into(),
+                ColumnType::Optional(Box::new(ColumnType::Time)),
+            );
+            parent.expire = Some("until".into());
+            before.tables.insert("parents".into(), parent);
+            before.tables.get_mut("members").unwrap().through =
+                Some(snapback4_core::schema::through::Through {
+                    reference: "parent".into(),
+                    parent: "parents".into(),
+                    fields: BTreeMap::new(),
+                    identity: "capture".into(),
+                    expiring: true,
+                });
+        }
+        let mut after = before.clone();
+        match input {
+            "content-type" => {
+                after
+                    .tables
+                    .get_mut("tasks")
+                    .unwrap()
+                    .columns
+                    .insert("team".into(), ColumnType::Text { max: 20 });
+            }
+            "group-type" => {
+                after
+                    .tables
+                    .get_mut("members")
+                    .unwrap()
+                    .columns
+                    .insert("team".into(), ColumnType::Text { max: 20 });
+            }
+            "recipient-type" => {
+                after.tables.get_mut("members").unwrap().columns.insert(
+                    "principal".into(),
+                    ColumnType::Optional(Box::new(ColumnType::Principal)),
+                );
+            }
+            "index" => {
+                let members = after.tables.get_mut("members").unwrap();
+                let columns: Vec<String> = vec!["team".into(), "principal".into()];
+                members.indexes.retain(|_, i| i.columns() != columns);
+                members
+                    .indexes
+                    .insert("renamed".into(), Index::of(&["team", "principal"], true));
+            }
+            "capture" => {
+                after
+                    .tables
+                    .get_mut("members")
+                    .unwrap()
+                    .through
+                    .as_mut()
+                    .unwrap()
+                    .identity = "new-capture".into();
+            }
+            "ancestor-default" => {
+                after
+                    .tables
+                    .get_mut("parents")
+                    .unwrap()
+                    .defaults
+                    .insert("until".into(), ColumnDefault::Literal(Value::Int(NOW)));
+            }
+            "ancestor-expiry-type" => {
+                after
+                    .tables
+                    .get_mut("parents")
+                    .unwrap()
+                    .columns
+                    .insert("until".into(), ColumnType::Time);
+            }
+            "ancestor-expiry-column" => {
+                after.tables.get_mut("parents").unwrap().expire = Some("other".into());
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            snapback4_core::partition::changed_group_audiences(Some(&before), &after)
+                .contains(&"tasks".into()),
+            "{input}"
+        );
+    }
+}
+
+#[test]
+fn rebirth_chains_disclose_only_commit_boundary_audiences() {
+    let source = format!(
+        "{TEAMS}\nmutation rebirth(task: tasks, team: teams, to: principal):\n  t = tasks[task] ! else NOT_FOUND\n  update tasks[t] {{ team }}\n  delete tasks[t]\n  r = insert tasks {{ owner: viewer, team, title: 'x', at: now }}\n  update tasks[r] {{ owner: to }}\n  return null\nmutation born(team: teams, to: principal):\n  t = insert tasks {{ owner: viewer, team, title: 'x', at: now }}\n  update tasks[t] {{ team: 't1' }}\n  update tasks[t] {{ team }}\n  delete tasks[t]\n  r = insert tasks {{ owner: viewer, team, title: 'x', at: now }}\n  update tasks[r] {{ owner: to }}\n  return null\n"
+    );
+    let (schema, programs) = compiled(&source);
+    for op in ["rebirth", "born"] {
+        let mut engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
+        engine.seed(teams_seed()).unwrap();
+        engine
+            .seed([(
+                "members".into(),
+                object([
+                    ("id", id("mm1")),
+                    ("team", id("t1")),
+                    ("principal", id(MALLORY)),
+                ]),
+            )])
+            .unwrap();
+        let before = engine.seq().unwrap();
+        let args = BTreeMap::from([
+            ("task".into(), id("ka")),
+            ("team".into(), id("t2")),
+            ("to".into(), id(BOB)),
+        ]);
+        let args = if op == "born" {
+            args.into_iter().filter(|(k, _)| k != "task").collect()
+        } else {
+            args
+        };
+        let key = if op == "born" { "born" } else { "ka" };
+        let out = engine
+            .mutate(
+                op,
+                Some(op),
+                Context::new(ALICE, args)
+                    .at(NOW + 1)
+                    .with_ids([key.into(), key.into()]),
+            )
+            .unwrap();
+        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+        for limit in [1, 1000] {
+            for (viewer, reads) in [(ALICE, true), (BOB, true), (MALLORY, false)] {
+                let mut from = before;
+                let mut events = Vec::new();
+                loop {
+                    let page = engine.stream_at(viewer, from, limit, NOW + 10).unwrap();
+                    from = page.watermark;
+                    events.extend(page.events);
+                    if !page.more {
+                        break;
+                    }
+                }
+                let named: Vec<_> = events
+                    .iter()
+                    .filter(|e| e.table == "tasks" && e.id == key)
+                    .collect();
+                if reads {
+                    assert!(
+                        named.iter().any(|e| e.kind == "put"),
+                        "{op} for {viewer}: {named:?}"
+                    );
+                } else if op == "born" {
+                    assert!(
+                        named.is_empty(),
+                        "a transient birth names no id to {viewer}: {named:?}"
+                    );
+                } else {
+                    assert!(
+                        named.iter().any(|e| e.kind == "del")
+                            && named.iter().all(|e| e.kind != "put"),
+                        "old reader gets only revocation: {named:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn windowed_epoch_leave_rejoin_create_is_blocking_on_both_stores() {
+    let b = backend(windowed_world());
+    // Change the group arm before the three separate commits.
+    let (mut schema, programs) = compiled(&b.world.source);
+    schema.tables.get_mut("members").unwrap().defaults.insert(
+        "principal".into(),
+        snapback4_core::schema::ColumnDefault::Literal(id(MALLORY)),
+    );
+    for limit in [1, 2, 3, 1000] {
+        let mut engine = b.fresh();
+        engine
+            .seed([(
+                "members".into(),
+                object([
+                    ("id", id("mm1")),
+                    ("team", id("t1")),
+                    ("principal", id(MALLORY)),
+                ]),
+            )])
+            .unwrap();
+        engine.adopt(schema.clone(), programs.clone()).unwrap();
+        let mut trace = snapshot_trace_at(&mut engine, ALICE, limit);
+        let from = engine.seq().unwrap();
+        mutate(&mut engine, ALICE, "leave", &[("team", id("t1"))], 1);
+        // Alice must be reacquired by an existing t1 member.
+        mutate(
+            &mut engine,
+            MALLORY,
+            "add",
+            &[("team", id("t1")), ("who", id(ALICE))],
+            2,
+        );
+        mutate(&mut engine, ALICE, "create", &[("team", id("t1"))], 3);
+        epoch_stream_trace(&mut engine, from, limit, &mut trace);
+        let b = Backend {
+            world: windowed_world(),
+            schema: schema.clone(),
+            programs: programs.clone(),
+        };
+        compare_trace(
+            snapback4_device::memory::MemoryStore::new(),
+            &b,
+            &mut engine,
+            ALICE,
+            &trace,
+        );
+        compare_trace(
+            snapback4_core::store::Store::memory().unwrap(),
+            &b,
+            &mut engine,
+            ALICE,
+            &trace,
+        );
+    }
+}
+
+#[test]
+fn roster_and_team_scopes_interleave_with_both_tables_owner_changes() {
+    let staff = STAFF
+        .replace("mutation ", "mutation staff")
+        .replace("query ", "query staff");
+    for reverse in [false, true] {
+        let writes = [
+            "  update tasks[t] { owner: to }",
+            "  delete members[m]",
+            "  update requests[r] { owner: to }",
+            "  delete staff[s]",
+        ];
+        let writes: Vec<_> = if reverse {
+            writes.into_iter().rev().collect()
+        } else {
+            writes.into_iter().collect()
+        };
+        let source = format!(
+            "{TEAMS}\n{staff}\nmutation interleave(task: tasks, request: requests, to: principal):\n  t = tasks[task] ! else NOT_FOUND\n  m = members[t.team, viewer] ! else NOT_MEMBER\n  r = requests[request] ! else NOT_FOUND\n  s = staff[viewer] ! else NOT_STAFF\n{}\n  return null\n",
+            writes.join("\n")
+        );
+        let (schema, programs) = compiled(&source);
+        for limit in [1, 3, 1000] {
+            let mut engine = Engine::memory(schema.clone(), programs.clone()).unwrap();
+            let mut seed = teams_seed();
+            seed.extend([
+                (
+                    "staff".into(),
+                    object([("id", id("sa")), ("principal", id(ALICE))]),
+                ),
+                (
+                    "requests".into(),
+                    object([
+                        ("id", id("r")),
+                        ("owner", id(ALICE)),
+                        ("title", Value::String("x".into())),
+                        ("at", Value::Int(1)),
+                    ]),
+                ),
+                (
+                    "requests".into(),
+                    object([
+                        ("id", id("private")),
+                        ("owner", id(BOB)),
+                        ("title", Value::String("x".into())),
+                        ("at", Value::Int(2)),
+                    ]),
+                ),
+            ]);
+            engine.seed(seed).unwrap();
+            let mut trace = snapshot_trace_at(&mut engine, ALICE, limit);
+            let from = engine.seq().unwrap();
+            mutate(
+                &mut engine,
+                ALICE,
+                "interleave",
+                &[("task", id("ka")), ("request", id("r")), ("to", id(BOB))],
+                1,
+            );
+            epoch_stream_trace(&mut engine, from, limit, &mut trace);
+            let backend = snapback4_device::device::Backend {
+                generation: engine.generation(),
+                schema: schema.clone(),
+                programs: programs.clone(),
+            };
+            for query in ["myCount", "staffmine"] {
+                let expected = engine
+                    .query(query, Context::new(ALICE, BTreeMap::new()).at(NOW + 10))
+                    .unwrap()
+                    .data;
+                epoch_trace_applies(
+                    snapback4_device::memory::MemoryStore::new(),
+                    backend.clone(),
+                    &trace,
+                    query,
+                    &json!({}),
+                    &expected,
+                );
+                epoch_trace_applies(
+                    snapback4_core::store::Store::memory().unwrap(),
+                    backend.clone(),
+                    &trace,
+                    query,
+                    &json!({}),
+                    &expected,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn renewal_epoch_and_sweep_between_pages_name_only_previously_readable_ids() {
+    let old = "table members:\n  principal: principal\n  until: time ?\n  unique principal\n  immutable principal\n  expire at .until\n  read <- .principal = viewer\n  insert <- exists members[viewer]\n  update <- .principal = viewer\n  delete <- .principal = viewer\n  sync\ntable notes:\n  at: time\n  read <- exists members[viewer]\n  insert <- exists members[viewer]\n  delete <- exists members[viewer]\n  online only\nquery notes():\n  return notes last 2 by .at\nmutation renew(until: time ?):\n  upsert members[id = 'ma'] { principal: viewer, until }\n  return null\nmutation remove(n: notes):\n  delete notes[n]\n  return null\n";
+    let synced = old.replace("  online only", "  sync last 2 by .at");
+    let (old_schema, old_programs) = compiled(old);
+    let (schema, programs) = compiled(&synced);
+    // An expiring group is still outside the union contract, including read-through lifetimes.
+    let refused = snapback4_lang::compile(&[(
+        "bad.q".into(),
+        synced.replace(
+            "  at: time\n  read <- exists",
+            "  owner: principal\n  at: time\n  read <- .owner = viewer or exists",
+        ),
+    )]);
+    assert!(
+        refused
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "E_SYNC" && d.message.contains("cannot expire")),
+        "{:?}",
+        refused.diagnostics
+    );
+    for limit in [1, 2, 1000] {
+        let mut engine = Engine::memory(old_schema.clone(), old_programs.clone()).unwrap();
+        engine
+            .seed([
+                (
+                    "members".into(),
+                    object([
+                        ("id", id("ma")),
+                        ("principal", id(ALICE)),
+                        ("until", Value::Int(NOW + 100)),
+                    ]),
+                ),
+                (
+                    "notes".into(),
+                    object([("id", id("old")), ("at", Value::Int(1))]),
+                ),
+                (
+                    "notes".into(),
+                    object([("id", id("new")), ("at", Value::Int(2))]),
+                ),
+            ])
+            .unwrap();
+        engine.adopt(schema.clone(), programs.clone()).unwrap();
+        let mut trace = snapshot_trace_at(&mut engine, ALICE, limit);
+        let from = engine.seq().unwrap();
+        mutate(
+            &mut engine,
+            ALICE,
+            "renew",
+            &[("until", Value::Int(NOW + 200))],
+            1,
+        );
+        mutate(&mut engine, ALICE, "remove", &[("n", id("old"))], 2);
+        let first = engine.stream_at(ALICE, from, limit, NOW + 10).unwrap();
+        let events:Vec<_>=first.events.iter().map(|e|json!({"table":e.table,"kind":e.kind,"id":e.id,"data":e.data.as_ref().map(wire::to_json)})).collect();
+        trace.push(json!({"snapshot":false,"watermark":first.watermark,"more":first.more,"now":NOW+10,"generation":engine.generation(),"events":events,"acquisitions":first.acquisitions,"images_at":first.images_at,"joined":first.joined}));
+        // Sweep after the first wire page, then revive through an existing live roster reader.
+        engine.sweep_expired(NOW + 201, 100).unwrap();
+        engine
+            .seed_at(
+                [(
+                    "members".into(),
+                    object([
+                        ("id", id("ma")),
+                        ("principal", id(ALICE)),
+                        ("until", Value::Int(NOW + 1000)),
+                    ]),
+                )],
+                NOW + 300,
+            )
+            .unwrap();
+        stream_trace_at(&mut engine, first.watermark, limit, NOW + 310, &mut trace);
+        let expected = engine
+            .query("notes", Context::new(ALICE, BTreeMap::new()).at(NOW + 310))
+            .unwrap()
+            .data;
+        let backend = snapback4_device::device::Backend {
+            generation: engine.generation(),
+            schema: schema.clone(),
+            programs: programs.clone(),
+        };
+        epoch_trace_applies(
+            snapback4_device::memory::MemoryStore::new(),
+            backend.clone(),
+            &trace,
+            "notes",
+            &json!({}),
+            &expected,
+        );
+        epoch_trace_applies(
+            snapback4_core::store::Store::memory().unwrap(),
+            backend,
+            &trace,
+            "notes",
+            &json!({}),
+            &expected,
+        );
     }
 }
