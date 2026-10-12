@@ -426,7 +426,7 @@ impl<'r> Runner<'r> {
         } else { crate::words::terms(&text) };
         // Validate every scan input before denial or empty word discovery can
         // return. Generated lanes retain the same bounds and cursor scope.
-        if !bounds_validated { self.word_bounds(scan, table, index, None, visibility.uniform)?; }
+        if !bounds_validated { self.word_bounds(scan, table, index, None, visibility.uniform, false)?; }
         self.take(&scan.take)?;
         if visibility.uniform {
             self.word_note_table(&scan.table)?;
@@ -596,13 +596,13 @@ impl<'r> Runner<'r> {
 
     /// The bounds of a scan: the cursor position and any value range.
     fn bounds(&mut self, scan: &Scan, table: &Table, index: &Index, prefix: Option<&[Value]>) -> Result<Bounds, RuntimeError> {
-        self.word_bounds(scan, table, index, prefix, false)
+        self.word_bounds(scan, table, index, prefix, false, false)
     }
 
-    fn word_bounds(&mut self, scan: &Scan, table: &Table, index: &Index, prefix: Option<&[Value]>, metered: bool) -> Result<Bounds, RuntimeError> {
+    fn word_bounds(&mut self, scan: &Scan, table: &Table, index: &Index, prefix: Option<&[Value]>, metered: bool, ignore_after: bool) -> Result<Bounds, RuntimeError> {
         self.record_shape_cursor(&scan.site, None);
         let mut bounds = Bounds::default();
-        let after = scan.after.as_deref().map(|value| self.expr(value)).transpose()?;
+        let after = if ignore_after { None } else { scan.after.as_deref().map(|value| self.expr(value)).transpose()? };
         let before = scan.before.as_deref().map(|value| self.expr(value)).transpose()?;
         match before {
             None | Some(Value::Null) => {}

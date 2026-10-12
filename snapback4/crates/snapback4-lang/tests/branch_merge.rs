@@ -876,6 +876,33 @@ fn owner_or_capped_membership_walks_one_complete_cursor() {
 }
 
 #[test]
+fn membership_page_with_its_parent_already_pinned_keeps_the_original_scan() {
+    let source = "table access:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  cap 16 by principal
+  read <- allow
+  online only
+
+table items:
+  owner: principal
+  bucket: int
+  tag: id
+  read <- .owner = viewer or exists access[.bucket, viewer]
+  online only
+
+query items(bucket: int, c: cursor ?):
+  return items where .bucket = bucket first 1 by .tag after c
+";
+    let b = clean(source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    let mut e = engine(source, vec![]);
+    let page = e.query("items", Context::new("alice", BTreeMap::from([("bucket".into(), Value::Int(0)), ("c".into(), Value::Null)]))).unwrap();
+    assert!(!page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
+}
+
+#[test]
 fn membership_cap_may_exceed_the_static_branch_limit() {
     let mut rows = Vec::new();
     for n in 0..10 {
@@ -901,6 +928,42 @@ fn owner_or_uncapped_membership_keeps_the_incomplete_single_scan() {
 }
 
 #[test]
+fn oversized_membership_discovery_index_keeps_the_incomplete_single_scan() {
+    let source = OWNER_MEMBERSHIP.replace("text <=40", "text <=435");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
+fn row_id_membership_keeps_the_incomplete_single_scan() {
+    let source = "table documents:
+  owner: principal
+  at: int
+  read <- .owner = viewer or exists shares[.id, viewer]
+  insert <- .owner = viewer
+  online only
+
+table shares:
+  document: documents
+  principal: principal
+  unique document, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+    let b = clean(source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
 fn a_discovery_cut_emits_no_owner_rows_and_no_cursor() {
     let mut e = engine(OWNER_MEMBERSHIP, vec![
         membership("m1", "p1", "alice"), membership("m2", "p2", "alice"),
@@ -910,4 +973,33 @@ fn a_discovery_cut_emits_no_owner_rows_and_no_cursor() {
     let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
     assert!(ids(&page.data).is_empty(), "a partial source cannot release even an owner row: {page:?}");
     assert!(!page.complete && page.next.is_none());
+}
+
+#[test]
+fn membership_lanes_borrow_the_compiled_scan_and_obey_the_heap_boundary() {
+    let literal = "x".repeat(1000);
+    let source = OWNER_MEMBERSHIP
+        .replace("  at: int\n", "  at: int\n  tag: text <=1000\n")
+        .replace("return documents last 2 by .at after c", &format!("return documents where .tag != '{literal}' last 2 by .at after c"));
+    let rows = (0..16).map(|n| {
+        let member = Box::leak(format!("m{n}").into_boxed_str());
+        membership(member, &format!("p{n}"), "alice")
+    }).collect();
+    let mut full = engine(&source, rows);
+    full.set_ceilings(snapback4_core::Ceilings::unbounded());
+    let args = BTreeMap::from([("c".into(), Value::Null)]);
+    let page = full.query("documents", Context::new("alice", args.clone())).unwrap();
+    assert!(page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
+    // The 1 KiB residual expression is one compiled shared image, rather
+    // than sixteen unpriced copies retained by the generated lanes.
+    assert!(page.metered.heap_bytes < 64 * 1024, "unexpected per-lane Scan copies: {:?}", page.metered);
+
+    let mut cut = engine(&source, (0..16).map(|n| {
+        let member = Box::leak(format!("n{n}").into_boxed_str());
+        membership(member, &format!("q{n}"), "alice")
+    }).collect());
+    cut.set_ceilings(snapback4_core::Ceilings { heap_bytes: page.metered.heap_bytes - 1, ..snapback4_core::Ceilings::unbounded() });
+    let page = cut.query("documents", Context::new("alice", args)).unwrap();
+    assert!(!page.complete && (page.data == Value::Null || page.data.as_array().is_ok_and(|rows| rows.is_empty())) && page.next.is_none(), "{page:?}");
+    assert!(page.metered.heap_bytes >= cut.ceilings().heap_bytes);
 }

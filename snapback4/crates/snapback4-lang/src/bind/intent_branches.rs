@@ -99,7 +99,9 @@ fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Opti
             let (_, source) = lane.loop_.as_mut()?;
             let Expr::Read(source) = source else { return None };
             candidate.read(tables, source, false);
-            if !membership_source_capped(tables, source) || !super::intent_lanes::prefix_decides_rule(tables, source) { return None; }
+            let source_table = tables.get(&source.table)?;
+            if !membership_source_capped(tables, source) || !super::intent_lanes::prefix_decides_rule(tables, source)
+                || !candidate.branch_index_fits(source_table, source) { return None; }
             push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
                 lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
         }

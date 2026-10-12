@@ -11,13 +11,17 @@ use super::*;
 /// One opened lane: its scan (without the shared cursor), evaluated prefix
 /// and bounds, the rows read ahead, whether the range is exhausted, and the
 /// grant verdict's deadline when a grant admitted it.
-struct Lane {
-    scan: Scan,
+struct Lane<'a> {
+    /// The compiled scan can contain arbitrarily large filter literals. It is
+    /// shared by every discovered membership lane; only evaluated keys and
+    /// bounds are retained per lane.
+    scan: &'a Scan,
     prefix: Vec<Value>,
     bounds: Bounds,
     buffer: VecDeque<Value>,
     done: bool,
     grant: Option<super::super::expiry::Pending>,
+    metered: bool,
     position_len: usize,
     /// The last position this lane examined (read or rejected by the
     /// filter), when it has examined anything past the cursor.
@@ -87,7 +91,7 @@ impl Runner<'_> {
         let site = merge.site.as_str();
         // System/grant lanes can cover every other lane. Membership discovery
         // finishes before any target row may be emitted.
-        let mut lanes: Vec<Lane> = Vec::with_capacity(merge.lanes.len());
+        let mut lanes: Vec<Lane<'_>> = Vec::new();
         let mut covered = false;
         let numbered: Vec<(&MergeLane, Vec<Value>)> = merge.lanes.iter().zip(prefixes).collect();
         for (lane, prefix) in numbered.iter().filter(|(lane, _)| lane.system())
@@ -96,28 +100,36 @@ impl Runner<'_> {
             if covered { break; }
             if lane.system() {
                 if !self.context.is_system() { continue; }
-                lanes.push(self.open_branch_lane(lane, prefix.clone(), after.as_ref(), None)?); covered = true; continue;
+                lanes.push(self.open_branch_lane(lane, prefix.clone(), after.as_ref(), None, false)?); covered = true; continue;
             }
             if lane.membership() {
-                let values: Vec<Value> = self.lane_values(lane)?.collect();
-                if self.value_source_incomplete || self.read_capped() { return Ok((Vec::new(), false, None)); }
                 let prior = self.env.get(&lane.binding).cloned();
                 let prefixes = (|| -> Result<Vec<Vec<Value>>, RuntimeError> {
-                    let mut prefixes = Vec::with_capacity(values.len());
-                    for value in values {
+                    let mut prefixes = Vec::new();
+                    for value in self.lane_values(lane)? {
                         self.env.insert(lane.binding.clone(), value);
-                        let prefix = self.prefix_values(&lane.scan)?;
                         self.meter.at(site);
                         if !self.read_charge(MeterKind::Steps, 1)? { break; }
-                        self.meter.heap(std::mem::size_of::<Lane>() as u64 + DisclosedKeys(&prefix).heap())?;
-                        prefixes.push(prefix);
+                        // Reserve the evaluated prefix before its Vec and
+                        // source-field copies are allocated. The full bound
+                        // row is conservative for a prefix that projects it.
+                        self.meter.heap(word_heap::slots::<Value>(lane.scan.prefix.len())
+                            + self.environment_value_copy_heap(&lane.binding))?;
+                        let prefix = self.prefix_values(&lane.scan)?;
+                        word_heap::push(&mut self.meter, &mut prefixes, prefix)?;
                     }
                     Ok(prefixes)
                 })();
                 if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
                 let prefixes = prefixes?;
-                if self.read_capped() { return Ok((Vec::new(), false, None)); }
-                for prefix in prefixes { lanes.push(self.open_branch_lane(lane, prefix, after.as_ref(), Some(Default::default()))?); }
+                if self.value_source_incomplete || self.read_capped() { return Ok((Vec::new(), false, None)); }
+                for prefix in prefixes {
+                    let opened = self.open_branch_lane(lane, prefix, after.as_ref(), Some(Default::default()), true)?;
+                    // Price the retained descriptor itself and any Vec
+                    // replacement before the dynamic lane is installed.
+                    self.meter.heap(std::mem::size_of::<Lane<'_>>() as u64)?;
+                    word_heap::push(&mut self.meter, &mut lanes, opened)?;
+                }
                 continue;
             }
             let definition = &self.schema.tables[&lane.scan.table];
@@ -138,7 +150,7 @@ impl Runner<'_> {
                 }
                 covered = true;
             }
-            lanes.push(self.open_branch_lane(lane, prefix.clone(), after.as_ref(), grant)?);
+            lanes.push(self.open_branch_lane(lane, prefix.clone(), after.as_ref(), grant, false)?);
         }
         // A page per lane: k small reads instead of a seek per returned row.
         let batch = take + 1;
@@ -186,18 +198,23 @@ impl Runner<'_> {
         Ok((page, false, Self::frontier(&lanes, order)))
     }
 
-    fn open_branch_lane(&mut self, lane: &MergeLane, prefix: Vec<Value>, after: Option<&(Vec<Value>, bool)>, grant: Option<super::super::expiry::Pending>) -> Result<Lane, RuntimeError> {
-        let mut scan = lane.scan.clone(); scan.after = None;
+    fn open_branch_lane<'a>(&mut self, lane: &'a MergeLane, prefix: Vec<Value>, after: Option<&(Vec<Value>, bool)>, grant: Option<super::super::expiry::Pending>, metered: bool) -> Result<Lane<'a>, RuntimeError> {
+        let scan = &lane.scan;
         let definition = &self.schema.tables[&scan.table]; let index = &definition.indexes[&scan.index];
-        let mut bounds = self.bounds(&scan, definition, index, None)?;
+        // A branch cursor was validated once above. Do not clone the compiled
+        // Scan merely to clear it; evaluate only the remaining bounds here.
+        let mut bounds = self.word_bounds(scan, definition, index, None, metered, true)?;
+        if metered && let Some((values, _)) = after { self.meter.heap(DisclosedKeys(values).heap())?; }
         match after { Some((values, true)) => bounds.at_or_after = Some(values.clone()), Some((values, false)) => bounds.after = Some(values.clone()), None => {} }
-        let position_len = Self::merge_suffix(definition, index, scan.prefix.len()).len();
-        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done: false, grant, position_len, through: None })
+        let suffix = index.components.iter().skip(scan.prefix.len()).filter_map(|component| component.key_name());
+        let (position_len, ends_in_id) = suffix.fold((0usize, false), |(len, _), name| (len + 1, name == "id"));
+        let position_len = position_len + usize::from(!ends_in_id);
+        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done: false, grant, metered, position_len, through: None })
     }
 
     /// Read a lane's next batch strictly after its position, recording how
     /// far it examined.
-    fn fill_branch(&mut self, lane: &mut Lane, batch: usize) -> Result<(), RuntimeError> {
+    fn fill_branch(&mut self, lane: &mut Lane<'_>, batch: usize) -> Result<(), RuntimeError> {
         // Arm the capture with the lane's own table and index: `scan_consumed`
         // then records the last rule-visible candidate this read examined,
         // filter rejects included (never a nested read's key).
@@ -220,7 +237,7 @@ impl Runner<'_> {
     /// The position every unfinished lane has examined through: the least in
     /// the page's order, or `None` when some lane examined nothing past the
     /// cursor. A finished lane bounds nothing.
-    fn frontier(lanes: &[Lane], order: Order) -> Option<Vec<Value>> {
+    fn frontier(lanes: &[Lane<'_>], order: Order) -> Option<Vec<Value>> {
         let mut least: Option<&Vec<Value>> = None;
         for lane in lanes.iter().filter(|lane| !lane.done) {
             let through = lane.through.as_ref()?;
@@ -241,8 +258,9 @@ impl Runner<'_> {
 
     /// One read of a lane strictly after its current position. A lane its
     /// grant admitted reads as a decided page (`scan_consumed`'s grant arm).
-    fn read_branch(&mut self, lane: &Lane, batch: usize) -> Result<Vec<Value>, RuntimeError> {
+    fn read_branch(&mut self, lane: &Lane<'_>, batch: usize) -> Result<Vec<Value>, RuntimeError> {
         self.merge_grant = lane.grant;
+        if lane.metered { self.meter.heap(DisclosedKeys(&lane.prefix).heap() + DisclosedBounds(&lane.bounds).heap())?; }
         let result = self.scan_prepared(&lane.scan, lane.prefix.clone(), lane.bounds.clone(), batch, None);
         self.merge_grant = None;
         Ok(result?.0)
@@ -251,7 +269,7 @@ impl Runner<'_> {
     /// The lane's merge position for a row: its index components after the
     /// lane's prefix, then `id` (the binder checks every lane has the same
     /// position columns).
-    fn branch_position(&self, lane: &Lane, row: &Value) -> Vec<Value> {
+    fn branch_position(&self, lane: &Lane<'_>, row: &Value) -> Vec<Value> {
         let index = &self.schema.tables[&lane.scan.table].indexes[&lane.scan.index];
         let mut key = Vec::with_capacity(lane.position_len);
         key.extend(index.components.iter().skip(lane.prefix.len()).filter_map(|component| component.value(row)));
