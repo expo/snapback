@@ -25,7 +25,7 @@ applicable rewrite/meter checks agree except seven commutation cases with
 `rewrite-commute--metered--E_OVERFLOW`. Both sides return the same i53
 overflow, but the meter differs by one step on the retained shrunk case.
 `run/report.json` and the shrunk case are verbatim; the new filesystem ticket
-`issues/20261012-quarry-difftest-commuted-overflow-meters-differ.md` records
+`issues/closed/20261012-quarry-difftest-commuted-overflow-meters-differ.md` records
 it. The reproducer has no writes and its only table is online-only, so no
 UNION path executes. This campaign also exits red.
 
@@ -40,3 +40,9 @@ ignored), 82 wasm boundary tests, and 124 client sync/budget tests (1 skipped).
 The final fixes have not received another paired review: the user-specified
 two-additional-round limit is exhausted. See RFC §10 and the bounded-review
 follow-up ticket. Neither difftest campaign is counted as a pass.
+
+The coordinator continuation supersedes the ordinary-run red with a clean
+100,000-case campaign after integrating LANG2 `62d86c5a02`; see
+[continuation evidence](continuation/README.md). The earlier Lean C2/W4
+findings remain retained and are not claimed resolved. Latest UNION fixes
+remain unreviewed after the bounded final GPT NOT READY verdict.

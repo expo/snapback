@@ -70,3 +70,29 @@ Expiring group arms are refused on unions, including inherited expiry. A new
 regression pins that exclusion; the admitted single-group path adds renewal,
 expiry/sweep between pages and revival. This is not an expiring-union claim.
 The final authorized paired round and integrated qualification remain pending.
+
+## Final bounded outcome — 2026-10-12
+
+Final round 9 retry on revision 10: GPT NOT READY, Muse READY. The prior GPT
+attempt was interrupted by provider capacity without a final verdict; all
+actual reviews and the incomplete provenance are preserved. The two completed
+authorized pairs are exhausted. Revision 11 (`6e8b459087`) fixes GPT's remaining
+High: expired physical predecessors cannot lend birth authority to a transient
+fresh-id grant; repeated renewals remain born and deletion withdraws the joins.
+Raw scopes require an actually live earlier commit span. Zero/two-renewal
+regressions fail on revision 10 and pass with the fix. Synthetic-clock renewal
+traces now assert deletion without replacement.
+
+Current sb4-loop `9e345842af` was integrated locally (`5c6e7b39e1`) with LANG2's
+refused-commutation fix; the 100,000-case ordinary campaign is clean. An
+integration repair (`7f76133984`) preserves per-arm scans for synced UNION
+sources beside the online branch planner; both-store snapshot/epoch witnesses
+reproduce the previous deferral and pass with the guard.
+
+Remaining required work: fresh paired review of revision 11 and the integration
+repair before UNION promotion. No readiness or author acceptance is inferred;
+no push or merge into sb4-loop was performed. Named disclosure coverage and
+hardening items above are implemented. Optional null-lifetime, prediction-race
+and activation-straddle witnesses remain explicit in RFC §8a. Old unreleased
+epoch experiments without an activation clock retain their documented legacy
+baseline behavior. The broader Lean C2/W4 findings remain existing follow-ups.
