@@ -50,7 +50,7 @@ impl Binder<'_> {
     pub(super) fn invalidate_points(&mut self) {
         for (name, mut binding) in self.visible_bindings() {
             let before = binding.fields.len();
-            binding.fields.retain(|key, _| key.first().is_none_or(|k| k != POINT));
+            binding.fields.retain(|key, _| key.first().is_none_or(|k| k != POINT && k != maintain_types::AUTHORIZATION));
             if before != binding.fields.len() {
                 binding.revision += 1;
                 self.scopes.last_mut().unwrap().insert(name, binding);

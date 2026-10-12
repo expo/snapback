@@ -418,6 +418,7 @@ impl Binder<'_> {
     }
 
     fn narrow_inner(&mut self, condition: &A, then_branch: bool, points: bool) {
+        self.record_maintain_authorization(condition, then_branch);
         match condition {
             A::Exists { read, .. } if then_branch && points => self.narrow_point(read),
             A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow_inner(&A::Binary {

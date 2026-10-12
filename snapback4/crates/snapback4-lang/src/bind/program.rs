@@ -16,6 +16,7 @@ mod control;
 mod job_reads;
 mod pure_calls;
 mod point_facts;
+mod maintain_types;
 mod flow;
 mod conditional;
 mod joins;
@@ -371,7 +372,7 @@ impl<'a> Binder<'a> {
                 else_body: vec![Stmt::Let { name: tmp.clone(), value: ir::field(ir::var(&row), "value") }],
             });
             let ty = info.columns.get("value").map(Ty::from_scalar).unwrap_or(Ty::Int);
-            let _ = maintain;
+            let ty = self.maintained_result_type(maintain, read, ty);
             return Ok((ir::var(&tmp), ty));
         }
         Ok((value, Ty::Row(read.table.clone()).optional()))
