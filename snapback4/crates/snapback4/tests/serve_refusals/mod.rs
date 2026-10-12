@@ -149,7 +149,9 @@ impl Host {
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
             route_verification: routes::Verification::default(), owner: None,
-            worker_prepare: Mutex::new(None), auth_work: Mutex::new(None),
+            release_committed: Mutex::new(None),
+        #[cfg(test)]
+        worker_prepare: Mutex::new(None), auth_work: Mutex::new(None),
             request_work: Mutex::new(None), upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),

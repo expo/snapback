@@ -33,6 +33,8 @@ fn a_request_after_engine_poison_still_serves() {
         auth: crate::auth::Admission::default(),
         uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: None,
+        release_committed: Mutex::new(None),
+        #[cfg(test)]
         worker_prepare: Mutex::new(None), auth_work: Mutex::new(None),
         request_work: Mutex::new(None),
         upload_work: Mutex::new(None),

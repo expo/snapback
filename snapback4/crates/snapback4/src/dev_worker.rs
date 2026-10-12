@@ -35,7 +35,7 @@ pub(crate) fn prepare_release(
     if entries.is_empty() {
         return Ok(());
     }
-    validate_environment(schema)?;
+    let secrets=environment::values(schema)?;
     let version = command(&node())
         .arg("--version")
         .output()
@@ -48,7 +48,8 @@ pub(crate) fn prepare_release(
         return Err("release workers require Node 24; select SNAPBACK_NODE before serving".into());
     }
     for name in entries.keys() {
-        let _prepared = declarations::Snapshot::new(project, name)?;
+        let prepared = declarations::Snapshot::new(project, name)?;
+        environment::for_entry(&prepared.entry,&secrets).map_err(|error|format!("worker {name}: {error}; remove the selection or declare the secret in an action/effect/route, then `snapback4 deploy <dir>`"))?;
     }
     Ok(())
 }

@@ -378,3 +378,124 @@ fn concurrent_release_commands_share_cas_and_queued_write_uses_committed_generat
         &snapback4_core::Value::Int(2)
     );
 }
+
+// Runs only as the parent's owned subprocess, with the test-only publication
+// barrier. No production environment flag or release-control verb exposes it.
+#[test]
+#[ignore = "owned crash subprocess; invoked by crash_between_commit_and_publication"]
+fn crash_child_after_release_commit() {
+    let Some(dir) = std::env::var_os("SB4_ROLL_CRASH_TEST_DIR") else {
+        return;
+    };
+    let directory = ReaderTestDirectory(std::path::PathBuf::from(dir));
+    let host = directory.host();
+    let first = candidate(&directory.0, 1, READER_SCHEMA, None, 0);
+    release::apply(&host.shared, &directory.0, first).unwrap();
+    let next = READER_SCHEMA.replace("  revision: int", "  extra: int default 7\n  revision: int")
+        + "table newer:\n  n: int\n  public\n";
+    let second = candidate(&directory.0, 2, &next, Some(1), 1);
+    release::apply(&host.shared, &directory.0, second).unwrap();
+    {
+        let mut engine = lock(&host.shared.engine);
+        for (name, json) in [
+            (
+                "privateProducts",
+                json!({"id":"a","ownerId":"alice","sku":"one","category":"c","price":1,"title":"kept","revision":1,"extra":88}),
+            ),
+            ("newer", json!({"id":"f","n":42})),
+        ] {
+            let row =
+                snapback4_core::wire::row_from_json(&engine.schema().tables[name], &json).unwrap();
+            engine.seed([(name.into(), row)]).unwrap();
+        }
+    }
+    let root = directory.0.clone();
+    *lock(&host.shared.release_committed) = Some(Arc::new(move || {
+        let mut ready = std::fs::File::create(root.join("after-commit")).unwrap();
+        ready.write_all(b"committed-before-publication").unwrap();
+        ready.sync_all().unwrap();
+        loop {
+            std::thread::park();
+        }
+    }));
+    let old = candidate(&directory.0, 1, READER_SCHEMA, Some(2), 2);
+    let _ = release::apply(&host.shared, &directory.0, old);
+    panic!("publication barrier returned");
+}
+
+#[test]
+fn crash_between_commit_and_publication_recovers_dormant_data_from_database() {
+    struct Child(std::process::Child);
+    impl Drop for Child {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    let directory = ReaderTestDirectory::new();
+    let mut child = Child(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "serve::tests::release_lifecycle_tests::crash_child_after_release_commit",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("SB4_ROLL_CRASH_TEST_DIR", &directory.0)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !directory.0.join("after-commit").exists() {
+        assert!(
+            child.0.try_wait().unwrap().is_none(),
+            "crash helper exited before commit"
+        );
+        assert!(
+            Instant::now() < deadline,
+            "crash helper did not reach publication barrier"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    child.0.kill().unwrap();
+    child.0.wait().unwrap();
+    assert_eq!(
+        std::fs::read_to_string(directory.0.join("current"))
+            .unwrap()
+            .trim(),
+        "2",
+        "pointer copy must still name the predecessor"
+    );
+    let store = snapback4_core::Store::open(&directory.0.join("store.sqlite")).unwrap();
+    let mut engine = snapback4_core::Engine::attach_release(store, 1).unwrap();
+    assert_eq!(engine.generation(), 4);
+    assert!(
+        engine.store().rows("privateProducts").unwrap()[0]
+            .field("extra")
+            .is_err()
+    );
+    assert_eq!(engine.store().count("newer").unwrap(), 0);
+    let next = READER_SCHEMA.replace("  revision: int", "  extra: int default 7\n  revision: int")
+        + "table newer:\n  n: int\n  public\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
+    engine
+        .adopt_release(
+            bound.schema,
+            bound.programs.into_iter().map(|p| p.program),
+            &snapback4_core::engine::release::ReleaseActivation::new(2, Some(1)),
+            false,
+        )
+        .unwrap();
+    assert_eq!(
+        engine.store().rows("privateProducts").unwrap()[0]
+            .field("extra")
+            .unwrap(),
+        &snapback4_core::Value::Int(88)
+    );
+    assert_eq!(
+        engine.store().rows("newer").unwrap()[0].field("n").unwrap(),
+        &snapback4_core::Value::Int(42)
+    );
+}

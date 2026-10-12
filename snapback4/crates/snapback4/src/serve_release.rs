@@ -126,6 +126,8 @@ pub(super) fn apply(
                     return Err(error.to_string());
                 }
             };
+            #[cfg(test)]
+            test_work(&shared.release_committed);
             engine.set_prepared_native(prepared.module);
             engine.set_presence(Some(shared.presence.clone()));
             lock(&shared.readers).replace(&engine, &bound.refusal_sites);

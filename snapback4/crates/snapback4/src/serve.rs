@@ -116,6 +116,8 @@ pub struct Shared {
     // Drop after every SQLite connection; worker/request Arcs keep it alive.
     owner: Option<Arc<crate::store_owner::Owner>>,
     #[cfg(test)]
+    pub(crate) release_committed: WorkHook,
+    #[cfg(test)]
     pub(crate) worker_prepare: WorkHook,
     #[cfg(test)]
     pub auth_work: WorkHook,

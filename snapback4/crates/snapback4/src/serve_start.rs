@@ -160,6 +160,8 @@ pub fn serve(
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
         #[cfg(test)]
+        release_committed: Mutex::new(None),
+        #[cfg(test)]
         worker_prepare: Mutex::new(None),
         following: Mutex::new(
             snapback4_core::engine::following_history::Reader::new().map_err(|e| e.to_string())?,
