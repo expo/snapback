@@ -108,6 +108,71 @@ query refused(owner: principal):
 }
 
 #[test]
+fn readable_absence_is_not_raw_absence_for_a_maintained_rule_witness() {
+    let tables = r#"
+table hiddenBans:
+  principal: principal
+  unique principal
+  read <- deny
+  online only
+table readableBans:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+view hiddenUnbannedCounts: count entries by .owner
+  read <- not exists hiddenBans[viewer]
+  online only
+view readableUnbannedCounts: count entries by .owner
+  read <- not exists readableBans[viewer]
+  online only
+view hiddenBannedCounts: count entries by .owner
+  read <- exists hiddenBans[viewer]
+  online only
+view hiddenDoubleBannedCounts: count entries by .owner
+  read <- not not exists hiddenBans[viewer]
+  online only
+view hiddenCompositeCounts: count entries by .owner
+  read <- .owner = viewer and not exists hiddenBans[viewer]
+  online only
+view hiddenEitherCounts: count entries by .owner
+  read <- .owner = viewer or not exists hiddenBans[viewer]
+  online only
+"#;
+    for (name, guard, view) in [
+        ("hidden", "not exists hiddenBans[viewer]", "hiddenUnbannedCounts"),
+        ("composite", "owner = viewer and not exists hiddenBans[viewer]", "hiddenCompositeCounts"),
+        ("either", "owner = viewer or not exists hiddenBans[viewer]", "hiddenEitherCounts"),
+    ] {
+        let hidden = compile(&[(
+            "schema.q".into(),
+            format!(
+                "{SOURCE}{tables}query {name}(owner: principal):\n  require {guard} else BANNED\n  return {view}[owner] + 1\n"
+            )
+            .into(),
+        )]);
+        assert!(
+            hidden.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+            "{name}: {:#?}",
+            hidden.diagnostics
+        );
+    }
+
+    let readable = compile(&[(
+        "schema.q".into(),
+        format!(
+            "{SOURCE}{tables}query readable(owner: principal):\n  require not exists readableBans[viewer] else BANNED\n  return readableUnbannedCounts[owner] + 1\nquery positive(owner: principal):\n  require exists hiddenBans[viewer] else NOT_BANNED\n  return hiddenBannedCounts[owner] + 1\nquery doublePositive(owner: principal):\n  require exists hiddenBans[viewer] else NOT_BANNED\n  return hiddenDoubleBannedCounts[owner] + 1\n"
+        )
+        .into(),
+    )]);
+    assert!(readable.diagnostics.is_empty(), "{:#?}", readable.diagnostics);
+    for name in ["readable", "positive", "doublePositive"] {
+        assert_eq!(result(&readable, name), &Ty::Int, "{name}");
+    }
+}
+
+#[test]
 fn rebinding_an_authorized_key_drops_the_required_result_fact() {
     let source = format!(
         r#"{SOURCE}

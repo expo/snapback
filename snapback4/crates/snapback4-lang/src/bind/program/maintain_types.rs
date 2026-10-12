@@ -2,8 +2,17 @@
 
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
+use snapback4_core::schema::RuleTerm;
 
 pub(super) const AUTHORIZATION: &str = "$maintainAuthorization";
+
+#[derive(Clone, Copy, Debug)]
+enum AuthorizationDomain {
+    /// Program `exists` observes only rows readable by the current viewer.
+    Program,
+    /// A table rule's witness tests raw row presence below the target rule.
+    Rule,
+}
 
 impl Binder<'_> {
     /// A private maintained point is nullable: authorization may withhold a
@@ -39,7 +48,7 @@ impl Binder<'_> {
     /// intersection and rebinding logic then keeps exactly the facts that
     /// survive control flow and clears facts whose operands change.
     pub(super) fn record_maintain_authorization(&mut self, condition: &A, truth: bool) {
-        let Some((key, roots)) = self.authorization_key(condition, truth) else {
+        let Some((key, roots)) = self.authorization_key(condition, truth, AuthorizationDomain::Program) else {
             return;
         };
         for root in roots {
@@ -55,7 +64,7 @@ impl Binder<'_> {
     }
 
     fn authorization_holds(&self, condition: &A, truth: bool) -> bool {
-        self.authorization_key(condition, truth)
+        self.authorization_key(condition, truth, AuthorizationDomain::Rule)
             .is_some_and(|(key, roots)| {
                 roots.iter().all(|root| {
                     self.binding(root)
@@ -101,9 +110,10 @@ impl Binder<'_> {
         &self,
         condition: &A,
         truth: bool,
+        domain: AuthorizationDomain,
     ) -> Option<(Vec<String>, BTreeSet<String>)> {
         let mut roots = BTreeSet::new();
-        let key = self.condition_identity(condition, truth, &mut roots)?;
+        let key = self.condition_identity(condition, truth, domain, &mut roots)?;
         if roots.is_empty() {
             roots.insert(pure_calls::CONSTANTS.to_owned());
         }
@@ -114,18 +124,28 @@ impl Binder<'_> {
         &self,
         condition: &A,
         truth: bool,
+        domain: AuthorizationDomain,
         roots: &mut BTreeSet<String>,
     ) -> Option<String> {
         match condition {
             A::Unary { op, value, .. } if op == "not" => {
-                self.condition_identity(value, !truth, roots)
+                self.condition_identity(value, !truth, domain, roots)
+            }
+            A::Exists { read, .. } => {
+                let raw = matches!(domain, AuthorizationDomain::Rule)
+                    || truth
+                    || self.program_absence_is_raw(read);
+                self.read_identity("exists", if raw { "raw" } else { "readable" }, read, roots)
+            }
+            A::Created { read, .. } => {
+                self.read_identity("created", "raw", read, roots)
             }
             A::Binary {
                 op, left, right, ..
             } if matches!(op.as_str(), "=" | "!=") => {
                 let mut operands = [
-                    self.value_identity(left, roots)?,
-                    self.value_identity(right, roots)?,
+                    self.value_identity(left, domain, roots)?,
+                    self.value_identity(right, domain, roots)?,
                 ];
                 operands.sort();
                 let equal = (op == "=") == truth;
@@ -133,12 +153,12 @@ impl Binder<'_> {
             }
             _ => Some(format!(
                 "truth:{truth}:{}",
-                self.value_identity(condition, roots)?
+                self.value_identity(condition, domain, roots)?
             )),
         }
     }
 
-    fn value_identity(&self, value: &A, roots: &mut BTreeSet<String>) -> Option<String> {
+    fn value_identity(&self, value: &A, domain: AuthorizationDomain, roots: &mut BTreeSet<String>) -> Option<String> {
         match value {
             A::Name { name, .. }
                 if matches!(
@@ -149,17 +169,22 @@ impl Binder<'_> {
                 Some(format!("bool:{name}"))
             }
             A::Unary { op, value, .. } => {
-                Some(format!("unary:{op}:{}", self.value_identity(value, roots)?))
+                Some(format!("unary:{op}:{}", self.value_identity(value, domain, roots)?))
             }
             A::Binary {
                 op, left, right, ..
             } => Some(format!(
                 "binary:{op}:{}:{}",
-                self.value_identity(left, roots)?,
-                self.value_identity(right, roots)?
+                self.value_identity(left, domain, roots)?,
+                self.value_identity(right, domain, roots)?
             )),
-            A::Exists { read, .. } => self.read_identity("exists", read, roots),
-            A::Created { read, .. } => self.read_identity("created", read, roots),
+            // Nested witnesses have no known polarity. Keep their observable
+            // program domain separate from the raw witness used by a rule.
+            A::Exists { read, .. } => self.read_identity("exists", match domain {
+                AuthorizationDomain::Program => "readable",
+                AuthorizationDomain::Rule => "raw",
+            }, read, roots),
+            A::Created { read, .. } => self.read_identity("created", "raw", read, roots),
             _ => self.stable_value(value, roots).map(|value| value.key()),
         }
     }
@@ -167,6 +192,7 @@ impl Binder<'_> {
     fn read_identity(
         &self,
         kind: &str,
+        domain: &str,
         read: &ReadExpr,
         roots: &mut BTreeSet<String>,
     ) -> Option<String> {
@@ -184,11 +210,68 @@ impl Binder<'_> {
                 Some(format!(
                     "{:?}:{}",
                     key.column,
-                    self.value_identity(&key.value, roots)?
+                    self.value_identity(&key.value, AuthorizationDomain::Rule, roots)?
                 ))
             })
             .collect::<Option<Vec<_>>>()?;
-        Some(format!("{kind}:{:?}:{:?}:{keys:?}", read.table, read.index))
+        Some(format!("{kind}:{domain}:{:?}:{:?}:{keys:?}", read.table, read.index))
+    }
+
+    /// A negative program existence test establishes raw absence only when
+    /// every row selected by its complete point key is structurally readable.
+    fn program_absence_is_raw(&self, read: &ReadExpr) -> bool {
+        if self.caller_kind == ProgramKind::Job && self.viewer_depth.is_none() {
+            return true;
+        }
+        let Some(table) = self.schema.table(&read.table) else { return false };
+        if table.rules.read.is_uniformly_readable() { return true; }
+        if read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() {
+            return false;
+        }
+        let term = |value: &A| match value {
+            A::Name { name, .. } if name == "viewer" => Some(RuleTerm::Viewer),
+            A::Literal { value: Literal::Str(value), .. } => Some(RuleTerm::Literal(snapback4_core::Value::String(value.clone()))),
+            A::Literal { value: Literal::Number(value), site } => super::super::integer_literal(value, site).ok()
+                .map(|value| RuleTerm::Literal(snapback4_core::Value::Int(value))),
+            A::Literal { value: Literal::Bool(value), .. } => Some(RuleTerm::Literal(snapback4_core::Value::Bool(*value))),
+            A::Literal { value: Literal::Null, .. } => Some(RuleTerm::Literal(snapback4_core::Value::Null)),
+            _ => None,
+        };
+        let Some(supplied) = read.keys.iter().map(|key| term(&key.value).map(|term| (key.column.as_deref(), term)))
+            .collect::<Option<Vec<_>>>() else { return false };
+        let fits = |term: &RuleTerm, column: &snapback4_core::schema::ColumnType| {
+            if matches!(term, RuleTerm::Literal(snapback4_core::Value::Null)) { return column.is_optional(); }
+            match (term, column.required()) {
+                (RuleTerm::Viewer, snapback4_core::schema::ColumnType::Principal) => true,
+                (RuleTerm::Literal(snapback4_core::Value::Bool(_)), snapback4_core::schema::ColumnType::Bool) => true,
+                (RuleTerm::Literal(snapback4_core::Value::Int(_)), column) if column.is_int() => true,
+                (RuleTerm::Literal(snapback4_core::Value::String(_)), snapback4_core::schema::ColumnType::Text { .. } | snapback4_core::schema::ColumnType::Enum { .. }) => true,
+                (RuleTerm::Literal(snapback4_core::Value::String(_) | snapback4_core::Value::Id(_)), snapback4_core::schema::ColumnType::Id | snapback4_core::schema::ColumnType::Principal | snapback4_core::schema::ColumnType::Ref { .. }) => true,
+                _ => false,
+            }
+        };
+        let candidates: Vec<_> = table.indexes.iter().filter(|(name, index)| {
+            if read.index.as_ref().is_some_and(|selected| selected != *name) { return false; }
+            if !index.is_plain() { return false; }
+            if supplied.iter().all(|(column, _)| column.is_some()) {
+                index.components.len() == supplied.len()
+                    && index.columns().iter().all(|column| supplied.iter().any(|(supplied, _)| supplied == &Some(column.as_str())))
+            } else {
+                supplied.iter().all(|(column, _)| column.is_none())
+                    && index.unique && index.components.len() == supplied.len()
+                    && index.columns().iter().zip(&supplied).all(|(column, (_, term))| table.columns.get(column).is_some_and(|ty| fits(term, ty)))
+            }
+        }).collect();
+        let [(index_name, index)] = candidates.as_slice() else { return false };
+        let key = if supplied.iter().all(|(column, _)| column.is_some()) {
+            let Some(key) = index.columns().iter().map(|column| supplied.iter()
+                .find_map(|(supplied, term)| (*supplied == Some(column)).then_some(term.clone())))
+                .collect::<Option<Vec<_>>>() else { return false };
+            key
+        } else {
+            supplied.into_iter().map(|(_, term)| term).collect()
+        };
+        self.schema.rule_input_is_readable(&read.table, index_name, &key)
     }
 
     fn condition_known(&self, condition: &A, truth: bool) -> bool {
@@ -215,8 +298,8 @@ impl Binder<'_> {
             } if matches!(op.as_str(), "=" | "!=") => {
                 let mut roots = BTreeSet::new();
                 let same = self
-                    .value_identity(left, &mut roots)
-                    .zip(self.value_identity(right, &mut roots))
+                    .value_identity(left, AuthorizationDomain::Rule, &mut roots)
+                    .zip(self.value_identity(right, AuthorizationDomain::Rule, &mut roots))
                     .is_some_and(|(left, right)| left == right);
                 same && ((op == "=") == truth)
             }
