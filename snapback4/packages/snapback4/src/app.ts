@@ -1,7 +1,7 @@
 import { sessionRefusal } from "./session-refusal.ts";
 import { refuseReadDevice, validateReadOptions, readOnlyRefusal, verifyReadClient } from "./read-only.ts";
 import { routeMutations } from "./ephemeral.ts";
-import { admissionRefusal, browserAdmission, failedAdmission, sessionReader, sdkOwned, BROWSER_WRITE_FIX } from "./admission.ts";
+import { admissionRefusal, browserAdmission, failedAdmission, sessionReader, sdkOwned, BROWSER_WRITE_FIX, ONLINE_WRITE_FIX } from "./admission.ts";
 import { prepareAdmissionAuthority } from "./admission-authority.ts";
 import { mintId } from "./client.ts";
 import { serverClock } from "./clock.ts";
@@ -71,6 +71,12 @@ export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "s
    * refused; a non-loopback url refuses with E_AUTH, and serve refuses personas.
    * A browser needs a device to write, as with every createApp. */
   readonly persona?: string;
+  /** Browser writes without a device: each click is journaled synchronously in
+   * localStorage and sent through the server (no offline reads, no
+   * predictions). Chosen automatically when the backend syncs no table;
+   * `"online"` also chooses it when tables sync. Needs
+   * `sessionStore: localStorageSessionStore()`. */
+  readonly writes?: "online";
 }
 
 function problem(error: unknown): Refusal {
@@ -99,6 +105,13 @@ export function createApp(options: AppOptions): App {
     configurationError = new StorageWarning({ code: "E_CLIENT", family: "client", message: String(error),
       site: "app.assets", rewrite: 'createApp({ url, device, assets: { keep: "viewed", maxBytes: 67108864 } })' });
   }
+  // @ref LLP 3000.013.000#3 — the explicit choice of the device-less browser journal.
+  if (options.writes !== undefined && (options.writes !== "online" || options.device || readOnly)) {
+    configurationError ??= new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.writes",
+      message: options.writes !== "online" ? `writes must be "online" or omitted, not ${JSON.stringify(options.writes)}`
+        : `writes: "online" is the device-less writing app; it cannot be combined with ${options.device ? "a device" : "readOnly"}`,
+      rewrite: 'createApp({ url, sessionStore: localStorageSessionStore(), writes: "online" })' });
+  }
   const url = options.url.replace(/\/$/, "");
   const custodyKey = sessionKey(url, readOnly);
   const clock = serverClock(options.fetch ?? defaultFetch);
@@ -113,8 +126,8 @@ export function createApp(options: AppOptions): App {
     }
     return bytes;
   } };
-  // @ref LLP 3000.013#6.2 — the online browser tier keeps the device's journal; say so at construction.
-  if (!options.device && !readOnly && browserAdmission()) console.warn(`snapback4: createApp without a device refuses browser writes with E_ADMISSION: only a web device journals a click synchronously. Use ${BROWSER_WRITE_FIX}; online-only tables need no sync lines.`);
+  // @ref LLP 3000.013.000#3 — a device-less browser app journals writes only over the IndexedDB session authority; say so at construction.
+  if (!options.device && !readOnly && browserAdmission() && !(sessionReader(backing) && authority)) console.warn(`snapback4: createApp without a device journals browser writes only with sessionStore: localStorageSessionStore(); with this session store every browser write refuses E_ADMISSION. Use ${ONLINE_WRITE_FIX} when no table syncs, or ${BROWSER_WRITE_FIX}.`);
   if (!options.sessionStore && typeof window !== "undefined") console.info("snapback4: createApp keeps sessions in memory. To restore after a page restart, pass sessionStore: localStorageSessionStore() from snapback4/auth. Scripts on the page can read that persisted token.");
   let persistence: Promise<unknown> = Promise.resolve();
   const persist = <T>(work: () => Promise<T>) => {
@@ -425,7 +438,10 @@ export function createApp(options: AppOptions): App {
       return true;
     }
     function admit(): Refusal | undefined {
-      if (!options.device) return admissionRefusal("this browser app has no durable web device; a web device journals browser writes, also for online-only tables", "app.mutate", BROWSER_WRITE_FIX);
+      if (!options.device) {
+        const refused = onlineWritesRefusal();
+        if (refused) return refused;
+      }
       const read = sessionReader(backing);
       if (!read) return admissionRefusal("the session store cannot be checked synchronously", "app.mutate", "use localStorageSessionStore() on the web, then retry with the same id");
       try {
@@ -440,6 +456,40 @@ export function createApp(options: AppOptions): App {
           return new SessionEpochChanged().why;
         }
       } catch (error) { return admissionRefusal(`session storage is unavailable: ${String(error)}`, "app.mutate"); }
+      return undefined;
+    }
+    // @ref LLP 3000.013.000#3 — a device-less browser app journals writes when the
+    // backend syncs no table, or when the app chose writes: "online".
+    type WritesDecision = { mode: "journal" } | { mode: "synced"; tables: string[] } | { mode: "unknown"; why: string };
+    let writesDecision: WritesDecision = { mode: "unknown", why: "the backend's schema has not been read" };
+    let readingWrites: Promise<void> | undefined, lastWritesRead = 0;
+    const journalSupport = !options.device && !readOnly && browserAdmission() && !!sessionReader(backing) && !!authority && !!globalThis.navigator?.locks;
+    const readWrites = (): Promise<void> => readingWrites ??= (async () => {
+      lastWritesRead = Date.now();
+      let next: WritesDecision;
+      try {
+        const token = raw?.session()?.token ?? scope.session.token;
+        const response = await scopedFetch(url + "/schema", { headers: { authorization: `Bearer ${token}` } });
+        const json = await response.json() as { schema?: { tables?: Record<string, { sync?: unknown } | null> }; denied?: Refusal };
+        const tables = json?.schema?.tables;
+        if (!response.ok || !tables || typeof tables !== "object") next = { mode: "unknown", why: json?.denied?.message ?? `GET /schema answered ${response.status}` };
+        else {
+          const synced = Object.entries(tables).filter(([, table]) => table?.sync).map(([name]) => name).sort();
+          next = synced.length ? { mode: "synced", tables: synced } : { mode: "journal" };
+        }
+      } catch (error) { next = { mode: "unknown", why: String(error) }; }
+      if (writesDecision.mode === "unknown") writesDecision = next;
+    })().finally(() => { readingWrites = undefined; });
+    function onlineWritesRefusal(): Refusal | undefined {
+      if (!sessionReader(backing) || !authority) return admissionRefusal("this browser app has no device, and its session store is not localStorageSessionStore(): the browser write journal needs its synchronous reader and IndexedDB authority", "app.mutate", ONLINE_WRITE_FIX);
+      if (!globalThis.navigator?.locks) return admissionRefusal("this browser has no Web Locks (navigator.locks); the browser write journal cannot serialize tabs", "app.mutate", "use a browser with Web Locks, or " + BROWSER_WRITE_FIX);
+      if (writesDecision.mode === "synced") return admissionRefusal(`this schema syncs ${writesDecision.tables.join(", ")}; a browser app without a device journals writes only when no table syncs`, "app.mutate",
+        `${BROWSER_WRITE_FIX} for offline reads, or createApp({ url, sessionStore: localStorageSessionStore(), writes: "online" }) to write through the server only`);
+      if (writesDecision.mode === "unknown") {
+        if (Date.now() - lastWritesRead >= 5_000) void readWrites().catch(() => {});
+        return { ...admissionRefusal(`the backend has not said whether its tables sync, so the browser write journal is not chosen yet (${writesDecision.why})`, "app.mutate",
+          'retry with the same id once the backend answers, or pass writes: "online"'), retryable: true };
+      }
       return undefined;
     }
     const scopedRequest = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1], currentArm?: () => boolean): Promise<Response> => {
@@ -607,10 +657,23 @@ export function createApp(options: AppOptions): App {
       const stops = [stopSession, raw.onViewer(hideLostView), raw.onLink(hideLostView), raw.onAcquired(hideLostView)];
       scope.stop = () => { for (const stop of stops) stop(); };
       let warning: Refusal | undefined;
+      if (journalSupport) {
+        if (options.writes === "online") writesDecision = { mode: "journal" };
+        else await readWrites();
+        if (!scope.valid || closed || revision !== expected) {
+          if (scope.valid && closed) await raw.close();
+          else void raw.signOut().catch(() => {});
+          return cancelled();
+        }
+      }
       custody = options.device || readOnly ? undefined : await onlineCustody(raw, url, storage, error => {
         warning = problem(error);
         if (scope.valid) report(error);
-      }, false);
+      }, false, journalSupport ? {
+        // @ref LLP 3000.013.000#4.2 — the device journal's authority stamp and locked check.
+        capture: () => ({ key: custodyKey, epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
+        recheck: () => { void authorized().catch(() => {}); },
+      } : undefined);
       recoverStore();
       const baseClient = custody?.client ?? raw;
       function replaceOnline() {

@@ -6,7 +6,9 @@ import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 
 export type Intent = { owner: string; id: string; op: string; args: unknown; storeId?: string | null; dispatched?: boolean; holdReason?: string; statusRevision?: string };
 export type Terminal = Exclude<Write, { state: "pending" }>;
-export type Journal = { owner: string; backend: string; pending: Intent[]; receipts: Terminal[]; retired?: string[]; retirementFull?: boolean; firstStore?: string; changedStore?: boolean };
+export type Journal = { owner: string; backend: string; pending: Intent[]; receipts: Terminal[]; retired?: string[]; retirementFull?: boolean; firstStore?: string; changedStore?: boolean;
+  /** Ids whose browser capture may survive (LLP 3000.013.000 §4.2). */
+  captured?: string[] };
 
 export function observeJournalStore(journal: Journal, store: string): void {
   if (journal.firstStore === undefined) journal.firstStore = store;
@@ -39,6 +41,8 @@ export function bindIntentStore(journal: Journal, intent: Intent, store: string 
 // Retirement-protected ids have no safe expiry. Keep about 116 KiB at most;
 // saturation permanently fences new admissions instead of forgetting an id.
 export const RETIRED_ID_LIMIT = 4096;
+/** Mirrors online-capture.ts's marker cap. */
+const CAPTURED_ID_LIMIT = 1024;
 const unknown = (write: Terminal) => write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
 
 export function keepReceipts(journal: Journal, pinned: Set<string>, retiring: boolean): void {
@@ -74,6 +78,14 @@ export function retiredReceipt(journal: Journal, id: string): Terminal | undefin
       : "this write id was preserved after a store change; its receipt body is no longer retained and it cannot be admitted again",
     rewrite: "reconcile the prior outcomes with the backend before explicitly replacing this account's write journal; do not retry automatically" } };
 }
+// @ref LLP 3000.013.000#4.2 — an id known only by its transfer marker was admitted
+// and settled; its receipt left the journal, so it is never admitted again.
+export function capturedReceipt(journal: Journal, id: string): Terminal | undefined {
+  if (!journal.captured?.includes(id)) return undefined;
+  return { state: "failed", id, why: { code: "E_WRITE_RECEIPT_EXPIRED", family: "input", guide: "writes", site: "app.mutate",
+    message: "this browser already admitted this write id; its receipt is no longer retained and it cannot be admitted again",
+    rewrite: "reopen to recover that outcome through the server's record; do not retry automatically" } };
+}
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const id = (value: unknown) => typeof value === "string" && /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(value);
 
@@ -83,6 +95,7 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
   if (value.retirementFull !== undefined && typeof value.retirementFull !== "boolean") return false;
   if (value.firstStore !== undefined && (typeof value.firstStore !== "string" || !value.firstStore)) return false;
   if (value.changedStore !== undefined && typeof value.changedStore !== "boolean") return false;
+  if (value.captured !== undefined && (!Array.isArray(value.captured) || value.captured.length > CAPTURED_ID_LIMIT || !value.captured.every(id))) return false;
   if (!value.pending.every(item => record(item) && item.owner === owner && id(item.id) && typeof item.op === "string" && item.op.length > 0 && Object.hasOwn(item, "args"))) return false;
   if (!value.pending.every(item => (item.storeId == null || (typeof item.storeId === "string" && item.storeId.length > 0))
     && (item.dispatched === undefined || typeof item.dispatched === "boolean"))) return false;
