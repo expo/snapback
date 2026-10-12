@@ -149,34 +149,41 @@ query notesOf(c: cursor ?):\n  return notes where .owner = viewer first 1 by .ow
     assert_ne!(outcome.data, next.data);
 }
 
-/// Lane 039: a parent grant the scan's pin decides is not a grant the server
-/// uses, guarded or not. The note says so, and its copy recipe makes the
-/// leader's roster complete.
+/// Lane 039: a parent probe the scan's pin decides (`exists rides[.ride, leader
+/// = viewer]` under `.ride = ride`) is a page guard at run time (LLP 3000.036
+/// §16.3): the leader's roster is complete, `check` follows the `require` on
+/// it, and without the guard the note names the leader as a caller it admits.
 #[test]
-fn a_prefix_decided_parent_grant_is_named_and_its_copy_recipe_completes_the_page() {
+fn a_prefix_decided_parent_grant_decides_the_leaders_roster() {
     let rides = "table rides:\n  leader: principal\n  immutable leader\n  read <- allow\n  online only\n";
-    let source = format!("{rides}table rsvps:\n  ride: rides\n  member: principal\n  unique ride, member\n  immutable ride, member\n  read <- .member = viewer or exists rides[.ride, leader = viewer]\n  insert <- .member = viewer\n  online only
-query roster(ride: rides, c: cursor ?):\n  require exists rides[ride, leader = viewer] else NOT_LEADER\n  return rsvps where .ride = ride first 50 by .id after c\n");
-    let b = bound(&source);
-    let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
-    assert!(n.message.contains("`exists rides[.ride, leader = viewer]` is decided by the scan's pins") && n.message.contains("whatever `require` or `if` guards it"), "{n}");
-    assert!(n.rewrite.contains("`read <- .member = viewer or .leader = viewer`") && n.rewrite.contains("`and exists rides[.ride, leader = .leader]`"), "{n}");
+    let rsvps = "table rsvps:\n  ride: rides\n  member: principal\n  unique ride, member\n  immutable ride, member\n  read <- .member = viewer or exists rides[.ride, leader = viewer]\n  insert <- .member = viewer\n  online only\n";
     let rows = || vec![
         ("rides", vec![("id", id("ride1")), ("leader", id("lee"))]),
-        ("rsvps", vec![("id", id("a")), ("ride", id("ride1")), ("member", id("ann")), ("leader", id("lee"))]),
-        ("rsvps", vec![("id", id("b")), ("ride", id("ride1")), ("member", id("bo")), ("leader", id("lee"))]),
+        ("rsvps", vec![("id", id("a")), ("ride", id("ride1")), ("member", id("ann"))]),
+        ("rsvps", vec![("id", id("b")), ("ride", id("ride1")), ("member", id("bo"))]),
     ];
-    let original = rows().into_iter().map(|(t, mut f)| { f.retain(|(k, _)| *k != "leader" || t == "rides"); (t, f) }).collect();
-    let mut engine_before = engine(&source, original);
-    assert_eq!(page(&mut engine_before, "roster", "lee", &[("ride", id("ride1")), ("c", Value::Null)]), Some((false, 2)), "the runtime agrees with the note");
-    // The recipe, applied as printed: the copy, its insert check, the column rule and the pinned page.
-    let page_text = n.rewrite.split("is complete: `").nth(1).and_then(|rest| rest.split('`').next()).unwrap_or_else(|| panic!("{n}"));
-    let repaired = format!("{rides}table rsvps:\n  ride: rides\n  member: principal\n  leader: principal\n  unique ride, member\n  immutable ride, member\n  immutable ride, leader\n  read <- .member = viewer or .leader = viewer\n  insert <- .member = viewer and exists rides[.ride, leader = .leader]\n  online only
-query roster(ride: rides, c: cursor ?):\n  require exists rides[ride, leader = viewer] else NOT_LEADER\n  return {page_text}\n");
-    let b = clean(&repaired);
-    assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "{repaired}\n{:#?}", b.notes);
-    let mut engine = engine(&repaired, rows());
-    assert_eq!(page(&mut engine, "roster", "lee", &[("ride", id("ride1")), ("c", Value::Null)]), Some((true, 2)));
+    let guarded = format!("{rides}{rsvps}query roster(ride: rides, c: cursor ?):\n  require exists rides[ride, leader = viewer] else NOT_LEADER\n  return rsvps where .ride = ride first 50 by .id after c\n");
+    let b = clean(&guarded);
+    assert!(note(&b, "N_NEVER_COMPLETE").is_none(), "the require on the pinned probe is followed: {:#?}", b.notes);
+    let mut guarded_engine = engine(&guarded, rows());
+    let pairs = [("ride", id("ride1")), ("c", Value::Null)];
+    assert_eq!(page(&mut guarded_engine, "roster", "lee", &pairs), Some((true, 2)), "the leader's roster is complete");
+    assert_eq!(page(&mut guarded_engine, "roster", "ann", &pairs), None, "a member is refused by the require");
+    // Unguarded: complete for the leader, the member's own row capped, as the note says.
+    let open = format!("{rides}{rsvps}query roster(ride: rides, c: cursor ?):\n  return rsvps where .ride = ride first 50 by .id after c\n");
+    let b = bound(&open);
+    let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.contains("except for callers `exists rides[.ride, leader = viewer]` admits") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
+    let mut unguarded = engine(&open, rows());
+    assert_eq!(page(&mut unguarded, "roster", "lee", &pairs), Some((true, 2)));
+    assert_eq!(page(&mut unguarded, "roster", "ann", &pairs), Some((false, 1)));
+    // A guard on another ride's probe proves nothing for this one.
+    let other = format!("{rides}{rsvps}query roster(ride: rides, other: rides, c: cursor ?):\n  require exists rides[other, leader = viewer] else NOT_LEADER\n  return rsvps where .ride = ride first 50 by .id after c\n");
+    assert!(note(&bound(&other), "N_NEVER_COMPLETE").is_some());
+    // Nor does one on a rebound argument.
+    let rebound = format!("{rides}{rsvps}query roster(ride: rides, other: rides, c: cursor ?):\n  require exists rides[ride, leader = viewer] else NOT_LEADER\n  ride = other\n  return rsvps where .ride = ride first 50 by .id after c\n");
+    let b = bound(&rebound);
+    if b.diagnostics.is_empty() { assert!(note(&b, "N_NEVER_COMPLETE").is_some(), "{:#?}", b.notes); }
 }
 
 // ---- #3b: the role branch and the per-party split lead the note, and compile ----

@@ -246,10 +246,13 @@ fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
         assert!(card.contains(recipe), "{recipe}");
     }
     let reference = card.split_once("## Reference").unwrap().1;
+    assert!(reference.find("online only").unwrap() < reference.find("**An org roster.**").unwrap());
+    assert!(reference.find("**A staff console, online.**").unwrap() < reference.find("**An org roster.**").unwrap());
     assert!(reference.contains("never predict") && reference.contains("E_OFFLINE") && reference.contains("union"));
-    // The opening example and the recipes; tests/guide.rs compiles every card's blocks too.
+    // Union recipes, the online staff console, explicit membership alternatives,
+    // open groups and the private group list; tests/guide.rs compiles them too.
     let blocks = snapback4_lang::guide::quarry(card);
-    assert_eq!(blocks.len(), 8);
+    assert_eq!(blocks.len(), 13);
     for block in &blocks { clean(block); }
     // The union recipes really sync as unions.
     for block in &blocks[..4] {

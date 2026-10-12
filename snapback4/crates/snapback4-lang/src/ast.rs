@@ -19,6 +19,8 @@ pub enum TypeKind {
     Bytes { max: u32 },
     Image { max: u32, once: bool },
     Video { max: u32 },
+    /// `file <=N ('type', ...)`; an empty list is the default allow-list (LLP 3000.038).
+    File { max: u32, types: Vec<String> },
     Enum { variants: Vec<String> },
     Ref { table: String },
     List { item: Box<ScalarType>, min: u32, max: u32 },

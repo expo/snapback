@@ -44,8 +44,10 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
-`matchRead` (no type arguments) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` takes all unnamed. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
-Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`; `[add, remove].find(isFailed)?.last.why`; `Outcome` types status helpers ([lists/scalars](CLIENT-AND-OPERATIONS.md#lists-and-single-values-with-usequery)). [Personas](CLIENT-AND-OPERATIONS.md#personas-in-a-react-ui).
+
+## React hooks
+`matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
+Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`/`usePersonaApp`; `{ skip: !id }` waits for arguments; `[add, remove].find(isFailed)?.last.why`; helpers take `Outcome | undefined` or `Read<unknown>` ([form](CLIENT-AND-OPERATIONS.md#status-components-and-a-form)).
 
 | Meaning | UI decision |
 | --- | --- |
@@ -67,11 +69,10 @@ Share/paginate (`usePage` queries take `c: cursor ?` with `after c`); authorizat
 Eight active; eight queued observation attempts start/turn; direct queries and timed presence refreshes use separate paths. Local budgets pause while queued, never replenish. Online evidence overtakes ≤8 times; occupied slots can withdraw.
 
 Server/composed scopes preserve unrelated rooms; unknown selectors withdraw table-wide.
-Flashes: `inspect(client)` (`snapback4/inspection`): `queued`/`inFlight`, `revalidating`/`withdrawn`, `recentWithdrawals`. `change-timeout`: exhausted budget. `latency`: queue/attempt percentiles.
-Overlay: `useInspection(import.meta.env.DEV)` (Expo: `useInspection(__DEV__)`). Disabled: null/no timer; enabled: 250-ms samples. No arguments/values.
+Flashes: `inspect(client)`, `useInspection(import.meta.env.DEV)`: [pressure](CLIENT-AND-OPERATIONS.md#inspect-subscription-pressure).
 
 ## Expo and acquisition
-Writing browser apps need `createApp`+`webDevice()`, online-only too: ~650 KB gzip wasm at sign-in, not first paint. `nativeDevice`; Expo Go online. Acquisition/Workers: `guide sync`.
+Browser writes: `createApp`; no table syncs → no device (localStorage journal, no wasm); else `webDevice()`. `nativeDevice`; Expo Go online. Acquisition/Workers: `guide sync`.
 Every milestone: `npm run export:ios`; proof in the background: `witness status --wait`. Rebuild: `npm run native:smoke`. Acquisition/offline reopen/reconnect/write replay: `guide witness`.
 
 `readOnly: true` (`createClient`/online `createApp`, `guide read-only`): inactive `useSeen`, no SDK rotation. `refreshSession()`: `E_READ_ONLY_REFRESH`; `expiresAt`: `E_AUTH`.

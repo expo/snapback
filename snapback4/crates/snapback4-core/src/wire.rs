@@ -68,7 +68,7 @@ pub fn from_json(kind: &ArgType, json: &Json) -> Result<Value, String> {
         (ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. }, Json::Number(n)) => Value::Int(n.as_i64().ok_or("an integer")?),
         (ArgType::Bool, Json::Bool(b)) => Value::Bool(*b),
         (ArgType::Json { .. } | ArgType::Scalar, other) => untyped(other)?,
-        (ArgType::Image { .. } | ArgType::Video { .. }, Json::Object(fields)) => asset_from_json(fields)?,
+        (ArgType::Image { .. } | ArgType::Video { .. } | ArgType::File { .. }, Json::Object(fields)) => asset_from_json(fields)?,
         (ArgType::List { of, .. } | ArgType::ListRange { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| match of { Some(of) => from_json(of, item), None => untyped(item) }).collect::<Result<Vec<_>, _>>()?),
         (kind, other) => return Err(format!("expected {}, got {}", describe(kind), other_kind(other))),
     })
@@ -132,7 +132,7 @@ pub fn column_from_json(kind: &crate::schema::ColumnType, json: &Json) -> Result
         (C::Int | C::Time | C::Decimal { .. } | C::Money { .. }, Json::Number(n)) => Value::Int(n.as_i64().ok_or("an integer")?),
         (C::Bool, Json::Bool(b)) => Value::Bool(*b),
         (C::Json { .. }, other) => untyped(other)?,
-        (C::Image { .. } | C::Video { .. }, Json::Object(fields)) => asset_from_json(fields)?,
+        (C::Image { .. } | C::Video { .. } | C::File { .. }, Json::Object(fields)) => asset_from_json(fields)?,
         (C::List { of, .. } | C::ListRange { of, .. }, Json::Array(items)) => Value::Array(items.iter().map(|item| column_from_json(of, item)).collect::<Result<Vec<_>, _>>()?),
         (kind, other) => return Err(format!("expected {kind}, got {}", other_kind(other))),
     })
@@ -148,6 +148,7 @@ fn describe(kind: &ArgType) -> String {
         ArgType::Bytes { .. } => "bytes".into(),
         ArgType::Image { .. } => "an image".into(),
         ArgType::Video { .. } => "a video".into(),
+        ArgType::File { .. } => "a file".into(),
         ArgType::Int => "an integer".into(),
         ArgType::Bool => "a boolean".into(),
         ArgType::Time => "a time in milliseconds".into(),

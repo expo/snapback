@@ -30,10 +30,6 @@ pub(super) struct Form {
     pub lead: String,
     pub code: String,
     pub phrase: String,
-    /// Arms on a pinned parent probe: they return their holders' rows, but
-    /// the server decides a page complete only from a disjunct that reads no
-    /// row column, so these pages stay `complete: false`.
-    pub incomplete: Vec<String>,
 }
 
 enum Kind { Grant, Decided(String), Party(String) }
@@ -110,16 +106,14 @@ pub(super) fn complete_form(schema: &Schema, program: &Program, scan: &Scan, tab
     if let Err(reason) = same_readers(&code, &value, &atoms) {
         return Outcome::None(format!("the branched form would {reason}"));
     }
-    let incomplete = decided.clone();
     let what = match (grants.len(), decided.len()) {
         (0, _) => "the pinned parent probe".to_owned(),
         (1, 0) => "the grant".to_owned(),
         (_, 0) => "the grants".to_owned(),
         _ => "the grant and the pinned parent probe".to_owned(),
     };
-    let completeness = if incomplete.is_empty() { "every page is complete".to_owned() } else {
-        format!("the {} arm returns its holders' rows but stays `complete: false` (the server decides a page only from a disjunct that reads no row column), every other page is complete", incomplete.iter().map(|t| format!("`{t}`")).collect::<Vec<_>>().join(" and "))
-    };
+    // @ref LLP 3000.036#16.3 — a pinned parent probe decides its arm's page at run time, as a grant does.
+    let completeness = "every page is complete".to_owned();
     let (lead, phrase) = if parties.len() == 1 {
         (format!("Branch on {what} and pin `.{}` for everyone else; together they return exactly the rows the read rule admits, and {completeness}:", parties[0]),
             format!("`if` on {what}, pinning `.{}` otherwise", parties[0]))
@@ -129,7 +123,7 @@ pub(super) fn complete_form(schema: &Schema, program: &Program, scan: &Scan, tab
         (format!("Replace this query with one per party, each branching on {what} first, and show both lists or merge them by their order in the client; together they return exactly the rows the read rule admits, and {completeness}:"),
             format!("one query per party, each branching on {what} first"))
     };
-    Outcome::Form(Form { lead, code, phrase, incomplete })
+    Outcome::Form(Form { lead, code, phrase })
 }
 
 fn capitalized(text: &str) -> String {

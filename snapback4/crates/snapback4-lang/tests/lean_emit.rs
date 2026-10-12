@@ -99,9 +99,47 @@ fn reads_split_pins_from_the_residual_filter() {
     assert_eq!(
         body(&m, "member"),
         json!([{"ret": {"record": [
-            ["here", {"exists": {"table": "members", "pins": [["roomId", {"var": "roomId"}], ["principal", "viewer"]], "filter": null}}],
+            // `exists t[key]` is the point read compared with null (`Syntax.lean`).
+            ["here", {"bin": ["ne", {"point": {"table": "members", "key": [["roomId", {"var": "roomId"}], ["principal", "viewer"]]}}, {"lit": {"null": null}}]}],
             ["count", {"count": {"table": "members", "pins": [["roomId", {"var": "roomId"}]], "filter": null}}]]}}])
     );
+}
+
+/// LLP 3000.036 §12.1, §15.4 and §15.12: a readable grant is translated (the
+/// model decides it per caller), a returned page's row-independent `where`
+/// test is the compiler's `if`, and a search `exists` is the model's `exists`.
+const CONSOLE: &str = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table tickets:
+  owner: principal
+  open: bool
+  read <- .owner = viewer or exists staff[viewer]
+  online only
+query guarded(c: cursor ?):
+  return tickets where exists staff[viewer] and .open = true first 5 by .id after c
+query either(c: cursor ?):
+  return tickets where .open = true or exists staff[viewer] first 5 by .id after c
+query anyOpen():
+  return exists tickets where .open = true
+query presence(o: bool ?, c: cursor ?):
+  return tickets where (o = null or .open = o) and exists staff[viewer] first 5 by .id after c
+";
+
+#[test]
+fn grants_guards_and_search_exists() {
+    let m = module(CONSOLE);
+    assert_eq!(table(&m, "tickets")["read"], json!({"or": [{"eq": [{"col": ["self", "owner"]}, "viewer"]}, {"probe": {"table": "staff", "key": [["principal", "viewer"]]}}]}));
+    let staff = json!({"bin": ["ne", {"point": {"table": "staff", "key": [["principal", "viewer"]]}}, {"lit": {"null": null}}]});
+    let page = |pins: Value| json!({"page": {"table": "tickets", "pins": pins, "filter": null, "order": [], "desc": false, "take": 5, "after": {"var": "c"}}});
+    let open = json!([["open", {"lit": {"bool": true}}]]);
+    assert_eq!(body(&m, "guarded"), json!([{"ite": [staff.clone(), [{"ret": page(open.clone())}], [{"ret": {"arr": []}}]]}]));
+    assert_eq!(body(&m, "either"), json!([{"ite": [staff, [{"ret": page(json!([]))}], [{"ret": page(open.clone())}]]}]));
+    assert_eq!(body(&m, "anyOpen"), json!([{"ret": {"exists": {"table": "tickets", "pins": open, "filter": null}}}]));
+    // Presence variants expand first in the compiler; that pair is not translated.
+    assert_eq!(reason(&m, "presence"), "where-guard-presence");
 }
 
 #[test]

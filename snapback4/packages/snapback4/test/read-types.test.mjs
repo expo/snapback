@@ -606,12 +606,25 @@ export function Screen({ one }: { one: UseQuery<typeof api.one> }) {
 `, undefined, 'tsx');
     assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
   }
-  // A denied written before the spread would be silently overwritten: tsc refuses it.
+  // Wave 7 (R2): the marked fallback only covers what the call leaves unnamed,
+  // so a denied or partial written before the spread compiles and wins too.
   const before = check(`import { matchRead, otherwiseAll, type Read } from './dist/react.js';
 declare const read: Read<{ id: string }[]>;
-matchRead(read, { denied: () => 'x', present: rows => rows.length, ...otherwiseAll(() => 0) });`);
-  assert.deepEqual(before.codes, [2783], before.text);
-  assert.match(before.text, /'denied' is specified more than once/);
+const n: number = matchRead(read, { denied: () => 0, partial: rows => rows.length, present: rows => rows.length, ...otherwiseAll(() => 0) });
+const m: string = matchRead(read, { partial: rows => rows[0]?.id ?? '', ...otherwiseAll(() => '', { denied: why => why.message, loading: () => '…' }), present: rows => rows[0]?.id ?? '' });`);
+  assert.deepEqual(before.codes, [], before.text);
+  // A plain otherwise written after the spread replaces the marked fallback,
+  // so the explicit denied/partial decisions are required again.
+  const replaced = check(`import { matchRead, otherwiseAll, type Read } from './dist/react.js';
+declare const read: Read<{ id: string }[]>;
+matchRead(read, { ...otherwiseAll(() => 0), present: rows => rows.length, otherwise: () => 0 });`);
+  assert.deepEqual(replaced.codes, [2345], replaced.text);
+  assert.match(replaced.text, /otherwise skips denied/);
+  // Overrides see the read untyped: typed rows belong in the call's own handlers.
+  const untyped = check(`import { matchRead, otherwiseAll, type Read } from './dist/react.js';
+declare const read: Read<{ id: string }[]>;
+matchRead(read, { present: rows => rows.length, ...otherwiseAll(() => 0, { partial: rows => rows.length }) });`);
+  assert.deepEqual(untyped.codes, [18046], untyped.text);
   const { matchRead, otherwiseAll } = await import('../dist/contract.js');
   const { readyRead } = await import('../dist/read-existence.js');
   const why = { code: 'E_RULE', family: 'rule', message: 'no' };
@@ -622,4 +635,53 @@ matchRead(read, { denied: () => 'x', present: rows => rows.length, ...otherwiseA
   assert.deepEqual(out, ['fallback', 'fallback', 'fallback', 'fallback', 1]);
   assert.deepEqual(seen, reads.slice(0, 4));
   assert.equal(matchRead(reads[1], { ...otherwiseAll(() => 'fallback'), denied: refusal => refusal.code, present: () => 'present' }), 'E_RULE');
+  // Named handlers win in either position; overrides dispatch before the fallback.
+  for (const handlers of [{ denied: refusal => refusal.code, partial: () => 'partial', ...otherwiseAll(() => 'fallback') },
+    { ...otherwiseAll(() => 'fallback'), denied: refusal => refusal.code, partial: () => 'partial' },
+    otherwiseAll(() => 'fallback', { denied: refusal => refusal.code, partial: () => 'partial' })])
+    assert.deepEqual(reads.map(read => matchRead(read, handlers)), ['fallback', 'E_RULE', 'fallback', 'partial', 'fallback']);
+  // A plain otherwise never receives denial or uncertain emptiness, even untyped.
+  assert.throws(() => matchRead(reads[1], { present: () => 'present', otherwise: () => 'fallback' }), /otherwiseAll/);
+  assert.throws(() => matchRead(reads[3], { present: () => 'present', otherwise: () => 'fallback' }), /otherwiseAll/);
+});
+
+// Wave 7: four lanes wrote matchRead(page); the page hook is matched by its read.
+test('matchRead takes a usePage result whole, typed as page.read', async () => {
+  for (const entry of ['./src/react.tsx', './dist/react.js']) {
+    const result = check(`import { matchRead, otherwiseAll, usePage, type UsePage, type Cursor } from '${entry}';
+import type { Query } from './dist/contract.js';
+type Row = { id: string; name: string };
+declare const api: { list: Query<{ c?: Cursor | null }, Row[]> };
+export function List({ more }: { more: UsePage<typeof api.list> }) {
+  const page = usePage(api.list, {});
+  const names: string = matchRead(page, { ...otherwiseAll(() => ''), present: rows => rows.map(row => row.name).join(), partial: rows => rows[0]?.name ?? '' });
+  const count: number = matchRead(more, { loading: () => 0, denied: () => 0, absent: () => 0, partial: rows => rows.length, present: rows => rows.length });
+  return <p>{names}{count}</p>;
+}
+`, undefined, 'tsx');
+    assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
+  }
+  const { matchRead, otherwiseAll } = await import('../dist/contract.js');
+  const { readyRead } = await import('../dist/read-existence.js');
+  const page = { items: [{ id: 'r' }], hasMore: false, loadMore() {}, read: readyRead({ data: [{ id: 'r' }], complete: true, cut: null, fresh: true }) };
+  assert.equal(matchRead(page, { present: rows => rows.length, ...otherwiseAll(() => -1) }), 1);
+  assert.equal(matchRead({ ...page, read: { loading: true } }, { present: rows => rows.length, ...otherwiseAll(() => -1) }), -1);
+});
+
+// Wave 7 (073, and wave 6's 027 038 092): a read whose arguments do not exist yet.
+test('useQuery and usePage take { skip } beside { keep }, and a skipped read is still a Read', () => {
+  for (const entry of ['./src/react.tsx', './dist/react.js']) {
+    const result = check(`import { matchRead, otherwiseAll, useQuery, usePage, type ReadHookOptions, type Read, type Cursor } from '${entry}';
+import type { Query } from './dist/contract.js';
+type Row = { id: string; name: string };
+declare const api: { list: Query<{ owner: string; c?: Cursor | null }, Row[]>; one: Query<{ id: string }, Row | null> };
+export function Detail({ selected }: { selected: string | null }) {
+  const options: ReadHookOptions = { skip: !selected, keep: true };
+  const one: Read<Row | null> = useQuery(api.one, { id: selected ?? '' }, { skip: !selected });
+  const page = usePage(api.list, { owner: selected ?? '' }, options);
+  return <p>{matchRead(one, { ...otherwiseAll(() => '…'), present: row => row.name })}{page.items.length}</p>;
+}
+`, undefined, 'tsx');
+    assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
+  }
 });

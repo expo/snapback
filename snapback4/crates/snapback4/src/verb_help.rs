@@ -16,9 +16,11 @@ conflicting value refuses before any file is written.
   --web            a Vite + React todos app (vite.config.mts, src/App.tsx)
   --expo           an Expo todos app
   --template chat  with --web or --expo: the full reference chat app
-  --port N         the backend port the client calls (default 4400)
-  --web-port N     the Vite page's port for dev and preview (--web only;
-                   default 5173, or the port after --port)
+  --port N         the backend port: the client's URL, the README's
+                   `snapback4 dev --port N`, and with --web the page on N+1
+                   (dev and preview), so one flag moves all of them
+                   (default 4400; the page 5173)
+  --web-port N     the Vite page's port instead of N+1 (--web only)
   --skip-existing  keep every existing file and write only the missing ones
 
 A project's own snapback/*.q is never overwritten and never a conflict, nor is
@@ -103,7 +105,9 @@ Store:
 
 Identity: x-snapback-persona: alice acts as dev:alice for a persona declared
 in `use personas`; an undeclared name is refused E_AUTH. POST /seed writes
-rows as the system (guide wire). Development only: deploy + serve refuse both.
+rows as the system (guide wire); POST /dev/reset (snapback4 reset) empties the
+store between tests and can reseed it in the same transaction (guide testing).
+Development only: deploy + serve refuse all three.
 
 Scripted lifecycle (an acceptance script): spawn the installed binary
 (node_modules/.bin/snapback4, or node_modules/snapback4-<platform>/snapback4)
@@ -177,17 +181,23 @@ States:
                                 read reached a ceiling, or the page can never
                                 prove completeness on the server (N_NEVER_COMPLETE);
                                 not a refusal
+  refused CODE as expected (test.cases.jsonl:N)   that persona's own case
+                                expects CODE for this query: not a failure
   refused CODE on derived arguments   the query's own require refused the
-                                argument test derived from the data (the first
-                                row, the persona); not a failure: give it real
+                                arguments test derived from the data (a row of
+                                each referenced table, preferring one whose
+                                answer is not empty for the persona; the
+                                persona); not a failure: give it real
                                 arguments in test.cases.jsonl
+  (from test.cases.jsonl:N)     the query ran on that persona's own case's
+                                arguments instead of derived ones
   refused CODE by its own require   an argument-free query's require refused
                                 the persona; not a failure: pin the refusal
                                 as an expect case in test.cases.jsonl
   denied CODE                   a refusal: a failure
   not run                       an argument test cannot derive
 
-The last line counts each state and the cases. Exit 1 when a query is denied,
+The last line counts each state and the cases and ends in pass or FAIL. Exit 1 when a query is denied,
 a case fails or the fixture does not load (a bad row, an unknown table file);
 0 otherwise. snapback4 guide testing: fixture rows, test.cases.jsonl and an
 acceptance script over HTTP.";

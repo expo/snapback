@@ -1,5 +1,4 @@
 // @ref LLP 3000.036.000#2.4 — the recipes every E_SYNC union rewrite points to.
-//! The sharing card. Quarry examples are compiled by tests/guide.rs.
 // @ref LLP 3000.036.000.000#2.1 — the union recipes the E_SYNC rewrites point to.
 //! The sharing card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sharing: rows more than one kind of reader holds
@@ -220,6 +219,47 @@ query mine(c: cursor ?):
   return requests where .tenant = viewer last 50 by .at after c
 ```
 
+### Online: any rule, as written
+
+**A staff console, online.** When the app is online, one table can say
+`.tenant = viewer or exists staff[viewer]`. A staff member's page is decided
+once by the grant and answers `complete: true`, as long as each staff member
+can read their own `staff` row; start the console query with the same
+`require`, and a staff-only mutation can walk every row of a group the same
+way (`: server` alone does not lift a page the rule does not decide). Tenants
+pin their own column. To hold the union offline, use the synced staff
+roster and union in the preceding recipe. `guide recipes --section roles` adds admins who grant roles.
+
+```quarry
+table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+
+table tickets:
+  tenant: principal
+  title: text <=200
+  done: bool
+  at: time
+  read <- .tenant = viewer or exists staff[viewer]
+  insert <- .tenant = viewer
+  update <- exists staff[viewer]
+  online only
+
+query queue(c: cursor ?):
+  require exists staff[viewer] else NOT_STAFF
+  return tickets where not .done last 50 by .at after c
+
+query mine(c: cursor ?):
+  return tickets where .tenant = viewer last 50 by .at after c
+
+mutation closeAllFor(tenant: principal):
+  require exists staff[viewer] else NOT_STAFF
+  for t in tickets where .tenant = tenant first 100 by .id:
+    update tickets[t] { done: true }
+```
+
 ### An org roster
 
 **An org roster.** A membership table with no group key is one group: the
@@ -339,6 +379,184 @@ mutation comment(task: tasks, body: text <=1000):
 query teamComments(team: teams, c: cursor ?):
   return comments where .team = team last 50 by .at after c
 ```
+
+### A group's private list, complete
+
+**A list only a group's members read (a household's charges, a tenant's
+records).** A child read under `exists residents[.household, viewer]` pages
+`complete` when the scan pins `.household`: take the group as an argument
+(`charges`), or, when each person belongs to one group, bind the caller's
+own membership first and pin it (`myCharges`). A scan that leaves the group
+free, `charges where exists residents[.household, viewer]`, is never
+complete (`N_NEVER_COMPLETE`): the server cannot tell "no more" from "more
+in households you are not in". The creating mutation writes the founder's
+member row (`created households[.household]`, checked by `after insert`);
+members add members. A clash on `unique principal` against another
+household's hidden row refuses `E_RULE`. These tables are `online only`;
+to hold them offline, give each `sync` as the team above does.
+
+```quarry
+use personas alice, bob, carol, dave
+
+table households:
+  name: text 1..80
+  read <- exists residents[.id, viewer]
+  insert <- allow
+  after insert <- exists residents[.id, viewer]
+  online only
+
+table residents:
+  household: households
+  principal: principal
+  unique household, principal
+  unique principal
+  immutable household, principal
+  read <- .principal = viewer or exists residents[.household, viewer]
+  insert <- created households[.household] or exists residents[.household, viewer]
+  online only
+
+table charges:
+  household: households
+  payer: principal
+  label: text 1..120
+  cents: int
+  at: time default now
+  immutable household, payer
+  read <- exists residents[.household, viewer]
+  insert <- .payer = viewer and exists residents[.household, viewer]
+  online only
+
+query charges(household: households, c: cursor ?):
+  return charges where .household = household last 50 by .at after c
+
+query myCharges(c: cursor ?):
+  me = residents[principal = viewer]
+  if me != null:
+    return charges where .household = me.household last 50 by .at after c
+  return []
+
+mutation createHousehold(name: text 1..80):
+  h = insert households { name }
+  insert residents { household: h.id, principal: viewer }
+  return h
+
+mutation invite(household: households, who: principal):
+  require exists residents[household, viewer] else NOT_RESIDENT
+  return insert residents { household, principal: who }
+
+mutation addCharge(household: households, label: text 1..120, cents: int):
+  require exists residents[household, viewer] else NOT_RESIDENT
+  return insert charges { household, payer: viewer, label, cents }
+```
+
+Cases (alice and bob in household `h1`, which has one charge; carol in `h2`):
+
+```jsonl
+{"as":"bob","op":"myCharges","expect":"complete","count":1}
+{"as":"carol","op":"charges","args":{"household":"h1"},"expect":"complete","count":0,"label":"another household's list is empty, not partial"}
+{"as":"carol","op":"addCharge","args":{"household":"h1","label":"x","cents":1},"expect":"NOT_RESIDENT"}
+{"as":"dave","op":"createHousehold","args":{"name":"Ash"},"save":"ash"}
+{"as":"dave","op":"invite","args":{"household":"$ash","who":"dev:carol"},"expect":"E_RULE","label":"carol already lives elsewhere"}
+```
+
+### An explicit parties table
+
+**Two parties (buyer and seller), with explicit membership.** `.buyer = viewer or .seller = viewer` is
+two audiences. As an alternative to a union, give the row a parties table
+with one row per reader and read through it; both parties' devices hold the order, and each can predict writes
+to it. The creating mutation is the only one that may add parties here
+(`created orders[.orderId]`); an owner sharing with others is the team recipe
+above with one group per item.
+
+```quarry
+table orders:
+  buyer: principal
+  seller: principal
+  item: text <=200
+  at: time
+  read <- exists orderParties[.id, viewer]
+  insert <- .buyer = viewer
+  after insert <- exists orderParties[orderId = .id, party = .buyer]
+  after insert <- exists orderParties[orderId = .id, party = .seller]
+  sync
+
+table orderParties:
+  orderId: orders
+  party: principal
+  unique orderId, party
+  immutable orderId, party
+  cap 2 by orderId
+  read <- exists orderParties[.orderId, viewer]
+  insert <- created orders[.orderId]
+  sync
+
+mutation placeOrder(seller: principal, item: text <=200):
+  o = insert orders { buyer: viewer, seller, item, at: now }
+  insert orderParties { orderId: o.id, party: viewer }
+  insert orderParties { orderId: o.id, party: seller }
+  return o
+```
+
+### Separate tables for tenant and staff
+
+**An owner plus staff, with separate tables.** Instead of sharing one
+union table, keep one table per audience when the two sides need different
+fields or workflows, and let the mutations write across: the tenant's `requests`, the staff `desk` (the
+org roster's audience), and `updates` the staff write into the tenant's
+partition. Writes need no read of the other audience's rows, so both sides
+work offline. When one staff member handles a request, the two-party recipe
+with the assignee as a party is smaller.
+
+```quarry
+table staff:
+  principal: principal
+  unique principal
+  cap 100
+  read <- exists staff[viewer]
+  insert <- exists staff[viewer]
+  sync
+
+table requests:
+  tenant: principal
+  title: text <=200
+  at: time
+  read <- .tenant = viewer
+  insert <- .tenant = viewer
+  sync last 200 by .at
+
+table desk:
+  request: id
+  tenant: principal
+  title: text <=200
+  status: enum('open', 'doing', 'done')
+  at: time
+  unique request
+  read <- exists staff[viewer]
+  insert <- .tenant = viewer
+  update <- exists staff[viewer]
+  sync last 1000 by .at
+
+table updates:
+  request: id
+  tenant: principal
+  status: enum('open', 'doing', 'done')
+  at: time
+  read <- .tenant = viewer
+  insert <- exists staff[viewer]
+  sync last 500 by .at
+
+mutation file(title: text <=200):
+  r = insert requests { tenant: viewer, title, at: now }
+  insert desk { request: r.id, tenant: viewer, title, status: 'open', at: now }
+  return r
+
+mutation setStatus(request: id, status: enum('open', 'doing', 'done')):
+  d = desk[request] ! else NOT_FOUND
+  update desk[d] { status }
+  insert updates { request, tenant: d.tenant, status, at: now }
+  return null
+```
+
 
 ### Anyone may join (open groups)
 

@@ -17,10 +17,14 @@ use crate::ast::*;
 
 pub(super) fn lower(catalog: &mut Catalog) {
     for doc in &mut catalog.documents {
-        for program in doc.programs.iter_mut().filter(|program| program.kind == ProgramKind::Query && !program.native) {
-            body(&mut program.body);
-        }
+        for program in &mut doc.programs { lower_program(program); }
     }
+}
+
+/// The lowering of one program, as the compiler applies it (the Lean emitter
+/// translates the lowered program, so the model runs what the engine runs).
+pub(crate) fn lower_program(program: &mut ProgramDecl) {
+    if program.kind == ProgramKind::Query && !program.native { body(&mut program.body); }
 }
 
 fn body(statements: &mut Vec<Stmt>) {
@@ -77,8 +81,7 @@ pub(crate) fn split(filter: &Expr) -> Option<Split> {
     Some(Split { guard: join(guards)?, conjunctive, rest: join(rest) })
 }
 
-/// Whether a page filter holds a guard this lowering moves (the Lean emitter
-/// names such a page unsupported: it reads the surface form).
+/// Whether a page filter holds a guard this lowering moves.
 pub(crate) fn has_guard(filter: &Expr) -> bool { split(filter).is_some() }
 
 fn chain(value: &Expr, op: &str, out: &mut Vec<Expr>) {

@@ -2,7 +2,10 @@
 //! asset's facts; `GET /assets/<id>` serves them to a viewer the home row's
 //! read rule admits (LLP 1006 carried into Snapback 4). A one-view image is
 //! served once per principal and never cached anywhere; a deleted, cleared
-//! or expired home stops the bytes at the server.
+//! or expired home stops the bytes at the server. A `file` (LLP 3000.038)
+//! is uploaded with `?as=file&name=` and its declared `Content-Type`, which
+//! the server verifies against the bytes; it is only ever served as an
+//! attachment under `nosniff` and a sandboxing CSP.
 
 use crate::serve::{Shared, cors, lock, principal_of, refusal_json, respond};
 use serde_json::json;
@@ -24,6 +27,21 @@ impl Drop for UploadPermit<'_> {
     fn drop(&mut self) { self.0.fetch_sub(1, std::sync::atomic::Ordering::Release); }
 }
 
+/// Whether `POST /assets` carries `as=file`.
+pub fn is_file_upload(url: &str) -> bool {
+    crate::serve::query_params(url).get("as").is_some_and(|kind| kind == "file")
+}
+
+/// The most bytes a file upload may stream: the schema's largest file
+/// bound, under the general upload ceiling. A schema with no file column
+/// refuses before any body is read.
+pub fn file_ceiling(shared: &Shared) -> Result<usize, Refusal> {
+    match lock(&shared.engine).file_upload_ceiling() {
+        Some(max) => Ok((max as usize).min(UPLOAD_CEILING)),
+        None => Err(Refusal::new("E_ASSET_TYPE", "asset", "no column of this backend takes a file; declare one (`doc: file <=10000000`)").guide("assets")),
+    }
+}
+
 pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     let principal = match principal_of(&request, shared) {
         Ok(principal) => principal.0,
@@ -32,9 +50,28 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     if body.is_empty() {
         return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_TYPE", "asset", "the upload is empty: POST the file's bytes as the body").guide("assets")) }));
     }
+    let params = crate::serve::query_params(request.url());
+    let file = match params.get("as").map(String::as_str) {
+        None | Some("image" | "video") => None,
+        Some("file") => Some(params.get("name").cloned().unwrap_or_default()),
+        Some(other) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("as={other} is not an upload kind; use as=file for a document, or omit it for an image or video")).guide("assets")) })),
+    };
+    let declared = match crate::serve::single_header(&request, "content-type") {
+        Ok(value) => snapback4_core::assets::declared_type(value),
+        Err(()) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "send one Content-Type header").guide("assets")) })),
+    };
     let stored = (|| {
-        let sniffed = snapback4_core::assets::sniff(&body)?;
-        let upload = lock(&shared.engine).prepare_asset(&principal, sniffed, body.len() as u64, shared.now())?;
+        let upload = match &file {
+            // @ref LLP 3000.038#2 — the declared type is verified against the bytes before admission.
+            Some(name) => {
+                let content_type = snapback4_core::assets::verify_file(&body, declared.as_deref())?;
+                lock(&shared.engine).prepare_file(&principal, content_type, name, body.len() as u64, shared.now())?
+            }
+            None => {
+                let sniffed = snapback4_core::assets::sniff(&body)?;
+                lock(&shared.engine).prepare_asset(&principal, sniffed, body.len() as u64, shared.now())?
+            }
+        };
         #[cfg(test)] crate::serve::test_work(&shared.upload_work);
         let upload = upload.write(&body)?;
         // Logout while disk I/O was in flight cannot publish a new asset.
@@ -42,7 +79,11 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
         lock(&shared.engine).finish_asset(upload)
     })();
     match stored {
-        Ok(asset) => respond(request, 200, json!({ "asset": { "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration } })),
+        Ok(asset) => {
+            let mut facts = json!({ "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration });
+            if let Some(name) = asset.name { facts["name"] = json!(name); }
+            respond(request, 200, json!({ "asset": facts }))
+        }
         Err(error) => {
             let refusal = error.refusal();
             snapback4_core::diagnostic!("{} at POST /assets: {}", refusal.code, refusal.message);
@@ -96,13 +137,21 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         let _ = request.respond_checked_with_completion(response, |_| crate::serve::latency::finished(true));
         return;
     }
+    let attachment = grant.kind == snapback4_core::assets::AssetKind::File;
+    let content_type = if attachment && grant.content_type.starts_with("text/") { format!("{}; charset=utf-8", grant.content_type) } else { grant.content_type.clone() };
     let mut headers = vec![
-        Header::from_bytes("Content-Type", grant.content_type.as_str()).unwrap(),
+        Header::from_bytes("Content-Type", content_type.as_str()).unwrap(),
         Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
         Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
         Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, x-snapback-asset-home").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, content-disposition, x-snapback-asset-home").unwrap(),
     ];
+    // @ref LLP 3000.038#5 — a file is always a download: never rendered inline, never sniffed, nothing active even if navigated to.
+    if attachment {
+        let name = grant.name.as_deref().unwrap_or("file");
+        headers.push(Header::from_bytes("Content-Disposition", snapback4_core::assets::attachment_disposition(name)).unwrap());
+        headers.push(Header::from_bytes("Content-Security-Policy", "default-src 'none'; sandbox").unwrap());
+    }
     // @ref LLP 3000.019#3.5 — only the download's ledger home authorizes retention.
     if let Some((table, row, column)) = &grant.home {
         let receipt = json!({"store_id":grant.store_id,"table":table,"row":row,"column":column}).to_string();

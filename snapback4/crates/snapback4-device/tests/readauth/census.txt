@@ -45,6 +45,10 @@ card/assets/1:sendClip | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | 
 card/assets/1:sendClip | eligible
 card/assets/1:sendPhotos | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/assets/1:sendPhotos | eligible
+card/assets/3:addReceipt | eligible
+card/assets/3:addReceipt | receipts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/assets/4:decide | never
+card/assets/4:fileClaim | never
 card/cheatsheet/1:addItem | eligible
 card/cheatsheet/1:addItem | items/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:addItem | openItems/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
@@ -88,6 +92,8 @@ card/ephemeral/1:stopTyping | never
 card/ephemeral/1:stopViewing | never
 card/expire/1:postStory | eligible
 card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
+card/expire/2:bid | never
+card/expire/2:issue | never
 card/feeds/3:follow | never
 card/feeds/3:post | eligible
 card/feeds/3:remove | eligible
@@ -516,6 +522,18 @@ card/shapes/2:sendBrief | eligible
 card/shapes/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/shapes/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/shapes/2:split | never
+card/sharing/10:file | desk/insert | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/10:file | eligible
+card/sharing/10:file | requests/insert | {"Eq":[{"Field":"tenant"},"Viewer"]} | read rule
+card/sharing/10:setStatus | desk/update | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/10:setStatus | eligible
+card/sharing/10:setStatus | updates/insert | {"Eq":[{"Field":"tenant"},"Viewer"]} | read rule
+card/sharing/11:join | eligible
+card/sharing/11:join | joins/insert | {"Eq":[{"Field":"member"},"Viewer"]} | read rule
+card/sharing/11:leave | eligible
+card/sharing/11:post | eligible
+card/sharing/12:join | never
+card/sharing/12:notice | never
 card/sharing/2:addStep | eligible
 card/sharing/2:addStep | steps/insert | {"Or":[{"Eq":[{"Field":"owner"},"Viewer"]},{"Exists":{"table":"members","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}}]} | read rule
 card/sharing/2:addTask | eligible
@@ -533,23 +551,24 @@ card/sharing/4:close | eligible
 card/sharing/4:close | requests/update | {"Or":[{"Eq":[{"Field":"tenant"},"Viewer"]},{"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}}]} | read rule
 card/sharing/4:file | eligible
 card/sharing/4:file | requests/insert | {"Or":[{"Eq":[{"Field":"tenant"},"Viewer"]},{"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}}]} | read rule
-card/sharing/5:addStaff | eligible
-card/sharing/5:addStaff | staff/insert | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
-card/sharing/5:announce | announcements/insert | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
-card/sharing/5:announce | eligible
-card/sharing/6:comment | comments/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}} | read rule
-card/sharing/6:comment | eligible
-card/sharing/6:createTeam | eligible
-card/sharing/6:createTeam | teamMembers/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}} | read rule
-card/sharing/6:createTeam | teams/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
-card/sharing/6:invite | eligible
-card/sharing/6:invite | teamMembers/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}} | read rule
-card/sharing/7:join | eligible
-card/sharing/7:join | joins/insert | {"Eq":[{"Field":"member"},"Viewer"]} | read rule
-card/sharing/7:leave | eligible
-card/sharing/7:post | eligible
-card/sharing/8:join | never
-card/sharing/8:notice | never
+card/sharing/5:closeAllFor | never
+card/sharing/6:addStaff | eligible
+card/sharing/6:addStaff | staff/insert | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/6:announce | announcements/insert | {"Exists":{"table":"staff","index":"$intent:byPrincipal:8097d97fddadb304","key":["Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/6:announce | eligible
+card/sharing/7:comment | comments/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/7:comment | eligible
+card/sharing/7:createTeam | eligible
+card/sharing/7:createTeam | teamMembers/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/7:createTeam | teams/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/7:invite | eligible
+card/sharing/7:invite | teamMembers/insert | {"Exists":{"table":"teamMembers","index":"$intent:byTeamPrincipal:e0859c85e637fe79","key":[{"Field":"team"},"Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/8:addCharge | never
+card/sharing/8:createHousehold | never
+card/sharing/8:invite | never
+card/sharing/9:placeOrder | eligible
+card/sharing/9:placeOrder | orderParties/insert | {"Exists":{"table":"orderParties","index":"$intent:byOrderIdParty:491509f9264f8d78","key":[{"Field":"orderId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/sharing/9:placeOrder | orders/insert | {"Exists":{"table":"orderParties","index":"$intent:byOrderIdParty:491509f9264f8d78","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/start/5:add | eligible
 card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/start/5:remove | eligible

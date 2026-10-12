@@ -64,7 +64,7 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{FULL_LINES, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
+pub use discovery::{FULL_LINES, PIPED_FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
 pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
 
@@ -109,6 +109,11 @@ pub const ALIASES: &[(&str, &str)] = &[
     // @ref LLP 3000.007#20.1 — wave 5: words builders tried (`guide queries`, `language --section loops`).
     ("query", "reads"), ("queries", "reads"), ("loop", "language"), ("loops", "language"),
     ("insert", "writes"), ("update", "writes"), ("upsert", "writes"), ("delete", "writes"),
+    // @ref LLP 3000.007#20.1 — wave 7: section words builders guessed (`--section statements`, `react`, `money`).
+    ("statements", "writes"), ("statement", "writes"), ("money", "types"), ("currency", "types"),
+    ("household", "sharing"), ("households", "sharing"), ("multi-tenant", "sharing"), ("tenant", "sharing"), ("membership", "sharing"),
+    ("sealed", "expire"), ("sealed bid", "expire"), ("sealed bids", "expire"), ("blind", "expire"), ("reveal", "expire"),
+    ("roster", "cheatsheet"), ("rosters", "cheatsheet"), ("probe", "cheatsheet"), ("positional", "cheatsheet"),
     ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
     ("persona", "personas"), ("persona picker", "personas"), ("switch persona", "personas"), ("picker", "personas"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
@@ -149,6 +154,12 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("recurring", "Schedules"), ("recurring job", "Schedules"), ("close at time", "Schedules"),
     ("e2e", "An acceptance script over HTTP"), ("acceptance", "An acceptance script over HTTP"),
     ("division", "Limits"), ("reserved", "Quarry"), ("reserved words", "Quarry"), ("subpaths", "Client subpaths"),
+    ("statements", "Details"), ("statement", "Details"), ("loops", "Loops"), ("loop", "Loops"),
+    ("react", "React"), ("hooks", "React"),
+    ("household", "A group's private list"), ("households", "A group's private list"), ("multi-tenant", "A group's private list"),
+    ("tenant", "A group's private list"), ("membership", "A group's private list"),
+    ("sealed", "Sealed"), ("sealed bid", "Sealed"), ("sealed bids", "Sealed"), ("blind", "Sealed"), ("reveal", "Sealed"),
+    ("roster", "Roles and rosters"), ("rosters", "Roles and rosters"), ("probe", "Roles and rosters"), ("positional", "Roles and rosters"),
 ];
 
 /// The section an alias names in its card, if it names one: (card, heading words).
@@ -450,6 +461,100 @@ An expiring row-keyed range read returns `{ value: L, recountPending: true }`
 with `complete: false`, the current-row lower bound examined so far (guide maintains). A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another.
 
+
+## Sealed until a deadline
+
+A read rule cannot name `now`, so access that *begins* at a time (sealed bids,
+blind reviews, answers revealed after an exam) is the absence of a row that
+expires then. Issuing an RFQ writes a public `seals` row with `expire at
+.until`, its deadline (`after insert` makes the seal mandatory; `unique rfq`
+and no update or delete rule keep it). The buyer's copy of each bid is read
+under `not exists seals[.rfq]`, so it appears to the buyer when the seal
+expires, on the server's clock, with no job. Bidding requires the seal. The
+supplier reads its own bid from `bids`; the buyer's copy is a second table,
+written in the same mutation and checked column by column against it, because
+one table per audience keeps both pages `complete` (one `or` across
+supplier and buyer would never be). Test it with fixture seals already past
+and not yet past their `until`, or `snapback4 clock advance` on `dev`.
+
+```quarry
+use personas alice, bob, carol
+
+table rfqs:
+  buyer: principal
+  title: text 3..100
+  deadline: time
+  immutable buyer, title, deadline
+  public 'anyone may read an RFQ and its deadline'
+  insert <- .buyer = viewer
+  after insert <- exists seals[.id]
+  online only
+
+table seals:
+  rfq: rfqs
+  until: time
+  unique rfq
+  immutable rfq, until
+  public 'a seal says only that bids are still sealed, and until when'
+  insert <- created rfqs[.rfq] and .rfq.buyer = viewer and .rfq.deadline = .until
+  expire at .until
+  online only
+
+table bids:
+  rfq: rfqs
+  supplier: principal
+  buyer: principal
+  cents: int
+  unique rfq, supplier else ALREADY_BID
+  immutable rfq, supplier, buyer, cents
+  read <- .supplier = viewer
+  insert <- .supplier = viewer and .buyer = .rfq.buyer and exists seals[.rfq]
+  online only
+
+table opened:
+  bid: bids
+  rfq: rfqs
+  buyer: principal
+  supplier: principal
+  cents: int
+  unique bid
+  immutable bid, rfq, buyer, supplier, cents
+  read <- .buyer = viewer and not exists seals[.rfq]
+  insert <- created bids[.bid] and .rfq = .bid.rfq and .buyer = .bid.buyer and .supplier = .bid.supplier and .cents = .bid.cents
+  online only
+
+query myBid(rfq: rfqs):
+  return bids[rfq, viewer]
+
+query revealed(rfq: rfqs, c: cursor ?):
+  return opened where .rfq = rfq and .buyer = viewer first 100 by .id after c
+
+mutation issue(title: text 3..100, minutes: int):
+  require minutes >= 1 and minutes <= 43200 else BAD_DEADLINE
+  r = insert rfqs { buyer: viewer, title, deadline: now + minutes * 1m }
+  insert seals { rfq: r.id, until: r.deadline }
+  return r
+
+mutation bid(rfq: rfqs, cents: int):
+  r = rfqs[rfq] ! else NOT_FOUND
+  require exists seals[rfq] else CLOSED
+  require cents > 0 else BAD_AMOUNT
+  b = insert bids { rfq, supplier: viewer, buyer: r.buyer, cents }
+  insert opened { bid: b.id, rfq, buyer: r.buyer, supplier: viewer, cents }
+  return b
+```
+
+Cases (alice's RFQ `r1` sealed until 2100 and `r2` already past, each with one bid by bob):
+
+```jsonl
+{"as":"alice","op":"revealed","args":{"rfq":"r1"},"expect":"complete","count":0,"label":"sealed until the deadline"}
+{"as":"alice","op":"revealed","args":{"rfq":"r2"},"expect":"complete","count":1,"label":"the seal expired: the buyer reads every bid"}
+{"as":"carol","op":"revealed","args":{"rfq":"r2"},"expect":"complete","count":0,"label":"another supplier never does"}
+{"as":"carol","op":"bid","args":{"rfq":"r2","cents":500},"expect":"CLOSED"}
+{"as":"carol","op":"bid","args":{"rfq":"r1","cents":800}}
+{"as":"carol","op":"bid","args":{"rfq":"r1","cents":750},"expect":"ALREADY_BID"}
+```
+
 ## Operations
 
 In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
@@ -460,8 +565,8 @@ curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: applicati
 ```"##,
         "assets" => r##"# Assets: upload, place, serve
 
-Assets are uploaded images and videos attached to a row.
-That row's read rule controls who can fetch the bytes.
+Assets are uploaded images, videos and files (documents: "Files" below)
+attached to a row. That row's read rule controls who can fetch the bytes.
 
 ```quarry
 table clips:
@@ -698,7 +803,125 @@ A released or unreadable home reports `E_ASSET_UNKNOWN` on download;
 a fetch while offline without retained bytes reports `E_OFFLINE`; an already
 ready handle is not refetched just because the link drops. A loading profile
 has not supplied an asset id yet. One-view photos use the explicit-open viewer
-in `guide client`, never this automatically fetched avatar pattern."##,
+in `guide client`, never this automatically fetched avatar pattern.
+
+## Files: receipts, contracts and other documents
+
+A `file` column holds a document under the image contract: the uploader's
+until placed, one home, served by that row's read rule, released on delete,
+clear or expiry, swept when unclaimed. Nothing is transcoded or previewed.
+
+```quarry
+table receipts:
+  owner: principal
+  scan: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')
+  extras: [file <=2000000] <=4 ?           -- no list: every verifiable type
+  at: time
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  delete <- .owner = viewer
+  sync to .owner last 200 by .at
+
+mutation addReceipt(scan: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')):
+  require scan.bytes <= 5000000 else TOO_LARGE   -- scan.type, .bytes, .name: the server's facts
+  return insert receipts { owner: viewer, scan, at: now }
+```
+
+Verifiable types, the default list: `application/pdf`, `text/plain`,
+`text/csv`, `text/markdown`, `application/json`, `image/png`, `image/jpeg`,
+`image/webp`, `image/gif`, `application/zip` and the Office Open XML
+document, sheet and presentation types. HTML, SVG, XML and JavaScript are
+never files: `check` refuses them (upload such text as `text/plain`).
+`once` does not apply to a file.
+
+`client.upload(file, { file: {} })` posts `/assets?as=file&name=<name>`
+with the File's type as `Content-Type` (`{ file: { type, name } }`
+overrides). The server checks the declared type against the bytes (`%PDF-`,
+image and zip headers, UTF-8 text, parseable JSON); a mismatch, a type no
+file column accepts, or HTML/SVG is E_ASSET_TYPE. Undeclared, PDF, PNG,
+JPEG, WebP, GIF and zip are named by their bytes. The body is read only to
+the largest file column's bound (413 E_ASSET_TOO_LARGE); placement checks
+the column's list and bound. The reply and the row carry `{ id, type,
+bytes, name }`: the name keeps its last path segment, without control or
+bidi characters or leading dots, at most 255 bytes (`file` when empty).
+
+A file is only ever a download: `Content-Disposition: attachment` with its
+name, `nosniff`, a sandboxing CSP, text as `text/plain; charset=utf-8`;
+ranges work. `saveAsset(client, id)` (`snapback4/client`) or
+`useSaveAsset().save(id)` fetches it on a button press and saves it;
+`client.asset(id)` and `useAsset(id)` also return its `name`. Fixture rows
+may name a file cell (`{"scan":{"id":"r1","type":"application/pdf",
+"bytes":1234,"name":"r.pdf"}}`) but have no bytes behind it: an acceptance
+script uploads real bytes and places the returned id.
+
+## Receipts: expense claims with a PDF or photo
+
+An employee files a claim with its receipt; approvers see every claim and
+decide it. The receipt is a `file` that accepts a PDF or a phone photo of
+the paper: the server checks each upload's declared type against its bytes,
+and the claim row's read rule decides who may download it (`guide assets`,
+"Files"). Claims and their decisions are server work: the table is online
+only, so nothing predicts.
+
+```quarry
+use personas alice, bob, ana
+
+table approvers:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+
+table claims:
+  owner: principal
+  title: text 1..120
+  cents: int
+  receipt: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')
+  decision: enum('approved', 'rejected') ?
+  at: time default now
+  read <- .owner = viewer or exists approvers[viewer]
+  insert <- .owner = viewer
+  update <- exists approvers[viewer]
+  online only
+
+query myClaims(c: cursor ?):
+  return claims where .owner = viewer last 50 by .at after c
+
+query allClaims(c: cursor ?):
+  require exists approvers[viewer] else NOT_APPROVER
+  return claims last 50 by .at after c
+
+mutation fileClaim(title: text 1..120, cents: int, receipt: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')):
+  require cents > 0 else BAD_AMOUNT
+  require receipt.bytes <= 5000000 or receipt.type = 'application/pdf' else PHOTO_TOO_LARGE 'Photos must be under 5 MB; scan to PDF instead.'
+  return insert claims { owner: viewer, title, cents, receipt }
+
+mutation decide(claim: claims, decision: enum('approved', 'rejected')):
+  require exists approvers[viewer] else NOT_APPROVER
+  row = claims[claim] ! else NOT_FOUND
+  require row.decision = null else ALREADY_DECIDED
+  update claims[claim] { decision }
+```
+
+The client uploads the picked file, then files the claim with its id:
+`const up = await client.upload(file, { file: {} })`, then
+`client.mutate(api.fileClaim, { title, cents, receipt: { id: up.asset.id } })`
+when `up.ok`. A download link calls `saveAsset(client, claim.receipt.id)`.
+A wrong or spoofed type is `E_ASSET_TYPE` at upload, before any claim exists.
+
+An acceptance script uploads real bytes as alice, places them, and checks
+that bob is refused and ana (an approver) is served an attachment:
+
+```sh
+U=http://127.0.0.1:4400
+id=$(curl -s -X POST "$U/assets?as=file&name=taxi.pdf" -H 'x-snapback-persona: alice' -H 'Content-Type: application/pdf' --data-binary @taxi.pdf | jq -r .asset.id)
+curl -s -X POST $U/m/fileClaim -H 'x-snapback-persona: alice' -d "{\"args\":{\"title\":\"Taxi\",\"cents\":2350,\"receipt\":{\"id\":\"$id\"}}}"
+curl -s -o /dev/null -w '%{http_code}\n' "$U/assets/$id" -H 'x-snapback-persona: bob'   # 404: bob cannot read the claim
+curl -s -D - -o taxi-copy.pdf "$U/assets/$id" -H 'x-snapback-persona: ana' | grep -i content-disposition
+```
+
+Seed `approvers` with `{"id":"a1","principal":"dev:ana"}` in a fixture.
+"##,
         "read-only" => include_str!("guide/read_only.md"),
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,

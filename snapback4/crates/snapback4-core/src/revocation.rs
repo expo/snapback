@@ -169,7 +169,7 @@ impl Dependencies {
     }
 }
 fn asset(kind: &ColumnType) -> bool {
-    match kind { ColumnType::Image { .. } | ColumnType::Video { .. } => true,
+    match kind { ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => true,
         ColumnType::Optional(t) | ColumnType::List { of: t, .. } | ColumnType::ListRange { of: t, .. } => asset(t), _ => false }
 }
 

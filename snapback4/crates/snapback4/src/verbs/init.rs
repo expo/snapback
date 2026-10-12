@@ -90,6 +90,7 @@ pub fn init(options: &Options) -> i32 {
         title: title(dir),
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
         body: match own.as_ref() { Some(own) if !adapt::fits_todos(own) => starter::Body::Home(own.reads.first().cloned()), _ => starter::Body::Todos },
+        offline: own.as_ref().map(|own| own.offline.clone()).unwrap_or(starter::Offline::Unknown),
     };
     let home = matches!(shape.body, starter::Body::Home(_));
     let mut files = if social { social::files() }
@@ -235,9 +236,9 @@ pub fn init(options: &Options) -> i32 {
     let install = if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
     let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
     let kind = if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
-        else if expo && home { "Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go" }
+        else if expo && home { &format!("Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go{}", shape.offline.summary()) }
         else if expo { "Expo todos: native when available, online in Expo Go" }
-        else if web && home { "Vite + React app: sign-in and a Home screen for your snapback/*.q, offline-capable" } else if web { "Vite + React todos, offline-capable" }
+        else if web && home { &format!("Vite + React app: sign-in and a Home screen for your snapback/*.q{}", shape.offline.summary()) } else if web { "Vite + React todos, offline-capable" }
         else if online { "online-only" } else { "local-first" };
     println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
@@ -247,7 +248,11 @@ pub fn init(options: &Options) -> i32 {
     }
     if web {
         let page = web_port.unwrap_or(5173);
-        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page} (`init --web-port N` picks another)", port.unwrap_or(4400));
+        // @ref LLP 3000.011.003.000#7.6 — wave 7 (11 lanes): `--port N` already moved both; the line named only --web-port.
+        let flags = if port.is_some() { "" } else { "; `init --web --port N` sets the backend to N and the page to N+1 together" };
+        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page}{flags}", port.unwrap_or(4400));
+    } else if expo && port.is_none() {
+        println!("init: the backend is http://127.0.0.1:4400; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together");
     }
     if !pinned.is_empty() {
         println!("init: pinned package.json {} (the starter's exact versions)", pinned.join(", "));
@@ -297,7 +302,7 @@ fn regenerable(name: &str) -> bool { name.starts_with("snapback/generated/") }
 /// `reads`: the `api` paths of the queries a starter Home may read with
 /// `useQuery(api.x, {})` (no required arguments), in declaration order;
 /// empty when the schema does not compile.
-struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String>, tables: Vec<String>, operations: Vec<String>, reads: Vec<String> }
+struct OwnSchema { files: Vec<String>, identity: Option<(bool, bool)>, personas: Vec<String>, tables: Vec<String>, operations: Vec<String>, reads: Vec<String>, offline: starter::Offline }
 
 fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
     let folder = dir.join("snapback");
@@ -306,7 +311,7 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
         Err(error) if matches!(error.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => return Ok(None),
         Err(error) => return Err(format!("{}: {error}", folder.display())),
     };
-    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new(), tables: Vec::new(), operations: Vec::new(), reads: Vec::new() };
+    let mut own = OwnSchema { files: Vec::new(), identity: None, personas: Vec::new(), tables: Vec::new(), operations: Vec::new(), reads: Vec::new(), offline: starter::Offline::Unknown };
     let mut sources = Vec::new();
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -325,7 +330,15 @@ fn own_schema(dir: &Path) -> Result<Option<OwnSchema>, String> {
     own.files.sort();
     sources.sort();
     let bound = snapback4_lang::compile(&sources);
-    if bound.diagnostics.is_empty() { own.reads = snapback4_lang::emit::argument_free_reads(&bound); }
+    if bound.diagnostics.is_empty() {
+        own.reads = snapback4_lang::emit::argument_free_reads(&bound);
+        let schema = &bound.schema;
+        let tables = || schema.visible_tables().filter(|(name, _)| schema.maintain_for(name).is_none());
+        own.offline = starter::Offline::Tables {
+            synced: tables().filter(|(_, table)| table.sync.is_some()).map(|(name, _)| name.to_string()).collect(),
+            total: tables().count(),
+        };
+    }
     Ok((!own.files.is_empty()).then_some(own))
 }
 

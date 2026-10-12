@@ -167,7 +167,7 @@ keep its intent refuses `E_ADMISSION` with a site and rewrite: no new intent
 is accepted. Its promise is already fulfilled with `failed`, and exposes
 `state`, `id` and `why` in the calling stack. Missing restored identity,
 unavailable/full storage, an exhausted journal, or
-an app without a durable web device therefore cannot silently lose a click.
+an app that cannot journal therefore cannot silently lose a click.
 Use `webDevice()` and `localStorageSessionStore()`, wait for readiness or repair
 storage, then retry the original id. Browser storage clearing after admission
 can still erase the journal.

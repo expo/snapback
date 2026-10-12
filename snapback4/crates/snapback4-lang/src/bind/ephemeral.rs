@@ -152,7 +152,7 @@ fn rule_reads_ephemeral(expr: &Expr, tables: &std::collections::BTreeSet<&str>) 
 }
 fn asset(t: &TypeKind) -> bool {
     match t {
-        TypeKind::Image { .. } | TypeKind::Video { .. } => true,
+        TypeKind::Image { .. } | TypeKind::Video { .. } | TypeKind::File { .. } => true,
         TypeKind::List { item, .. } => asset(&item.kind),
         _ => false,
     }

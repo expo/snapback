@@ -44,6 +44,7 @@ export declare const api: {
   inbox: Query<{ c?: Cursor | null }, { conversationId: string }[]>;
   send: Mutation<{ conversationId: string; body: string }, { id: string }>;
   sendPhoto: Mutation<{ conversationId: string; photo: { id: string } }, { id: string }>;
+  addReceipt: Mutation<{ scan: { id: string } }, { id: string }>;
   sendById: Mutation<{ id: string; conversationId: string; body: string }, { id: string }>;
   sendMediaById: Mutation<{ id: string; conversationId: string; photo: { id: string } }, { id: string }>;
   setLike: Mutation<{ postId: string; set: boolean }, void>;

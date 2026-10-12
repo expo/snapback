@@ -11,7 +11,8 @@ import { mockSignals } from "./mock-ephemeral.ts";
 // against the card before the mechanism exists. Nothing here is measured.
 
 import { ServerClock } from "./clock.ts";
-import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, UploadOptions, Write } from "./contract.ts";
+import { uploadFile } from "./files.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { PendingWrite } from "./contract.ts";
@@ -212,8 +213,12 @@ export function createMockClient(options: MockOptions): MockClient {
     onPendingWrites: pendingEvents.subscribe,
     acquired: false,
     onAcquired: () => () => {},
-    async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
+    async upload(bytes: Blob | ArrayBuffer | Uint8Array, options?: UploadOptions) {
       const size = bytes instanceof Blob ? bytes.size : bytes.byteLength;
+      if (options?.file) {
+        const { type, name } = uploadFile(bytes, options.file);
+        return { ok: true as const, asset: { id: mockId(), type: type ?? "application/octet-stream", bytes: size, width: null, height: null, duration: null, name: name || "file" } };
+      }
       return { ok: true as const, asset: { id: mockId(), type: "image/png", bytes: size, width: 1, height: 1, duration: null } };
     },
     async asset(id: string) {

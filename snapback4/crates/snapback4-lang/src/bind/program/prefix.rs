@@ -96,7 +96,7 @@ impl Binder<'_> {
         Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))
     }
 
-    pub(super) fn check_meter_prefix(&self, read: &ReadExpr, scan: &Scan, aggregate: bool) -> Fallible<()> {
+    pub(super) fn check_meter_prefix(&mut self, read: &ReadExpr, scan: &Scan, aggregate: bool) -> Fallible<()> {
         if scan.take != Bound::Meter || snapback4_core::engine::rules::scan_visibility(self.schema, scan).uniform { return Ok(()); }
         let table = &self.schema.tables[&scan.table];
         let index = &table.indexes[&scan.index];
@@ -115,8 +115,17 @@ impl Binder<'_> {
         if aggregate && (self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none()) {
             // @ref LLP 3000.036#11 — a total has no first-N repair (app-farm lane 087).
             let deciding = if missing.is_empty() { leading.join(", ") } else { missing.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ") };
-            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
-                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope); {}; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds"));
+            let grant = snapback4_core::engine::rules::grant_decision(self.schema, scan);
+            // @ref LLP 3000.036#17.8 — a readable grant the program requires before the total (`require exists staff[viewer]`)
+            // makes every row readable for every caller who reaches it, which the server decides once (read.rs `granted`).
+            let guard = grant.as_ref().map_or_else(String::new, |grant| format!("; or guard it with the grant, so every caller who reaches it reads every row: `require {} else …` before it (or `if {}:` around it)", grant.quarry(), grant.quarry()));
+            let diagnostic = Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
+                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope){guard}; {}; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds");
+            if grant.is_some() && self.caller_kind == ProgramKind::Query && self.call_chain.len() == 1 {
+                self.pending_totals.push((scan.site.clone(), diagnostic));
+                return Ok(());
+            }
+            return Err(diagnostic);
         }
         if self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none() {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
@@ -153,12 +162,19 @@ impl Binder<'_> {
         let suffix = if kind == "count" { "Count" } else { "Total" };
         let name = format!("{table}{suffix}");
         let aggregate = match &of { Some(column) => format!("sum {table} of {column}"), None => format!("count {table}") };
-        let by = if groups.is_empty() { String::new() } else { format!(" by {}", groups.iter().map(|(c, _)| format!(".{c}")).collect::<Vec<_>>().join(", ")) };
-        let lookup = if groups.is_empty() { format!("{name}[]") } else { format!("{name}[{}]", groups.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>().join(", ")) };
         let (readers, who) = match snapback4_core::engine::rules::grant_decision(self.schema, scan) {
             Some(grant) => (grant.quarry(), "the callers that grant admits"),
             None => ("allow".to_owned(), "everyone; narrow it to the readers the total is for"),
         };
+        if groups.is_empty() {
+            // @ref LLP 3000.036#17.2 — a view needs a group key (the core refuses an empty `by`): a whole-table
+            // total groups by a column every row holds the same value of (lane 020 pasted `count t` and got E_QUARRY_SYNTAX).
+            let key = (1..).map(|n| if n == 1 { "totalKey".to_owned() } else { format!("totalKey{n}") })
+                .find(|key| !table_columns(self.schema, table).contains(key)).unwrap();
+            return format!("or keep the total in a view, which discloses the total, never the rows; a view groups by a key, so give every {table} row the same one: add `{key}: enum('all') default 'all'` and `immutable {key}` to {table}, declare `view {name}: {aggregate} by .{key}` with `read <- {readers}` ({who}), then read `{name}['all']`");
+        }
+        let by = format!(" by {}", groups.iter().map(|(c, _)| format!(".{c}")).collect::<Vec<_>>().join(", "));
+        let lookup = format!("{name}[{}]", groups.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>().join(", "));
         format!("or keep the total in a view, which discloses the total, never the rows: `view {name}: {aggregate}{by}` with `read <- {readers}` ({who}), then read `{lookup}`")
     }
 
@@ -172,4 +188,8 @@ impl Binder<'_> {
         let (scan, _) = self.scan_at(read, out, Position::Exists)?;
         Ok((Expr::Binary { op: BinaryOp::Gt, left: Box::new(Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }), right: Box::new(Expr::Literal(Value::Int(0))) }, Ty::Bool))
     }
+}
+
+fn table_columns(schema: &snapback4_core::schema::Schema, table: &str) -> Vec<String> {
+    schema.table(table).map(|t| t.columns.keys().cloned().collect()).unwrap_or_default()
 }

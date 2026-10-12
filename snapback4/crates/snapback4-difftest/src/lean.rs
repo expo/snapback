@@ -60,6 +60,36 @@ pub fn oracle_path() -> PathBuf {
     }
 }
 
+/// Bring this checkout's `quarry-oracle` up to date with its model sources
+/// (`lake build quarry-oracle`, under a second when current). A merge or
+/// checkout that changes `lean/` leaves the previous executable in `.lake`,
+/// and the harness would report that older model's choices as disagreements
+/// (2026-10-12: a stale pre-guard oracle on the merged `sb4-loop` tree showed
+/// `lean--complete--complete~incomplete`). Nothing is done when
+/// `SNAPBACK4_LEAN_ORACLE` names the oracle (the caller vouches for it; a
+/// campaign's workers inherit the refreshed path that way) or when `lake` is
+/// not installed (a missing oracle still refuses at `LeanProcess::spawn`).
+pub fn refresh() -> Result<(), String> {
+    if std::env::var_os("SNAPBACK4_LEAN_ORACLE").is_some() {
+        return Ok(());
+    }
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lean");
+    match Command::new("lake").args(["build", "quarry-oracle"]).current_dir(&dir).stdin(Stdio::null()).output() {
+        Ok(output) if output.status.success() => Ok(()),
+        Ok(output) => Err(format!(
+            "`lake build quarry-oracle` failed in {}: {}{}",
+            dir.display(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("lake not found: using the Lean oracle as built at {}", oracle_path().display());
+            Ok(())
+        }
+        Err(e) => Err(format!("lake: {e}")),
+    }
+}
+
 /// One `quarry-oracle` process: a JSON case per line in, an outcome per line out.
 pub struct LeanProcess {
     child: Child,
@@ -445,15 +475,33 @@ pub fn features(case: &Case) -> Vec<String> {
             out.push(format!("write-{w:?}-readable-by-{:?}", rules[0]).to_lowercase());
         }
     }
+    if rules[0] == Rule::OwnerOrGrant {
+        out.push("read-grant".into());
+    }
+    if let Some(guard) = &case.program.guard {
+        out.push(format!("where-guard-{}", match guard.as_str() {
+            "exists access[bucket, viewer]" => "probe",
+            "not exists access[bucket, viewer]" => "not-probe",
+            _ => "arguments",
+        }));
+    }
     let probing = |r: &Rule| matches!(r, Rule::Witness | Rule::OwnerOrWitness);
     if access_hidden && rules.iter().any(probing) {
         out.push("probe-of-hidden-access".into());
     }
     if let Body::Read { kind, owner, .. } = body {
         let uniform = match rules[0] {
-            Rule::Owner | Rule::OwnerOrWitness => *owner,
+            Rule::Owner | Rule::OwnerOrGrant => *owner,
+            // The witness disjunct is pinned by `.bucket`: decided per caller (§16.3).
+            Rule::OwnerOrWitness => *owner,
             _ => true,
         };
+        if matches!(rules[0], Rule::OwnerOrWitness) && !*owner && matches!(kind, Read::Page | Read::Bounded | Read::Exists) {
+            out.push(format!("parent-pinned-grant-{kind:?}").to_lowercase());
+        }
+        if matches!(kind, Read::Exists) {
+            out.push(format!("search-exists-{}", if uniform { "decided" } else { "undecided" }));
+        }
         if matches!(kind, Read::Page | Read::Bounded) {
             out.push(format!("{}-{kind:?}", if uniform { "uniform" } else { "non-uniform" }).to_lowercase());
             if uniform && matches!(kind, Read::Page) {
@@ -547,18 +595,54 @@ pub fn reproduce(case: &Case, source: &str) -> Result<Verdict, String> {
 /// - page orders over a nullable, a boolean or a unique id column (V2, V3);
 /// - a further domain conjunct: residual filters (C2's lookahead) and a
 ///   null-valued equality (V5).
+///
+/// A third independent stream (so the draws above are unchanged) adds the
+/// forms the engine decides per caller (OPEN C5, C8):
+///
+/// - half the unpaged totals become a search `exists` over the same domain
+///   (LLP 3000.036 §15.12), which needs no decided rule and so draws every
+///   read rule;
+/// - a third of `Owner`/`OwnerOrWitness` read rules become
+///   `.owner = viewer or exists access[0, viewer]`, a readable grant (§12.1);
+///   `OwnerOrWitness` under the always-pinned `.bucket` is the parent-pinned
+///   grant (§16.3);
+/// - a third of pages and `exists` reads end their domain with a test that
+///   reads no row (`exists access[bucket, viewer]`, its negation, `a < b`),
+///   which the compiler lowers to an `if` around a returned page (§15.4).
 pub fn generate(seed: u64) -> Case {
-    use crate::ast::{Residency, Rule};
+    use crate::ast::{Read, Rule};
     let mut case = crate::generate::generate(seed);
     // Half the widened cases the model cannot run (projections, expiry) are
     // narrowed back into its fragment; the other half stay named unsupported.
     if crate::generate::Rng::new(seed ^ 0x4c45_414e_4e41_5257).next() % 2 == 0 {
         narrow(&mut case);
     }
+    let mut extra = crate::generate::Rng::new(seed ^ 0x4c45_414e_4558_5354);
+    if let Body::Read { kind: kind @ (Read::Count | Read::Sum | Read::Min | Read::Max), .. } = &mut case.program.body {
+        if extra.pick(2) == 0 {
+            *kind = Read::Exists;
+        }
+    }
+    variants(&mut case, seed);
+    if let Some(effects) = &mut case.program.tables[0].effects {
+        if matches!(effects[0], Rule::Owner | Rule::OwnerOrWitness) && extra.pick(3) == 0 {
+            effects[0] = Rule::OwnerOrGrant;
+        }
+    }
+    if matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded | Read::Exists, .. }) && extra.pick(3) == 0 {
+        let guards = ["exists access[bucket, viewer]", "not exists access[bucket, viewer]", "a < b"];
+        case.program.guard = Some(guards[extra.pick(3) as usize].to_owned());
+    }
+    case
+}
+
+/// The variants of the first two streams (`generate`).
+fn variants(case: &mut Case, seed: u64) {
+    use crate::ast::{Residency, Rule};
     let mut rng = crate::generate::Rng::new(seed ^ 0x4c45_414e_5641_5249);
     let mut pick = |n: u64| rng.next() % n;
     if pick(2) == 0 {
-        return case;
+        return;
     }
     if pick(2) == 0 {
         // An unpaged total needs a read rule its pins decide (`E_QUARRY_BOUND`):
@@ -585,7 +669,6 @@ pub fn generate(seed: u64) -> Case {
         let residuals = [".score >= 0", ".label != ''", ".maybe = null", ".maybe = n", "(.score > 0 or .flag = false)"];
         case.program.residual = Some(residuals[pick(5) as usize].to_owned());
     }
-    case
 }
 
 /// Remove the widened dimensions outside the model's fragment (`widen.rs`):

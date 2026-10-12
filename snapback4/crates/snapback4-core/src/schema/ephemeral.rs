@@ -146,7 +146,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
 }
 fn asset(kind: &ColumnType) -> bool {
     match kind {
-        ColumnType::Image { .. } | ColumnType::Video { .. } => true,
+        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => true,
         ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } | ColumnType::ListRange { of: inner, .. } => asset(inner),
         _ => false,
     }
