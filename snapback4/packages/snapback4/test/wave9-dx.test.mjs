@@ -68,6 +68,12 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
   if (identity.includes('personas')) {
     const reply = await (await fetch(server.url + '/q/mine', { method: 'POST', headers: { 'content-type': 'application/json', 'x-snapback-persona': 'alice' }, body: '{"args":{}}' })).json();
     assert.equal(reply.data.length, 1, 'repeated witness is one write');
+    // Expo's picker starts with no persona rather than reading ?as=.
+    // Exercise the same picker behavior in a real bundled browser app.
+    const appPath = join(dir, 'src/App.tsx');
+    writeFileSync(appPath, readFileSync(appPath, 'utf8').replace('useState(() => new URLSearchParams(location.search).get("as"))', 'useState<string | null>(null)'));
+    success(run(join(root, 'node_modules/.bin/vite'), ['build'], dir));
+    success(invoke([]));
     success(run(bin, ['witness', 'web', 'dist', '--as', 'alice'], dir)); // owned fresh backend
     assert.ok(!existsSync(join(dir, '.snapback4/store.sqlite')), 'fresh backend never creates durable store');
   }

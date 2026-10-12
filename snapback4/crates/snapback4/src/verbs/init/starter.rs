@@ -156,6 +156,7 @@ pub(super) fn web_client(client: String, offline: &Offline) -> String {
             .replace("tier === \"web\" ? webDevice() : ", "")
             .replace("device: webDevice(), ", "").replace(", device: webDevice()", "")
             .replace("each with its own device and store", "each with its own principal write journal")
+            .replace("web uses the wasm device", "web uses the principal write journal (no synced tables)")
     } else { client }
 }
 

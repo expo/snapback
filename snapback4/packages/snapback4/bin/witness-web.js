@@ -102,6 +102,13 @@ async function run(o) {
     const url = new URL(web.url); url.searchParams.set('api', api); url.searchParams.set('witness', 'web');
     if (o.as) url.searchParams.set('as', o.as);
     await page.goto(url.href, { waitUntil: 'domcontentloaded' });
+    if (o.as) {
+      // Web can select through ?as=; Expo and custom pages expose a picker.
+      try {
+        await page.waitForFunction(persona => window.__snapback4Witness?.viewer() === "dev:" + persona || [...document.querySelectorAll('button, [role="button"]')].some(button => button.textContent.trim() === persona), o.as);
+        if (!await page.evaluate(persona => window.__snapback4Witness?.viewer() === "dev:" + persona, o.as)) await page.getByRole('button', { name: o.as, exact: true }).click();
+      } catch { throw Error('E_WITNESS_AUTH: persona did not open; check the declared name and its picker button'); }
+    }
     if (o.email) {
       await page.getByLabel('Email', { exact: true }).fill(o.email);
       await page.getByLabel('Password', { exact: true }).fill(process.env[o['password-env']]);
@@ -119,6 +126,7 @@ async function run(o) {
       return { viewer: bridge.viewer() };
     }, { name: o.mutation, args: o.args });
     if (result.state === 'failed') throw Error(`E_WITNESS_READY: ${result.why.code}`);
+    if (o.as && result.viewer !== 'dev:' + o.as) throw Error('E_WITNESS_AUTH: the selected persona did not become the app viewer');
     const plan = JSON.parse(process.env.SNAPBACK4_WEB_PLAN ?? '[]');
     const operation = plan.find(p => !o.mutation || p.name === o.mutation);
     o.mutation ??= operation?.name;
