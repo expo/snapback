@@ -171,7 +171,14 @@ fn a_hidden_night_collision_stays_e_rule_even_with_a_named_unique_code() {
 #[test]
 fn writes_card_refuses_a_stranger_inserting_a_night_without_creating_the_booking() {
     let source = format!("{}\nmutation squat(listing: listings, booking: bookings, day: int):\n  insert nights {{ listing, day, booking }}\n", card_source());
-    let mut engine = engine(&source);
+    let bound = compile_source(&source);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
+    let note = &bound.notes[0];
+    assert_eq!(note.code, "N_REFERENCE_UNCHECKED", "{note}");
+    assert!(note.message.contains("mutation squat") && note.message.contains("listings[listing]"), "{note}");
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("listings".into(), object([("id", Value::Id("listing".into())), ("host", Value::Id("host".into()))]))]).unwrap();
     let first = engine.mutate("book", None, booking("alice", 10, 11)).unwrap();
     assert!(matches!(first.state, WriteState::Sent { .. }), "{:?}", first.state);
     let stranger = Context::new("bob", BTreeMap::from([
