@@ -92702,3 +92702,65 @@ schema, so all-keep schemas stay byte-identical and capability-free.
   tombstones; the new restrict default refused `deletePost`). run-lean 100k
   and run-devices 0–2999 match the earlier runs signature for signature;
   wasm 662,137 B gzip, within the raised budget.
+
+## 2026-10-12 — REF continuation: revision-5 fixes and integration qualification
+
+LLP 3000.039 revision 5 closes the round-5 GPT findings: gather a set-null
+group before writing, bypass child read rules in action constraint checks,
+sum concurrently held phase heaps, queue retained noncurrent device history,
+and require a dominating zero-count guard on the deleted key. The continuation
+also conservatively invalidates count guards across rebinding, control flow
+and helper calls, and binds status proofs to the individual delete site.
+Regression coverage exercises reset/reseed reference indexes and cap counts,
+retained read-through history on both device adapters, and hidden file-asset
+release through a cascade. The retired orphan diagnostic is now
+N_DELETE_RESTRICTED; development reset remains an atomic store-wide clearing
+and reseed under LLP 3000.007 §20.25.
+
+Locked Linux wasm build (Rust 1.97.0, Binaryen 132): 2,196,072 B raw /
+664,818 B gzip. The inherited cap was 652,204 B and refused this build by
+12,614 B. Set 665,318 B, exactly measured gzip plus the inherited 500 B host
+allowance. Against the recorded 0.4.23 integration artifact (2,157,263 /
+651,704 B), the whole-artifact difference is +38,809 B raw / +13,114 B gzip.
+The control was not rebuilt, and no independent per-function attribution,
+macOS measurement or runtime meter ceiling increase is claimed.
+
+The review and quality-bar results are recorded in WORKSTREAM-REPORT.md at
+the worktree root when the continuation finishes; unavailable providers are
+recorded as failed attempts, never as reviews.
+
+REF revision 7 qualification update: prepaid lifetime probes and retained
+action-event reservations, including audience scope receivers, measure
+2,198,002 B raw / 665,520 B gzip on the locked Linux build. Compared with
+the revision-5 measurement above: +1,930 B raw / +702 B gzip. The 665,318 B
+intermediate cap is exceeded by 202 B; final cap 666,020 B is measured gzip
+plus the existing 500 B host allowance. The recorded 0.4.23 integration
+artifact was 2,157,263 / 651,704 B, so the whole-artifact REF difference is
++40,739 B raw / +13,816 B gzip. No rebuilt integration control, macOS
+measurement, per-function attribution or runtime meter ceiling change is
+claimed. Targeted language suites pass (21 reference-action tests and
+16 wave-7 rule tests), with cumulative event-heap and hidden grant-revocation
+regressions.
+
+REF revision 8 final: source-write plans export action-event prices and
+visible destination envelopes before private derivations are projected out.
+Every action's audience transition steps are priced; diagnostic status keys
+are stable names/literals. Fresh GPT gpt-6.1-sol and Muse Spark 1.3 reviews
+both mark `4cdfad3975` READY, verbatim under LLP 3000.039's round-8 records.
+Targeted suites: 22 language reference-action tests, 3 device tests (including
+maintained-column projection parity), and 16 wave-7 rule tests pass.
+
+Locked Linux final wasm: 2,199,518 B raw / 666,206 B gzip. Set 666,706 B,
+exactly measured gzip plus the existing 500 B host allowance. Against the
+revision-7 measurement above: +1,516 B raw / +686 B gzip. Against recorded
+0.4.23 integration: +42,255 B raw / +14,502 B gzip. The integration control
+was not rebuilt; these are whole-artifact comparisons. No Mac measurement,
+per-function attribution or runtime meter ceiling increase is claimed.
+
+Quality-bar fixture reconciliation: alternate-key authorization grants and
+work rows explicitly `keep` their record reference so their deletion tests
+remain about read authority. The clock schedule test now counts both hourly
+and daily jobs: its five-hour jump can cross 06:00 UTC, so a fixed expected
+counter of two was a time-of-day assumption. Product clock behavior is unchanged.
+The final workstream report records the full checks and inherited Lean
+OPEN C2/W4 signatures.
