@@ -1,4 +1,4 @@
-//! Referential actions on a device (LLP 3000.038 §6.4), the same scenarios on
+//! Referential actions on a device (LLP 3000.039 §6.4), the same scenarios on
 //! native SQLite and the wasm memory adapter: a device predicts a parent
 //! delete, cascade and refusal included, only over referencing groups it holds
 //! completely; otherwise the call queues and the server decides.
@@ -119,7 +119,7 @@ fn run<H: Host>(host: &mut H) {
 #[test] fn reference_actions_sqlite() { run(&mut Sqlite::new("reference-actions")); }
 
 /// Every host prices a delete alike: the device's projection of the schema
-/// gives the reservation the full schema gives (LLP 3000.038 §5.1).
+/// gives the reservation the full schema gives (LLP 3000.039 §5.1).
 #[test]
 fn the_device_projection_prices_every_delete_as_the_server_does() {
     for source in [PUBLIC.to_owned(), private()] {

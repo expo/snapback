@@ -127,10 +127,9 @@ fn r1_a_parent_owner_party_keeps_its_arm_and_the_rewrite_admits_the_same_readers
     let query = "query sightingsFor(cat: cats, c: cursor ?):\n  return sightings where .cat = cat last 50 by .seenAt after c\n";
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(n.rewrite.contains("if exists cats[cat, owner = viewer]:"), "the owner's arm is printed: {n}");
-    assert!(!n.rewrite.contains("both pages are complete") && n.rewrite.contains("stays `complete: false`"), "the owner's arm is not claimed complete: {n}");
+    assert!(n.rewrite.contains("every page is complete") && !n.rewrite.contains("stays `complete: false`"), "the owner's arm is decided at run time (LLP 3000.036 §16.3): {n}");
     let complete = rewrite_admits_the_same_readers(SIGHTINGS, query, sightings_rows, &["mo", "olive", "rae", "sid", "zed"], &[("cat", id("tom")), ("c", Value::Null)]);
-    assert!(complete["mo"] && complete["rae"] && complete["zed"], "grant and party pages are complete: {complete:?}");
-    assert!(!complete["olive"], "the parent-probe arm stays capped, as the note says: {complete:?}");
+    assert!(complete.values().all(|done| *done), "grant, parent-probe and party pages are all complete: {complete:?}");
 }
 
 /// Lane 068: sitter, the sitting's keeper (a parent hop) and coordinators
@@ -168,7 +167,7 @@ fn r1_the_keeper_of_a_sitting_keeps_every_offer_under_the_printed_form() {
         ]
     };
     let complete = rewrite_admits_the_same_readers(OFFERS, query, rows, &["carol", "alice", "bob", "dan", "zed"], &[("sitting", id("st")), ("c", Value::Null)]);
-    assert!(complete["carol"] && complete["bob"] && !complete["alice"], "{complete:?}");
+    assert!(complete.values().all(|done| *done), "the keeper's arm is decided too: {complete:?}");
 }
 
 /// Lane 087: two parties (holder via the credential, scanner on the row) and
@@ -205,7 +204,7 @@ fn r1_two_parties_and_a_grant_print_one_query_per_party_each_with_the_grant() {
     let hop = format!("{CHECKINS}table checkins:\n  credential: credentials\n  scanner: principal\n  at: time\n  immutable credential, scanner\n  read <- .scanner = viewer or .credential.holder = viewer or exists roles[viewer]\n  online only\n");
     let query = "query checkinsFor(credential: credentials, c: cursor ?):\n  return checkins where .credential = credential last 50 by .at after c\n";
     let complete = rewrite_admits_the_same_readers(&hop, query, || checkin_rows(false), &["mgr", "hal", "sam", "zed"], &[("credential", id("cr")), ("c", Value::Null)]);
-    assert!(complete["mgr"] && complete["sam"] && !complete["hal"], "{complete:?}");
+    assert!(complete.values().all(|done| *done), "the holder's arm is decided too: {complete:?}");
     // Both parties on the row and the grant: 0.4.21 split per party and dropped the grant.
     let row = format!("{CHECKINS}table checkins:\n  credential: credentials\n  holder: principal\n  scanner: principal\n  at: time\n  immutable credential, holder, scanner\n  read <- .holder = viewer or .scanner = viewer or exists roles[viewer]\n  online only\n");
     let all = "query allCheckins(c: cursor ?):\n  return checkins last 50 by .at after c\n";
@@ -301,21 +300,17 @@ fn r2_a_not_exists_guard_over_private_children_prints_the_zero_count_and_it_runs
     assert_eq!(mutate(&mut engine, "removeCat", "olive", &[("cat", id("kit"))]), "ok");
 }
 
-// ---- #1c: a branch on a pin-decided parent probe is not a page guard; check says so ----
+// ---- #1c: a branch on a pin-decided parent probe is a page guard (LLP 3000.036 §16.3) ----
 
 #[test]
-fn a_parent_probe_guard_beside_a_grant_is_named_unfollowed_and_the_runtime_agrees() {
+fn a_parent_probe_guard_beside_a_grant_is_followed_and_the_runtime_agrees() {
     // Lane 088: staff, the garden's owner (a parent hop) and the visitor, with
     // the owner's arm written as an `if` on the identical keyed probe.
     let schema = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable gardens:\n  owner: principal\n  immutable owner\n  read <- allow\n  online only\ntable checkins:\n  garden: gardens\n  visitor: principal\n  at: time\n  immutable garden, visitor\n  read <- .visitor = viewer or .garden.owner = viewer or exists staff[viewer]\n  online only\n";
     let query = "query gardenVisits(garden: gardens, c: cursor ?):\n  if exists staff[viewer]:\n    return checkins where .garden = garden first 50 by .at after c\n  if exists gardens[garden, owner = viewer]:\n    return checkins where .garden = garden first 50 by .at after c\n  return checkins where .garden = garden and .visitor = viewer first 50 by .at after c\n";
     let source = format!("{schema}{query}");
     let b = clean(&source);
-    let found = notes(&b, "N_NEVER_COMPLETE");
-    assert_eq!(found.len(), 1, "only the owner's arm: {found:#?}");
-    let n = found[0];
-    assert!(n.message.contains("`exists gardens[.garden, owner = viewer]` is decided by the scan's pins") && n.message.contains("whatever `require` or `if` guards it"), "beside a grant too: {n}");
-    assert!(n.rewrite.contains("copy the deciding principal onto checkins"), "the complete repair is printed: {n}");
+    assert!(notes(&b, "N_NEVER_COMPLETE").is_empty(), "every arm is decided for the callers who reach it: {:#?}", b.notes);
     let rows = || -> Rows {
         vec![
             ("staff", vec![("id", id("st1")), ("principal", id("sam"))]),
@@ -324,12 +319,37 @@ fn a_parent_probe_guard_beside_a_grant_is_named_unfollowed_and_the_runtime_agree
             ("checkins", vec![("id", id("k2")), ("garden", id("g1")), ("visitor", id("val")), ("at", Value::Int(2))]),
         ]
     };
-    let mut engine = engine(&source, rows());
+    let mut guarded = engine(&source, rows());
     let pairs = [("garden", id("g1")), ("c", Value::Null)];
-    assert_eq!(page(&mut engine, "gardenVisits", "sam", &pairs).0, true, "the grant decides the staff page");
-    let (complete, ids) = page(&mut engine, "gardenVisits", "gwen", &pairs);
-    assert_eq!((complete, ids.len()), (false, 2), "the owner reads every row, capped, as the note says");
-    assert_eq!(page(&mut engine, "gardenVisits", "vic", &pairs), (true, BTreeSet::from(["k1".to_owned()])));
+    assert_eq!(page(&mut guarded, "gardenVisits", "sam", &pairs).0, true, "the grant decides the staff page");
+    let (complete, ids) = page(&mut guarded, "gardenVisits", "gwen", &pairs);
+    assert_eq!((complete, ids.len()), (true, 2), "the owner's page is decided by the pinned parent probe");
+    assert_eq!(page(&mut guarded, "gardenVisits", "vic", &pairs), (true, BTreeSet::from(["k1".to_owned()])));
+    // The unguarded page: complete for staff and the owner, capped for a visitor.
+    let open = format!("{schema}query visits(garden: gardens, c: cursor ?):\n  return checkins where .garden = garden first 50 by .at after c\n");
+    let b = clean(&open);
+    let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.contains("except for callers `exists staff[viewer] or ") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
+    let mut unguarded = engine(&open, rows());
+    assert_eq!(page(&mut unguarded, "visits", "gwen", &pairs), (true, BTreeSet::from(["k1".to_owned(), "k2".to_owned()])));
+    assert_eq!(page(&mut unguarded, "visits", "vic", &pairs), (false, BTreeSet::from(["k1".to_owned()])));
+}
+
+/// The parent probe decides the page only when its holders can read the row
+/// it probes: with a private parent, the owner's page stays capped and the
+/// note says why (disclosure: `complete` must not reveal the hidden row).
+#[test]
+fn a_parent_probe_its_holders_cannot_read_is_not_a_page_guard() {
+    let schema = "table gardens:\n  owner: principal\n  immutable owner\n  read <- deny\n  online only\ntable checkins:\n  garden: gardens\n  visitor: principal\n  at: time\n  immutable garden, visitor\n  read <- .visitor = viewer or exists gardens[.garden, owner = viewer]\n  online only\nquery visits(garden: gardens, c: cursor ?):\n  return checkins where .garden = garden first 50 by .at after c\n";
+    let b = clean(schema);
+    let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.contains("its holders cannot read the row it probes") && !n.message.contains("except for callers"), "{n}");
+    let mut engine = engine(schema, vec![
+        ("gardens", vec![("id", id("g1")), ("owner", id("gwen"))]),
+        ("checkins", vec![("id", id("k1")), ("garden", id("g1")), ("visitor", id("vic")), ("at", Value::Int(1))]),
+    ]);
+    let pairs = [("garden", id("g1")), ("c", Value::Null)];
+    assert_eq!(page(&mut engine, "visits", "gwen", &pairs), (false, BTreeSet::from(["k1".to_owned()])), "every row, capped");
 }
 
 // ---- #22: authorization lints, each on its lane's shape and its near misses ----

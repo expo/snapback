@@ -100,7 +100,7 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn widen_change_evidence(&self) { self.raw.widen_change_evidence() }
     /// Draw a schema-fixed number of rows from the request's physical
     /// allowance up front, so later authorization work exhausts it at a point
-    /// independent of the rows a delete's actions reach (LLP 3000.038 §4.2).
+    /// independent of the rows a delete's actions reach (LLP 3000.039 §4.2).
     pub(crate) fn draw(&self, table: &str, rows: u64) -> Result<(), RuntimeError> {
         let rows = usize::try_from(rows).unwrap_or(usize::MAX);
         if self.remaining.get() < rows { self.remaining.set(0); return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Delete }); }

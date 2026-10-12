@@ -363,7 +363,7 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
   assert.notEqual(served.status,0);
-  // The release source spells `on delete keep` (LLP 3000.038), which 0.2.33 cannot parse: either refusal fails closed.
+  // The release source spells `on delete keep` (LLP 3000.039), which 0.2.33 cannot parse: either refusal fails closed.
   assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release|E_QUARRY_SYNTAX/);
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');

@@ -226,7 +226,8 @@ mutation post(body: text 1..100):
   run("init", "--adapt"); run("check");
   const app = readFileSync(join(dir, starter === "expo" ? "App.tsx" : "src/App.tsx"), "utf8");
   assert.match(app, /const read = useQuery\(api\.mine, \{\}\);/);
-  assert.match(app, /matchRead\(read, \{ present: .*absent: \(\) => "nothing yet", \.\.\.otherwiseAll\(other => readPresentation\(other\)\.why\?\.message \?\? "…"\) \}\)/);
+  // Wave 7 (R2): the spread comes first, so a handler added after it wins.
+  assert.match(app, /matchRead\(read, \{ \.\.\.otherwiseAll\(other => readPresentation\(other\)\.why\?\.message \?\? "…"\), present: .*absent: \(\) => "nothing yet" \}\)/);
   linkDeclaredDependencies(dir, starter);
   const checked = spawnSync(process.execPath, [join(dir, "node_modules/typescript/bin/tsc"), "--noEmit"], { cwd: dir, encoding: "utf8" });
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);

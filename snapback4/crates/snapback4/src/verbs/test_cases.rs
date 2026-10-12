@@ -37,6 +37,31 @@ pub fn default_persona(declared: &[String]) -> &str {
     if declared.is_empty() || declared.iter().any(|p| p == "alice") { "alice" } else { &declared[0] }
 }
 
+/// One case as `test`'s query sweep reads it: which query, as whom, with
+/// which arguments (`None` when they name a saved answer, which only the case
+/// run has), expecting what.
+pub struct Explicit { pub at: String, pub op: String, pub principal: String, pub args: Option<Json>, pub expect: Option<String> }
+
+/// The cases file read leniently, before the sweep: a line that does not
+/// parse is left to [`run`], which refuses it with its line number.
+// @ref LLP 3000.036#15.2 — wave 7: the sweep runs a persona's own case arguments and labels a refusal its case expects.
+pub fn explicit(fixture: &str, declared: &[String]) -> Vec<Explicit> {
+    let Ok(text) = std::fs::read_to_string(Path::new(fixture).join(FILE)) else { return Vec::new() };
+    fn saved(value: &Json) -> bool {
+        match value { Json::String(text) => text.starts_with('$') && text.len() > 1, Json::Array(items) => items.iter().any(saved), Json::Object(fields) => fields.values().any(saved), _ => false }
+    }
+    text.lines().enumerate().filter_map(|(index, line)| {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with("//") { return None; }
+        let case: Json = serde_json::from_str(line).ok()?;
+        let op = case.get("op")?.as_str()?.to_owned();
+        let persona = case.get("as").and_then(Json::as_str).unwrap_or_else(|| default_persona(declared));
+        let principal = if persona.contains(':') { persona.to_owned() } else { persona_principal(persona) };
+        let args = Some(case.get("args").cloned().unwrap_or_else(|| json!({}))).filter(|args| args.is_object() && !saved(args));
+        Some(Explicit { at: format!("{FILE}:{}", index + 1), op, principal, args, expect: case.get("expect").and_then(Json::as_str).map(str::to_owned) })
+    }).collect()
+}
+
 /// Runs every case; prints one line each and returns (passed, failed).
 /// `sources` are the compiled files, to quote a refusing clause's line.
 pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)]) -> Result<(usize, usize), String> {

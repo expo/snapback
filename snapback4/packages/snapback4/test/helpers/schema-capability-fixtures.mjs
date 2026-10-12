@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../../../../',import.meta.url));
 const timeline=readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/timeline-capability.q'),'utf8');
-// The published 0.2.33 compiler cannot parse `on delete`; since LLP 3000.038
+// The published 0.2.33 compiler cannot parse `on delete`; since LLP 3000.039
 // an undeclared reference restricts, so the current compiler spells the legacy
 // (capability-free) meaning `on delete keep`.
 const legacyRecorded=`use personas alice

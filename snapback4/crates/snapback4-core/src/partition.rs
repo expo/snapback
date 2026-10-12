@@ -135,7 +135,7 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
 pub(crate) fn disclosed_event_count(schema: &Schema, events: &[Event], actions: &BTreeSet<String>) -> usize {
     let mut private = BTreeSet::new();
     events.iter().filter(|event| {
-        // @ref LLP 3000.038#4.2 — no event of a table a delete's actions may
+        // @ref LLP 3000.039#4.2 — no event of a table a delete's actions may
         // write is counted: the schema, not the rows reached, decides.
         if actions.contains(&event.table) { return false; }
         if schema.maintain_for(&event.table).is_some_and(|m|m.row_key.is_some()) { return false; }

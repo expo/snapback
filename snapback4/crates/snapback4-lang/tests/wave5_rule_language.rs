@@ -335,10 +335,10 @@ mutation add(n: int):\n  require n >= 1 and n <= 10 else OUT_OF_RANGE\n  return 
     assert!(d.rewrite.starts_with("declare `m: int ?`") && d.rewrite.contains("(.m = null or .m <= 5)"), "{d:#?}");
 }
 
-// ---- #22: a parent delete with children (LLP 3000.038 answers §15.8) ----
+// ---- #22: a parent delete with children (LLP 3000.039 answers §15.8) ----
 
 /// Lane 081: `delete screenings[s]` returned sent and kept its RSVPs. Since
-/// LLP 3000.038 an undeclared reference is `on delete restrict`: the delete
+/// LLP 3000.039 an undeclared reference is `on delete restrict`: the delete
 /// refuses while an RSVP names the screening, `check` says so at the delete
 /// (N_DELETE_RESTRICTED), and declaring the action silences the note.
 #[test]

@@ -109,7 +109,7 @@ impl Kind {
             TypeKind::Money { .. } => return no("type-money", "money"),
             TypeKind::Json { .. } => return no("type-json", "json"),
             TypeKind::Bytes { .. } => return no("type-bytes", "bytes"),
-            TypeKind::Image { .. } | TypeKind::Video { .. } => return no("type-asset", "an asset type"),
+            TypeKind::Image { .. } | TypeKind::Video { .. } | TypeKind::File { .. } => return no("type-asset", "an asset type"),
             TypeKind::Enum { .. } => return no("type-enum", "an enum"),
             TypeKind::List { .. } => return no("type-list", "a list"),
         })
@@ -132,7 +132,7 @@ struct Col {
     name: String,
     kind: Kind,
     nullable: bool,
-    /// A reference's effective delete action (LLP 3000.038 §2): the declared
+    /// A reference's effective delete action (LLP 3000.039 §2): the declared
     /// one, else restrict; `None` for `keep` and for a non-reference.
     on_delete: Option<&'static str>,
 }
@@ -294,7 +294,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         if kind == Kind::Cursor {
             return no("type-cursor-column", format!("{}.{}", t.name, c.name));
         }
-        // @ref LLP 3000.038#2 — an undeclared reference restricts; keep is the legacy meaning, spelled by absence.
+        // @ref LLP 3000.039#2 — an undeclared reference restricts; keep is the legacy meaning, spelled by absence.
         let on_delete = match (&c.type_.kind, c.on_delete.as_ref().map(|(a, _)| *a)) {
             (TypeKind::Ref { .. }, None | Some(OnDelete::Restrict)) => Some("restrict"),
             (TypeKind::Ref { .. }, Some(OnDelete::Cascade)) => Some("cascade"),
@@ -327,11 +327,6 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         if rules.contains_key(word) {
             return no("rule-repeated", format!("{} has two {word} rules", t.name));
         }
-        // @ref LLP 3000.036#12 — the engine decides a page once for a caller whose
-        // row-independent grant holds; the model's `uniform` has no such arm yet.
-        if r.effect == Effect::Read && read_grant(&r.value) {
-            return no("read-grant", format!("{} read rule has a disjunct that reads no row column", t.name));
-        }
         let ctx = RuleCtx { table: shape, tables };
         let json = match (r.effect, r.bindings.as_slice()) {
             (Effect::Update, []) => {
@@ -359,25 +354,6 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         "uniqueCodes": shape.codes,
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
-}
-
-/// A top-level `or` with a disjunct that reads no `.column` of the row.
-fn read_grant(rule: &Expr) -> bool {
-    fn disjuncts<'a>(e: &'a Expr, out: &mut Vec<&'a Expr>) {
-        match e { Expr::Binary { op, left, right, .. } if op == "or" => { disjuncts(left, out); disjuncts(right, out); }, other => out.push(other) }
-    }
-    fn focal(e: &Expr) -> bool {
-        match e {
-            Expr::Focal { .. } => true,
-            Expr::Member { base, .. } | Expr::Unary { value: base, .. } => focal(base),
-            Expr::Binary { left, right, .. } => focal(left) || focal(right),
-            Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().any(|key| focal(&key.value)),
-            _ => false,
-        }
-    }
-    let mut parts = Vec::new();
-    disjuncts(rule, &mut parts);
-    parts.len() > 1 && parts.iter().any(|part| !focal(part) && !matches!(part, Expr::Literal { .. }))
 }
 
 /// Which image a focal `.col` names, or the named update images.
@@ -689,6 +665,11 @@ impl<'a> Scope<'a> {
                 }
             }
             Expr::Read(read) => self.read(read),
+            // `exists t[key]` is a point read compared with null; only a search
+            // `exists t where …` is the model's `exists` (LLP 3000.036 §15.12).
+            Expr::Exists { read, .. } if read.range.is_none() && read.filter.is_none() && !read.keys.is_empty() => {
+                Ok(json!({"bin": ["ne", self.read(read)?, {"lit": {"null": null}}]}))
+            }
             Expr::Exists { read, .. } => {
                 let (pins, filter) = self.domain(read, true)?;
                 Ok(json!({"exists": {"table": read.table, "pins": pins, "filter": filter}}))
@@ -799,11 +780,6 @@ impl<'a> Scope<'a> {
             Some(range) => {
                 if !read.keys.is_empty() {
                     return no("keyed-range", print());
-                }
-                // The binder decides a row-independent test in a returned page's
-                // `where` once, as an `if` (LLP 3000.036 §15.4); the model scans it.
-                if read.filter.as_deref().is_some_and(crate::bind::where_guards::has_guard) {
-                    return no("where-guard", print());
                 }
                 let (pins, filter) = self.domain(read, false)?;
                 let table = self.table(&read.table)?;
@@ -950,6 +926,26 @@ fn reads_row(e: &Expr) -> bool {
     }
 }
 
+/// A returned page whose `where` holds both a guard and an argument-presence
+/// test (`x = null or …` on an optional argument): the compiler expands the
+/// presence variants first (`bind/intent_variants.rs`), and the page it then
+/// returns is no longer the one the guard lowering sees. Not translated.
+fn presence_and_guard(body: &[Stmt], args: &[(String, Kind, bool)]) -> bool {
+    let optional = |e: &Expr| matches!(e, Expr::Name { name, .. } if args.iter().any(|(n, _, o)| n == name && *o));
+    let null = |e: &Expr| matches!(e, Expr::Literal { value: Literal::Null, .. });
+    let presence = |e: &Expr| matches!(e, Expr::Binary { op, left, right, .. } if op == "="
+        && (optional(left) && null(right) || null(left) && optional(right)));
+    body.iter().any(|s| match s {
+        Stmt::If { then_body, else_body, .. } => presence_and_guard(then_body, args) || presence_and_guard(else_body, args),
+        Stmt::Return { value: Expr::Read(read), .. } => read.filter.as_deref().is_some_and(|f| {
+            let mut conjuncts = Vec::new();
+            flatten_and(f, &mut conjuncts);
+            crate::bind::where_guards::has_guard(f) && conjuncts.iter().any(|c| matches!(c, Expr::Binary { op, left, right, .. } if op == "or" && (presence(left) || presence(right))))
+        }),
+        _ => false,
+    })
+}
+
 fn program(module: &LeanModule, helpers: &[String], p: &ast::ProgramDecl, args: &[(String, Kind, bool)]) -> R<Json> {
     for (present, what) in [
         (p.delivery.is_some(), "delivery"),
@@ -968,11 +964,18 @@ fn program(module: &LeanModule, helpers: &[String], p: &ast::ProgramDecl, args: 
         ast::ProgramKind::Mutation => "mutation",
         ast::ProgramKind::Job => return no("program-job", p.name.clone()),
     };
+    // @ref LLP 3000.036#15.4 — the compiler decides a row-independent test in a
+    // returned page's `where` once, as an `if`; the model runs that program.
+    let mut lowered = p.clone();
+    if presence_and_guard(&p.body, args) {
+        return no("where-guard-presence", p.name.clone());
+    }
+    crate::bind::where_guards::lower_program(&mut lowered);
     let mut scope = Scope::new(module, helpers);
     for (name, k, _) in args {
         scope.vars.insert(name.clone(), Ty::Scalar(k.clone()));
     }
-    let body = scope.stmts(&p.body)?;
+    let body = scope.stmts(&lowered.body)?;
     Ok(json!({
         "name": p.name, "kind": kind,
         "params": args.iter().map(|(n, _, optional)| json!({"name": n, "optional": optional})).collect::<Vec<_>>(),

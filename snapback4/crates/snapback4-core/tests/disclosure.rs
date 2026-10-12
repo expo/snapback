@@ -78,7 +78,7 @@ fn following_private_inputs() {
     for compat in [false, true] {
         for private in ["at: time", "removed: bool default false"] {
             let pair = cases::following(private, compat);
-            let b = snapback4_lang::compile(&[("pair.q".into(), pair.source.clone())]);
+            let b = crate::generated::runtime_compile(&[("pair.q".into(), pair.source.clone())]);
             if b.diagnostics.is_empty() {
                 pair.assert_equal();
                 panic!("private timeline input admitted");
@@ -96,7 +96,7 @@ fn following_private_inputs() {
                 "written by .authorId readable by audience",
             );
             assert!(
-                snapback4_lang::compile(&[("pair.q".into(), public)])
+                crate::generated::runtime_compile(&[("pair.q".into(), public)])
                     .diagnostics
                     .is_empty()
             );
@@ -111,7 +111,7 @@ fn successful_writes_refresh_and_delete_private_images() {
 #[test]
 fn private_maintained_aggregate_and_recorded_inputs_are_refused() {
     for pair in cases::derivations() {
-        let b = snapback4_lang::compile(&[("schema.q".into(), pair.source.clone())]);
+        let b = crate::generated::runtime_compile(&[("schema.q".into(), pair.source.clone())]);
         if b.diagnostics.is_empty() {
             pair.assert_equal();
             panic!("private derivation admitted");
@@ -127,7 +127,7 @@ fn private_maintained_aggregate_and_recorded_inputs_are_refused() {
             "written by .owner",
             "written by .owner readable by audience",
         );
-        let b = snapback4_lang::compile(&[("schema.q".into(), public)]);
+        let b = crate::generated::runtime_compile(&[("schema.q".into(), public)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     }
 }
@@ -156,7 +156,7 @@ fn following_filter_cannot_use_a_private_immutable_field() {
             serde_json::json!("p")
         };
     }
-    let b = snapback4_lang::compile(&[("schema.q".into(), pair.source.clone())]);
+    let b = crate::generated::runtime_compile(&[("schema.q".into(), pair.source.clone())]);
     if b.diagnostics.is_empty() {
         pair.assert_equal();
         panic!("private predicate admitted");
@@ -173,7 +173,7 @@ fn following_filter_cannot_use_a_private_immutable_field() {
         "written by .authorId readable by audience",
     );
     assert!(
-        snapback4_lang::compile(&[("schema.q".into(), public)])
+        crate::generated::runtime_compile(&[("schema.q".into(), public)])
             .diagnostics
             .is_empty()
     );
@@ -311,7 +311,7 @@ fn generated_private_rule_admission() {
     let mut count = 0;
     for declaration in generated::type_declarations() {
         let source = generated::program(&declaration);
-        let b = snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+        let b = crate::generated::runtime_compile(&[("schema.q".into(),source.clone())]);
         assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
         for (field, authority) in &b.schema.tables["records"].written_by {
             if authority.audience { continue; }
@@ -320,7 +320,7 @@ fn generated_private_rule_admission() {
                 let replacement = if effect == "read" { format!("  read <- .{field} = .{field}\n  insert") }
                     else { format!("{effect} <- .{field} = .{field}") };
                 let program = source.replacen(old,&replacement,1);
-                let b = snapback4_lang::compile(&[("schema.q".into(),program)]);
+                let b = crate::generated::runtime_compile(&[("schema.q".into(),program)]);
                 assert!(b.diagnostics.iter().any(|d|d.code == "E_FIELD_AUTHORITY"),"{declaration}/{effect}/{field}: {:?}",b.diagnostics);
                 count += 1;
             }
@@ -328,7 +328,7 @@ fn generated_private_rule_admission() {
                 let ty = &b.schema.tables["records"].columns[field];
                 let program = source.replace("insert <- allow",&format!("insert <- {arm} guesses[tag = 0, value = .{field}]"))
                     + &format!("\ntable guesses:\n  tag: int\n  value: {ty}\n  unique tag\n  public\n  sync public\n");
-                let b = snapback4_lang::compile(&[("schema.q".into(),program)]);
+                let b = crate::generated::runtime_compile(&[("schema.q".into(),program)]);
                 assert!(b.diagnostics.iter().any(|d|d.code == "E_FIELD_AUTHORITY"),"{declaration}/{arm}/{field}: {:?}",b.diagnostics);
                 count += 1;
             }
@@ -336,7 +336,7 @@ fn generated_private_rule_admission() {
     }
     // Float is not a Quarry column in this checkout. Do not silently claim it
     // was exercised as an integer, or expand the language as a harness fix.
-    let b = snapback4_lang::compile(&[("schema.q".into(),generated::program("float default 0"))]);
+    let b = crate::generated::runtime_compile(&[("schema.q".into(),generated::program("float default 0"))]);
     assert!(!b.diagnostics.is_empty());
     eprintln!("generated admission cases: {count}; float field unsupported");
 }
@@ -347,10 +347,10 @@ fn following_repost_timestamp_requires_audience_visibility() {
         let pair = cases::safe_following_for(compat);
         let source = pair.source.replace("  postId: posts on delete keep\n  at: time", "  postId: posts on delete keep\n  at: time default 0 written by .actorId");
         assert_ne!(source,pair.source);
-        let b = snapback4_lang::compile(&[("reposts.q".into(),source.clone())]);
+        let b = crate::generated::runtime_compile(&[("reposts.q".into(),source.clone())]);
         assert!(b.diagnostics.iter().any(|d|d.code=="E_FIELD_AUTHORITY" && d.message.contains("timeline")),"{compat}: {:?}",b.diagnostics);
         let source = source.replace("written by .actorId","written by .actorId readable by audience");
-        assert!(snapback4_lang::compile(&[("reposts.q".into(),source)]).diagnostics.is_empty());
+        assert!(crate::generated::runtime_compile(&[("reposts.q".into(),source)]).diagnostics.is_empty());
     }
 }
 
@@ -362,7 +362,7 @@ fn non_integer_ordered_transition_spellings_are_refused() {
     for declaration in ["decimal 2 default 0", "decimal 2 ? default null", "money USD 2 default 0", "money USD 2 ? default null", "text <=20 default ''", "text <=20 ? default null"] {
         for op in [">=", ">", "<=", "<"] {
             let source = generated::program(declaration).replace("update <- allow",&format!("update (old, next) <- next.secret {op} old.secret"));
-            let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
+            let b = crate::generated::runtime_compile(&[("schema.q".into(),source)]);
             assert!(b.diagnostics.iter().any(|d|d.code=="E_QUARRY_TYPE" && d.message.contains("ordered transition")),"{declaration}/{op}: {:?}",b.diagnostics);
         }
     }

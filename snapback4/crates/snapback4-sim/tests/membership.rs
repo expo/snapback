@@ -123,7 +123,10 @@ fn literal_and_other_table_probes_do_not_absorb_membership_equality() {
         if source.contains("byChatPrincipalRole") {
             let admin = engine.query("roster", context("dev:alice", &[("chatKey", text("alpha"))])).unwrap();
             assert_eq!(admin.data.as_array().unwrap().len(), 3);
-            assert!(!admin.complete, "a non-uniform class stays incomplete even for an admin");
+            // LLP 3000.036 §16.3: the admin probe's row column (`.chatKey`) is
+            // pinned and the admin may read their own membership row, so it
+            // decides the page for the admin once, as a grant would.
+            assert!(admin.complete, "the pinned admin probe decides the admin's page");
         }
     }
 }
@@ -187,7 +190,10 @@ fn extra_equalities_are_deciding_fields_and_cannot_bless_a_self_probe() {
         let mut engine = engine(&compiled);
         for viewer in ["dev:alice", "dev:bob", "dev:nobody"] {
             let result = engine.query("roster", context(viewer, &[("chatKey", text("alpha"))])).unwrap();
-            assert_eq!(result.complete, roster_uniform, "{rule}: {result:?}");
+            // LLP 3000.036 §16.3: a disjunct the chat pin decides (the admin
+            // probe on literals) is a page guard for the admin it admits.
+            let guarded = rule.contains("role = 'admin'") && viewer == "dev:alice";
+            assert_eq!(result.complete, roster_uniform || guarded, "{rule}: {result:?}");
             let directory = engine.query("directory", context(viewer, &[])).unwrap();
             assert_eq!(directory.complete, directory_true, "{rule}: {directory:?}");
             if rule.ends_with("role = 'admin']") && !rule.starts_with(".principal") && viewer == "dev:bob" {

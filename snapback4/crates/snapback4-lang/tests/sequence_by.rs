@@ -14,7 +14,7 @@ fn parses_binds_and_round_trips_int_sequences() {
     let decoded: snapback4_core::schema::Schema = serde_json::from_str(&json).unwrap();
     assert_eq!(bound.schema, decoded);
     assert!(bound.schema.source_reservations.is_empty());
-    // The sequence's parent reference is `on delete restrict` (LLP 3000.038).
+    // The sequence's parent reference is `on delete restrict` (LLP 3000.039).
     assert_eq!(bound.schema.required_capabilities(), ["reference-actions".into(), "sequence-by".into()].into());
     let mut unfenced: serde_json::Value = serde_json::from_str(&json).unwrap();
     for table in unfenced["tables"].as_object_mut().unwrap().values_mut() {

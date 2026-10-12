@@ -29,7 +29,7 @@ fn omitted_ordinary_field_twenty_authorized_large_private_rows() {
         std::fs::create_dir_all(&dir).unwrap();
         let mut observations = Vec::new();
         for world in 0..2 {
-            let b = snapback4_lang::compile(&[("schema.q".into(),SOURCE.into())]);
+            let b = crate::generated::runtime_compile(&[("schema.q".into(),SOURCE.into())]);
             assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
             let programs: Vec<_> = b.programs.into_iter().map(|p|p.program).collect();
             let mut e = if disk { Engine::new(snapback4_core::Store::open(&dir.join(format!("{world}.sqlite"))).unwrap(),b.schema,programs).unwrap() }

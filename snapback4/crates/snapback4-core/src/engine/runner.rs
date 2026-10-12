@@ -226,7 +226,7 @@ pub struct Runner<'a> {
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
-    /// Tables a delete's referential actions may write (LLP 3000.038 §4.2):
+    /// Tables a delete's referential actions may write (LLP 3000.039 §4.2):
     /// their events are not counted in the reply.
     pub(crate) action_tables: BTreeSet<String>,
     pub(crate) capture_prepaid: bool,

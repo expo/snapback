@@ -1,4 +1,4 @@
-//! Referential actions (LLP 3000.038): restrict by default, cascade, set null
+//! Referential actions (LLP 3000.039): restrict by default, cascade, set null
 //! and keep, compiled and run against the engine.
 use snapback4_core::{Context, Engine, Value, WriteState, value::object};
 

@@ -144,6 +144,11 @@ impl Probe for RuleProbe<'_, '_> {
     }
 }
 
+/// The scanned prefix as the row a rule is judged against: each pinned column with its value.
+fn prefix_row(index: &Index, prefix: &[Value]) -> Value {
+    Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into())
+}
+
 impl<'r> Runner<'r> {
     // @ref LLP 3000.007#17 — the dependency envelope is schema-derived too; short-circuit probes cannot disclose a hidden answer through tables.
     pub(super) fn rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) {
@@ -184,7 +189,7 @@ impl<'r> Runner<'r> {
             let admitted = verdict == super::through::ParentVerdict::Readable;
             return Ok((admitted, if admitted { expiry.defer() } else { Default::default() }));
         }
-        let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
+        let probe_row = prefix_row(index, prefix);
         let viewer = self.context.viewer.clone();
         // @ref LLP 3000.015#2 — one prepaid, restoring scope: a partial conjunction denial costs the same static allowance as a uniform denial.
         let verdict = self.authorized_scratch(self.rule_scratch(rule), &[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
@@ -197,12 +202,14 @@ impl<'r> Runner<'r> {
         Ok((admitted, if uniform && admitted { expiry.defer() } else { Default::default() }))
     }
 
-    /// A row-independent grant, judged once for the caller (`rules::grant_decision`).
-    /// It charges the read rule's static probe count on either verdict, and
-    /// records no filtered clause: a false grant leaves the per-row walk.
-    fn grant_verdict(&mut self, table: &Table, rule: &crate::schema::RuleExpr) -> Result<(bool, super::expiry::Pending), RuntimeError> {
+    /// A page guard, judged once for the caller (`rules::page_guard_decision`):
+    /// a row-independent grant, or a disjunct whose row columns the prefix pins,
+    /// evaluated with the prefix's values. It charges the read rule's static
+    /// probe count on either verdict, and records no filtered clause: a false
+    /// guard leaves the per-row walk.
+    fn grant_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr) -> Result<(bool, super::expiry::Pending), RuntimeError> {
         let expiry = self.next_expiry.scope();
-        let probe_row = Value::Row(Default::default());
+        let probe_row = prefix_row(index, prefix);
         let viewer = self.context.viewer.clone();
         let verdict = self.authorized_scratch(self.rule_scratch(rule), &[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |runner, allowance| {
             rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner, allowance })
@@ -919,12 +926,14 @@ impl<'r> Runner<'r> {
         // service seat) that holds for this caller makes every row readable:
         // the page is decided once, as a uniform page is. Its static probe
         // charge is paid on either verdict; an unproven grant walks as before.
+        // @ref LLP 3000.036#16.3 — so does a disjunct the prefix pins (a parent
+        // probe such as `exists boards[.board, owner = viewer]`), with its values.
         let mut grant_expiry = None;
         let granted = !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
             && !self.device && !self.context.is_system()
-            && match rules::grant_decision(self.schema, scan) {
+            && match rules::page_guard_decision(self.schema, scan) {
                 Some(rule) => {
-                    let (allowed, pending) = self.grant_verdict(table, &rule)?;
+                    let (allowed, pending) = self.grant_verdict(table, index, &prefix, &rule)?;
                     if allowed { grant_expiry = Some(pending); }
                     allowed
                 }

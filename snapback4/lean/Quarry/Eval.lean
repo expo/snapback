@@ -153,6 +153,30 @@ def uniform (sch : Schema) (t : String) (pins : List (String × Scalar)) : Bool 
   | some td => td.read.selfCols.all fun c => pins.any (·.1 == c)
   | none => false
 
+/-- A page guard (LLP 3000.036 §12.1, §16.3): a positive disjunct of `t`'s
+read rule whose every row column the pins fix — none at all for a grant
+such as `exists staff[viewer]`, the parent's column for a parent probe such
+as `exists boards[.board, owner = viewer]` under `.board = b` — that holds
+for the caller with the pinned values. It holds for every row the pins
+select, so the page is decided once, per caller, as a uniform page is. The
+disjunct is evaluated over the caller's **view**, never the store, so the
+verdict is a function of what the caller may read (`query_noninterference`
+covers it); it is positive, so a view verdict of true holds over the store
+too (`granted_readable`). The engine evaluates it over the store, but only
+for disjuncts whose every probed row the caller can read
+(`rules::page_guard_decision`), where the two agree (OPEN C8). -/
+def granted (sch : Schema) (vw : View) (v : List Nat) (t : String) (ps : List (String × Scalar)) : Bool :=
+  match sch.table? t with
+  | some td => td.read.disjuncts.any fun d =>
+      d.positive && d.selfCols.all (fun c => ps.any (·.1 == c)) && (d.pin ps).eval vw v {}
+  | none => false
+
+/-- A scan whose read rule is decided for this caller: by its pins
+(`uniform`) or by a page guard (`granted`). Only a decided scan can prove
+absence: a page is complete, and an `exists` may answer `false`. -/
+def decided (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar)) : Bool :=
+  uniform cx.schema t ps || granted cx.schema vw cx.viewer t ps
+
 def keyValue (k : Key) : Value := .arr (k.map .s)
 
 def parseCursor (order : List String) : Value → EM (Option Key)
@@ -186,16 +210,17 @@ def pageAnswer (order : List String) (w : Walk) : Value × Option Value :=
   (.arr (w.rows.map Row.toValue), some (next.getD .null))
 
 /-- A page: walk the candidates; a cut page is incomplete (and refuses
-`E_BOUND` in a mutation); a page whose read rule the pins do not decide is
-never complete; `next` follows the last examined row unless the walk
-exhausted the candidates (reads card; LLP 3000.007 §5.6). -/
+`E_BOUND` in a mutation); a page whose read rule is not decided (by its pins
+or a readable grant) is never complete; `next` follows the last examined
+row unless the walk exhausted the candidates (reads card; LLP 3000.007
+§5.6). -/
 def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
     (filt : Row → EM Bool) (order : List String) (desc : Bool) (take : Nat) (cur : Option Key) :
     EM (Value × Option Value) := do
   let w ← walk filt cx.budget take [] none (candidates vw t ps order desc cur)
   if w.stop = .cut && cx.mutation then refuse "E_BOUND"
   else do
-    markIf (w.stop = .cut || !(uniform cx.schema t ps))
+    markIf (w.stop = .cut || !(decided cx vw t ps))
     pure (pageAnswer order w)
 
 /-- `count(domain)`: the number of visible rows that match, or unavailable
@@ -207,13 +232,27 @@ def countRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
   if w.stop = .cut then cutScalar cx
   else return (.ofInt w.rows.length, none)
 
-/-- `exists domain`: stops at a visible match; a cut cannot establish a
-negative answer (reads card). -/
+/-- An undecided search `exists` with no visible match has no answer: in a
+query it is unavailable (`loading`); a mutation cannot reach it (the binder
+refuses the form, `E_STRUCTURAL_FANOUT`), and refuses it here too. -/
+def undecidedScalar {α : Type} (cx : Ctx) : EM α :=
+  if cx.mutation then refuse "E_STRUCTURAL_FANOUT" else throw .unavailable
+
+/-- A search `exists domain` (LLP 3000.036 §15.12): stops at a visible
+match, which proves presence (`true`; incomplete when the scan is not
+decided). Absence needs a decided scan: `false` when the pins or a readable
+grant decide the read rule, otherwise no answer, never `false` (OPEN C5). A
+cut cannot establish a negative answer (reads card). `exists t[key]` is a
+point read (`t[key] != null`, `Syntax.lean`), not this. -/
 def existsRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
     (filt : Row → EM Bool) : EM (Value × Option Value) := do
   let w ← walk filt cx.budget 1 [] none (candidates vw t ps [] false none)
   if w.stop = .cut then cutScalar cx
-  else return (.ofBool !w.rows.isEmpty, none)
+  else if w.rows.isEmpty then
+    if decided cx vw t ps then return (.ofBool false, none) else undecidedScalar cx
+  else do
+    markIf !(decided cx vw t ps)
+    return (.ofBool true, none)
 
 /-! ## Expressions -/
 

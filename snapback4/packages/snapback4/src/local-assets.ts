@@ -29,7 +29,7 @@ export function assetRetention(options?: AssetRetention): AssetRetention {
 export function changesMediaAuthority(op: string, result: unknown): boolean {
   return op !== "observe_store" || (result as { reset?: boolean } | undefined)?.reset !== false;
 }
-interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string; tables?: string[] }
+interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string; name?: string; tables?: string[] }
 interface Entry { confirmed?: true; id: string; home: Home; bytes: number; used: number }
 const identity = (home: Home) => JSON.stringify([home.store_id, home.table, home.row, home.column, home.generation]);
 const absent = (): AssetRead => ({ denied: { code: "E_OFFLINE", family: "link", message: "no retained ordinary media is available offline", retryable: true } });
@@ -135,7 +135,8 @@ export class MediaCache {
     this.live.set(entry.id, handles);
     const revoke = () => { if (!uri) URL.revokeObjectURL(url); handles.delete(revoke); };
     handles.add(revoke);
-    return { url, type: entry.home.type, bytes: entry.bytes, revoke };
+    // @ref LLP 3000.038#7 — a retained file keeps its filename on its confirmed home.
+    return { url, type: entry.home.type, bytes: entry.bytes, ...(typeof entry.home.name === "string" ? { name: entry.home.name } : {}), revoke };
   }
   read(id: string): Promise<AssetRead> {
     return this.serial(async () => {
@@ -181,7 +182,7 @@ export class MediaCache {
       }
       const bytes = new Uint8Array(await blobArrayBuffer(blob));
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-      const entry: Entry = { confirmed: true, id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };
+      const entry: Entry = { confirmed: true, id, home: { ...home, type: (blob.type.split(";")[0] ?? "").trim() }, bytes: blob.size, used: this.now() };
       // Keep the manifest first so an interrupted byte write is removed on reopen.
       this.entries.set(id, entry);
       await this.save();

@@ -1,10 +1,10 @@
-//! Referential actions (LLP 3000.038): each reference between ordinary durable
+//! Referential actions (LLP 3000.039): each reference between ordinary durable
 //! tables says what deleting its target does — `on delete restrict` (the
 //! default), `cascade`, `set null` or `keep`. This pass synthesizes the index
 //! a reference is probed through, lowers the action into the schema, refuses
 //! what a column cannot carry, checks that a delete's cascade fits its
 //! program, and names every delete whose behavior the restrict default changed.
-// @ref LLP 3000.038#2 — restrict is the default; cascade and set null need a cap on the reference.
+// @ref LLP 3000.039#2 — restrict is the default; cascade and set null need a cap on the reference.
 use super::catalog::Catalog;
 use super::intent_walk as walk;
 use crate::{ast::*, diag::Diagnostic};
@@ -28,7 +28,7 @@ pub(super) fn indexes(catalog: &mut Catalog) {
             let TypeKind::Ref { table: parent } = &column.type_.kind else { continue };
             if column.on_delete.as_ref().is_some_and(|(a, _)| *a == OnDelete::Keep) || column.written_by.is_some() || !ordinary(catalog, parent) { continue; }
             if info.through.as_ref().is_some_and(|through| through.reference == column.name) { continue; }
-            // @ref LLP 3000.038#2.3 — the effective deadline: a read-through child's `$deadline`, else `expire at`.
+            // @ref LLP 3000.039#2.3 — the effective deadline: a read-through child's `$deadline`, else `expire at`.
             let mut leading = vec![column.name.clone()];
             if info.through.as_ref().is_some_and(|t| t.expiring) { leading.push(snapback4_core::schema::through::DEADLINE.to_owned()); }
             else if let Some((expire, _)) = &info.decl.expire { leading.push(expire.clone()); }
@@ -58,7 +58,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
                 continue;
             };
             if !schema.tables.contains_key(parent) || !schema.tables.contains_key(name) { continue; }
-            // @ref LLP 3000.038#2.1 — a field-owned reference is private to its owner: probing it would disclose it.
+            // @ref LLP 3000.039#2.1 — a field-owned reference is private to its owner: probing it would disclose it.
             if column.written_by.is_some() {
                 if declared.is_some() {
                     refuse(diagnostics, format!("{name}.{} is written by its field owner, so it carries no delete action: probing it would tell the parent's deleter about a private value", column.name), "remove `on delete`".into());
@@ -130,7 +130,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
 /// Every delete site: a cascade whose reservation cannot fit its program is
 /// `E_CASCADE_BOUND`; an undeclared reference that can now refuse the delete
 /// is `N_DELETE_RESTRICTED` (it replaces the 0.4 orphans note).
-// @ref LLP 3000.038#7 — the note fires exactly where the restrict default changed a delete's behavior.
+// @ref LLP 3000.039#7 — the note fires exactly where the restrict default changed a delete's behavior.
 pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut Vec<Diagnostic>) -> Vec<Diagnostic> {
     // parent -> the undeclared references that now refuse its delete.
     let mut undeclared: BTreeMap<&str, Vec<(&str, &str)>> = BTreeMap::new();
@@ -144,23 +144,26 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
             }
         }
     }
-    // A count of a child by its reference (`view rsvpCount: count rsvps by
-    // .night`, unfiltered): `require rsvpCount[night] = 0` before the delete
-    // proves no child exists, so the default cannot change that delete.
-    // @ref LLP 3000.036#16.2 — wave 6 R2: the zero-count guard handles the children.
-    let counts: BTreeMap<String, (String, String)> = catalog.maintains.iter().filter_map(|(name, m)| {
-        let [by] = m.by.as_slice() else { return None };
-        (m.aggregate == "count" && m.filter.is_none() && m.row_key.is_none()).then(|| (name.clone(), (m.source.clone(), by.trim_start_matches('.').to_owned())))
-    }).collect();
+    // Guards that prove no child exists (an unfiltered count required zero,
+    // a count-like sum, a status every child insert flips away from): the
+    // default cannot change that delete.
+    let guards = super::delete_guards::Guards::new(catalog);
     let mut notes = Vec::new();
     for doc in &catalog.documents {
         for program in doc.programs.iter().filter(|p| !matches!(p.kind, ProgramKind::Query) && !p.native) {
             let mut deletes: Vec<(String, crate::diag::Site)> = Vec::new();
             let mut counted: BTreeSet<(String, String)> = BTreeSet::new();
+            let mut summed: Vec<(String, String, String, String)> = Vec::new();
+            let original = program;
             let mut program = program.clone();
             let mut visit = |value: &mut Expr| match value {
                 Expr::Write { op: WriteOp::Delete, table, site, .. } if !deletes.iter().any(|(seen, _)| seen == table) => deletes.push((table.clone(), site.clone())),
-                Expr::Read(read) | Expr::Exists { read, .. } => if let Some(pair) = counts.get(&read.table) { counted.insert(pair.clone()); },
+                Expr::Read(read) | Expr::Exists { read, .. } => {
+                    if let Some(pair) = guards.counts.get(&read.table) { counted.insert(pair.clone()); }
+                    if let Some((child, by, column)) = guards.sums.get(&read.table) && !summed.iter().any(|(view, ..)| view == &read.table) {
+                        summed.push((read.table.clone(), child.clone(), by.clone(), column.clone()));
+                    }
+                }
                 _ => {}
             };
             walk::statements(&mut program.prelude, &mut visit);
@@ -184,8 +187,8 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                     at += 1;
                 }
                 let kept: Vec<(&str, &str, &str)> = reached.iter().flat_map(|table| undeclared.get(table.as_str()).into_iter().flatten().map(move |(c, col)| (table.as_str(), *c, *col)))
-                    .filter(|(target, c, col)| !(*target == parent.as_str() && counted.contains(&((*c).to_owned(), (*col).to_owned())))).collect();
-                // @ref LLP 3000.038#7 — the read prerequisite is the other behavior change: name it where a deleter may not be a reader.
+                    .filter(|(target, c, col)| !(*target == parent.as_str() && (counted.contains(&((*c).to_owned(), (*col).to_owned())) || guards.status_guarded(original, &parent, c, col)))).collect();
+                // @ref LLP 3000.039#7 — the read prerequisite is the other behavior change: name it where a deleter may not be a reader.
                 if program.kind != ProgramKind::Job && schema.is_referenced(&parent) && !deleters_read(schema, &parent) && !schema.children(&parent).any(|_| true) {
                     notes.push(Diagnostic::new(&site, "N_DELETE_NEEDS_READ",
                         format!("mutation {}: `delete {parent}[…]` now also needs read authority on the row: other rows reference {parent} ({}), so a caller the delete rule admits but the read rule does not gets NOT_FOUND", program.name,
@@ -195,8 +198,9 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                 let Some(&(target, child, column)) = kept.first() else { continue };
                 let named = kept.iter().map(|(_, child, column)| format!("{child}.{column}")).collect::<Vec<_>>().join(", ");
                 let through = if target == parent { String::new() } else { format!(" (through its cascade to {target})") };
+                let sum = summed.iter().find(|(_, c, by, _)| target == parent && c == child && by == column).map(|(view, _, _, summed)| guards.sum_reason(view, child, column, summed)).unwrap_or_default();
                 notes.push(Diagnostic::new(&site, "N_DELETE_RESTRICTED",
-                    format!("{word} {}: `delete {parent}[…]`{through} now refuses E_REFERENCED while a live row references it ({named}): an undeclared reference is `on delete restrict`; before 0.5 the referencing rows stayed and named a deleted row", program.name),
+                    format!("{word} {}: `delete {parent}[…]`{through} now refuses E_REFERENCED while a live row references it ({named}): an undeclared reference is `on delete restrict`; before 0.5 the referencing rows stayed and named a deleted row{sum}", program.name),
                     format!("declare what deleting a {target} row does to each: `{column}: {target} on delete cascade` deletes the {child} rows (with `cap N by {column}`), `{column}: {target} ? on delete set null` clears an optional reference, `on delete keep` keeps them as before, and `on delete restrict` keeps this refusal; any declaration silences this note. Anyone whose insert rule admits a {child} row naming a {target} can hold it under restrict")).guide("writes"));
             }
         }

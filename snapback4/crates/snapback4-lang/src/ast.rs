@@ -19,6 +19,8 @@ pub enum TypeKind {
     Bytes { max: u32 },
     Image { max: u32, once: bool },
     Video { max: u32 },
+    /// `file <=N ('type', ...)`; an empty list is the default allow-list (LLP 3000.038).
+    File { max: u32, types: Vec<String> },
     Enum { variants: Vec<String> },
     Ref { table: String },
     List { item: Box<ScalarType>, min: u32, max: u32 },
@@ -288,7 +290,7 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
-    /// `on delete restrict | cascade | set null` on a reference (LLP 3000.038).
+    /// `on delete restrict | cascade | set null` on a reference (LLP 3000.039).
     pub on_delete: Option<(OnDelete, Site)>,
     pub sequence: Option<String>,
     pub written_by: Option<String>,
@@ -300,7 +302,7 @@ pub struct ColumnDecl {
     pub site: Site,
 }
 
-/// What deleting a referenced row does to the rows naming it (LLP 3000.038).
+/// What deleting a referenced row does to the rows naming it (LLP 3000.039).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum OnDelete {
     Restrict,

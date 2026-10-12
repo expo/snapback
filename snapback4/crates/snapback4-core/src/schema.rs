@@ -282,7 +282,7 @@ pub struct Table {
     pub through: Option<through::Through>,
     /// What deleting a referenced row does, per reference column. A reference
     /// with no entry keeps its rows when its target is deleted (`on delete
-    /// keep`, the only meaning before LLP 3000.038), so a schema whose
+    /// keep`, the only meaning before LLP 3000.039), so a schema whose
     /// references all keep serializes exactly as it did before.
     #[serde(default, rename = "onDelete", skip_serializing_if = "BTreeMap::is_empty")]
     pub on_delete: BTreeMap<String, references::OnDelete>,
@@ -354,7 +354,7 @@ impl Table {
     }
 
     /// A cap grouping by a `set null` reference does not count its null rows
-    /// (LLP 3000.038 §2.2), so it proves no population bound.
+    /// (LLP 3000.039 §2.2), so it proves no population bound.
     pub fn cap_exempts_null(&self, by: &[String]) -> bool {
         by.iter().any(|column| self.on_delete.get(column) == Some(&references::OnDelete::SetNull))
     }
@@ -447,6 +447,8 @@ pub enum ColumnType {
     Bytes { max: u32 },
     Image { max: u32, #[serde(default, skip_serializing_if = "std::ops::Not::not")] once: bool },
     Video { max: u32 },
+    // @ref LLP 3000.038#1 — an empty allow-list is the default: every verifiable type.
+    File { max: u32, #[serde(default, skip_serializing_if = "Vec::is_empty")] types: Vec<String> },
     Int,
     Enum { variants: Vec<String> },
     Decimal { scale: u8 },
@@ -472,15 +474,26 @@ impl ColumnType {
 
     pub fn is_indexable(&self) -> bool {
         match self {
-            Self::Image { .. } | Self::Video { .. } | Self::List { .. } | Self::ListRange { .. } | Self::Json { .. } => false,
+            Self::Image { .. } | Self::Video { .. } | Self::File { .. } | Self::List { .. } | Self::ListRange { .. } | Self::Json { .. } => false,
             Self::Optional(inner) => inner.is_indexable(),
             _ => true,
         }
     }
 
+    /// An asset leaf's kind, byte bound and (for a file) allow-list.
+    pub fn asset_leaf(&self) -> Option<(crate::assets::AssetKind, u32, &[String])> {
+        use crate::assets::AssetKind;
+        match self {
+            Self::Image { max, .. } => Some((AssetKind::Image, *max, &[])),
+            Self::Video { max } => Some((AssetKind::Video, *max, &[])),
+            Self::File { max, types } => Some((AssetKind::File, *max, types)),
+            _ => None,
+        }
+    }
+
     pub fn contains_asset(&self) -> bool {
         match self {
-            Self::Image { .. } | Self::Video { .. } => true,
+            Self::Image { .. } | Self::Video { .. } | Self::File { .. } => true,
             Self::Optional(inner) | Self::List { of: inner, .. } | Self::ListRange { of: inner, .. } => inner.contains_asset(),
             _ => false,
         }
@@ -497,6 +510,8 @@ impl fmt::Display for ColumnType {
             Self::Image { max, once: false } => write!(f, "image <={max}"),
             Self::Image { max, once: true } => write!(f, "image <={max} once"),
             Self::Video { max } => write!(f, "video <={max}"),
+            Self::File { max, types } if types.is_empty() => write!(f, "file <={max}"),
+            Self::File { max, types } => write!(f, "file <={max} ({})", types.iter().map(|t| format!("'{t}'")).collect::<Vec<_>>().join(", ")),
             Self::Int => f.write_str("int"),
             Self::Enum { variants } => write!(f, "enum({})", variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")),
             Self::Decimal { scale } => write!(f, "decimal {scale}"),
@@ -1590,6 +1605,7 @@ pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {
         ArgType::Bytes { max } => ColumnType::Bytes { max: *max },
         ArgType::Image { max } => ColumnType::Image { max: *max, once: false },
         ArgType::Video { max } => ColumnType::Video { max: *max },
+        ArgType::File { max, types } => ColumnType::File { max: *max, types: types.clone() },
         ArgType::Int => ColumnType::Int,
         ArgType::Bool => ColumnType::Bool,
         ArgType::Time => ColumnType::Time,

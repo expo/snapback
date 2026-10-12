@@ -210,6 +210,85 @@ query teamComments(team: teams, c: cursor ?):
   return comments where .team = team last 50 by .at after c
 ```
 
+### A group's private list, complete
+
+**A list only a group's members read (a household's charges, a tenant's
+records).** A child read under `exists residents[.household, viewer]` pages
+`complete` when the scan pins `.household`: take the group as an argument
+(`charges`), or, when each person belongs to one group, bind the caller's
+own membership first and pin it (`myCharges`). A scan that leaves the group
+free, `charges where exists residents[.household, viewer]`, is never
+complete (`N_NEVER_COMPLETE`): the server cannot tell "no more" from "more
+in households you are not in". The creating mutation writes the founder's
+member row (`created households[.household]`, checked by `after insert`);
+members add members. A clash on `unique principal` against another
+household's hidden row refuses `E_RULE`. These tables are `online only`;
+to hold them offline, give each `sync` as the team above does.
+
+```quarry
+use personas alice, bob, carol, dave
+
+table households:
+  name: text 1..80
+  read <- exists residents[.id, viewer]
+  insert <- allow
+  after insert <- exists residents[.id, viewer]
+  online only
+
+table residents:
+  household: households
+  principal: principal
+  unique household, principal
+  unique principal
+  immutable household, principal
+  read <- .principal = viewer or exists residents[.household, viewer]
+  insert <- created households[.household] or exists residents[.household, viewer]
+  online only
+
+table charges:
+  household: households
+  payer: principal
+  label: text 1..120
+  cents: int
+  at: time default now
+  immutable household, payer
+  read <- exists residents[.household, viewer]
+  insert <- .payer = viewer and exists residents[.household, viewer]
+  online only
+
+query charges(household: households, c: cursor ?):
+  return charges where .household = household last 50 by .at after c
+
+query myCharges(c: cursor ?):
+  me = residents[principal = viewer]
+  if me != null:
+    return charges where .household = me.household last 50 by .at after c
+  return []
+
+mutation createHousehold(name: text 1..80):
+  h = insert households { name }
+  insert residents { household: h.id, principal: viewer }
+  return h
+
+mutation invite(household: households, who: principal):
+  require exists residents[household, viewer] else NOT_RESIDENT
+  return insert residents { household, principal: who }
+
+mutation addCharge(household: households, label: text 1..120, cents: int):
+  require exists residents[household, viewer] else NOT_RESIDENT
+  return insert charges { household, payer: viewer, label, cents }
+```
+
+Cases (alice and bob in household `h1`, which has one charge; carol in `h2`):
+
+```jsonl
+{"as":"bob","op":"myCharges","expect":"complete","count":1}
+{"as":"carol","op":"charges","args":{"household":"h1"},"expect":"complete","count":0,"label":"another household's list is empty, not partial"}
+{"as":"carol","op":"addCharge","args":{"household":"h1","label":"x","cents":1},"expect":"NOT_RESIDENT"}
+{"as":"dave","op":"createHousehold","args":{"name":"Ash"},"save":"ash"}
+{"as":"dave","op":"invite","args":{"household":"$ash","who":"dev:carol"},"expect":"E_RULE","label":"carol already lives elsewhere"}
+```
+
 ### Two parties
 
 **Two parties (buyer and seller).** `.buyer = viewer or .seller = viewer` is

@@ -314,7 +314,7 @@ impl Store {
                 for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))) {
                     validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
                 }
-                // @ref LLP 3000.038#2.2 — a `set null` cap skips its null group; adding or removing that exemption re-validates the cap.
+                // @ref LLP 3000.039#2.2 — a `set null` cap skips its null group; adding or removing that exemption re-validates the cap.
                 let exemption_changed = previous.as_ref().is_some_and(|old| old.tables.get(name).is_some_and(|old| old.constraints.iter().any(|c|
                     matches!(c, Constraint::Cap { by, .. } if old.cap_exempts_null(by) != table.cap_exempts_null(by)))));
                 for constraint in table.constraints.iter().filter(|_| plan.project || rebuilt || exemption_changed) {
@@ -442,7 +442,7 @@ fn validate_groups(tx: &Tx<'_>, table: &str, index: &str, prefix_len: usize, max
 
 fn contains_asset_type(kind: &crate::schema::ColumnType) -> bool {
     use crate::schema::ColumnType::*;
-    match kind { Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => contains_asset_type(inner), Image { .. } | Video { .. } => true, _ => false }
+    match kind { Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => contains_asset_type(inner), Image { .. } | Video { .. } | File { .. } => true, _ => false }
 }
 pub(super) fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
     use crate::schema::ColumnType::*;
@@ -450,12 +450,13 @@ pub(super) fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, val
     match (kind, value) {
         (Optional(inner), Some(value)) => validate_assets(tx, inner, Some(value)),
         (List { of, .. } | ListRange { of, .. }, Some(Value::Array(values))) => { for value in values { validate_assets(tx, of, Some(value))?; } Ok(()) },
-        (Image { max, .. } | Video { max }, Some(value)) => {
+        (Image { .. } | Video { .. } | File { .. }, Some(value)) => {
+            let (wanted, max, types) = kind.asset_leaf().expect("an asset leaf");
             if let Some(id) = crate::assets::asset_id(Some(value)) {
                 if let Some(asset) = tx.asset(id)? {
-                    let wanted = if matches!(kind, Image { .. }) { AssetKind::Image } else { AssetKind::Video };
                     if asset.kind != wanted { return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("cannot activate: {id} is {}, not {}", asset.kind.word(), wanted.word()) }); }
-                    if asset.bytes > u64::from(*max) { return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("cannot activate: {id} has {} bytes; the column takes at most {max}", asset.bytes) }); }
+                    if wanted == AssetKind::File && !crate::assets::file_accepts(types, &asset.content_type) { return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("cannot activate: {id} is {}, which the column no longer accepts", asset.content_type) }); }
+                    if asset.bytes > u64::from(max) { return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("cannot activate: {id} has {} bytes; the column takes at most {max}", asset.bytes) }); }
                 }
             }
             Ok(())

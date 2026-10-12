@@ -151,7 +151,7 @@ fn strip_following(types: &str, schema: &str) -> String {
     types
 }
 
-// @ref LLP 3000.038#8 — referential actions add exactly these schema fields:
+// @ref LLP 3000.039#8 — referential actions add exactly these schema fields:
 // each reference's `onDelete`, the `$reference:` index it is probed through,
 // and the `reference-actions` capability. Every other byte stays frozen.
 fn strip_reference_actions(text: &str) -> String {

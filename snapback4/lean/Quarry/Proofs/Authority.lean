@@ -25,7 +25,7 @@ inductive Step (sch : Schema) (v : List Nat) : Store → Store → Prop
       td.update.eval s v { old := some old, next := some nw } = true →
       Step sch v s (s.replaceRow t old nw)
   /-- A delete whose delete rule admits the row, with the referential
-  actions the schema declares on the rows naming it (LLP 3000.038 §4.1: the
+  actions the schema declares on the rows naming it (LLP 3000.039 §4.1: the
   parent's delete authorizes a declared cascade or set null). -/
   | delete {s s' : Store} {t : String} {td : TableDecl} {old : Row} :
       sch.table? t = some td → old ∈ s t → td.delete.eval s v { self := some old } = true →
@@ -87,7 +87,7 @@ theorem doUpdateRow_ok {sch s v t td old patch cond val s'}
   exact ⟨nw, guardE_ok hg, rfl⟩
 
 /-- **Referential actions change nothing a schema does not declare**
-(LLP 3000.038 §1): a delete from a table no action-carrying reference names
+(LLP 3000.039 §1): a delete from a table no action-carrying reference names
 removes exactly that row, as every delete did before. -/
 theorem refDelete_without_actions {sch : Schema} {s : Store} {t : String} {old : Row}
     (h : referencing sch t = []) : refDelete sch s t old = .ok (s.removeRow t old) := by

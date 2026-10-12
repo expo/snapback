@@ -587,7 +587,7 @@ impl Parser {
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
-        // @ref LLP 3000.038#2 — `on delete` follows the type and its `?`.
+        // @ref LLP 3000.039#2 — `on delete` follows the type and its `?`.
         let on_delete = if self.at("on") && self.peek_at(1).value == "delete" { Some(self.parse_on_delete(&name.value)?) } else { None };
         let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable"])?) } else { None };
         let mut written_by = None;
@@ -1081,6 +1081,31 @@ impl Parser {
                     self.take("<=")?;
                     TypeKind::Video { max: self.number()? }
                 }
+                // `file` is a type only before `<=`: a table named `file` stays a reference.
+                // @ref LLP 3000.038#1 — the allow-list names only types the server can verify against the bytes.
+                "file" if self.at("<=") => {
+                    self.take("<=")?;
+                    let max = self.number()?;
+                    let mut types = Vec::new();
+                    if self.maybe("(") {
+                        while !self.at(")") {
+                            let value = self.take_kind(Kind::Str)?;
+                            if let Some(why) = snapback4_core::assets::file_type_refusal(&value.value) {
+                                return Err(syntax_with(&value.site, why, format!("file <={max} ('application/pdf', 'text/plain')")).guide("assets"));
+                            }
+                            if types.contains(&value.value) {
+                                return Err(syntax_with(&value.site, format!("'{}' is listed twice", value.value), "list each media type once"));
+                            }
+                            types.push(value.value);
+                            if !self.maybe(",") { break; }
+                        }
+                        self.take(")")?;
+                        if types.is_empty() {
+                            return Err(syntax_with(&site, "a file allow-list needs at least one media type", format!("file <={max} ('application/pdf'), or file <={max} for every verifiable type")).guide("assets"));
+                        }
+                    }
+                    TypeKind::File { max, types }
+                }
                 "cursor" => TypeKind::Cursor,
                 "id" => TypeKind::Id,
                 "principal" => TypeKind::Principal,
@@ -1116,6 +1141,7 @@ impl Parser {
             match &mut kind {
                 TypeKind::Image { once, .. } => *once = true,
                 TypeKind::Video { .. } => return Err(syntax_with(&site, "once is only specified for image columns; video ranges are unspecified", "use photo: image <=10000000 once, or remove once from the video column")),
+                TypeKind::File { .. } => return Err(syntax_with(&site, "once is only specified for image columns; a downloaded file is saved by the browser, so one view cannot be kept", "remove once from the file column; use image <=10000000 once for one-view photos").guide("assets")),
                 _ => return Err(syntax_with(&site, "once is only specified for image columns", "remove once from this column; use image <=10000000 once for one-use images")),
             }
         }
@@ -1565,7 +1591,7 @@ mod tests {
     }
 }
 
-/// A misplaced or misspelled `on delete` (LLP 3000.038 §2).
+/// A misplaced or misspelled `on delete` (LLP 3000.039 §2).
 fn on_delete_error(site: &Site, column: &str) -> crate::diag::Diagnostic {
     crate::diag::Diagnostic::new(site, "E_QUARRY_SYNTAX",
         "a reference's delete action is `on delete restrict`, `on delete cascade`, `on delete set null` or `on delete keep`, right after its type",

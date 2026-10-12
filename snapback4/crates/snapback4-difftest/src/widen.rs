@@ -278,12 +278,12 @@ pub fn widen(mut case: Case) -> Case {
 }
 
 const REFERENCES: u64 = 0x5245_4645_5245_4e43;
-/// Referential actions (LLP 3000.038): a quarter of the cases gain `kids`
+/// Referential actions (LLP 3000.039): a quarter of the cases gain `kids`
 /// referencing `items` with a random action (with its cap), rows naming
 /// present and absent items, sometimes `notes` restricting kids; half of
 /// their single writes become `delete items[key]`. Its own stream, so no other
 /// case changes.
-// @ref LLP 3000.038#9 — the generators exercise every action, diamonds aside, through deletes of the parent.
+// @ref LLP 3000.039#9 — the generators exercise every action, diamonds aside, through deletes of the parent.
 fn references(case: &mut Case) {
     let mut rng = Rng::new(case.seed ^ REFERENCES);
     if rng.pick(4) != 0 { return; }

@@ -1,9 +1,9 @@
-//! Referential actions on delete (LLP 3000.038 §3): before a delete removes
+//! Referential actions on delete (LLP 3000.039 §3): before a delete removes
 //! its row, reserve a schema-fixed charge, close over the `cascade`
 //! references, refuse while a `restrict` reference still holds a closure row
 //! from outside the closure, clear `set null` references outside it, and
 //! remove the closure children first. The caller then removes the row itself.
-// @ref LLP 3000.038#3 — closure first; probes exclude the closure; deletion dominates set null.
+// @ref LLP 3000.039#3 — closure first; probes exclude the closure; deletion dominates set null.
 use crate::engine::runner::Runner;
 use crate::{
     error::{MeterKind, RuntimeError},
@@ -24,7 +24,7 @@ impl Runner<'_> {
             if self.device { return Err(RuntimeError::Prediction(format!("deleting {table_name} needs every referencing table's write price; queued without a local delete"))); }
             return Err(RuntimeError::Schema(format!("{table_name}'s delete actions have no reservation: a cascading reference lacks its cap or its child's write price (guide writes)")));
         };
-        // @ref LLP 3000.038#4.2 — what the commit publishes is fixed by the schema, not by the rows the actions reach.
+        // @ref LLP 3000.039#4.2 — what the commit publishes is fixed by the schema, not by the rows the actions reach.
         let closure = schema.action_tables(table_name);
         for table in &closure.written {
             if schema.visible(table) { self.written_tables.insert(table.clone()); }
@@ -37,7 +37,7 @@ impl Runner<'_> {
         }
         let mark = self.meter.mark();
         self.meter.heap(price[4])?;
-        // @ref LLP 3000.038#3 — draw the reservation's rows from the request's physical allowance before the first seek.
+        // @ref LLP 3000.039#3 — draw the reservation's rows from the request's physical allowance before the first seek.
         if !self.context.is_system() { self.tx.draw(table_name, price[2])?; }
         let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::unbounded(), Cut::Abort));
         let result = self.reference_closure(table_name, old);
@@ -70,7 +70,7 @@ impl Runner<'_> {
         // 4. Restrict: every probe runs, streaming past closure rows (the root
         // included) to the first outside witness; the first occupied reference
         // in schema order is reported. One reference's probes visit each closure
-        // row at most once, plus one witness per probe (LLP 3000.038 §5.1).
+        // row at most once, plus one witness per probe (LLP 3000.039 §5.1).
         let mut occupied: Option<(String, String, String)> = None;
         for (table, id) in &visits {
             for r in schema.referencing(table) {
@@ -126,7 +126,7 @@ impl Runner<'_> {
         let schema = self.schema;
         let index = schema.reference_index(r.child, r.column).ok_or_else(|| RuntimeError::Schema(format!("{}.{} has no reference index", r.child, r.column)))?.to_owned();
         let (cap, page_rows) = if capped { (schema.reference_cap(r.child, r.column).map_or(u64::MAX, u64::from), PAGE) } else { (u64::MAX, 1) };
-        // @ref LLP 3000.038#2.3 — seek on the effective deadline (a read-through child's `$deadline`), so no expired row is visited.
+        // @ref LLP 3000.039#2.3 — seek on the effective deadline (a read-through child's `$deadline`), so no expired row is visited.
         let ranges = if r.table.expiry_column().is_some() && !through_reference(r) {
             let now = self.context.now.ok_or_else(|| RuntimeError::Input("delete clock is not pinned".into()))?;
             vec![(vec![id.clone(), Value::Null], None), (vec![id.clone()], Some(Value::Int(now)))]
@@ -170,7 +170,7 @@ impl Runner<'_> {
     }
 
     /// A device predicts only over a referencing group it holds completely.
-    // @ref LLP 3000.038#6.4 — the held-group proof of LLP 3000.007 §20.5, per closure row and reference.
+    // @ref LLP 3000.039#6.4 — the held-group proof of LLP 3000.007 §20.5, per closure row and reference.
     fn prove_reference_held(&mut self, r: &Referencing<'_>, id: &Value) -> Result<(), RuntimeError> {
         let index = self.schema.reference_index(r.child, r.column).ok_or_else(|| RuntimeError::Schema(format!("{}.{} has no reference index", r.child, r.column)))?.to_owned();
         let (child, key) = (r.child.to_owned(), [id.clone()]);
@@ -204,7 +204,7 @@ impl Runner<'_> {
 }
 
 /// Rows a child scan holds per seek: the reservation's transient `4 × row`
-/// (LLP 3000.038 §5.1, `Schema::delete_reservation`).
+/// (LLP 3000.039 §5.1, `Schema::delete_reservation`).
 const PAGE: usize = crate::schema::references::REFERENCE_PAGE;
 
 fn through_reference(r: &Referencing<'_>) -> bool {
@@ -222,7 +222,7 @@ fn deletion_order(schema: &crate::schema::Schema, reached: &[(String, String)]) 
         seen
     };
     // edges: child table -> the reached tables it must be removed before
-    // (its cascade parents and its `read through` parent; LLP 3000.038 §3).
+    // (its cascade parents and its `read through` parent; LLP 3000.039 §3).
     let mut edges: Vec<(&str, &str)> = Vec::new();
     for &child in &tables {
         for &parent in &tables {

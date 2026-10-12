@@ -1,6 +1,6 @@
 //! Referential actions: what deleting a referenced row does to the rows that
 //! name it (`on delete restrict | cascade | set null`).
-// @ref LLP 3000.038#2 — every reference between ordinary durable tables carries one action; restrict is the default.
+// @ref LLP 3000.039#2 — every reference between ordinary durable tables carries one action; restrict is the default.
 use super::*;
 pub use reservations::Price;
 
@@ -42,7 +42,7 @@ pub fn reference_index_name(column: &str) -> String { format!("{REFERENCE_INDEX_
 /// Heap a closure keeps per reached row: its table and id (an id is at most
 /// 144 canonical bytes) and the set and queue entries holding them.
 pub const CLOSURE_IDENTITY_BYTES: u64 = 384;
-/// Child rows a cascade or set-null walk reads per seek (LLP 3000.038 §5.1).
+/// Child rows a cascade or set-null walk reads per seek (LLP 3000.039 §5.1).
 pub const REFERENCE_PAGE: usize = 4;
 
 impl Schema {
@@ -72,7 +72,7 @@ impl Schema {
     }
 
     /// A delete of a `parent` row consults its referencing rows, so it needs
-    /// read authority on that row (LLP 3000.038 §3 step 1).
+    /// read authority on that row (LLP 3000.039 §3 step 1).
     pub fn is_referenced(&self, parent: &str) -> bool { !self.referencing(parent).is_empty() }
 
     /// The index a reference is probed through: its column first, then the
@@ -212,7 +212,7 @@ impl Schema {
     /// closure is unbounded (a cycle or a missing cap) or a written table has no
     /// fixed write price. Heap is the closure's identity scratch plus the largest
     /// single row's transient work: rows are processed one at a time.
-    // @ref LLP 3000.038#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
+    // @ref LLP 3000.039#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
     pub fn delete_reservation(&self, parent: &str) -> Option<Price> {
         let bounds = self.closure_bounds(parent)?;
         let mut price = [0_u64; 7];
@@ -339,7 +339,7 @@ fn carries_authority(schema: &Schema, child: &str, column: &str) -> bool {
 
 /// Why `column` cannot be cleared by its parent's delete, if it cannot: a
 /// value that carries authority or meaning beyond "which parent this row has".
-// @ref LLP 3000.038#2.2 — set null never changes any rule's verdict, moves a row between audiences, or rewrites a fact resolved through the reference.
+// @ref LLP 3000.039#2.2 — set null never changes any rule's verdict, moves a row between audiences, or rewrites a fact resolved through the reference.
 pub fn set_null_refusal(schema: &Schema, name: &str, table: &Table, column: &str) -> Option<String> {
     let audience = table.sync.as_ref().is_some_and(|sync| match &sync.audience {
         Audience::Public => false,

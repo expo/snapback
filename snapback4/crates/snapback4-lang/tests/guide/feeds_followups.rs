@@ -142,7 +142,7 @@ fn every_rolling_rank_page_matches_sort_filter_oracle() {
     expected[10].2 += 1;
     write(&mut e,&mut clock,"remove","author",&[("postId",id("p014"))]);
     expected[14].3 = true;
-    // A like names its post (`on delete restrict` by default, LLP 3000.038): delete them first.
+    // A like names its post (`on delete restrict` by default, LLP 3000.039): delete them first.
     for like in 0..24 % 5 { e.seed_delete("likes",&format!("l24-{like}")).unwrap(); }
     e.seed_delete("posts","p024").unwrap();
     expected[24].4 = false;

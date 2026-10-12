@@ -32,6 +32,9 @@ The pattern under every recipe: rules say who may touch a row at all, a
 answers with your code, and the table's sync line (or `online only`) says
 whose device holds it. `guide refusals` gives the order the checks run in.
 
+On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
+deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts").
+
 ## Roles: admin, staff and members
 
 Everyone signed in is a member. A `roles` row makes a principal staff or an
@@ -304,65 +307,23 @@ Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 
 ## Deleting: cascade, restrict, set null, keep
 
-Each reference column says what deleting its target does to the rows that
-name it. Undeclared is `on delete restrict`.
-
 ```quarry
 table projects:
   owner: principal
   read <- .owner = viewer
-  insert <- .owner = viewer
-  delete <- .owner = viewer
-table folders:
-  owner: principal
-  read <- .owner = viewer
   delete <- .owner = viewer
 table tasks:
-  project: projects on delete cascade     -- deleted with the project, in the same commit
-  folder: folders ? on delete set null    -- cleared; only an optional reference no rule reads
-  owner: principal
-  cap 500 by project                      -- cascade and set null need a cap on the reference
-  cap 500 by folder
-  read <- .owner = viewer
-  insert <- .owner = viewer
+  project: projects on delete cascade   -- deleted with it; needs a cap
+  cap 500 by project
+  read <- allow
 table comments:
-  task: tasks on delete restrict          -- the default: the task's delete refuses E_REFERENCED
-  author: principal
-  read <- .author = viewer
-table audits:
-  task: tasks on delete keep              -- stays, naming a deleted task (the meaning before 0.5)
-  read <- deny
+  task: tasks on delete restrict        -- the default: refuses E_REFERENCED
+  read <- allow
 mutation dropProject(id: projects):
-  delete projects[id]                     -- its tasks go too, unless a comment still names one
-mutation dropFolder(id: folders):
-  delete folders[id]                      -- its tasks stay, unfiled
+  delete projects[id]                   -- its tasks too, unless a comment names one
 ```
 
-- `restrict` refuses while a live row references the target, naming
-  `comments.task`; the deleter learns only that some row does. Anyone whose
-  insert rule admits a referencing row can hold your row this way, so a
-  reference other principals create to your rows (a like, a bookmark, an
-  RSVP) should be `cascade`.
-- `cascade` deletes the referencing rows, and their references act in turn;
-  rows the same delete removes never hold each other back. The parent's
-  delete authorizes it (the children's rules are not consulted), and nothing
-  the caller sees — meter, touched tables, event count — depends on how many
-  there were: each delete reserves its chain's worst case from the caps. A
-  cascade too large for a mutation is refused by `check` (E_CASCADE_BOUND):
-  lower the cap, or keep `restrict` and delete the children in a job first.
-- `set null` clears an optional reference that carries no authority: no rule
-  of any table reads it (E_REFERENCE_ACTION otherwise). `keep` is for
-  history that outlives its subject.
-- A table that `restrict`, `cascade` or `set null` references name needs its
-  deleter to read the row too (N_DELETE_NEEDS_READ). Expiry is not a delete:
-  an expired target fires nothing. Writes still do not check that a target
-  exists: insert parents with minted ids, and write
-  `insert <- … and exists projects[.project]` where a child needs a live one.
-- A device predicts such a delete only when it holds every referencing row;
-  otherwise the call queues for the server.
-- Since 0.5 an undeclared reference refuses instead of keeping its rows;
-  `check` names each delete that changed (N_DELETE_RESTRICTED). Declare
-  `on delete keep` to restore the old meaning.
+`set null` clears an optional reference no rule reads; `keep` leaves rows naming the deleted one (the 0.4 meaning, N_DELETE_RESTRICTED). The parent's delete authorizes the cascade and reserves its worst case (E_CASCADE_BOUND); its deleter must read the row (N_DELETE_NEEDS_READ). Others can hold your row under restrict, so their likes and RSVPs should cascade. Expiry fires nothing.
 
 ## Schedules: close at a time, remind ahead, catch up
 

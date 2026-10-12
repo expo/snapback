@@ -343,7 +343,7 @@ fn strip_pending(data: Option<&Json>) -> Option<Json> {
             if row.get("pending") == Some(&json!({"Bool": true})) {
                 row.remove("pending");
             }
-            // A referential `observe` returns `{ item, kids }` (LLP 3000.038 §9).
+            // A referential `observe` returns `{ item, kids }` (LLP 3000.039 §9).
             if row.contains_key("item") && row.contains_key("kids") { row.values_mut().for_each(strip); }
         }
         // A wide `observe` returns `[items[key], items[k2]]`.

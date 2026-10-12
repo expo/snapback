@@ -24,13 +24,20 @@ model choice, unless `OPEN.md` says otherwise):
   card).
 * `return insert …` becomes a bound write followed by `return` of the
   binding.
+* `exists t[k]` (a key) is the point read `t[k] != null`; only a search
+  `exists t where …` is an `exists_` (LLP 3000.036 §15.12; OPEN C5).
+* A row-independent test in a returned page's `where` is the compiler's
+  `if` guard: `return t where G and R …` is `if G: return t where R …
+  else: return []`, and `G or R` is `if G:` the page without a filter, else
+  the page over `R` (LLP 3000.036 §15.4). The emitter applies the
+  compiler's own lowering, so the model runs the program the engine runs.
 -/
 
 namespace Quarry
 
 /-! ## Schema -/
 
-/-- What deleting a referenced row does to the rows naming it (LLP 3000.038
+/-- What deleting a referenced row does to the rows naming it (LLP 3000.039
 §2). A reference with no action keeps its rows (`on delete keep`). -/
 inductive OnDelete where
   | restrict | cascade | setNull
@@ -41,7 +48,7 @@ structure ColDecl where
   nullable : Bool
   /-- The table a reference column names, when it is one. -/
   ref : Option String := none
-  /-- The reference's delete action; `none` keeps the rows (LLP 3000.038 §2). -/
+  /-- The reference's delete action; `none` keeps the rows (LLP 3000.039 §2). -/
   onDelete : Option OnDelete := none
   deriving Repr, DecidableEq
 
@@ -132,7 +139,8 @@ inductive Expr where
       (order : List String) (desc : Bool) (take : Nat) (after : Option Expr)
   /-- `count(t where pins and filter)` -/
   | count (t : String) (pins : List (String × Expr)) (filter : Option Expr)
-  /-- `exists t where pins and filter` (and `exists t[key]`). -/
+  /-- A search `exists t where pins and filter` (`exists t[key]` is a point
+  read compared with null). -/
   | exists_ (t : String) (pins : List (String × Expr)) (filter : Option Expr)
   deriving Repr, Inhabited
 

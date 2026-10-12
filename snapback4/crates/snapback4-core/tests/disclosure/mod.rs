@@ -63,7 +63,7 @@ impl Pair {
             "{}\ntable pairAnchor:\n  public\n  online only\n",
             self.source
         );
-        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        let b = crate::generated::runtime_compile(&[("schema.q".into(), source)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
         let mut rows = self.seeds[world]
             .iter()

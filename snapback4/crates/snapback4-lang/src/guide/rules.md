@@ -354,15 +354,16 @@ mutation markRead(memberId: members, readUpTo: int) predicts:
 
 E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated
 field is not yours. Name a required principal column on this table, declare a
-default, and omit the field when writing another principal's row. For a private
-field needed in an index or aggregate, append `readable by audience` only when
-that disclosure matches the application. It requires `written by` first.
-An unreadable update or refused delete target, and an absent upsert refused
-by either insert authority or field ownership, keep `NOT_FOUND` with the same
-refusal and meter. This includes callers whose insert rule allows the row but
-who cannot supply another owner's private field. Direct inserts and readable targets retain
-`E_FIELD_AUTHORITY` with the owner-specific repair. The trusted system
-principal retains its existing rule bypass.
+default, and omit the field when writing another principal's row. A private
+field in an index or aggregate needs `readable by audience` (after `written by`)
+when that disclosure fits. An unreadable update or refused delete target, and an
+absent upsert refused by insert authority or field ownership, keep `NOT_FOUND`
+with the same refusal and meter. Direct inserts and readable targets keep
+`E_FIELD_AUTHORITY`; the system keeps its rule bypass. A page over private
+fields must "scope this read to a uniformly readable audience" (a walk over
+hidden rows counts them): `check` refuses a scan its pins do not decide, role
+guard or not. Pin the read rule's column (`visits where .parent = viewer`), move
+the field to its own table keyed by the row, or make it `readable by audience`.
 
 Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`,
 `why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.

@@ -1184,3 +1184,78 @@ fn schema_first_init_after_check_replaces_generated_files() {
     fs::write(dir.0.join("package.json"), r#"{"scripts":{"typecheck":"npx tsc --project ./tsconfig.json --noEmit"}}"#).unwrap();
     assert!(dir.run("--expo").status.success());
 }
+
+/// Wave 7 (R3, 5 lanes: 004 038 064 082 091): beside an all-`online only`
+/// schema the README said "It works offline and syncs when the link returns"
+/// and init's summary "offline-capable". Both now follow the synced tables, at
+/// init and at `--adapt`, and adapt still recognizes 0.4.22's README.
+#[test]
+fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
+    let online = "use identity\ntable orders:\n  owner: principal\n  title: text 1..80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery mine(c: cursor ?):\n  return orders where .owner = viewer first 20 by .id after c\n";
+    let synced = format!("{online}table notes:\n  owner: principal\n  body: text <=200\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\n");
+    for flag in ["--web", "--expo"] {
+        let dir = Dir::new();
+        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+        fs::write(dir.0.join("snapback/schema.q"), online).unwrap();
+        let output = dir.init(&[flag]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success() && stdout.contains("online reads (no table declares `sync`") && !stdout.contains("offline-capable"), "{flag}: {stdout}");
+        let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
+        let flat = readme.replace('\n', " ");
+        assert!(!readme.contains("works offline") && !readme.contains("work offline"), "{flag}: {readme}");
+        assert!(flat.contains("no table in `snapback/*.q` declares `sync`, so reads need the server. Writes made offline are kept on this device"), "{flag}: {readme}");
+        assert!(readme.lines().all(|line| line.matches('`').count() % 2 == 0 || line.starts_with("```") || line.contains("``")), "{flag}: no code span is wrapped: {readme}");
+        // The schema grows a synced table: adapt rewrites only that paragraph.
+        fs::write(dir.0.join("snapback/schema.q"), &synced).unwrap();
+        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        assert!(String::from_utf8_lossy(&checked.stdout).contains("README.md: the unmodified starter README says what works offline for another schema"), "{flag}: {checked:?}");
+        let adapted = dir.init(&["--adapt"]);
+        assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote README.md"), "{flag}: {adapted:?}");
+        let after = fs::read_to_string(dir.0.join("README.md")).unwrap();
+        assert!(after.replace('\n', " ").contains("the synced table (`notes`) reads and writes offline"), "{flag}: {after}");
+        assert_eq!(after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(),
+            readme.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: nothing else changes");
+        assert!(dir.init(&["--adapt"]).status.success());
+        assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), after, "{flag}: adapt is idempotent");
+        // 0.4.22's README (the unconditional claim) is still the starter's, and is rewritten.
+        let legacy = match flag {
+            "--web" => after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>().join("\n\n")
+                .replace("the Snapback 4 web starter.", "the Snapback 4 web starter. It works offline and syncs when the link returns."),
+            _ => after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>().join("\n\n")
+                .replace("open the native device; Expo Go uses the online client; web uses the wasm\ndevice.", "open the native device and work offline; Expo Go uses the online client; web\nuses the wasm device."),
+        };
+        assert_ne!(legacy, after);
+        fs::write(dir.0.join("README.md"), &legacy).unwrap();
+        assert!(dir.init(&["--adapt"]).status.success());
+        assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), after, "{flag}: 0.4.22's README is rewritten");
+        // A README the project edited is never touched.
+        fs::write(dir.0.join("README.md"), format!("{after}\nMy notes.\n")).unwrap();
+        fs::write(dir.0.join("snapback/schema.q"), online).unwrap();
+        assert!(dir.init(&["--adapt"]).status.success());
+        assert!(fs::read_to_string(dir.0.join("README.md")).unwrap().ends_with("My notes.\n"));
+    }
+    // The todo starter's own schema syncs its one table; its README keeps its claim.
+    let dir = Dir::new();
+    let output = dir.init(&["--web"]);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Vite + React todos, offline-capable"));
+    assert!(fs::read_to_string(dir.0.join("README.md")).unwrap().contains("It works offline and syncs when the link returns."));
+}
+
+/// Wave 7 (11 lanes): seven lanes hand-edited 4400/5173/4173 and asked for one
+/// option that sets the backend and page ports together; `--port N` already
+/// does, but init's success line named only `--web-port`.
+#[test]
+fn init_names_the_one_flag_that_moves_both_ports() {
+    let dir = Dir::new();
+    let stdout = String::from_utf8_lossy(&dir.init(&["--web"]).stdout).into_owned();
+    assert!(stdout.contains("`init --web --port N` sets the backend to N and the page to N+1 together"), "{stdout}");
+    let dir = Dir::new();
+    let stdout = String::from_utf8_lossy(&dir.init(&["--web", "--port", "20010"]).stdout).into_owned();
+    assert!(stdout.contains("http://127.0.0.1:20010") && stdout.contains("http://localhost:20011") && !stdout.contains("sets the backend to N"), "{stdout}");
+    let dir = Dir::new();
+    let stdout = String::from_utf8_lossy(&dir.init(&["--expo"]).stdout).into_owned();
+    assert!(stdout.contains("`init --expo --port N` sets the client's URL"), "{stdout}");
+    let help = Command::new(BIN).args(["init", "--help"]).output().unwrap();
+    let help = String::from_utf8_lossy(&help.stdout);
+    assert!(help.contains("--port N") && help.contains("the page on N+1") && help.contains("one flag moves all of them"), "{help}");
+}

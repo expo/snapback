@@ -1,4 +1,4 @@
-//! Exhaustive small-scope checking of referential actions (LLP 3000.038 §9).
+//! Exhaustive small-scope checking of referential actions (LLP 3000.039 §9).
 //!
 //! Every sequence of up to two operations (three with
 //! `SNAPBACK4_EXHAUSTIVE_DEPTH=3`) by two viewers over two boards

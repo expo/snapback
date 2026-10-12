@@ -451,7 +451,7 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
     }
     fn asset_arg(arg: &ArgType) -> bool {
         match arg {
-            ArgType::Image { .. } | ArgType::Video { .. } => true,
+            ArgType::Image { .. } | ArgType::Video { .. } | ArgType::File { .. } => true,
             ArgType::Optional(inner) | ArgType::List { of: Some(inner), .. } | ArgType::ListRange { of: Some(inner), .. } => asset_arg(inner),
             _ => false,
         }

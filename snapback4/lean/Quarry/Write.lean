@@ -26,7 +26,7 @@ writes card:
   authority (`NOT_FOUND`); then its delete closes over `cascade` references,
   refuses `E_REFERENCED` while a `restrict` reference names a closure row
   from outside the closure, clears `set null` references outside it, and
-  removes the closure (LLP 3000.038 §3).
+  removes the closure (LLP 3000.039 §3).
 
 The order in which checks run when several fail is not documented; the
 model's order is OPEN W1–W6.
@@ -159,7 +159,7 @@ def insertId (fs : List (String × Scalar)) : Except Stop (List Nat) :=
   | some (.id x) => pure x
   | _ => throw eInput
 
-/-! ## Referential actions (LLP 3000.038 §3) -/
+/-! ## Referential actions (LLP 3000.039 §3) -/
 
 /-- Every reference that names table `t` and carries an action:
 `(child table, column, action)`. -/
@@ -209,7 +209,7 @@ def storeSize (sch : Schema) (s : Store) : Nat := sch.tables.foldl (fun n td => 
 
 /-- The store after deleting `old` from `t` with its referential actions, or
 `E_REFERENCED`. With no action-carrying reference into `t`, exactly
-`removeRow` (LLP 3000.038 §1). -/
+`removeRow` (LLP 3000.039 §1). -/
 def refDelete (sch : Schema) (s : Store) (t : String) (old : Row) : Except Stop Store :=
   let cl := closure sch s (storeSize sch s + 1) [(t, old)] [(t, old)]
   if restricted sch s cl then throw (.refuse "E_REFERENCED")

@@ -39,6 +39,13 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
   new write.
 - Values: `time` is Unix milliseconds; `bytes` is lowercase hex; a reference is
   its row's id string. Numbers: see below.
+- Uploads: `POST /assets` with the file's bytes as the raw body (not JSON, not multipart; the
+  server sniffs JPEG, PNG, WebP or MP4 and ignores `Content-Type`), as the uploader, answers
+  `{asset: {id, type, bytes, width, height, duration}}`, or `{denied}`: `E_ASSET_TYPE` (other
+  bytes), `E_ASSET_TOO_LARGE`, 400 for an empty body, 401 `E_AUTH`, 413 past 64 MiB. Pass the
+  asset to a mutation's `image`/`video`/`file` argument as `{"id": "<asset id>"}`; `GET /assets/<id>`
+  returns the bytes to a viewer the row's read rule admits, else 404 `E_ASSET_UNKNOWN`.
+  `curl -X POST $U/assets -H 'x-snapback-persona: alice' --data-binary @receipt.png`
 - A job is not a client call (E_OP): a schedule fires it, and in dev
   `/dev/jobs/<job>` or `snapback4 run <job>` runs one.
 - GET `/changes?since=<seq>&wait=25` long-polls. It answers `{seq, tables,
@@ -105,8 +112,23 @@ Dev only, same machine; `serve` refuses each one.
   names its own (any unique string; `idFrom(label)` gives a stable one), a
   reseed updates the mutable columns of an existing row, and a different value
   for an `immutable` column refuses E_CONSTRAINT ("… is immutable; /seed is an
-  upsert by id …"): keep the original value, use a new id, or restart dev with
-  `--memory`. A principal field holds `"dev:alice"`, not `"alice"`.
+  upsert by id …"): keep the original value, use a new id, `POST /dev/reset`
+  first, or restart dev with `--memory`. A principal field holds `"dev:alice"`,
+  not `"alice"`.
+- `/dev/reset` empties the store for the next test, in one transaction: every
+  application row, view and maintained column, the sync log, the effect, job
+  and action queues, uploaded assets, and accounts with their sessions
+  (signed-up users, guests). The adopted schema, personas and service seats
+  (`snapback4 token`, the dev worker's) stay. The store takes a new identity:
+  a local client re-acquires the new store by itself, an online client halts
+  with `E_STORE_REPLACED` (`createApp` reopens it). The head keeps counting.
+  The body is empty, a `/seed` array, or `{"seed": [..], "clock": "reset"}`
+  (either key optional): seed rows are written as `/seed` writes them, in the
+  same transaction (a refused row resets nothing), and `"clock": "reset"`
+  drops `--clock-offset` and every advance (by default the dev clock stays).
+  It answers `{reset: true, seeded: N, generation, storeId, previousStoreId,
+  head, now, clockOffsetMs, ms}` in a few milliseconds on a small store;
+  `snapback4 reset [--port N] [--seed fixtures] [--clock reset]` posts it.
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.
@@ -124,7 +146,7 @@ a number for `text`), or an argument the operation does not take is **400**
 `{denied:{code:"E_INPUT"}}`. No or a dead credential (or an undeclared
 persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP, and
 a declared one at the wrong door (a job or query at `/m/`, a mutation at
-`/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed`) is **413**. Once
+`/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed` and `/dev/reset`) is **413**. Once
 decoded, the operation runs, and everything it refuses is **200**: a query
 answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
 checks made while it runs — a missing required argument, text outside its
@@ -147,6 +169,23 @@ A refusal is `{code, family, message, site?, rule?, rewrite?, guide?}`, and
 local refusal for the same mistake, before anything is sent; the wire's code is
 `E_ID_REUSED`.
 
-The full reference, including `/assets`, the rest of `/auth`, worker and action
+## Uploads and downloads
+
+`POST /assets` takes the raw bytes as the body and answers `{"asset":{id,type,bytes,…}}`
+or `{denied}`; a mutation then places `{"id": …}` in its `image`, `video` or `file`
+argument. An image or video is sniffed from its bytes. A document for a `file`
+column adds `?as=file&name=<percent-encoded filename>` and declares its type,
+which the server checks against the bytes (`guide assets`, "Files"):
+
+```sh
+curl -s -X POST "$U/assets?as=file&name=March%20receipt.pdf" -H 'x-snapback-persona: alice' -H 'Content-Type: application/pdf' --data-binary @receipt.pdf
+# {"asset":{"id":"…","type":"application/pdf","bytes":48213,"name":"March receipt.pdf","width":null,"height":null,"duration":null}}
+curl -s -OJ "$U/assets/<id>" -H 'x-snapback-persona: alice'   # Content-Disposition: attachment names the file
+```
+
+`GET /assets/<id>` is 404 E_ASSET_UNKNOWN when hidden or gone; a file always
+arrives as an attachment, and `Range` works on ordinary assets.
+
+The full reference, including the rest of `/auth`, worker and action
 doors, and clock headers, is "The wire" in CLIENT-AND-OPERATIONS.md §5, which
 ships in the package beside README.md.

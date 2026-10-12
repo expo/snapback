@@ -100,6 +100,36 @@ def roomStore : Store := mkStore [
                 mkRow "x2" [("roomId", I "r1"), ("body", T "yo")],
                 mkRow "x3" [("roomId", I "r2"), ("body", T "secret")]])]
 
+/-- LLP 3000.036 §12.1's staff console: `read <- .owner = viewer or exists
+staff[viewer]`, with each staff member able to read their own staff row
+(`hiddenRoster`: nobody can, `read <- deny`). -/
+def console (hiddenRoster : Bool := false) : Schema := { tables := [
+  { name := "staff", cols := [c "principal"], uniques := [["principal"]]
+    read := if hiddenRoster then .deny else .eq (self "principal") .viewer },
+  { name := "tickets", cols := [c "owner"]
+    read := .or (.eq (self "owner") .viewer) (.probe "staff" [("principal", .viewer)]) }] }
+
+def consoleStore : Store := mkStore [
+  ("staff", [mkRow "s1" [("principal", I "alice")]]),
+  ("tickets", [mkRow "k1" [("owner", I "alice")], mkRow "k2" [("owner", I "bob")]])]
+
+def allTickets : Program := query [.ret (.page "tickets" [] none [] false 10 none)]
+
+/-- LLP 3000.036 §16.3's boards: `cards: read <- .author = viewer or exists
+boards[.board, owner = viewer]`, the board readable by everyone
+(`hiddenBoards`: by nobody, `read <- deny`). -/
+def boardsSchema (hiddenBoards : Bool := false) : Schema := { tables := [
+  { name := "boards", cols := [c "owner"], read := if hiddenBoards then .deny else .allow },
+  { name := "cards", cols := [c "board", c "author"]
+    read := .or (.eq (self "author") .viewer) (.probe "boards" [("id", self "board"), ("owner", .viewer)]) }] }
+
+def boardStore : Store := mkStore [
+  ("boards", [mkRow "b1" [("owner", I "olga")], mkRow "b2" [("owner", I "olga")]]),
+  ("cards", [mkRow "k1" [("board", I "b1"), ("author", I "ann")],
+             mkRow "k2" [("board", I "b1"), ("author", I "bo")]])]
+
+def boardCards (b : String) : Program := query [.ret (.page "cards" [("board", idE b)] none [] false 10 none)]
+
 def plain : Schema := { tables := [] }
 def identityHelper : Helper := { name := "identity", params := ["x"], body := .var "x" }
 
@@ -312,6 +342,60 @@ def examples : List Example := [
               program := scalar (.coalesce (.field (.point "todos" [("id", idE "nope")]) "title") (txt "none")) }
     tables := []
     expected := r#"{"kind":"answer","data":"none","complete":true,"next":null}"# },
+  { name := "exists-search-witness"
+    source := "LLP 3000.036 §15.12: a readable match proves presence: `true`, `complete: false` when the pins do not decide the rule"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.exists_ "todos" [] (some (.bin .eq (.dot "title") (txt "a")))) }
+    tables := []
+    expected := r#"{"kind":"answer","data":true,"complete":false,"next":null}"# },
+  { name := "exists-search-undecided-absence"
+    source := "LLP 3000.036 §15.12: with no readable match an undecided scan has no answer (never `false`)"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.exists_ "todos" [] (some (.bin .eq (.dot "title") (txt "b")))) }
+    tables := []
+    expected := r#"{"kind":"unavailable"}"# },
+  { name := "exists-search-decided-absence"
+    source := "LLP 3000.036 §15.12: a domain the pins decide (`.owner = viewer and …`) still answers `false`"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.exists_ "todos" [("ownerId", .viewer)] (some (.bin .eq (.dot "title") (txt "b")))) }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# },
+  { name := "page-grant-holder"
+    source := "LLP 3000.036 §12.1: a staff console's list is `complete: true` for staff"
+    case := { schema := console, store := consoleStore, viewer := alice, program := allTickets }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":true,"next":null}"# },
+  { name := "page-grant-other"
+    source := "LLP 3000.036 §12.1: … and unchanged for everyone else"
+    case := { schema := console, store := consoleStore, viewer := bob, program := allTickets }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
+  { name := "page-grant-hidden-roster"
+    source := "LLP 3000.036 §12.1: a hidden roster (`read <- deny`) is not a grant; the rows stay readable through the rule's probe"
+    case := { schema := console true, store := consoleStore, viewer := alice, program := allTickets }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
+  { name := "page-parent-guard-holder"
+    source := "LLP 3000.036 §16.3: `exists boards[.board, owner = viewer]` under `.board = b` decides the board owner's page"
+    case := { schema := boardsSchema, store := boardStore, viewer := cps "olga", program := boardCards "b1" }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"},{"id":"k2","board":"b1","author":"bo"}],"complete":true,"next":null}"# },
+  { name := "page-parent-guard-other"
+    source := "LLP 3000.036 §16.3: an author who does not own the board pages her own rows, `complete: false`"
+    case := { schema := boardsSchema, store := boardStore, viewer := cps "ann", program := boardCards "b1" }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"}],"complete":false,"next":null}"# },
+  { name := "page-parent-guard-hidden"
+    source := "LLP 3000.036 §16.1: a pin-decided probe its holders cannot read decides nothing"
+    case := { schema := boardsSchema true, store := boardStore, viewer := cps "olga", program := boardCards "b1" }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"},{"id":"k2","board":"b1","author":"bo"}],"complete":false,"next":null}"# },
+  { name := "exists-parent-guard-absence"
+    source := "LLP 3000.036 §15.12, §16.3: a scan its pins decide for the caller proves absence"
+    case := { schema := boardsSchema, store := boardStore, viewer := cps "olga",
+              program := scalar (.exists_ "cards" [("board", idE "b2")] none) }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# },
   { name := "id-not-text"
     source := "ticket 20260913 rule-equality-id-string: an id never equals a text"
     case := { schema := plain, store := Store.empty, viewer := alice,
@@ -320,7 +404,7 @@ def examples : List Example := [
     expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# }
 ]
 
-/-! ## Referential actions (LLP 3000.038) -/
+/-! ## Referential actions (LLP 3000.039) -/
 
 def refCol (n t : String) (a : Option OnDelete) (nullable := false) : ColDecl := { name := n, nullable, ref := some t, onDelete := a }
 
@@ -343,19 +427,19 @@ def projectStore (note : Bool) : Store := mkStore [
 
 def refExamples : List Example := [
   { name := "delete-cascade"
-    source := "LLP 3000.038 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
+    source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
     case := { schema := projectsSchema, store := projectStore false, viewer := alice,
               program := mutation [.write none (.delete "projects" [("id", idE "p")])] }
     tables := ["projects", "tasks", "tags", "logs"]
     expected := r#"{"kind":"committed","result":null,"store":{"projects":[],"tasks":[],"tags":[{"id":"g","task":null}],"logs":[{"id":"l","task":"t1"}]}}"# },
   { name := "delete-restrict-through-cascade"
-    source := "LLP 3000.038 §3 step 4: a restrict reference to a closure row refuses E_REFERENCED"
+    source := "LLP 3000.039 §3 step 4: a restrict reference to a closure row refuses E_REFERENCED"
     case := { schema := projectsSchema, store := projectStore true, viewer := alice,
               program := mutation [.write none (.delete "projects" [("id", idE "p")])] }
     tables := []
     expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
   { name := "delete-referenced-needs-read"
-    source := "LLP 3000.038 §3 step 1: a referenced row's deleter must read it (NOT_FOUND)"
+    source := "LLP 3000.039 §3 step 1: a referenced row's deleter must read it (NOT_FOUND)"
     case := { schema := projectsSchema, store := projectStore false, viewer := alice,
               program := mutation [.write none (.delete "tasks" [("id", idE "t1")])] }
     tables := []
