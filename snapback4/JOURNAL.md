@@ -92737,3 +92737,26 @@ verbatim under `cases/found/rewrite-commute--metered--E_OVERFLOW`, with a
 diagnosis. The smoke target passes 9/9, including both refused operand
 orders and a successful execution of the same expression. LLP 3000.035
 §5.1 records the comparison rule.
+
+## 2026-10-12 — LANG2 post-merge quality bar completes
+
+The five-crate Rust check completed 351 targets: 5,528 passed, one failed,
+38 existing ignores. Its sole failure was the clock assertion fixed in
+`798326f938`; the full clock target reran green (25/25). All other targets
+passed, covering 5,529 passing tests after that scoped correction. LANG2
+passed 8 device and 11 language tests; guide 118/118, readauth 88/88 and
+the unchanged authoring census pass. README budget: 319/320 lines.
+
+`run` seeds 0–99,999 on the corrected harness (`62d86c5a02`, release, eight
+workers) compiled 100,000 cases and made 4,710,628 calls with zero findings,
+generator errors or unexpected refusals (669.70 s); smoke 9/9 passes.
+`run-lean` on the merged model supports 77,344 cases, with 76,322 agreeing
+and only 1,022 classified C2/W4 disagreements (exit 1, 439.84 s). Calendar
+coverage is unchanged: 5,875 agree, 550 unsupported, nine known prelude
+disagreements before the calendar body. No new signatures.
+
+The wasm rebuild exactly matches 2,174,248 B raw / 655,243 B gzip; budget
+655,743 stays (+3,539 B over sb4-loop's measured device, plus 500 B
+headroom). `ref-check` passes. Both round-2 reviews were READY WITH CHANGES,
+with dispositions already recorded; neither remained NOT READY. LLP
+3000.040 §11 records the final checks and explicit deferrals. No push.
