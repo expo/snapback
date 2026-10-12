@@ -531,3 +531,91 @@ query stableNestedShadow(owner: principal, other: principal):
     assert_eq!(result(&controls, "stableShadow"), &Ty::Int);
     assert_eq!(result(&controls, "stableNestedShadow"), &Ty::Int);
 }
+
+#[test]
+fn lexical_names_never_become_authored_rule_constants_after_substitution() {
+    let schema = r#"
+table boolEntries:
+  flag: bool
+  read <- allow
+  online only
+view trueTotals: count boolEntries by .flag
+  read <- .flag
+  online only
+table stateEntries:
+  state: enum('visible', 'hidden')
+  read <- allow
+  online only
+view stateTotals: count stateEntries by .state
+  read <- .state = 'visible'
+  online only
+"#;
+    for name in ["allow", "public", "deny"] {
+        for (shape, body) in [
+            ("argument", format!("query bad{name}({name}: bool):\n  return trueTotals[{name}] + 1\n")),
+            ("alias", format!("query bad{name}Alias(key: bool):\n  {name} = key\n  return trueTotals[{name}] + 1\n")),
+            ("loop", format!("query bad{name}Loop():\n  for {name} in [false]:\n    value = trueTotals[{name}] + 1\n  return 0\n")),
+        ] {
+            let bound = compile(&[("schema.q".into(), format!("{schema}{body}").into())]);
+            assert!(
+                bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                    && diagnostic.message.contains("int ?")),
+                "{name} {shape}: {:#?}",
+                bound.diagnostics
+            );
+        }
+    }
+    let enum_collision = compile(&[(
+        "schema.q".into(),
+        format!(
+            "{schema}query enumCollision(visible: enum('visible', 'hidden')):\n  return stateTotals[visible] + 1\n"
+        )
+        .into(),
+    )]);
+    assert!(
+        enum_collision
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+        "{:#?}",
+        enum_collision.diagnostics
+    );
+
+    let guarded = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{schema}
+query guardedAllow(allow: bool):
+  require allow else NOT_ALLOWED
+  return trueTotals[allow] + 1
+query guardedPublic(public: bool):
+  require public else NOT_ALLOWED
+  return trueTotals[public] + 1
+query guardedDeny(deny: bool):
+  require deny else NOT_ALLOWED
+  return trueTotals[deny] + 1
+query guardedEnum(visible: enum('visible', 'hidden')):
+  require visible = 'visible' else NOT_ALLOWED
+  return stateTotals[visible] + 1
+"#
+        )
+        .into(),
+    )]);
+    assert!(guarded.diagnostics.is_empty(), "{:#?}", guarded.diagnostics);
+    for name in ["guardedAllow", "guardedPublic", "guardedDeny", "guardedEnum"] {
+        assert_eq!(result(&guarded, name), &Ty::Int, "{name}");
+    }
+
+    for name in ["true", "false", "viewer"] {
+        let bound = compile(&[(
+            "schema.q".into(),
+            format!("{schema}query reserved({name}: bool):\n  return trueTotals[{name}]\n").into(),
+        )]);
+        assert!(
+            bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_RESERVED"),
+            "{name}: {:#?}",
+            bound.diagnostics
+        );
+    }
+}

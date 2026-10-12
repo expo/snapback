@@ -391,3 +391,95 @@ query denied(owner: principal):
     system.args.insert("owner".into(), id("alice"));
     assert_eq!(e.query("denied", system).unwrap().data, Value::Int(0));
 }
+
+#[test]
+fn maintain_authorization_notes_distinguish_lexicals_from_rule_constants() {
+    let source = r#"
+table boolEntries:
+  flag: bool
+  read <- allow
+  online only
+view trueTotals: count boolEntries by .flag
+  read <- .flag
+  online only
+table stateEntries:
+  state: enum('visible', 'hidden')
+  read <- allow
+  online only
+view stateTotals: count stateEntries by .state
+  read <- .state = 'visible'
+  online only
+query bareAllow(allow: bool):
+  return trueTotals[allow]
+query barePublic(public: bool):
+  return trueTotals[public]
+query bareDeny(deny: bool):
+  return trueTotals[deny]
+query aliasAllow(key: bool):
+  allow = key
+  return trueTotals[allow]
+query aliasPublic(key: bool):
+  public = key
+  return trueTotals[public]
+query aliasDeny(key: bool):
+  deny = key
+  return trueTotals[deny]
+query loopAllow():
+  for allow in [false]:
+    return trueTotals[allow]
+  return 0
+query loopPublic():
+  for public in [false]:
+    return trueTotals[public]
+  return 0
+query loopDeny():
+  for deny in [false]:
+    return trueTotals[deny]
+  return 0
+query enumCollision(visible: enum('visible', 'hidden')):
+  return stateTotals[visible]
+query guardedAllow(allow: bool):
+  require allow else NOT_ALLOWED
+  return trueTotals[allow]
+query guardedPublic(public: bool):
+  require public else NOT_ALLOWED
+  return trueTotals[public]
+query guardedDeny(deny: bool):
+  require deny else NOT_ALLOWED
+  return trueTotals[deny]
+query guardedEnum(visible: enum('visible', 'hidden')):
+  require visible = 'visible' else NOT_ALLOWED
+  return stateTotals[visible]
+"#;
+    let b = bound(source);
+    let notes: Vec<_> = b
+        .notes
+        .iter()
+        .filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION")
+        .collect();
+    let expected = [
+        "bareAllow",
+        "barePublic",
+        "bareDeny",
+        "aliasAllow",
+        "aliasPublic",
+        "aliasDeny",
+        "loopAllow",
+        "loopPublic",
+        "loopDeny",
+        "enumCollision",
+    ];
+    assert_eq!(notes.len(), expected.len(), "{notes:#?}");
+    for name in expected {
+        assert!(
+            notes.iter().any(|note| note.message.contains(&format!("query {name}"))),
+            "{name}: {notes:#?}"
+        );
+    }
+    for name in ["guardedAllow", "guardedPublic", "guardedDeny", "guardedEnum"] {
+        assert!(
+            !notes.iter().any(|note| note.message.contains(&format!("query {name}"))),
+            "{name}: {notes:#?}"
+        );
+    }
+}

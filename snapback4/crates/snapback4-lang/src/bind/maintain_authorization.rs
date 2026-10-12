@@ -156,6 +156,7 @@ fn substituted_view_rule(maintain: &crate::ast::MaintainDecl, rule: &RuleDecl, r
         if let Some(column) = &key.column { keys.insert(column.clone(), key.value.clone()); }
     }
     let mut expected = rule.value.clone();
+    super::program::maintain_types::normalize_rule_constants(&mut expected);
     super::intent_walk::expression(&mut expected, &mut |expr| {
         if let Expr::Member { base, name, .. } = expr
             && matches!(base.as_ref(), Expr::Focal { .. })
@@ -171,8 +172,6 @@ fn substituted_view_rule(maintain: &crate::ast::MaintainDecl, rule: &RuleDecl, r
 /// comparison with an argument remains caller-dependent.
 fn constant_bool(expression: &Expr) -> Option<bool> {
     match expression {
-        Expr::Name { name, .. } if matches!(name.as_str(), "allow" | "public" | "true") => Some(true),
-        Expr::Name { name, .. } if matches!(name.as_str(), "deny" | "false") => Some(false),
         Expr::Literal { value: crate::ast::Literal::Bool(value), .. } => Some(*value),
         Expr::Unary { op, value, .. } if op == "not" => constant_bool(value).map(|value| !value),
         Expr::Binary { op, left, right, .. } if op == "and" => match (constant_bool(left), constant_bool(right)) {

@@ -162,14 +162,6 @@ impl Binder<'_> {
 
     fn value_identity(&self, value: &A, domain: AuthorizationDomain, roots: &mut BTreeSet<String>) -> Option<String> {
         match value {
-            A::Name { name, .. }
-                if matches!(
-                    name.as_str(),
-                    "allow" | "public" | "true" | "deny" | "false"
-                ) =>
-            {
-                Some(format!("bool:{name}"))
-            }
             A::Unary { op, value, .. } => {
                 Some(format!("unary:{op}:{}", self.value_identity(value, domain, roots)?))
             }
@@ -230,8 +222,6 @@ impl Binder<'_> {
 
     fn condition_known(&self, condition: &A, truth: bool) -> bool {
         match condition {
-            A::Name { name, .. } if matches!(name.as_str(), "allow" | "public" | "true") => truth,
-            A::Name { name, .. } if matches!(name.as_str(), "deny" | "false") => !truth,
             A::Literal {
                 value: Literal::Bool(value),
                 ..
@@ -340,6 +330,7 @@ fn substituted_rule(maintain: &ast::MaintainDecl, read: &ReadExpr) -> Option<A> 
         }
     }
     let mut expected = rule.value.clone();
+    normalize_rule_constants(&mut expected);
     super::super::intent_walk::expression(&mut expected, &mut |expr| {
         if let A::Member { base, name, .. } = expr
             && matches!(base.as_ref(), A::Focal { .. })
@@ -349,4 +340,23 @@ fn substituted_rule(maintain: &ast::MaintainDecl, read: &ReadExpr) -> Option<A> 
         }
     });
     Some(expected)
+}
+
+/// Rule constants occupy their own namespace. Freeze that identity before a
+/// group field is replaced by a program expression whose lexical name may be
+/// `allow`, `public`, or `deny`.
+pub(in crate::bind) fn normalize_rule_constants(expression: &mut A) {
+    super::super::intent_walk::expression(expression, &mut |expr| {
+        let A::Name { name, site } = expr else { return };
+        let value = match name.as_str() {
+            "allow" | "public" => true,
+            "deny" => false,
+            _ => return,
+        };
+        let site = site.clone();
+        *expr = A::Literal {
+            value: Literal::Bool(value),
+            site,
+        };
+    });
 }
