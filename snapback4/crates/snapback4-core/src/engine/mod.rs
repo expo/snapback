@@ -815,6 +815,7 @@ impl Engine {
         }
         // An existing durable receipt owns its id even after conversion to ephemeral.
         if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
+            self.require_non_media_ephemeral(&context.viewer,op)?;
             self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
             return match self.mutate_ephemeral(name, context) {
                 Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),

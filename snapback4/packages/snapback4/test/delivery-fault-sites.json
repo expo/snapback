@@ -1324,160 +1324,167 @@
   },
   {
     "index": 189,
-    "id": "assets.ts:uploadAsset:doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })#1",
+    "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:error})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 190,
-    "id": "assets.ts:uploadAsset:response.json()#1",
+    "id": "assets.ts:uploadAsset:doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 191,
-    "id": "assets.ts:uploadAsset:new Promise(resolve => setTimeout(resolve, delay))#1",
+    "id": "assets.ts:uploadAsset:response.json()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 192,
-    "id": "app-uploads.ts:uploadAndPlace:refusal()#1",
+    "id": "assets.ts:uploadAsset:new Promise(resolve => setTimeout(resolve, delay))#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 193,
-    "id": "app-uploads.ts:uploads:refusal()#1",
+    "id": "app-uploads.ts:uploadAndPlace:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 194,
-    "id": "app-uploads.ts:uploads:uploads.uploads()#1",
+    "id": "app-uploads.ts:uploads:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 195,
-    "id": "app-uploads.ts:uploadIntent:refusal()#1",
+    "id": "app-uploads.ts:uploads:uploads.uploads()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 196,
-    "id": "app-uploads.ts:uploadIntent:uploads.uploadIntent(id)#1",
+    "id": "app-uploads.ts:uploadIntent:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 197,
-    "id": "app-uploads.ts:retryUpload:refusal()#1",
+    "id": "app-uploads.ts:uploadIntent:uploads.uploadIntent(id)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 198,
-    "id": "app-uploads.ts:discardUpload:refusal()#1",
+    "id": "app-uploads.ts:retryUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 199,
-    "id": "app-uploads.ts:serverUploads:refusal()#1",
+    "id": "app-uploads.ts:discardUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 200,
-    "id": "app-uploads.ts:serverUploads:uploads.serverUploads(after)#1",
+    "id": "app-uploads.ts:serverUploads:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 201,
-    "id": "app-uploads.ts:cancelServerUpload:refusal()#1",
+    "id": "app-uploads.ts:serverUploads:uploads.serverUploads(after)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 202,
-    "id": "web-upload-admission.ts:authorizeUpload:storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })#1",
+    "id": "app-uploads.ts:cancelServerUpload:refusal()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 203,
-    "id": "web-upload-admission.ts:authorizeUpload:sameAdmissionAuthority(stamp, context, viewer)#1",
+    "id": "web-upload-admission.ts:authorizeUpload:storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 204,
-    "id": "web-upload-admission.ts:authorizeUpload:execute()#1",
+    "id": "web-upload-admission.ts:authorizeUpload:sameAdmissionAuthority(stamp, context, viewer)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 205,
-    "id": "web-upload-admission.ts:recoverUploadHistory:receiptHistory(persist, name)#1",
+    "id": "web-upload-admission.ts:authorizeUpload:execute()#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 206,
-    "id": "web-upload-admission.ts:recoverUploadHistory:invoke({op:\"check_upload_receipt\",entry,write:known})#1",
+    "id": "web-upload-admission.ts:recoverUploadHistory:receiptHistory(persist, name)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 207,
-    "id": "web-upload-admission.ts:check:recoverUploadHistory(invoke,persist,name,entry)#1",
+    "id": "web-upload-admission.ts:recoverUploadHistory:invoke({op:\"check_upload_receipt\",entry,write:known})#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 208,
-    "id": "web-upload-admission.ts:preflightUpload:authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)#1",
+    "id": "web-upload-admission.ts:check:recoverUploadHistory(invoke,persist,name,entry)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 209,
-    "id": "web-upload-admission.ts:preflightUpload:check()#1",
+    "id": "web-upload-admission.ts:preflightUpload:authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)#1",
     "recipe": "upload",
     "classification": "required",
     "absorbs": false
   },
   {
     "index": 210,
+    "id": "web-upload-admission.ts:preflightUpload:check()#1",
+    "recipe": "upload",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 211,
     "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 211,
+    "index": 212,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
     "classification": "optional",

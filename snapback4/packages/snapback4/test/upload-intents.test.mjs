@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {createHash} from 'node:crypto';
@@ -239,4 +239,55 @@ test('entering shared ownership survives histories of earlier orphans in the sam
   await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'protected',state:'sent',seq:1,replayed:true}])}]);
   const dest=await opener.open(name,null);t.after(()=>dest.close());assert.equal((await dest.call({op:'queued'})).ok.some(e=>e.id==='protected'),false);
   assert.ok([...persist.stores.values()].some(s=>[...s.values()].some(c=>c.s==='o'&&c.v&&JSON.parse(c.v).id==='protected')));
+});
+
+
+test('readiness schema refusal persists blocked reason and stops automatic uploads',async t=>{
+  const {DeviceUploads}=await import('../dist/uploads.js');
+  const backend=JSON.parse(readFileSync(new URL('./chat-schema.json',import.meta.url),'utf8'));backend.programs.find(p=>p.name==='send').args.photo={Optional:{Image:{max:100000}}};
+  const persist=memoryPersistence(),core=await webDevice({wasm,persist}).open('readiness-schema',backend);t.after(()=>core.close());
+  await core.call({op:'apply',first:true,page:{snapshot:true,store_id:'A',generation:1,events:[],watermark:0,more:false}});
+  let attempts=0;const env={base:'http://media.invalid',viewer:'dev:alice',current:()=>true,unavailable:()=>null,storeId:()=> 'A',capture:async()=>({store_id:'A'}),credentials:()=>({headers:{},revision:1}),
+    entry:(id,op,args)=>({id,seq:1,op,args,viewer:'dev:alice',now:1}),call:r=>core.call(r),queued:async()=>(await core.call({op:'queued'})).ok,notify(){},flush(){},
+    fetch:async input=>{if(new URL(input).pathname.endsWith('/declare'))return Response.json({ok:true});attempts++;return Response.json({asset:{id:'asset1',type:'image/png',bytes:4,width:1,height:1,duration:null}});}};
+  const uploads=new DeviceUploads(env);await uploads.uploadAndPlace({kind:'mutation',name:'send'},{conversationId:'c1',body:'capture'},new Uint8Array([137,80,78,71]),{id:'schema-change',argument:'photo'});
+  const changed=structuredClone(backend);delete changed.programs.find(p=>p.name==='send').args.photo;
+  const revision=(await core.call({op:'sync_state',capture:false})).ok.send_revision;assert.ok(!(await core.call({op:'adopt',backend:changed,store_id:'A',send_revision:revision})).denied);
+  await uploads.prepare((await env.queued())[0]);const held=(await env.queued())[0];assert.equal(held.upload.state,'blocked');assert.equal(held.upload.why.code,'E_UPLOAD_ARGUMENT');assert.equal(held.upload.bytes,'89504e47');
+  await uploads.prepare(held);assert.equal(attempts,1,'permanent readiness refusal waits for explicit retry/discard');
+});
+
+test('HTTP media placement cannot execute after durable-to-ephemeral adoption', {timeout:hangBudget(120)},async t=>{
+  const {url,dir}=await server(t,undefined,source,{watch:true});const headers={'x-snapback-persona':'alice','content-type':'application/json'};
+  const store=(await fetch(url+'/probe',{headers}).then(r=>r.json())).store_id;
+  const post=(path,value)=>fetch(url+path,{method:'POST',headers,body:JSON.stringify(value)}).then(r=>r.json());
+  assert.equal((await post(`/assets/intent/converted/declare?store_id=${store}`,{digest:createHash('sha256').update(pdf).digest('hex'),file:{type:'application/pdf',name:'a.pdf'},placement:{op:'attach',args:{},argument:'doc'}})).ok,true);
+  const uploaded=await fetch(`${url}/assets?as=file&name=a.pdf&intent=converted&store_id=${store}`,{method:'POST',headers:{...headers,'content-type':'application/pdf'},body:pdf}).then(r=>r.json());assert.ok(uploaded.asset);
+  const replacement=source.replace('return insert docs { owner: viewer, doc }','return insert live { owner: viewer }')+'\ntable live:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  ephemeral 1m\nquery active():\n  live first 100 by .id\n';
+  writeFileSync(join(dir,'snapback/schema.q'),replacement);
+  await until(async()=>{const backend=await fetch(url+'/schema',{headers}).then(r=>r.json());return backend.schema?.operations?.attach?.ephemeral;},'ephemeral adoption');
+  const payload={id:'converted',store_id:store,args:{doc:uploaded.asset}};
+  for(let i=0;i<2;i++)assert.equal((await post('/m/attach',payload)).why.code,'E_UPLOAD_INTENT');
+  const active=await post('/q/active',{args:{}});assert.deepEqual(active.data,[]);
+  const finalized=await post(`/assets/intent/converted/finish?store_id=${store}`,{op:'attach',args:payload.args,why:{code:'E_UPLOAD_INTENT',family:'asset',message:'operation became ephemeral'}});assert.equal(finalized.state,'failed');
+  assert.equal((await post('/m/attach',payload)).replayed,true);
+  assert.deepEqual((await fetch(`${url}/assets/intents?store_id=${store}`,{headers}).then(r=>r.json())).intents,[]);
+});
+
+test('HTTP declaration and refusal finalization enforce persisted metadata bounds',async t=>{
+  const {url}=await server(t,undefined,source);const headers={'x-snapback-persona':'alice','content-type':'application/json'};
+  const store=(await fetch(url+'/probe',{headers}).then(r=>r.json())).store_id;
+  const post=(path,value)=>fetch(url+path,{method:'POST',headers,body:JSON.stringify(value)}).then(r=>r.json());
+  const declaration={digest:createHash('sha256').update(pdf).digest('hex'),file:{name:'a.pdf',type:'application/pdf'},placement:{op:'attach',args:{},argument:'doc'}};
+  const large=structuredClone(declaration);large.placement.args.body='x'.repeat(64<<10);
+  assert.equal((await post(`/assets/intent/too-large/declare?store_id=${store}`,large)).denied.code,'E_UPLOAD_ARGUMENT');
+  const envelope=structuredClone(declaration);envelope.padding='x'.repeat(96<<10);
+  assert.equal((await post(`/assets/intent/envelope/declare?store_id=${store}`,envelope)).denied.code,'E_UPLOAD_ARGUMENT');
+  assert.equal((await post(`/assets/intent/bounded/declare?store_id=${store}`,declaration)).ok,true);
+  const uploaded=await fetch(`${url}/assets?as=file&name=a.pdf&intent=bounded&store_id=${store}`,{method:'POST',headers:{...headers,'content-type':'application/pdf'},body:pdf}).then(r=>r.json());
+  const body={op:'attach',args:{doc:uploaded.asset},why:{code:'E_INPUT',family:'input',message:'x'.repeat(4097)}};
+  assert.equal((await post(`/assets/intent/bounded/finish?store_id=${store}`,body)).denied.code,'E_UPLOAD_ARGUMENT');
+  for(const field of ['code','family','guide']){body.why={code:'E_INPUT',family:'input',message:'bounded',[field]:'x'.repeat(129)};assert.equal((await post(`/assets/intent/bounded/finish?store_id=${store}`,body)).denied.code,'E_UPLOAD_ARGUMENT');}
+  assert.equal((await fetch(`${url}/assets/intents?store_id=${store}`,{headers}).then(r=>r.json())).intents[0].id,'bounded','rejected finalization keeps recoverable pin');
+  body.why={code:'E_INPUT',family:'input',message:'bounded'};assert.equal((await post(`/assets/intent/bounded/finish?store_id=${store}`,body)).state,'failed');
 });

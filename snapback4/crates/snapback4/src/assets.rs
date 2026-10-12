@@ -303,6 +303,7 @@ pub fn finish(request: Request, id: &str, body: Vec<u8>, shared: &Shared) {
     let params = crate::serve::query_params(request.url());
     let result = (|| {
         let payload: serde_json::Value = serde_json::from_slice(&body).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
+        if serde_json::to_vec(&payload).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?.len()>96<<10 {return Err(snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"finalization envelope exceeds 96 KiB".into()});}
         let name = payload.get("op").and_then(serde_json::Value::as_str).ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs op".into()))?;
         let args = payload.get("args").ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs args".into()))?;
         let why: Refusal = serde_json::from_value(payload.get("why").cloned().unwrap_or_default()).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
@@ -335,6 +336,7 @@ pub fn declare(request:Request,id:&str,body:Vec<u8>,shared:&Shared){
     let result=(||{
         if id.is_empty()||id.len()>128||!id.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'||b==b'_'){return Err(snapback4_core::RuntimeError::Input("invalid upload intent id".into()));}
         let payload:serde_json::Value=serde_json::from_slice(&body).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?;
+        if serde_json::to_vec(&payload).map_err(|e|snapback4_core::RuntimeError::Input(e.to_string()))?.len()>96<<10 {return Err(snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"declaration envelope exceeds 96 KiB".into()});}
         let digest=payload["digest"].as_str().filter(|s|s.len()==64&&s.bytes().all(|b|b.is_ascii_digit()||(b'a'..=b'f').contains(&b))).ok_or_else(||snapback4_core::RuntimeError::Input("declaration needs SHA-256 of the selected bytes".into()))?;
         let placement=&payload["placement"];
         let argument=placement["argument"].as_str().filter(|a|!a.is_empty()).ok_or_else(||snapback4_core::RuntimeError::Input("declaration needs its asset argument".into()))?;

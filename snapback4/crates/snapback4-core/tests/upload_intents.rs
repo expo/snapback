@@ -69,3 +69,31 @@ fn engine() -> Engine {
     assert_eq!(reopened.sweep_assets(UNCLAIMED_TTL_MS+100).unwrap(),1);
     drop(reopened);std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test] fn adoption_to_ephemeral_refuses_media_before_effect_and_finalizes_durably() {
+    use snapback4_core::Context;
+    let mut e=engine();
+    let staged=e.prepare_file("alice","application/pdf","a.pdf",9,1).unwrap().with_intent("converted","fp").with_placement(serde_json::json!({"op":"attach","args":{},"argument":"doc"})).write(b"%PDF-1.7\n").unwrap();
+    let asset=e.finish_asset(staged).unwrap();
+    let replacement="table live:\n  owner: principal\n  ephemeral 1m\n  read <- .owner = viewer\n  insert <- .owner = viewer\nmutation attach(doc: file <=100000 ('application/pdf')):\n  return insert live { owner: viewer }\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),replacement.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let args=serde_json::json!({"doc":{"id":asset.id,"type":asset.content_type,"bytes":asset.bytes,"width":null,"height":null,"duration":null,"name":asset.name}});
+    let why=e.mutate("attach",Some("converted"),Context::new("alice",Default::default()).with_wire_args(args.clone())).unwrap_err().refusal();assert_eq!(why.code,"E_UPLOAD_INTENT");
+    assert_eq!(e.mutate("attach",Some("converted"),Context::new("alice",Default::default()).with_wire_args(args.clone())).unwrap_err().refusal().code,"E_UPLOAD_INTENT");
+    e.finish_asset_intent("alice","converted","attach",&args,&why).unwrap();
+    assert!(e.mutate("attach",Some("converted"),Context::new("alice",Default::default()).with_wire_args(args)).unwrap().replayed);
+    assert_eq!(e.sweep_assets(UNCLAIMED_TTL_MS+100).unwrap(),1);
+}
+
+#[test] fn persisted_declaration_and_finalization_metadata_are_bounded(){
+    let mut e=engine();
+    let oversized=serde_json::json!({"op":"attach","args":{"body":"x".repeat(64<<10)},"argument":"doc"});
+    assert_eq!(e.declare_asset_intent("alice","oversized","fp",&oversized).unwrap_err().refusal().code,"E_UPLOAD_ARGUMENT");assert!(e.asset_declaration("alice","oversized").unwrap().is_none());
+    let envelope=serde_json::json!({"op":"x".repeat(96<<10),"args":{},"argument":"doc"});assert_eq!(e.declare_asset_intent("alice","envelope","fp",&envelope).unwrap_err().refusal().code,"E_UPLOAD_ARGUMENT");
+    let staged=e.prepare_file("alice","application/pdf","a.pdf",9,1).unwrap().with_intent("bounded","fp").with_placement(serde_json::json!({"op":"attach","args":{},"argument":"doc"})).write(b"%PDF-1.7\n").unwrap();let asset=e.finish_asset(staged).unwrap();
+    let args=serde_json::json!({"doc":{"id":asset.id,"type":asset.content_type,"bytes":asset.bytes,"width":null,"height":null,"duration":null,"name":asset.name}});
+    let too_long=snapback4_core::error::Refusal::new("E_INPUT","input","x".repeat(4097));assert_eq!(e.finish_asset_intent("alice","bounded","attach",&args,&too_long).unwrap_err().refusal().code,"E_UPLOAD_ARGUMENT");
+    assert!(e.replay_mutation("alice","bounded","attach",&args).unwrap().is_none());
+    let why=snapback4_core::error::Refusal::new("E_INPUT","input","bounded");assert!(e.finish_asset_intent("alice","bounded","attach",&args,&why).is_ok());
+}

@@ -62,6 +62,11 @@ export async function mediaFaultCase({t,site,mode,directory,createLocalClient,we
       attempts++;
       if(site.expression.includes('new Promise')) { if(attempts===1) return Response.json({denied:{code:'E_RATE_LIMIT',family:'limit',message:'busy',retryable:true}},{status:503}); fault(); }
       if(site.expression.includes('why: result.why')) return Response.json({denied:{code:'E_ASSET_TYPE',family:'asset',message:'wrong bytes'}});
+      if(site.expression.includes('why:error')){
+        const changed=structuredClone(backend);delete changed.programs.find(p=>p.name==='send').args.photo;
+        const revision=(await core.call({op:'sync_state',capture:false})).ok.send_revision;
+        assert.ok(!(await core.call({op:'adopt',backend:changed,store_id:'A',send_revision:revision})).denied);
+      }
       if(accepted===0) accepted++;
       return Response.json({asset});
     }};
@@ -120,6 +125,10 @@ export async function mediaFaultCase({t,site,mode,directory,createLocalClient,we
     assert.equal((await uploads.prepare(recovered)).cancelled,true);
   } else {
     env.fetch=async input=>{if(new URL(input).pathname.endsWith('/declare'))return Response.json({ok:true});if(!accepted)accepted++;return Response.json({asset});};
+    if(site.expression.includes('why:error')){
+      const revision=(await core.call({op:'sync_state',capture:false})).ok.send_revision;
+      await core.call({op:'adopt',backend,store_id:'A',send_revision:revision});
+    }
     await uploads.retryUpload('media1');
     const ready=await uploads.prepare((await queue())[0]);
     assert.equal(ready.entry.args.photo.id,'asset1');

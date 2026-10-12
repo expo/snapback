@@ -73,3 +73,36 @@ window.refuseMediaPersistence = () => {
   assert.equal(await page.evaluate(()=>placementCalls.length),0);assert.equal(await page.evaluate(()=>uploadCalls.length),0);
   assert.deepEqual(errors,[]);
 });
+
+for(const worker of [false,true])test(`Chromium (worker=${worker}): shared receipts cannot bypass live input or lose entering ownership across orphan histories`,{timeout:hangBudget(180)},async t=>{
+  const project=mkdtempSync(join(tmpdir(),'sb4-media-adoption-'));t.after(()=>rmSync(project,{recursive:true,force:true}));
+  const sourceDir=join(project,'snapback');mkdirSync(sourceDir);writeFileSync(join(sourceDir,'schema.q'),source);
+  const witness=await launch({sourceDir,seed:[],entrySource:`
+window.proveMediaRecovery=async backend=>{
+ const persist=indexedDbPersistence(),opener=${worker}?webDevice({worker:true}):webDevice({persist});
+ const make=bytes=>({id:'collision',seq:1,op:'attach',args:{},viewer:'dev:alice',now:1,upload:{bytes,argument:'doc',file:{name:'a.pdf',type:'application/pdf'},store_id:'A'}});
+ const bind=core=>core.call({op:'apply',first:true,page:{snapshot:true,store_id:'A',generation:1,events:[],watermark:0,more:false}});
+ const name='shared-live-browser';const first=await opener.open(name,backend),second=await opener.open(name,backend);
+ await bind(first);await bind(second);await first.call({op:'admit_upload',entry:make('ee')});await second.call({op:'admit_upload',entry:make('ff')});
+ const original=(await second.call({op:'queued'})).ok[0];
+ await second.call({op:'enqueue',entry:{id:'held-tail',seq:2,op:'attach',args:{},viewer:'dev:alice',now:1}});
+ await first.close();await second.close();
+ await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'collision',state:'sent',seq:1,replayed:true,upload_identity:{fingerprint:original.upload.fingerprint,op:'attach',viewer:'dev:alice',store_id:'A'}}])}]);
+ const dest=await opener.open(name,null);const queue=(await dest.call({op:'queued'})).ok;await dest.close();
+ const stores=await persist.others(name+':tab-');const copies=[];for(const store of stores)copies.push((await persist.load(store)).filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v)));
+ const name2='entering-browser';const devices=[];for(let i=0;i<3;i++){const d=await opener.open(name2,backend);await bind(d);devices.push(d);}
+ await devices[1].call({op:'set_meta',key:'write-history',value:JSON.stringify(Array.from({length:256},(_,n)=>({id:'evict'+n,state:'sent',seq:1,replayed:true})))});
+ const protectedEntry=make('ff');protectedEntry.id='protected';await devices[2].call({op:'admit_upload',entry:protectedEntry});
+ for(const d of devices)await d.close();
+ await persist.save(name2+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'protected',state:'sent',seq:1,replayed:true}])}]);
+ const dest2=await opener.open(name2,null);const next=(await dest2.call({op:'queued'})).ok;await dest2.close();
+ const retained=[];for(const store of await persist.others(name2+':tab-'))retained.push(...(await persist.load(store)).filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v)));
+ return {queue,copies,next,retained};
+};
+`});t.after(()=>witness.close());
+  const backend=await fetch(witness.api+'/schema',{headers:{'x-snapback-persona':'alice'}}).then(r=>r.json());
+  const result=await witness.page.evaluate(backend=>proveMediaRecovery(backend),backend);
+  assert.equal(result.queue.find(e=>e.id==='collision').upload.bytes,'ee');assert.equal(result.queue.some(e=>e.id==='held-tail'),false);
+  assert.ok(result.copies.some(items=>items.some(e=>e.upload?.bytes==='ff')&&items.some(e=>e.id==='held-tail')));
+  assert.equal(result.next.some(e=>e.id==='protected'),false);assert.equal(result.retained.find(e=>e.id==='protected').upload.bytes,'ff');
+});

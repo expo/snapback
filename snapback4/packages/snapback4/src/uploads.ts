@@ -221,7 +221,13 @@ export class DeviceUploads implements UploadClient {
       await this.change({ op: "upload_state", id: entry.id, viewer: this.env.viewer, state: "blocked", why: result.why });
       return;
     }
-    const ready = await this.change({ op: "upload_ready", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset });
+    let ready:Queued|undefined;
+    try { ready = await this.change({ op: "upload_ready", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset }); }
+    catch(error){
+      if(!isRefusal(error)||error.retryable)throw error;
+      if(current())await this.change({op:"upload_state",id:entry.id,viewer:this.env.viewer,state:"blocked",why:error});
+      return;
+    }
     if (!current() || !ready || ready.upload?.state !== "placing") return;
     return { entry: ready };
   }

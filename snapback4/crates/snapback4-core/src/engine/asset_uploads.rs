@@ -101,6 +101,7 @@ impl Engine {
     /// Commit a staged upload only if this engine still serves the schema
     /// generation under which it was admitted.
     pub fn finish_asset(&mut self, mut upload: assets::Upload) -> Result<Asset, RuntimeError> {
+        if let Some(placement)=&upload.placement{bounded_placement(placement)?;}
         if upload.generation != self.generation {
             return Err(RuntimeError::Generation(
                 "schema changed during upload; retry".into(),
@@ -135,9 +136,9 @@ impl Engine {
     /// Bind original placement and upload fingerprint before accepting byte transport.
     pub fn declare_asset_intent(&mut self, owner:&str,id:&str,fingerprint:&str,placement:&serde_json::Value)->Result<(),RuntimeError>{
         use rusqlite::OptionalExtension;
+        let encoded=bounded_placement(placement)?;
         let tx=self.store.transaction()?;
         let old:Option<(Option<String>,Option<String>,String)>=tx.conn().query_row("SELECT fingerprint,placement,state FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
-        let encoded=crate::json_codec::to_text(placement).map_err(|e|RuntimeError::Input(e.to_string()))?;
         if let Some((previous,binding,state))=old {
             if state=="cancelled"{return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this intent was cancelled".into()});}
             if previous.as_deref()!=Some(fingerprint)||binding.as_deref()!=Some(&encoded){return Err(RuntimeError::Asset{code:"E_ASSET_INTENT_REUSE",message:"intent declaration belongs to different bytes, metadata or placement".into()});}
@@ -154,6 +155,16 @@ impl Engine {
         if binding.as_ref().is_some_and(|(_,s)|s=="cancelled"){return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this intent was cancelled".into()});}
         let result=binding.and_then(|(p,_)|p).map(|p|crate::json_codec::from_text(&p).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
         tx.rollback()?;Ok(result)
+    }
+
+    /// A device-owned placing id cannot become an ephemeral execution after adoption.
+    // @ref LLP 3000.038.000#3 — media placement always settles through a durable receipt.
+    pub fn require_non_media_ephemeral(&self,owner:&str,id:Option<&str>)->Result<(),RuntimeError>{
+        if let Some(id)=id
+            && self.store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _asset_intents WHERE owner=?1 AND intent=?2)",[owner,id],|r|r.get::<_,bool>(0))? {
+            return Err(RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"upload-and-place requires a durable mutation; this operation became ephemeral".into()});
+        }
+        Ok(())
     }
 
     /// Replay before current-schema admission; dedup receipts outlive collection.
@@ -195,6 +206,9 @@ impl Engine {
         let cancelled=tx.conn().query_row("SELECT state='cancelled' FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|r.get::<_,bool>(0))?;
         if cancelled {tx.rollback()?;return Ok(MutationOutcome{receipt_only:true,state:WriteState::Failed{why:Refusal::new("E_UPLOAD_CANCELLED","asset","this intent was durably cancelled"),current:None},metered:Metered::default(),tables:Vec::new(),events:0,replayed:true});}
         assets::require_placement(&tx,owner,id,name,args)?;
+        if why.code.chars().count()>128 || why.family.chars().count()>128 || why.message.chars().count()>4096 || why.guide.as_ref().is_some_and(|g|g.chars().count()>128) {
+            return Err(RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"finalization refusal exceeds its 128-character fields or 4096-character message allowance".into()});
+        }
         let outcome = MutationOutcome { receipt_only:false, state:WriteState::Failed {why:why.clone(),current:None}, metered:Metered::default(),tables:Vec::new(),events:0,replayed:false };
         let seq = tx.next_seq()? - 1;
         tx.record_applied(owner,id,seq,&crate::json_codec::to_text(&outcome.receipt(Some(id))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
@@ -337,4 +351,14 @@ impl Engine {
         Ok(removed)
     }
 
+}
+
+// @ref LLP 3000.038.000#2 — the server bounds persisted declaration metadata too.
+fn bounded_placement(placement:&serde_json::Value)->Result<String,RuntimeError>{
+    let encoded=crate::json_codec::to_text(placement).map_err(|e|RuntimeError::Input(e.to_string()))?;
+    let args=crate::json_codec::to_text(&placement["args"]).map_err(|e|RuntimeError::Input(e.to_string()))?;
+    if args.len()>64<<10 || encoded.len()>96<<10 {
+        return Err(RuntimeError::Asset{code:"E_UPLOAD_ARGUMENT",message:"placing args exceed 64 KiB or placement metadata exceeds 96 KiB".into()});
+    }
+    Ok(encoded)
 }

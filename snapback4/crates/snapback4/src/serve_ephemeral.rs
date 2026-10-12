@@ -162,6 +162,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             }
             Err(why) => return failed(request, why),
             Ok(None) => {
+                if let Err(error)=engine.require_non_media_ephemeral(&principal,id.as_deref()) { return failed(request,error.refusal()); }
                 // @ref LLP 3000#http-overload-diagnostics — an ID alone does not deduplicate ephemeral writes, including after schema adoption.
                 if payload.get("retry_write").and_then(Json::as_bool) == Some(true) {
                     return failed(request, Refusal::new("E_INPUT", "input", "retry_write requires a durable mutation; refresh the operation signature"));
@@ -243,6 +244,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             if let Some(sites) = sites { context = super::dev_refusals::response::context(context, sites, reader.generation()); }
             let _timing = latency::EngineSpan::new();
             let result = intent_store(&reader, &payload).and_then(|()| {
+                reader.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                 reader
                     .mutate_ephemeral(op, context)
                     .map_err(|e| e.refusal())
@@ -262,6 +264,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             mutation_authority(&request, shared, &engine, &principal)
                 .and_then(|()| intent_store(&engine, &payload))
                 .and_then(|()| {
+                    engine.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                     engine
                         .mutate_ephemeral(op, context)
                         .map_err(|e| e.refusal())
