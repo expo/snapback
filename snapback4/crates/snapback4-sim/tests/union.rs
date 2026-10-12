@@ -1444,3 +1444,94 @@ fn an_expiring_move_into_another_arm_names_nothing_there() {
     engine.sweep_expired(NOW + 100, 100).unwrap();
     assert!(streams(&mut engine, MALLORY, NOW + 100).is_empty(), "nor after the sweep");
 }
+
+// Revision 7: exercise epoch transitions through both real device applicators.
+fn epoch_trace_applies<S: snapback4_device::store::DeviceStore>(store: S, backend: snapback4_device::device::Backend, trace: &[Json], query: &str, args: &Json, expected: &Value) {
+    let mut device = snapback4_device::device::Device::open_store(store, Some(backend)).unwrap();
+    for (n, page) in trace.iter().enumerate() {
+        let page = serde_json::from_value(page.clone()).unwrap();
+        device.apply(&page, n == 0).unwrap();
+    }
+    let (answer, unknown, _) = device.query_with_coverage(query, ALICE, args, NOW + 10);
+    let answer = answer.unwrap();
+    assert!(answer.complete && !unknown && !answer.unavailable, "{answer:?}, unknown={unknown}");
+    assert_eq!(&answer.data, expected);
+}
+
+fn epoch_snapshot_trace(engine: &mut Engine) -> Vec<Json> {
+    let mut trace = Vec::new();
+    let mut after = None;
+    loop {
+        let (page, next) = snapshot_page(engine, ALICE, after);
+        trace.push(page);
+        after = next;
+        if after.is_none() { return trace; }
+    }
+}
+
+fn epoch_stream_trace(engine: &mut Engine, from: u64, limit: usize, trace: &mut Vec<Json>) {
+    let mut watermark = from;
+    loop {
+        let page = engine.stream_at(ALICE, watermark, limit, NOW + 10).unwrap();
+        assert!(page.acquisitions.iter().all(|marker| marker.at <= page.events.len()), "marker past page: {page:?}");
+        let events: Vec<_> = page.events.iter().map(|e| json!({"data": e.data.as_ref().map(wire::to_json), "id": e.id, "kind": e.kind, "seq": e.seq, "table": e.table})).collect();
+        trace.push(json!({"acknowledged": {}, "events": events, "generation": engine.generation(), "joined": page.joined,
+            "more": page.more, "now": NOW + 10, "snapshot": false, "watermark": page.watermark, "acquisitions": page.acquisitions, "images_at": page.images_at}));
+        assert!(page.watermark > watermark || !page.more, "empty page must advance");
+        watermark = page.watermark;
+        if !page.more { break; }
+    }
+}
+
+#[test]
+fn an_obsolete_scope_does_not_shift_a_later_window_acquisition() {
+    let source = windowed_world().source;
+    let old = compiled(&source);
+    let new = compiled(&format!("{}\ntable staff:\n  principal: principal\n  unique principal\n  read <- exists staff[viewer]\n  insert <- exists staff[viewer]\n  sync\n",
+        source.replace("  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n", "  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n")));
+    for limit in [1, 1_000] {
+        let mut engine = Engine::memory(old.0.clone(), old.1.clone()).unwrap();
+        engine.seed_at(teams_seed(), NOW).unwrap();
+        let from = engine.seq().unwrap();
+        mutate(&mut engine, ALICE, "leave", &[("team", id("t1"))], 1);
+        engine.adopt(new.0.clone(), new.1.clone()).unwrap();
+        let mut trace = epoch_snapshot_trace(&mut engine);
+        engine.seed_at([("staff".to_owned(), object([("id", id("a-staff")), ("principal", id(ALICE))]))], NOW + 2).unwrap();
+        epoch_stream_trace(&mut engine, from, limit, &mut trace);
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), schema: new.0.public_projection(), programs: new.1.clone() };
+        // The group window is now the whole staff roster; querying the owner's
+        // own window is still certified, and exercises application of its peers' markers.
+        let expected = engine.query("myLatest", Context::new(ALICE, BTreeMap::new()).at(NOW + 10)).unwrap().data;
+        epoch_trace_applies(snapback4_device::memory::MemoryStore::new(), backend.clone(), &trace, "myLatest", &json!({}), &expected);
+        epoch_trace_applies(snapback4_core::Store::memory().unwrap(), backend, &trace, "myLatest", &json!({}), &expected);
+    }
+}
+
+#[test]
+fn a_first_post_epoch_renewal_keeps_history_without_granting_acquisition_history() {
+    let source = "table members:\n  group: text <=10\n  person: principal\n  until: time\n  immutable group, person\n  unique group, person\n  expire at .until\n  read <- .person = viewer\n  insert <- exists members[.group, viewer]\n  update <- .person = viewer\n  sync\ntable notes:\n  group: text <=10\n  body: text <=10\n  read <- exists members[.group, viewer]\n  insert <- allow\n  delete <- allow\n  sync\nquery notes(group: text <=10):\n  return notes where .group = group first 20 by .id\nmutation renewDelete(who: principal, until: time, note: notes):\n  upsert members[group = 'g', person = who] { until }\n  delete notes[note]\n  return null\n";
+    let old = compiled(&source.replace("  sync\nquery notes", "  online only\nquery notes"));
+    let new = compiled(source);
+    for limit in [1, 1_000] {
+        for lifetime in [Some(NOW + 100), Some(NOW + 1), None] {
+            let mut engine = Engine::memory(old.0.clone(), old.1.clone()).unwrap();
+            let mut rows = vec![("notes".into(), object([("id", id("n")), ("group", Value::String("g".into())), ("body", Value::String("x".into()))]))];
+            if let Some(until) = lifetime { rows.push(("members".into(), object([("id", id("m")), ("group", Value::String("g".into())), ("person", id(ALICE)), ("until", Value::Int(until))]))); }
+            engine.seed_at(rows, NOW).unwrap();
+            engine.adopt(new.0.clone(), new.1.clone()).unwrap();
+            let mut trace = epoch_snapshot_trace(&mut engine);
+            let from = engine.seq().unwrap();
+            let mut context = Context::system().at(NOW + 2);
+            context.args = BTreeMap::from([("who".into(), id(ALICE)), ("until".into(), Value::Int(NOW + 200)), ("note".into(), id("n"))]);
+            let outcome = engine.mutate("renewDelete", Some("renew-delete"), context).unwrap();
+            assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
+            epoch_stream_trace(&mut engine, from, limit, &mut trace);
+            if lifetime.is_none() {
+                assert!(trace.iter().flat_map(|p| p["events"].as_array().unwrap()).all(|e| !(e["table"] == "notes" && e["id"] == "n")), "a genuine acquisition learns no deleted id");
+            }
+            let backend = snapback4_device::device::Backend { generation: engine.generation(), schema: new.0.public_projection(), programs: new.1.clone() };
+            epoch_trace_applies(snapback4_device::memory::MemoryStore::new(), backend.clone(), &trace, "notes", &json!({"group":"g"}), &Value::Array(Vec::new()));
+            epoch_trace_applies(snapback4_core::Store::memory().unwrap(), backend, &trace, "notes", &json!({"group":"g"}), &Value::Array(Vec::new()));
+        }
+    }
+}

@@ -184,8 +184,10 @@ mod log_events {
     pub(super) fn scope(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value]) {
         events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(Value::Array(group.to_vec())) });
     }
-    pub(super) fn join(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value], expiry: Value) {
-        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(crate::value::object([("expiresAt", expiry)])) });
+    pub(super) fn join(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value], expiry: Value, predecessor: Option<Value>) {
+        let mut data = BTreeMap::from([("expiresAt".to_owned(), expiry)]);
+        if let Some(predecessor) = predecessor { data.insert("previousExpiresAt".into(), predecessor); }
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(Value::Row(data.into())) });
     }
 }
 
@@ -399,10 +401,13 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = runner.events.grant_count(&key);
-                    runner.born_grants.insert(key, earlier);
+                    runner.born_grants.insert(key.clone(), earlier);
                 }
             }
-            log_events::join(&mut runner.events, &content_name, partition, group, expiry(new));
+            // @ref LLP 3000.036.000.000#9 — the first renewal after an epoch retains the authority that a snapshot already acquired.
+            // A same-commit birth has no predecessor, even if it is renewed.
+            let predecessor = (was == is && !runner.born_grants.contains_key(&key)).then(|| expiry(old));
+            log_events::join(&mut runner.events, &content_name, partition, group, expiry(new), predecessor);
         }
         runner.meter.charge(MeterKind::Steps, 1)?;
     }
@@ -875,10 +880,13 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
         let fallback_expiry = || expiring.then_some(i64::MIN);
         let expiry = |event: &LogEvent| event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry);
         let steps = transitions.get(&key).map(Vec::as_slice).unwrap_or_default();
+        let predecessor = steps.first().filter(|event| event.kind == "join")
+            .and_then(|event| event.data.as_ref()).and_then(|data| data.field("previousExpiresAt").ok());
         let held_at_watermark = previous.get(&key).map_or_else(
-            || steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope"),
+            || steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope" || predecessor.is_some()),
             |event| event.kind == "join");
-        let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() } else { previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry) };
+        let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() }
+            else { previous.get(&key).map(&expiry).unwrap_or_else(|| predecessor.map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry)) };
         let origin = previous.get(&key).filter(|event| event.kind == "join").map(|event| (event.seq, event.ord, join_lifetime(event)));
         let mut open = held_at_watermark.then_some(Interval { from: watermark.saturating_add(1), from_ord: None, to: None, expires_at: initial_expiry, ends_in_join: false, origin });
         let mut spans = Vec::new();
@@ -961,6 +969,9 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     }
     let mut next = page.last().map_or(watermark, |event| event.seq);
     let more = !tx.read_log_spans(&spans, next, None, 1)?.is_empty();
+    // @ref LLP 3000.036.000.000#9 — filter old scopes before acquisition offsets are computed, preserving the unfiltered log watermark.
+    page.retain(|event| event.kind != "scope" || schema.table(&event.table).and_then(|table| table.sync.as_ref())
+        .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. })) && event.seq >= epochs.get(&event.table).copied().unwrap_or(0));
     let (mut events, acquisitions, joined) = expand_joins(tx, schema, principal, page, &held, now)?;
     if !more {
         next = next.max(head);
@@ -1006,10 +1017,6 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
             }
         }
     }
-    // @ref LLP 3000.036.000.000#9 — round 4 (GPT finding 2): a scope logged under an earlier audience is not this audience's revocation.
-    let epochs = audience_epochs(tx, schema)?;
-    events.retain(|event| event.kind != "scope" || schema.table(&event.table).and_then(|table| table.sync.as_ref())
-        .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. })) && event.seq >= epochs.get(&event.table).copied().unwrap_or(0));
     union_scopes(schema, principal, &mut events);
     Ok(StreamPage { images_at: Some(head), acquisitions, events, watermark: next, more, joined })
 }
@@ -1160,12 +1167,15 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         let predecessor = start.checked_sub(1).map(|i| &spans[i]).filter(|span| span.to == Some((event.seq, event.ord)));
         let expired_predecessor = predecessor.is_some_and(|span| span.ends_in_join
             && span.expires_at.is_some_and(|expiry| commit_times.get(&event.seq).is_some_and(|at| *at >= expiry)));
-        if expired_predecessor {
+        let continuous = predecessor.is_some_and(|span| continuous_renewal(span, event.seq, event.ord, &commit_times));
+        if continuous { continue; }
+        // @ref LLP 3000.036.000.000#4.4 — a live acquisition replaces the until-revoked group, including stale copies from before an epoch.
+        // This names only the group the currently live join chain grants,
+        // never an id deleted in the acquiring commit. R2 keeps column-arm rows.
+        if expired_predecessor || table.leave == crate::schema::LeavePolicy::UntilRevoked {
             let scope = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) };
             out.push(scope);
         }
-        let continuous = predecessor.is_some_and(|span| continuous_renewal(span, event.seq, event.ord, &commit_times));
-        if continuous { continue; }
         // `joined` certifies this acquisition, including an empty one. A live
         // renewal preserves its predecessor's coverage on every page boundary.
         if table.leave == crate::schema::LeavePolicy::DeliveredHistory {

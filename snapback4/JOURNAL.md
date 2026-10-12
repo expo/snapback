@@ -92683,3 +92683,19 @@ write sites, 714 census entries. The locked Linux web device measures
 2,164,773 B raw / 654,164 B gzip, +2,460 B over sb4-loop's 651,704 B
 measurement. The budget is 654,664 B (measurement + 500 B), up 2,460 B
 from 652,204 B. Revision 6's expiry retirement is SQLite-only.
+
+
+## 2026-10-12 — UNION revision 7: epoch transitions compose with acquisition
+
+GPT's sixth blind review found obsolete-scope filtering could invalidate
+window marker positions, and a first post-epoch continuous renewal could
+miss a deletion beside it. Filtering now precedes expansion, while the raw
+watermark passes removed scopes. Internal joins record a pre-commit
+renewal's previous deadline; same-commit births carry no predecessor.
+A currently live acquisition replaces its until-revoked group before
+putting current rows, so an expired replacement or an older join lacking
+metadata cannot preserve stale snapshot rows. Continuous renewals keep
+their existing rows and boundaries; a scope names only the acquired group,
+never an id deleted in the acquiring commit. R2 keeps column-arm rows.
+The new traces run both real stores at page sizes 1 and 1,000, covering
+markers, live renewal, expired replacement and genuine acquisition.

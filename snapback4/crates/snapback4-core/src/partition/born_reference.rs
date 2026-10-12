@@ -21,8 +21,10 @@ mod log_events {
     pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value]) {
         events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(Value::Array(group.to_vec())) });
     }
-    pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value) {
-        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(crate::value::object([("expiresAt", expiry)])) });
+    pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value, predecessor: Option<Value>) {
+        let mut data = BTreeMap::from([("expiresAt".to_owned(), expiry)]);
+        if let Some(predecessor) = predecessor { data.insert("previousExpiresAt".into(), predecessor); }
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(Value::Row(data.into())) });
     }
 }
 
@@ -197,10 +199,11 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                 let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = events.iter().filter(|event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2).count();
-                    runner.born_grants.insert(key, earlier);
+                    runner.born_grants.insert(key.clone(), earlier);
                 }
             }
-            log_events::join(events, &content_name, partition, group, expiry(new));
+            let predecessor = (was == is && !runner.born_grants.contains_key(&key)).then(|| expiry(old));
+            log_events::join(events, &content_name, partition, group, expiry(new), predecessor);
         }
         runner.meter.charge(MeterKind::Steps, 1)?;
     }
