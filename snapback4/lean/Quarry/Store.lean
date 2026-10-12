@@ -95,12 +95,47 @@ def Term.selfCols : Term → List String
   | .col .self c => [c]
   | _ => []
 
-def Rule.selfCols : Rule → List String
-  | .eq a b | .ne a b => a.selfCols ++ b.selfCols
-  | .probe _ key => key.flatMap fun p => p.2.selfCols
-  | .and a b | .or a b => a.selfCols ++ b.selfCols
-  | .not a => a.selfCols
-  | _ => []
+/-- Every term a rule compares or probes with, left to right. -/
+def Rule.terms : Rule → List Term
+  | .eq a b | .ne a b => [a, b]
+  | .probe _ key => key.map (·.2)
+  | .and a b | .or a b => a.terms ++ b.terms
+  | .not a => a.terms
+  | .allow | .deny => []
+
+def Rule.selfCols (r : Rule) : List String := r.terms.flatMap Term.selfCols
+
+/-- The rule with each term replaced by `f` of it. -/
+def Rule.mapTerms (f : Term → Term) : Rule → Rule
+  | .eq a b => .eq (f a) (f b)
+  | .ne a b => .ne (f a) (f b)
+  | .probe t key => .probe t (key.map fun p => (p.1, f p.2))
+  | .and a b => .and (a.mapTerms f) (b.mapTerms f)
+  | .or a b => .or (a.mapTerms f) (b.mapTerms f)
+  | .not a => .not (a.mapTerms f)
+  | .allow => .allow
+  | .deny => .deny
+
+/-- The disjuncts of a rule's top-level `or` (a rule that is not an `or` is
+its own single disjunct). -/
+def Rule.disjuncts : Rule → List Rule
+  | .or a b => a.disjuncts ++ b.disjuncts
+  | .allow => [.allow]
+  | .deny => [.deny]
+  | .eq a b => [.eq a b]
+  | .ne a b => [.ne a b]
+  | .probe t key => [.probe t key]
+  | .and a b => [.and a b]
+  | .not a => [.not a]
+
+/-- A rule without `not`. Over fewer rows a positive rule can only lose
+probe witnesses, so one true over the caller's view is true over the store
+(`Rule.eval_mono`); the engine likewise never takes a negated probe as a
+grant (LLP 3000.036 §12.1). -/
+def Rule.positive : Rule → Bool
+  | .not _ => false
+  | .and a b | .or a b => a.positive && b.positive
+  | .allow | .deny | .eq .. | .ne .. | .probe .. => true
 
 def readable (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : Bool :=
   match sch.table? t with

@@ -21,8 +21,15 @@ open Quarry
 #print axioms page_rows_readable
 #print axioms countRead_eq
 #print axioms existsRead_eq
+#print axioms existsRead_decided
+#print axioms granted_readable
+#print axioms uniform_readable_eq
+#print axioms Rule.eval_mono
+#print axioms Rule.eval_perm
 #print axioms query_ignores_hidden_insert
 #print axioms pageRead_complete
+#print axioms decided_store
+#print axioms pageRead_complete_store
 #print axioms walk_complete
 #print axioms cut_continuation
 #print axioms applyWrite_authorized

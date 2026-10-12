@@ -100,6 +100,21 @@ def roomStore : Store := mkStore [
                 mkRow "x2" [("roomId", I "r1"), ("body", T "yo")],
                 mkRow "x3" [("roomId", I "r2"), ("body", T "secret")]])]
 
+/-- LLP 3000.036 §12.1's staff console: `read <- .owner = viewer or exists
+staff[viewer]`, with each staff member able to read their own staff row
+(`hiddenRoster`: nobody can, `read <- deny`). -/
+def console (hiddenRoster : Bool := false) : Schema := { tables := [
+  { name := "staff", cols := [c "principal"], uniques := [["principal"]]
+    read := if hiddenRoster then .deny else .eq (self "principal") .viewer },
+  { name := "tickets", cols := [c "owner"]
+    read := .or (.eq (self "owner") .viewer) (.probe "staff" [("principal", .viewer)]) }] }
+
+def consoleStore : Store := mkStore [
+  ("staff", [mkRow "s1" [("principal", I "alice")]]),
+  ("tickets", [mkRow "k1" [("owner", I "alice")], mkRow "k2" [("owner", I "bob")]])]
+
+def allTickets : Program := query [.ret (.page "tickets" [] none [] false 10 none)]
+
 def plain : Schema := { tables := [] }
 def identityHelper : Helper := { name := "identity", params := ["x"], body := .var "x" }
 
@@ -312,6 +327,39 @@ def examples : List Example := [
               program := scalar (.coalesce (.field (.point "todos" [("id", idE "nope")]) "title") (txt "none")) }
     tables := []
     expected := r#"{"kind":"answer","data":"none","complete":true,"next":null}"# },
+  { name := "exists-search-witness"
+    source := "LLP 3000.036 §15.12: a readable match proves presence: `true`, `complete: false` when the pins do not decide the rule"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.exists_ "todos" [] (some (.bin .eq (.dot "title") (txt "a")))) }
+    tables := []
+    expected := r#"{"kind":"answer","data":true,"complete":false,"next":null}"# },
+  { name := "exists-search-undecided-absence"
+    source := "LLP 3000.036 §15.12: with no readable match an undecided scan has no answer (never `false`)"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.exists_ "todos" [] (some (.bin .eq (.dot "title") (txt "b")))) }
+    tables := []
+    expected := r#"{"kind":"unavailable"}"# },
+  { name := "exists-search-decided-absence"
+    source := "LLP 3000.036 §15.12: a domain the pins decide (`.owner = viewer and …`) still answers `false`"
+    case := { schema := todos, store := todoStore, viewer := alice,
+              program := scalar (.exists_ "todos" [("ownerId", .viewer)] (some (.bin .eq (.dot "title") (txt "b")))) }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# },
+  { name := "page-grant-holder"
+    source := "LLP 3000.036 §12.1: a staff console's list is `complete: true` for staff"
+    case := { schema := console, store := consoleStore, viewer := alice, program := allTickets }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":true,"next":null}"# },
+  { name := "page-grant-other"
+    source := "LLP 3000.036 §12.1: … and unchanged for everyone else"
+    case := { schema := console, store := consoleStore, viewer := bob, program := allTickets }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
+  { name := "page-grant-hidden-roster"
+    source := "LLP 3000.036 §12.1: a hidden roster (`read <- deny`) is not a grant; the rows stay readable through the rule's probe"
+    case := { schema := console true, store := consoleStore, viewer := alice, program := allTickets }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
   { name := "id-not-text"
     source := "ticket 20260913 rule-equality-id-string: an id never equals a text"
     case := { schema := plain, store := Store.empty, viewer := alice,

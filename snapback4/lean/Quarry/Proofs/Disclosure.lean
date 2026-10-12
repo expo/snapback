@@ -1,4 +1,5 @@
 import Quarry.Proofs.Walk
+import Quarry.Proofs.Grant
 
 /-!
 # No disclosure, and completeness soundness
@@ -102,13 +103,16 @@ theorem page_rows_readable {cx sch s v t ps filt order desc take cur rs d nx rs'
   obtain ⟨rows, hd, hr, -⟩ := pageRead_visible h
   exact ⟨rows, hd, fun r hm => List.mem_filter.1 (hr r hm)⟩
 
-/-- **Completeness soundness.** -/
+/-- **Completeness soundness.** A page that leaves `complete` true returned
+the first `take` qualifying visible candidates, and its scan was decided
+(by its pins or a readable grant); `decided_store` says what that means
+for the store's rows. -/
 theorem pageRead_complete {cx vw t ps filt order desc take cur rs d nx rs'} (p : Row → Bool)
     (hf : FiltIs filt p)
     (h : (pageRead cx vw t ps filt order desc take cur).run rs = .ok ((d, nx), rs'))
     (hc : rs'.complete = true) :
     d = .arr ((((candidates vw t ps order desc cur).filter p).take take).map Row.toValue) ∧
-      uniform cx.schema t ps = true := by
+      decided cx vw t ps = true := by
   unfold pageRead at h
   obtain ⟨w, rs1, hw, h⟩ := sbind_ok h
   split at h
@@ -119,15 +123,47 @@ theorem pageRead_complete {cx vw t ps filt order desc take cur rs d nx rs'} (p :
     obtain ⟨rfl, rfl⟩ := hv
     subst hrs
     obtain ⟨hmark, -⟩ := markIf_run hm
-    have hnot : ¬ ((w.stop = .cut || !(uniform cx.schema t ps)) = true) := by
+    have hnot : ¬ ((w.stop = .cut || !(decided cx vw t ps)) = true) := by
       intro hb; rw [hmark hb] at hc; cases hc
     simp only [Bool.or_eq_true, decide_eq_true_eq, Bool.not_eq_true', not_or] at hnot
     have hrows := walk_complete _ p hf _ _ _ _ _ _ _ _ (by simp) hw hnot.1
     simp only [List.reverse_nil, List.nil_append, List.length_nil, Nat.sub_zero] at hrows
     refine ⟨by rw [hrows], ?_⟩
-    cases hu : uniform cx.schema t ps
+    cases hu : decided cx vw t ps
     · exact absurd hu hnot.2
     · rfl
+
+/-- **A decided scan sees all of its rows or none.** Over the store's view,
+when the scan is decided for the caller, either every row of the store its
+pins select is readable to them (so the visible candidates are all the
+candidates), or none is (the empty answer is the true one). Either way a
+complete page hides nothing it claims to have covered. -/
+theorem decided_store {cx : Ctx} {s : Store} {t : String} {ps : List (String × Scalar)}
+    (hd : decided cx (visibleRows cx.schema s cx.viewer) t ps = true) :
+    (∀ r ∈ s t, keyMatch ps r = true → readable cx.schema s cx.viewer t r = true) ∨
+      (∀ r ∈ s t, keyMatch ps r = true → readable cx.schema s cx.viewer t r = false) := by
+  unfold decided at hd
+  rcases Bool.or_eq_true _ _ ▸ hd with hu | hg
+  · by_cases hany : ∃ r ∈ s t, keyMatch ps r = true ∧ readable cx.schema s cx.viewer t r = true
+    · obtain ⟨r0, -, hk0, hr0⟩ := hany
+      exact .inl fun r _ hk => (uniform_readable_eq hu hk hk0).trans hr0
+    · refine .inr fun r hr hk => ?_
+      cases hrd : readable cx.schema s cx.viewer t r
+      · rfl
+      · exact absurd ⟨r, hr, hk, hrd⟩ hany
+  · exact .inl fun r _ _ => granted_readable hg r
+
+/-- **A complete page covers the store**: the combination of
+`pageRead_complete` and `decided_store`. -/
+theorem pageRead_complete_store {cx s t ps filt order desc take cur rs d nx rs'} (p : Row → Bool)
+    (hf : FiltIs filt p)
+    (h : (pageRead cx (visibleRows cx.schema s cx.viewer) t ps filt order desc take cur).run rs = .ok ((d, nx), rs'))
+    (hc : rs'.complete = true) :
+    d = .arr ((((candidates (visibleRows cx.schema s cx.viewer) t ps order desc cur).filter p).take take).map Row.toValue) ∧
+      ((∀ r ∈ s t, keyMatch ps r = true → readable cx.schema s cx.viewer t r = true) ∨
+        (∀ r ∈ s t, keyMatch ps r = true → readable cx.schema s cx.viewer t r = false)) :=
+  let ⟨hd, hdec⟩ := pageRead_complete p hf h hc
+  ⟨hd, decided_store hdec⟩
 
 /-- **What a count reveals**: exactly the number of visible rows of the
 domain that match its filter. -/
@@ -160,23 +196,69 @@ theorem take_one_filter_isEmpty (p : Row → Bool) :
     · simp only [Bool.not_eq_true] at hp
       simp [hp, ih]
 
-/-- `exists domain` is true exactly when a visible row of the domain matches. -/
+theorem undecidedScalar_not_ok {α : Type} {cx : Ctx} {rs : RS} {r : α × RS}
+    (h : (undecidedScalar cx : EM α).run rs = .ok r) : False := by
+  unfold undecidedScalar at h
+  split at h <;>
+    simp [refuse, StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift] at h <;> cases h
+
+theorem cutScalar_not_ok {α : Type} {cx : Ctx} {rs : RS} {r : α × RS}
+    (h : (cutScalar cx : EM α).run rs = .ok r) : False := by
+  unfold cutScalar at h
+  split at h <;>
+    simp [refuse, StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift] at h <;> cases h
+
+/-- `exists domain` is true exactly when a visible row of the domain
+matches, whenever it answers (an undecided absence has no answer). -/
 theorem existsRead_eq {cx vw t ps filt rs d nx rs'} (p : Row → Bool) (hf : FiltIs filt p)
     (h : (existsRead cx vw t ps filt).run rs = .ok ((d, nx), rs')) :
     d = .ofBool ((candidates vw t ps [] false none).any p) := by
   unfold existsRead at h
   obtain ⟨w, rs1, hw, h⟩ := sbind_ok h
   split at h
-  · unfold cutScalar at h
-    split at h <;>
-      simp [refuse, StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift] at h <;> cases h
+  · exact (cutScalar_not_ok h).elim
   · rename_i hcut
-    obtain ⟨hv, -⟩ := pure_ok h
-    simp only [Prod.mk.injEq] at hv
-    obtain ⟨rfl, -⟩ := hv
     have hrows := walk_complete _ p hf _ _ _ _ _ _ _ _ (by simp) hw (by simpa using hcut)
     simp only [List.reverse_nil, List.nil_append, List.length_nil, Nat.sub_zero] at hrows
-    rw [hrows, take_one_filter_isEmpty, Bool.not_not]
+    have hany : (candidates vw t ps [] false none).any p = !w.rows.isEmpty := by
+      rw [hrows, take_one_filter_isEmpty, Bool.not_not]
+    split at h
+    · rename_i hempty
+      split at h
+      · obtain ⟨hv, -⟩ := pure_ok h
+        simp only [Prod.mk.injEq] at hv
+        rw [hv.1, hany, hempty]; rfl
+      · exact (undecidedScalar_not_ok h).elim
+    · rename_i hne
+      obtain ⟨_, rs2, -, h⟩ := sbind_ok h
+      obtain ⟨hv, -⟩ := pure_ok h
+      simp only [Prod.mk.injEq] at hv
+      rw [hv.1, hany]
+      simp [hne]
+
+/-- **An `exists` never answers `false` from an undecided scan** (LLP
+3000.036 §15.12), and a complete one was decided: either the scan was
+decided for the caller, or the answer is `true` (a visible witness) and
+the request is incomplete. -/
+theorem existsRead_decided {cx vw t ps filt rs d nx rs'}
+    (h : (existsRead cx vw t ps filt).run rs = .ok ((d, nx), rs')) :
+    decided cx vw t ps = true ∨ (d = .ofBool true ∧ rs'.complete = false) := by
+  unfold existsRead at h
+  obtain ⟨w, rs1, hw, h⟩ := sbind_ok h
+  split at h
+  · exact (cutScalar_not_ok h).elim
+  · split at h
+    · split at h
+      · rename_i hdec; exact .inl hdec
+      · exact (undecidedScalar_not_ok h).elim
+    · cases hdec : decided cx vw t ps
+      · obtain ⟨_, rs2, hm, h⟩ := sbind_ok h
+        obtain ⟨hv, hrs⟩ := pure_ok h
+        simp only [Prod.mk.injEq] at hv
+        obtain ⟨hmark, -⟩ := markIf_run hm
+        subst hrs
+        exact .inr ⟨hv.1, hmark (by simp [hdec])⟩
+      · exact .inl rfl
 
 /-! ## Hidden rows -/
 

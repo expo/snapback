@@ -9,6 +9,8 @@ is determined by the key order alone: however a store happens to hold a
 table's rows (any permutation), a page sees the same candidates in the same
 order (`sortRows_perm`, `candidates_perm`) and returns the same answer
 (`pageRead_perm`), provided ids are unique, because every key ends in `id`.
+A rule's verdict is order-independent too (`Rule.eval_perm`), so a
+readable grant decides the same way however the probed tables are held.
 -/
 
 namespace Quarry
@@ -104,12 +106,38 @@ theorem candidates_perm {vw1 vw2 : View} {t : String} {ps order desc cur}
   unfold candidates
   rw [sortRows_perm (hp.filter _) ((List.filter_sublist).map Row.id |>.nodup hn)]
 
-/-- **Scan order is determined by key order**: a page over two views that hold
-the same rows of its table, in any order, gives the same answer. -/
+/-- A rule's verdict does not depend on the order a store holds its rows. -/
+theorem Rule.eval_perm {s1 s2 : Store} (hp : ∀ t, (s1 t).Perm (s2 t)) {v : List Nat} {im : Imgs} :
+    ∀ r : Rule, r.eval s1 v im = r.eval s2 v im := by
+  intro r
+  induction r with
+  | probe t key =>
+    simp only [Rule.eval]
+    split
+    · rename_i ks _
+      apply Bool.eq_iff_iff.2
+      simp only [List.any_eq_true]
+      exact ⟨fun ⟨x, hx, hm⟩ => ⟨x, (hp t).mem_iff.1 hx, hm⟩, fun ⟨x, hx, hm⟩ => ⟨x, (hp t).mem_iff.2 hx, hm⟩⟩
+    · rfl
+  | and a b iha ihb => simp only [Rule.eval, iha, ihb]
+  | or a b iha ihb => simp only [Rule.eval, iha, ihb]
+  | not a ih => simp only [Rule.eval, ih]
+  | _ => rfl
+
+theorem granted_perm {sch : Schema} {vw1 vw2 : View} (hp : ∀ t, (vw1 t).Perm (vw2 t)) {v : List Nat}
+    {t : String} : granted sch vw1 v t = granted sch vw2 v t := by
+  unfold granted
+  split
+  · congr 1; funext d; rw [Rule.eval_perm hp]
+  · rfl
+
+/-- **Scan order is determined by key order**: a page over two views that
+hold the same rows of each table, in any order, gives the same answer
+(the readable-grant verdict probes other tables, so all of them count). -/
 theorem pageRead_perm {cx : Ctx} {vw1 vw2 : View} {t : String} {ps filt order desc take cur}
-    (hp : (vw1 t).Perm (vw2 t)) (hn : ((vw1 t).map Row.id).Nodup) :
+    (hp : ∀ t', (vw1 t').Perm (vw2 t')) (hn : ((vw1 t).map Row.id).Nodup) :
     pageRead cx vw1 t ps filt order desc take cur = pageRead cx vw2 t ps filt order desc take cur := by
-  unfold pageRead
-  rw [candidates_perm hp hn]
+  unfold pageRead decided
+  rw [candidates_perm (hp t) hn, granted_perm hp]
 
 end Quarry

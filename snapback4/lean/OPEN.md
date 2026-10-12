@@ -247,19 +247,33 @@ rule hides?**
   follows a visible row (`pageRead_visible`). The model ignores the engine's
   "a cut inside a hidden run ends on an empty capped page" detail.
 
-**C5. Is a count or exists complete under a non-uniform rule?**
+**C5. Is a count or exists complete under a non-uniform rule? (confirmed: LLP 3000.036 §15.12)**
 - *Documents:* the bounds card says "Schema-capped query `count` and `sum`
   with non-uniform read rules keep their bounded page execution and coverage
-  contract". It does not say whether such a total reports `complete`.
-- *Model:* a count or exists that is not cut is complete, uniform rule or
-  not. It counts exactly the visible matches (`countRead_eq`).
-- *Engine (observed, 2026-10-11, LLP 3000.036 §15.12):* a query's search
-  `exists t where …` over a rule its pins do not decide answers `true` with
-  `complete: false` when a visible row matches, and is unavailable (no data,
-  `complete` false) when none does; it never answers `false` there. The guide
-  reads card says an undecided scan has no answer. Model follow-up: mark such
-  an `exists` incomplete and throw `.unavailable` on no visible match (not run:
-  the lane had no elan). `lean::generate` does not emit a search `exists` yet.
+  contract". LLP 3000.036 §15.12 decides `exists`: a row the caller may read
+  proves presence; absence needs a decided scan; an undecided scan with no
+  readable match has no answer, never `false`. The guide reads card says the
+  same ("an undecided scan has no answer").
+- *Model:* a count that is not cut counts exactly the visible matches
+  (`countRead_eq`); `check` refuses an undecided unpaged total
+  (`E_QUARRY_BOUND`, C8), so its `complete` never arises. A search `exists t
+  where …` (`existsRead`) answers `true` on a visible match, with `complete`
+  false unless the scan is decided (C8: its pins or a readable grant);
+  `false` only when the scan is decided; otherwise it is unavailable (a
+  mutation cannot reach that form: the binder refuses it with
+  `E_STRUCTURAL_FANOUT`, and the model refuses it the same way).
+  `existsRead_decided` proves an `exists` never answers `false` from an
+  undecided scan. `exists t[key]` is a point read (`t[key] != null`), not a
+  search, and the emitter translates it so.
+- *History:* the model treated every `exists` as a complete Boolean until
+  2026-10-12. The engine changed first (§15.12, without a model change, no
+  `lake` on that host); `lean::generate` then emitted no search `exists`.
+  It now turns half the unpaged totals into one, over every read rule.
+- *Engine (observed, 100,000-case run of 2026-10-12, seeds 0–99,999):*
+  agrees. 5,046 compared search `exists` over a decided scan and 489 over an
+  undecided one (an `Owner` or `OwnerOrWitness` rule without the owner pin),
+  236 of them unavailable on both sides, the rest `true` and incomplete on
+  both.
 
 **C6. How do several reads combine into one answer's `complete`?**
 - *Model:* `complete` is the conjunction over every read in the request.
@@ -273,15 +287,58 @@ rule hides?**
 - *Source:* the bounds card: "never a partial count", "a mutation aborts
   with `E_BOUND`".
 
-**C8. When is a page uniform?**
-- *Model:* a page is uniform exactly when every row column its table's read
-  rule reads is pinned by an equality in the predicate. A non-uniform page
-  is never complete.
-- *Source:* the bounds card and `N_NEVER_COMPLETE`.
+**C8. When is a page decided, and so possibly complete?**
+- *Documents:* the bounds card and `N_NEVER_COMPLETE` (a page whose read rule
+  reads a column the scan does not pin is never complete); LLP 3000.036
+  §12.1 (a readable grant decides a page for its holder).
+- *Model:* a page is decided (`decided`) when every row column its table's
+  read rule reads is pinned by an equality in the predicate (`uniform`), or
+  when a disjunct of the rule's top-level `or` that reads no row column and
+  has no `not` holds for the caller (`granted`). An undecided page is never
+  complete. `pageRead_complete` proves a complete page was decided, and
+  `decided_store` that a decided scan sees every row its pins select in the
+  store or none of them, so a complete page omits no qualifying row.
+- *Where the model evaluates a grant:* over the caller's view (the rows the
+  caller may read), never the store, so `complete` stays a function of the
+  visible rows (`query_noninterference`); the disjunct is positive, so a view
+  verdict of true is true over the store (`granted_readable`). The engine
+  evaluates the disjunct over the store but only uses it when its every
+  probed row is readable to whoever the probe's pins name
+  (`rules::grant_decision`, `self_disclosing`), where the two verdicts are
+  equal. **A deliberate difference:** where the engine's static test is
+  conservative (a probed row the caller can read only through a rule its
+  probe's pins do not decide), the engine answers `complete: false` and the
+  model `complete: true`. Both are sound; the engine's choice keeps the
+  verdict decidable before the walk. The generator never produces that shape
+  (its probed table, `access`, is `allow` or `deny`).
+- *History:* the model had no per-caller arm until 2026-10-12, so the emitter
+  named every read rule with a row-independent disjunct unsupported
+  (`read-grant`); it now translates them.
 - *Engine (observed):* agrees on `complete` for all 1,343 compared
-  non-uniform pages. A `count` or `sum` whose read rule its pins do not decide
-  is refused at check (`E_QUARRY_BOUND`), so C5 cannot arise for an unpaged
-  total.
+  non-uniform pages (60,000-case run of 2026-10-08). A `count` or `sum` whose
+  read rule its pins do not decide is refused at check (`E_QUARRY_BOUND`).
+  In the 100,000-case run of 2026-10-12, 3,057 cases with the grant `.owner =
+  viewer or exists access[0, viewer]` were compared: the holder's pages are
+  complete on both sides, the others' incomplete on both; every disagreement
+  among them is a classified signature (C2's `next`, W4).
+
+**C10. Is a row-independent `where` test part of the scan? (confirmed: LLP 3000.036 §15.4)**
+- *Documents:* §15.4: a returned page's `where` whose top-level `and` (or
+  `or`) holds tests that read no row and cannot refuse becomes `if G:` the
+  page over the rest, else `[]` (or, for `or`, every row, else the rest).
+- *Model:* the emitter applies the compiler's own lowering
+  (`bind/where_guards.rs`, `lower_program`) to the surface program before
+  translating it, so the model runs the program the engine runs (an `if`
+  whose branches are pages). A page whose `where` also holds an
+  argument-presence test (`x = null or …` on an optional argument) is not
+  translated (`where-guard-presence`): the compiler expands presence variants
+  first, and the lowering then sees another program. That the lowering keeps
+  every answer is tested on the server and both device stores
+  (`snapback4-device/tests/readauth/where_guards.rs`), not by this oracle.
+- *Engine (observed, 100,000-case run of 2026-10-12):* agrees on 8,953
+  compared reads whose domain ends with `exists access[bucket, viewer]`, its
+  negation or `a < b` (pages lowered to the `if`; `exists` reads keep the
+  test per row).
 
 ## Writes
 
