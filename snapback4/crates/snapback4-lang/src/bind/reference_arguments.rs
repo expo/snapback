@@ -504,7 +504,7 @@ fn helper_looks_up(catalog: &Catalog, schema: &Schema, name: &str, position: usi
     let found = catalog.functions.get(name).and_then(|function| {
         let parameter = &function.args.get(position)?.name;
         Some(match &function.body {
-            FunctionBody::Expression(value) => expression_must_lookup(catalog, schema, value, parameter, target, stack),
+            FunctionBody::Expression(value) => expression_must_lookup(catalog, schema, value, &BTreeSet::from([parameter.clone()]), target, stack),
             FunctionBody::Block(body) => statements_must_lookup(catalog, schema, body, parameter, target, stack),
         })
     }).unwrap_or(false);
@@ -512,34 +512,184 @@ fn helper_looks_up(catalog: &Catalog, schema: &Schema, name: &str, position: usi
     found
 }
 
-fn statements_must_lookup(catalog: &Catalog, schema: &Schema, body: &[Stmt], parameter: &str, target: &str, stack: &mut BTreeSet<String>) -> bool {
-    for statement in body {
-        let expression = match statement {
-            Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => Some(value),
-            Stmt::Require { condition, .. } => Some(condition),
-            Stmt::Emit { payload, .. } => Some(payload),
-            Stmt::If { condition, then_body, else_body, .. } => {
-                if expression_must_lookup(catalog, schema, condition, parameter, target, stack)
-                    || (statements_must_lookup(catalog, schema, then_body, parameter, target, stack)
-                        && statements_must_lookup(catalog, schema, else_body, parameter, target, stack)) { return true }
-                // Either arm can return before a later statement. Without a
-                // full flow proof that later lookup is not mandatory.
-                return false;
-            }
-            Stmt::As { principal, .. } | Stmt::For { domain: principal, .. } => Some(principal),
-            Stmt::Break { .. } | Stmt::Continue { .. } => None,
-        };
-        if expression.is_some_and(|value| expression_must_lookup(catalog, schema, value, parameter, target, stack)) { return true }
-        if matches!(statement, Stmt::Return { .. } | Stmt::Break { .. } | Stmt::Continue { .. }) { return false }
-        if matches!(statement, Stmt::Bind { names, .. } if names.iter().any(|name| name == parameter)) { return false }
-    }
-    false
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct HelperState {
+    /// Names that still definitely denote the helper's original formal value.
+    aliases: BTreeSet<String>,
+    checked: bool,
 }
 
-fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr, parameter: &str, target: &str, stack: &mut BTreeSet<String>) -> bool {
-    let child = |value: &Expr, stack: &mut BTreeSet<String>| expression_must_lookup(catalog, schema, value, parameter, target, stack);
+#[derive(Default)]
+struct HelperFlow {
+    normal: Option<HelperState>,
+    returned: Option<HelperState>,
+    broken: Option<HelperState>,
+    continued: Option<HelperState>,
+}
+
+fn statements_must_lookup(catalog: &Catalog, schema: &Schema, body: &[Stmt], parameter: &str, target: &str, stack: &mut BTreeSet<String>) -> bool {
+    let entry = HelperState { aliases: BTreeSet::from([parameter.to_owned()]), checked: false };
+    let flow = helper_statements(catalog, schema, body, entry, target, stack);
+    // A well-typed block helper returns explicitly, but count a fallthrough or
+    // malformed escaping loop edge conservatively as a successful unchecked
+    // exit. This proof is never what makes such a helper valid.
+    join_helper_states(
+        join_helper_states(flow.returned, flow.normal),
+        join_helper_states(flow.broken, flow.continued),
+    ).is_some_and(|state| state.checked)
+}
+
+fn helper_statements(catalog: &Catalog, schema: &Schema, body: &[Stmt], entry: HelperState, target: &str, stack: &mut BTreeSet<String>) -> HelperFlow {
+    let mut flow = HelperFlow { normal: Some(entry), ..HelperFlow::default() };
+    for statement in body {
+        let Some(state) = flow.normal.take() else { break };
+        let next = helper_statement(catalog, schema, statement, state, target, stack);
+        flow.normal = next.normal;
+        flow.returned = join_helper_states(flow.returned, next.returned);
+        flow.broken = join_helper_states(flow.broken, next.broken);
+        flow.continued = join_helper_states(flow.continued, next.continued);
+    }
+    flow
+}
+
+fn helper_statement(catalog: &Catalog, schema: &Schema, statement: &Stmt, mut state: HelperState, target: &str, stack: &mut BTreeSet<String>) -> HelperFlow {
+    let normal = |state| HelperFlow { normal: Some(state), ..HelperFlow::default() };
+    match statement {
+        Stmt::Bind { names, value, .. } => {
+            let alias = names.len() == 1 && matches!(value, Expr::Name { name, .. } if state.aliases.contains(name));
+            helper_expression(catalog, schema, value, &mut state, target, stack);
+            for name in names { state.aliases.remove(name); }
+            if alias { state.aliases.insert(names[0].clone()); }
+            normal(state)
+        }
+        Stmt::Expr { value, .. } => {
+            helper_expression(catalog, schema, value, &mut state, target, stack);
+            normal(state)
+        }
+        Stmt::Require { condition, .. } => {
+            let (yes, _) = helper_condition(catalog, schema, condition, state, target, stack);
+            normal(yes)
+        }
+        Stmt::Return { value, .. } => {
+            helper_expression(catalog, schema, value, &mut state, target, stack);
+            HelperFlow { returned: Some(state), ..HelperFlow::default() }
+        }
+        Stmt::Emit { payload, once, .. } => {
+            helper_expression(catalog, schema, payload, &mut state, target, stack);
+            if let Some(once) = once { helper_expression(catalog, schema, once, &mut state, target, stack); }
+            normal(state)
+        }
+        Stmt::If { condition, then_body, else_body, .. } => {
+            let (then_entry, else_entry) = helper_condition(catalog, schema, condition, state, target, stack);
+            join_helper_flows(
+                helper_statements(catalog, schema, then_body, then_entry, target, stack),
+                helper_statements(catalog, schema, else_body, else_entry, target, stack),
+            )
+        }
+        Stmt::For { name, domain, body, .. } => {
+            helper_for(catalog, schema, name, domain, body, state, target, stack)
+        }
+        Stmt::As { principal, body, .. } => {
+            helper_expression(catalog, schema, principal, &mut state, target, stack);
+            helper_statements(catalog, schema, body, state, target, stack)
+        }
+        Stmt::Break { .. } => HelperFlow { broken: Some(state), ..HelperFlow::default() },
+        Stmt::Continue { .. } => HelperFlow { continued: Some(state), ..HelperFlow::default() },
+    }
+}
+
+fn helper_for(catalog: &Catalog, schema: &Schema, name: &str, domain: &Expr, body: &[Stmt], mut state: HelperState, target: &str, stack: &mut BTreeSet<String>) -> HelperFlow {
+    helper_expression(catalog, schema, domain, &mut state, target, stack);
+    if matches!(domain, Expr::Array { items, .. } if items.is_empty()) {
+        return HelperFlow { normal: Some(state), ..HelperFlow::default() };
+    }
+    let outer_alias = state.aliases.contains(name);
+    let mut first = state.clone();
+    first.aliases.remove(name);
+    let mut header = first.clone();
+    let mut returned = None;
+    let mut broken = None;
+    let mut iteration_exit = None;
+    loop {
+        let body_flow = helper_statements(catalog, schema, body, header.clone(), target, stack);
+        returned = join_helper_states(returned, body_flow.returned);
+        broken = join_helper_states(broken, body_flow.broken);
+        let back = join_helper_states(body_flow.normal, body_flow.continued);
+        iteration_exit = join_helper_states(iteration_exit, back.clone());
+        let Some(mut back) = back else { break };
+        // Every iteration introduces a fresh loop binding. Assigning that name
+        // cannot restore or mutate the shadowed outer formal.
+        back.aliases.remove(name);
+        let next = join_helper_states(Some(first.clone()), Some(back)).unwrap();
+        if next == header { break }
+        header = next;
+    }
+    let restore = |state: Option<HelperState>| state.map(|mut state| {
+        if outer_alias { state.aliases.insert(name.to_owned()); } else { state.aliases.remove(name); }
+        state
+    });
+    let normal = join_helper_states(
+        Some(state),
+        join_helper_states(restore(iteration_exit), restore(broken)),
+    );
+    HelperFlow { normal, returned, ..HelperFlow::default() }
+}
+
+fn helper_condition(catalog: &Catalog, schema: &Schema, expression: &Expr, state: HelperState, target: &str, stack: &mut BTreeSet<String>) -> (HelperState, HelperState) {
     match expression {
-        Expr::Read(read) | Expr::Exists { read, .. } if read.table == target && read_checks_target_id(schema, read, parameter, target) => true,
+        Expr::Unary { op, value, .. } if op == "not" => {
+            let (yes, no) = helper_condition(catalog, schema, value, state, target, stack);
+            (no, yes)
+        }
+        Expr::Binary { op, left, right, .. } if op == "and" => {
+            let (left_yes, left_no) = helper_condition(catalog, schema, left, state, target, stack);
+            let (right_yes, right_no) = helper_condition(catalog, schema, right, left_yes, target, stack);
+            (right_yes, join_helper_states(Some(left_no), Some(right_no)).unwrap())
+        }
+        Expr::Binary { op, left, right, .. } if op == "or" => {
+            let (left_yes, left_no) = helper_condition(catalog, schema, left, state, target, stack);
+            let (right_yes, right_no) = helper_condition(catalog, schema, right, left_no, target, stack);
+            (join_helper_states(Some(left_yes), Some(right_yes)).unwrap(), right_no)
+        }
+        _ => {
+            let mut evaluated = state;
+            helper_expression(catalog, schema, expression, &mut evaluated, target, stack);
+            (evaluated.clone(), evaluated)
+        }
+    }
+}
+
+fn helper_expression(catalog: &Catalog, schema: &Schema, expression: &Expr, state: &mut HelperState, target: &str, stack: &mut BTreeSet<String>) {
+    if !state.checked && expression_must_lookup(catalog, schema, expression, &state.aliases, target, stack) {
+        state.checked = true;
+    }
+}
+
+fn join_helper_states(left: Option<HelperState>, right: Option<HelperState>) -> Option<HelperState> {
+    match (left, right) {
+        (Some(mut left), Some(right)) => {
+            left.aliases.retain(|name| right.aliases.contains(name));
+            left.checked &= right.checked;
+            Some(left)
+        }
+        (Some(state), None) | (None, Some(state)) => Some(state),
+        (None, None) => None,
+    }
+}
+
+fn join_helper_flows(left: HelperFlow, right: HelperFlow) -> HelperFlow {
+    HelperFlow {
+        normal: join_helper_states(left.normal, right.normal),
+        returned: join_helper_states(left.returned, right.returned),
+        broken: join_helper_states(left.broken, right.broken),
+        continued: join_helper_states(left.continued, right.continued),
+    }
+}
+
+fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr, aliases: &BTreeSet<String>, target: &str, stack: &mut BTreeSet<String>) -> bool {
+    let child = |value: &Expr, stack: &mut BTreeSet<String>| expression_must_lookup(catalog, schema, value, aliases, target, stack);
+    match expression {
+        Expr::Read(read) | Expr::Exists { read, .. } if read.table == target && read_checks_target_alias(schema, read, aliases, target) => true,
         Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().any(|key| child(&key.value, stack)),
         Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. } | Expr::ShapeUse { base: value, .. } => child(value, stack),
         Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "and" | "or") => child(left, stack) && child(right, stack),
@@ -548,7 +698,7 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
         Expr::Binary { left, right, .. } => child(left, stack) || child(right, stack),
         Expr::Array { items, .. } => items.iter().any(|value| child(value, stack)),
         Expr::Call { name, args, .. } => args.iter().any(|value| child(value, stack))
-            || args.iter().enumerate().any(|(position, argument)| matches!(argument, Expr::Name { name, .. } if name == parameter)
+            || args.iter().enumerate().any(|(position, argument)| matches!(argument, Expr::Name { name, .. } if aliases.contains(name))
                 && helper_looks_up(catalog, schema, name, position, target, stack)),
         Expr::Object { fields, .. } => fields.iter().filter_map(|field| field.value.as_ref()).any(|value| child(value, stack)),
         // Shape fields are row mappers and may never run when the base is
@@ -564,7 +714,14 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
 }
 
 fn read_checks_target_id(schema: &Schema, read: &ReadExpr, parameter: &str, target: &str) -> bool {
-    let is_parameter = |value: &Expr| matches!(value, Expr::Name { name, .. } if name == parameter);
+    read_checks_target(schema, read, target, |value| matches!(value, Expr::Name { name, .. } if name == parameter))
+}
+
+fn read_checks_target_alias(schema: &Schema, read: &ReadExpr, aliases: &BTreeSet<String>, target: &str) -> bool {
+    read_checks_target(schema, read, target, |value| matches!(value, Expr::Name { name, .. } if aliases.contains(name)))
+}
+
+fn read_checks_target(schema: &Schema, read: &ReadExpr, target: &str, is_parameter: impl Fn(&Expr) -> bool) -> bool {
     if read.keys.iter().any(|key| key.column.as_deref() == Some("id") && is_parameter(&key.value)) { return true }
     if read.keys.iter().any(|key| key.column.is_some()) { return false }
     let index = read.index.as_deref().or(Some("byId")).and_then(|name| schema.table(target)?.index(name));

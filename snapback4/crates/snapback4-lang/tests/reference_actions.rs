@@ -552,6 +552,51 @@ fn reference_argument_lookups_must_reach_each_write() {
 }
 
 #[test]
+fn helper_reference_lookup_proof_follows_every_successful_exit() {
+    let schema = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\n";
+    let has_note = |helpers: &str, call: &str| {
+        let source = format!("{schema}{helpers}mutation create(id: id, parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  ignored = {call}\n  insert kids {{ id, parent }}\n");
+        let bound = bound(&source);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        bound.notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED")
+    };
+
+    let loop_return = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in [true]:\n    if skip:\n      return true\n  return exists parents[parent]\n";
+    assert!(has_note(loop_return, "checked(parent, other, skip, flags)"), "a loop-body return can bypass the later lookup");
+
+    let nested_return = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for outer in [true]:\n    for inner in [true]:\n      if skip:\n        return true\n  return exists parents[parent]\n";
+    assert!(has_note(nested_return, "checked(parent, other, skip, flags)"), "nested loop returns participate in the proof");
+
+    for (transfer, word) in [("break", "break"), ("continue", "continue")] {
+        let helper = format!("fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in flags:\n    if skip:\n      {transfer}\n    ignored = exists parents[parent]\n  return true\n");
+        assert!(has_note(&helper, "checked(parent, other, skip, flags)"), "{word} can bypass a loop-body lookup");
+    }
+
+    let rebound = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  candidate = parent\n  candidate = other\n  return exists parents[candidate]\n";
+    assert!(has_note(rebound, "checked(parent, other, skip, flags)"), "a rebound alias no longer denotes the caller's id");
+    let loop_binding = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for candidate in [other]:\n    return exists parents[candidate]\n  return exists parents[parent]\n";
+    assert!(has_note(loop_binding, "checked(parent, other, skip, flags)"), "a loop binding has its domain value, not the formal's identity");
+    let rejected_shadow = format!("{schema}fn checked(parent: parents, other: parents):\n  for parent in [other]:\n    return exists parents[parent]\nmutation invalid(id: id, parent: parents, other: parents):\n  ignored = checked(parent, other)\n  insert kids {{ id, parent }}\n");
+    let rejected = snapback4_lang::compile(&[("schema.q".into(), rejected_shadow)]);
+    assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("cannot shadow arguments")), "formal shadowing is rejected before helper proof: {:#?}", rejected.diagnostics);
+    let carried_rebind = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  candidate = parent\n  for flag in flags:\n    if flag:\n      candidate = other\n      continue\n    return exists parents[candidate]\n  return exists parents[parent]\n";
+    assert!(has_note(carried_rebind, "checked(parent, other, skip, flags)"), "a later iteration sees aliases invalidated by an earlier one");
+
+    let before_loop = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  ignored = exists parents[parent]\n  for item in flags:\n    if skip:\n      return true\n  return true\n";
+    assert!(!has_note(before_loop, "checked(parent, other, skip, flags)"), "a lookup before the loop dominates every return");
+    let in_domain = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in [exists parents[parent]]:\n    if skip:\n      return true\n  return true\n";
+    assert!(!has_note(in_domain, "checked(parent, other, skip, flags)"), "the loop domain is evaluated before every body or exit path");
+    let in_condition = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  if exists parents[parent]:\n    return true\n  return false\n";
+    assert!(!has_note(in_condition, "checked(parent, other, skip, flags)"), "a lookup condition dominates both boolean edges");
+    let empty_then_lookup = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in []:\n    return true\n  return exists parents[parent]\n";
+    assert!(!has_note(empty_then_lookup, "checked(parent, other, skip, flags)"), "a known-empty loop has no body return edge");
+    let stable_alias = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  candidate = parent\n  stable = candidate\n  candidate = other\n  return exists parents[stable]\n";
+    assert!(!has_note(stable_alias, "checked(parent, other, skip, flags)"), "a stable alias retains the original formal identity");
+    let helper_chain = format!("{in_condition}fn delegated(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  return checked(parent, other, skip, flags)\n");
+    assert!(!has_note(&helper_chain, "delegated(parent, other, skip, flags)"), "known helper chains retain a mandatory lookup");
+}
+
+#[test]
 fn check_names_the_delete_sites_the_default_changed() {
     let notes = |source: &str| snapback4_lang::compile(&[("schema.q".into(), source.into())]).notes.iter().filter(|n| n.code == "N_DELETE_RESTRICTED").map(|n| n.message.clone()).collect::<Vec<_>>();
     let source = "table parents:\n  read <- allow\n  delete <- allow\ntable kids:\n  parent: parents\n  read <- allow\nmutation drop(id: parents):\n  delete parents[id]\n";
