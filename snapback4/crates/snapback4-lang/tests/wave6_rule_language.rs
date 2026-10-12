@@ -253,7 +253,7 @@ fn r1_a_rule_with_a_party_no_pin_can_select_prints_no_form_and_says_so() {
     let query = "query everything(c: cursor ?):\n  return sightings last 50 by .seenAt after c\n";
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(!n.rewrite.contains("query everything"), "no code is printed: {n}");
-    assert!(n.rewrite.contains("there is no single complete form") && n.message.contains("there is no single complete form: keep the query and expect `capped`"), "{n}");
+    assert!(n.rewrite.contains("no verified complete form for this read") && n.message.contains("no verified complete form for this read: keep the query and expect `capped`"), "{n}");
     // The two-disjunct shapes 0.4.21 printed correctly merge as written (LLP
     // 3000.036.001); with arithmetic in the predicate they print the same code.
     let owner = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable reqs:\n  author: principal\n  at: time\n  read <- .author = viewer or exists staff[viewer]\n  online only\nquery q(c: cursor ?):\n  return reqs last 50 by .at after c\n";
@@ -508,9 +508,9 @@ fn farm_sweep_prints_every_wave6_note() {
         *counts.entry("apps".into()).or_default() += 1;
         for n in &b.notes {
             if n.code == "N_NEVER_COMPLETE" {
-                let kind = if n.rewrite.contains("there is no single complete form") { "never-complete: no form" } else if n.rewrite.contains("return exactly the rows") || n.rewrite.starts_with("Replace this query") { "never-complete: form" } else { "never-complete: pin only" };
+                let kind = if n.rewrite.contains("no verified complete form for this read") { "never-complete: no form" } else if n.rewrite.contains("return exactly the rows") || n.rewrite.starts_with("Replace this query") { "never-complete: form" } else { "never-complete: pin only" };
                 *counts.entry(kind.into()).or_default() += 1;
-                if let Some(why) = n.rewrite.split("there is no single complete form: ").nth(1) { println!("NOFORM {}", why.split("; keep the query").next().unwrap()); }
+                if let Some(why) = n.rewrite.split("no verified complete form for this read: ").nth(1) { println!("NOFORM {}", why.split("; keep the query").next().unwrap()); }
             }
             if !codes.contains(&n.code.as_str()) { continue; }
             *counts.entry(n.code.clone()).or_default() += 1;

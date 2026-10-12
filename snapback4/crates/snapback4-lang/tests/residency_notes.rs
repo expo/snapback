@@ -486,6 +486,16 @@ fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
     assert!(note.rewrite.contains("if the screen pages") && !note.rewrite.contains("or declare"), "{note}");
 }
 
+#[test]
+fn branch_merge_of_one_pinned_capped_group_needs_no_cursor_note() {
+    let source = "table facilitators:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable approvals:\n  treaty: id\n  principal: principal\n  partyA: principal\n  partyB: principal\n  cap 2 by treaty\n  unique treaty, principal\n  read <- .partyA = viewer or .partyB = viewer or exists facilitators[viewer]\n  online only\nquery approvalsFor(treaty: id):\n  return approvals where .treaty = treaty first 2 by .id\n";
+    let b = clean(source);
+    assert!(!b.notes.iter().any(|note| note.code == "N_NO_CURSOR"), "the whole treaty group is capped at the page size: {:#?}", b.notes);
+    let program = &b.programs.iter().find(|program| program.program.name.ends_with("approvalsFor")).unwrap().program;
+    let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("an audience branch merge");
+    assert!(merge.lanes.iter().all(|lane| lane.scan.table == "approvals"), "{merge:#?}");
+}
+
 
 const REACTIONS: &str = "table members:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  by byPrincipalConversation: principal, conversationId, id\n  immutable conversationId, principal\n  read <- .principal = viewer\n  sync\ntable reactions:\n  conversationId: id\n  messageId: id\n  principal: principal\n  emoji: text <=20\n  unique byMessagePrincipal: messageId, principal\n  by byConversation: conversationId, id\n  by byPrincipal: principal, id\n  cap 50 by messageId\n  read <- exists members[.conversationId, viewer]\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync to members[.conversationId] last 500 by byConversation\nmutation react(conversationId: id, messageId: id):\n  upsert reactions[messageId, viewer] { conversationId, emoji: 'heart' }\n";
 

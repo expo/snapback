@@ -97,7 +97,7 @@ fn repeated_phrase(text: &str) -> Option<String> {
 /// The verdict clause names the complete form once: the text after the last
 /// "complete form" lead never holds another lead.
 fn doubled_lead(text: &str) -> Option<String> {
-    let leads = ["the complete form for everyone is", "the complete form is", "the closest form is", "there is no single complete form"];
+    let leads = ["the complete form for everyone is", "the complete form is", "the closest form is", "no verified complete form for this read"];
     for clause in text.split(';') {
         let lower = clause.to_lowercase();
         let count: usize = leads.iter().map(|lead| lower.matches(lead).count()).sum();
@@ -120,7 +120,7 @@ fn assert_no_repeats(label: &str, diagnostics: &[Diagnostic]) {
 fn r1_the_repeat_check_finds_the_0_4_22_phrase() {
     assert_eq!(repeated_phrase("the complete form for everyone is the complete form for everyone is one query per party").as_deref(), Some("the complete form for everyone is"));
     assert!(repeated_phrase("the complete form is the complete form is the pin").is_some());
-    assert!(doubled_lead("expect capped; the complete form for everyone is there is no single complete form: keep the query").is_some());
+    assert!(doubled_lead("expect capped; the complete form for everyone is no verified complete form for this read: keep the query").is_some());
     assert_eq!(repeated_phrase("the complete form for everyone is one query per party"), None);
 }
 
@@ -144,7 +144,7 @@ fn r1_every_complete_form_verdict_is_said_once() {
         let b = bound(source);
         let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{source}\n{:#?}", b.notes));
         assert_no_repeats(source, std::slice::from_ref(n));
-        assert!(n.message.contains("the complete form") || n.message.contains("closest form") || n.message.contains("no single complete form"), "{n}");
+        assert!(n.message.contains("the complete form") || n.message.contains("closest form") || n.message.contains("no verified complete form"), "{n}");
     }
 }
 

@@ -184,6 +184,29 @@ fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
     format!("{}.", first.trim_end_matches(':'))
 }
 
+fn completeness_note(note: &snapback4_lang::Diagnostic) -> Option<[String; 3]> {
+    if !matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") { return None; }
+    let verdict = if note.code == "N_CONDITIONAL_COMPLETE" {
+        "verdict: complete for the pinned audience; capped for other callers"
+    } else {
+        "verdict: capped; the server cannot prove that this page contains every readable row"
+    };
+    let admitted = ["for callers `", "except for callers `"].into_iter().find_map(|needle| {
+        let rest = note.message.split_once(needle)?.1;
+        rest.split_once("` admits").map(|(rule, _)| rule)
+    });
+    let who = match admitted {
+        Some(rule) => format!("who: callers admitted by `{rule}` have a complete page"),
+        None if note.code == "N_CONDITIONAL_COMPLETE" => "who: callers admitted by the pinned parent guard have a complete page".into(),
+        None => "who: no caller group is proved complete by this page".into(),
+    };
+    Some([
+        verdict.into(),
+        who,
+        "what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair".into(),
+    ])
+}
+
 /// `check --emit-lean <file.q>`: one file, checked, as the Lean model's
 /// schema, helpers and programs (`snapback4_lang::emit::lean`).
 // @ref LLP 3000.035#52-stage-2-a-small-lean-core — the emitter's command-line face; the harness calls the library directly
@@ -301,9 +324,12 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
-            let notes = bound.notes.iter().map(|note| crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
-                form: crate::note_rank::compiled_form(&note.code, &note.rewrite).map(|(lead, code)| (lead, present(&code))) })
-                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None }))
+            let notes = bound.notes.iter().map(|note| {
+                let compact = completeness_note(note);
+                crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
+                    form: compact.is_none().then(|| crate::note_rank::compiled_form(&note.code, &note.rewrite)).flatten().map(|(lead, code)| (lead, present(&code))), compact }
+            })
+                .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None, compact: None }))
                 .collect();
             for line in crate::note_rank::render(notes) { println!("{line}"); }
         }

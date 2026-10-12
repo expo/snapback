@@ -121,14 +121,17 @@ fn guard_decision(schema: &Schema, scan: &Scan, pinned_guards: bool) -> Option<R
     let rule = &table.rules.read;
     if !matches!(rule, RuleExpr::Or(_)) { return None; }
     let pinned = if pinned_guards { scan_pinned(table, scan) } else { Vec::new() };
+    let pinned_map: BTreeMap<_, _> = pinned.iter().map(|(column, value)| (*column, *value)).collect();
     let guards: Vec<RuleExpr> = rule.disjuncts().into_iter()
-        .filter(|disjunct| {
+        .filter_map(|disjunct| {
+            let simplified = simplify_prefix(disjunct, &scan.table, table, &pinned_map);
             let mut fields = BTreeSet::new();
-            disjunct.fields(&mut fields);
-            if fields.is_empty() { self_disclosing(schema, disjunct) }
-            else { fields.iter().all(|field| pinned.iter().any(|(column, _)| *column == field)) && pinned_probe_readable(schema, disjunct) }
+            simplified.fields(&mut fields);
+            let admitted = if fields.is_empty() { self_disclosing(schema, &simplified) }
+                else { fields.iter().all(|field| pinned.iter().any(|(column, _)| *column == field)) && pinned_probe_readable(schema, &simplified) };
+            admitted.then_some(simplified)
         })
-        .cloned().collect();
+        .collect();
     (!guards.is_empty()).then(|| if guards.len() == 1 { guards.into_iter().next().unwrap() } else { RuleExpr::Or(guards) })
 }
 
@@ -635,6 +638,16 @@ fn rule_true<'a>(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &impl
         }),
         RuleExpr::Or(rules) => rules.iter().any(|rule| rule_true(rule, table_name, table, pinned)),
         RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| rule_true(rule, table_name, table, pinned)),
+        // The AST binder and scan planner both canonicalize boolean pins;
+        // recognize the equivalent compiled rule form as well. This makes
+        // `not .sealed` and `.sealed = false` share one page proof.
+        RuleExpr::Not(inner) => match inner.as_ref() {
+            RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {
+                let (RuleTerm::Field(column), RuleTerm::Literal(Value::Bool(expected))) = (field, value) else { return false };
+                pinned(column).is_some_and(|expression| matches!(expression, Expr::Literal(Value::Bool(actual)) if actual != expected))
+            }),
+            _ => false,
+        },
         RuleExpr::Exists { table: target, index, key, equalities, .. } if target == table_name => {
             // A self-probe on a total unique key whose every component is
             // either the row's own column or pinned to the probing value is

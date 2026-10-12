@@ -31,7 +31,7 @@ pub(crate) fn tier(code: &str) -> Tier {
 pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
     match code {
         "N_CONDITIONAL_COMPLETE" => "review: complete for the pinned parent audience; other callers may be capped",
-        "N_NEVER_COMPLETE" if summary.contains("there is no single complete form") => "no one-query fix: expect `capped` and show what arrived",
+        "N_NEVER_COMPLETE" if summary.contains("no verified complete form for this read") => "review: no verified complete form for this read; expect `capped` and show what arrived",
         "N_NEVER_COMPLETE" if form && summary.contains("the closest form is") => "fix: use the closest form below (one arm stays `complete: false`), or accept `complete: false`",
         "N_NEVER_COMPLETE" if form => "fix: use the complete form below, or accept `complete: false`",
         "N_NEVER_COMPLETE" => "fix: pin the scope, or accept `complete: false`",
@@ -67,10 +67,12 @@ pub(crate) struct Note {
     pub site: String,
     pub code: String,
     pub summary: String,
-    /// A compiled complete form (`N_NEVER_COMPLETE`'s branched or per-party
-    /// query): its lead line and the code. Printed under the first note of
-    /// each lead, so the default output carries the fix, not only `--verbose`.
+    /// An expanded compiled repair: its lead line and the code. Compact
+    /// completeness notes leave this empty and keep the repair in `--verbose`.
     pub form: Option<(String, String)>,
+    /// Three-line default rendering for completeness verdicts. Their full
+    /// planner proof and compiled repair remain in `check --verbose`.
+    pub compact: Option<[String; 3]>,
 }
 
 /// The compiled form leading a note's rewrite: the text before "Otherwise:",
@@ -127,6 +129,13 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             continue;
         }
         flush(&mut lines, &mut repeats);
+        if let Some([verdict, who, what]) = &note.compact {
+            lines.push(format!("note: {} — {} — {verdict}{times}", note.site, note.code));
+            lines.push(format!("  {who}"));
+            lines.push(format!("  {what}"));
+            shown_codes.push(note.code.clone());
+            continue;
+        }
         if shown_codes.contains(&note.code) {
             // A repeat that carries a form not printed yet keeps its own line, then the form.
             lines.push(format!("note: {} — {}: (as above) {}{times}", note.site, note.code, short(&note.summary)));
@@ -169,7 +178,7 @@ fn short(summary: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None } }
+    fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None, compact: None } }
 
     #[test]
     fn a_compiled_complete_form_prints_once_per_lead_by_default() {
@@ -190,6 +199,21 @@ mod tests {
         ], "{lines:#?}");
         assert_eq!(lines.len(), 9, "the second note of the same form is the short repeat: {lines:#?}");
         assert_eq!(lines[8], "note: N_NEVER_COMPLETE (as above) also for query q (schema.q:9:1)", "{lines:#?}");
+    }
+
+    #[test]
+    fn completeness_note_is_three_lines_and_points_to_verbose_detail() {
+        let compact = Some([
+            "verdict: capped; completeness is not proved".into(),
+            "who: no caller group is proved complete by this page".into(),
+            "what: pin the scope; check --verbose shows the checked repair".into(),
+        ]);
+        let lines = render(vec![Note { compact, ..note("schema.q:8:1", "N_NEVER_COMPLETE", "long planner proof") }]);
+        assert_eq!(&lines[2..], [
+            "note: schema.q:8:1 — N_NEVER_COMPLETE — verdict: capped; completeness is not proved",
+            "  who: no caller group is proved complete by this page",
+            "  what: pin the scope; check --verbose shows the checked repair",
+        ]);
     }
 
     #[test]

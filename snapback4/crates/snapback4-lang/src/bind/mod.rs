@@ -528,6 +528,32 @@ fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -
     notes
 }
 
+fn scan_pin<'a>(schema: &Schema, scan: &'a snapback4_core::ir::Scan, column: &str) -> Option<&'a snapback4_core::ir::Expr> {
+    let index = schema.table(&scan.table)?.index(&scan.index)?;
+    let position = index.columns().iter().position(|candidate| candidate == column)?;
+    if position < scan.prefix.len() { return scan.prefix[position].scalar(); }
+    if position == scan.prefix.len() && let Some(range) = &scan.range
+        && range.gt.is_none() && range.lt.is_none() && range.gte == range.lte {
+        return range.gte.as_deref();
+    }
+    None
+}
+
+/// A branch merge over one capped group cannot leave rows behind when every
+/// branch pins the same group values and the cap fits both the page and meter.
+fn merged_group_complete(schema: &Schema, merge: &snapback4_core::ir::Merge) -> bool {
+    if !merge.branches() || merge.lanes.is_empty() { return false; }
+    let table = match schema.table(merge.table()) { Some(table) => table, None => return false };
+    table.constraints.iter().any(|constraint| {
+        let snapback4_core::schema::Constraint::Cap { by, max } = constraint else { return false };
+        if u64::from(*max) > merge.take() || u64::from(*max) > snapback4_core::Ceilings::default().examined { return false; }
+        by.iter().all(|column| {
+            let Some(first) = scan_pin(schema, &merge.lanes[0].scan, column) else { return false };
+            merge.lanes[1..].iter().all(|lane| scan_pin(schema, &lane.scan, column) == Some(first))
+        })
+    })
+}
+
 fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     // A synced table with no horizon: every row of every group a device
@@ -630,6 +656,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         // Follow the same return/alias/shape provenance as continuations.
         // A consumed loop is not a page the caller needs to continue.
         let returned = snapback4_core::engine::uncontinued_page_sites(&bound.program);
+        let branch_merges = snapback4_core::ir::body_merges(&bound.program.body);
         let mut noted = std::collections::BTreeSet::new();
         for page in snapback4_core::ir::scans(&bound.program) {
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
@@ -638,11 +665,16 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             // `.id = x` plans as the closed range `x ..= x` on the next column: an equality too.
             if let Some(range) = &page.range && range.gt.is_none() && range.lt.is_none() && range.gte.is_some() && range.gte == range.lte
                 && let Some(next) = columns.get(page.prefix.len()) { pinned.push(next.clone()); }
-            // A lane cap does not bound the union of a merge. Quarry page takes are literals.
+            // A cap bounds a merged union only when every branch pins the
+            // same cap group. Quarry page takes are literals.
             // @ref LLP 3000.007#5.6 — a meter-cut page still needs continuation; a plain scan charges one examined unit per candidate.
-            let group_complete = page.merge_site.is_none() && unique_bound::group_bound(schema, &page.table, &pinned).is_some_and(|n| {
-                u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
-            });
+            let group_complete = if let Some(merge_site) = &page.merge_site {
+                branch_merges.iter().find(|merge| &merge.site == merge_site).is_some_and(|merge| merged_group_complete(schema, merge))
+            } else {
+                unique_bound::group_bound(schema, &page.table, &pinned).is_some_and(|n| {
+                    u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
+                })
+            };
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
                 // @ref LLP 3000.027#3 — continuation advice does not question a top-N answer's completeness.
@@ -783,11 +815,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         let admitted = (!admitted.is_empty()).then(|| admitted.join(" or "));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
-                        // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "there is no single …"); the sentence around it never repeats it (wave 7 R1).
+                        // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "no verified complete form …"); the sentence around it never repeats it (wave 7 R1).
                         let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
                         let complete_form = match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
                             complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
-                            complete_form::Outcome::None(_) => "there is no single complete form: keep the query and expect `capped`".to_owned(),
+                            complete_form::Outcome::None(_) => "no verified complete form for this read: keep the query and expect `capped`".to_owned(),
                             complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
                             complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
                         };
