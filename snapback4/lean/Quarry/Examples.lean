@@ -464,6 +464,17 @@ def membershipDocs : Schema := { tables := [
     read := .or (.eq (self "owner") .viewer)
       (.probe "members" [("parent", self "parent"), ("principal", .viewer)]) }] }
 
+/-- Named exact keys resolve by column name; their authored order need not
+match the unique declaration's order. -/
+def membershipDocsReordered : Schema := { tables := [
+  { name := "members", cols := [c "parent", c "principal"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent", c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" [("principal", .viewer), ("parent", self "parent")]) }] }
+
 def membershipDocStore : Store := mkStore [
   ("members", [mkRow "m1" [("parent", T "p1"), ("principal", I "alice")],
                mkRow "m2" [("parent", T "p2"), ("principal", I "alice")]]),
@@ -524,6 +535,12 @@ def merged : List Example := [
   { name := "page-owner-membership-merged"
     source := "LLP 3000.036.001 §14: an owner range and capped per-parent membership ranges form one complete page"
     case := { schema := membershipDocs, store := membershipDocStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-reordered-named-key"
+    source := "LLP 3000.036.001 §14: a named membership key resolves against its unique columns independent of authored order"
+    case := { schema := membershipDocsReordered, store := membershipDocStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },

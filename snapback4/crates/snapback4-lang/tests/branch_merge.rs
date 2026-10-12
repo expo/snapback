@@ -917,6 +917,24 @@ fn owner_or_capped_membership_walks_one_complete_cursor() {
 }
 
 #[test]
+fn reordered_named_membership_key_walks_the_same_complete_cursor() {
+    let source = OWNER_MEMBERSHIP.replace("exists memberships[.parent, viewer]",
+        "exists memberships[principal = viewer, parent = .parent]");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().any(|merge| merge.branches()));
+    assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut e = engine(&source, vec![
+        membership("m1", "p1", "alice"), membership("m2", "p2", "alice"),
+        document("d1", "alice", "p0", 1), document("d2", "bob", "p1", 2),
+        document("d3", "bob", "p2", 3), document("d4", "bob", "p9", 4),
+    ]);
+    let (got, complete) = walk(&mut e, "documents", "alice", &[]);
+    assert_eq!(got, ["d3", "d2", "d1"]);
+    assert!(complete.into_iter().all(|value| value));
+}
+
+#[test]
 fn membership_page_with_its_parent_already_pinned_keeps_the_original_scan() {
     let source = "table access:
   bucket: int
