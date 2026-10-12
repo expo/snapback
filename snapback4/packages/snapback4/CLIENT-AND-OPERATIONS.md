@@ -66,25 +66,29 @@ production offline-reopen journey; fixture residency remains
 | Program | Constructor |
 |---|---|
 | Node script, seed, test or worker | `createClient({ url, persona })` from `snapback4/client` in development; `createClient({ url, session })` after `signup`/`login` from `snapback4/auth` |
-| Browser app | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider`; the device is about 650 KB gzip of wasm, also with no `sync` (below) |
+| Browser app, no synced table | `createApp({ url, sessionStore: localStorageSessionStore() })` under `AppProvider`: writes are journaled without a device, no wasm (below) |
+| Browser app with synced tables | `createApp({ url, device: webDevice(), sessionStore })` under `AppProvider`; the device is about 650 KB gzip of wasm (below) |
 | Expo app | `createApp({ url, device: nativeAvailable() ? nativeDevice : undefined, sessionStore })`; `webDevice()` on web |
 
-**Browser writes need `createApp` with a device.** A bare `createClient()` in a
-browser, or `createApp` without a durable device, has no synchronous write
-journal and refuses every mutation with `E_ADMISSION`; reads still work. This
-holds for online-only schemas too: pass `webDevice()` even with no `sync`.
+**Browser writes need `createApp`.** A bare `createClient()` in a browser has
+no synchronous write journal and refuses every mutation with `E_ADMISSION`;
+reads still work. `createApp` journals each click before `mutate` returns: a
+write survives a reload or a same-turn navigation, and the server runs it at
+most once. When no table declares `sync`, it does this without a device (see
+"Browser writes without a device"); synced tables need `webDevice()`.
 
-**Budget for the device before choosing the browser app.** `webDevice()` is the
+**Budget for the device before choosing it.** `webDevice()` is the
 whole local interpreter compiled to wasm: about 2.1 MB raw, 650 KB gzip (a
 release budget caps the gzip size), plus a 24 KB worker, on top of the app's
 JavaScript. A Vite production build emits it as its own asset, and the
-device fetches it when it opens at restore or sign-in. With no synced table it
-holds no rows and every read goes to the server, but it still journals each
-click: a write survives a reload or a same-turn navigation, and the server runs
-it at most once. There is no lighter durable browser tier in this release. A browser page that never writes needs no device: every client
-reads, and `readOnly: true` silences the write warning (`guide read-only`). An
-Expo app pays nothing on phones (the native module, or Expo Go's online tier)
-and the same wasm on Expo web.
+device fetches it when it opens at restore or sign-in. It buys offline reads
+and predictions over synced tables. With no synced table, omit it: the same
+writing page measured 274,853 B raw (88,485 B gzip) of JavaScript and no wasm,
+against 2,503,672 B (766,377 B gzip) with `webDevice()` (Vite production
+builds of one page). A browser page that never writes
+needs neither: every client reads, and `readOnly: true` silences the write
+warning (`guide read-only`). An Expo app pays nothing on phones (the native
+module, or Expo Go's online tier) and the same wasm on Expo web.
 
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
@@ -742,7 +746,8 @@ device store, and at most 64 KiB per serialized record. A browser mutation that
 cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
 rewrite. This includes unavailable, throwing or full localStorage, exceeded
 journal limits, an unrestored session, and a
-`createApp` without a durable device or with an asynchronous-only session store.
+`createApp` with an asynchronous-only session store (a device-less app's other
+refusals are listed under "Browser writes without a device").
 The test-only `memoryPersistence()` provider also refuses browser mutations:
 transferring custody to memory cannot preserve a write across page restarts.
 No new intent is admitted in those cases. The returned promise is already
@@ -775,11 +780,11 @@ a transient observation during a session commit does not retire that scope.
 Restoration does not queue an intent for whichever account might sign in later.
 Before store identification, the call waits in memory. After an ordinary
 `E_ADMISSION` storage refusal, repair storage and retry the same id. A bare `createClient()` in a browser has no synchronous journal
-and refuses mutations with `E_ADMISSION`; use the app with a web device for
-browser writes, also when every table is online-only (no `sync` lines needed). A non-`readOnly`
-bare `createClient()` and a device-less `createApp()` say so once with `console.warn` when they are
-built in a browser; the clients `createApp` opens for itself never warn. Node and native online
-clients retain their existing behavior.
+and refuses mutations with `E_ADMISSION`, naming `createApp({ url, sessionStore: localStorageSessionStore() })`
+when no table syncs and the device form otherwise. A non-`readOnly` bare `createClient()`, and a
+device-less `createApp()` whose session store is not `localStorageSessionStore()`, say so once with
+`console.warn` when they are built in a browser; the clients `createApp` opens for itself never warn.
+Node and native online clients retain their existing behavior.
 Clearing browser storage after admission can still erase its bytes.
 A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
@@ -795,6 +800,54 @@ later matching recovery admits it for a server decision. A successful local
 prediction is retained; a local refusal is not terminal during recovery, so that
 record queues without a prediction. The returned refusal alone does not guarantee
 preserved cancellation in that case.
+
+#### Browser writes without a device
+
+A browser `createApp` without `device` writes when the backend's schema
+declares no `sync`, or when the app passes `writes: "online"`; it needs
+`sessionStore: localStorageSessionStore()` and Web Locks. Opening reads
+`GET /schema` once (skipped with `writes: "online"`) and identifies the store
+beside it. Reads are the online client's (no replica, no offline reads, no
+predictions); a write appears when the server confirms it.
+
+```ts
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+
+const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
+await app.ready;
+const write = app.mutate(api.send, { conversationId: "c1", body: "hello" });
+if (write.state === "failed") console.error(write.why?.message); // refused in the calling stack
+else console.log((await write).state); // journaled: survives navigation, sent once
+```
+
+Before `mutate` returns, the click is written to localStorage under its own
+key (`snapback4-online-admission:…`, one key per capture, with the id,
+operation, arguments, store identity and the session's epoch and principal),
+bounded like the device journal: 32 records, 256 KiB, 64 KiB per record.
+Unavailable, throwing or full localStorage or an exceeded bound refuses
+`E_ADMISSION` synchronously; nothing was admitted or sent; retry the same id.
+The app then commits the intent to its online journal in IndexedDB, under the
+journal's and the session's Web Locks, after the same locked authority check
+the device uses: a logout or account change before that commit cancels the
+click with `E_AUTH`. A transfer marker in that commit keeps a surviving record
+from ever being admitted twice. If the commit fails, the call resolves
+`pending` ("journaled in this browser"), `write(id)` reports it pending, and the
+app recovers it before its next admission and on a backoff timer.
+
+On the next open of the same backend and account under the same session
+store, in this tab or another, records left by a closed, crashed or reloaded
+page are admitted once and sent with their original ids before new clicks; the
+server answers an id it already ran with `replayed: true`. A live tab's records
+are never adopted (each app holds a Web Lock while it runs). Records from an
+ended session are cancelled with a console warning; records under another
+session store namespace are left alone; a saturated journal keeps them and
+reports `auth.why`. A schema that syncs refuses `E_ADMISSION` naming the
+tables, `device: webDevice()` and `writes: "online"`; an unreachable `/schema`
+at opening refuses `retryable: true` until it answers. Persona apps keep the
+device requirement. Limits are the device journal's: clearing site data or an
+operating-system crash before the browser flushes storage can lose a click.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
@@ -1686,9 +1739,9 @@ device })` acts as `dev:bob` with no session. `app.auth.state` goes `restoring` 
 leaves the persona's queued writes on its device for its next app. The url must be literal loopback
 (`localhost`, `127.x`, `[::1]`), or `ready` resolves `{ ok: false }` with `E_AUTH` before any request
 carries the header; `snapback4 dev` still checks the socket, `Host` and `Origin`, and `serve`
-refuses personas, which the app also reports as `E_AUTH`. A browser writes only with a device, as for
-any `createApp`: without one, `app.mutate` refuses `E_ADMISSION` and names
-`createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app:
+refuses personas, which the app also reports as `E_AUTH`. A persona app writes in a browser only with a
+device (it has no session store for the device-less journal): without one, `app.mutate` refuses
+`E_ADMISSION` and names `createApp({ url, persona, device: webDevice() })`. Switching persona replaces the app:
 `usePersonaApp(persona, openApp)` opens one per persona and closes the old one on switch and
 unmount (or close it in your own effect's cleanup). One tab is one device per store, and each persona has its own store.
 

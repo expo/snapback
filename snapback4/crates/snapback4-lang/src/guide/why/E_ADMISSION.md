@@ -3,8 +3,11 @@
 A browser call that cannot synchronously keep its intent refuses `E_ADMISSION`
 with a site and rewrite: no new intent is accepted. Use `webDevice()` and
 `localStorageSessionStore()`, restore the session or repair storage, then retry
-the original id. Browser storage clearing after admission can still erase the
-journal. Session readiness is required; acquisition readiness is not.
+the original id. With no synced table a browser app needs no device:
+`createApp({ url, sessionStore: localStorageSessionStore() })` journals each
+click; a schema that syncs refuses without `webDevice()` or `writes: "online"`.
+Browser storage clearing after admission can still erase the journal. Session
+readiness is required; acquisition readiness is not.
 
 Writes need no acquisition gate after session readiness. Before identification,
 `mutate()` allows 15 seconds of identity I/O, excluding prior admissions, even
