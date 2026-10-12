@@ -2,14 +2,19 @@ use snapback4_core::{Context, Engine, Value, value::object};
 use snapback4_lang::{Bound, compile};
 use std::collections::BTreeMap;
 
-fn source(nullable: bool) -> String {
+fn source(nullable: bool, reverse_unique: bool) -> String {
     let parent = if nullable { "text <=40 ?" } else { "text <=40" };
+    let reverse_unique = if reverse_unique {
+        "  unique principal, parent\n"
+    } else {
+        ""
+    };
     format!(
         "table members:
   parent: {parent}
   principal: principal
   unique parent, principal
-  cap 16 by principal
+{reverse_unique}  cap 16 by principal
   read <- .principal = viewer
   online only
 
@@ -72,8 +77,8 @@ fn answers(bound: Bound, rows: Vec<(String, Value)>) -> (Vec<String>, bool) {
     (ids, point.data != Value::Null)
 }
 
-fn run(nullable: bool, exact_member: bool) -> (Vec<String>, bool) {
-    let source = source(nullable);
+fn run(nullable: bool, reverse_unique: bool, exact_member: bool) -> (Vec<String>, bool) {
+    let source = source(nullable, reverse_unique);
     let bound = clean(&source);
     let page_program = &bound
         .programs
@@ -101,11 +106,19 @@ fn run(nullable: bool, exact_member: bool) -> (Vec<String>, bool) {
         .and_then(snapback4_core::ir::LaneSource::scan)
         .unwrap();
     let source_index = &bound.schema.tables["members"].indexes[&source_scan.index];
-    assert_eq!(source_index.columns(), ["principal", "parent", "id"]);
-    assert!(
-        !source_index.unique,
-        "nullable natural-key ties need the id-bearing discovery index"
-    );
+    if reverse_unique {
+        assert_eq!(source_index.columns(), ["principal", "parent"]);
+        assert!(
+            source_index.unique,
+            "the audit must exercise the authored reverse unique"
+        );
+    } else {
+        assert_eq!(source_index.columns(), ["principal", "parent", "id"]);
+        assert!(
+            !source_index.unique,
+            "nullable natural-key ties need the id-bearing discovery index"
+        );
+    }
 
     let parent = if nullable {
         Value::Null
@@ -172,7 +185,7 @@ fn run(nullable: bool, exact_member: bool) -> (Vec<String>, bool) {
 #[test]
 fn fixed_membership_id_preserves_nullable_natural_key_authorization() {
     for nullable in [true, false] {
-        let (present_page, present_point) = run(nullable, true);
+        let (present_page, present_point) = run(nullable, false, true);
         assert_eq!(
             present_page.contains(&"shared".into()),
             present_point,
@@ -180,7 +193,7 @@ fn fixed_membership_id_preserves_nullable_natural_key_authorization() {
         );
         assert!(present_point, "the exact m1 witness authorizes both reads");
 
-        let (missing_page, missing_point) = run(nullable, false);
+        let (missing_page, missing_point) = run(nullable, false, false);
         assert_eq!(
             missing_page.contains(&"shared".into()),
             missing_point,
@@ -195,8 +208,22 @@ fn fixed_membership_id_preserves_nullable_natural_key_authorization() {
 }
 
 #[test]
+fn authored_reverse_unique_preserves_nullable_fixed_id_authorization() {
+    let (present_page, present_point) = run(true, true, true);
+    assert_eq!(present_page.contains(&"shared".into()), present_point);
+    assert!(present_point, "the exact m1 witness authorizes both reads");
+
+    let (missing_page, missing_point) = run(true, true, false);
+    assert_eq!(missing_page.contains(&"shared".into()), missing_point);
+    assert!(
+        !missing_point,
+        "m0 must not stand in for the fixed m1 witness"
+    );
+}
+
+#[test]
 fn nullable_natural_key_probes_do_not_gain_a_null_membership_lane() {
-    let source = source(true).replace("id = 'm1', ", "");
+    let source = source(true, false).replace("id = 'm1', ", "");
     let bound = compile(&[("schema.q".into(), source)]);
     assert!(
         bound
