@@ -19,6 +19,8 @@ pub(crate) enum Origin {
 
 #[path = "write_target.rs"]
 pub(crate) mod target;
+#[path = "write_references.rs"]
+mod references;
 
 impl Runner<'_> {
     pub(super) fn insert(&mut self, table: &str, row: Supplied) -> Result<(), RuntimeError> {
@@ -320,7 +322,8 @@ impl Runner<'_> {
         let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned(), message: None });
         };
-        if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
+        // @ref LLP 3000.038#3 — a delete that consults referencing rows needs read authority on its row first.
+        if (self.schema.children(table_name).next().is_some() || self.schema.is_referenced(table_name)) && !self.check_rule(table_name,Effect::Read,None,&old)? {
             self.refusing_clause(table_name, "read rule");
             return Err(self.no_write_target());
         }
@@ -333,6 +336,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
+        self.apply_reference_actions(table_name, &old)?;
         let table = &self.schema.tables[table_name];
         self.receipt_member_removed(table_name, &old)?;
         self.refuse_live_children(table_name,old.field("id")?)?;
@@ -503,6 +507,8 @@ impl Runner<'_> {
                         continue;
                     }
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
+                    // @ref LLP 3000.038#2.2 — a `set null` reference's null rows belong to no parent: its cap does not count them.
+                    if self.schema.cap_skips_null(table, by, &group) { continue; }
                     // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
                     let predecessor = old.filter(|row| !self.device || !self.expired(table, row));
                     let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);

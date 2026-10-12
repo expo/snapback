@@ -97,6 +97,16 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.put(name, table, row, old) }
     pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.delete(name, table, old) }
     pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
+    pub(crate) fn widen_change_evidence(&self) { self.raw.widen_change_evidence() }
+    /// Draw a schema-fixed number of rows from the request's physical
+    /// allowance up front, so later authorization work exhausts it at a point
+    /// independent of the rows a delete's actions reach (LLP 3000.038 §4.2).
+    pub(crate) fn draw(&self, table: &str, rows: u64) -> Result<(), RuntimeError> {
+        let rows = usize::try_from(rows).unwrap_or(usize::MAX);
+        if self.remaining.get() < rows { self.remaining.set(0); return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Delete }); }
+        self.remaining.set(self.remaining.get() - rows);
+        Ok(())
+    }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #[cfg(feature = "sqlite")] column: &str, now: i64) -> Result<(), RuntimeError> { #[cfg(feature = "sqlite")] { self.raw.release_asset(id, table, row_id, column, now) } #[cfg(not(feature = "sqlite"))] { self.raw.release_asset(id, now) } }

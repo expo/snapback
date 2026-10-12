@@ -586,6 +586,7 @@ impl MemoryTx<'_> {
 
 impl Rows for MemoryTx<'_> {
     fn change_footprint(&self) -> snapback4_core::revocation::Footprint { self.changes.borrow().footprint() }
+    fn widen_change_evidence(&self) { self.changes.borrow_mut().widen(); }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.store.state.borrow().rows.get(&(table.to_owned(), id.to_owned())).map(|row| parsed("row", row)).transpose()
     }

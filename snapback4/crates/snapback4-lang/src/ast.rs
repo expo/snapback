@@ -288,6 +288,8 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
+    /// `on delete restrict | cascade | set null` on a reference (LLP 3000.038).
+    pub on_delete: Option<(OnDelete, Site)>,
     pub sequence: Option<String>,
     pub written_by: Option<String>,
     pub readable_by_audience: bool,
@@ -296,6 +298,21 @@ pub struct ColumnDecl {
     pub default: Option<Expr>,
     pub type_: ScalarType,
     pub site: Site,
+}
+
+/// What deleting a referenced row does to the rows naming it (LLP 3000.038).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum OnDelete {
+    Restrict,
+    Cascade,
+    SetNull,
+    Keep,
+}
+
+impl OnDelete {
+    pub fn words(self) -> &'static str {
+        match self { Self::Restrict => "on delete restrict", Self::Cascade => "on delete cascade", Self::SetNull => "on delete set null", Self::Keep => "on delete keep" }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

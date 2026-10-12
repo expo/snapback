@@ -147,6 +147,7 @@ impl Runner<'_> {
         for constraint in &definition.constraints {
             if let Constraint::Cap { by, .. } = constraint {
                 let key: Vec<_> = by.iter().map(|field| row.field(field).cloned().unwrap_or(Value::Null)).collect();
+                if self.schema.cap_skips_null(definition, by, &key) { continue; }
                 let Some((name, _)) = definition.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)) else {
                     return Err(RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))));
                 };

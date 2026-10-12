@@ -16,6 +16,7 @@ use std::fmt;
 pub mod columns;
 pub mod reservations;
 pub mod through;
+pub mod references;
 mod reference;
 mod update_images;
 pub mod ephemeral;
@@ -216,12 +217,12 @@ impl Schema {
     pub fn group_bound(&self, name: &str, pinned: &[String]) -> Option<u32> {
         let table = self.table(name)?;
         let ordinary = table.constraints.iter().filter_map(|c| match c {
-            Constraint::Cap { by, max } if by.iter().all(|field| pinned.contains(field)) => Some(*max), _ => None,
+            Constraint::Cap { by, max } if by.iter().all(|field| pinned.contains(field)) && !table.cap_exempts_null(by) => Some(*max), _ => None,
         }).min();
         let derived = self.maintain_for(name).and_then(|m| {
             let source = self.table(&m.source)?;
             source.constraints.iter().filter_map(|c| match c {
-                Constraint::Cap { by, max } if by.iter().all(|field| pinned.contains(field) && m.bare_key(field)) => Some(*max), _ => None,
+                Constraint::Cap { by, max } if by.iter().all(|field| pinned.contains(field) && m.bare_key(field)) && !source.cap_exempts_null(by) => Some(*max), _ => None,
             }).min()
         });
         ordinary.into_iter().chain(derived).min()
@@ -279,6 +280,10 @@ pub struct Table {
     /// Lifetime-bound inherited authority. Absent on legacy schemas.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub through: Option<through::Through>,
+    /// What deleting a referenced row does, per reference column. Absent on
+    /// legacy schemas, whose references kept their children (LLP 3000.038).
+    #[serde(default, rename = "onDelete", skip_serializing_if = "BTreeMap::is_empty")]
+    pub on_delete: BTreeMap<String, references::OnDelete>,
     /// Engine-maintained readable fields, with their derivation identity.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub maintained: BTreeMap<String, String>,
@@ -341,9 +346,15 @@ impl Table {
 
     pub fn cap(&self, by: &[String]) -> Option<u32> {
         self.constraints.iter().find_map(|constraint| match constraint {
-            Constraint::Cap { by: group, max } if group == by => Some(*max),
+            Constraint::Cap { by: group, max } if group == by && !self.cap_exempts_null(group) => Some(*max),
             _ => None,
         })
+    }
+
+    /// A cap grouping by a `set null` reference does not count its null rows
+    /// (LLP 3000.038 §2.2), so it proves no population bound.
+    pub fn cap_exempts_null(&self, by: &[String]) -> bool {
+        by.iter().any(|column| self.on_delete.get(column) == Some(&references::OnDelete::SetNull))
     }
 
     pub fn immutable_fields(&self) -> impl Iterator<Item = &str> {
@@ -846,7 +857,7 @@ pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<Str
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
         ephemeral: None,
-        sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None,
+        sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None, on_delete: BTreeMap::new(),
         maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
@@ -875,6 +886,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     issues.extend(ephemeral::validate(schema));
     issues.extend(field_authority::validate(schema));
     issues.extend(through::validate(schema));
+    issues.extend(references::validate(schema));
     timeline::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
     let mut route_paths = BTreeSet::new();

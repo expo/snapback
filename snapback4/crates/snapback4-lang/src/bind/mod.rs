@@ -30,7 +30,7 @@ mod mixed_keys;
 mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
-mod delete_children;
+mod reference_actions;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -112,14 +112,15 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     intent_views::expand(&mut catalog, &mut diagnostics);
     // After argument-presence variants: `x = null or …` stays theirs (cursor validation across variants).
     where_guards::lower(&mut catalog);
-    delete_children::notes(&mut catalog);
     intent::plan(&mut catalog, &mut diagnostics);
+    reference_actions::indexes(&mut catalog);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     schema.authored_indexes = snapback4_core::schema::inspection::AuthoredIndexes(Some(authored_indexes));
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
     delivery::bind(&catalog, &mut schema, &mut diagnostics);
     receipts::bind(&catalog, &mut schema, &mut diagnostics);
     schema.prepare_receipt_dependencies();
+    reference_actions::bind(&catalog, &mut schema, &mut diagnostics);
     // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
     for issue in snapback4_core::schema::field_authority::validate(&schema) {
         if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {
@@ -294,6 +295,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     index_diagnostics::authored(&catalog, &mut notes);
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
+    notes.extend(reference_actions::sites(&catalog, &schema, &mut diagnostics));
     receipts::diagnostics(&catalog.documents, &mut diagnostics);
     // @ref LLP 3000.032#4.3 — use the expanded mapping, never guess default operation names.
     let receipt_members = catalog.documents.iter().flat_map(|doc| {

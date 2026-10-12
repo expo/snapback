@@ -314,10 +314,13 @@ impl Store {
                 for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))) {
                     validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
                 }
-                for constraint in table.constraints.iter().filter(|_| plan.project || rebuilt) {
+                // @ref LLP 3000.038#2.2 — a `set null` cap skips its null group; adding or removing that exemption re-validates the cap.
+                let exemption_changed = previous.as_ref().is_some_and(|old| old.tables.get(name).is_some_and(|old| old.constraints.iter().any(|c|
+                    matches!(c, Constraint::Cap { by, .. } if old.cap_exempts_null(by) != table.cap_exempts_null(by)))));
+                for constraint in table.constraints.iter().filter(|_| plan.project || rebuilt || exemption_changed) {
                     if let Constraint::Cap { by, max } = constraint {
                         let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
-                        validate_groups(&tx, name, index_name, by.len(), u64::from(*max), false)?;
+                        validate_groups(&tx, name, index_name, by.len(), u64::from(*max), table.cap_exempts_null(by))?;
                     }
                 }
             }

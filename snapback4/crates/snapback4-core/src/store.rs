@@ -1002,6 +1002,7 @@ pub const SCAN_MEMORY_GUARD: u64 = 256 << 20;
 
 impl crate::rows::Rows for Tx<'_> {
     fn change_footprint(&self) -> crate::revocation::Footprint { self.changes.borrow().footprint() }
+    fn widen_change_evidence(&self) { self.changes.borrow_mut().widen(); }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
         if !self.has_sequence_table()? { return Ok(0); }
         Ok(self.conn().query_row("SELECT value FROM _sequences WHERE parent = ?1 AND id = ?2", params![parent, id], |r| r.get(0)).optional()?.unwrap_or(0))
