@@ -75,7 +75,7 @@ export interface LocalOptions {
   readonly assets?: AssetRetention;
 }
 
-export type LocalClient = Client & {
+export type LocalClient = Client & import("./uploads.ts").UploadClient & {
   sync(): Promise<void>;
   deviceVersion(): import("./device-version.ts").DeviceVersionStatus;
 };

@@ -1,7 +1,7 @@
 use super::*;
 use snapback4_device::device::{Backend, Queued};
 fn queued(op: &str, seq: u64, now: i64) -> Queued {
-    Queued {
+    Queued { upload: None,
         id: format!("q{seq}"),
         seq,
         op: op.into(),

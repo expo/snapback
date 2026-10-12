@@ -55,7 +55,7 @@ fn backend(retain: bool, horizon: bool) -> (Engine, Backend) {
 fn post(name: &str) -> (String, Value) { ("posts".into(),object([("id",id(name)),("authorId",id("alice"))])) }
 fn member(name: &str, until: i64) -> (String, Value) { ("members".into(),object([("id",id(name)),("authorId",id("alice")),("principal",id("alice")),("until",Value::Int(until))])) }
 fn intent(target: &str, n: u64, now: i64) -> Queued {
-    Queued {id:format!("q{n}"),seq:n,op:"like".into(),args:json!({"postId":target}),viewer:"alice".into(),now,new_ids:vec![format!("l{n}")],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None}
+    Queued { upload: None,id:format!("q{n}"),seq:n,op:"like".into(),args:json!({"postId":target}),viewer:"alice".into(),now,new_ids:vec![format!("l{n}")],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None}
 }
 fn snapshot<S: DeviceStore>(e: &mut Engine, d: &mut Device<S>, now: i64) {
     let page=e.snapshot_acquisition_page_at("alice",None,100,now).unwrap();

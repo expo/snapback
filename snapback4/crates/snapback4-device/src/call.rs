@@ -192,7 +192,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 Json::Null
             }
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0), &request["home"])?,
-            "admit" => {
+            "check_upload_receipt"=>device.check_upload_receipt(&queued_entry(take(&mut request,"entry")?)?,arg(&request,"write")?)?,
+            "upload_state" => device.upload_state(text(&request, "id")?, text(&request, "viewer")?, text(&request, "state")?, request.get("why"))?,
+            "upload_ready" => device.upload_ready(text(&request, "id")?, text(&request, "viewer")?, text(&request, "store_id")?, arg(&request, "asset")?)?,
+            "admit_upload" | "admit" => {
                 #[cfg(not(target_arch = "wasm32"))]
                 let identified = request.get("expected_generation").and_then(Json::as_u64).is_some();
                 #[cfg(target_arch = "wasm32")]
@@ -203,7 +206,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 }
                 let entry = take(&mut request, "entry")?;
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
-                encoded(&device.admit_checked(queued_entry(entry)?, replay, identified)?)?
+                let entry=queued_entry(entry)?;
+                if op=="admit_upload" {
+                    if let Some(write)=device.upload_terminal(&entry)? { return Ok(json!({"write":write})); }
+                }
+                encoded(&device.admit_checked(entry, replay, identified)?)?
             }
             "settle" => {
                 device.settle_from(text(&request, "id")?, request.get("seq").and_then(Json::as_u64), request.get("store_id").and_then(Json::as_str))?;

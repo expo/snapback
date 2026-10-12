@@ -543,7 +543,7 @@ fn declaration_refusals_and_device_delivery_queue() {
     for (i, p) in snapshot_pages(&mut e, "bob", 1000).iter().enumerate() {
         d.apply(p, i == 0).unwrap();
     }
-    let q = snapback4_device::device::Queued {
+    let q = snapback4_device::device::Queued { upload: None,
         id: "report".into(),
         seq: 1,
         op: "delivered".into(),
@@ -608,7 +608,7 @@ fn device_queues_progress_and_removal_without_changing_settled_receipts() {
     for (i, p) in snapshot_pages(&mut e, "bob", 1000).iter().enumerate() {
         d.apply(p, i == 0).unwrap();
     }
-    let queued = |op: &str, seq| snapback4_device::device::Queued {
+    let queued = |op: &str, seq| snapback4_device::device::Queued { upload: None,
         id: op.into(),
         seq,
         op: op.into(),

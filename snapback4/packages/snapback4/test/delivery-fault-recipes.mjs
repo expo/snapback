@@ -1,6 +1,9 @@
+import { census } from './delivery-fault-instrument.mjs';
+const deliverySites = census();
 // Each recipe selects a real host operation below the named awaited call.
 // The census test pins this mapping; there is no default for a new await.
 export const groups = {
+  upload: [163],
   ordinary: [0,2,3,9,14,15,16,17,19,28,29,30,31,48,52,53,54,55,57,58,59,61,62,65,68,77,78,79,80,82,83,84,92,93,94,95,99,115,117,119,133,154,162],
   lookup: [1,87,88,89,90,91,100,101],
   media: [7,50,107,108,109,110,111,112,113,114,155],
@@ -29,6 +32,10 @@ export const groups = {
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
+  const sites = deliverySites;
+  const media = site => site.file === 'uploads.ts' || site.file === 'web-upload-admission.ts' || site.file === 'app-uploads.ts' || site.file === 'assets.ts' || site.expression === 'uploads.prepare(current)' || site.expression === 'uploads.finish(current, why)' || site.expression === 'settleReceipt(history, receiptCall, { state: "failed", id: entry.id, why }, undefined, binding)';
+  if (media(sites[index])) return 163;
+  index -= sites.slice(0, index).filter(media).length;
   // IT: sync refreshes pending facts after apply, including a no-op page.
   // Its read-only queue lookup is optional to already durable write custody.
   if (index === 31) return 162;
@@ -59,5 +66,5 @@ export function recipe(ordinal) {
   return matches[0][0];
 }
 
-export const required = new Set([0,1,2,6,9,11,48,55,57,58,59,60,61,62,69,70,71,72,73,74,75,76,77,78,79,84,85,86,87,88,89,90,91,92,93,94,99,100,101,102,103,104,105,106,115,117,133,154]);
+export const required = new Set([163,0,1,2,6,9,11,48,55,57,58,59,60,61,62,69,70,71,72,73,74,75,76,77,78,79,84,85,86,87,88,89,90,91,92,93,94,99,100,101,102,103,104,105,106,115,117,133,154]);
 export const absorbs = new Set([37,44,47,49,51,56]);

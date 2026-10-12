@@ -36,7 +36,7 @@ fn run<H: Host>(host: &mut H) {
             assert_eq!(local.complete, complete, "{name} {op}: {local:?}");
             assert_eq!(local.data, if complete { remote.data } else { Value::Null }, "{name} {op}");
         }
-        let queued = device.admit(Queued { id: "save".into(), seq: 1, op: "save".into(), args: args.clone(), viewer: "alice".into(), now: 100,
+        let queued = device.admit(Queued { upload: None, id: "save".into(), seq: 1, op: "save".into(), args: args.clone(), viewer: "alice".into(), now: 100,
             new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
         assert_eq!(queued.predictable, complete, "{name}: {queued:?}");
         assert_eq!(queued.predicted.len(), usize::from(complete));

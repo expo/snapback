@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import UIKit
 import Snapback4Device
 
 // The device in Rust, opened once per store and reached through one JSON
@@ -74,6 +75,28 @@ public final class Snapback4Module: Module {
     Function("assetUri") { (handle: Int, id: String) -> String in
       try self.withMedia(handle) { try $0.uri(id) }
     }
+
+    // @ref LLP 3000.038.000#4 — saving is a user action over authorized bytes, with private temporary custody.
+    AsyncFunction("saveAsset") { (hex: String, name: String, promise: Promise) in
+      do {
+        let temporary = try SavedAsset(hex: hex, name: name)
+        guard let root = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+          .flatMap({ $0.windows }).first(where: { $0.isKeyWindow })?.rootViewController else {
+          temporary.remove()
+          throw Snapback4OpenException("no view can present the save sheet")
+        }
+        var presenter = root
+        while let next = presenter.presentedViewController { presenter = next }
+        let sheet = UIActivityViewController(activityItems: [temporary.url], applicationActivities: nil)
+        sheet.popoverPresentationController?.sourceView = presenter.view
+        sheet.popoverPresentationController?.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 1, height: 1)
+        sheet.completionWithItemsHandler = { _, completed, _, error in
+          temporary.remove()
+          if let error { promise.reject(error) } else { promise.resolve(completed) }
+        }
+        presenter.present(sheet, animated: true)
+      } catch { promise.reject(error) }
+    }.runOnQueue(.main)
 
     Function("close") { (handle: Int) in
       self.lock.lock()

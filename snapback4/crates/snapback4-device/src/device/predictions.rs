@@ -374,11 +374,14 @@ pub(super) fn qualify_receipts<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result
 }
 
 pub(super) fn record_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, observed: bool, success: bool) -> Result<(), RuntimeError> {
+    // @ref LLP 3000.038.000#3 — an unresolved upload cannot have dispatched its placement; an old same-id acknowledgement owns no byte custody.
+    if entry.upload.as_ref().is_some_and(|u|u["state"]!="placing"){return Ok(());}
     if observed { entry.observed_seq = Some(seq); } else { entry.sent_seq = Some(seq); }
     stamp_receipt(tx, entry, seq, success)
 }
 
 fn stamp_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, success: bool) -> Result<(), RuntimeError> {
+    if entry.upload.as_ref().is_some_and(|u|u["state"]!="placing"){return Ok(());}
     let store = tx.meta(STORE_ID)?.or(tx.meta(deferred::IDENTITY)?);
     if !receipt_matches(entry, store.as_deref()) {
         return Ok(()); // A replacement cannot rebind a preserved old receipt.

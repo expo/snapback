@@ -5,7 +5,7 @@ use snapback4_device::device::Queued;
 
 const SOURCE: &str = "table stamps:\n  at: time default now\n  read <- allow\n  insert <- allow\n  sync public\nmutation stamp():\n  insert stamps {}\n";
 fn entry(id: &str, now: i64) -> Queued {
-    Queued { id: id.into(), seq: 0, op: "stamp".into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![],
+    Queued { upload: None, id: id.into(), seq: 0, op: "stamp".into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![],
         viewer: "alice".into(), now, predictable: false, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }
 }
 fn retirement<H: Host>(host: &mut H) {

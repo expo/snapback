@@ -91,7 +91,8 @@
     "README.md",
     "SERVER.md",
     "CLIENT-AND-OPERATIONS.md",
-    "FOLLOWING-ADOPTION.md"
+    "FOLLOWING-ADOPTION.md",
+    "OFFLINE-UPLOADS.md"
   ],
   "optionalDependencies": {
     "snapback4-darwin-arm64": "0.4.24",

@@ -43,7 +43,7 @@ fn refresh<H: Host>(host: &mut H) {
     ]).unwrap();
     let mut d = host.open("refresh", Some(backend)).unwrap();
     for (i,p) in snapshot_pages(&mut e, "dev:alice",100).iter().enumerate() { d.apply(p,i==0).unwrap(); }
-    d.admit(Queued {id:"q".into(),seq:0,op:"bumpSelected".into(),args:serde_json::json!({}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:1000,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None, dispatch: None}).unwrap();
+    d.admit(Queued { upload: None,id:"q".into(),seq:0,op:"bumpSelected".into(),args:serde_json::json!({}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:1000,predictable:true,sent_seq: None, receipt_store: None,observed_seq:None, dispatch: None}).unwrap();
     assert_eq!(d.queued().unwrap()[0].predicted, ["counters/a"]);
     e.mutate("retargetAndBump",Some("bob"),context("dev:bob",&[]).at(1000)).unwrap();
     let capture=d.sync_state().unwrap();

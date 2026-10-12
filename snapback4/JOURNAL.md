@@ -93784,6 +93784,30 @@ Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
 zero errors and zero unchecked. The tracked worktree is committed without push.
 
 
-## 2026-10-12 — HAND device compatibility and CLI hygiene
+## 2026-10-12 — MEDIA wave 9: durable upload-and-place
 
-LLP 3000.001.000 records the predecode handshake, per-release floor and actual-engine build stamp. Linux optimized wasm is 2,247,651 B raw / 680,022 B gzip, +671 B against setup baseline 679,351 B; budget 680,522 B includes the required 500 B platform headroom. The 104 B previous-budget overrun is needed for the exported version/capability identity and embedded stamp; server refusal logic remains native-only. Worker app-package provenance and dev-clock bearer replacement retain existing source and credential custody. REL owns release-lifecycle wording, DX/Exact owns its consumer build preflight.
+Fix #16 (NA9/E4): a selected byte copy, immutable placement metadata and its
+stable intent id commit in one device outbox value. The wasm/IndexedDB and
+SQLite/Expo hosts share admission, dependency and cancellation semantics.
+Server declarations bind exact bytes/metadata and placement before byte
+transport; dedup receipts, pinned custody and bounded owner recovery close
+lost replies, long offline intervals and device-storage loss. Typed React and
+Expo APIs use the guarded public app client. WAV/MP3/FLAC are sniffed files;
+Expo save presents authorized bytes through the native share/save sheet.
+The child contract is LLP 3000.038.000; Exact implements its adapter side.
+
+The locked Linux web artifact is 2,265,521 B raw / 686,826 B gzip. Its budget
+becomes 687,326 B, preserving the inherited 500 B platform allowance (+7,408 B
+versus the old cap). The new device dependency, quota, identity and state code
+needs these bytes; no global interpreter resource ceiling changes. This is a
+whole-artifact comparison to the recorded integration baseline, with no fresh
+control rebuild or macOS measurement claimed. The workstream report records
+qualification; the iOS sheet itself needs a macOS/native witness.
+
+MEDIA final custody qualification supersedes the candidate above: the locked
+Linux artifact measures 2,270,687 B raw / 689,337 B gzip after terminal/live
+ownership validation, unresolved-ACK fencing and bounded input admission. Set
+689,837 B = measurement + the inherited 500 B platform allowance; the increase
+against the integration cap 679,918 B is 9,919 B. This remains a whole-artifact
+comparison to the recorded baseline, without a fresh control rebuild or macOS
+measurement. Interpreter resource ceilings remain unchanged.

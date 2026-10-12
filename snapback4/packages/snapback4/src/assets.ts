@@ -39,7 +39,7 @@ function readBlob(blob: Blob, method: "readAsArrayBuffer" | "readAsDataURL"): Pr
 }
 
 // The types a server serves: media, and the verifiable file types (LLP 3000.038 §2).
-const SERVED = ["image/jpeg", "image/png", "image/webp", "video/mp4", "application/pdf", "text/plain", "text/csv", "text/markdown",
+const SERVED = ["audio/wav", "audio/mpeg", "audio/flac", "image/jpeg", "image/png", "image/webp", "video/mp4", "application/pdf", "text/plain", "text/csv", "text/markdown",
   "application/json", "image/gif", "application/zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation"];
 
@@ -66,11 +66,12 @@ function ownBlob(blob: Blob): () => void {
   };
 }
 
-export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, canRetry: () => boolean = () => true, options?: UploadOptions): Promise<Uploaded> {
+export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, canRetry: () => boolean = () => true, options?: UploadOptions, intent?: { id: string; store: string; signal?: AbortSignal | undefined }): Promise<Uploaded> {
   const { "content-type": _json, ...auth } = headers;
   // @ref LLP 3000.038#3 — a file names its kind, filename and declared type; the server checks the type against the bytes.
   const file = options?.file ? uploadFile(bytes, options.file) : undefined;
-  const target = file ? `${base}/assets?as=file&name=${encodeURIComponent(file.name)}` : `${base}/assets`;
+  let target = file ? `${base}/assets?as=file&name=${encodeURIComponent(file.name)}` : `${base}/assets`;
+  if (intent) target += `${file ? "&" : "?"}intent=${encodeURIComponent(intent.id)}&store_id=${encodeURIComponent(intent.store)}`;
   const contentType = file?.type ?? "application/octet-stream";
   // Caller-owned buffers may change during admission backoff. Every attempt
   // sends the same selected byte range, including inputs from another realm.
@@ -83,7 +84,7 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
   try {
     let waited = 0;
     for (let attempt = 0; ; attempt++) {
-      const response = await doFetch(target, { method: "POST", headers: { ...auth, "content-type": contentType }, body });
+      const response = await doFetch(target, { method: "POST", headers: { ...auth, "content-type": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) });
       let json: { asset?: Asset; denied?: Refusal } | null;
       try { json = await response.json(); }
       catch { return { ok: false, why: invalidResponse(response.status, "upload") }; }

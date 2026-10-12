@@ -285,6 +285,7 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _effect_presence (principal TEXT NOT NULL, id TEXT NOT NULL, deadline INTEGER NOT NULL, reconnected INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (principal, id)) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS _effect_presence_id ON _effect_presence(id);
              CREATE TABLE IF NOT EXISTS _assets (id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, content_type TEXT NOT NULL, bytes INTEGER NOT NULL, width INTEGER, height INTEGER, duration INTEGER, created_at INTEGER NOT NULL, home_table TEXT, home_id TEXT, home_column TEXT, released_at INTEGER, name TEXT);
+             CREATE TABLE IF NOT EXISTS _asset_intents (owner TEXT NOT NULL, intent TEXT NOT NULL, fingerprint TEXT, asset TEXT, facts TEXT, placement TEXT, state TEXT NOT NULL, PRIMARY KEY(owner, intent)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _asset_views (asset TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (asset, principal)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _asset_gc (asset TEXT PRIMARY KEY) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _jobs (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep INTEGER NOT NULL, cursor TEXT, upper TEXT, chunks INTEGER NOT NULL, rows_written INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT);",
@@ -299,6 +300,8 @@ impl Store {
         // @ref LLP 3000.038#4 — a file's sanitized name rides the ledger; older stores gain the column in place.
         let asset_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_assets')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
         if !asset_columns.iter().any(|column| column == "name") { conn.execute_batch("ALTER TABLE _assets ADD COLUMN name TEXT;")?; }
+        let intent_columns:Vec<String>=conn.prepare("SELECT name FROM pragma_table_info('_asset_intents')")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
+        if !intent_columns.iter().any(|c|c=="placement"){conn.execute_batch("ALTER TABLE _asset_intents ADD COLUMN placement TEXT;")?;}
         let op_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_ops')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
         for (column, kind) in [("name", "TEXT"), ("args_digest", "TEXT"), ("at", "INTEGER")] {
             if !op_columns.iter().any(|name| name == column) {

@@ -208,7 +208,15 @@ pub(super) fn keep_write<T: DeviceTx>(tx: &T, value: &str) -> Result<(), Runtime
     let entries = history.as_array_mut().ok_or_else(|| RuntimeError::Store("write history must be a list".into()))?;
     let mut ids: std::collections::BTreeSet<String> = entries.iter().filter_map(|entry| entry["id"].as_str().map(str::to_owned)).collect();
     let mut added = Vec::new();
-    for entry in incoming {
+    for mut entry in incoming {
+        if !adopting {
+            if let Some(id)=entry["id"].as_str() {
+                if let Some(data)=tx.outbox_get(id)? {
+                    let queued:Queued=decoded(&data)?;
+                    if let Some(upload)=queued.upload { entry["upload_identity"]=serde_json::json!({"fingerprint":upload["fingerprint"],"store_id":upload["store_id"],"op":queued.op,"viewer":queued.viewer}); }
+                }
+            }
+        }
         let id = entry["id"].as_str().unwrap();
         if ids.insert(id.to_owned()) { added.push(entry); }
         else if !adopting {

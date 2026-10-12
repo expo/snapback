@@ -51,3 +51,15 @@ export async function saveAsset(client: Pick<Client, "asset">, id: string, name?
   setTimeout(read.revoke, 60_000);
   return { ok: true, name: filename };
 }
+
+/** Canonical bounded metadata for a durable capture, matching the server's filename form. */
+export function captureFile(bytes: unknown, file: NonNullable<UploadOptions["file"]>): {name:string;type?:string} {
+  const selected=uploadFile(bytes,file);
+  const segment=selected.name.split(/[\\/]/).pop()??"";
+  const cleaned=segment.replace(/[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g,"").trim().replace(/^\.+/,"").trim()||"file";
+  let name="",length=0;
+  for(let char of cleaned){const n=char.codePointAt(0)!;if(n>=0xd800&&n<=0xdfff)char="�";const size=n<128?1:n<2048?2:n<65536?3:4;if(length+size>255)break;name+=char;length+=size;}
+  const type=selected.type?.split(";")[0]?.trim().toLowerCase();
+  if(type && (type.length>128||!/^[-a-z0-9!#$&^_.+]+\/[-a-z0-9!#$&^_.+]+$/.test(type)))throw {code:"E_UPLOAD_ARGUMENT",family:"asset",message:"file media type must be a canonical MIME essence of at most 128 bytes"} satisfies Refusal;
+  return type?{name,type}:{name};
+}

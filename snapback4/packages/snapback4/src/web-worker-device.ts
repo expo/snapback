@@ -1,3 +1,4 @@
+import { captureUploadAuthority, authorizeUpload, recoverUploadHistory, preflightUpload } from "./web-upload-admission.ts";
 import type { DeviceCore, DeviceOpening } from "./local-device.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceControl } from "./device-control.ts";
@@ -134,6 +135,10 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     }
     // Remove page closures before structured cloning.
     const wire = Object.fromEntries(Object.entries(request));
+    if(request.op==="admit_upload"){
+      const known=await recoverUploadHistory(tx.invoke,persist,name,request.entry as Record<string,unknown>);
+      if(known){await settle(tx,[],()=>committed?.(known));return known;}
+    }
     const reply = request.op === "admit" ? await journal.admitWith(tx.invoke, request.entry, admission?.storeId, request.expected_generation as number | undefined, request.expected_backend as string | undefined) : await tx.invoke(wire);
     if (request.op === "queued" && Array.isArray(reply.ok)) reply.ok = reply.ok.map((entry: Queued) => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
     const observes = ["observe_store", "apply", "adopt"].includes(String(request.op));
@@ -142,7 +147,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     else {
       try {
         await settle(tx, !admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [],
-          () => committed?.(reply), request.op === "begin_send" || request.op === "hold_write");
+          () => committed?.(reply), request.op === "begin_send" || request.op === "hold_write" || request.op === "upload_state");
       } catch (error) {
         if (!admission || !writeRefusal(reply)) throw error;
         // Known local refusal wins even if cancellation bookkeeping failed.
@@ -172,6 +177,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
       if (request.op === "admit" && !prepared.has(request)) {
         const denied = capture(request); if (denied) return Promise.resolve({ denied });
       }
+      const uploadStamp=captureUploadAuthority(request,journal.authority);
       const admission = prepared.get(request); prepared.delete(request);
       if (admission) { request = { ...request, entry: admission.entry }; admissions.add(admission.entry.id); }
       // Enqueue on the host now, not after an async page-chain wait, so a
@@ -180,14 +186,18 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
       return serial(async () => {
         try {
           const reply = await host.transaction(async tx => {
+            if(request.op==="admit_upload"){
+              const ownership=await preflightUpload(request.entry as Record<string,unknown>,tx.invoke,persist,name,uploadStamp,journal.authority);
+              if(!ownership.continue_upload){await settle(tx,[],()=>committed?.(ownership));return ownership;}
+            }
             await recover(tx, false);
             return admission ? journal.authorize(admission, () => execute(tx, request, admission, committed), async () => {
               const refused = { denied: admissionAuthorityRefusal() };
               await settle(tx, journal.refused(admission), () => committed?.(refused));
               host.control.admitted(admission.entry.id); return refused;
-            }) : execute(tx, request, admission, committed);
+            }) : uploadStamp && journal.authority ? authorizeUpload(uploadStamp,journal.authority,String((request.entry as Queued | undefined)?.viewer??""),()=>execute(tx,request,admission,committed)) : execute(tx, request, admission, committed);
           });
-          if (pendingCalls === 1 && ["admit", "enqueue", "settle", "settle_exit", "begin_send"].includes(String(request.op))) {
+          if (pendingCalls === 1 && ["admit", "admit_upload", "upload_ready", "enqueue", "settle", "settle_exit", "begin_send"].includes(String(request.op))) {
             try { await suspension.prepare(); }
             catch {
               // The requested transaction already completed. Preparation is

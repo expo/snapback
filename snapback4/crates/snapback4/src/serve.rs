@@ -868,7 +868,7 @@ fn handle(mut request: Request, shared: &Shared) {
     // upload cannot retain the authority held at its start.
     // Logout's body is only 4 KiB and its sole authentication happens inside
     // the SQLite writer transaction that closes the live session family.
-    if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")
+    if method == Method::Post && (path == "/assets" || path.starts_with("/assets/intent/") || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
@@ -940,6 +940,14 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post && path == "/assets" {
         return crate::assets::upload(request, bytes, shared);
     }
+    if method == Method::Post && let Some(id)=path.strip_prefix("/assets/intent/").and_then(|s|s.strip_suffix("/declare")){return crate::assets::declare(request,id,bytes,shared);}
+    if method == Method::Post && let Some(id) = path.strip_prefix("/assets/intent/").and_then(|s| s.strip_suffix("/finish")) {
+        return crate::assets::finish(request, id, bytes, shared);
+    }
+    if method == Method::Post && let Some(id) = path.strip_prefix("/assets/intent/").and_then(|s| s.strip_suffix("/cancel")) {
+        return crate::assets::cancel(request, id, shared);
+    }
+    if method == Method::Get && path == "/assets/intents" { return crate::assets::intents(request, shared); }
     if method == Method::Get && let Some(id) = path.strip_prefix("/assets/") {
         return crate::assets::serve(request, id, shared);
     }

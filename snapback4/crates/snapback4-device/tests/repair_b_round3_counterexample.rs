@@ -54,7 +54,7 @@ fn probe<H: Host>(host: &mut H, write_count: usize, first_deferred: bool) {
     for index in 0..write_count {
         let row = if index + 1 == write_count { "a" } else { "filler" };
         let write_id = format!("write-{index:03}");
-        device.admit(Queued {
+        device.admit(Queued { upload: None,
             id: write_id.clone(), seq: 0, op: "bump".into(),
             args: serde_json::json!({"counterId": row}), new_ids: vec![],
             predicted: vec![], viewer: "dev:alice".into(), now: 1000,

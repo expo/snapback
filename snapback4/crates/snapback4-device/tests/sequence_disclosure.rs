@@ -61,7 +61,7 @@ fn pair_devices<H: Host>(host: &mut H, pair: &Pair) {
                     Err(error) => json!({"refusal":error.refusal()}),
                 },
             );
-            let admission = d.admit(Queued {
+            let admission = d.admit(Queued { upload: None,
                 id: "operation-0".into(), seq: 1, op: op.name.clone(), args: op.args.clone(),
                 new_ids: vec!["new-0".into(), "gate-0".into()], predicted: vec![],
                 viewer: op.principal.clone(), now: NOW, predictable: true,
@@ -142,7 +142,7 @@ fn generated_author_lookups_keep_intents_until_settlement() {
             assert_eq!(prediction.result["pending"], true);
             d.withdraw(&prediction.predicted).unwrap();
         }
-        let entry = d.admit(Queued {
+        let entry = d.admit(Queued { upload: None,
             id: "intent".into(), seq: 1, op: op.name.clone(), args: op.args.clone(), new_ids: vec!["new-0".into()], predicted: vec![],
             viewer: "alice".into(), now: NOW, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
         }).unwrap();
@@ -195,7 +195,7 @@ fn generated_readable_insert_admission_and_server_dispositions() {
             d.apply(&serde_json::from_value(page.clone()).unwrap(), n == 0).unwrap();
         }
         let op = &pair.operations[0];
-        let entry = d.admit(Queued {
+        let entry = d.admit(Queued { upload: None,
             id: "intent".into(), seq: 1, op: op.name.clone(), args: op.args.clone(), new_ids: vec!["new-0".into()], predicted: vec![],
             viewer: who.into(), now: NOW, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None,
         }).unwrap();

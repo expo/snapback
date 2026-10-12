@@ -1,0 +1,65 @@
+{
+  "source_commit": "64f7350d3cd7600157d38754ca06acb873bbe58d",
+  "base": "e82bb70b97",
+  "rfc_sha256": "56224d6d23d04e99151efeca793ddb596865862862c0e8cad2f0d70304ff4be5",
+  "reviews": {
+    "codex": "READY (round12)",
+    "muse": "READY (round12b, unchanged RFC)"
+  },
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "rust_full": {
+    "passed": 3286,
+    "failed": 0,
+    "ignored": 20,
+    "targets": 192,
+    "exit_code": 0,
+    "command": "cargo test -p snapback4-core -p snapback4-device -p snapback4 --no-fail-fast",
+    "note": "Full run preceded final server adoption/bounds patch; affected core/device/HTTP tests and full client checks qualify the final delta."
+  },
+  "delivery_fault_matrix": {
+    "passed": 441,
+    "failed": 0,
+    "classified_awaits": 213
+  },
+  "media": {
+    "passed": 24,
+    "failed": 0
+  },
+  "assets_and_journal": {
+    "passed": 191,
+    "failed": 0,
+    "skipped": 1,
+    "skip": "Darwin-only native witness"
+  },
+  "wasm": {
+    "raw_bytes": 2270687,
+    "gzip_bytes": 689337,
+    "budget": 689837,
+    "platform": "Linux",
+    "macos_measured": false
+  },
+  "ref_check": {
+    "llps": 542,
+    "refs": 11028,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "artifact_sha256": {
+    "assets-and-journal-final.log": "0dbb2abeb2e8c353fabd76bf656a9acae0d727bf7d038c404170b4e420330801",
+    "cargo-all-quality.log": "53260bc5912d47cbfdef9d3248af9e6a0473e627092281babacfa0d1f075bed8",
+    "client-final-adoption.log": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "core-bounds-final.log": "f8e94defabbe393d610221bb793d737ff85b06355d6ab96f01036bde9e8445f2",
+    "delivery-matrix-final-adoption.log": "ac8360875e0259cbea14baa8650b7f5e2846b6b6da98d7317d4b96f8693ebb15",
+    "device-final.log": "271cfaf2da49ca2bfa2375d6f1adf2cc8fd340ca1be8d1fe938df5f0cd7da17f",
+    "ephemeral-cli-final.log": "f39b84375579099eaf9302d9f4fe6bfab0574e4d85fcc9c6b265e8496a1c873f",
+    "ephemeral-core-final.log": "1386e342a6aba91ebc7ab4f848ce1a189dd73d93aee05b219a3d625e2a06cb1c",
+    "expo-typecheck-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "media-final.log": "852fbeebbe94a2e73b38248de4516369e8e4c1e53711b3349314045b084aa277",
+    "ref-check-final.log": "dcddfa66c9389a810766801be4a09c04e0d98732e9bae181e1a25876ef26e560",
+    "wasm-budget-adoption.log": "c1c3aaa3868b44bb6104b39a5081227ad17aa1a23d5e4da634ecb4804fb31f7f"
+  }
+}

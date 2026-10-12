@@ -1,3 +1,5 @@
+import { hasUploads } from "./uploads.ts";
+import { mintId } from "./client.ts";
 import { Following } from "./following.ts";
 import type { FollowingQuery } from "./contract.ts";
 export type { FollowingPhase, FollowingSnapshot } from "./following.ts";
@@ -672,3 +674,30 @@ export function useSeen<M extends { id: string; pending?: boolean }, S extends s
   useEffect(() => { owner.update(options.through, options.active); });
   return { state: snapshot.state, through: snapshot.through, ...(snapshot.why ? { why: snapshot.why } : {}), retry: owner.retry };
 }
+
+/** The same hook works under React Native. Pass a kept id to resume its card after reload.
+ * Admission resolves after the byte copy and placing mutation commit to the device. */
+export function useUpload<A, R, K extends Extract<keyof A, string>>(op: Mutation<A, R>, argument: K, keptId?: string) {
+  const client = useClient();
+  const uploads = client as Client & import("./uploads.ts").UploadClient, available = hasUploads(client);
+  const [id, setId] = useState(keptId), [state, setState] = useState<import("./uploads.ts").UploadIntent>();
+  useEffect(() => { setId(keptId); }, [keptId, client]);
+  useEffect(() => {
+    if(!available){setState(undefined);return;}
+    let alive = true, version = 0;
+    const refresh = () => { const captured = ++version; if (!id) { setState(undefined); return; }
+      void uploads.uploadIntent(id).then(next => { if (alive && captured === version) setState(next); }).catch(() => {}); };
+    const stop = uploads.onUploads(refresh); refresh();
+    return () => { alive = false; stop(); };
+  }, [uploads, id, available]);
+  const uploadAndPlace = useCallback(async (args: Omit<A, K>, bytes: Blob | ArrayBuffer | Uint8Array, options?: Omit<import("./uploads.ts").UploadAndPlaceOptions<K>, "argument">) => {
+    const next:import("./uploads.ts").UploadIntent = available ? await uploads.uploadAndPlace(op, args, bytes, { ...options, argument }) :
+      {state:"failed",id:options?.id??mintId(),why:{code:"E_UPLOAD_DEVICE",family:"client",message:"durable upload-and-place needs a device; createApp with webDevice() or nativeDevice"}};
+    setId(next.id); setState(next); return next;
+  }, [uploads, op, argument, available]);
+  return { state, id, available, uploadAndPlace, retry: () => available && id ? uploads.retryUpload(id) : Promise.resolve(undefined),
+    discard: () => available && id ? uploads.discardUpload(id) : Promise.resolve(undefined) };
+}
+export type { UploadIntent, UploadAndPlaceOptions } from "./uploads.ts";
+
+export type { Saved } from "./files.ts";

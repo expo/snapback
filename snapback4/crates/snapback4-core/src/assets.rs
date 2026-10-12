@@ -29,6 +29,8 @@ pub struct Upload {
     pub(crate) generation: u64,
     pub(crate) committed: bool,
     pub(crate) written: bool,
+    pub(crate) intent: Option<(String, String)>,
+    pub(crate) placement: Option<serde_json::Value>,
     /// The directory is a store-in-memory's own: this upload creates it if
     /// the first write needs it, and removes it again if it is left empty
     /// by an upload that never committed — including one written after the
@@ -37,6 +39,12 @@ pub struct Upload {
 }
 #[cfg(feature = "sqlite")]
 impl Upload {
+    /// Bind this staged upload to an immutable device intent.
+    pub fn with_intent(mut self, id: &str, fingerprint: &str) -> Self {
+        self.intent = Some((id.to_owned(), fingerprint.to_owned()));
+        self
+    }
+    pub fn with_placement(mut self, placement: serde_json::Value) -> Self {self.placement=Some(placement);self}
     pub fn write(mut self, bytes: &[u8]) -> Result<Self, RuntimeError> {
         use std::io::Write;
         if bytes.len() as u64 != self.asset.bytes {
@@ -54,6 +62,8 @@ impl Upload {
         file.write_all(bytes).map_err(io)?;
         file.sync_all().map_err(io)?;
         std::fs::rename(staging, &self.path).map_err(io)?;
+        // A synced inode is insufficient: publish its name durably before the ledger commit.
+        if let Some(directory) = self.path.parent() { std::fs::File::open(directory).and_then(|f| f.sync_all()).map_err(io)?; }
         Ok(self)
     }
 }
@@ -214,7 +224,7 @@ pub const FILE_FACTS: [&str; 3] = ["type", "bytes", "name"];
 /// verify against the bytes (`verify_file`). None is script-bearing: HTML,
 /// SVG, XML and JavaScript are never stored as files (LLP 3000.038 §2).
 pub const FILE_TYPES: &[&str] = &[
-    "application/pdf",
+    "audio/wav", "audio/mpeg", "audio/flac", "application/pdf",
     "text/plain",
     "text/csv",
     "text/markdown",
@@ -289,6 +299,11 @@ pub fn verify_file(bytes: &[u8], declared: Option<&str>) -> Result<&'static str,
 }
 
 fn magic_type(bytes: &[u8]) -> Option<&'static str> {
+    if audio_wav(bytes) { return Some("audio/wav"); }
+    if bytes.len() >= 42 && bytes.starts_with(b"fLaC") && bytes[4] & 0x7f == 0 && bytes[5..8] == [0, 0, 34] {
+        return Some("audio/flac");
+    }
+    if audio_mp3(bytes) { return Some("audio/mpeg"); }
     if bytes.starts_with(b"%PDF-") { return Some("application/pdf"); }
     if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") { return Some("image/gif"); }
     if bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06") { return Some("application/zip"); }
@@ -296,6 +311,43 @@ fn magic_type(bytes: &[u8]) -> Option<&'static str> {
         Ok(Sniffed { kind: AssetKind::Image, content_type, .. }) => Some(content_type),
         _ => None,
     }
+}
+
+// Header verification, not decoding or a duration claim.
+fn audio_wav(bytes: &[u8]) -> bool {
+    if bytes.len() < 12 || &bytes[..4] != b"RIFF" || &bytes[8..12] != b"WAVE" { return false; }
+    let Some(end)=(u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize).checked_add(8) else {return false};
+    if end > bytes.len() || end < 12 { return false; }
+    let mut at = 12;
+    let mut format = false;
+    while at + 8 <= end {
+        let length = u32::from_le_bytes(bytes[at+4..at+8].try_into().unwrap()) as usize;
+        let Some(next) = (at + 8).checked_add(length) else { return false };
+        if next > end { return false; }
+        if &bytes[at..at+4] == b"fmt " && length >= 16 {
+            format = bytes[at+10..at+12] != [0, 0] && bytes[at+12..at+16] != [0, 0, 0, 0];
+        }
+        if &bytes[at..at+4] == b"data" && length > 0 && format { return true; }
+        at = next + (length & 1);
+    }
+    false
+}
+fn audio_mp3(bytes: &[u8]) -> bool {
+    let mut at = 0;
+    if bytes.starts_with(b"ID3") {
+        if bytes.len() < 10 || bytes[6..10].iter().any(|b| *b > 127) { return false; }
+        let length = bytes[6..10].iter().fold(0usize, |n, b| (n << 7) | usize::from(*b));
+        at = 10 + length + if bytes[5] & 0x10 != 0 { 10 } else { 0 };
+    }
+    let Some(h) = bytes.get(at..at+4) else { return false };
+    let version = (h[1] >> 3) & 3;
+    let rate = usize::from(h[2] >> 4);
+    let frequency = usize::from((h[2] >> 2) & 3);
+    if h[0] != 255 || h[1] & 0xe0 != 0xe0 || version == 1 || (h[1] >> 1) & 3 != 1 || rate == 0 || rate == 15 || frequency == 3 { return false; }
+    let bitrate = if version == 3 { [0,32,40,48,56,64,80,96,112,128,160,192,224,256,320][rate] } else { [0,8,16,24,32,40,48,56,64,80,96,112,128,144,160][rate] };
+    let hz = [44100,48000,32000][frequency] / if version == 3 { 1 } else if version == 2 { 2 } else { 4 };
+    let frame = (if version == 3 { 144 } else { 72 }) * bitrate * 1000 / hz + usize::from((h[2] >> 1) & 1);
+    bytes.len() >= at + frame
 }
 
 /// UTF-8 text with no NUL byte; a leading byte-order mark is allowed.
@@ -667,7 +719,7 @@ fn find(conn: &Connection, id: &str) -> Result<Option<Asset>, RuntimeError> {
 }
 
     fn stale(conn: &Connection, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-        let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1) LIMIT 256"))?;
+        let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1 AND NOT EXISTS (SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS (SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) LIMIT 256"))?;
         let rows = statement.query_map([now - UNCLAIMED_TTL_MS], read_asset)?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
@@ -789,4 +841,48 @@ impl Tx<'_> {
         Ok(())
     }
 }
+}
+
+// @ref LLP 3000.038.000#3 — immutable dedup receipts survive collection and cancellation.
+#[cfg(feature = "sqlite")]
+pub(crate) fn replay_intent(tx: &crate::store::Tx<'_>, owner: &str, id: &str, fingerprint: &str) -> Result<Option<Asset>, RuntimeError> {
+    use rusqlite::OptionalExtension;
+    let receipt: Option<(Option<String>, Option<String>, String)> = tx.conn().query_row(
+        "SELECT fingerprint, facts, state FROM _asset_intents WHERE owner=?1 AND intent=?2", [owner, id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional()?;
+    let Some((original, facts, state)) = receipt else {
+        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)", [owner, id], |r| r.get::<_, bool>(0))? {
+            return Err(RuntimeError::Asset { code: "E_WRITE_ID_REUSE", message: "intent id already belongs to an executed mutation; select a new id".into() });
+        }
+        return Ok(None);
+    };
+    if state == "cancelled" { return Err(RuntimeError::Asset { code: "E_UPLOAD_CANCELLED", message: "this upload intent was cancelled".into() }); }
+    if original.as_deref() != Some(fingerprint) {
+        return Err(RuntimeError::Asset { code: "E_ASSET_INTENT_REUSE", message: "upload intent id belongs to different bytes or metadata; retry the original input or use a new id".into() });
+    }
+    if state=="declared" {return Ok(None);}
+    let asset: Asset = crate::json_codec::from_text(facts.as_deref().unwrap_or("null")).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    if tx.asset(&asset.id)?.is_none() {
+        return Err(RuntimeError::Asset { code: "E_ASSET_INTENT_EXPIRED", message: "the original upload was collected; select the file again under a new intent id".into() });
+    }
+    Ok(Some(asset))
+}
+
+#[cfg(feature="sqlite")]
+pub(crate) fn require_placement(tx:&crate::store::Tx<'_>,owner:&str,id:&str,name:&str,args:&serde_json::Value)->Result<(),RuntimeError>{
+    use rusqlite::OptionalExtension;
+    let record:Option<(Option<String>,Option<String>,String)>=tx.conn().query_row("SELECT placement,facts,state FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+    let Some((binding,facts,state))=record else {return Ok(())};
+    if state=="cancelled"{return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this upload-and-place intent was cancelled".into()});}
+    let Some(binding)=binding else {return Err(RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"upload intent has no declared placement".into()});};
+    let Some(facts)=facts else{return Err(RuntimeError::Asset{code:"E_UPLOAD_PENDING",message:"placing mutation must wait for its uploaded asset".into()});};
+    let binding:serde_json::Value=crate::json_codec::from_text(&binding).map_err(|e|RuntimeError::Store(e.to_string()))?;
+    let asset:Asset=crate::json_codec::from_text(&facts).map_err(|e|RuntimeError::Store(e.to_string()))?;
+    let mut expected=binding["args"].clone();
+    let argument=binding["argument"].as_str().ok_or_else(||RuntimeError::Input("declared placement has no asset argument".into()))?;
+    let mut asset_facts=serde_json::json!({"id":asset.id,"type":asset.content_type,"bytes":asset.bytes,"width":asset.width,"height":asset.height,"duration":asset.duration});
+    if let Some(name)=asset.name{asset_facts["name"]=serde_json::json!(name);}
+    expected[argument]=asset_facts;
+    if binding["op"]!=name||expected!=*args{return Err(RuntimeError::Asset{code:"E_ASSET_INTENT_REUSE",message:"operation or args differ from the declared placement and authenticated upload facts".into()});}
+    Ok(())
 }

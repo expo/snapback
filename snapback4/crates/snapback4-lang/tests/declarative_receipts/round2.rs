@@ -273,7 +273,7 @@ fn partial_leave<H: Host>(host: &mut H) {
     assert!(pages.len() > 1);
     d.apply(&pages[0], true).unwrap();
     let queued = d
-        .admit(Queued {
+        .admit(Queued { upload: None,
             id: "leave".into(),
             seq: 1,
             op: "leave".into(),

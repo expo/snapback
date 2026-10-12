@@ -16,7 +16,7 @@ fn scenario<H: Host>(host: &mut H) {
         "a device must report unknown without a sync declaration"
     );
     for replay in [false, true] {
-        let entry = Queued {
+        let entry = Queued { upload: None,
             id: "signal".into(),
             seq: 1,
             op: "setTyping".into(),

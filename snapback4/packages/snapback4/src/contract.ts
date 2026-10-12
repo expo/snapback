@@ -1,3 +1,4 @@
+import type { UploadCapabilities } from "./uploads.ts";
 // The index card (LLP 3000 §2; LLP 2000.000 §8). These are the only words a
 // screen may need. The mechanism is built to fit them; a screen that needs a
 // word not here is a defect in the mechanism, not a gap in the card.
@@ -312,7 +313,7 @@ export interface Residency {
   readonly wasmHeapBytes?: number;
 }
 
-export interface Client {
+export interface Client extends UploadCapabilities {
   readonly readOnly?: boolean;
   /** Local storage diagnostics; null on the online tier or mock. Rejects with
    * a coded error on a closed/signed-out local client or a failed device read. */

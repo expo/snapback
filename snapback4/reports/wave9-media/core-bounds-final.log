@@ -1,0 +1,16 @@
+   Compiling snapback4-core v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.24 (/home/ccheever/projects/sb4-w9-media/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 22.91s
+     Running tests/upload_intents.rs (target/debug/deps/upload_intents-6379febb461cb34b)
+
+running 7 tests
+test collected_receipts_never_create_a_second_asset ... ok
+test duplicate_staged_uploads_commit_one_file_and_pin_until_cancellation ... ok
+test cancellation_wins_against_a_late_staged_upload ... ok
+test terminal_pre_program_refusal_gets_bound_receipt_and_unpins ... ok
+test adoption_to_ephemeral_refuses_media_before_effect_and_finalizes_durably ... ok
+test persisted_declaration_and_finalization_metadata_are_bounded ... ok
+test ledger_reopen_and_owner_inventory_recover_lost_device_custody ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+

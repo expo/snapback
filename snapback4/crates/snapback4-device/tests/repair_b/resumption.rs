@@ -72,7 +72,7 @@ fn private_replacement<H: Host>(h: &mut H) {
     let mut d = h.open("private-replace", Some(b.clone())).unwrap();
     // Unacquired writes queue without a prediction, so this gap-bearing partial
     // page uses a restored predictable outbox entry to exercise private folding.
-    let q = Queued { id:"q".into(), seq:1, op:"bump".into(), args:json!({"k":"a"}), new_ids:vec![],
+    let q = Queued { upload: None, id:"q".into(), seq:1, op:"bump".into(), args:json!({"k":"a"}), new_ids:vec![],
         predicted:vec![], viewer:"dev:alice".into(), now:100, predictable:true,
         sent_seq:None, receipt_store:None, observed_seq:None, dispatch: None };
     d.enqueue(&q).unwrap(); d.sync_state().unwrap();
