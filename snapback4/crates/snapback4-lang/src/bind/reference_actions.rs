@@ -211,13 +211,21 @@ fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
 }
 
 /// Whether every principal the delete rule admits can read the row, by a
-/// structural sufficient condition: a uniformly readable or denied table, or a
-/// delete rule that is the read rule or a conjunction containing it.
+/// structural sufficient implication proof. This is deliberately not a rule
+/// satisfiability solver: an unproved application invariant keeps the note.
 fn deleters_read(schema: &core::Schema, table: &str) -> bool {
     let Some(t) = schema.table(table) else { return true };
-    let (read, delete) = (&t.rules.read, &t.rules.delete);
-    read.is_uniformly_readable() || matches!(delete, core::RuleExpr::Deny) || delete == read
-        || matches!(delete, core::RuleExpr::And(items) if items.iter().any(|item| item == read || matches!(read, core::RuleExpr::And(parts) if parts.iter().all(|p| items.contains(p)))))
+    fn implies(stronger: &core::RuleExpr, weaker: &core::RuleExpr) -> bool {
+        if stronger == weaker || weaker.is_uniformly_readable() || matches!(stronger, core::RuleExpr::Deny) { return true; }
+        match (stronger, weaker) {
+            (_, core::RuleExpr::And(items)) => items.iter().all(|item| implies(stronger, item)),
+            (core::RuleExpr::Or(items), _) => items.iter().all(|item| implies(item, weaker)),
+            (core::RuleExpr::And(items), _) => items.iter().any(|item| implies(item, weaker)),
+            (_, core::RuleExpr::Or(items)) => items.iter().any(|item| implies(stronger, item)),
+            _ => false,
+        }
+    }
+    implies(&t.rules.delete, &t.rules.read)
 }
 
 /// Every delete in a program, in order, each with the (child, reference)

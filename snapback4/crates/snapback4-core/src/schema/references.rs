@@ -92,12 +92,18 @@ impl Schema {
         }).map(|(name, _)| name.as_str())
     }
 
-    /// The cap bounding a reference's children: `cap N by <column>` exactly.
+    /// The cap bounding a reference's children: `cap N by <column>` exactly,
+    /// or one when the reference itself is a plain unique key. A nullable
+    /// reference may have many nulls, but a parent delete probes one non-null
+    /// parent id, whose unique group still has at most one row.
     pub fn reference_cap(&self, child: &str, column: &str) -> Option<u32> {
-        self.table(child)?.constraints.iter().find_map(|c| match c {
+        let table = self.table(child)?;
+        let declared = table.constraints.iter().find_map(|c| match c {
             Constraint::Cap { by, max } if by.len() == 1 && by[0] == column => Some(*max),
             _ => None,
-        })
+        });
+        let unique = table.indexes.values().any(|index| index.unique && index.is_plain() && index.columns() == [column]).then_some(1);
+        declared.into_iter().chain(unique).min()
     }
 
     /// Whether `cap` on `table` skips a group whose reference is null: only a
@@ -424,7 +430,7 @@ pub fn write_target_refusal(schema: &Schema, name: &str) -> Option<String> {
     }
     else if schema.timeline_member(name) { Some(format!("a timeline orders {name}'s writes")) }
     else if schema.maintains.iter().any(|m| m.row_key.as_ref().is_some_and(|k| k.table == name)) { Some(format!("{name} is a row-keyed view's member table, whose writes may recount a group outside any fixed price")) }
-    else if schema.maintains.iter().any(|m| m.source == name && matches!(m.kind, MaintainKind::Sum { .. })) { Some(format!("{name} feeds a maintained sum, whose total another row's delete could push out of range: a refusal that would depend on rows the deleter cannot see")) }
+    else if schema.maintains.iter().any(|m| m.source == name && matches!(m.kind, MaintainKind::Sum { .. })) { Some(format!("{name} feeds a maintained sum: system work can delete rows despite `delete <- deny`, and a cascade from another parent can reach them; a hidden contribution could push the sum out of range, so whether the delete commits would depend on rows the deleter cannot see")) }
     else if schema.write_reservation(name).is_none_or(|plan| plan.server_only) { Some(format!("{name}'s writes have no fixed price, so a cascade into it cannot be reserved")) }
     else { None }
 }

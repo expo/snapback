@@ -31,12 +31,14 @@ mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
 mod reference_actions;
+mod reference_arguments;
 mod delete_guards;
 mod private_scans;
 mod optional_patches;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
+mod maintain_authorization;
 mod time_indexes;
 mod timeline;
 mod feed_view;
@@ -286,6 +288,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(denied_reads(&catalog, &schema, &programs));
+    notes.extend(maintain_authorization::notes(&catalog, &schema));
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(auth_lints::notes(&catalog, &schema));
     notes.extend(optional_patches::notes(&catalog));
@@ -301,6 +304,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
     notes.extend(reference_actions::sites(&catalog, &schema, &mut diagnostics));
+    notes.extend(reference_arguments::notes(&catalog, &schema));
     receipts::diagnostics(&catalog.documents, &mut diagnostics);
     // @ref LLP 3000.032#4.3 — use the expanded mapping, never guess default operation names.
     let receipt_members = catalog.documents.iter().flat_map(|doc| {
@@ -496,7 +500,7 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
 /// completeness is a class): say so at compile time, with the index that
 /// would decide it, as Snapback 2's structural facts did.
 /// `N_READ_DENIED`: a query or mutation looks up an aggregate by key whose
-/// read rule is `deny`, so every caller reads its zero value as if real.
+/// read rule is `deny`, so every caller reads an unavailable null.
 // @ref LLP 3000.036#11 — lane 008: a deny maintain looked up in a shape read as 0.
 fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     use snapback4_core::{ir::ProgramKind, schema::RuleExpr};
@@ -507,9 +511,8 @@ fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -
         for read in snapback4_core::ir::read_sites(&bound.program) {
             let Some(table) = schema.table(&read.table) else { continue };
             let Some(info) = catalog.tables.get(&read.table) else { continue };
-            // A keyed lookup of an aggregate reads as its zero value when absent,
-            // so a denied one is indistinguishable from a real 0. Pages and row
-            // reads of denied sources stay empty or null, visibly.
+            // A keyed aggregate lookup reserves the same rule decision for a hit
+            // and miss. A denied one is unavailable in both worlds.
             if read.kind != "point" || info.maintained.is_none() { continue; }
             // Only an authored `read <- deny`: an aggregate without a read line inherits its source's audience.
             let Some(rule) = info.maintained.as_ref().and_then(|maintain| maintain.read.as_ref()) else { continue };
@@ -518,7 +521,7 @@ fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -
             if !authored_deny || !matches!(table.rules.read, RuleExpr::Deny) || !seen.insert(read.table.clone()) { continue; }
             let site = &rule.site;
             notes.push(Diagnostic::new(&bound.site, "N_READ_DENIED",
-                format!("{} {} looks up aggregate {} by key, whose read rule is deny ({site}): every caller reads its zero value, never an error", bound.program.kind.word(), bound.program.name, read.table),
+                format!("{} {} looks up aggregate {} by key, whose read rule is deny ({site}): every caller reads null, never an error", bound.program.kind.word(), bound.program.name, read.table),
                 format!("give {} the read rule its readers need, over its group keys (for example the source table's rule), or read it only in a job, which runs as the system", read.table)).guide("rules"));
         }
     }

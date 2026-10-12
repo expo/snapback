@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -37,9 +37,11 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_NEVER_COMPLETE" => "fix: pin the scope, or accept `complete: false`",
         "N_DELETE_RESTRICTED" => "fix: declare the reference's `on delete`, or guard the delete",
         "N_DELETE_NEEDS_READ" => "review: some deleters get NOT_FOUND",
+        "N_REFERENCE_UNCHECKED" => "review: this reference argument is never looked up",
+        "N_MAINTAIN_AUTHORIZATION" => "review: hidden and absent are different caller outcomes",
         "N_PATCH_CLEARS" => "review: an omitted argument clears this column",
         "N_WRITE_DENIED" | "N_REQUIRE_REFUSED" => "fix: this write refuses E_RULE for callers you admit",
-        "N_READ_DENIED" => "fix: this read always refuses",
+        "N_READ_DENIED" => "fix: this read always returns null",
         "N_REQUIRE_HIDDEN" => "fix: this require cannot see the rows it tests",
         "N_LOOKUP_HIDDEN" => "review: some writers get NOT_FOUND",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",

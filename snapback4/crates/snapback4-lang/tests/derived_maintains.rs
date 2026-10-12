@@ -71,7 +71,8 @@ fn write(e: &mut Engine, op: &str, who: &str, args: &[(&str, Value)]) -> Value {
 #[test]
 fn clique_nine_aggregates_and_inferred_columns_run_against_contributions() {
     let b = bound(CLIQUE);
-    assert!(b.notes.is_empty(), "{:?}", b.notes);
+    assert_eq!(b.notes.iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").count(), 3, "{:?}", b.notes);
+    assert!(b.notes.iter().all(|note| note.code == "N_REFERENCE_UNCHECKED"), "{:?}", b.notes);
     assert_eq!(b.schema.maintains.iter().filter(|m| m.private.is_none()).count(), 9);
     assert!(b.schema.maintain_for("posts").is_none(), "self-reference is an ordinary source");
     for m in b.schema.maintains.iter().filter(|m| m.private.is_none()) {
@@ -217,4 +218,53 @@ fn inferred_column_reference_handles_sums_optional_refs_and_ambiguity() {
         assert_eq!(snapback4_lang::diag::guide_for(code),"maintains");
         assert!(snapback4_lang::guide::explain_code(code).is_some());
     }
+}
+
+#[test]
+fn keyed_maintain_hides_hits_and_misses_without_turning_them_into_zero() {
+    let source = r#"
+table meetings:
+  chair: principal
+  read <- allow
+table recusals:
+  meeting: meetings
+  read <- allow
+table officers:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+view recusalCounts: count recusals by .meeting
+  read <- exists meetings[.meeting, chair = viewer] or exists officers[viewer]
+  online only
+query bare(meeting: meetings):
+  return recusalCounts[meeting]
+query guarded(meeting: meetings):
+  require exists meetings[meeting, chair = viewer] or exists officers[viewer] else NOT_CHAIR
+  return recusalCounts[meeting]
+query unrelated(meeting: meetings):
+  require true else IMPOSSIBLE
+  return recusalCounts[meeting]
+"#;
+    let b = bound(source);
+    let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
+    assert_eq!(notes.len(), 2, "an unrelated require must not suppress the note: {:#?}", b.notes);
+    assert!(notes.iter().any(|note| note.message.contains("query bare")), "{notes:#?}");
+    assert!(notes.iter().any(|note| note.message.contains("query unrelated")), "{notes:#?}");
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|program| program.program)).unwrap();
+    e.seed_at([
+        ("meetings".into(), snapback4_core::value::object([("id", id("with")), ("chair", id("alice"))])),
+        ("meetings".into(), snapback4_core::value::object([("id", id("empty")), ("chair", id("alice"))])),
+        ("recusals".into(), snapback4_core::value::object([("id", id("r")), ("meeting", id("with"))])),
+        ("officers".into(), snapback4_core::value::object([("id", id("o")), ("principal", id("carol"))])),
+    ], 500).unwrap();
+    let read = |e: &mut Engine, query: &str, who: &str, meeting: &str| {
+        e.query(query, ctx(who, &[("meeting", id(meeting))])).map(|answer| answer.data)
+    };
+    assert_eq!(read(&mut e, "bare", "alice", "with").unwrap(), Value::Int(1));
+    assert_eq!(read(&mut e, "bare", "alice", "empty").unwrap(), Value::Int(0));
+    assert_eq!(read(&mut e, "bare", "carol", "with").unwrap(), Value::Int(1));
+    assert_eq!(read(&mut e, "bare", "carol", "empty").unwrap(), Value::Int(0));
+    assert_eq!(read(&mut e, "bare", "bob", "with").unwrap(), Value::Null, "hidden stored group");
+    assert_eq!(read(&mut e, "bare", "bob", "empty").unwrap(), Value::Null, "hidden absent group");
+    assert_eq!(read(&mut e, "guarded", "bob", "with").unwrap_err().code, "NOT_CHAIR");
 }

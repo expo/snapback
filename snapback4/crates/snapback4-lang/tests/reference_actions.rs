@@ -390,6 +390,62 @@ fn check_refuses_what_a_column_cannot_carry() {
 }
 
 #[test]
+fn a_plain_unique_reference_is_a_cascade_cap_of_one() {
+    let source = "table parents:\n  read <- allow\n  delete <- allow\ntable kids:\n  parent: parents on delete cascade\n  unique parent\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n";
+    let b = bound(source);
+    assert_eq!(b.schema.reference_cap("kids", "parent"), Some(1));
+    assert!(b.schema.delete_reservation("parents").is_some());
+
+    let both = source.replace("  unique parent\n", "  unique parent\n  cap 9 by parent\n");
+    assert_eq!(bound(&both).schema.reference_cap("kids", "parent"), Some(1), "the tighter proven bound prices the cascade");
+
+    let composite = source.replace("  unique parent\n", "  position: int\n  unique parent, position\n");
+    let b = snapback4_lang::compile(&[("schema.q".into(), composite)]);
+    assert!(b.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_CASCADE_BOUND"), "{:#?}", b.diagnostics);
+}
+
+#[test]
+fn a_denied_parent_delete_does_not_make_a_summed_child_safe_to_cascade() {
+    let source = "table parents:\n  read <- allow\n  delete <- deny\ntable entries:\n  parent: parents on delete cascade\n  amount: int\n  unique parent\n  read <- allow\nview totals: sum entries of .amount by .parent\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let refusal = b.diagnostics.iter().find(|diagnostic| diagnostic.code == "E_REFERENCE_ACTION").unwrap_or_else(|| panic!("{:#?}", b.diagnostics));
+    assert!(refusal.message.contains("system work") && refusal.message.contains("another parent"), "{refusal:#?}");
+}
+
+#[test]
+fn delete_authority_that_structurally_implies_read_needs_no_note() {
+    let source = |read: &str, delete: &str| format!("table parents:\n  owner: principal\n  assistant: principal ?\n  read <- {read}\n  delete <- {delete}\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n");
+    let has_note = |text: String| {
+        let b = snapback4_lang::compile(&[("schema.q".into(), text)]);
+        assert!(b.diagnostics.is_empty(), "{:#?}", b.diagnostics);
+        b.notes.iter().any(|note| note.code == "N_DELETE_NEEDS_READ")
+    };
+    assert!(!has_note(source(".owner = viewer or .assistant = viewer", ".owner = viewer")));
+    assert!(!has_note(source(".assistant = viewer", "deny")), "an impossible deleter implies every read rule");
+    assert!(has_note(source(".assistant = viewer", ".owner = viewer")), "an unrelated deleter can still get NOT_FOUND");
+    let admins = "table admins:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\ntable parents:\n  owner: principal\n  read <- exists admins[viewer]\n  delete <- .owner = viewer\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n";
+    assert!(has_note(admins.into()), "a row-uniform admin rule does not admit every owner");
+}
+
+#[test]
+fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
+    let schema = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\n";
+    let unchecked = format!("{schema}mutation create(id: id, parent: parents):\n  insert kids {{ id, parent }}\n");
+    let b = bound(&unchecked);
+    let note = b.notes.iter().find(|note| note.code == "N_REFERENCE_UNCHECKED").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(note.message.contains("parents[parent]") && note.rewrite.contains("NOT_FOUND"), "{note:#?}");
+
+    let checked = format!("{schema}mutation create(id: id, parent: parents):\n  p = parents[parent] ! else NOT_FOUND\n  insert kids {{ id, parent: p.id }}\n");
+    assert!(!bound(&checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let rule_checked = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- exists parents[.parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(!bound(rule_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let conditionally_checked = rule_checked.replace("insert <- exists parents[.parent]", "insert <- exists parents[.parent] or allow");
+    assert!(bound(&conditionally_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "every admitted write path must prove existence");
+}
+
+#[test]
 fn check_names_the_delete_sites_the_default_changed() {
     let notes = |source: &str| snapback4_lang::compile(&[("schema.q".into(), source.into())]).notes.iter().filter(|n| n.code == "N_DELETE_RESTRICTED").map(|n| n.message.clone()).collect::<Vec<_>>();
     let source = "table parents:\n  read <- allow\n  delete <- allow\ntable kids:\n  parent: parents\n  read <- allow\nmutation drop(id: parents):\n  delete parents[id]\n";
