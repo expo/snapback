@@ -93084,3 +93084,14 @@ under a one-probe ceiling. This is shared admission, not skipped authority.
 The final web artifact measures 2,192,440 B raw / 661,536 B gzip, 109 B below
 the 661,645 B base and within the unchanged budget. Focused reviews and full
 qualification of this correction are recorded with the workstream evidence.
+
+
+### 2026-10-12 — CUT tombstone retry expectation
+
+Full qualification completed every target and doctest, with one older simulator
+assertion still expecting an exclusive skip after an interrupted tombstone
+predicate. It now asserts inclusive r1 retry, the same three-examined budget's
+next cut at r2, and r2's eventual complete emission. The five-test filter target
+passes. Runtime code remains the independently reviewed `51d1687277`; this is
+an additional protocol regression, not a runtime change. The exact requested
+four-package command is rerun for an unqualified successful exit.

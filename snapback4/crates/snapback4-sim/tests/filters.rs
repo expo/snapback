@@ -123,8 +123,18 @@ fn predicate_probe_cut_withholds_row_and_direct_cursor_uses_its_visible_key() {
     assert_eq!(page.data.as_array().unwrap().len(), 1);
     assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("r0".into()));
     let cursor = page.next.unwrap();
-    assert_eq!(decode_cursor(engine.schema(), &cursor).unwrap().values, [Value::Id("r1".into())]);
+    let position = decode_cursor(engine.schema(), &cursor).unwrap();
+    assert_eq!(position.values, [Value::Id("r1".into())]);
+    // @ref LLP 3000.007#20.24.1 — an interrupted tombstone predicate must
+    // finish before rejecting its row; the same small budget then cuts at r2.
+    assert!(position.inclusive);
     let tail = engine.query("page", context(Some(&cursor))).unwrap();
-    assert!(tail.complete);
-    assert_eq!(tail.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("r2".into()));
+    assert!(!tail.complete && tail.data.as_array().unwrap().is_empty());
+    let cursor = tail.next.unwrap();
+    let position = decode_cursor(engine.schema(), &cursor).unwrap();
+    assert_eq!(position.values, [Value::Id("r2".into())]);
+    assert!(position.inclusive);
+    let end = engine.query("page", context(Some(&cursor))).unwrap();
+    assert!(end.complete && end.next.is_none());
+    assert_eq!(end.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("r2".into()));
 }
