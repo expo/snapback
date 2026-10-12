@@ -480,5 +480,3 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     out.push_str(&format!("Whole sections: snapback4 guide {name} --section <number>"));
     if any { Err(out) } else { Ok(out) }
 }
-
-pub(super) const DEPLOY: &str = "# Deploy\n\nSee [release lifecycle](SERVER.md#release-lifecycle) for deploy, rollback, prune, hot activation and recovery.\n";

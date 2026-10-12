@@ -669,7 +669,8 @@ fn restored_recorded_attribution_preserves_values_and_nulls_before_aggregate_reb
 #[test]
 fn dormant_through_captures_keep_parent_lifetime_when_reference_stays_active() {
     let full = "table parents:\n  n: int\n  public\n  delete <- allow\ntable children:\n  parent: parents\n  body: text <=100\n  immutable parent\n  read through .parent\nmutation remove():\n  delete parents['p']\n";
-    let older = full.replace("  read through .parent", "  public");
+    let older = full.replace("  read through .parent", "  public")
+        .replace("  parent: parents\n", "  parent: parents on delete keep\n");
     let mut e = engine(full);
     seed(&mut e, "parents", serde_json::json!({"id":"p","n":7}));
     seed(
@@ -772,4 +773,57 @@ fn dormant_through_deadline_refuses_retargeted_parent_reference() {
         assert!(error.contains(detail), "{error}");
     }
     assert_eq!(e.store().meta("release").unwrap().as_deref(), Some("2"));
+}
+
+#[test]
+fn rollback_runs_only_active_actions_and_deleted_parents_block_dormant_restoration() {
+    let old = "table parents:\n  n: int\n  read <- allow\n  delete <- allow\n  sync public\nmutation drop():\n  delete parents['p']\n";
+    for action in ["cascade", "restrict"] {
+        let next = format!("{old}table children:\n  parent: parents on delete {action}\n  cap 4 by parent\n  read <- allow\n  sync public\n");
+        let mut e = engine(old);
+        seed(&mut e, "parents", serde_json::json!({"id":"p","n":1}));
+        activate(&mut e, &next, 2).unwrap();
+        seed(&mut e, "children", serde_json::json!({"id":"c","parent":"p"}));
+        activate(&mut e, old, 1).unwrap();
+        mutate(&mut e, "drop", "old-delete");
+        assert_eq!(e.store().count("parents").unwrap(), 0);
+        assert!(e.store_mut().dormant_inventory(None, 100).unwrap().iter().any(|i| i.path == "children" && i.rows == 1));
+        // Reusing exactly the same id/value does not restore the old lifetime.
+        seed(&mut e, "parents", serde_json::json!({"id":"p","n":1}));
+        let generation = e.generation();
+        let error = activate(&mut e, &next, 2).unwrap_err();
+        assert_eq!(error.code(), "E_ADOPT");
+        assert!(error.to_string().contains("parent lifetime"), "{error}");
+        assert_eq!(e.generation(), generation);
+        assert_eq!(e.store().count("children").unwrap(), 0);
+        e.store_mut().prune_dormant(true, None).unwrap();
+        activate(&mut e, &next, 2).unwrap();
+        assert_eq!(e.store().count("children").unwrap(), 0);
+    }
+}
+
+#[test]
+fn rollback_replaces_newer_actions_on_a_reference_that_stays_active() {
+    let base = "table parents:\n  n: int\n  read <- allow\n  delete <- allow\n  sync public\nmutation drop():\n  delete parents['p']\ntable children:\n  parent: parents on delete keep\n  cap 4 by parent\n  read <- allow\n  sync public\n";
+    for action in ["cascade", "restrict"] {
+        let next = base.replace("on delete keep", &format!("on delete {action}"));
+        let mut e = engine(base);
+        seed(&mut e, "parents", serde_json::json!({"id":"p","n":1}));
+        seed(&mut e, "children", serde_json::json!({"id":"c","parent":"p"}));
+        activate(&mut e, &next, 2).unwrap();
+        activate(&mut e, base, 1).unwrap();
+        mutate(&mut e, "drop", "selected-keep");
+        assert_eq!(e.store().count("parents").unwrap(), 0);
+        assert_eq!(e.store().count("children").unwrap(), 1);
+    }
+    let old = base.replace("on delete keep", "on delete restrict");
+    let mut e = engine(&old);
+    seed(&mut e, "parents", serde_json::json!({"id":"p","n":1}));
+    seed(&mut e, "children", serde_json::json!({"id":"c","parent":"p"}));
+    activate(&mut e, &base.replace("on delete keep", "on delete cascade"), 2).unwrap();
+    activate(&mut e, &old, 1).unwrap();
+    let out = e.mutate("drop", Some("selected-restrict"), Context::new("alice", Default::default()).at(1000)).unwrap();
+    assert!(matches!(out.state, WriteState::Failed { .. }));
+    assert_eq!(e.store().count("parents").unwrap(), 1);
+    assert_eq!(e.store().count("children").unwrap(), 1);
 }

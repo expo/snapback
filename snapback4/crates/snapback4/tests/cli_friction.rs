@@ -662,7 +662,8 @@ fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
         assert!(text(&output).contains("E_INPUT: serve --port"), "{bad}: {}", text(&output));
         assert!(!project.0.join("missing-release").exists(), "invalid input must not create a deployment");
     }
-    assert!(text(&project.run(&["rollback", "--help"])).contains("--allow-destructive"));
+    let help = text(&project.run(&["rollback", "--help"]));
+    assert!(help.contains("--to N") && help.contains("retain removed storage"), "{help}");
     let output = project.run(&["deploy", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
     let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();

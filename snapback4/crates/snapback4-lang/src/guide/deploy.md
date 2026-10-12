@@ -1,7 +1,7 @@
 # Deploy: upgrade, real accounts and schema evolution
 
-Stop the owned server, deploy, then restart it. A release is immutable source
-over one durable store; production admits bearer tokens and refuses dev doors.
+Deploy into the running serve process without restarting it. A release is
+immutable source over one durable store; production admits bearer tokens.
 
 ```sh
 bunx snapback4 check
@@ -9,6 +9,8 @@ bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
+
+See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 
 ## Upgrade
 
@@ -28,10 +30,11 @@ Deploy from the app directory; keep the deployment directory on durable storage:
 `serve --port N` accepts 0 for an allocated port or an inclusive range A-B,
 choosing its first free port. Invalid input refuses E_INPUT. Stdout's first
 line is the actual URL; stderr includes `SNAPBACK4_READY verb=serve … url=…`.
-Wait for readiness before requests. For a redeploy: stop the serve process
-you own, wait for it to exit, deploy, restart serve, then verify a read and
-write with a real account. Activation while serve owns the store refuses
-E_STORE_BUSY; this path has downtime.
+Wait for readiness before requests. For a redeploy, run deploy on the same
+host while serve stays running, then verify a read and write with a real
+account. Its private owner socket serializes activation; failed validation
+keeps the current release. A dev or older unreachable owner requires stopping
+that owned process before retrying. See SERVER.md#release-lifecycle.
 
 Layout: `releases/N/` holds each backend; `store.sqlite` holds rows, sessions,
 receipts and queues; `assets/` holds uploads; `releases.jsonl` records activation.
@@ -109,19 +112,28 @@ making a column required, unique indexes or stronger constraints need every
 existing row to fit. Adoption refuses E_ADOPT when they do not; repair data
 through authorized mutations under the old schema, then retry. For example,
 adding 'archived' to status is safe; removing it after rows use it refuses.
-`--allow-destructive` confirms data-losing changes, not invalid existing data.
+Removed storage becomes dormant; name reuse needs `--restore-dormant`.
+`--allow-destructive` on deploy/rollback does not prune or bypass validation.
 Prefer expand → migrate data → contract, keeping old clients compatible.
 
-## Rollback (current behavior)
+## Rollback, restore and prune
 
-Stop serve, run `snapback4 rollback ./deployment`, then restart it. Rollback
-selects the previous earlier numbered release with schema.q; it does not rewind
-rows, sessions or effects. It adopts that release's schema into today's store.
-Removed columns/tables lose data and require `--allow-destructive`; narrowed
-types still require valid existing values. Re-deploying newer source cannot
-recover deleted values. Take a stopped backup first; repair enum values before
-rollback or deploy a compatible fix forward. `--allow-feed-adoption` permits
-the explicit feed adoption step. Revisit this section when rollback evolves.
+Run `snapback4 rollback ./deployment` while serve stays running. It selects
+an earlier immutable release; `rollback ./deployment --to N` also selects a
+newer release to roll forward. This adopts source into today's rows, sessions
+and effects. Removed tables, columns and indexes become dormant, inaccessible
+to programs and sync. Restoring retained names with fresh source requires
+`deploy ./deployment --restore-dormant`; rollback selects restoration explicitly.
+Narrowed enums, references and uniqueness still require valid existing data.
+Only the active release's referential actions run; deleting a dormant child's
+parent invalidates restoration instead of applying the retired cascade/restrict.
+Devices re-acquire their partitions on a changed generation; queued writes are
+rechecked under the active program. `--allow-feed-adoption` permits the explicit
+feed adoption step. Inspect `snapback4 releases ./deployment` after an ambiguous
+reply. `snapback4 prune ./deployment` previews retained storage;
+`prune ./deployment --allow-destructive` permanently drops all dormant storage.
+There is no automatic collector. See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle)
+for validation repairs, dormant assets, crash recovery and activation fencing.
 
 ## Inspection, proxies and TLS
 

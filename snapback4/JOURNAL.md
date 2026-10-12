@@ -93659,3 +93659,53 @@ next cut at r2, and r2's eventual complete emission. The five-test filter target
 passes. Runtime code remains the independently reviewed `51d1687277`; this is
 an additional protocol regression, not a runtime change. The exact requested
 four-package command is rerun for an unqualified successful exit.
+
+## 2026-10-12 — Integration 4: retained releases and predicate cuts
+
+Merge sb4-ws-roll then sb4-ws-cut with --no-ff into sb4-loop, preserving OPS,
+LANG2, merged pages, referential actions, W8C and UNION. Preserve both journals
+and LLP records. The extracted activation builder carries forward calendar
+schedule validation and changed group-audience epochs. Serve keeps OPS port
+ranges, actual URL and tagged readiness; the deploy card keeps its admin and
+migration recipes and now explains hot activation, dormancy, explicit restore
+and prune through SERVER.md#release-lifecycle (149/150 source lines).
+
+The selected schema owns referential actions. Newer-only dormant references
+neither cascade nor restrict under rollback; actual active deletes invalidate
+their retained parent lifetime and restoration refuses after id reuse. Active
+references use the selected keep/restrict/cascade action. Add regressions for
+both paths. The older read-through lifetime fixture now explicitly declares
+keep, retaining its deletion/reuse assertion without weakening default restrict.
+Both device stores re-acquire union arms and merged pages on rollback/forward,
+refuse old pages at limits 1/1,000 and exclude a membership deleted while its
+group arm was inactive. Persona browser custody survives forward/backward dev
+schema generations with its fixed principal epoch, excludes a peer persona and
+executes the captured id once. Serve still refuses personas.
+
+Hot release control belongs to the serving deployment's immutable source,
+even if its database symlinks elsewhere. Another deployment sharing the same
+database stays excluded; E_STORE_BUSY keeps the canonical owner address or CLI
+pending-owner diagnosis. Its token forwarding keeps canonical store ownership.
+The strengthened alias test exercises hot deploy/rollback from either serving
+deployment. Source control is not relocated beside an external store.
+
+Lean check: 53/53 examples, 54 audited theorems with standard axioms only,
+7 agreeing oracle fixtures. CUT's generated reference predicates exposed two
+harness defects: narrowing removed the target but not its reference type/filter,
+and the surface emitter treated a live reference member as a field on an id.
+Narrow all three together; emit the documented authorized point read followed
+by field access using existing model terms. The Lean model and signature set
+are unchanged. The initial arr~E_MODEL_TYPE finding disappears; the corrected
+20,000-case campaign compares 51,024 executions with 213 disagreements only
+in the four inherited C2/W4 signatures. No new signature is accepted.
+
+Ordinary difftest: 20,000 cases, 1,096,857 executions, zero disagreements or
+generator errors. Devices seeds 0–999: 32,106 executions, 26 disagreements in
+16 inherited ticketed signatures; they remain open rather than called green.
+Regenerated censuses are unchanged: 718 entries, 409 mutation occurrences,
+89 distinct private write sites; delivery await boundary is byte-identical.
+The locked Linux wasm is 2,245,422 B raw / 679,418 B gzip, 229 B below
+Integration 3. Set 679,918 B = measured gzip + commissioned 500 B headroom;
+no per-feature attribution, Mac measurement or runtime ceiling increase.
+Full qualification and independent review disposition follow in a dated entry.
+No push/publication; no root WORKSTREAM-REPORT.md is created by this integration.

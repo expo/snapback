@@ -40,12 +40,6 @@ fn every_card_introduces_the_feature_before_examples_and_reference_details() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         if *name == "start" { continue; }
-        // ROLL owns semantics in SERVER.md; OPS owns the future deploy card.
-        if *name=="deploy" && !text.contains("```") {
-            assert!(text.contains("SERVER.md#release-lifecycle"));
-            assert_eq!(text.split("\n\n").nth(1).unwrap().trim().lines().count(),1,"deploy remains a one-line pointer during the handoff");
-            continue;
-        }
         let mut paragraphs = text.split("\n\n");
         assert!(paragraphs.next().unwrap().starts_with("# "), "{name}: title first");
         let lead = paragraphs.next().unwrap();

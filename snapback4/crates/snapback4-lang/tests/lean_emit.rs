@@ -217,3 +217,10 @@ fn module_json_lists_supported_and_unsupported_programs() {
     assert_eq!(j["programs"]["a"]["body"], json!([{"ret": {"lit": {"int": "1"}}}]));
     assert_eq!(j["unsupported"]["b"]["reason"], "now");
 }
+
+#[test]
+fn live_reference_predicate_emits_an_authorized_point_read_before_the_field() {
+    let m = module("table tags:\n  rank: int\n  read <- allow\n  online only\ntable items:\n  tag: tags\n  read <- allow\n  online only\nquery q():\n  return items where .tag.rank = 1 first 2 by .id\n");
+    let b = body(&m, "q");
+    assert_eq!(b[0]["ret"]["page"]["filter"], json!({"bin":["eq",{"field":[{"point":{"table":"tags","key":[["id",{"dot":"tag"}]]}},"rank"]},{"lit":{"int":"1"}}]}));
+}

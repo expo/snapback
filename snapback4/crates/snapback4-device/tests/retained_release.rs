@@ -211,3 +211,76 @@ fn retained_releases_never_mix_shapes_on_late_reordered_pages_and_reopen() {
         }
     }
 }
+
+const UNION_PAGES: &str = "table members:
+  board: int
+  principal: principal
+  unique board, principal
+  immutable board, principal
+  read <- .principal = viewer
+  delete <- .principal = viewer
+  sync
+table cards:
+  owner: principal
+  board: int
+  at: int
+  read <- .owner = viewer or exists members[.board, viewer]
+  insert <- .owner = viewer
+  sync
+query pages(a: int, b: int, c: cursor ?):
+  return cards where .board = a or .board = b first 1 by .at after c
+mutation leave():
+  m = members[1, viewer] ! else NOT_MEMBER
+  delete members[m]
+  return null
+";
+
+fn audience_release<H: Host>(host: &mut H, limit: usize) {
+    let union = bound(UNION_PAGES);
+    let old = bound(&UNION_PAGES.replace(
+        "  read <- .owner = viewer or exists members[.board, viewer]",
+        "  read <- .owner = viewer",
+    ));
+    let mut engine = Engine::new_release(Store::memory().unwrap(), old.schema.clone(),
+        old.programs.iter().map(|p| p.program.clone()), 1, None).unwrap();
+    seed(&mut engine, "members", serde_json::json!({"id":"m","board":1,"principal":"alice"}));
+    for (id, owner, board, at) in [("own", "alice", 2, 1), ("team", "bob", 1, 2), ("hidden", "bob", 2, 3)] {
+        seed(&mut engine, "cards", serde_json::json!({"id":id,"owner":owner,"board":board,"at":at}));
+    }
+    let mut device = host.open("release-audiences", Some(backend(&engine, &old))).unwrap();
+    let mut stale = Vec::new();
+    for (release, current, expected) in [(1, &old, vec!["own"]), (2, &union, vec!["own","team"]), (1, &old, vec!["own"]), (2, &union, vec!["own"])] {
+        if !stale.is_empty() {
+            engine.adopt_release(current.schema.clone(), current.programs.iter().map(|p| p.program.clone()),
+                &ReleaseActivation::new(release, engine.store().meta("release").unwrap().and_then(|r|r.parse().ok())), false).unwrap();
+            device.adopt(backend(&engine, current)).unwrap();
+            for page in stale.iter().rev() { assert_eq!(device.apply(page, false).unwrap_err().code(), "E_GENERATION"); }
+        }
+        let pages = snapshot_pages(&mut engine, "alice", limit);
+        for (i, page) in pages.iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        let mut cursor = serde_json::Value::Null;
+        let mut ids = Vec::new();
+        loop {
+            let (answer, unknown, _) = device.query_with_coverage("pages", "alice", &serde_json::json!({"a":1,"b":2,"c":cursor}), 1000);
+            let answer = answer.unwrap();
+            assert!(!unknown && answer.complete, "{}: {answer:?}", host.label());
+            ids.extend(answer.data.as_array().unwrap().iter().map(|r|r.field("id").unwrap().as_str().unwrap().to_owned()));
+            match answer.next { Some(c) => cursor = serde_json::Value::String(c), None => break }
+        }
+        assert_eq!(ids, expected, "{} release {release}", host.label());
+        if release == 1 && stale.len() > 0 {
+            let write = engine.mutate("leave", Some("leave-while-owner-only"), context("alice", &[]).at(1000)).unwrap();
+            assert!(matches!(write.state, WriteState::Sent { .. }));
+        }
+        stale = pages;
+    }
+    host.close("release-audiences", device);
+}
+
+#[test]
+fn release_changes_reacquire_union_arms_and_merged_pages_without_old_membership() {
+    for limit in [1, 1000] {
+        audience_release(&mut Memory::new(), limit);
+        audience_release(&mut Sqlite::new("release-audiences"), limit);
+    }
+}

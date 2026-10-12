@@ -245,10 +245,13 @@ pub(crate) fn request(dir: &Path, command: Command) -> Result<Value, String> {
     let store = dir.join("store.sqlite");
     let path = dir.join(SOCKET);
     let unavailable = |reason: String| {
+        let owner_path = store.canonicalize().unwrap_or_else(|_| store.clone());
+        let detail = if reason.contains("No such file or directory") {
+            "this deployment has no release control socket".to_owned()
+        } else { reason };
         format!(
-            "E_STORE_BUSY: {reason}; stop `snapback4 serve {}`, rerun the exact command, then `snapback4 serve {}`",
-            dir.display(),
-            dir.display()
+            "{}; release control unavailable: {detail}; stop `snapback4 serve {}`, rerun the exact command, then `snapback4 serve {}`",
+            crate::store_owner::busy(&owner_path), dir.display(), dir.display()
         )
     };
     let before = socket_entry(&path).map_err(|e| unavailable(e.to_string()))?;

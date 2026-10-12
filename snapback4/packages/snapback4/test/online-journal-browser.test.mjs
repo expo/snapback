@@ -3,7 +3,7 @@ import { hangBudget } from './helpers/wait.mjs';
 // device: a click survives page loss and executes at most once; no wasm is fetched.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { launch, root } from '../../../witness/lib.mjs';
@@ -30,7 +30,7 @@ query total():
 `);
   t.after(() => rmSync(project, { recursive: true, force: true }));
   const path = name => join(root, 'packages/snapback4/src', name);
-  const witness = await launch({ sourceDir, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], entrySource: `
+  const witness = await launch({ sourceDir, watch: true, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
 import { mintId } from '${path('client.ts')}';
@@ -114,6 +114,42 @@ window.refuseJournalCommits = () => {
     assert.deepEqual(await page.evaluate(() => posts), [captured.id]);
     assert.equal(await total(), before + 1);
     await page.evaluate(() => app.close());
+  });
+
+  await t.test('persona custody survives forward and rollback generations without replaying as a peer', async () => {
+    await fresh();
+    const original = readFileSync(join(witness.app, 'snapback/schema.q'), 'utf8');
+    const headers = { 'x-snapback-persona': 'alice' };
+    const backend = () => fetch(url + '/schema', { headers }).then(r => r.json());
+    let generation = (await backend()).generation;
+    const before = await total();
+    await page.evaluate(options => boot(options), { url, persona: 'alice' });
+    const id = await page.evaluate(() => {
+      refuseJournalCommits(); const id = mintId(); app.mutate(clickOp, {}, { id, waitSeconds: 0 });
+      location.assign('/?persona-release-capture'); return id;
+    });
+    await page.waitForURL('**/?persona-release-capture'); await page.waitForFunction(() => !!window.boot);
+    assert.equal(await page.evaluate(() => records().length), 1);
+    try {
+      writeFileSync(join(witness.app, 'snapback/schema.q'), original + '\nquery releaseMarker():\n  return 2\n');
+      await until(async () => (await backend()).generation > generation);
+      generation = (await backend()).generation;
+      await page.evaluate(options => boot(options), { url, persona: 'bob' });
+      assert.deepEqual(await page.evaluate(() => posts), []);
+      assert.equal(await page.evaluate(() => records().length), 1);
+      await page.evaluate(() => app.close());
+      writeFileSync(join(witness.app, 'snapback/schema.q'), original);
+      await until(async () => (await backend()).generation > generation);
+      await page.evaluate(options => boot(options), { url, persona: 'alice' });
+      await until(async () => await total() === before + 1);
+      assert.deepEqual(await page.evaluate(() => posts), [id]);
+      await page.evaluate(() => app.close());
+      await navigate('persona-release-reopen');
+      await page.evaluate(options => boot(options), { url, persona: 'alice' });
+      assert.equal(await total(), before + 1);
+      assert.deepEqual(await page.evaluate(() => posts), []);
+      await page.evaluate(() => app.close());
+    } finally { writeFileSync(join(witness.app, 'snapback/schema.q'), original); }
   });
 
   await t.test('persona same-turn navigation before IndexedDB commit preserves the click', async () => {

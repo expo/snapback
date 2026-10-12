@@ -266,14 +266,9 @@ pub fn serve(
     let mut background = Vec::new();
     #[cfg(unix)]
     if !dev {
-        let dir = host_owner
-            .as_ref()
-            .unwrap()
-            .path()
-            .map_err(|e| e.to_string())?
-            .parent()
-            .ok_or("deployment parent")?
-            .to_owned();
+        // @ref LLP 3000.000.000#5-hot-activation-and-ownership — control belongs to immutable release source, even when its store is a symlink elsewhere.
+        let dir = shared.project.parent().and_then(std::path::Path::parent)
+            .ok_or("deployment parent")?.to_owned();
         background.push(("release-control", release::start(shared.clone(), dir)?));
     }
     crate::lifecycle::generation(generation);

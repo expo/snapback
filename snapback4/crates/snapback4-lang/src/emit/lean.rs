@@ -571,7 +571,7 @@ impl<'a> Scope<'a> {
                 let table = match base.as_ref() {
                     Expr::Focal { .. } => self.focal.clone(),
                     other => match self.ty(other) {
-                        Ty::Row(t) => Some(t),
+                        Ty::Row(t) | Ty::Scalar(Kind::Id(IdSort::Ref(t))) => Some(t),
                         _ => None,
                     },
                 };
@@ -655,7 +655,18 @@ impl<'a> Scope<'a> {
                     Some(t) if self.table(t)?.col(name).is_some() => Ok(json!({"dot": name})),
                     _ => no("focal-column", print()),
                 },
-                other => Ok(json!({"field": [self.expr(other)?, name]})),
+                other => {
+                    let value = self.expr(other)?;
+                    // @ref LLP 3000.036#12 — a reference's member is an authorized point read, null when missing or hidden.
+                    match self.ty(other) {
+                        Ty::Scalar(Kind::Id(IdSort::Ref(target))) if name != "id" => {
+                            self.table(&target)?;
+                            Ok(json!({"field": [{"point": {"table": target, "key": [["id", value]]}}, name]}))
+                        }
+                        Ty::Scalar(Kind::Id(IdSort::Ref(_))) => Ok(value),
+                        _ => Ok(json!({"field": [value, name]})),
+                    }
+                },
             },
             Expr::Call { name, args, .. } => {
                 if self.helpers.contains(name) {

@@ -268,11 +268,12 @@ fn assert_owner_refusal(p: &Project, args: &[&str], owner: &str) {
 #[cfg(unix)]
 #[test]
 fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
-    let p = Project::new();
-    let (a, b, database) = shared_releases(&p);
-    let lock = database.parent().unwrap().join("serve.lock");
-    assert!(!lock.exists(), "startup must create its actual lock, without token priming it");
-    for (first, second) in [(&a, &b), (&b, &a)] {
+    for reversed in [false, true] {
+        let p = Project::new();
+        let (a, b, database) = shared_releases(&p);
+        let lock = database.parent().unwrap().join("serve.lock");
+        assert!(!lock.exists(), "startup must create its actual lock, without token priming it");
+        let (first, second) = if reversed { (&b, &a) } else { (&a, &b) };
         let first = first.to_str().unwrap();
         let second = second.to_str().unwrap();
         let mut host = Running::start(&p, "release-host", &["serve", first, "--port", "0"]);
@@ -284,15 +285,22 @@ fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
         let address = host.logs().split("snapback4 serve: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
         assert!(fs::read_to_string(&lock).unwrap().contains(&address));
         assert_owner_refusal(&p, &["serve", second, "--port", "0"], &address);
+        // Hot activation uses this deployment's immutable source, despite the external database.
+        let deployed = p.run(&["deploy", first]);
+        assert!(deployed.status.success(), "{deployed:?}");
+        assert!(String::from_utf8_lossy(&deployed.stdout).contains("activated in the running server"), "{deployed:?}");
+        let rolled = p.run(&["rollback", first, "--to", "2"]);
+        assert!(rolled.status.success(), "{rolled:?}");
+        // Another deployment sharing the database must not activate its unrelated source through this owner.
+        let pointer = fs::read_to_string(PathBuf::from(second).join("current")).unwrap();
+        for args in [vec!["deploy", second], vec!["rollback", second]] {
+            assert_owner_refusal(&p, &args, &address);
+        }
+        assert_eq!(fs::read_to_string(PathBuf::from(second).join("current")).unwrap(), pointer);
+        assert!(!PathBuf::from(second).join("releases/3").exists());
         for dir in [first, second] {
-            let pointer = fs::read_to_string(PathBuf::from(dir).join("current")).unwrap();
-            for args in [vec!["deploy", dir], vec!["rollback", dir]] {
-                assert_owner_refusal(&p, &args, &address);
-            }
             let minted = p.run(&["token", "--release", dir, "--service", "worker"]);
             assert!(minted.status.success(), "{minted:?}");
-            assert_eq!(fs::read_to_string(PathBuf::from(dir).join("current")).unwrap(), pointer);
-            assert!(!PathBuf::from(dir).join("releases/3").exists());
         }
         assert!(host.child.try_wait().unwrap().is_none());
         drop(host);

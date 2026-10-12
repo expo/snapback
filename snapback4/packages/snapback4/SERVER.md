@@ -24,6 +24,11 @@ current rows. Rollback selects source; it does not rewind application writes.
 - Deleting an active row removes its dormant values. Reusing its id cannot
   resurrect those values. Deleting a parent invalidates dormant references to
   its lifetime, including when an identical parent id/value is recreated.
+- Referential actions come from the active schema only. A newer cascade or
+  restrict on a dormant table/column is inactive after rollback. Deleting its
+  active parent invalidates the retained edge; forward restoration refuses
+  `E_ADOPT` even after identical id reuse. If the reference stays active, its
+  selected release's action applies (including the default restrict).
 - A new row written under the older release receives the forward schema's literal
   default or optional null when its newer field is reactivated. Existing dormant
   values restore verbatim, including the defaults they previously represented.
@@ -76,8 +81,15 @@ rollback/forward and native-only wasm changes. Equal schema/program/module conte
 retains its generation while the activation revision advances. Existing clients
 learn the new backend, replace obsolete partitions and reacquire; old watermarks,
 late pages and late native module fetches cannot mix with the new generation.
+This includes union audiences and merged pages: all their acquired arms/scopes
+and continuation positions belong to that generation. They reacquire before
+claiming local completeness; group-audience changes also advance their epoch.
 Queued intents follow the existing operation/authority rejudgment rules. Store id
-stays the same, so ordinary rollback is not a replaced-store recovery.
+stays the same, so ordinary rollback is not a replaced-store recovery. Browser
+write custody stays bound to that store and principal: release generations do
+not advance a login epoch or cancel a captured click. Recovery submits the
+original operation/id for current-release rejudgment and receipt replay. Persona
+journals use their fixed dev principal epoch; personas remain refused by serve.
 
 The local control socket lives in the private deployment directory (0700), is
 0600 and checks same-UID peer credentials. It accepts only numeric immutable
