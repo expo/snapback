@@ -23,6 +23,8 @@ pub use sql::sql;
 mod residency;
 mod test_fixture;
 mod test_cases;
+/// A fixture directory's case file: not a table's rows.
+pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod latency;
 mod run_admission;
