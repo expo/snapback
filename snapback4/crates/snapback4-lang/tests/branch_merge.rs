@@ -1,0 +1,528 @@
+//! LLP 3000.036.001: an owner-or-X list is one query. A page whose `where`, or
+//! whose table's read rule, is a disjunction of branches each pinning an index
+//! prefix that decides the rule reads as the merge of the branch ranges, and
+//! is `complete`. Each test runs the engine and compares the merged page,
+//! walked to its end by cursor, with the per-party queries' union.
+use snapback4_core::{Context, Engine, Value, value::object};
+use snapback4_lang::{Bound, compile};
+use std::collections::BTreeMap;
+
+fn bound(source: &str) -> Bound { compile(&[("schema.q".into(), source.into())]) }
+
+fn clean(source: &str) -> Bound {
+    let b = bound(source);
+    assert!(b.diagnostics.is_empty(), "{source}\n{:#?}", b.diagnostics);
+    b
+}
+
+fn has_note(b: &Bound, code: &str) -> bool { b.notes.iter().any(|n| n.code == code) }
+
+type Rows = Vec<(&'static str, Vec<(&'static str, Value)>)>;
+
+fn engine(source: &str, rows: Rows) -> Engine {
+    let b = clean(source);
+    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(rows.into_iter().map(|(table, fields)| (table.to_owned(), object(fields)))).unwrap();
+    engine
+}
+
+fn id(text: &str) -> Value { Value::Id(text.into()) }
+
+fn ids(data: &Value) -> Vec<String> {
+    data.as_array().unwrap().iter().map(|row| match row.field("id") { Ok(Value::Id(id)) => id.clone(), other => panic!("{other:?}") }).collect()
+}
+
+/// Every page of `query` by cursor: the ids in order, and whether each page was complete.
+fn walk(engine: &mut Engine, query: &str, viewer: &str, extra: &[(&str, Value)]) -> (Vec<String>, Vec<bool>) {
+    let mut cursor = Value::Null;
+    let mut out = Vec::new();
+    let mut complete = Vec::new();
+    for _ in 0..50 {
+        let mut args: BTreeMap<String, Value> = extra.iter().map(|(k, v)| ((*k).to_owned(), v.clone())).collect();
+        args.insert("c".into(), cursor.clone());
+        let outcome = engine.query(query, Context::new(viewer, args)).unwrap_or_else(|e| panic!("{query} as {viewer}: {e:?}"));
+        out.extend(ids(&outcome.data));
+        complete.push(outcome.complete);
+        match outcome.next { Some(next) => cursor = Value::String(next), None => return (out, complete) }
+    }
+    panic!("{query}: cursor did not end");
+}
+
+const TASKS: &str = "table tasks:
+  owner: principal
+  assignee: principal ?
+  at: int
+  title: text <=40
+  read <- .owner = viewer or .assignee = viewer
+  insert <- .owner = viewer
+  online only
+";
+
+fn task(id_: &'static str, owner: &str, assignee: Option<&str>, at: i64) -> (&'static str, Vec<(&'static str, Value)>) {
+    ("tasks", vec![("id", id(id_)), ("owner", id(owner)), ("assignee", assignee.map_or(Value::Null, id)), ("at", Value::Int(at)), ("title", Value::String(id_.into()))])
+}
+
+fn tasks() -> Rows {
+    vec![
+        task("t1", "alice", None, 10), task("t2", "bob", Some("alice"), 20), task("t3", "alice", Some("alice"), 30),
+        task("t4", "carol", Some("bob"), 40), task("t5", "alice", Some("bob"), 50), task("t6", "bob", None, 60),
+        task("t7", "carol", Some("alice"), 70), task("t8", "dave", Some("carol"), 80), task("t9", "alice", None, 90),
+        task("t10", "bob", Some("alice"), 100),
+    ]
+}
+
+/// The rows `viewer` may read, newest first (the ground truth for these tests).
+fn readable(viewer: &str, rows: &Rows) -> Vec<String> {
+    let mut out: Vec<(i64, String)> = rows.iter().filter(|(_, fields)| {
+        let get = |name: &str| fields.iter().find(|(f, _)| *f == name).map(|(_, v)| v.clone()).unwrap();
+        get("owner") == id(viewer) || get("assignee") == id(viewer)
+    }).map(|(_, fields)| {
+        let at = fields.iter().find(|(f, _)| *f == "at").and_then(|(_, v)| v.as_int().ok()).unwrap();
+        let name = fields.iter().find(|(f, _)| *f == "id").map(|(_, v)| match v { Value::Id(s) => s.clone(), _ => unreachable!() }).unwrap();
+        (at, name)
+    }).collect();
+    out.sort_by(|a, b| b.cmp(a));
+    out.into_iter().map(|(_, name)| name).collect()
+}
+
+#[test]
+fn the_two_party_query_is_complete_and_walks_the_union_once() {
+    let source = format!("{TASKS}
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 3 by .at after c
+");
+    let b = clean(&source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut engine = engine(&source, tasks());
+    for viewer in ["alice", "bob", "carol", "dave", "erin"] {
+        let (rows, complete) = walk(&mut engine, "mine", viewer, &[]);
+        assert_eq!(rows, readable(viewer, &tasks()), "{viewer}");
+        assert!(complete.iter().all(|c| *c), "{viewer}: {complete:?}");
+    }
+}
+
+#[test]
+fn the_read_rule_supplies_the_branches() {
+    let source = format!("{TASKS}
+query all(c: cursor ?):
+  return tasks last 4 by .at after c
+");
+    let b = clean(&source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut engine = engine(&source, tasks());
+    for viewer in ["alice", "bob", "carol", "erin"] {
+        let (rows, complete) = walk(&mut engine, "all", viewer, &[]);
+        assert_eq!(rows, readable(viewer, &tasks()), "{viewer}");
+        assert!(complete.iter().all(|c| *c), "{viewer}: {complete:?}");
+    }
+}
+
+#[test]
+fn oldest_first_and_a_cursorless_top_n() {
+    let source = format!("{TASKS}
+query oldest(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer first 2 by .at after c
+query top():
+  return tasks where .owner = viewer or .assignee = viewer last 2 by .at
+");
+    let mut engine = engine(&source, tasks());
+    let (rows, complete) = walk(&mut engine, "oldest", "alice", &[]);
+    let mut expected = readable("alice", &tasks());
+    expected.reverse();
+    assert_eq!(rows, expected);
+    assert!(complete.iter().all(|c| *c));
+    let outcome = engine.query("top", Context::new("alice", BTreeMap::new())).unwrap();
+    assert_eq!(ids(&outcome.data), readable("alice", &tasks())[..2]);
+    assert!(outcome.complete && outcome.next.is_none());
+}
+
+#[test]
+fn a_residual_conjunct_applies_to_every_branch() {
+    let source = format!("{TASKS}
+query recent(since: int, c: cursor ?):
+  return tasks where (.owner = viewer or .assignee = viewer) and .at >= since last 2 by .at after c
+");
+    let b = clean(&source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut engine = engine(&source, tasks());
+    let (rows, complete) = walk(&mut engine, "recent", "alice", &[("since", Value::Int(30))]);
+    assert_eq!(rows, vec!["t10", "t9", "t7", "t5", "t3"]);
+    assert!(complete.iter().all(|c| *c));
+}
+
+const STAFF: &str = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  insert <- deny
+  online only
+
+table tickets:
+  owner: principal
+  at: int
+  read <- .owner = viewer or exists staff[viewer]
+  insert <- .owner = viewer
+  online only
+
+query tickets(c: cursor ?):
+  return tickets last 2 by .at after c
+";
+
+fn ticket(name: &'static str, owner: &str, at: i64) -> (&'static str, Vec<(&'static str, Value)>) {
+    ("tickets", vec![("id", id(name)), ("owner", id(owner)), ("at", Value::Int(at))])
+}
+
+#[test]
+fn owner_or_staff_is_one_query_complete_for_everyone() {
+    let b = clean(STAFF);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let rows = || vec![("staff", vec![("id", id("s1")), ("principal", id("sam"))]),
+        ticket("k1", "alice", 1), ticket("k2", "bob", 2), ticket("k3", "alice", 3), ticket("k4", "carol", 4), ticket("k5", "alice", 5)];
+    let mut engine = engine(STAFF, rows());
+    let (all, complete) = walk(&mut engine, "tickets", "sam", &[]);
+    assert_eq!(all, vec!["k5", "k4", "k3", "k2", "k1"]);
+    assert!(complete.iter().all(|c| *c));
+    let (own, complete) = walk(&mut engine, "tickets", "alice", &[]);
+    assert_eq!(own, vec!["k5", "k3", "k1"]);
+    assert!(complete.iter().all(|c| *c));
+    let (none, complete) = walk(&mut engine, "tickets", "erin", &[]);
+    assert!(none.is_empty() && complete == vec![true]);
+}
+
+#[test]
+fn a_grant_the_caller_cannot_read_keeps_the_single_read() {
+    // A hidden roster (`read <- deny`) is not a usable grant (LLP 3000.036 §12.1):
+    // the page reads as written and stays never complete.
+    let source = STAFF.replace("  read <- .principal = viewer\n", "  read <- deny\n");
+    let b = clean(&source);
+    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut engine = engine(&source, vec![ticket("k1", "alice", 1), ticket("k2", "bob", 2)]);
+    let outcome = engine.query("tickets", Context::new("alice", BTreeMap::from([("c".to_owned(), Value::Null)]))).unwrap();
+    assert_eq!(ids(&outcome.data), vec!["k1"]);
+    assert!(!outcome.complete);
+}
+
+#[test]
+fn a_cursor_of_another_plan_restarts_the_read() {
+    // A direct page's cursor over the same table names one index; the merged
+    // page's names the branch set, as version 4.
+    let source = format!("{TASKS}
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 2 by .at after c
+query owned(c: cursor ?):
+  return tasks where .owner = viewer last 2 by .at after c
+");
+    let mut engine = engine(&source, tasks());
+    let ctx = |c: Value| Context::new("alice", BTreeMap::from([("c".to_owned(), c)]));
+    let owned = engine.query("owned", ctx(Value::Null)).unwrap();
+    let foreign = owned.next.expect("owned continues");
+    let error = engine.query("mine", ctx(Value::String(foreign))).unwrap_err();
+    assert_eq!(error.code, "E_CURSOR_INDEX", "{error:?}");
+    let merged = engine.query("mine", ctx(Value::Null)).unwrap().next.expect("mine continues");
+    let error = engine.query("owned", ctx(Value::String(merged))).unwrap_err();
+    assert_eq!(error.code, "E_INPUT", "{error:?}");
+}
+
+#[test]
+fn exists_over_the_branches_answers_false() {
+    let source = format!("{TASKS}
+query any():
+  return exists tasks where .owner = viewer or .assignee = viewer
+");
+    let b = clean(&source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut engine = engine(&source, tasks());
+    for (viewer, expected) in [("alice", true), ("dave", true), ("erin", false)] {
+        let outcome = engine.query("any", Context::new(viewer, BTreeMap::new())).unwrap();
+        assert_eq!(outcome.data, Value::Bool(expected), "{viewer}");
+        assert!(outcome.complete, "{viewer}");
+    }
+}
+
+#[test]
+fn shapes_the_merge_does_not_cover_keep_the_note() {
+    // A single party is the pin the author writes; a membership branch is not a pin.
+    for (rule, query) in [
+        (".owner = viewer", "tasks last 3 by .at after c"),
+        (".owner = viewer or exists shares[.id, viewer]", "tasks last 3 by .at after c"),
+    ] {
+        let source = format!("table shares:
+  task: id
+  principal: principal
+  unique task, principal
+  read <- .principal = viewer
+  insert <- deny
+  online only
+
+table tasks:
+  owner: principal
+  at: int
+  read <- {rule}
+  insert <- .owner = viewer
+  online only
+
+query q(c: cursor ?):
+  return {query}
+");
+        let b = clean(&source);
+        assert!(has_note(&b, "N_NEVER_COMPLETE"), "{rule}: {:#?}", b.notes);
+    }
+}
+
+/// The program's branch merges (bound IR), with whether the lazy path takes each.
+fn branch_merges(b: &Bound, program: &str) -> Vec<(usize, bool)> {
+    let p = &b.programs.iter().find(|p| p.program.name == program).unwrap().program;
+    snapback4_core::search_plan::merges(&p.body).into_iter().filter(|m| m.branches())
+        .map(|m| (m.lanes.len(), snapback4_core::engine::rules::branch_merge_lazy(&b.schema, m))).collect()
+}
+
+#[test]
+fn the_plan_is_a_lazy_merge_of_one_lane_per_branch() {
+    let source = format!("{TASKS}
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 3 by .at after c
+query all(c: cursor ?):
+  return tasks last 3 by .at after c
+query owned(c: cursor ?):
+  return tasks where .owner = viewer last 3 by .at after c
+");
+    let b = clean(&source);
+    assert_eq!(branch_merges(&b, "mine"), vec![(2, true)]);
+    assert_eq!(branch_merges(&b, "all"), vec![(2, true)]);
+    // A page its own pins decide keeps its single-index plan.
+    assert_eq!(branch_merges(&b, "owned"), vec![]);
+}
+
+#[test]
+fn three_parties_and_a_where_alternative_each() {
+    let source = "table jobs:
+  owner: principal
+  helper: principal ?
+  reviewer: principal ?
+  done: bool
+  at: int
+  read <- .owner = viewer or .helper = viewer or .reviewer = viewer
+  insert <- .owner = viewer
+  online only
+
+query open(c: cursor ?):
+  return jobs where .done = false or .at < 3 last 2 by .at after c
+";
+    let b = clean(source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    // `.at < 3` pins nothing, so `where` has no branches: one lane per party.
+    assert_eq!(branch_merges(&b, "open"), vec![(3, true)]);
+    let job = |name: &'static str, owner: &str, helper: Option<&str>, reviewer: Option<&str>, done: bool, at: i64| ("jobs", vec![("id", id(name)), ("owner", id(owner)),
+        ("helper", helper.map_or(Value::Null, id)), ("reviewer", reviewer.map_or(Value::Null, id)), ("done", Value::Bool(done)), ("at", Value::Int(at))]);
+    let rows = vec![job("j1", "ann", None, None, false, 1), job("j2", "bob", Some("ann"), None, true, 2), job("j3", "bob", None, Some("ann"), true, 5),
+        job("j4", "cat", Some("ann"), Some("ann"), false, 6), job("j5", "cat", None, None, false, 7), job("j6", "ann", Some("ann"), None, true, 8)];
+    let mut engine = engine(source, rows);
+    let (rows, complete) = walk(&mut engine, "open", "ann", &[]);
+    assert_eq!(rows, vec!["j4", "j2", "j1"]);
+    assert!(complete.iter().all(|c| *c));
+}
+
+#[test]
+fn branches_over_group_probes_are_decided_by_each_pin() {
+    let source = "table members:
+  board: int
+  principal: principal
+  unique board, principal
+  read <- .principal = viewer
+  insert <- deny
+  online only
+
+table cards:
+  board: int
+  at: int
+  read <- exists members[.board, viewer]
+  insert <- exists members[.board, viewer]
+  online only
+
+query two(a: int, b: int, c: cursor ?):
+  return cards where .board = a or .board = b last 2 by .at after c
+";
+    let b = clean(source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert_eq!(branch_merges(&b, "two"), vec![(2, true)]);
+    let card = |name: &'static str, board: i64, at: i64| ("cards", vec![("id", id(name)), ("board", Value::Int(board)), ("at", Value::Int(at))]);
+    let rows = vec![("members", vec![("id", id("m1")), ("board", Value::Int(1)), ("principal", id("ann"))]),
+        ("members", vec![("id", id("m2")), ("board", Value::Int(2)), ("principal", id("ann"))]),
+        card("c1", 1, 1), card("c2", 2, 2), card("c3", 3, 3), card("c4", 1, 4), card("c5", 2, 5), card("c6", 3, 6)];
+    let mut engine = engine(source, rows);
+    let (rows, complete) = walk(&mut engine, "two", "ann", &[("a", Value::Int(1)), ("b", Value::Int(2))]);
+    assert_eq!(rows, vec!["c5", "c4", "c2", "c1"]);
+    assert!(complete.iter().all(|c| *c));
+    // A board the caller is not a member of is a decided-false branch: empty, still complete.
+    let (rows, complete) = walk(&mut engine, "two", "ann", &[("a", Value::Int(1)), ("b", Value::Int(3))]);
+    assert_eq!(rows, vec!["c4", "c1"]);
+    assert!(complete.iter().all(|c| *c));
+}
+
+#[test]
+fn a_cut_while_draining_continues_and_a_cut_while_opening_ends() {
+    let source = format!("{TASKS}
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 4 by .at after c
+");
+    let mut engine = engine(&source, tasks());
+    let full = walk(&mut engine, "mine", "alice", &[]).0;
+    let mut continued = 0;
+    for examined in 1..=40u64 {
+        engine.set_ceilings(snapback4_core::Ceilings { examined, ..Default::default() });
+        let mut cursor = Value::Null;
+        let mut at = 0;
+        for _ in 0..40 {
+            let outcome = engine.query("mine", Context::new("alice", BTreeMap::from([("c".to_owned(), cursor.clone())]))).unwrap();
+            let page = ids(&outcome.data);
+            match outcome.next {
+                // A page that continues, cut while draining or not, is exactly
+                // the next rows of the uncut order (LLP 3000.007.000 §3).
+                Some(next) => {
+                    assert_eq!(page, full[at..at + page.len()], "examined {examined}");
+                    if !outcome.complete { continued += 1; }
+                    at += page.len();
+                    cursor = Value::String(next);
+                }
+                None => {
+                    if outcome.complete { assert_eq!(page, full[at..], "examined {examined}"); }
+                    else {
+                        // A cut before some branch examined anything past the
+                        // cursor ends the read: empty, incomplete, no position.
+                        assert!(outcome.capped_at.is_some(), "examined {examined}: {outcome:?}");
+                        assert!(page.is_empty(), "examined {examined}: a cut page with rows carries next: {page:?}");
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    assert!(continued > 0, "some ceiling cuts a page while draining");
+}
+
+#[test]
+fn staff_and_a_where_disjunction() {
+    let source = format!("{STAFF}
+query watched(c: cursor ?):
+  return tickets where .owner = viewer or .at > 3 last 2 by .at after c
+").replace("query tickets(c: cursor ?):\n  return tickets last 2 by .at after c\n", "");
+    let b = clean(&source);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let rows = || vec![("staff", vec![("id", id("s1")), ("principal", id("sam"))]),
+        ticket("k1", "alice", 1), ticket("k2", "bob", 2), ticket("k3", "alice", 3), ticket("k4", "carol", 4), ticket("k5", "alice", 5)];
+    let mut engine = engine(&source, rows());
+    let (all, complete) = walk(&mut engine, "watched", "sam", &[]);
+    assert_eq!(all, vec!["k5", "k4"]);
+    assert!(complete.iter().all(|c| *c));
+    let (own, complete) = walk(&mut engine, "watched", "alice", &[]);
+    assert_eq!(own, vec!["k5", "k3", "k1"]);
+    assert!(complete.iter().all(|c| *c));
+}
+
+#[test]
+fn more_than_eight_branches_keep_the_single_read() {
+    let source = "table jobs:
+  a: principal
+  b: principal
+  c: principal
+  kind: int
+  at: int
+  read <- .a = viewer or .b = viewer or .c = viewer
+  insert <- .a = viewer
+  online only
+
+query q(c: cursor ?):
+  return jobs where .kind = 1 or .kind = 2 or .kind = 3 last 2 by .at after c
+";
+    let b = clean(source);
+    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert_eq!(branch_merges(&b, "q"), vec![]);
+}
+
+#[test]
+fn a_mutation_page_is_unchanged() {
+    let source = format!("{TASKS}
+mutation touch():
+  for t in tasks where .owner = viewer or .assignee = viewer first 5 by .at:
+    update tasks[t] {{ title: 'x' }}
+  return true
+");
+    let b = bound(&source);
+    // An undecided page in a mutation is refused as before; no branch merge is planned there.
+    assert!(b.programs.iter().all(|p| snapback4_core::search_plan::merges(&p.program.body).iter().all(|m| !m.branches())));
+}
+
+#[test]
+fn a_fallible_predicate_or_an_order_on_the_party_keeps_the_single_read() {
+    // A lane would evaluate `1 / n` for a row the original's `or` short-circuits past.
+    for query in [
+        "tasks where .owner = viewer or (.assignee = viewer and .at * n = 1) last 3 by .at after c",
+        // Lane planning keeps an equality on an order column as a seek, so the party cannot be pinned.
+        "tasks last 3 by .owner, .at after c",
+    ] {
+        let source = format!("{TASKS}
+query q(n: int, c: cursor ?):
+  return {query}
+");
+        let b = clean(&source);
+        assert_eq!(branch_merges(&b, "q"), vec![], "{query}");
+        assert!(has_note(&b, "N_NEVER_COMPLETE"), "{query}: {:#?}", b.notes);
+    }
+}
+
+#[test]
+fn an_unfinished_first_shape_retries_its_row_inclusively() {
+    let source = format!("{TASKS}
+table extra:
+  lane: int
+  by byLane: lane, id
+  read <- allow
+  insert <- deny
+  online only
+
+query feed(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 1 by .at after c {{ id, n: count(extra[0] first 9000 by byLane) }}
+query bounded(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 1 by .at after c {{ id, n: count(extra[0] first 3 by byLane) }}
+");
+    let mut rows = tasks();
+    rows.extend((0..9000).map(|n| ("extra", vec![("id", Value::Id(format!("x{n:05}"))), ("lane", Value::Int(0))])));
+    let mut engine = engine(&source, rows);
+    let ctx = |c: Value| Context::new("alice", BTreeMap::from([("c".to_owned(), c)]));
+    let first = engine.query("feed", ctx(Value::Null)).unwrap();
+    assert!(ids(&first.data).is_empty() && !first.complete, "{first:?}");
+    let next = first.next.expect("retry the unfinished row");
+    let position = snapback4_core::cursor::decode_cursor(&snapback4_core::schema::Schema::default(), &next).unwrap();
+    assert!(position.inclusive && position.index.starts_with("$or:"), "{position:?}");
+    let refusal = engine.query("feed", ctx(Value::String(next.clone()))).unwrap_err();
+    assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER", "{refusal:?}");
+    // The same position, inclusive, resumes a shape that can finish at its row
+    // (a cursor names its plan, not its query: both read the same branches).
+    let bounded = engine.query("bounded", ctx(Value::String(next))).unwrap();
+    assert_eq!(ids(&bounded.data), vec!["t10"]);
+    assert_eq!(bounded.data.as_array().unwrap()[0].field("n").unwrap(), &Value::Int(3));
+    assert!(bounded.complete && bounded.next.is_some());
+}
+
+#[test]
+fn an_older_engine_reads_the_plan_as_an_eager_merge() {
+    // An engine that does not know the branch markers (0.4.22) ignores them and
+    // takes the eager merge: the same rows, its own cursor form.
+    let source = format!("{TASKS}
+query mine(c: cursor ?):
+  return tasks where .owner = viewer or .assignee = viewer last 3 by .at after c
+");
+    let mut b = clean(&source);
+    fn strip(stmts: &mut [snapback4_core::ir::Stmt]) {
+        use snapback4_core::ir::{Expr, Stmt};
+        fn expr(e: &mut Expr) { if let Expr::Merge(m) = e { for lane in &mut m.lanes { lane.branch = None; } } }
+        for s in stmts { if let Stmt::Return(e) | Stmt::Let { value: e, .. } = s { expr(e); } }
+    }
+    for p in &mut b.programs { strip(&mut p.program.body); }
+    let mut old = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    old.seed(tasks().into_iter().map(|(t, f)| (t.to_owned(), object(f)))).unwrap();
+    let mut new = engine(&source, tasks());
+    for viewer in ["alice", "bob", "carol"] {
+        assert_eq!(walk(&mut old, "mine", viewer, &[]).0, walk(&mut new, "mine", viewer, &[]).0, "{viewer}");
+    }
+}

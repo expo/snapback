@@ -428,6 +428,7 @@ fn implied_by(weaker: &RuleExpr, stronger: &RuleExpr) -> bool {
 /// Keep setup evaluation and non-uniform traversal in their original order.
 pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
     let Some(first) = merge.lanes.first() else { return true };
+    if merge.branches() { return branch_merge_lazy(schema, merge); }
     merge.lanes.iter().all(|lane| {
         let scan = &lane.scan;
         lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table && scan.index == first.scan.index
@@ -441,6 +442,55 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
                 scan.prefix.len() < index.components.len() && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
             }))
     })
+}
+
+/// A branch merge's lanes may read different indexes of one table: each
+/// resumes on its own index from the shared merge position, so every lane
+/// needs scalar pins, a total position and the same position columns. A
+/// party or `where` lane must be decided by its prefix; a grant lane is
+/// decided per caller before it opens (`word_merge.rs`).
+// @ref LLP 3000.038#3 — the binding check makes these hold; a lane that fails one keeps the eager traversal.
+pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
+    let Some(first) = merge.lanes.first() else { return true };
+    let Some(table) = schema.table(&first.scan.table) else { return false };
+    let mut suffix: Option<Vec<(String, ColumnType)>> = None;
+    merge.lanes.iter().all(|lane| {
+        let scan = &lane.scan;
+        let Some(index) = table.index(&scan.index) else { return false };
+        let total_unique = index.unique && index.components.iter().all(|component| component.key_type(table).is_some_and(|kind| !kind.is_optional()));
+        let lane_suffix = merge_position(table, index, scan.prefix.len());
+        let same = suffix.get_or_insert_with(|| lane_suffix.clone()) == &lane_suffix;
+        lane.project.is_none() && lane.setup.is_empty() && lane.source.is_none() && scan.table == first.scan.table
+            && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
+            && scan.order == first.scan.order && !scan.existence && same
+            && scan.prefix.len() < index.components.len() && index.word_component().is_none()
+            && index.components.iter().all(|component| component.column().is_some())
+            && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
+            && (lane.grant() || scan_visibility(schema, scan).uniform)
+    })
+}
+
+/// A lane's merge position columns: the index components after its prefix,
+/// then `id` when they do not end in it (LLP 3000.007.000 §1).
+pub fn merge_position(table: &Table, index: &crate::schema::Index, prefix_len: usize) -> Vec<(String, ColumnType)> {
+    let mut columns: Vec<(String, ColumnType)> = index.components.iter().skip(prefix_len)
+        .filter_map(|component| Some((component.key_name()?.clone(), component.key_type(table)?))).collect();
+    if columns.last().is_none_or(|(name, _)| name != "id") { columns.push(("id".into(), table.columns["id"].clone())); }
+    columns
+}
+
+/// The grant a branch merge's grant lane is decided by: the readable grants
+/// of `grant_decision`, only when they are every disjunct of the read rule
+/// that reads no column of the row. Otherwise a caller could be admitted by
+/// a grant the lane cannot evaluate, and its page would miss rows.
+// @ref LLP 3000.038#2 — every grant disjunct must be readable, or the read binds as its grant lane alone.
+pub fn covering_grant(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
+    let table = schema.table(&scan.table)?;
+    let grant = grant_decision(schema, scan)?;
+    let independent = table.rules.read.disjuncts().into_iter()
+        .filter(|disjunct| { let mut fields = BTreeSet::new(); disjunct.fields(&mut fields); fields.is_empty() }).count();
+    let held = match &grant { RuleExpr::Or(grants) => grants.len(), _ => 1 };
+    (held == independent).then_some(grant)
 }
 
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and

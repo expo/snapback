@@ -151,6 +151,11 @@ pub struct Runner<'a> {
     pub(super) view_seek: Option<(String, crate::cursor::CursorPosition)>,
     /// Projected source scans pay for fetched payloads before discarding fields.
     pub(super) view_scan_active: bool,
+    /// The grant verdict that admitted the branch-merge lane being read.
+    pub(super) merge_grant: Option<super::expiry::Pending>,
+    /// Set by a branch merge around a lane's read: the key of the last
+    /// rule-visible candidate that read examined.
+    pub(super) scan_frontier: Option<Option<Vec<u8>>>,
     pub(super) word_cursor: Option<(String, crate::cursor::CursorPosition)>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
@@ -318,6 +323,8 @@ impl<'a> Runner<'a> {
             word_cursor: None,
             view_seek: None,
             view_scan_active: false,
+            merge_grant: None,
+            scan_frontier: None,
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),

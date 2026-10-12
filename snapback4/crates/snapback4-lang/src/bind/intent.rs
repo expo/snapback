@@ -52,6 +52,15 @@ pub(super) fn table_order(catalog: &mut Catalog) {
 }
 
 impl Requests {
+    /// Plan a merge lane: an equality on its order column stays a seek, so
+    /// every lane keeps the merge's shared order.
+    pub(super) fn plan_lane(&mut self, tables: &BTreeMap<String, TableInfo>, read: &mut ReadExpr) {
+        let prior = std::mem::replace(&mut self.lane, true);
+        self.read(tables, read, false);
+        self.lane = prior;
+    }
+    pub(super) fn error_count(&self) -> usize { self.errors.len() }
+
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)
     }
@@ -384,7 +393,18 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
+                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                    *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }
+            } else if lanes && let Expr::Read(read) = value
+                && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string())
+                && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                // @ref LLP 3000.038#3 — an undecided page whose branches each decide the rule reads as their merge.
+                *value = Expr::Merge(merge);
+            } else if lanes && let Expr::Exists { read, site } = value
+                && !requests.merged.contains(&read.site.to_string())
+                && let Some(either) = super::intent_branches::exists(&tables, &mut requests, read, site) {
+                *value = either;
             } else if let Expr::Read(read) | Expr::Exists { read, .. } = value { requests.read(&tables, read, false); }
         };
         // Shared helpers/shapes and non-query programs keep ordinary scans:

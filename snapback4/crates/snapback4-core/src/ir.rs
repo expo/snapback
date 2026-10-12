@@ -459,6 +459,36 @@ impl Merge {
     pub fn static_lanes(&self) -> Option<u64> {
         self.lanes.iter().try_fold(0u64, |sum, lane| Some(sum.saturating_add(match &lane.source { None => 1, Some(source) => source.static_max()? })))
     }
+    /// A branch merge: a query page planned as the k-way merge of its
+    /// disjunctive branches, each lane an index range of one table whose
+    /// prefix decides the read rule (or a grant lane). Its lanes carry
+    /// `BRANCH_LANE` or `GRANT_LANE` as their branch identity; no view does.
+    // @ref LLP 3000.038#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
+    pub fn branches(&self) -> bool {
+        self.view.is_none() && !self.lanes.is_empty()
+            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE)))
+    }
+    /// The cursor descriptor's index field: the branch set, in lane order.
+    pub fn branch_descriptor(&self) -> String {
+        let mut name = String::from(BRANCH_DESCRIPTOR);
+        for (n, lane) in self.lanes.iter().enumerate() {
+            if n > 0 { name.push('|'); }
+            name.push_str(&lane.scan.index);
+            if lane.grant() { name.push_str("+grant"); }
+        }
+        name
+    }
+}
+
+/// A branch merge's lane whose prefix decides the read rule.
+pub const BRANCH_LANE: &str = "$or";
+/// A branch merge's lane read only when the table's readable grant holds.
+pub const GRANT_LANE: &str = "$or:grant";
+/// The prefix of a branch merge's cursor descriptor (cursor version 4).
+pub const BRANCH_DESCRIPTOR: &str = "$or:";
+
+impl MergeLane {
+    pub fn grant(&self) -> bool { self.branch.as_deref() == Some(GRANT_LANE) }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

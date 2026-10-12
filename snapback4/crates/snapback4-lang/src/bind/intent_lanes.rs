@@ -114,7 +114,7 @@ pub(super) fn prefixes_decide_rules(tables: &BTreeMap<String, TableInfo>, merge:
         .all(|read| prefix_decides_rule(tables, read)))
 }
 
-fn prefix_decides_rule(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> bool {
+pub(super) fn prefix_decides_rule(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> bool {
     let Some(table) = tables.get(&read.table) else { return false; };
     if table.maintained.is_some() { return false; }
     let pinned = read.keys.iter().filter_map(|key| key.column.as_ref().map(|name| (name.as_str(), &key.value))).collect::<BTreeMap<_, _>>();

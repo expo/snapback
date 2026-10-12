@@ -102,7 +102,16 @@ impl Binder<'_> {
             self.push_value_lane(&mut lanes, lane, MergeLane { guard, distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: Some(project) }, position)?;
         }
         if result.is_none() && !lanes.is_empty() {
-            return Ok((Expr::Merge(Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site, lanes }), Ty::Page(merge.table.clone(), merge.take)));
+            let planned = Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site, lanes };
+            // @ref LLP 3000.038#3 — the binding check: the runtime's own analysis must agree that every
+            // lane is decided (a grant lane by a grant covering the rule) and that the lanes share one
+            // position. Otherwise a page with a grant branch reads as written, the grant branch alone.
+            if planned.branches() && !(planned.lanes.iter().filter(|lane| lane.grant()).all(|lane| snapback4_core::engine::rules::covering_grant(self.schema, &lane.scan).is_some())
+                && snapback4_core::engine::rules::branch_merge_lazy(self.schema, &planned))
+                && let Some(read) = merge.lanes.iter().find(|lane| lane.branch.as_deref() == Some(ir::GRANT_LANE)).and_then(|lane| lane.planned.as_deref()) {
+                return self.read(read, out);
+            }
+            return Ok((Expr::Merge(planned), Ty::Page(merge.table.clone(), merge.take)));
         }
         let fields = match self.catalog.view_types.get(&merge.table) {
             Some(Ty::RowShape(fields)) => fields.clone(), _ => result.unwrap_or_default(),

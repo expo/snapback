@@ -24,6 +24,8 @@ mod word_merge;
 mod membership_search;
 #[path = "view_merge.rs"]
 mod view_merge;
+#[path = "branch_merge.rs"]
+mod branch_merge;
 #[path = "witness.rs"]
 mod witness;
 
@@ -920,7 +922,10 @@ impl<'r> Runner<'r> {
         // the page is decided once, as a uniform page is. Its static probe
         // charge is paid on either verdict; an unproven grant walks as before.
         let mut grant_expiry = None;
-        let granted = !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
+        // @ref LLP 3000.038#3 — a branch merge's grant lane was admitted by its grant before it opened; one verdict, one charge.
+        let lane_grant = self.merge_grant.take();
+        let granted = if let Some(pending) = lane_grant { grant_expiry = Some(pending); !always_visible } else {
+            !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
             && !self.device && !self.context.is_system()
             && match rules::grant_decision(self.schema, scan) {
                 Some(rule) => {
@@ -929,7 +934,7 @@ impl<'r> Runner<'r> {
                     allowed
                 }
                 None => false,
-            };
+            } };
         let always_visible = always_visible || granted;
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
@@ -1215,6 +1220,8 @@ impl<'r> Runner<'r> {
             }
         }
         if let Some(mark) = row_heap { self.meter.release_row_heap(mark, row_bytes); }
+        // @ref LLP 3000.036.001#6 — a branch lane cut mid-read reports how far it examined (rule-visible rows only).
+        if let Some(frontier) = &mut self.scan_frontier { *frontier = last_rule_visible.clone().or_else(|| keys.last().cloned()); }
         // @ref LLP 3000.007#20.22 — a device page is complete by its acquisition boundary, carried on the wire, not by a count.
         // An existence probe is exempt (W13c): a held witness below the floor still proves existence.
         if self.device && !scan.existence && horizon.is_some() {
@@ -1346,9 +1353,10 @@ impl<'r> Runner<'r> {
 
     fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
         if merge.view.is_some() { return self.merge_view(merge); }
+        if merge.branches() && rules::branch_merge_lazy(self.schema, merge) { return self.merge_branches(merge); }
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
-        if rules::lazy_merge(self.schema, merge) {
+        if !merge.branches() && rules::lazy_merge(self.schema, merge) {
             return self.merge_lazy(Some(merge), None);
         }
         let Some(first) = merge.lanes.first() else { return Ok(Vec::new()) };
@@ -1368,13 +1376,15 @@ impl<'r> Runner<'r> {
         // A merge's cursor names the merge's own scope; it is checked before
         // lane discovery so an empty discovery cannot admit a foreign token.
         self.record_shape_cursor(&merge.site, None);
+        // @ref LLP 3000.038#3 — a branch merge outside the lazy path keeps its branch-set descriptor.
+        let (descriptor, view_suffix) = if merge.branches() { (merge.branch_descriptor(), Some(suffix.clone())) } else { (first.scan.index.clone(), None) };
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
             let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
             crate::cursor::check_variant(&position, merge.variant)?;
-            position.check_descriptor(&first.scan.table, &first.scan.index, order, &suffix)
+            position.check_descriptor(&first.scan.table, &descriptor, order, &suffix)
                 .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
             self.record_shape_cursor(&merge.site, Some(token));
         }
@@ -1395,7 +1405,7 @@ impl<'r> Runner<'r> {
                 // Pages look ahead; existence needs only its first witness.
                 let mut lane_scan = lane.scan.clone();
                 // @ref LLP 3000.007#20.3 — translate a validated shared position to each table/index with the same ordered suffix.
-                if (lane_scan.table != first.scan.table || lane_scan.index != first.scan.index) && lane_scan.opaque_cursor
+                if (merge.branches() || lane_scan.table != first.scan.table || lane_scan.index != first.scan.index) && lane_scan.opaque_cursor
                     && let Some(after) = lane_scan.after.as_deref()
                     && let Value::String(token) = self.expr(after)?
                 {
@@ -1440,7 +1450,7 @@ impl<'r> Runner<'r> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix: None, table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
+            self.record_page(merge.site.clone(), PagePosition { variant: merge.variant, view_suffix, table: first.scan.table.clone(), index: descriptor, order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
