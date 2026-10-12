@@ -78,7 +78,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
         *report.runtime_refusals.entry(code.into()).or_default() += 1;
         if !matches!(
             code,
-            "E_OVERFLOW" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_ID_REUSED" | "REQUIRED"
+            "E_OVERFLOW" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_ID_REUSED" | "REQUIRED" | "E_REFERENCED"
         ) {
             *report
                 .runtime_refused_unexpected

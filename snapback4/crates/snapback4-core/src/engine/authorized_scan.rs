@@ -25,18 +25,18 @@ impl Authorization {
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
+pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, reference_prepaid: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), reference_prepaid: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
     pub(super) fn remaining(&self) -> usize { self.remaining.get() }
     fn limit(&self, table: &str, requested: usize) -> Result<usize, RuntimeError> {
-        if !self.authorizing.get() { return Ok(requested); }
+        if !self.authorizing.get() || self.reference_prepaid.get() { return Ok(requested); }
         if self.remaining.get() == 0 { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(requested.min(self.remaining.get()))
     }
     fn charge(&self, fetched: usize) {
-        if self.authorizing.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
+        if self.authorizing.get() && !self.reference_prepaid.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
     }
     pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.limit(table, 1)?;
@@ -107,6 +107,8 @@ impl<'a> GuardedRows<'a> {
         self.remaining.set(self.remaining.get() - rows);
         Ok(())
     }
+    // @ref LLP 3000.039#5.1 — reserved action hooks spend the physical draw once; ordinary root probes remain outside this scope.
+    pub(super) fn reference_prepaid(&self, prepaid: bool) -> bool { self.reference_prepaid.replace(prepaid) }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
     pub(crate) fn release_asset(&self, id: &str, #[cfg(feature = "sqlite")] table: &str, #[cfg(feature = "sqlite")] row_id: &str, #[cfg(feature = "sqlite")] column: &str, now: i64) -> Result<(), RuntimeError> { #[cfg(feature = "sqlite")] { self.raw.release_asset(id, table, row_id, column, now) } #[cfg(not(feature = "sqlite"))] { self.raw.release_asset(id, now) } }

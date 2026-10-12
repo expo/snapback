@@ -332,6 +332,21 @@ fn a_status_guard_every_child_insert_flips_away_from_silences_n_delete_restricte
     assert_eq!(mutate(&mut e, "withdraw", "ari", &[("artwork", id("w1"))]), "ALREADY_SOLD");
     // Any program that breaks the invariant keeps the note.
     let unsound = [
+        // The flip and insert must retain the same key across the insert program.
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation recordSale(artwork: artworks, buyer:", "mutation recordSale(artwork: artworks, other: artworks, buyer:")
+            .replace("  return insert sales { artwork, buyer }", "  artwork = other\n  return insert sales { artwork, buyer }"),
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation recordSale(artwork: artworks, buyer:", "mutation recordSale(artwork: artworks, other: artworks, flag: bool, buyer:")
+            .replace("  return insert sales { artwork, buyer }", "  if flag:\n    artwork = other\n  return insert sales { artwork, buyer }"),
+        // Rebinding the row alias makes its status unrelated to the deleted key.
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation withdraw(artwork: artworks):", "mutation withdraw(artwork: artworks, other: artworks):")
+            .replace("  require a.status = 'available' else ALREADY_SOLD\n  delete", "  a = artworks[other] ! else NOT_FOUND\n  require a.status = 'available' else ALREADY_SOLD\n  delete"),
+        // Rebinding the argument changes the target after its guarded read.
+        format!("{GALLERY}{RECORD_SALE}")
+            .replace("mutation withdraw(artwork: artworks):", "mutation withdraw(artwork: artworks, other: artworks):")
+            .replace("  delete artworks[artwork]", "  artwork = other\n  delete artworks[artwork]"),
         // the status can return to `available`
         format!("{GALLERY}{RECORD_SALE}mutation relist(artwork: artworks):\n  update artworks[artwork] {{ status: 'available' }}\n"),
         // to a status chosen by the caller
@@ -350,7 +365,8 @@ fn a_status_guard_every_child_insert_flips_away_from_silences_n_delete_restricte
     }
     // The third shape at run time: without the flip the guard proves nothing, so the restrict
     // default refuses the withdrawal (before 0.5 it orphaned the sale).
-    let mut e = engine(&unsound[2], vec![("artworks", vec![("id", id("w1")), ("artist", id("ari"))])]);
+    let without_flip = format!("{GALLERY}mutation recordSale(artwork: artworks, buyer: text 1..80):\n  return insert sales {{ artwork, buyer }}\n");
+    let mut e = engine(&without_flip, vec![("artworks", vec![("id", id("w1")), ("artist", id("ari"))])]);
     assert_eq!(mutate(&mut e, "recordSale", "sam", &[("artwork", id("w1")), ("buyer", text("Bo"))]), "ok");
     assert_eq!(mutate(&mut e, "withdraw", "ari", &[("artwork", id("w1"))]), "E_REFERENCED", "the guard proved nothing here, as the note says");
 }

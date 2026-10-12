@@ -127,6 +127,12 @@ impl Schema {
         let derived: Vec<String> = self.maintains.iter().filter(|m| out.written.contains(&m.source) || m.row_key.as_ref().is_some_and(|k| out.written.contains(&k.table)))
             .flat_map(|m| [Some(m.target.clone()), m.private.as_ref().map(|owner| owner.table.clone())]).flatten().collect();
         out.written.extend(derived);
+        out.row_written = out.written.clone();
+        // Audience transitions log scope/join events in their receiver tables.
+        // Those tables belong to the same static publication envelope.
+        for (name, _, sync) in self.synced() {
+            if matches!(&sync.audience, Audience::Target { table, .. } if out.row_written.contains(table)) { out.written.insert(name.to_owned()); }
+        }
         out
     }
 
@@ -236,10 +242,13 @@ impl Schema {
                 let seeks = if r.table.expiry_column().is_some() && r.table.through.as_ref().is_none_or(|t| t.reference != r.column) { 2 } else { 1 };
                 // A walk over a capped group: a seek per page, and a last, short page per range.
                 let walk = |cap: u64| seeks * n + cap.saturating_mul(n) / REFERENCE_PAGE as u64;
+                // Every reached row runs the lifetime hook for every through
+                // child, including children the closure already cascaded away.
+                let through = r.table.through.as_ref().is_some_and(|t| t.reference == r.column);
+                if through && table != parent { add(&mut price, [3_u64, 0, 3, 0, 0, 0, 0].map(|v| v.saturating_mul(n))); }
                 match r.action {
                     // A read-through child's probe: three seeks per closure row (LLP 3000.014 §6).
-                    OnDelete::Restrict if r.table.through.as_ref().is_some_and(|t| t.reference == r.column) =>
-                        if table != parent { add(&mut price, [3_u64, 0, 3, 0, 0, 0, 0].map(|v| v.saturating_mul(n))); },
+                    OnDelete::Restrict if through => {},
                     // One probe per closure row, a row per seek: it may skip the closure
                     // rows that name it (each names one target per reference), then stops
                     // at its first outside witness.
@@ -271,7 +280,26 @@ impl Schema {
         // delete, with the root's and one page of child ids.
         // A set-null group is gathered whole (at most its cap) before it is cleared.
         price[4] = heap.saturating_add(identities.saturating_add(1 + REFERENCE_PAGE as u64 + gathered).saturating_mul(CLOSURE_IDENTITY_BYTES));
+        price[4] = price[4].saturating_add(self.retained_action_heap(parent, price[3]));
         Some(price)
+    }
+
+    /// Event images remain live until commit, after action scratch is released.
+    pub fn delete_event_heap(&self, parent: &str) -> Option<u64> {
+        Some(self.retained_action_heap(parent, self.delete_reservation(parent)?[3]))
+    }
+
+    // @ref LLP 3000.039#5.1 — two event images per priced row write, plus bounded keys and audience transitions, retained for the request lifetime.
+    fn retained_action_heap(&self, parent: &str, writes: u64) -> u64 {
+        let tables = self.action_tables(parent);
+        let (mut image, mut metadata, mut dependents) = (0_u64, 0_u64, 0_u64);
+        for name in &tables.row_written {
+            if let Some(table) = self.table(name) { image = image.max(crate::engine::row_copy_ceiling(table)); }
+            let receivers = self.synced().filter(|(_, _, sync)| matches!(&sync.audience, Audience::Target { table, .. } if table == name)).count() as u64;
+            dependents = dependents.max(receivers);
+        }
+        for name in &tables.written { metadata = metadata.max(1024 + 4 * crate::rows::MAX_INDEX_KEY_BYTES as u64 + 4 * name.len() as u64); }
+        writes.saturating_mul(image.saturating_mul(2).saturating_add(metadata.saturating_mul(2 + 2 * dependents)))
     }
 
     /// One engine write (delete or set-null update) of a `table` row: fetch and
@@ -294,6 +322,17 @@ impl Schema {
         for phase in 0..=reservations::VIEW_READ {
             add(&mut unit, plan.price(phase));
         }
+        // The lifetime hook reserves all child-table witnesses while source
+        // phases are still held. Device verification additionally holds the
+        // parent and a child scratch image; every host prices the same peak.
+        let mut lifetime = 0_u64;
+        let mut child_peak = 0_u64;
+        for (_, child, _) in self.children(name) {
+            let scratch = crate::engine::row_copy_ceiling(child).saturating_mul(3);
+            lifetime = lifetime.saturating_add(scratch);
+            child_peak = child_peak.max(scratch);
+        }
+        if lifetime > 0 { unit[4] = unit[4].saturating_add(lifetime).saturating_add(child_peak).saturating_add(row); }
         Some(unit)
     }
 }
@@ -301,6 +340,7 @@ impl Schema {
 /// The tables a delete's actions may write or read (`Schema::action_tables`).
 #[derive(Clone, Debug, Default)]
 pub struct ActionTables {
+    pub row_written: BTreeSet<String>,
     pub written: BTreeSet<String>,
     pub read: BTreeSet<String>,
 }
@@ -367,6 +407,11 @@ pub fn write_target_refusal(schema: &Schema, name: &str) -> Option<String> {
     let table = schema.table(name)?;
     if table.constraints.iter().any(|c| matches!(c, Constraint::AppendOnly)) { Some(format!("{name} is append only")) }
     else if !table.written_by.is_empty() { Some(format!("{name} has field-owned (`written by`) columns, whose owners the schema singled out")) }
+    else if schema.maintains.iter().filter(|m| m.source == name || m.row_key.as_ref().is_some_and(|k| k.table == name))
+        .flat_map(|m| [Some(m.target.as_str()), m.private.as_ref().map(|owner| owner.table.as_str())]).flatten()
+        .any(|destination| schema.table(destination).is_some_and(|t| t.sync.is_some() && t.written_by.values().any(|authority| !authority.audience))) {
+        Some(format!("{name}'s derived writes deliver private fields, whose recipient authorization has no fixed action price"))
+    }
     else if schema.timeline_member(name) { Some(format!("a timeline orders {name}'s writes")) }
     else if schema.maintains.iter().any(|m| m.row_key.as_ref().is_some_and(|k| k.table == name)) { Some(format!("{name} is a row-keyed view's member table, whose writes may recount a group outside any fixed price")) }
     else if schema.maintains.iter().any(|m| m.source == name && matches!(m.kind, MaintainKind::Sum { .. })) { Some(format!("{name} feeds a maintained sum, whose total another row's delete could push out of range: a refusal that would depend on rows the deleter cannot see")) }

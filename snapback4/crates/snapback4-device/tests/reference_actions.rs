@@ -119,8 +119,14 @@ fn run<H: Host>(host: &mut H) {
     // cascade: it is outside the schema's live cap and reservation.
     let source = r#"
 table groups:
-  public 'groups'
-  sync public
+  read <- exists members[.id, viewer]
+  sync
+table members:
+  group: groups on delete keep
+  principal: principal
+  unique group, principal
+  read <- .principal = viewer
+  sync
 table parents:
   group: groups
   immutable group
@@ -140,16 +146,24 @@ mutation drop(id: parents):
     let (mut e, b) = compile(source);
     let row = |table: &str, fields: &[(&str, snapback4_core::Value)]| (table.to_owned(), snapback4_core::value::object(fields.iter().cloned()));
     e.seed_at([row("groups", &[("id", id("old"))]), row("groups", &[("id", id("new"))]),
+        row("members", &[("id", id("mo")), ("group", id("old")), ("principal", id("alice"))]),
+        row("members", &[("id", id("mn")), ("group", id("new")), ("principal", id("alice"))]),
         row("parents", &[("id", id("p")), ("group", id("old"))]),
         row("children", &[("id", id("a")), ("parent", id("p"))])], 100).unwrap();
     let mut d = host.open("retained-cascade", Some(b)).unwrap();
     acquire(&mut e, &mut d, "alice", 100);
+    let (mut current, _) = compile(source);
+    current.seed_at([row("groups", &[("id", id("new"))]),
+        row("members", &[("id", id("mn")), ("group", id("new")), ("principal", id("alice"))]),
+        row("parents", &[("id", id("p")), ("group", id("new"))]),
+        row("children", &[("id", id("b")), ("parent", id("p"))])], 100).unwrap();
+    let snapshot = current.snapshot_acquisition_page_at("alice", None, 100, 100).unwrap();
     let (watermark, generation) = d.state().unwrap();
-    let page: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":[
-        {"table":"children","kind":"scope","id":"scope","data":["old"]},
-        {"table":"parents","kind":"put","id":"p","data":{"id":"p","group":"new","$scope":"new","$deadline":null}},
-        {"table":"children","kind":"put","id":"b","data":{"id":"b","parent":"p","$scope":"new","$deadline":null}}
-    ],"watermark":watermark,"more":false,"generation":generation})).unwrap();
+    let mut events = vec![json!({"table":"children","kind":"scope","id":"scope","data":["old"]})];
+    events.extend(snapshot.events.iter().filter(|e| e.table == "parents" || e.table == "children")
+        .map(|e| json!({"table":e.table,"kind":"put","id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})));
+    let page: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":events,
+        "watermark":watermark,"more":false,"generation":generation})).unwrap();
     d.apply(&page, false).unwrap();
     assert_eq!(d.store().raw_rows("children").len(), 2, "old history and one current child");
     let queued = d.predict("drop", "alice", &json!({"id":"p"}), 100, vec![], 1).unwrap_err();

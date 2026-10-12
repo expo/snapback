@@ -35,12 +35,20 @@ impl Runner<'_> {
         for (kind, amount) in [(MeterKind::Steps, price[0]), (MeterKind::IndexEntries, price[1]), (MeterKind::Examined, price[2]), (MeterKind::RowsWritten, price[3]), (MeterKind::OutputBytes, price[5]), (MeterKind::RuleProbes, price[6])] {
             if amount > 0 { self.meter.charge(kind, amount)?; }
         }
+        // Pending event images survive the closure and subsequent statements.
+        // Keep their schema-fixed reservation until the request ends.
+        let events = schema.delete_event_heap(table_name).unwrap_or(0);
+        self.meter.heap(events)?;
         let mark = self.meter.mark();
-        self.meter.heap(price[4])?;
+        self.meter.heap(price[4].saturating_sub(events))?;
         // @ref LLP 3000.039#3 — draw the reservation's rows from the request's physical allowance before the first seek.
         if !self.context.is_system() { self.tx.draw(table_name, price[2])?; }
         let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::unbounded(), Cut::Abort));
+        let prepaid = self.tx.reference_prepaid(true);
+        let action = std::mem::replace(&mut self.engine_action, true);
         let result = self.reference_closure(table_name, old);
+        self.engine_action = action;
+        self.tx.reference_prepaid(prepaid);
         self.meter = meter;
         self.meter.release_heap(mark);
         result

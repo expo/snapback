@@ -355,6 +355,9 @@ fn only_a_dominating_zero_count_on_the_deleted_key_silences_the_note() {
         "mutation drop(slot: slots):\n  delete slots[slot]\n  require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n",
         "mutation drop(slot: slots):\n  n = bookingsBySlot[slot]\n  delete slots[slot]\n  return n\n",
         "mutation drop(slot: slots):\n  require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n  insert bookings { slot }\n  delete slots[slot]\n",
+        "mutation drop(slot: slots, other: slots):\n  target = slot\n  require bookingsBySlot[target] = 0 else HAS_BOOKINGS\n  target = other\n  delete slots[target]\n",
+        "mutation drop(slot: slots, other: slots, flag: bool):\n  target = slot\n  require bookingsBySlot[target] = 0 else HAS_BOOKINGS\n  if flag:\n    target = other\n  delete slots[target]\n",
+        "fn book(slot: slots):\n  insert bookings { slot }\nmutation drop(slot: slots):\n  require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n  book(slot)\n  delete slots[slot]\n",
         "mutation drop(slot: slots, flag: bool):\n  if flag:\n    require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n  delete slots[slot]\n",
     ] {
         assert_eq!(notes(unproven), 1, "{unproven}");
@@ -457,16 +460,102 @@ mutation dropCategory(id: categories):
 #[test]
 fn reset_reseeds_reference_indexes_and_caps_without_running_actions() {
     let mut e = world(2);
-    let capabilities = e.schema().capabilities.clone();
-    let seeded = vec![row("projects", &[("id", id("p")), ("owner", id("alice"))]),
-        row("tasks", &[("id", id("new")), ("project", id("p")), ("owner", id("bob"))])];
+    let capabilities = e.schema().required_capabilities();
+    let seeded = vec![row("projects", &[("id", id("p")), ("owner", id("alice")), ("name", Value::String("P".into()))]),
+        row("tasks", &[("id", id("new")), ("project", id("p")), ("owner", id("bob")), ("category", Value::Null), ("title", Value::String("x".into()))])];
     e.dev_reset_at(seeded, 500).unwrap();
     assert_eq!(count(&e, "tasks"), 1);
-    assert_eq!(e.schema().capabilities, capabilities);
+    assert_eq!(e.schema().required_capabilities(), capabilities);
     let out = e.mutate("dropProject", None, ctx("alice", &[("id", id("p"))])).unwrap();
     assert_eq!(refusal(&out), None, "{out:?}");
     assert_eq!(count(&e, "tasks"), 0, "only the reseeded child cascades");
-    e.dev_reset_at(vec![row("projects", &[("id", id("p")), ("owner", id("alice"))])], 500).unwrap();
+    e.dev_reset_at(vec![row("projects", &[("id", id("p")), ("owner", id("alice")), ("name", Value::String("P".into()))])], 500).unwrap();
     let out = e.mutate("dropProject", None, ctx("alice", &[("id", id("p"))])).unwrap();
     assert_eq!(refusal(&out), None, "no stale cap or reference entries: {out:?}");
+}
+
+#[test]
+fn a_cascade_releases_a_hidden_childs_file_asset() {
+    let source = "table folders:\n  read <- allow\n  delete <- allow\ntable documents:\n  folder: folders on delete cascade\n  owner: principal\n  scan: file <=1000\n  cap 4 by folder\n  read <- .owner = viewer\n  insert <- .owner = viewer\nmutation upload(folder: folders, scan: file <=1000):\n  insert documents { folder, owner: viewer, scan }\nmutation drop(folder: folders):\n  delete folders[folder]\n";
+    let mut e = engine(source);
+    e.seed_at([row("folders", &[("id", id("p"))])], 500).unwrap();
+    let file = e.store_file("bob", b"plain words", Some("text/plain"), "notes.txt", 500).unwrap();
+    let upload = e.mutate("upload", None, ctx("bob", &[("folder", id("p")), ("scan", Value::Map([("id".to_owned(), id(&file.id))].into_iter().collect::<std::collections::BTreeMap<_, _>>().into()))])).unwrap();
+    assert_eq!(refusal(&upload), None, "{upload:?}");
+    assert!(e.asset_access("bob", &file.id, 1_000).is_ok());
+    let deleted = e.mutate("drop", None, ctx("alice", &[("folder", id("p"))])).unwrap();
+    assert_eq!(refusal(&deleted), None, "{deleted:?}");
+    assert_eq!(count(&e, "documents"), 0);
+    assert_eq!(e.asset_access("bob", &file.id, 1_000).unwrap_err().code(), "E_ASSET_UNKNOWN");
+}
+
+#[test]
+fn cascaded_lifetime_probes_spend_the_physical_allowance_once() {
+    let mut source = "table roots:\n  read <- allow\n  delete <- allow\ntable mids:\n  root: roots on delete cascade\n  cap 30 by root\n  read <- deny\ntable leaves:\n  mid: mids\n  immutable mid\n  read through .mid\ntable pins0:\n  mid: mids\n  read <- allow\ntable pins1:\n  mid: mids\n  read <- allow\nmutation drop(root: roots):\n  delete roots[root]\n".to_owned();
+    for n in 2..134 { source.push_str(&format!("table pins{n}:\n  mid: mids\n  read <- allow\n")); }
+    let b = bound(&source);
+    assert_eq!(b.schema.delete_reservation("roots").unwrap()[2], 8_192);
+    let run = |hidden: bool| {
+        let mut e = engine(&source);
+        let mut rows = vec![row("roots", &[("id", id("p"))])];
+        if hidden { rows.push(row("mids", &[("id", id("m")), ("root", id("p"))])); }
+        e.seed_at(rows, 500).unwrap();
+        let out = e.mutate("drop", None, ctx("alice", &[("root", id("p"))])).unwrap();
+        assert_eq!(refusal(&out), None, "{out:?}");
+        (out.metered, out.events, out.tables)
+    };
+    assert_eq!(run(false), run(true), "an empty lifetime seek must not draw again after R(P)");
+}
+
+#[test]
+fn lifetime_hook_heap_is_reserved_with_the_source_write() {
+    let mut source = "table roots:\n  read <- allow\n  delete <- allow\ntable mids:\n  root: roots on delete cascade\n  cap 1 by root\n  read <- allow\n".to_owned();
+    for n in 0..3 { source.push_str(&format!("table leaves{n}:\n  mid: mids\n  body: text <=900000\n  immutable mid\n  read through .mid\n")); }
+    source.push_str("mutation drop(root: roots):\n  delete roots[root]\n");
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_CASCADE_BOUND"), "{:?}", b.diagnostics);
+    // Exercise the runtime too, bypassing the compiler's site refusal.
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed_at([row("roots", &[("id", id("p"))])], 500).unwrap();
+    let out = e.mutate("drop", None, ctx("alice", &[("root", id("p"))])).unwrap();
+    assert_eq!(refusal(&out).as_deref(), Some("E_BOUND"), "{out:?}");
+    assert_eq!(count(&e, "roots"), 1);
+}
+
+#[test]
+fn a_derived_private_field_delivery_cannot_be_an_action_target() {
+    let source = "table folders:\n  read <- allow\n  delete <- allow\ntable owners:\n  owner: principal\n  mark: int default 0 written by .owner\n  docs: count documents by owner\n  public 'owners'\n  sync public\ntable documents:\n  folder: folders on delete cascade\n  owner: owners\n  cap 1 by folder\n  read <- allow\nmutation drop(folder: folders):\n  delete folders[folder]\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_REFERENCE_ACTION" && d.message.contains("derived writes deliver private fields")), "{:?}", b.diagnostics);
+}
+
+#[test]
+fn pending_event_images_are_reserved_beyond_the_action_closure() {
+    let source = "table roots:\n  read <- allow\n  delete <- allow\ntable children:\n  root: roots ? on delete set null\n  owner: principal\n  body: text <=50000\n  cap 20 by root\n  read <- .owner = viewer\n  sync\nmutation dropBoth(a: roots, b: roots):\n  delete roots[a]\n  delete roots[b]\n";
+    let b = bound(source);
+    let retained = b.schema.delete_event_heap("roots").unwrap();
+    assert!(2 * retained > snapback4_core::Ceilings::default().heap_bytes, "{retained}");
+    let mut e = engine(source);
+    e.seed_at([row("roots", &[("id", id("a"))]), row("roots", &[("id", id("b"))])], 500).unwrap();
+    let out = e.mutate("dropBoth", None, ctx("alice", &[("a", id("a")), ("b", id("b"))])).unwrap();
+    assert_eq!(refusal(&out).as_deref(), Some("E_BOUND"), "{out:?}");
+    assert_eq!(count(&e, "roots"), 2, "the second reservation rolls back the whole call");
+    let wide = source.replace("text <=50000", "text <=900000");
+    let b = snapback4_lang::compile(&[("schema.q".into(), wide)]);
+    assert!(b.diagnostics.iter().any(|d| d.code == "E_CASCADE_BOUND"), "{:?}", b.diagnostics);
+}
+
+#[test]
+fn a_hidden_cascade_grant_revocation_has_a_static_event_envelope() {
+    let source = "table roots:\n  public 'roots'\n  delete <- allow\n  sync public\ntable members:\n  root: roots on delete cascade\n  principal: principal\n  unique root, principal\n  cap 2 by root\n  read <- .principal = viewer\n  sync\ntable content:\n  root: roots on delete keep\n  read <- exists members[.root, viewer]\n  sync\nmutation drop(root: roots):\n  delete roots[root]\n";
+    let run = |hidden: bool| {
+        let mut e = engine(source);
+        let mut rows = vec![row("roots", &[("id", id("p"))])];
+        if hidden { rows.push(row("members", &[("id", id("m")), ("root", id("p")), ("principal", id("bob"))])); }
+        e.seed_at(rows, 500).unwrap();
+        let out = e.mutate("drop", None, ctx("alice", &[("root", id("p"))])).unwrap();
+        assert_eq!(refusal(&out), None, "{out:?}");
+        (out.metered, out.tables, out.events)
+    };
+    assert_eq!(run(false), run(true), "the hidden scope event is inside the static envelope");
 }

@@ -179,7 +179,7 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                     at += 1;
                 }
                 let kept: Vec<(&str, &str, &str)> = reached.iter().flat_map(|table| undeclared.get(table.as_str()).into_iter().flatten().map(move |(c, col)| (table.as_str(), *c, *col)))
-                    .filter(|(target, c, col)| !(*target == parent.as_str() && (counted.contains(&((*c).to_owned(), (*col).to_owned())) || guards.status_guarded(original, &parent, c, col)))).collect();
+                    .filter(|(target, c, col)| !(*target == parent.as_str() && (counted.contains(&((*c).to_owned(), (*col).to_owned())) || guards.status_guarded(original, &site, &parent, c, col)))).collect();
                 // @ref LLP 3000.039#7 — the read prerequisite is the other behavior change: name it where a deleter may not be a reader.
                 if program.kind != ProgramKind::Job && read_noted.insert(parent.clone()) && schema.is_referenced(&parent) && !deleters_read(schema, &parent) && !schema.children(&parent).any(|_| true) {
                     notes.push(Diagnostic::new(&site, "N_DELETE_NEEDS_READ",
@@ -231,7 +231,8 @@ fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards)
     let statements: Vec<Stmt> = program.prelude.iter().chain(&program.body).cloned().collect();
     let zero = |e: &Expr| matches!(e, Expr::Literal { value: Literal::Number(n), .. } if n.parse::<f64>().is_ok_and(|n| n == 0.0));
     let count_read = |e: &Expr| match e {
-        Expr::Read(read) if read.keys.len() == 1 && read.filter.is_none() && read.range.is_none() =>
+        Expr::Read(read) if read.keys.len() == 1 && read.filter.is_none() && read.range.is_none()
+            && matches!(&read.keys[0].value, Expr::Name { name, .. } if name != "new") =>
             guards.counts.get(&read.table).map(|pair| (pair.clone(), crate::print::expression(&read.keys[0].value))),
         _ => None,
     };
@@ -239,6 +240,7 @@ fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards)
     let mut requires: Vec<(usize, (String, String), String)> = Vec::new();
     // Tables each statement writes other than by delete.
     let mut writes: Vec<BTreeSet<String>> = Vec::new();
+    let mut uncertain = Vec::new();
     let mut deletes = Vec::new();
     let mut summed: Vec<(String, String, String, String)> = Vec::new();
     for (index, statement) in statements.iter().enumerate() {
@@ -248,11 +250,13 @@ fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards)
         }
         let mut body = vec![statement.clone()];
         let mut written = BTreeSet::new();
+        let mut opaque = matches!(statement, Stmt::Bind { .. } | Stmt::If { .. } | Stmt::For { .. } | Stmt::As { .. });
         let mut found: Vec<(String, crate::diag::Site, Option<String>)> = Vec::new();
         walk::statements(&mut body, &mut |value: &mut Expr| match value {
             Expr::Write { op: WriteOp::Delete, table, keys, site, .. } =>
                 found.push((table.clone(), site.clone(), (keys.len() == 1).then(|| crate::print::expression(&keys[0].value)))),
             Expr::Write { table, .. } => { written.insert(table.clone()); }
+            Expr::Call { .. } => { opaque = true; }
             Expr::Read(read) | Expr::Exists { read, .. } => {
                 if let Some((child, by, column)) = guards.sums.get(&read.table) && !summed.iter().any(|(view, ..)| view == &read.table) {
                     summed.push((read.table.clone(), child.clone(), by.clone(), column.clone()));
@@ -261,8 +265,10 @@ fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards)
             _ => {}
         });
         writes.push(written);
+        uncertain.push(opaque);
         for (table, site, key) in found {
-            let proven = requires.iter().filter(|(at, (child, _), required)| key.as_deref() == Some(required.as_str())
+            let proven = requires.iter().filter(|(at, (child, _), required)| *at < index && key.as_deref() == Some(required.as_str())
+                && !uncertain[at + 1..=index].iter().any(|opaque| *opaque)
                 && !writes[at + 1..=index].iter().any(|w| w.contains(child)))
                 .map(|(_, pair, _)| pair.clone()).collect();
             deletes.push((table, site, proven));
