@@ -16,7 +16,7 @@ mod control;
 mod job_reads;
 mod pure_calls;
 mod point_facts;
-mod maintain_types;
+pub(super) mod maintain_types;
 mod flow;
 mod conditional;
 mod joins;
