@@ -179,17 +179,23 @@ States:
                                 read reached a ceiling, or the page can never
                                 prove completeness on the server (N_NEVER_COMPLETE);
                                 not a refusal
+  refused CODE as expected (test.cases.jsonl:N)   that persona's own case
+                                expects CODE for this query: not a failure
   refused CODE on derived arguments   the query's own require refused the
-                                argument test derived from the data (the first
-                                row, the persona); not a failure: give it real
+                                arguments test derived from the data (a row of
+                                each referenced table, preferring one whose
+                                answer is not empty for the persona; the
+                                persona); not a failure: give it real
                                 arguments in test.cases.jsonl
+  (from test.cases.jsonl:N)     the query ran on that persona's own case's
+                                arguments instead of derived ones
   refused CODE by its own require   an argument-free query's require refused
                                 the persona; not a failure: pin the refusal
                                 as an expect case in test.cases.jsonl
   denied CODE                   a refusal: a failure
   not run                       an argument test cannot derive
 
-The last line counts each state and the cases. Exit 1 when a query is denied,
+The last line counts each state and the cases and ends in pass or FAIL. Exit 1 when a query is denied,
 a case fails or the fixture does not load (a bad row, an unknown table file);
 0 otherwise. snapback4 guide testing: fixture rows, test.cases.jsonl and an
 acceptance script over HTTP.";

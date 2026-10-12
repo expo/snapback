@@ -596,3 +596,42 @@ fn dev_binds_the_first_free_port_of_a_range() {
     let output = project.run(&["dev", "--port", &format!("{taken}-{taken}"), "--fresh", "--no-watch"]);
     assert!(!output.status.success() && text(&output).contains(&format!("every port in {taken}-{taken}")), "{}", text(&output));
 }
+
+/// Wave 7 (`test` tool, 20 lanes): with an explicit case expecting STAFF_ONLY
+/// passing, the sweep still printed "refused STAFF_ONLY on derived arguments —
+/// give it yours" (082, 059 fix-first); and a reference argument was the
+/// table's first row, often another persona's hidden row, so the sweep tested
+/// nothing (026 092 fix-first). The sweep now runs a persona's own case
+/// arguments, labels a refusal its case expects, prefers a row whose answer is
+/// not empty, and ends its summary in pass or FAIL.
+#[test]
+fn the_sweep_uses_a_personas_case_and_a_readable_row_and_labels_expected_refusals() {
+    let schema = "use personas alice, bob, carol\n\
+table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\n\
+table notes:\n  owner: principal\n  body: text <=100\n  read <- .owner = viewer or exists staff[viewer]\n  online only\n\
+query note(id: notes):\n  return notes[id]\n\
+query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n  return notes first 20 by .id after c\n";
+    let project = Project::new(schema);
+    project.write("fx/staff.jsonl", "{\"id\":\"S1\",\"principal\":\"dev:carol\"}\n");
+    project.write("fx/notes.jsonl", "{\"id\":\"N1\",\"owner\":\"dev:bob\",\"body\":\"b\"}\n{\"id\":\"N2\",\"owner\":\"dev:alice\",\"body\":\"a\"}\n");
+    project.write("fx/test.cases.jsonl", concat!(
+        "{\"as\":\"alice\",\"op\":\"staffNotes\",\"expect\":\"NOT_STAFF\"}\n",
+        "{\"as\":\"carol\",\"op\":\"staffNotes\",\"count\":2}\n",
+        "{\"as\":\"bob\",\"op\":\"note\",\"args\":{\"id\":\"N1\"},\"data\":{\"id\":\"N1\",\"owner\":\"dev:bob\",\"body\":\"b\"}}\n"));
+    let output = project.run(&["test", "--fixture", "fx"]);
+    let out = text(&output);
+    assert_eq!(output.status.code(), Some(0), "{out}");
+    // N1 is bob's and hidden from alice: alice's derived id is her own N2.
+    let alice = out.lines().find(|line| line.contains("note (alice)")).unwrap();
+    assert!(alice.contains("complete") && alice.contains("{\"id\":\"N2\"}"), "{out}");
+    assert!(out.lines().any(|line| line.contains("note (bob)") && line.contains("(from test.cases.jsonl:3)")), "{out}");
+    let expected = out.lines().find(|line| line.contains("staffNotes (alice)")).unwrap();
+    assert!(expected.contains("refused NOT_STAFF as expected (test.cases.jsonl:1)") && !expected.contains("give it yours") && !expected.contains("(from "), "{out}");
+    assert!(out.lines().any(|line| line.contains("staffNotes (bob)") && line.contains("refused NOT_STAFF on derived arguments")), "{out}");
+    assert!(out.contains("1 refused as your cases expect, 1 refused by their own require") && out.contains("cases: 3 passed, 0 failed — pass"), "{out}");
+    // A failing case makes the summary say FAIL beside exit 1.
+    project.write("fx/test.cases.jsonl", "{\"as\":\"carol\",\"op\":\"staffNotes\",\"count\":5}\n");
+    let output = project.run(&["test", "--fixture", "fx"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(text(&output).contains("cases: 0 passed, 1 failed — FAIL"), "{}", text(&output));
+}

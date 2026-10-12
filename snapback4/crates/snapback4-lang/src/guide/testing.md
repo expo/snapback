@@ -67,17 +67,21 @@ per line, the table's fields by name plus an `id`.
 
 ## `snapback4 test --fixture fixtures --as alice`
 
-Runs every query as the persona with arguments derived from the data: a
-reference is that table's first row by `id` order, a principal is the persona,
-text is the shortest valid value. Columns are the meter: `examined` rows the
+Runs every query as the persona: on that persona's own case's arguments when
+`test.cases.jsonl` has one for the query (`(from test.cases.jsonl:N)`), else on
+arguments derived from the data: a reference is a row of its table, preferring
+one whose answer is not empty for the persona, a principal is the persona, text
+is the shortest valid value. A refusal the persona's case expects prints
+`refused CODE as expected`. `--as` picks the sweep's personas; every case runs
+as its own `as`. Columns are the meter: `examined` rows the
 read looked at (not rows returned), `entries` index entries walked, `probes`
 rule lookups, `steps`, `heap B`, `output B`; the `ceilings` row is the limit
 for each. `complete` is the whole answer; `capped` is a partial one
 (`complete: false`: a ceiling, or a page that cannot prove completeness on the
 server), not a refusal. A query's own `require` refusing the persona is
 reported, not failed, whether its arguments were derived or it takes none: the
-persona chose nothing, so it is the program's gate (pin it with an `expect` case). The last line counts complete, capped, refused, not-run and denied
-queries and the cases below; the exit code is 1 when a query is denied, a case
+persona chose nothing, so it is the program's gate (pin it with an `expect` case). The last line counts complete, capped, expected, refused, not-run and denied
+queries and the cases below, and ends in `pass` or `FAIL`; the exit code is 1 when a query is denied, a case
 fails or the fixture does not load. `snapback4 test --help` prints this legend.
 
 ## `test.cases.jsonl`: your operations, in order, with expectations
