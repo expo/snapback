@@ -163,6 +163,8 @@ pub fn serve(
         release_committed: Mutex::new(None),
         #[cfg(test)]
         worker_prepare: Mutex::new(None),
+        #[cfg(test)]
+        worker_minted: Mutex::new(None),
         following: Mutex::new(
             snapback4_core::engine::following_history::Reader::new().map_err(|e| e.to_string())?,
         ),

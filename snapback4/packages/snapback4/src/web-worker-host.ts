@@ -79,10 +79,10 @@ export class WebWorkerHost {
   constructor(private readonly claim: PersistenceClaim,
     private readonly createWorker = () => new Worker(new URL("./web-worker-entry.js", import.meta.url), { type: "module" })) {}
 
-  open(backend: DeviceOpening | null = null, wasm?: WorkerWasmSource): Promise<Change[]> {
+  open(backend: DeviceOpening | null = null, wasm?: WorkerWasmSource, wasmUrl?: string): Promise<Change[]> {
     if (this.opening || this.closing) return Promise.reject(new Error("the Worker host is already open or closed"));
     this.opening = (async () => {
-      try { const saved = await this.start(backend, wasm); this.opened = true; return saved; }
+      try { const saved = await this.start(backend, wasm, wasmUrl); this.opened = true; return saved; }
       catch (error) {
         await this.stop();
         await this.release();
@@ -97,8 +97,10 @@ export class WebWorkerHost {
   private release(): Promise<void> { return this.released ??= this.claim.release(); }
 
   private wasm: WorkerWasmSource | undefined;
-  private async start(backend: DeviceOpening | null, wasm = this.wasm): Promise<Change[]> {
+  private wasmUrl: string | undefined;
+  private async start(backend: DeviceOpening | null, wasm = this.wasm, wasmUrl = this.wasmUrl): Promise<Change[]> {
     this.wasm = wasm;
+    this.wasmUrl = wasmUrl;
     // A replacement Worker PAGE must wait too: navigation can release its store
     // claim before the old Worker's termination/IDB cleanup has completed.
     this.lease = `snapback4-worker:${encodeURIComponent(this.claim.name)}`;
@@ -121,7 +123,7 @@ export class WebWorkerHost {
     worker.addEventListener("messageerror", failed);
     await this.rpc({ action: "attach", lease: this.lease });
     this.attached = true;
-    const reply = await this.rpc({ action: "open", name: this.claim.name, backend, ...(wasm ? { wasm } : {}) });
+    const reply = await this.rpc({ action: "open", name: this.claim.name, backend, ...(wasm ? { wasm } : {}), ...(wasmUrl ? { wasmUrl } : {}) });
     this.journal.clear();
     this.remember(reply.journal);
     this.control.publish(reply.control);
@@ -226,7 +228,7 @@ export class WebWorkerHost {
       await navigator.locks.request(lease, async () => {
         const persist = indexedDbStore(async () => null);
         await persist.read!(this.claim.name, "m", "device:store_id");
-        await persist.read!("snapback4-wasm", "url", typeof this.wasm === "string" ? this.wasm : "");
+        await persist.read!("snapback4-wasm", "url", this.wasmUrl ?? (typeof this.wasm === "string" ? this.wasm : ""));
       });
     })().then(() => { this.stopping = undefined; });
     // Keep a failed barrier sticky. A later close/restore must not infer that

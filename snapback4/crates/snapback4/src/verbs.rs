@@ -27,6 +27,8 @@ mod test_cases;
 pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod package_versions;
+#[cfg(test)]
+mod hand_tests;
 mod latency;
 mod run_admission;
 pub(crate) mod run_forward;
@@ -45,19 +47,22 @@ pub fn parse(args: &[String]) -> Options {
     let mut json = false;
     let mut iter = args.iter().skip(1).peekable();
     while let Some(arg) = iter.next() {
+        if arg == "-h" { flags.insert("help".into(), String::new()); continue; }
+        if arg == "--" { positionals.extend(iter.cloned()); break; }
         if arg == "--json" || arg == "--json-objects" {
             json = true;
             if arg == "--json-objects" { flags.insert("json-objects".into(), String::new()); }
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
-                None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
+                None if crate::cli_flags::switch(flag) || ( !matches!(flag, "find" | "section") && iter.peek().is_none_or(|next| next.starts_with("--")) ) => (flag.to_owned(), String::new()),
                 None => (flag.to_owned(), iter.next().cloned().unwrap_or_default()),
             };
-            flags.insert(name, value);
+            if name == "as" && matches!(args.first().map(String::as_str), Some("test" | "check")) {
+                flags.entry(name).and_modify(|prior: &mut String| { prior.push(','); prior.push_str(&value); }).or_insert(value);
+            } else { flags.insert(name, value); }
         } else {
             positionals.push(arg.clone());
         }
@@ -136,10 +141,12 @@ fn diagnostic_reports(diagnostics: &[snapback4_lang::Diagnostic], prefix: &str, 
     // Two is the first recurrence; pre-counting puts help under its first site.
     // At most three existing bounded why excerpts add <= 12,291 bytes, including blank lines.
     let mut remaining = if explain_repeats { 3 } else { 0 };
+    let mut bound_explained = false;
     diagnostics.iter().map(|diagnostic| {
         let mut report = format!("{prefix}{diagnostic}\n");
         if counts.remove(&(&diagnostic.code, &diagnostic.guide)).is_some_and(|count| count >= 2)
-            && remaining > 0 && let Some(explanation) = diagnostic.explanation_section() {
+            && remaining > 0 && !(diagnostic.code == "E_QUARRY_BOUND" && bound_explained) && let Some(explanation) = diagnostic.explanation_section() {
+            if diagnostic.code == "E_QUARRY_BOUND" { bound_explained = true; }
             report.push_str(&format!("\n{explanation}\n"));
             remaining -= 1;
         }
@@ -217,6 +224,7 @@ pub fn check(options: &Options) -> i32 {
         Ok(bound) => bound,
         Err(code) => return code,
     };
+    if !crate::exact_device::check(&project.root, &bound.schema, options.json) { return 1; }
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
@@ -815,6 +823,9 @@ pub fn doctor(options: &Options) -> i32 {
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {}, {} synced, {} operations", table_counts(&bound.schema), bound.schema.synced().count(), bound.programs.len()));
+            for device in crate::exact_device::inspect(&project.root, &bound.schema) {
+                match device { Ok(line) => lines.push(line), Err(error) => { lines.push(error); ok = false; } }
+            }
             let native = crate::native::declared(&bound);
             (bound.personas, native)
         }
@@ -1111,7 +1122,7 @@ pub fn test(options: &Options) -> i32 {
     let bound = compile_or_exit(&project, options.json);
     // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
     // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.
-    if let Some(why) = options.flags.get("as").and_then(|name| test_cases::undeclared_persona(name, &bound.personas)) {
+    if let Some(why) = options.flags.get("as").and_then(|names| names.split(',').find_map(|name| test_cases::undeclared_persona(name, &bound.personas))) {
         if !options.flags.contains_key("residency") {
             eprintln!("test --as: {why}");
             return 1;
@@ -1143,6 +1154,7 @@ pub fn test(options: &Options) -> i32 {
     println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "heap B", "output B");
     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
     let mut skipped = Vec::new();
+    let mut held_not_run = 0;
     let mut near = Vec::new();
     let (mut complete, mut capped, mut refused_derived, mut expected) = (0usize, 0usize, 0usize, 0usize);
     let explicit = options.flags.get("fixture").map(|fixture| test_cases::explicit(fixture, &bound.personas)).unwrap_or_default();
@@ -1153,6 +1165,7 @@ pub fn test(options: &Options) -> i32 {
         // @ref LLP 3000.007#18.1 — a server fixture is not the device's held partition.
         if bound.schema.operations.get(&program.program.name).is_some_and(|fact| fact.held) {
             println!("      not run: {} is held (device only)", program.program.name);
+            held_not_run += 1;
             continue;
         }
         for persona in &personas {
@@ -1270,9 +1283,9 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    let verdict = if failures > 0 || failed_cases > 0 { "FAIL" } else { "pass" };
+    let verdict = if failures > 0 || failed_cases > 0 { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} refused by their own require (on derived or no arguments), {} not run, {failures} denied{} — {verdict}",
-        skipped.len(), if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
+        skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }
 
@@ -1404,6 +1417,7 @@ fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::s
 /// against the real module without a native build, and a host without a
 /// linker can still run it.
 pub fn device(options: &Options) -> i32 {
+    if options.flags.contains_key("engine-info") { println!("{}", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap()); return 0; }
     let Some(path) = options.positionals.first() else {
         eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
         println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "usage: snapback4 device <store.sqlite> [backend.json]" } }));

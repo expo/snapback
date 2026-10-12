@@ -14,6 +14,7 @@ async function fixture(t) {
   const poll = Promise.withResolvers();
   const core = {
     async call({ op, key, page }) {
+      if (op === "engine_info") return {ok:{format:1,version:"0.4.24",capabilities:["sync-generation-v1"]}};
       if (op === "sync_state") return { ok: { acquired: true, backend_required: false, store_id: null, watermark, generation: 1, send_revision: 0, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, outbox_status: true, adoption_capture: {}, pending_ids: [] } };
       if (op === "state") return { ok: { watermark, generation: 1, native: null } };
       if (op === "backend") return { ok: backend };

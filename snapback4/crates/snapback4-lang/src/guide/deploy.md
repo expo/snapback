@@ -147,3 +147,4 @@ bodies; allow long polls without buffering or early timeouts. Non-loopback
 HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS.
 Identity rate keys use the socket peer, not forwarded headers. Serve refuses
 personas and dev doors even through a local proxy; see SERVER.md for capacity.
+For the `--json-objects` envelope fields, see `snapback4 sql --help`.

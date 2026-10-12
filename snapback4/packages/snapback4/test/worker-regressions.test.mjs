@@ -891,3 +891,47 @@ setInterval(()=>{},1000);
   if(entry === 'external.mjs') assert.equal(fileURLToPath(paths.module),realpathSync(source));
   else assert.ok(fileURLToPath(paths.module).startsWith(join(realpathSync(s.workdir),'.snapback4/worker-')));
 });
+
+
+for (const convention of ['named','conventional']) test(`${convention}: a +49h dev jump and reset re-mint the supervised token without transient auth refusal`, { timeout: hangBudget(6) }, async t => {
+  const f = fixture(t, convention === 'named' ? idle : undefined);
+  if(convention === 'conventional') writeFileSync(join(f.dir,'snapback/worker.mjs'),idle);
+  const s = await f.start();
+  const starts = join(f.dir, 'starts');
+  await until(() => rows(starts).length === 1);
+  const first = rows(starts)[0];
+  const response = await fetch(s.url + '/dev/clock/advance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"duration":"49h"}' });
+  assert.equal(response.status, 200, await response.text());
+  await until(() => rows(starts).length === 2);
+  const second = rows(starts)[1];
+  assert.notEqual(second.token, first.token);
+  assert.equal((await claim(s, first.token)).status, 401);
+  assert.equal((await claim(s, second.token)).status, 200);
+  const reset = await fetch(s.url + '/dev/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"clock":"reset"}' });
+  assert.equal(reset.status, 200);
+  await until(() => rows(starts).length === 3);
+  assert.notEqual(rows(starts)[2].token, second.token);
+  assert.equal((await claim(s, rows(starts)[2].token)).status, 200);
+  assert.equal(s.log.includes('dev refusal: /effects/claim E_AUTH'), false, s.log);
+});
+
+test('named worker packages resolve from the app when the deploy directory is outside its tree', { timeout: hangBudget(6) }, async t => {
+  const f = fixture(t, `import {appendFileSync} from 'node:fs'; import {value} from 'hand-dependency'; appendFileSync(process.env.SNAPBACK_PROJECT_DIR+'/import-ok', value); setInterval(()=>{},1000);`);
+  mkdirSync(join(f.dir, 'node_modules/hand-dependency'), { recursive: true });
+  writeFileSync(join(f.dir, 'node_modules/hand-dependency/package.json'), '{"name":"hand-dependency","type":"module","exports":"./index.js"}');
+  writeFileSync(join(f.dir, 'node_modules/hand-dependency/index.js'), 'export const value = "app-package";');
+  const outside = mkdtempSync(join(tmpdir(), 'sb4-hand-outside-'));
+  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  mkdirSync(join(f.dir, 'snapback/workers/node_modules/hand-dependency'), {recursive:true});
+  writeFileSync(join(f.dir, 'snapback/workers/node_modules/hand-dependency/package.json'), '{"name":"hand-dependency","type":"module","exports":"./index.js"}');
+  writeFileSync(join(f.dir, 'snapback/workers/node_modules/hand-dependency/index.js'), 'export const value = "nested-package";');
+  const release = join(outside, 'deployment');
+  const deploy = spawnSync(binary, ['deploy', release], {cwd:f.dir,encoding:'utf8'});
+  assert.equal(deploy.status, 0, deploy.stderr);
+  const child = spawn(binary, ['serve', release, '--port', '0'], {cwd:f.dir,stdio:['ignore','pipe','pipe']});
+  const done = once(child, 'exit'); let log = ''; child.stderr.on('data', b => {log += b;}); child.stdout.resume();
+  t.after(async () => { if(child.exitCode===null) child.kill('SIGTERM'); await done; });
+  await until(() => { assert.equal(child.exitCode,null,log); return existsSync(join(release,'releases/1/import-ok')); });
+  assert.equal(readFileSync(join(release,'releases/1/import-ok'),'utf8'),'nested-package');
+  assert.equal(log.includes('ERR_MODULE_NOT_FOUND'),false,log);
+});

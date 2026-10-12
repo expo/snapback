@@ -212,3 +212,42 @@ arrives as an attachment, and `Range` works on ordinary assets.
 The full reference, including the rest of `/auth`, worker and action
 doors, and clock headers, is "The wire" in CLIENT-AND-OPERATIONS.md §5, which
 ships in the package beside README.md.
+
+
+## Device engine compatibility
+
+A device sends `x-snapback-device` on `/schema`, every `/sync`, and every
+`/changes`: JSON `{format:1,version:"0.4.24",capabilities:[...]}` from the
+actual Rust engine, available before opening a store. Memory, SQLite, wasm
+and Expo native report the same format; do not use the JS package version.
+`device --engine-info`, wasm `engine_info()` and native `sb4_engine_info()`
+expose it. Forward `engineInfo()` when wrapping a client device opener.
+
+Every release writes `device-compatibility.json`; `/schema` returns its active
+`device_compatibility:{server_version,minimum_version,capabilities}`.
+The initial floor is 0.4.24. Required capabilities include
+`sync-generation-v1` and the active public schema's capability set. A newer
+version still needs every required capability.
+
+After authentication, an incompatible device receives HTTP 409
+`{denied:{code:"E_DEVICE_VERSION",family:"device-version",message,...}}`
+before any sync body or backend is decoded. The message names the device
+and server versions, missing capability, floor and rebuild commands:
+Exact `bun exact.mjs snapback`, Expo `npx expo run:ios`, web reinstall the
+server's `snapback4` version and rebuild. Unstamped devices have unknown
+version. `/sync` requires the handshake; a bare online/one-shot `/changes`
+or `/schema` caller has no replica and needs none.
+
+The local JS client exports `DeviceVersionError` with
+`status:{state:"incompatible",why}` at startup. A running client exposes
+`deviceVersion()` and `onDeviceVersion(status)`. An incompatible sync stops
+replication with a typed refusal and preserves queued writes for the rebuilt
+device. Its reads are denied, rather than pretending it is an offline link.
+
+Optimized wasm carries one `snapback4.engine` custom section with UTF-8
+engine JSON. Native's stamp is returned by the binary, not a sidecar. `check`
+and `doctor` inspect mounted Exact apps (`app.json`'s
+`typescript.sources.backend` points to this backend's `snapback/generated`,
+plus `assets/snapback4.wasm`) before UI testing. Missing or incompatible
+stamps require a rebuild. Exact builds copy the stamped artifact intact and use this format in their
+build/test preflight.

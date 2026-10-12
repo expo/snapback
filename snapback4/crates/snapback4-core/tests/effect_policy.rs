@@ -314,3 +314,22 @@ fn strict_status_samples_once_fences_running_authority_and_preserves_terminal_ev
     assert_eq!((cancelled.state.as_str(), cancelled.cancelled, cancelled.error_code.as_deref()), ("failed", true, Some("E_EFFECT_CANCELLED")));
     assert_eq!(outbox_snapshot(&expiry, &unrelated), unrelated_before, "status cancellation must finalize only its target");
 }
+
+#[test]
+fn dev_jump_bridges_only_live_supervised_token_families() {
+    use sha2::{Digest, Sha256};
+    let mut engine = engine("");
+    let supervised = identity::service_session(engine.store(), "push", 1000, 1).unwrap();
+    let manual = identity::service_session(engine.store(), "push", 1000, 1).unwrap();
+    let expired = identity::service_session(engine.store(), "old", 0, 1).unwrap();
+    for session in [&supervised, &expired] {
+        let family = format!("{:x}", Sha256::digest(session.token.as_bytes()));
+        engine.store().set_meta(&format!("worker:family:{family}"), "0").unwrap();
+    }
+    let before = 86_400_000;
+    engine.advance_worker_leases_at(49 * 3_600_000, before).unwrap();
+    let after = before + 49 * 3_600_000;
+    assert!(identity::current_service(engine.store(), &supervised.token, sample(after)).unwrap().is_some());
+    assert!(identity::current_service(engine.store(), &manual.token, sample(after)).unwrap().is_none());
+    assert!(identity::current_service(engine.store(), &expired.token, sample(after)).unwrap().is_none());
+}

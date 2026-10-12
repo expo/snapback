@@ -64,6 +64,7 @@ export interface NativeJson {
 
 export interface BackendJson {
   store_id?: string;
+  device_compatibility?: import("./device-version.ts").DeviceCompatibility;
   generation: number;
   schema: SchemaJson;
   programs: ProgramJson[];

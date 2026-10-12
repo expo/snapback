@@ -69,6 +69,10 @@ impl Host {
         Self::with_evidence(dev, store, source, bind, None)
     }
     fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
+        let device = if path == "/sync" && !headers.to_ascii_lowercase().contains("x-snapback-device:") {
+            format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap())
+        } else { String::new() };
+        let headers = format!("{headers}{device}");
         exchange(
             self.address,
             &format!(
@@ -99,13 +103,14 @@ const WAIT_TIMEOUT: Duration = Duration::from_secs(2);
 // includes the driver's bounded waits/probes plus time to finish after release.
 // Only deliberately held exchanges use this; progress probes keep their guard.
 fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u8]>) -> String {
+    let wire = device_wire(wire.as_ref());
     let timeout = hold_budget + Duration::from_secs(15);
     assert!(timeout <= Duration::from_secs(60), "held exchange budget exceeds one minute");
     let deadline = Instant::now() + timeout;
     let remaining = || deadline.checked_duration_since(Instant::now())
         .filter(|left| !left.is_zero()).expect("held exchange deadline expired");
     let mut stream = TcpStream::connect_timeout(&address, remaining()).unwrap();
-    let mut wire = wire.as_ref();
+    let mut wire = wire.as_slice();
     while !wire.is_empty() {
         stream.set_write_timeout(Some(remaining())).unwrap();
         let written = stream.write(wire).unwrap();
@@ -122,7 +127,17 @@ fn exchange_held(address: SocketAddr, hold_budget: Duration, wire: impl AsRef<[u
     }
     String::from_utf8_lossy(&response).into_owned()
 }
+fn device_wire(wire: &[u8]) -> Vec<u8> {
+    let text = String::from_utf8_lossy(wire);
+    if text.starts_with("POST /sync ") && !text.to_ascii_lowercase().contains("x-snapback-device:") {
+        let at = text.find("\r\n").unwrap() + 2;
+        let header = format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap());
+        [wire[..at].to_vec(), header.into_bytes(), wire[at..].to_vec()].concat()
+    } else { wire.to_vec() }
+}
 fn exchange_bytes(address: SocketAddr, wire: &[u8]) -> String {
+    let wire = device_wire(wire);
+    let wire = wire.as_slice();
     let mut stream = TcpStream::connect(address).unwrap();
     stream
         .set_read_timeout(Some(CLIENT_TIMEOUT))
@@ -1459,3 +1474,6 @@ mod session_diagnostics_tests;
 
 #[path = "../tests/serve_ops/mod.rs"]
 mod ops_tests;
+
+#[path = "../tests/device_handshake/mod.rs"]
+mod device_handshake_tests;

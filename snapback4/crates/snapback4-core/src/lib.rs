@@ -72,3 +72,5 @@ pub mod private_fs;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod diagnostics;
+
+pub mod device_protocol;

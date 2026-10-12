@@ -28,6 +28,9 @@
 extern "C" {
 #endif
 
+/* Engine identity without opening a store; free the JSON with sb4_free. */
+char *sb4_engine_info(void);
+
 typedef struct sb4_device sb4_device;
 
 /* Backend may be GET /schema JSON, null for the kept backend, or

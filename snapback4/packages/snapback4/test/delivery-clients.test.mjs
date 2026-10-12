@@ -142,3 +142,21 @@ test(`${tier} adapter parks E_BOUND ${envelope} once until the next start`,async
  t.mock.timers.tick(250);await settle();assert.equal(calls.length,2);assert.notEqual(calls[0].id,calls[1].id);
  assert.equal(refused.length,1);
 });
+
+test('a compatibility barrier raised during supplementary capture prevents dispatch and preserves unsent debt',async t=>{
+ let value=JSON.stringify({serial:0,groups:{},retired:{}}),current=true,entered=false,release;
+ const gate=new Promise(resolve=>{release=resolve;});const requests=[];
+ const call=async request=>{
+  if(request.action==='write'){if(request.expected!==value)return {ok:false};value=request.value;return {ok:true};}
+  if(request.action==='enumerate')return {ok:{more:false}};
+  if(request.op==='set_meta')return {ok:null};return {ok:{value,more:false}};
+ };
+ const queue=localDelivery({viewer:'dev:alice',url:'http://compatibility.invalid',call,collect:(request,valid)=>valid()?call(request):Promise.resolve({ok:true}),backend:()=>({schema:{delivery:[binding]}}),
+  ready:()=>true,current:()=>current,credentials:()=>({headers:{},revision:0}),refresh:()=>null,
+  capture:async()=>{entered=true;await gate;return {store_id:'S',watermark:1,send_revision:0};},witness:async()=>false,restored:()=>false,replaced:()=>{},auth:async()=>{},now:()=>100,
+  fetch:async()=>{requests.push(1);return Response.json({state:'sent',head:1,seq:1,store_id:'S'});}});
+ t.after(async()=>{release();await queue.stop();});await queue.accept(manifest([['c',41]]));await until(()=>entered);
+ current=false;release();await delay(300);
+ assert.deepEqual(requests,[],'final dispatch rechecks the persistent compatibility barrier');
+ assert.deepEqual(Object.values(JSON.parse(value).groups)[0].owed,[[41,41]],'rebuilding can resume the unsent report');
+});

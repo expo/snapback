@@ -9,6 +9,7 @@ import type { WitnessContainer } from "./witness-core";
 
 interface Snapback4Native extends WitnessContainer {
   readonly documentDirectory: string;
+  engineInfo?(): string;
   open(path: string, backend: string | null): Promise<number>;
   call(handle: number, request: string): Promise<string>;
   close(handle: number): void;
@@ -36,6 +37,7 @@ export function documentDirectory(): string {
 }
 
 export const nativeDevice: DeviceOpener = {
+  async engineInfo() { try { if (native?.engineInfo) return JSON.parse(native.engineInfo()); } catch {} return { format: 0, version: "unknown (unstamped)", capabilities: [] }; },
   async open(name, backend): Promise<DeviceCore> {
     if (!native) throw new Error("snapback4-expo: the native module is not in this build (Expo Go loads no custom native code; make a development build)");
     const handle = await native.open(`${native.documentDirectory.replace(/\/$/, "")}/${name}.sqlite`, backend ? JSON.stringify(backend) : null);

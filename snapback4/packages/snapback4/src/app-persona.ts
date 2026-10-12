@@ -18,7 +18,7 @@ import { guardClient } from "./app-client.ts";
 import { onlineCustody } from "./app-online.ts";
 import { identifyDispatch } from "./online-dispatch.ts";
 import { StorageWarning } from "./app-storage.ts";
-import { createLocalClient } from "./local.ts";
+import { DeviceVersionError, createLocalClient } from "./local.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sdkOwned } from "./admission.ts";
 import type { Client, Principal, Refusal, SessionRevocation, SignIn } from "./contract.ts";
@@ -80,6 +80,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     return Promise.all(previous.map(client => client?.close())).then(() => {});
   };
   const problem = (error: unknown): Refusal => {
+    if (error instanceof DeviceVersionError) return error.why;
     const message = error instanceof Error ? error.message : String(error);
     if (error instanceof StorageWarning) return error.why;
     const code = /E_AUTH\b/.test(message) ? "E_AUTH" : "E_CLIENT";
@@ -95,6 +96,7 @@ export function personaApp(options: AppOptions & { readonly persona: string }): 
     try {
       if (options.device) {
         opened = await createLocalClient({ url, persona, device: options.device,
+          ...(options.onDeviceVersion ? { onDeviceVersion: options.onDeviceVersion } : {}),
           ...(fetcher ? { fetch: fetcher } : {}),
           ...(options.waitSeconds !== undefined ? { waitSeconds: options.waitSeconds } : {}),
           ...(options.assets ? { assets: options.assets } : {}),

@@ -12,6 +12,11 @@ public final class Snapback4Module: Module {
 
   public func definition() -> ModuleDefinition {
     Name("Snapback4")
+    Function("engineInfo") { () -> String in
+      guard let stamp = sb4_engine_info() else { return "{}" }
+      defer { sb4_free(stamp) }
+      return String(cString: stamp)
+    }
 
     Constant("witnessLaunch") { WitnessContainer.launch }
     Function("witnessObservation") { (scriptURL: String?) -> [String: Any]? in try WitnessContainer.observation(scriptURL) }

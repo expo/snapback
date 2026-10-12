@@ -666,6 +666,10 @@ fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
     assert!(help.contains("--to N") && help.contains("retain removed storage"), "{help}");
     let output = project.run(&["deploy", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
+    let record: serde_json::Value = serde_json::from_slice(&fs::read(project.0.join("deployment/releases/1/device-compatibility.json")).unwrap()).unwrap();
+    assert_eq!(record["minimum_version"], "0.4.24");
+    assert_eq!(record["server_version"], env!("CARGO_PKG_VERSION"));
+    assert!(record["capabilities"].as_array().unwrap().iter().any(|c| c == "sync-generation-v1"));
     let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let taken = held.local_addr().unwrap().port();
     for port in ["0".to_owned(), format!("{taken}-{}", taken + 20)] {
@@ -739,4 +743,102 @@ fn check_warns_about_installed_expo_core_version_mismatch() {
     }
     project.write("node_modules/snapback4-expo/package.json", r#"{"version":"0.4.23"}"#);
     assert!(!text(&project.run(&["check"])).contains("WARNING"));
+}
+
+#[test]
+fn unknown_flags_refuse_every_public_verb_before_project_or_store_work() {
+    let project = Project::new("use personas alice, bob\nquery who():\n  return viewer\n");
+    for verb in ["init", "new", "check", "types", "dev", "deploy", "rollback", "prune", "releases", "serve", "run", "clock", "reset", "test", "why", "guide", "data", "sql", "token", "doctor", "witness", "device", "version", "web-shell"] {
+        let output = project.run(&[verb, "--hand-unknown"]);
+        assert_eq!(output.status.code(), Some(2), "{verb}: {}", text(&output));
+        assert!(text(&output).contains(&format!("E_INPUT: {verb} takes no --hand-unknown")), "{}", text(&output));
+        assert!(!project.0.join(".snapback4").exists(), "{verb} touched a store");
+        assert!(!project.0.join("snapback/generated").exists(), "{verb} generated output");
+    }
+    assert!(text(&project.run(&["deploy", "deployment", "--dry-run"])).contains("E_INPUT: deploy takes no --dry-run"));
+    assert!(!project.0.join("deployment").exists());
+}
+
+#[test]
+fn persona_lists_and_repeated_flags_run_each_requested_persona() {
+    let project = Project::new("use personas alice, bob\nquery who():\n  return viewer\n");
+    for args in [&["test", "--as", "alice,bob"][..], &["test", "--as", "alice", "--as", "bob"]] {
+        let output = project.run(args);
+        assert!(output.status.success(), "{}", text(&output));
+        let out = text(&output);
+        assert!(out.contains("alice") && out.contains("bob"), "{out}");
+        assert!(out.contains("2 complete"), "{out}");
+    }
+}
+
+#[test]
+fn literal_guide_find_and_sql_object_envelope() {
+    let project = Project::new("query who():\n  return viewer\n");
+    for needle in ["--json-objects", "{", "'"] {
+        let output = project.run(&["guide", "deploy", "--find", needle]);
+        let out = text(&output);
+        assert!(!out.contains("E_INPUT:"), "{out}");
+        assert!(out.contains(needle), "literal search was lost: {out}");
+    }
+    let out = text(&project.run(&["sql", "--help"]));
+    for field in ["columns", "header", "limit", "more", "rows", "ruleFiltered"] { assert!(out.contains(field), "{out}"); }
+}
+
+#[test]
+fn not_run_probes_make_the_summary_incomplete() {
+    let project = Project::new("use personas alice\nquery missing(id: id):\n  return id\n");
+    let output = project.run(&["test"]);
+    assert!(output.status.success(), "{}", text(&output));
+    let out = text(&output);
+    assert!(out.contains("1 not run") && out.contains("— incomplete"), "{out}");
+    assert!(!out.contains("— pass"));
+}
+
+fn stamped_wasm(stamp: &serde_json::Value) -> Vec<u8> {
+    fn leb(mut n: usize) -> Vec<u8> { let mut b = Vec::new(); loop { let low = (n & 127) as u8; n >>= 7; b.push(low | if n > 0 { 128 } else { 0 }); if n == 0 { return b; } } }
+    let name = b"snapback4.engine";
+    let mut section = leb(name.len()); section.extend(name); section.extend(serde_json::to_vec(stamp).unwrap());
+    let mut wasm = b"\0asm\x01\0\0\0".to_vec(); wasm.push(0); wasm.extend(leb(section.len())); wasm.extend(section); wasm
+}
+#[test]
+fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
+    let project = Project::new("use personas alice\nquery who():\n  return viewer\n");
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated"}}}"#);
+    project.write("app/assets/snapback4.wasm", "old unstamped bytes");
+    let output = project.run(&["check"]);
+    assert!(!output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    assert!(!project.0.join("snapback/generated").exists());
+    let output = project.run(&["doctor"]);
+    assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    let current: serde_json::Value = serde_json::from_slice(&project.run(&["device", "--engine-info"]).stdout).unwrap();
+    fs::write(project.0.join("app/assets/snapback4.wasm"), stamped_wasm(&current)).unwrap();
+    assert!(project.run(&["check"]).status.success());
+    let mut old = current; old["version"] = "0.4.23".into();
+    fs::write(project.0.join("app/assets/snapback4.wasm"), stamped_wasm(&old)).unwrap();
+    let output = project.run(&["check", "--json"]);
+    assert!(!output.status.success());
+    assert!(text(&output).contains("E_DEVICE_VERSION") && text(&output).contains("0.4.23"));
+}
+
+#[test]
+fn guide_find_without_a_card_searches_punctuation_and_reports_literal_misses() {
+    let project=Project::new("query who():\n  return viewer\n");
+    let output=project.run(&["guide","--find","sum("]);
+    assert!(output.status.success(),"{}",text(&output));
+    assert!(text(&output).contains("sum(") && text(&output).contains("guide "));
+    for needle in ["--hand-no-such-option"] {
+        let output=project.run(&["guide","--find",needle]);
+        assert_eq!(output.status.code(),Some(1),"{}",text(&output));
+        assert!(text(&output).contains(needle) && text(&output).contains("no line of any guide card"),"{}",text(&output));
+    }
+}
+
+#[test]
+fn help_as_a_guide_search_term_does_not_select_the_cli_help_page() {
+    let project=Project::new("query who():\n  return viewer\n");
+    let output=project.run(&["guide","--find","--help"]);
+    assert_ne!(output.status.code(),Some(2));
+    assert!(!text(&output).starts_with("snapback4 guide ["),"{}",text(&output));
+    assert!(text(&output).contains("--help"));
 }

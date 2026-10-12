@@ -59,11 +59,11 @@ function parkedChanges(signal) {
   }));
 }
 
-async function fixture(t, tier = "process", serverBinary = binary) {
+async function fixture(t, tier = "process", serverBinary = binary, changesHook) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-sync-generation-"));
   mkdirSync(join(dir, "snapback"));
   let url, child, exited, client, core, intercept;
-  const trace = [], calls = [];
+  const trace = [], calls = [], sentHeaders = [], statuses = [];
   async function stop() {
     if (child && child.exitCode == null && child.signalCode == null) child.kill();
     if (exited) await exited;
@@ -84,7 +84,8 @@ async function fixture(t, tier = "process", serverBinary = binary) {
     while (!ready && performance.now() < deadline) { assert.equal(child.exitCode, null, log); await delay(20); }
     assert.ok(ready, log);
   }
-  const rawPost = (path, input) => fetch(url + path, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify(input) });
+  const engine = JSON.parse((await import("node:child_process")).execFileSync(binary, ["device", "--engine-info"], {encoding:"utf8"}));
+  const rawPost = (path, input) => fetch(url + path, { method: "POST", headers: { "x-snapback-persona": "alice", ...(path === "/sync" ? {"x-snapback-device": JSON.stringify(engine)} : {}) }, body: JSON.stringify(input) });
   async function post(path, input) {
     const response = await rawPost(path, input);
     assert.equal(response.status, 200);
@@ -99,7 +100,7 @@ async function fixture(t, tier = "process", serverBinary = binary) {
   assert.equal((await post("/seed", [{ table: "counters", row: { id: "a", n: 0 } }])).seeded, 1);
   const opener = tier === "process" ? processDevice({ binary, dir: join(dir, "device") })
     : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
-  client = await createLocalClient({ url, persona: "alice", device: { open: async (...args) => {
+  client = await createLocalClient({ url, persona: "alice", onDeviceVersion: status => statuses.push(status), device: { engineInfo: () => opener.engineInfo(), open: async (...args) => {
     core = await opener.open(...args);
     return { close: () => core.close(), call: async request => {
       if (request.op === "apply") assert.equal(request.page.denied, undefined, "never apply a refusal as a page");
@@ -110,7 +111,8 @@ async function fixture(t, tier = "process", serverBinary = binary) {
     } };
   } }, fetch: async (input, init) => {
     const path = new URL(input).pathname;
-    if (path === "/changes") return parkedChanges(init.signal);
+    sentHeaders.push({path, engine: new Headers(init.headers).get("x-snapback-device")});
+    if (path === "/changes") return changesHook?.(init.signal) ?? parkedChanges(init.signal);
     const response = await intercept?.(input, init) ?? await fetch(input, init);
     const text = await response.text(), reply = JSON.parse(text);
     trace.push({ path, request: init.body ? JSON.parse(init.body) : undefined, status: response.status, bytes: Buffer.byteLength(text), reply });
@@ -119,7 +121,7 @@ async function fixture(t, tier = "process", serverBinary = binary) {
   assert.equal(client.acquired, true);
   // Let the constructor's empty flush finish before injecting durable entries.
   await delay(20);
-  return { client, ok, start, post, rawPost, trace, calls, intercept: fn => { intercept = fn; } };
+  return { client, ok, start, post, rawPost, trace, calls, sentHeaders, statuses, get url() { return url; }, intercept: fn => { intercept = fn; } };
 }
 
 for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption preserves unsent writes, known and lost acknowledgements`, { timeout: hangBudget(20) }, async t => {
@@ -547,4 +549,143 @@ for (const tier of ["wasm", "process"]) test(`${tier}: invalid early heads are r
   }
   assert.equal(replies, heads.length);
   assert.equal(f.calls.filter(c => ["observe_store", "adopt"].includes(c.request.op)).length, 0);
+});
+
+
+for (const tier of ['wasm', 'process']) test(`${tier}: actual engine headers and typed incompatibility retain queued writes`, async t => {
+  const f = await fixture(t, tier);
+  const engine = (await f.ok({op:'engine_info'}));
+  assert.equal(engine.version, '0.4.24');
+  assert.ok(engine.capabilities.includes('branch-merge-v1'));
+  assert.ok(engine.capabilities.includes('sync-generation-v1'));
+  for (const path of ['/schema','/sync','/changes']) {
+    const requests = f.sentHeaders.filter(r => r.path === path);
+    assert.ok(requests.length > 0, path);
+    for(const request of requests) assert.deepEqual(JSON.parse(request.engine), engine);
+  }
+  await f.ok({op:'admit',entry:{id:'version-unsent',seq:1,op:'bump',args:{},new_ids:[],predicted:[],viewer:'dev:alice',now:1000,predictable:false}});
+  const queued = await f.ok({op:'queued'});
+  const denied = {code:'E_DEVICE_VERSION',family:'device-version',message:'device engine 0.4.24 lacks future-capability (server 0.5.0); rebuild the device: bun exact.mjs snapback'};
+  f.intercept(input => new URL(input).pathname === '/sync' ? new Response(JSON.stringify({denied}),{status:409}) : undefined);
+  await f.client.sync();
+  assert.deepEqual(f.client.deviceVersion(),{state:'incompatible',why:denied});
+  assert.deepEqual(f.statuses.at(-1),{state:'incompatible',why:denied});
+  assert.deepEqual(await f.ok({op:'queued'}),queued);
+});
+
+
+test('runtime schema compatibility refusal publishes status and preserves pending arguments', async t=>{
+  const f=await fixture(t);
+  await f.ok({op:'admit',entry:{id:'schema-unsent',seq:1,op:'bump',args:{},new_ids:[],predicted:[],viewer:'dev:alice',now:1000,predictable:false}});
+  const state=await f.ok({op:'sync_state',capture:false});
+  const why={code:'E_DEVICE_VERSION',family:'device-version',message:'device cannot decode the next release; rebuild'};
+  f.intercept(input=>{
+    const path=new URL(input).pathname;
+    if(path==='/sync')return Response.json({denied:{code:'E_SYNC_GENERATION',family:'generation',message:'adopt'},generation:2,store_id:state.store_id,watermark:state.watermark});
+    if(path==='/schema')return Response.json({denied:why},{status:409});
+  });
+  await f.client.sync();
+  assert.deepEqual(f.client.deviceVersion(),{state:'incompatible',why});
+  assert.deepEqual(f.statuses.at(-1),{state:'incompatible',why});
+  assert.equal((await f.ok({op:'queued'}))[0].id,'schema-unsent');
+  const read=await f.client.query({kind:'query',name:'counter'},{});assert.equal(read.denied.code,'E_DEVICE_VERSION');
+});
+
+test('a settled observer is notified when sync becomes incompatible',async t=>{
+  const f=await fixture(t); const observed=f.client.observe({kind:'query',name:'counter'},{});
+  const seen=[];const unsubscribe=observed.subscribe(()=>seen.push(observed.getSnapshot()));
+  t.after(()=>{unsubscribe();observed.close();});
+  const until=async fn=>{for(let i=0;i<200;i++){if(fn())return;await delay(10);}assert.fail('observer did not settle');};
+  await until(()=>seen.some(read=>'data' in read));seen.length=0;
+  const why={code:'E_DEVICE_VERSION',family:'device-version',message:'rebuild the device'};
+  f.intercept(input=>new URL(input).pathname==='/sync'?Response.json({denied:why},{status:409}):undefined);
+  await f.client.sync();await until(()=>seen.some(read=>read.denied?.code==='E_DEVICE_VERSION'));
+  assert.ok(seen.length>0,'notification reaches the subscribed UI without a snapshot poll');
+});
+
+
+for (const tier of ["process", "wasm"]) test(`${tier}: held sync stops installing pages after poll incompatibility`, async t => {
+  let finishChanges, releasePage, requests = 0;
+  const until = async fn => { for (let i = 0; i < 200; i++) { if (fn()) return; await delay(10); } assert.fail("did not reach gate"); };
+  const f = await fixture(t, tier, binary, signal => new Promise((resolve, reject) => {
+    finishChanges = resolve; signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+  }));
+  await until(() => finishChanges);
+  await f.ok({op:"admit",entry:{id:"barrier-unsent",seq:1,op:"bump",args:{},new_ids:[],predicted:[],viewer:"dev:alice",now:1000,predictable:false}});
+  const queued = await f.ok({op:"queued"});
+  f.intercept(async (input, init) => {
+    if (new URL(input).pathname !== "/sync") return;
+    requests++;
+    if (requests === 1) {
+      const page = await (await fetch(input, init)).json(); page.more = true;
+      return new Promise(resolve => { releasePage = () => resolve(Response.json(page)); });
+    }
+  });
+  f.calls.length = 0;
+  const syncing = f.client.sync(); await until(() => releasePage);
+  const why = {code:"E_DEVICE_VERSION",family:"device-version",message:"future engine required"};
+  finishChanges(Response.json({denied:why},{status:409}));
+  await until(() => f.client.deviceVersion().state === "incompatible");
+  releasePage(); await syncing;
+  assert.equal(requests, 1, "no additional sync after incompatibility");
+  assert.equal(f.calls.filter(c => ["observe_store","apply","adopt"].includes(c.request.op)).length, 0);
+  assert.deepEqual(await f.ok({op:"queued"}), queued);
+});
+
+for (const tier of ["process", "wasm"]) test(`${tier}: query admission retry stops on poll incompatibility`, async t => {
+  let finishChanges, queries = 0;
+  const f = await fixture(t, tier, binary, signal => new Promise((resolve, reject) => {
+    finishChanges = resolve; signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+  }));
+  f.intercept(input => {
+    if (new URL(input).pathname !== "/q/remoteCounter") return;
+    queries++;
+    if (queries === 1) {
+      finishChanges(Response.json({denied:{code:"E_DEVICE_VERSION",family:"device-version",message:"rebuild"}},{status:409}));
+      return Response.json({denied:{code:"E_RATE_LIMIT",family:"rate-limit",message:"wait",retryable:true}},{status:429});
+    }
+  });
+  const result = await f.client.query({kind:"query",name:"remoteCounter"},{});
+  assert.equal(f.client.deviceVersion().state, "incompatible");
+  assert.equal(queries, 1, "no query retry after incompatibility");
+  assert.equal(result.denied.code, "E_DEVICE_VERSION");
+});
+
+
+test("online host events do not probe behind the permanent incompatibility barrier", async t => {
+  const add = globalThis.addEventListener, remove = globalThis.removeEventListener;
+  const events = new Map();
+  globalThis.addEventListener = (name, fn) => { if (!events.has(name)) events.set(name, new Set()); events.get(name).add(fn); };
+  globalThis.removeEventListener = (name, fn) => events.get(name)?.delete(fn);
+  let f;
+  try { f = await fixture(t); }
+  finally { t.after(() => { globalThis.addEventListener = add; globalThis.removeEventListener = remove; }); }
+  const why = {code:"E_DEVICE_VERSION",family:"device-version",message:"future engine required"};
+  f.intercept(input => new URL(input).pathname === "/sync" ? Response.json({denied:why},{status:409}) : undefined);
+  await f.client.sync();
+  for (const fn of events.get("offline") ?? []) fn();
+  assert.equal(f.client.link(), "offline");
+  const count = f.sentHeaders.filter(r => r.path === "/probe").length;
+  for (const fn of events.get("online") ?? []) fn();
+  await delay(100);
+  assert.equal(f.sentHeaders.filter(r => r.path === "/probe").length, count);
+  assert.equal(f.client.link(), "offline");
+  assert.deepEqual(f.client.deviceVersion(), {state:"incompatible",why});
+});
+
+
+for (const tier of ["process", "wasm"]) test(`${tier}: sync incompatibility cancels an already held changes poll`, async t => {
+  let pollSignal, releasePoll;
+  const f = await fixture(t, tier, binary, signal => {
+    pollSignal = signal;
+    return new Promise(resolve => { releasePoll = () => resolve(Response.json({seq:999999,tables:["counters"],store_id:"late-store",generation:999})); });
+  });
+  assert.ok(pollSignal && !pollSignal.aborted);
+  const why = {code:"E_DEVICE_VERSION",family:"device-version",message:"future engine required"};
+  f.intercept(input => new URL(input).pathname === "/sync" ? Response.json({denied:why},{status:409}) : undefined);
+  await f.client.sync();
+  assert.equal(pollSignal.aborted, true, "permanent incompatibility cancels the held read");
+  f.calls.length = 0; releasePoll(); await delay(20);
+  assert.equal(f.calls.filter(c => ["observe_store","apply","adopt"].includes(c.request.op)).length, 0);
+  assert.deepEqual(f.client.deviceVersion(), {state:"incompatible",why});
 });

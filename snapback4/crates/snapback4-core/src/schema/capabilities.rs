@@ -121,6 +121,7 @@ fn ordered(rule: &RuleExpr) -> bool {
 }
 
 impl Schema {
+    pub fn supported_capabilities() -> Vec<String> { CAPABILITIES.iter().map(|(name, _)| (*name).into()).collect() }
     fn has_receipt_columns(&self) -> bool {
         self.tables.iter().any(|(name, table)| table.maintained.keys().any(|field|
             self.receipt_dependencies.get(name).is_some_and(|fields| fields.contains(field))))

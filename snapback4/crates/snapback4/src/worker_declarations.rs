@@ -45,6 +45,22 @@ fn entries(dir: &File) -> io::Result<Vec<OsString>> {
     unsafe { libc::closedir(stream); }
     result
 }
+// Host-installed packages are separate from immutable source; restore every
+// nested package scope that exists in the source snapshot.
+fn link_package_scopes(source: &Path, target: &Path) -> io::Result<()> {
+    if !target.is_dir() { return Ok(()); }
+    let entries = match std::fs::read_dir(source) { Ok(entries) => entries, Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()), Err(e) => return Err(e) };
+    for entry in entries {
+        let entry = entry?; let name = entry.file_name();
+        if name == "node_modules" {
+            if entry.path().is_dir() && !target.join(&name).exists() { std::os::unix::fs::symlink(entry.path(), target.join(&name))?; }
+        } else if entry.file_type()?.is_dir() {
+            link_package_scopes(&entry.path(), &target.join(name))?;
+        }
+    }
+    Ok(())
+}
+
 fn root(project: &Project) -> io::Result<Option<File>> {
     let project = File::open(project.root.canonicalize()?)?;
     let schema = match open(&project, std::ffi::OsStr::new("snapback")) {
@@ -108,13 +124,20 @@ fn collect(project: &Project, stage: Option<&Path>, link_dependencies: bool) -> 
         if workers.insert(name.clone(), stage.unwrap_or(&project.root).join("snapback/workers").join(path)).is_some() { return Err(io::Error::other(format!("worker {name}: declare only one entry extension"))); }
         Ok(())
     }).map_err(|e| format!("workers: {e}"))?;
+    if link_dependencies && let Some(target) = target_root {
+        let packages = Snapshot::package_root(project).map_err(|e| e.to_string())?.join("snapback/workers");
+        link_package_scopes(&packages, &target).map_err(|e| e.to_string())?;
+    }
     Ok(workers)
 }
 
 /// Snapshot only regular files reached through the project's pinned directories.
 /// Dependencies are installed by the host.
 pub(crate) fn package(project: &Project, stage: &Path) -> Result<(), String> {
-    collect(project, Some(stage), false).map(|_| ())
+    collect(project, Some(stage), false)?;
+    // @ref LLP 3000.001.000#workers — immutable source records its host app installation separately.
+    std::fs::write(stage.join("worker-package.json"), serde_json::to_vec(&serde_json::json!({ "directory": project.root.canonicalize().map_err(|e| e.to_string())? })).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+
 }
 
 /// A launch owns these copied bytes until its process group has stopped.
@@ -151,6 +174,7 @@ impl Snapshot {
             output.set_permissions(source.metadata()?.permissions())?;
             Ok(())
         })?;
+        link_package_scopes(&Self::package_root(project)?.join("snapback"), &schema_stage)?;
         Self::checked_imports(&root, &project_root, &stage)?;
         owned.entry = schema_stage.join(source.file_name().ok_or_else(|| io::Error::other("worker entry has no filename"))?);
         if !owned.entry.is_file() { return Err(io::Error::other("automatic worker entry is absent")); }
@@ -196,6 +220,19 @@ impl Snapshot {
         Ok(())
     }
 
+    fn package_root(project: &Project) -> io::Result<PathBuf> {
+        if let Some(path) = std::env::var_os("SNAPBACK_WORKER_PACKAGE_DIR") { return PathBuf::from(path).canonicalize(); }
+        match std::fs::read(project.root.join("worker-package.json")) {
+            Ok(bytes) => {
+                let value: serde_json::Value = serde_json::from_slice(&bytes).map_err(io::Error::other)?;
+                let path = value["directory"].as_str().ok_or_else(|| io::Error::other("worker package directory is absent"))?;
+                PathBuf::from(path).canonicalize().map_err(|_| io::Error::other("worker app installation is unavailable; set SNAPBACK_WORKER_PACKAGE_DIR to the app package directory on this host"))
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => project.root.canonicalize(),
+            Err(e) => Err(e),
+        }
+    }
+
     fn scope(project: &Project) -> io::Result<(Self, PathBuf)> {
         // A global temporary parent adds its node_modules to Node's search.
         // Keep launch bytes under this project's private runtime directory.
@@ -210,7 +247,8 @@ impl Snapshot {
         // This works for immutable releases too: no writes to project source.
         let project_root = project.root.canonicalize()?;
         let mut stage = owned.root.clone();
-        for ancestor in project_root.ancestors().collect::<Vec<_>>().into_iter().rev() {
+        let package_root = Self::package_root(project)?;
+        for ancestor in package_root.ancestors().collect::<Vec<_>>().into_iter().rev() {
             stage = stage.join("scope");
             std::fs::create_dir(&stage)?;
             if ancestor.join("node_modules").is_dir() {
@@ -222,7 +260,7 @@ impl Snapshot {
         // using the same trusted host-dependency links as the ancestor scopes.
         // Entry/helper custody still belongs to collect's no-follow copies.
         std::fs::create_dir(stage.join("snapback"))?;
-        if let Some(packages) = project_root.ancestors().map(|root| root.join("snapback/node_modules")).find(|path| path.is_dir()) {
+        if let Some(packages) = package_root.ancestors().map(|root| root.join("snapback/node_modules")).find(|path| path.is_dir()) {
             std::os::unix::fs::symlink(packages, stage.join("snapback/node_modules"))?;
         }
         let project_dir = File::open(&project_root)?;

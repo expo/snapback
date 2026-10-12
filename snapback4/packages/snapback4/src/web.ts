@@ -20,7 +20,7 @@ import type { PendingSend } from "./local-exit.ts";
 import type { Queued } from "./local-types.ts";
 import { successSequence } from "./local-receipts.ts";
 import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
-import { cachedWasm, wasmMemoryBytes, type WasmSource } from "./web-wasm.ts";
+import { prepareWasm, initializePreparedWasm, wasmMemoryBytes, type WasmSource, type PreparedWasm } from "./web-wasm.ts";
 import { WebDevice } from "./wasm/snapback4_device.js";
 import { openWorkerDevice } from "./web-worker-device.ts";
 import type { WorkerWasmSource } from "./web-worker-host.ts";
@@ -72,33 +72,37 @@ export interface WebDeviceOptions {
   readonly persist?: Persistence;
 }
 
-let ready: Promise<unknown> | null = null;
 const ephemeral = new WeakSet<Persistence>();
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
+  // Normalize one consumable Response once for both preflight and opening.
+  let normalized: Promise<WasmSource> | undefined;
+  const source = () => normalized ??= Promise.resolve(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url)).then(async source => {
+    if (!(source instanceof Response)) return source;
+    if (!source.ok) throw new Error(`wasm: HTTP ${source.status}`);
+    return source.arrayBuffer();
+  });
+  const persist = options.persist ?? indexedDbStore(claimWithWebLocks, true);
+  let preparation: Promise<PreparedWasm> | undefined;
+  const prepareRuntime = () => preparation ??= prepareWasm(source(), persist).catch(error => { preparation = undefined; throw error; });
   if (options.worker) {
     if (options.persist) throw new Error("webDevice: worker:true uses default IndexedDB; use webDevice({ persist }) for an injected persistence provider");
-    let supplied: Promise<WorkerWasmSource | undefined> | undefined;
-    return { async open(name, backend) {
-      supplied ??= Promise.resolve(options.wasm).then(async source => {
-        if (source instanceof URL) return source.toString();
-        if (source instanceof Response) {
-          if (!source.ok) throw new Error(`wasm: HTTP ${source.status}`);
-          return source.arrayBuffer();
-        }
-        return source;
-      });
-      return openWorkerDevice(name, backend, await supplied);
-    } };
+    return {
+      async engineInfo() { return structuredClone((await prepareRuntime()).engine); },
+      async open(name, backend) {
+        const pinned = await prepareRuntime();
+        return openWorkerDevice(name, backend, pinned.source, pinned.url ?? undefined);
+      },
+    };
   }
-  const persist = options.persist ?? indexedDbStore(claimWithWebLocks, true);
   if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
+  let initialized: Promise<unknown> | undefined;
   return {
+    async engineInfo() { return structuredClone((await prepareRuntime()).engine); },
     async open(name, backend) {
-      ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
-        .catch((error) => { ready = null; throw error; });
-      await ready;
+      initialized ??= prepareRuntime().then(pinned => initializePreparedWasm(pinned, persist)).catch(error => { initialized = undefined; throw error; });
+      await initialized;
       const store = await claimStore(persist, name, true);
       if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
       const journal = new AdmissionJournal(store.name, true);

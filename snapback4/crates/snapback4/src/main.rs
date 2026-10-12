@@ -6,6 +6,10 @@
 mod witness_socket;
 mod listen_refusal;
 mod verb_help;
+mod cli_flags;
+mod guide_find;
+mod device_handshake;
+mod exact_device;
 mod note_rank;
 mod assets;
 mod host_limits;
@@ -65,7 +69,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json|--json-objects]  read-only inspection of your store (not rule-filtered)
-    --json-objects                  object rows; declared boolean columns are true/false, SQL expressions keep SQLite types
+    --json-objects                  envelope {columns, header, limit, more, rows, ruleFiltered}; rows are objects; declared boolean columns are true/false, SQL expressions keep SQLite types
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
     sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
@@ -92,6 +96,9 @@ fn main() -> ExitCode {
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verb = args.first().map(String::as_str).unwrap_or("");
+    if let Err(error) = cli_flags::validate(&args) {
+        eprintln!("{error}"); return ExitCode::from(2);
+    }
     let inherited = match witness_socket::take(verb) {
         Ok(listener) => listener,
         Err(error) => { eprintln!("{error}"); return ExitCode::from(1); }
@@ -99,12 +106,12 @@ fn main() -> ExitCode {
     if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     quiet_broken_pipe(verb);
-    if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
+    let options = verbs::parse(&args);
+    if options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty() {
         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
         println!("{}", verb_help::page(verb, HELP).unwrap_or_else(|| HELP.to_owned()));
         return ExitCode::SUCCESS;
     }
-    let options = verbs::parse(&args);
     if options.flags.contains_key("replay") && (verb != "dev" || options.flags.contains_key("release")) {
         eprintln!("{}", dev_replay::dev_only());
         return ExitCode::from(1);
@@ -150,7 +157,9 @@ fn main() -> ExitCode {
             let rest = options.positionals.get(named..).unwrap_or_default().join(" ");
             let words_of = |flag: &str| options.flags.get(flag).map(|words| if rest.is_empty() { words.clone() } else { format!("{words} {rest}") });
             match keyword {
-                None => println!("{}", guide::listing()),
+                None => if let Some(words) = options.flags.get("find") {
+                    match guide_find::find(words) { Ok(text) => println!("{text}"), Err(problem) => { println!("{problem}"); return ExitCode::from(1); } }
+                } else { println!("{}", guide::listing()); },
                 Some("aliases") if guide::card("aliases").is_none() => println!("{}", guide::aliases()),
                 Some(keyword) => match guide::card(keyword) {
                     // Cards embed starter sources; print them as init installs them.

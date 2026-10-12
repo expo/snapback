@@ -28,7 +28,7 @@ pub fn remember(project: &crate::project::Project, bound: &Bound) -> std::io::Re
 
 pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
     match options.flags.get("as") {
-        Some(persona) => vec![persona.clone()],
+        Some(persona) => persona.split(',').filter(|p| !p.is_empty()).map(str::to_owned).collect(),
         None if bound.personas.is_empty() => vec!["alice".into()],
         None => bound.personas.clone(),
     }
