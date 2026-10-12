@@ -337,7 +337,8 @@ def membershipEligible (sch : Schema) (t : String) (key : List (String × Term))
     let exactUnique := columns.eraseDups.length == columns.length && td.uniques.any fun unique =>
       unique.eraseDups.length == unique.length && unique.all columns.contains
     exactUnique
-      && td.caps.any (fun cap => cap.max ≤ 8192 && cap.columns.all fun c => fixed.any (·.1 == c))
+      && td.caps.any (fun cap => cap.max ≤ 8192
+        && cap.columns.all fun c => c != "id" && fixed.any (·.1 == c))
       && td.read.byForm fixed
   | _, _ => false
 
@@ -375,7 +376,8 @@ def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
         | some td =>
           let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
           (membershipTarget key).isSome
-            && td.caps.any fun cap => cap.columns.all fun c => fixed.any (·.1 == c)
+            && td.caps.any fun cap => cap.columns.all fun c =>
+              c != "id" && fixed.any (·.1 == c)
     topOr && party && membership && capped
 
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its

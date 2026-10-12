@@ -486,6 +486,17 @@ def membershipDocsExtraEquality : Schema := { tables := [
     read := .or (.eq (self "owner") .viewer)
       (.probe "members" [("parent", self "parent"), ("principal", .viewer), ("role", .lit (T "member"))]) }] }
 
+/-- A fixed source id remains witness evidence, but it is a residual rather
+than a discovery prefix and cannot make `cap by id` PAGE-eligible. -/
+def membershipDocsFixedIdCap : Schema := { tables := [
+  { name := "members", cols := [c "parent", c "principal"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["id"], max := 1 }]
+    read := .allow },
+  { name := "documents", cols := [c "owner", c "parent", c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
+
 /-- Repeated copies of one party use one static descriptor, as the compiler
 deduplicates party columns before enforcing the eight-descriptor limit. -/
 def membershipDocsRepeatedParty : Schema := { tables := [
@@ -582,6 +593,12 @@ def merged : List Example := [
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-fixed-id-cap-not-merged"
+    source := "LLP 3000.036.001 §14: a fixed source id is residual witness evidence, not a discovery cap"
+    case := { schema := membershipDocsFixedIdCap, store := membershipDocStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":false,"next":null}"# },
   { name := "page-owner-membership-repeated-party"
     source := "LLP 3000.036.001 §14: repeated copies of one owner party consume one static descriptor"
     case := { schema := membershipDocsRepeatedParty, store := membershipDocStore, viewer := alice,
