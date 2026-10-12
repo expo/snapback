@@ -135,10 +135,12 @@ impl Binder<'_> {
                 let raw = matches!(domain, AuthorizationDomain::Rule)
                     || truth
                     || self.program_absence_is_raw(read);
-                self.read_identity("exists", if raw { "raw" } else { "readable" }, read, roots)
+                let identity = self.read_identity("exists", if raw { "raw" } else { "readable" }, read, roots)?;
+                Some(format!("truth:{truth}:{identity}"))
             }
             A::Created { read, .. } => {
-                self.read_identity("created", "raw", read, roots)
+                let identity = self.read_identity("created", "raw", read, roots)?;
+                Some(format!("truth:{truth}:{identity}"))
             }
             A::Binary {
                 op, left, right, ..

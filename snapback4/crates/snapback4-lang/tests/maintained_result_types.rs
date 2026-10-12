@@ -196,6 +196,40 @@ view absentGateCounts: count entries by .owner
     for name in ["readable", "positive", "doublePositive", "maintainedPresent", "maintainedAbsent"] {
         assert_eq!(result(&readable, name), &Ty::Int, "{name}");
     }
+
+    let polarity = checked(&format!(r#"{tables}
+query nestedPositive(owner: principal):
+  require not not exists hiddenBans[viewer] else NOT_BANNED
+  return hiddenBannedCounts[owner] + 1
+query nestedNegative(owner: principal):
+  require not not not exists readableBans[viewer] else BANNED
+  return readableUnbannedCounts[owner] + 1
+query opposite(owner: principal):
+  require exists readableBans[viewer] else NOT_BANNED
+  return readableUnbannedCounts[owner]
+query joined(owner: principal, banned: bool):
+  if banned:
+    require exists readableBans[viewer] else NOT_BANNED
+  else:
+    require not exists readableBans[viewer] else BANNED
+  return readableUnbannedCounts[owner]
+"#));
+    assert_eq!(result(&polarity, "nestedPositive"), &Ty::Int);
+    assert_eq!(result(&polarity, "nestedNegative"), &Ty::Int);
+    assert_eq!(result(&polarity, "opposite"), &Ty::Int.optional());
+    assert_eq!(result(&polarity, "joined"), &Ty::Int.optional());
+
+    for (name, parameters, body) in [
+        ("oppositeArithmetic", "owner: principal",
+            "  require exists readableBans[viewer] else NOT_BANNED\n  return readableUnbannedCounts[owner] + 1"),
+        ("joinedArithmetic", "owner: principal, banned: bool",
+            "  if banned:\n    require exists readableBans[viewer] else NOT_BANNED\n  else:\n    require not exists readableBans[viewer] else BANNED\n  return readableUnbannedCounts[owner] + 1"),
+    ] {
+        let invalid = compile(&[("schema.q".into(),
+            format!("{SOURCE}{tables}query {name}({parameters}):\n{body}\n").into())]);
+        assert!(invalid.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("int ?")), "{name}: {:#?}", invalid.diagnostics);
+    }
 }
 
 #[test]
