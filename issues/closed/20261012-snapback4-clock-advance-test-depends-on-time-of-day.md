@@ -14,3 +14,13 @@ one place (`if morning["fired"] == false { … }`) but not in the final count.
 Fix: assert `n == 2 + (morning fired in the first advance)`, or give
 `morning` its own counter, or pin the dev clock offset so the advance never
 crosses 06:00.
+
+## Resolution — 2026-10-12
+
+Fixed in the LANG2 post-merge check. The test checks the counter after the
+first advance and after the resumed advance against both schedules' reported
+firings. The resumed hour can cross 06:00 UTC too, so both advances include
+the daily schedule when it fires. Scheduler behavior is unchanged.
+
+Validation: `cargo test -p snapback4 --test clock` — 25 passed, 0 failed,
+including the previously failing test during the 06:00-crossing window.

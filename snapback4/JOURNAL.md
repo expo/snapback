@@ -92714,3 +92714,12 @@ monthly billing recipe to `guide time` (`--section billing`); the recipes
 card points to it. The merged web device measures 2,174,248 B raw / 655,243 B
 gzip on Linux, 3,539 B over sb4-loop's 651,704 B; budget 655,743 B
 (measurement + 500 B), reason in `metrics/wasm-budget.json`.
+
+## 2026-10-12 — LANG2 post-merge: the clock test counts both schedules
+
+The requested post-merge Rust check reproduced the time-of-day failure filed
+in `issues/20261012-snapback4-clock-advance-test-depends-on-time-of-day.md`.
+The hourly and daily schedules both update the same counter. The test now
+checks the first and resumed advances against both schedules' reported
+firings, including when either advance crosses 06:00 UTC. The scheduler is
+unchanged. The full clock target passes (25/25); the ticket is closed.
