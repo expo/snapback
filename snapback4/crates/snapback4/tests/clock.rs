@@ -757,7 +757,9 @@ fn startup_clock_advice_ignores_bad_row_images_and_reports_inspection_failure() 
 #[test]
 fn advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold() {
     let f = Fixture::new("explain");
-    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable counters:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  insert counters { n: 0 }\nquery counters():\n  return counters first 10 by byId\njob tick(periodStart: time, periodEnd: time):\n  for c in counters:\n    update counters[c.id] { n: c.n + 1 }\nschedule ticker every 1h: tick\nschedule morning every 1d at 06:00: tick\n").unwrap();
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable counters:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  insert counters { n: 0 }\nquery counters():\n  return counters first 10 by byId\njob tick(periodStart: time, periodEnd: time):\n  for c in counters:\n    update counters[c.id] { n: c.n + 1 }\nschedule ticker every 1h: tick\njob morningTick(periodStart: time, periodEnd: time):\n  for c in counters:\n    update counters[c.id] { n: c.n }\nschedule morning every 1d at 06:00: morningTick\n").unwrap();
+    // Daily-boundary explanation is independent of the hourly counter: starting
+    // before 06:00 UTC used to run tick an extra time and make the final n=2 fail.
     let start = |args: &[&str]| {
         let log = f.0.join("startup.log");
         let mut child = Command::new(BIN).current_dir(&f.0).args(args).args(["--port", "0"])
