@@ -531,6 +531,38 @@ def membershipFixedIdStore : Store := mkStore [
   ("members", [mkRow "m1" [("parent", T "p1"), ("principal", I "alice")]]),
   ("documents", [mkRow "d1" [("owner", I "alice"), ("parent", T "p0"), ("bucket", N 0), ("at", N 1)]])]
 
+/-- An intrinsic-id point keeps a nullable parent as a residual equality. -/
+def nullableFixedIdDocs : Schema := { tables := [
+  { name := "members", cols := [c "parent" true, c "principal"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent" true, c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
+
+/-- Without an intrinsic id, the nullable parent belongs to the natural point
+key and null returns no row. -/
+def nullableNaturalDocs : Schema := { tables := [
+  { name := "members", cols := [c "parent" true, c "principal"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent" true, c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" [("parent", self "parent"), ("principal", .viewer)]) }] }
+
+def nullableMembershipPresent : Store := mkStore [
+  ("members", [mkRow "m0" [("parent", .null), ("principal", I "alice")],
+               mkRow "m1" [("parent", .null), ("principal", I "alice")]]),
+  ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
+                 mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
+
+def nullableMembershipMissing : Store := mkStore [
+  ("members", [mkRow "m0" [("parent", .null), ("principal", I "alice")]]),
+  ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
+                 mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
+
 /-- A membership keyed by the target row id is outside PAGE's ordinary-column
 classifier and keeps the incomplete scan. -/
 def membershipIdDocs : Schema := { tables := [
@@ -597,6 +629,24 @@ def merged : List Example := [
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-fixed-id-null-residual"
+    source := "LLP 3000.036.001 §14: byId selects the source row while a nullable parent remains a residual equality"
+    case := { schema := nullableFixedIdDocs, store := nullableMembershipPresent, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"shared","owner":"bob","parent":null,"at":2},{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-fixed-id-null-missing"
+    source := "LLP 3000.036.001 §14: a missing byId witness opens no nullable-parent lane"
+    case := { schema := nullableFixedIdDocs, store := nullableMembershipMissing, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-natural-null-key"
+    source := "LLP 3000.036.001 §14: null in a nullable natural point key returns no witness"
+    case := { schema := nullableNaturalDocs, store := nullableMembershipPresent, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
   { name := "page-owner-membership-fixed-id-cap-not-merged"
     source := "LLP 3000.036.001 §14: a fixed source id is residual witness evidence, not a discovery cap"
     case := { schema := membershipDocsFixedIdCap, store := membershipDocStore, viewer := alice,

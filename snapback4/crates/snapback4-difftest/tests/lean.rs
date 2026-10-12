@@ -424,6 +424,68 @@ fn fixed_membership_source_id_agrees_with_the_engine() {
 }
 
 #[test]
+fn nullable_membership_points_agree_with_the_engine() {
+    if !model_built() { return; }
+    let check = |source: &str, rows: Vec<(String, serde_json::Value)>, expected: &[&str]| {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().any(|merge| merge.branches()), "{:#?}\n{source}", bound.notes);
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let actual = engine.query("run", snapback4_core::Context::new(
+            "alice",
+            [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+        )).unwrap();
+        let module = lean::module(source).unwrap();
+        let case = module.case("run", module.store(&rows).unwrap(), "alice",
+            module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+        let modeled = lean::ask(&case).unwrap();
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data),
+            "{modeled}\n{actual:?}\n{source}");
+        assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}\n{source}");
+        let ids = actual.data.as_array().unwrap().iter().map(|row| match row.field("id").unwrap() {
+            snapback4_core::Value::Id(id) => id.as_str(), other => panic!("{other:?}"),
+        }).collect::<Vec<_>>();
+        assert_eq!(ids, expected, "{source}");
+        assert!(actual.complete && actual.next.is_none(), "{actual:?}\n{source}");
+    };
+
+    let fixed_id = "table members:\n  parent: text <=40 ?\n  principal: principal\n  unique parent, principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  parent: text <=40 ?\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists members[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let documents = || vec![
+        ("documents".into(), json!({"id":"owned","parent":null,"owner":"alice","at":1})),
+        ("documents".into(), json!({"id":"shared","parent":null,"owner":"bob","at":2})),
+    ];
+    let mut present = vec![
+        ("members".into(), json!({"id":"m0","parent":null,"principal":"alice"})),
+        ("members".into(), json!({"id":"m1","parent":null,"principal":"alice"})),
+    ];
+    present.extend(documents());
+    check(fixed_id, present, &["shared", "owned"]);
+    let mut missing = vec![
+        ("members".into(), json!({"id":"m0","parent":null,"principal":"alice"})),
+    ];
+    missing.extend(documents());
+    check(fixed_id, missing, &["owned"]);
+
+    let natural = fixed_id.replace("id = 'm1', ", "");
+    let fixed_null = "table members:\n  parent: text <=40\n  slot: text <=40 ?\n  principal: principal\n  unique parent, slot, principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  parent: text <=40\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists members[parent = .parent, slot = null, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    for rejected in [&natural, fixed_null] {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), rejected.into())]);
+        assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_NULL_KEY"),
+            "{:#?}\n{rejected}", bound.diagnostics);
+        assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"), "{rejected}");
+    }
+}
+
+#[test]
 fn id_caps_and_uncapped_memberships_agree_with_the_model() {
     if !model_built() { return; }
     let check = |cap: &str, filter: &str, complete: bool| {

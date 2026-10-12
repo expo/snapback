@@ -54,14 +54,22 @@ def Term.eval (v : List Nat) (im : Imgs) : Term → Option Scalar
   | .viewer => some (.id v)
   | .lit x => some x
 
-/-- A key probe's components; a null or undefined component never matches
-(indexes card: "Null for a unique key argument returns no row"). -/
+/-- Evaluate every component of a key probe. -/
+def probeTerms (v : List Nat) (im : Imgs) (key : List (String × Term)) :
+    Option (List (String × Scalar)) :=
+  key.mapM fun p => Option.map (fun x => (p.1, x)) (p.2.eval v im)
+
+/-- A null component of a natural unique key returns no row. A non-null
+intrinsic `id` component identifies the row independently, so nullable extra
+equalities remain residual predicates and may match null. -/
 def probeKey (v : List Nat) (im : Imgs) (key : List (String × Term)) :
     Option (List (String × Scalar)) :=
-  key.mapM fun p => match p.2.eval v im with
-    | some .null => none
-    | some x => some (p.1, x)
-    | none => none
+  match probeTerms v im key with
+  | none => none
+  | some ks =>
+    if ks.any (fun p => p.1 == "id" && p.2 != .null)
+        || !(ks.any fun p => p.2 == .null)
+    then some ks else none
 
 def keyMatch (ks : List (String × Scalar)) (r : Row) : Bool :=
   ks.all fun p => decide (r.get p.1 = p.2)

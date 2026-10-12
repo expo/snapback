@@ -69,15 +69,22 @@ theorem Rule.eval_mono {s1 s2 : Store} (hsub : ∀ t r, r ∈ s1 t → r ∈ s2 
   | eq a b => intro _ h; simpa [Rule.eval] using h
   | ne a b => intro _ h; simpa [Rule.eval] using h
 
-theorem probeKey_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term} :
+theorem probeTerms_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term} :
     ∀ key : List (String × Term), (∀ p ∈ key, p.2.eval v im1 = (f p.2).eval v im2) →
-      probeKey v im1 key = probeKey v im2 (key.map fun p => (p.1, f p.2))
+      probeTerms v im1 key = probeTerms v im2 (key.map fun p => (p.1, f p.2))
   | [], _ => rfl
   | p :: ps, h => by
     have h1 := h p List.mem_cons_self
-    have h2 := probeKey_mapTerms ps (fun q hq => h q (List.mem_cons_of_mem _ hq))
-    unfold probeKey at h2 ⊢
+    have h2 := probeTerms_mapTerms ps (fun q hq => h q (List.mem_cons_of_mem _ hq))
+    unfold probeTerms at h2 ⊢
     simp only [List.mapM_cons, List.map_cons, h1, h2]
+
+theorem probeKey_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term}
+    (key : List (String × Term))
+    (h : ∀ p ∈ key, p.2.eval v im1 = (f p.2).eval v im2) :
+    probeKey v im1 key = probeKey v im2 (key.map fun p => (p.1, f p.2)) := by
+  unfold probeKey
+  rw [probeTerms_mapTerms key h]
 
 /-- A rule's value depends on its terms' values only: replacing each term by
 one with the same value (under other images) keeps the verdict. -/
