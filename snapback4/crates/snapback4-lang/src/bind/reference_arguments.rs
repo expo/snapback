@@ -217,6 +217,14 @@ fn flow_expression(
             child(right, flow, candidates);
             *flow = join_flows(Some(without_right), Some(flow.clone())).unwrap();
         }
+        Expr::Binary { op, left, right, .. } if op == "??" => {
+            child(left, flow, candidates);
+            if matches!(left.as_ref(), Expr::Literal { value: crate::ast::Literal::Null, .. }) {
+                child(right, flow, candidates);
+            } else {
+                flow_conditional_expression(catalog, schema, arguments, right, flow, candidates);
+            }
+        }
         Expr::Binary { left, right, .. } => {
             child(left, flow, candidates);
             child(right, flow, candidates);
@@ -535,6 +543,8 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
         Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().any(|key| child(&key.value, stack)),
         Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. } | Expr::ShapeUse { base: value, .. } => child(value, stack),
         Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "and" | "or") => child(left, stack) && child(right, stack),
+        Expr::Binary { op, left, right, .. } if op == "??" => child(left, stack)
+            || matches!(left.as_ref(), Expr::Literal { value: crate::ast::Literal::Null, .. }) && child(right, stack),
         Expr::Binary { left, right, .. } => child(left, stack) || child(right, stack),
         Expr::Array { items, .. } => items.iter().any(|value| child(value, stack)),
         Expr::Call { name, args, .. } => args.iter().any(|value| child(value, stack))

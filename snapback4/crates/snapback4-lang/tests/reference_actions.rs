@@ -509,7 +509,7 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
 
 #[test]
 fn reference_argument_lookups_must_reach_each_write() {
-    let schema = "table parents:\n  cap 2\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\n";
+    let schema = "table parents:\n  cap 2\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\nfn coalesceSkipped(parent: parents): true ?? exists parents[parent]\nfn coalesceRequired(parent: parents): null ?? exists parents[parent]\nfn coalesceLeft(parent: parents): exists parents[parent] ?? false\n";
     let notes = |body: &str, args: &str| {
         let source = format!("{schema}mutation create(id: id, parent: parents{args}):\n{body}");
         let bound = bound(&source);
@@ -529,6 +529,20 @@ fn reference_argument_lookups_must_reach_each_write() {
         "a scan filter may never run when its source is empty");
     assert_eq!(notes("  ignored = parents first 1 by .id { checked: exists parents[id = parent] }\n  insert kids { id, parent }\n", ""), 1,
         "a shape field may never run when its source is empty");
+    assert_eq!(notes("  ignored = true ?? exists parents[parent]\n  insert kids { id, parent }\n", ""), 1,
+        "a coalesce fallback after a present value is skipped");
+    assert_eq!(notes("  ignored = maybe ?? exists parents[parent]\n  insert kids { id, parent }\n", ", maybe: bool ?"), 1,
+        "an optional coalesce input does not make its fallback mandatory");
+    assert_eq!(notes("  ignored = null ?? exists parents[parent]\n  insert kids { id, parent }\n", ""), 0,
+        "a literal-null coalesce always evaluates its fallback");
+    assert_eq!(notes("  ignored = exists parents[parent] ?? false\n  insert kids { id, parent }\n", ""), 0,
+        "the left coalesce input is always evaluated");
+    assert_eq!(notes("  ignored = coalesceSkipped(parent)\n  insert kids { id, parent }\n", ""), 1,
+        "a helper's skipped coalesce fallback is not a mandatory lookup");
+    assert_eq!(notes("  ignored = coalesceRequired(parent)\n  insert kids { id, parent }\n", ""), 0,
+        "a helper's literal-null coalesce fallback is mandatory");
+    assert_eq!(notes("  ignored = coalesceLeft(parent)\n  insert kids { id, parent }\n", ""), 0,
+        "a helper's left coalesce input is mandatory");
     let hidden = schema.replace("  read <- allow\ntable kids", "  read <- deny\ntable kids");
     let hidden_source = format!("{hidden}mutation create(id: id, parent: parents):\n  ignored = parents where exists parents[id = parent] first 1 by .id\n  insert kids {{ id, parent }}\n");
     assert!(bound(&hidden_source).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"),
