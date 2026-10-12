@@ -92519,3 +92519,27 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — A development store reset: `POST /dev/reset` (author-approved)
+
+Test runners can now isolate tests against one running `snapback4 dev`.
+`POST /dev/reset` (and `snapback4 reset [--port N] [--seed <fixture dir|rows.json>]
+[--clock reset]`) empties the store in one SQLite transaction and can reseed it
+with `/seed`'s rows in the same transaction; a refused row resets nothing.
+"Fresh" keeps `_meta`, `_catalog` and `_generations` and service seats (the dev
+worker's session, `token` seats) and empties every other table it finds, so a
+table added later is emptied by default. The store takes a new `store_id`, and
+the reset is itself a commit, so the head keeps counting; clients treat it as a
+replaced store (local re-acquires, online halts `E_STORE_REPLACED`), and no
+client change was needed. The dev clock is kept unless `{"clock":"reset"}`.
+`serve` refuses it like `/seed`. A reset with a 20-row reseed takes ~1.4 ms
+median over HTTP in the debug build. Design in LLP 3000.007 §20.25; documented
+in `guide wire`, `guide testing` (a per-test recipe) and CLIENT-AND-OPERATIONS
+§5. `Engine::seed_at`'s body moved to `seed_rows` so the reset can run it inside
+its own transaction.
+
+- **What felt good:** the client side already handled a replaced store end to
+  end; the reset only had to look like one.
+- **What was hard:** choosing what survives. Personas need no rows, but the dev
+  worker holds a real session; keeping `service:` seats is what lets the worker
+  keep running across resets.

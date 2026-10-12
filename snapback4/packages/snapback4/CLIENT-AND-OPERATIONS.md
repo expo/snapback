@@ -2881,13 +2881,31 @@ try {
   them. A principal field holds the stored principal (`"dev:alice"`); a bare `"alice"` refuses. Seed is an
   upsert by `id`, so every row names its own and rerunning a seed updates those rows' mutable columns instead
   of duplicating them; a different value for an `immutable` column refuses `E_CONSTRAINT` naming the column and
-  the upsert (keep the original value, use a new id, or restart `dev --memory`); a row without an id refuses
+  the upsert (keep the original value, use a new id, `POST /dev/reset`, or restart `dev --memory`); a row without an id refuses
   `E_FIELD` with its index. Use
   26-character Crockford base32 ids (digits and capital letters except I, L, O, U), such as
   `0000000000000000000000SEED`; in JavaScript `idFrom("seed:alice")` from `snapback4/client` derives the same valid
   id from a label every time. For recorded-action replay that must not emit notifications, run
   `snapback4 dev --replay`: new effects are never delivered and schedules are held. `guide replay` explains
   the restart and explicit-job behaviour.
+- **`POST /dev/reset`** (dev only, same machine; `serve` refuses it with `E_AUTH` as it refuses `/seed`) empties
+  the running dev's store so each test starts fresh against one host. In one SQLite transaction it removes every
+  application row, view and maintained column, index entry and count, the partition and commit logs, the effect,
+  job and action queues, uploaded assets (their bytes are unlinked after the commit), and every account with its
+  sessions (signed-up users, guests, custom sessions); it keeps the adopted schema and generation, personas and
+  service seats (`snapback4 token` seats and the dev worker's session), and forgets schedule boundaries, so the
+  next tick records the current boundary without firing a missed period. The store takes a new `storeId` and the
+  reset is itself a commit, so the head keeps counting: every held `/changes` poll returns, a local device sees
+  the new identity on its next sync, drops its partition and re-acquires (unsent writes and known receipts are
+  kept, as for any store replacement), and an online client halts with `E_STORE_REPLACED` (`createApp` reopens
+  it). The body is empty, a `/seed` array, or `{ "seed": [..], "clock": "reset" }` with either key optional:
+  seed rows are checked and written exactly as `/seed` writes them, in the same transaction, so a malformed body
+  is 400 and a refused row answers 200 `{ "denied" }` with nothing reset; `"clock": "reset"` returns the dev
+  clock to wall time (dropping `--clock-offset` and every `clock advance`), and without it the clock is kept. It
+  answers `{ "reset": true, "seeded": N, "generation", "storeId", "previousStoreId", "head", "assetsRemoved",
+  "now", "clockOffsetMs", "ms" }`; on a small store it takes a few milliseconds. `snapback4 reset [--port N]
+  [--seed <fixture dir|rows.json>] [--clock reset]` posts it from a shell (a fixture directory is read as `test
+  --fixture` reads it). A reset empties the whole store, so tests that share one dev run one at a time.
 - **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--port N] [--now <milliseconds|+duration>]
   [--json]`** runs one operation against the local store, and says so on stderr (defaults to `dev:alice`; declared personas get the
   `dev:` prefix and other principal ids are used verbatim) and prints the result, the meter and, for a
@@ -3140,7 +3158,7 @@ codes come from two layers. Before anything runs, the request is decoded against
 signature: a body that is not JSON, an argument of the wrong JSON type or shape (a fraction, a string for an
 `int`) or an argument the operation does not take is 400 `{ denied: E_INPUT }`, and a query route for a
 mutation is 400 `E_OP`; 401 with no or a dead credential or an undeclared persona, 404 `E_OP` for an unknown
-operation or route, 413 past the body ceiling (1 MiB for JSON, 16 MiB for `/seed`). Everything the decoded
+operation or route, 413 past the body ceiling (1 MiB for JSON, 16 MiB for `/seed` and `/dev/reset`). Everything the decoded
 operation refuses is 200 — a query's `{ denied }`, a mutation's `{ state: "failed", why }` — including value
 checks made while it runs (a missing required argument or text past its bound is `why.code` `E_INPUT`),
 rules, constraints, `NOT_FOUND`, the program's own `require … else CODE` (with `why.rule` and `why.site`) and
