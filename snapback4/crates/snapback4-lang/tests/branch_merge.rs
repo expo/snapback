@@ -688,3 +688,65 @@ fn a_merged_plan_requires_the_branch_merge_capability() {
     let single = clean(&format!("{TASKS}query owned(c: cursor ?):\n  return tasks where .owner = viewer last 2 by .at after c\n"));
     assert!(!single.schema.required_capabilities().contains("branch-merge-v1"));
 }
+
+// ---- round 4 (llp/reviews/3000.036.001-merged-pages.r4.*) ----
+
+/// GPT r4 #1: `.meta.ok` binds to a read of the referenced row, which a meter
+/// can cut after the lane examined the task, and the merge's frontier would
+/// then pass it. A member through a reference is not total: the page keeps
+/// the single read (whose own cut inside a predicate read is a pre-existing
+/// defect of the direct path, `issues/20261012-snapback4-cut-inside-predicate-read-skips-row.md`).
+#[test]
+fn a_reference_member_is_not_total() {
+    let schema = "table metas:
+  ok: bool
+  public
+table tasks:
+  owner: principal
+  assignee: principal ?
+  meta: metas
+  ok: bool
+  at: int
+  read <- .owner = viewer or .assignee = viewer
+  online only
+";
+    let page = |predicate: &str| clean(&format!("{schema}query flagged(c: cursor ?):\n  return tasks where (.owner = viewer or .assignee = viewer) and {predicate} last 2 by .at after c\n"));
+    assert_eq!(branch_merges(&page(".ok = true"), "flagged"), vec![(2, true)], "the row's own column is total");
+    assert!(branch_merges(&page(".meta.ok = true"), "flagged").is_empty(), "a member through a reference is a read: no merge");
+}
+
+const HEADERS: &str = "table headers:
+  owner: principal
+  read <- .owner = viewer
+";
+
+/// GPT r4 #2: a merge inside a returned row shape needs the capability too.
+#[test]
+fn a_merge_inside_a_returned_shape_requires_the_branch_merge_capability() {
+    let b = clean(&format!("{HEADERS}{TASKS}query nested(h: headers, c: cursor ?):\n  return headers[h] {{ id, tasks: (tasks last 1 by .at after c) }}\n"));
+    let program = &b.programs.iter().find(|p| p.program.name == "nested").unwrap().program;
+    assert!(snapback4_core::ir::body_merges(&program.body).iter().any(|m| m.branches()), "the inline page is a branch merge");
+    assert!(b.schema.required_capabilities().contains("branch-merge-v1"));
+}
+
+/// GPT r4 #3: each lane's prefix fits a token; together they would not. The
+/// scope is a digest of them all, so the page continues.
+#[test]
+fn a_cursor_over_wide_lane_prefixes_fits_its_token() {
+    let source = "table tasks:
+  owner: principal
+  assignee: principal ?
+  folder: text <=400
+  at: int
+  read <- .owner = viewer or .assignee = viewer
+  online only
+query mine(folder: text <=400, c: cursor ?):
+  return tasks where .folder = folder last 1 by .at after c
+";
+    let wide: String = std::iter::repeat_n('\u{1F600}', 400).collect();
+    let task = |name: &'static str, at: i64, folder: &str| ("tasks", vec![("id", id(name)), ("owner", id("alice")), ("assignee", Value::Null), ("folder", Value::String(folder.into())), ("at", Value::Int(at))]);
+    let mut e = engine(source, vec![task("t1", 1, &wide), task("t2", 2, &wide)]);
+    assert_eq!(branch_merges(&clean(source), "mine").first().map(|m| m.0), Some(3), "grant, owner and assignee lanes");
+    let (got, _) = walk(&mut e, "mine", "alice", &[("folder", Value::String(wide.clone()))]);
+    assert_eq!(got, vec!["t2", "t1"]);
+}

@@ -240,14 +240,17 @@ fn has_focal_without_member(value: &Expr) -> bool {
     }
 }
 
-/// A predicate whose evaluation never refuses: comparisons, `in` and boolean
-/// operators over row columns, arguments, literals and `viewer`. Arithmetic
-/// (even `now - 7d`, which overflows at the clock's bound), assertions, calls
-/// and reads are left to the single-index plan.
+/// A predicate whose evaluation never refuses and never reads: comparisons,
+/// `in` and boolean operators over the row's own columns, arguments, literals
+/// and `viewer`. Arithmetic (even `now - 7d`, which overflows at the clock's
+/// bound), assertions, calls and reads are left to the single-index plan, and
+/// so is a member of anything but the row (`.meta.ok`, `m.ok`), which binds to
+/// a read of the referenced row that a meter can cut (GPT round 4, finding 1).
+// @ref LLP 3000.036.001#2 — totality: no read, so a lane is cut only between candidates
 fn total(value: &Expr) -> bool {
     match value {
         Expr::Literal { .. } | Expr::Name { .. } | Expr::Focal { .. } => true,
-        Expr::Member { base, .. } => total(base),
+        Expr::Member { base, .. } => matches!(base.as_ref(), Expr::Focal { .. }),
         Expr::Unary { op, value, .. } => op == "not" && total(value),
         Expr::Binary { op, left, right, .. } => matches!(op.as_str(), "=" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "in") && total(left) && total(right),
         Expr::Array { items, .. } => items.iter().all(total),

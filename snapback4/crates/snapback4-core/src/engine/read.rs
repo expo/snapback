@@ -1391,7 +1391,7 @@ impl<'r> Runner<'r> {
         let (descriptor, view_suffix) = if merge.branches() { (merge.branch_descriptor(), Some(suffix.clone())) } else { (first.scan.index.clone(), None) };
         // A branch merge's token is scoped to every lane's pins, as on its lazy path.
         let branch_scope = if merge.branches() {
-            Some(merge.lanes.iter().map(|lane| self.prefix_values(&lane.scan)).collect::<Result<Vec<_>, _>>()?.concat())
+            Some(branch_merge::branch_scope(&merge.lanes.iter().map(|lane| self.prefix_values(&lane.scan)).collect::<Result<Vec<_>, _>>()?)?)
         } else { None };
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()

@@ -193,10 +193,14 @@ own pins, so the page is complete. The page's rows, order and cursor are the
 same either way. -/
 
 /-- A predicate whose evaluation never refuses: comparisons and boolean
-operators over columns, locals, literals and `viewer`. -/
+operators over the row's columns, locals, literals and `viewer` (no member
+of a value, which the engine may resolve by reading a referenced row). -/
 def Expr.total : Expr → Bool
   | .lit _ | .var _ | .viewer | .dot _ => true
-  | .field e _ | .not e => e.total
+  -- A member of anything but the row may read a referenced row on the
+  -- engine, which a meter can cut mid-predicate (LLP 3000.036.001 round 4).
+  | .field _ _ => false
+  | .not e => e.total
   | .bin op a b => (op == .eq || op == .ne || op == .lt || op == .le || op == .gt || op == .ge) && a.total && b.total
   | .and a b | .or a b => a.total && b.total
   | _ => false

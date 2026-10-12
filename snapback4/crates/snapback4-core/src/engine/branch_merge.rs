@@ -39,7 +39,7 @@ impl Runner<'_> {
         // cursor never resumes a page whose arguments or viewer changed
         // (Muse round 3, finding 1), as a direct page's scope does.
         let prefixes = merge.lanes.iter().map(|lane| self.prefix_values(&lane.scan)).collect::<Result<Vec<_>, _>>()?;
-        let scope: Vec<Value> = prefixes.iter().flatten().cloned().collect();
+        let scope = branch_scope(&prefixes)?;
         self.record_shape_cursor(site, None);
         let mut after = None;
         if first.opaque_cursor && let Some(expr) = first.after.as_deref() {
@@ -236,4 +236,14 @@ impl Runner<'_> {
         if key.len() < lane.position_len { key.push(row.field("id").cloned().unwrap_or(Value::Null)); }
         key
     }
+}
+
+/// A branch token's scope: a digest of every lane's evaluated pins, in lane
+/// order. The lanes' prefixes together can exceed the token's 4096 bytes where
+/// each alone fits (GPT round 4, finding 3); the digest binds them all in 64.
+// @ref LLP 3000.036.001#5 — the scope binds every lane's pins, at a bounded size
+pub(super) fn branch_scope(prefixes: &[Vec<Value>]) -> Result<Vec<Value>, RuntimeError> {
+    use sha2::{Digest, Sha256};
+    let bytes = crate::json_codec::to_vec(&prefixes).map_err(|error| RuntimeError::Schema(format!("branch scope: {error}")))?;
+    Ok(vec![Value::String(format!("{:x}", Sha256::digest(bytes)))])
 }
