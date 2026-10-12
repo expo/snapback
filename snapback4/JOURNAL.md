@@ -92645,3 +92645,16 @@ chosen loopback range listener through startup. Its existing real-URL and
 SNAPBACK4_READY output is covered by a release subprocess regression. Rollback
 help lists both adoption flags; no adoption or rollback behavior changed.
 Validation: port-filtered binary and cli_friction tests passed (15 and 6 tests).
+
+## 2026-10-12 — OPS: identity refusal statuses (wave 8 DT6)
+
+Password failures and disabled identity methods now return 401 with the existing
+denied body. Other identity error paths share that mapping; production personas
+remain 401 and development doors remain 403. Guide wire now has a status table
+and explains streaming status limits and replay receipts' absent result/current.
+Receipts intentionally contain no historical values, so no core replay or read
+authority behavior changed. JS helpers already preserve the body on refusal.
+
+Validation: binary suite 385 passed / 4 ignored, CLI friction 19 passed; two
+client files (online-session, headless-registration) passed 16 tests. Added
+coverage for HTTP 401/403 bodies and the real failed-login/disabled-guest path.

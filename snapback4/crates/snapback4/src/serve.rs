@@ -1455,12 +1455,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         Ok(SessionMintWire::Legacy { principal, kind, days }) => {
                             snapback4_core::identity::custom_session(engine.store(), &principal, &kind, legacy_now, days)
                                 .map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
-                                .map_err(|error| (if error.is_refusal() { 200 } else { 503 }, error.refusal()))
+                                .map_err(|error| (crate::auth::error_status(&error), error.refusal()))
                         }
                         Ok(SessionMintWire::Bound { principal, kind, days, binding, lease, service_token }) => {
                             snapback4_core::identity::bound_custom_session(engine.store_mut(), &service_token, &service, &lease, &principal, &kind, || shared.now(), days, &binding)
                                 .map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
-                                .map_err(|error| (if error.is_refusal() { 200 } else { 503 }, error.refusal()))
+                                .map_err(|error| (crate::auth::error_status(&error), error.refusal()))
                         }
                     },
                 }
@@ -1485,7 +1485,7 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             match outcome {
                 Ok(revoked) => respond_timed(request, shared, 200, json!({ "revoked": revoked, "principal": principal })),
-                Err(error) => respond_timed(request, shared, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
+                Err(error) => respond_timed(request, shared, crate::auth::error_status(&error), json!({ "denied": refusal_json(&error.refusal()) })),
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login")

@@ -149,7 +149,7 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
                 && let RuntimeError::Auth(message) = &error {
                 return respond_refused(request, shared, Refusal::new("E_AUTH", "auth", message).guide("personas"));
             }
-            let status = if error.is_refusal() { 200 } else { 503 };
+            let status = error_status(&error);
             respond_timed(request, shared, status, json!({ "denied": refusal_json(&error.refusal()) }));
         }
     }
@@ -161,6 +161,11 @@ enum Outcome {
     SupervisedRefresh,
     Logout,
     LogoutAll(u64),
+}
+
+pub(crate) fn error_status(error: &RuntimeError) -> u16 {
+    if matches!(error, RuntimeError::Auth(_)) { 401 }
+    else if error.is_refusal() { 200 } else { 503 }
 }
 
 // @ref LLP 3000.007#20.2 — identity operations preserve the same refusal envelope as data doors.
