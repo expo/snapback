@@ -11,7 +11,7 @@ import { createClient } from "./client.ts";
 import { holdClose } from "./closing-responses.ts";
 import { waitForCaller } from "./request-wait.ts";
 import { prepareClient, waitForRotation } from "./client-start.ts";
-import { createLocalClient, type DeviceOpener, type LocalOptions, type LocalClient } from "./local.ts";
+import { DeviceVersionError, createLocalClient, type DeviceOpener, type LocalOptions, type LocalClient } from "./local.ts";
 import { storeLock, sessionEpoch, logoutEpoch, StorageWarning } from "./app-storage.ts";
 import { sessionAuthority } from "./session-authority.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
@@ -83,6 +83,7 @@ export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "s
 }
 
 function problem(error: unknown): Refusal {
+  if (error instanceof DeviceVersionError) return error.why;
   if ((error as { why?: Refusal })?.why?.code.startsWith("E_READ_ONLY")) return (error as { why: Refusal }).why;
   if (error instanceof StorageWarning) return error.why;
   const message = error instanceof Error ? error.message : String(error);

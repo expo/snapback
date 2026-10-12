@@ -64,7 +64,7 @@
   },
   {
     "index": 9,
-    "id": "local.ts:sendPost:withReadSignal(signal, eph?.signal ?? aborter.signal, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode))#1",
+    "id": "local.ts:sendPost:withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode, () => !versionBlocked())))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -113,7 +113,7 @@
   },
   {
     "index": 16,
-    "id": "local.ts:syncRound:readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && request.revision === credentialRevision, aborter.signal)#1",
+    "id": "local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal))#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
@@ -148,7 +148,7 @@
   },
   {
     "index": 21,
-    "id": "local.ts:syncRound:loadBackend(doFetch, base, request.headers, aborter.signal)#1",
+    "id": "local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => loadBackend(doFetch, base, request.headers, signal))#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
@@ -295,7 +295,7 @@
   },
   {
     "index": 42,
-    "id": "local.ts:waitForChange:changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)#1",
+    "id": "local.ts:waitForChange:withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal))#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
@@ -400,7 +400,7 @@
   },
   {
     "index": 57,
-    "id": "local.ts:flushOnce:network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
+    "id": "local.ts:flushOnce:network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || versionBlocked() || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -834,7 +834,7 @@
   },
   {
     "index": 119,
-    "id": "request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted, stopped, decode)#1",
+    "id": "request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)#1",
     "recipe": "query",
     "classification": "optional",
     "absorbs": false

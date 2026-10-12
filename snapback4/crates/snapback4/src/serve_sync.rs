@@ -4,6 +4,7 @@ use snapback4_core::error::RuntimeError;
 
 enum SyncOutcome<T> {
     Generation(Json),
+    Version(Json),
     Page(T),
 }
 
@@ -11,9 +12,12 @@ enum SyncOutcome<T> {
 pub(super) static MATERIALIZATIONS: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
 
 // @ref LLP 3000.007.003#5 — learn the answering generation before materializing a stale page.
-fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: u64, store_id: &str,
+fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: u64, store_id: &str, device: &snapback4_core::device_protocol::DeviceEngine,
     materialize: impl FnOnce(&mut Engine) -> Result<T, RuntimeError>,
 ) -> Result<SyncOutcome<T>, RuntimeError> {
+    if let Err(denied) = snapback4_core::device_protocol::check(Some(device), &snapback4_core::device_protocol::compatibility(&engine.schema().public_projection())) {
+        return Ok(SyncOutcome::Version(json!({ "denied": refusal_json(&denied) })));
+    }
     if requested.is_some_and(|requested| requested != generation) {
         let denied = Refusal::new("E_SYNC_GENERATION", "generation", "sync generation changed; adopt /schema before retrying this position").guide("sync");
         // Same head as a caught-up page: MAX(_commits.seq), not a delivered cut.
@@ -40,6 +44,12 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             return;
         }
     };
+    // The header envelope is parsed before SyncRequest, so an old wire shape
+    // cannot fall through to a missing-field or schema-decoder refusal.
+    if let Err(denied) = crate::device_handshake::check(shared, crate::device_handshake::header(&request), true) {
+        return respond_timed(request, shared, 409, json!({ "denied": refusal_json(&denied) }));
+    }
+    let device: snapback4_core::device_protocol::DeviceEngine = serde_json::from_str(crate::device_handshake::header(&request).expect("checked handshake")).expect("checked handshake");
     let input = match serde_json::from_str::<SyncRequest>(body) {
         Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
         _ => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
@@ -73,13 +83,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
                 Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
             }
         };
@@ -94,6 +104,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                     held, more: next.is_some(), next, after, now, snapshot: true, watermark,
                 }, true, Some(overflow), Some(shared));
             }
+            Ok(SyncOutcome::Version(reply)) => respond_timed(request, shared, 409, reply),
             Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),
             Err(error) => { let refusal = error.refusal(); respond_timed(request, shared, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
         }
@@ -103,13 +114,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
                 }
                 Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.stream_at(&principal, from, limit, now).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| engine.stream_at(&principal, from, limit, now).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
                 }
             }
         };
@@ -126,6 +137,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
                     joined: page.joined, more: page.more, now, snapshot: false, watermark: page.watermark,
                 }, true, Some(overflow), Some(shared));
             }
+            Ok(SyncOutcome::Version(reply)) => respond_timed(request, shared, 409, reply),
             Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),
             Err(error) => { let refusal = error.refusal(); respond_timed(request, shared, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
         }

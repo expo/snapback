@@ -184,3 +184,20 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
+
+/// Engine build stamp without opening or mutating a store. Free with sb4_free.
+#[unsafe(no_mangle)]
+pub extern "C" fn sb4_engine_info() -> *mut c_char {
+    c_string(serde_json::to_value(snapback4_core::device_protocol::DeviceEngine::current()).expect("engine stamp"))
+}
+
+#[cfg(test)]
+#[test]
+fn engine_stamp_is_available_without_opening_any_store() {
+    let ptr = sb4_engine_info();
+    let value: serde_json::Value = serde_json::from_str(c_text(ptr).unwrap()).unwrap();
+    sb4_free(ptr);
+    assert_eq!(value["format"], 1);
+    assert_eq!(value["version"], env!("CARGO_PKG_VERSION"));
+    assert!(value["capabilities"].as_array().unwrap().iter().any(|v| v == "sync-generation-v1"));
+}

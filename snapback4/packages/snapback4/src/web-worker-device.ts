@@ -18,7 +18,7 @@ import type { Write } from "./contract.ts";
 class KnownAdmissionRefusal extends Error { constructor(readonly reply: Record<string, unknown>) { super("admission cancellation failed"); } }
 
 /** Worker adapter for the opt-in browser device. */
-export async function openWorkerDevice(name: string, backend: DeviceOpening | null, wasm?: WorkerWasmSource): Promise<DeviceCore> {
+export async function openWorkerDevice(name: string, backend: DeviceOpening | null, wasm?: WorkerWasmSource, wasmUrl?: string): Promise<DeviceCore> {
   const persist = indexedDbPersistence(), claim = await claimStore(persist, name, true);
   if (!claim) throw new Error("webDevice: persistence could not claim an exclusive device store");
   // The client first tries an offline open. Under the exclusive, quiescent
@@ -32,7 +32,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
   } catch (error) { await claim.release(); throw error; }
   const host = new WebWorkerHost(claim);
   const journal = new AdmissionJournal(claim.name, true, id => host.control.capture(id));
-  journal.load(await host.open(backend, wasm));
+  journal.load(await host.open(backend, wasm, wasmUrl));
   const suspension = new WebWorkerSuspend(host, journal);
   const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
   const admissions = new Set<string>(), outbox = new Map<string, Queued>();

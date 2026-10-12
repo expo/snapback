@@ -65,6 +65,7 @@ fn moving_a_live_database_and_its_sidecars_preserves_ownership() {
 fn http_response(host: &Running, path: &str, body: Option<&str>) -> (u16, serde_json::Value) {
     let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
     let mut curl = Command::new("curl");
+    if path == "/sync" { curl.args(["-H", &format!("x-snapback-device: {}", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap())]); }
     curl.args(["--silent", "--show-error", "--max-time", "10", "--write-out", "\n%{http_code}", "-H", "x-snapback-persona: alice"]);
     if let Some(body) = body { curl.args(["-H", "Content-Type: application/json", "--data", body]); }
     let out = curl.arg(format!("{address}{path}")).output().unwrap();

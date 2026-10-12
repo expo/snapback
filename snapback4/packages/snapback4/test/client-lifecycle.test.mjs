@@ -53,6 +53,7 @@ function emptyDevice(overrides = {}) {
         const answer = await overrides.call(request);
         if (answer !== undefined) return answer;
       }
+      if (request.op === "engine_info") return {ok:{format:1,version:"0.4.24",capabilities:["sync-generation-v1"]}};
       if (request.op === "sync_state") return { ok: { acquired: false, backend_required: false, store_id: overrides.storeId ?? null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, outbox_status: true, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
       if (request.op === "next_submission") return { ok: 1 };
       if (request.op === "meta") return { ok: null };

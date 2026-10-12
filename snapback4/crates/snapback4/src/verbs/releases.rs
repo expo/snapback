@@ -273,6 +273,7 @@ pub fn deploy(options: &Options) -> i32 {
                 std::fs::copy(&built.path, generated.join("native.wasm"))
                     .map_err(|e| e.to_string())?;
             }
+            std::fs::write(stage.join("device-compatibility.json"), serde_json::to_vec_pretty(&snapback4_core::device_protocol::compatibility(&bound.schema.public_projection())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             crate::dev_worker::package(&project, &stage)?;
             let staged_bound = bound_at(stage.clone())?;
             if staged_bound.schema != bound.schema {

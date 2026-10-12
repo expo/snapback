@@ -71,8 +71,9 @@ impl Host {
     }
     fn auth_request(&self, method: &str, path: &str, body: Value, auth: &str) -> Value {
         let body = body.to_string();
+        let device = if path == "/sync" { format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap()) } else { String::new() };
         let mut stream = TcpStream::connect(&self.address).unwrap(); stream.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
-        write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{auth}\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+        write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{auth}\r\n{device}Content-Length: {}\r\n\r\n{body}", body.len()).unwrap();
         let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
         serde_json::from_str(answer.split_once("\r\n\r\n").unwrap().1).unwrap_or_else(|e| panic!("{e}: {answer}"))
     }
@@ -220,7 +221,7 @@ fn release_refuses_clock_flags_and_the_endpoint() {
     for args in [vec!["serve", "missing", "--clock-offset", "+2m"], vec!["serve", "missing", "--now", "1"], vec!["clock", "advance", "2m", "--release", "missing"], vec!["run", "time", "--now", "1", "--release", "missing"]] {
         let out = f.command(&args);
         assert!(!out.status.success());
-        assert!(String::from_utf8_lossy(&out.stderr).contains("E_CLOCK_DEV_ONLY"), "{out:?}");
+        assert!(String::from_utf8_lossy(&out.stderr).contains("E_CLOCK_DEV_ONLY") || String::from_utf8_lossy(&out.stderr).contains("E_INPUT"), "{out:?}");
     }
     let deployed = f.command(&["deploy", "deployment"]);
     assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));

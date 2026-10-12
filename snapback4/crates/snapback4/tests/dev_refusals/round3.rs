@@ -4,7 +4,8 @@ impl Host {
     fn raw(&self, method: &str, path: &str, persona: &str, body: &[u8]) -> (u16, Vec<u8>) {
         let mut socket = TcpStream::connect(&self.address).unwrap();
         socket.set_read_timeout(Some(Duration::from_secs(15))).unwrap();
-        write!(socket, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: {persona}\r\nContent-Length: {}\r\n\r\n", body.len()).unwrap();
+        let device = if path == "/sync" { format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap()) } else { String::new() };
+        write!(socket, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: {persona}\r\n{device}Content-Length: {}\r\n\r\n", body.len()).unwrap();
         socket.write_all(body).unwrap();
         let mut reply = Vec::new(); socket.read_to_end(&mut reply).unwrap();
         let end = reply.windows(4).position(|w| w == b"\r\n\r\n").unwrap();

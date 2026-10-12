@@ -18,6 +18,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         Ok(principal) => principal,
         Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
     };
+    if let Err(denied) = crate::device_handshake::check(shared, crate::device_handshake::header(&request), false) {
+        return respond_timed(request, shared, 409, json!({ "denied": refusal_json(&denied) }));
+    }
     let connected = &capability.0;
     // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — one principal's tabs cannot take the whole viewer pool; refused at once, never queued.
     let _share = if wait > 0 {

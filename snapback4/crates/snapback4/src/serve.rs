@@ -585,7 +585,7 @@ pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
         Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock").unwrap(),
-        Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range").unwrap(),
+        Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range, x-snapback-device").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
     ];
     if let Ok(Some(origin)) = single_header(request, "origin") && origin_authority(origin).is_some() {
@@ -982,17 +982,23 @@ fn handle(mut request: Request, shared: &Shared) {
             respond_timed(request, shared, 200, body);
         }
         (Method::Get, "/schema") => {
+            if let Err(denied) = principal_of(&request, shared) {
+                return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&denied) }));
+            }
             // The compiled backend a device runs locally: the schema and the
             // programs' IR, bound to a generation.
             let (schema, programs, generation, native) = {
                 let bound = lock(&shared.bound);
                 (bound.schema.public_projection(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
             };
+            if let Err(denied) = crate::device_handshake::check_schema(&schema, crate::device_handshake::header(&request), false) {
+                return respond_timed(request, shared, 409, json!({ "denied": refusal_json(&denied) }));
+            }
             let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
             // @ref LLP 3000.007#20.4 — a cold click binds to the backend
             // that supplied its program, even before replica identification.
             let store_id = lock(&shared.wake).store_id.clone();
-            respond_timed(request, shared, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native, "store_id": store_id }));
+            respond_timed(request, shared, 200, json!({ "generation": generation, "device_compatibility": snapback4_core::device_protocol::compatibility(&schema), "schema": schema, "programs": programs, "native": native, "store_id": store_id }));
         }
         (Method::Get, "/native.wasm") => {
             // The app's module, for a device to run its native reads over

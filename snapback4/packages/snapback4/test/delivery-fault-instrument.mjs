@@ -28,7 +28,7 @@ export const scope = {
   'request-wait.ts': '*',
   'local-sync.ts': ['legacyInput', 'syncTransport'],
   'device-restore.ts': '*',
-  'local-backend.ts': '*',
+  'local-backend.ts': ['loadBackend'],
   'local-native.ts': '*',
   'pending-writes.ts': ['revision', 'record'],
   'clock.ts': ['wrapped', 'save'],
@@ -369,3 +369,12 @@ export function awaitBoundary() {
 // awaits are outside device delivery. Both identity kinds test opening read
 // failure with a surviving capture and no leaked runtime lock; Chromium
 // exercises store replacement observed by a read and lock release.
+
+// HAND: initialBackend is the former constructor-only schema/session fallback,
+// before delivery owners exist; its extracted awaits cannot deliver mutations.
+// Engine probes/wasm preparation likewise precede store opening. Runtime wasm
+// worker restart remains covered by web-worker-control and artifact pin tests.
+// Compatibility signal wrappers change the existing safe-read sites without
+// adding delivery I/O; mutation settlement keeps its original transport await.
+// The existing recipes exercise these exact sites; queued write custody and
+// mutation dispatch/settlement classifications remain unchanged.

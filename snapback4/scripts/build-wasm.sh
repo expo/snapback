@@ -19,7 +19,7 @@ if (!/^\d+\.\d+\.\d+$/.test(wanted) || installed !== wanted) {
 }
 console.log(`Binaryen ${installed} (locked workspace dependency)`);'
 out=packages/snapback4/src/wasm
-cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
+CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
 rm -rf "$out"
 wasm-bindgen --target web --out-dir "$out" --out-name snapback4_device target/wasm32-unknown-unknown/wasm/snapback4_device.wasm
 wasm=$out/snapback4_device_bg.wasm
@@ -30,6 +30,7 @@ if [ "$(gzip -9 -c < "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -
 node "$optimizer" --code-folding --duplicate-function-elimination --dce --vacuum --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/fold.wasm" "$wasm"
 if [ "$(gzip -9 -c < "$out/fold.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then mv "$out/fold.wasm" "$wasm"; else rm "$out/fold.wasm"; fi
 rm -f "$out/.gitignore" "$out/package.json"
+node scripts/stamp-device.mjs "$wasm"
 gzip_bytes=$(gzip -9 -c "$wasm" | wc -c | tr -d ' ')
 status=$(node scripts/wasm-budget.mjs metrics/wasm-budget.json "$gzip_bytes")
 printf 'wasm %s B raw, %s B gzip %s\n' "$(wc -c < "$wasm" | tr -d ' ')" "$gzip_bytes" "$status"

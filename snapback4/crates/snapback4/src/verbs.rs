@@ -224,6 +224,7 @@ pub fn check(options: &Options) -> i32 {
         Ok(bound) => bound,
         Err(code) => return code,
     };
+    if !crate::exact_device::check(&project.root, &bound.schema, options.json) { return 1; }
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
@@ -822,6 +823,9 @@ pub fn doctor(options: &Options) -> i32 {
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {}, {} synced, {} operations", table_counts(&bound.schema), bound.schema.synced().count(), bound.programs.len()));
+            for device in crate::exact_device::inspect(&project.root, &bound.schema) {
+                match device { Ok(line) => lines.push(line), Err(error) => { lines.push(error); ok = false; } }
+            }
             let native = crate::native::declared(&bound);
             (bound.personas, native)
         }
@@ -1413,6 +1417,7 @@ fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::s
 /// against the real module without a native build, and a host without a
 /// linker can still run it.
 pub fn device(options: &Options) -> i32 {
+    if options.flags.contains_key("engine-info") { println!("{}", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap()); return 0; }
     let Some(path) = options.positionals.first() else {
         eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
         println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "usage: snapback4 device <store.sqlite> [backend.json]" } }));

@@ -52,12 +52,15 @@ export type DeviceOpening = BackendJson | { initial_backend: BackendJson };
  * or { initial_backend } to install only if empty and otherwise open the kept
  * backend. Hosts must preserve this envelope across their native boundary. */
 export interface DeviceOpener {
+  /** Actual Rust engine build, available before backend decoding. */
+  engineInfo?(): Promise<import("./device-version.ts").DeviceEngine>;
   open(name: string, backend: DeviceOpening | null): Promise<DeviceCore>;
 }
 
 export interface LocalOptions {
   /** A delivery interval the server refused; queued reports do not enter onWrite. */
   readonly onDeliveryRefused?: (event: import("./delivery-state.ts").DeliveryRefused) => void;
+  readonly onDeviceVersion?: (status: import("./device-version.ts").DeviceVersionStatus) => void;
   readonly url: string;
   readonly persona?: string;
   readonly session?: Session;
@@ -74,4 +77,5 @@ export interface LocalOptions {
 
 export type LocalClient = Client & {
   sync(): Promise<void>;
+  deviceVersion(): import("./device-version.ts").DeviceVersionStatus;
 };

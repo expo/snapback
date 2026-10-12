@@ -1,3 +1,4 @@
+import { DeviceVersionError } from "./device-version.ts";
 import type { Refusal } from "./contract.ts";
 import type { BackendJson } from "./backend.ts";
 import type { DeviceOpener } from "./local-device.ts";
@@ -29,4 +30,16 @@ export async function loadBackend(doFetch: typeof fetch, base: string, headers: 
   if (why?.code === "E_AUTH" && (response.status === 401 || !why.retryable)) throw new BackendAuthError(why);
   if (why) throw new BackendRefusalError(why);
   return json as unknown as BackendJson;
+}
+
+/** A first open retains a coded refusal for an offline kept-store fallback. */
+export async function initialBackend(fetchNow: typeof fetch, base: string, headers: Record<string, string>,
+  forget: () => Promise<unknown>, incompatible: (why: Refusal) => DeviceVersionError | undefined) {
+  try { return { backend: await loadBackend(fetchNow, base, headers) as BackendJson | null, refusal: undefined as BackendRefusalError | undefined, offline: false }; }
+  catch (error) {
+    if (error instanceof BackendRefusalError && incompatible(error.denied)) throw new DeviceVersionError(error.denied);
+    if (error instanceof BackendAuthError) { await forget(); throw new Error(`createLocalClient: ${error.denied.code}: ${error.denied.message}`); }
+    const refusal = error instanceof BackendRefusalError ? error : undefined;
+    return { backend: null, refusal, offline: !refusal || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refusal.denied.code) };
+  }
 }

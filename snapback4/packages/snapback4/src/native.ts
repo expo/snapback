@@ -21,6 +21,14 @@ export function processDevice(options: ProcessDeviceOptions): DeviceOpener {
   if (!options || typeof options.dir !== "string" || options.dir.trim().length === 0) throw new Error("processDevice needs { dir }: the directory its stores live in");
   const { dir, binary: suppliedBinary, spawn: suppliedSpawn, writeFile: suppliedWriteFile } = options;
   return {
+    async engineInfo() {
+      const binary = suppliedBinary ?? (await import("./resolve-binary.ts")).resolveBinary();
+      const { execFile } = await import("node:child_process");
+      return new Promise((resolve, reject) => execFile(binary, ["device", "--engine-info"], (error, stdout) => {
+        if (error) { resolve({ format: 0, version: "unknown (unstamped)", capabilities: [] }); return; }
+        try { resolve(JSON.parse(stdout)); } catch { resolve({ format: 0, version: "unknown (unstamped)", capabilities: [] }); }
+      }));
+    },
     async open(name, backend) {
       const binary = suppliedBinary ?? (await import("./resolve-binary.ts")).resolveBinary();
       const spawn = suppliedSpawn ?? (await import("node:child_process")).spawn;

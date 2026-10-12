@@ -93782,3 +93782,8 @@ Final ref-check follows this entry. No push, publication or new root report file
 
 Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
 zero errors and zero unchecked. The tracked worktree is committed without push.
+
+
+## 2026-10-12 — HAND device compatibility and CLI hygiene
+
+LLP 3000.001.000 records the predecode handshake, per-release floor and actual-engine build stamp. Linux optimized wasm is 2,247,651 B raw / 680,022 B gzip, +671 B against setup baseline 679,351 B; budget 680,522 B includes the required 500 B platform headroom. The 104 B previous-budget overrun is needed for the exported version/capability identity and embedded stamp; server refusal logic remains native-only. Worker app-package provenance and dev-clock bearer replacement retain existing source and credential custody. REL owns release-lifecycle wording, DX/Exact owns its consumer build preflight.

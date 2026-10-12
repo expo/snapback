@@ -8,6 +8,8 @@ mod listen_refusal;
 mod verb_help;
 mod cli_flags;
 mod guide_find;
+mod device_handshake;
+mod exact_device;
 mod note_rank;
 mod assets;
 mod host_limits;
@@ -94,7 +96,9 @@ fn main() -> ExitCode {
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verb = args.first().map(String::as_str).unwrap_or("");
-    if let Err(error) = cli_flags::validate(&args) { eprintln!("{error}"); return ExitCode::from(2); }
+    if let Err(error) = cli_flags::validate(&args) {
+        eprintln!("{error}"); return ExitCode::from(2);
+    }
     let inherited = match witness_socket::take(verb) {
         Ok(listener) => listener,
         Err(error) => { eprintln!("{error}"); return ExitCode::from(1); }

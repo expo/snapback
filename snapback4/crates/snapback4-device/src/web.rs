@@ -10,6 +10,9 @@ use serde_json::json;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
+pub fn engine_info() -> String { serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).expect("engine stamp") }
+
+#[wasm_bindgen]
 pub struct WebDevice {
     device: Device<MemoryStore>,
 }

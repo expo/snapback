@@ -15,6 +15,7 @@ export interface WorkerRequest {
   name?: string;
   backend?: DeviceOpening | null;
   wasm?: WorkerWasmSource;
+  wasmUrl?: string;
   request?: Record<string, unknown>;
   extra?: Change[];
 }
@@ -36,7 +37,7 @@ export class WorkerRuntime {
     if (message.action === "open") {
       if (this.name || !message.name) throw new Error("the Worker opens exactly one claimed store");
       this.name = message.name;
-      await cachedWasm(message.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), this.persist);
+      await cachedWasm(message.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), this.persist, false, undefined, message.wasmUrl);
       const saved = await this.persist.load(this.name);
       this.device = new WebDevice(message.backend ? JSON.stringify(message.backend) : null, JSON.stringify(saved.filter(c => c.s !== "j")));
       this.residency.reset(saved);

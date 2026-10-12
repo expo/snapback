@@ -666,6 +666,10 @@ fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
     assert!(help.contains("--to N") && help.contains("retain removed storage"), "{help}");
     let output = project.run(&["deploy", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
+    let record: serde_json::Value = serde_json::from_slice(&fs::read(project.0.join("deployment/releases/1/device-compatibility.json")).unwrap()).unwrap();
+    assert_eq!(record["minimum_version"], "0.4.24");
+    assert_eq!(record["server_version"], env!("CARGO_PKG_VERSION"));
+    assert!(record["capabilities"].as_array().unwrap().iter().any(|c| c == "sync-generation-v1"));
     let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let taken = held.local_addr().unwrap().port();
     for port in ["0".to_owned(), format!("{taken}-{}", taken + 20)] {
@@ -788,6 +792,33 @@ fn not_run_probes_make_the_summary_incomplete() {
     let out = text(&output);
     assert!(out.contains("1 not run") && out.contains("— incomplete"), "{out}");
     assert!(!out.contains("— pass"));
+}
+
+fn stamped_wasm(stamp: &serde_json::Value) -> Vec<u8> {
+    fn leb(mut n: usize) -> Vec<u8> { let mut b = Vec::new(); loop { let low = (n & 127) as u8; n >>= 7; b.push(low | if n > 0 { 128 } else { 0 }); if n == 0 { return b; } } }
+    let name = b"snapback4.engine";
+    let mut section = leb(name.len()); section.extend(name); section.extend(serde_json::to_vec(stamp).unwrap());
+    let mut wasm = b"\0asm\x01\0\0\0".to_vec(); wasm.push(0); wasm.extend(leb(section.len())); wasm.extend(section); wasm
+}
+#[test]
+fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
+    let project = Project::new("use personas alice\nquery who():\n  return viewer\n");
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated"}}}"#);
+    project.write("app/assets/snapback4.wasm", "old unstamped bytes");
+    let output = project.run(&["check"]);
+    assert!(!output.status.success(), "{}", text(&output));
+    assert!(text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    assert!(!project.0.join("snapback/generated").exists());
+    let output = project.run(&["doctor"]);
+    assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    let current: serde_json::Value = serde_json::from_slice(&project.run(&["device", "--engine-info"]).stdout).unwrap();
+    fs::write(project.0.join("app/assets/snapback4.wasm"), stamped_wasm(&current)).unwrap();
+    assert!(project.run(&["check"]).status.success());
+    let mut old = current; old["version"] = "0.4.23".into();
+    fs::write(project.0.join("app/assets/snapback4.wasm"), stamped_wasm(&old)).unwrap();
+    let output = project.run(&["check", "--json"]);
+    assert!(!output.status.success());
+    assert!(text(&output).contains("E_DEVICE_VERSION") && text(&output).contains("0.4.23"));
 }
 
 #[test]

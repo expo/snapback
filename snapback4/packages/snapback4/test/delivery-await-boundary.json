@@ -37,7 +37,7 @@
   },
   "app-persona.ts": {
     "count": 19,
-    "sha256": "1e562bc8159816bb94a682fa690bec94c44bb0ef1187d5367cba62024e337144"
+    "sha256": "e6797d81892fb36c38e8d50e106cc73718e23e14b5fde956f450260bb3abab0a"
   },
   "app-revocations.ts": {
     "count": 32,
@@ -127,6 +127,10 @@
     "count": 1,
     "sha256": "43c653c4a364e5dfdd235051baa3b0763ce5ef7c52f2a2ad391d6740e3ebb1e8"
   },
+  "device-version.ts": {
+    "count": 3,
+    "sha256": "fb5f3b34fb9ebd9cccc7d7d5c2f9427de3cec2d35a5348311b54326696ec3065"
+  },
   "ephemeral-reads.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -180,8 +184,8 @@
     "sha256": "e9c1fe6cf35f18a0946bc0b92d2b0076a61ef2c2d2a247252c93a7f8afcb3b0f"
   },
   "local-backend.ts": {
-    "count": 1,
-    "sha256": "565410c777ec968746f4fd77982c7cde045db46b16a079e6371475073843bf88"
+    "count": 3,
+    "sha256": "b1358045302a2786e93bd9d3849bfb4e053e05f9258dfe28c908f0c16e506219"
   },
   "local-delivery.ts": {
     "count": 23,
@@ -249,7 +253,7 @@
   },
   "local.ts": {
     "count": 169,
-    "sha256": "ab18841a01ed7aa9b7740a3b545f437ac8d7f956c9cfbc588fc6bafa5ad863be"
+    "sha256": "fb4d05f7697ee0888413c160e5e96040bbf27469ed151932e090606464db7e48"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -260,8 +264,8 @@
     "sha256": "cd31d210780e4dde9e1aeb744c38084f76e43877abec5a2763938f3b4eddcf6d"
   },
   "native.ts": {
-    "count": 12,
-    "sha256": "6c60b7d531a8ce6b3aabb0b181b920d9495b2609dacff318097024d7f69a2d92"
+    "count": 14,
+    "sha256": "7cdd2b46d60fc49bfd9b16f61e5b281a35f8febec19505027e8b1c1d644bc54b"
   },
   "node-fetch.ts": {
     "count": 2,
@@ -377,7 +381,7 @@
   },
   "request-wait.ts": {
     "count": 3,
-    "sha256": "e8ee81d8a824e116caf3c2946d2cc8ec401fead84839bd651b9a742a9cc63d39"
+    "sha256": "21609adfe43ee6490b45bc325e5c24425b157a455054c90e3d6241c864598cdd"
   },
   "residency.ts": {
     "count": 1,
@@ -488,16 +492,16 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "web-wasm.ts": {
-    "count": 12,
-    "sha256": "05e621f94afa95b0c9bba4ef7515082d490a32c50b710b0c55eedeadeffad28a"
+    "count": 13,
+    "sha256": "c9a498d4db8b4a55ea890d900384c89b8a1abbe10894078cb9a6d50757d7c570"
   },
   "web-worker-device.ts": {
     "count": 35,
-    "sha256": "b9657c17d2ec029636ad17e24da6d936da76c30f0bb5cae28bf46f85295ac47b"
+    "sha256": "a6c83b584a4269e16367e0f8128ba45d93efae612f6aa406d2c20434c647aab6"
   },
   "web-worker-host.ts": {
     "count": 28,
-    "sha256": "a5b4eb0f1f905078360a7db6a46a07d74359e09af1ae7015cc5b8248eeb7979f"
+    "sha256": "e7353205a3cb168e13b5dc7f56a7fe404a89ca948dc6ac7e38228d899ede368c"
   },
   "web-worker-orphans.ts": {
     "count": 30,
@@ -505,15 +509,15 @@
   },
   "web-worker-runtime.ts": {
     "count": 7,
-    "sha256": "473ffb7dedcdd5751cbfe35793936e7392572d832d71678e0f013d3f4737e81c"
+    "sha256": "4fc467da31656923f53f38f33be58dc2fb83a899eb2fbd5a2431b2ad60145f79"
   },
   "web-worker-suspend.ts": {
     "count": 6,
     "sha256": "0aa6f12e35330fa59a4bc004c825ed193e76f0f80c166367f0a6e0bfbc46718f"
   },
   "web.ts": {
-    "count": 47,
-    "sha256": "61f0e0b6e126322c96432d50a848c9d7a45e11ca50bd4531276f94f38cd25dd8"
+    "count": 49,
+    "sha256": "7bc1b8cdce5fac6b51456f2174031905972a1c8d49b82d5848c1f3d3e00c5cf9"
   },
   "worker-ledger.ts": {
     "count": 6,

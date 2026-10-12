@@ -30,7 +30,8 @@ query one(id: items):
 `;
 const refusal = "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values";
 const id = i => `row-${String(i).padStart(2, "0")}`;
-const headers = { "x-snapback-persona": "alice" };
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
+const headers = { "x-snapback-persona": "alice", "x-snapback-device": JSON.stringify(engine) };
 async function until(check, message) { return awaitState(check, message); }
 
 function parkedChanges(signal) {
@@ -306,7 +307,7 @@ async function historyFixture(t, tier) {
     await exit; rmSync(dir, { recursive: true, force: true });
   });
   await until(() => { assert.equal(child.exitCode, null, log); return url; }, 'server startup');
-  const post = async (path, body) => fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) }).then(r => r.json());
+  const post = async (path, body) => fetch(url + path, { method: 'POST', headers, body: JSON.stringify(body) }).then(r => r.json());
   const seed = async rows => assert.equal((await post('/seed', rows)).seeded, rows.length);
   await seed([
     { table: 'held', row: { id: 'p1', body: 'first' } },
