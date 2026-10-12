@@ -26,17 +26,14 @@ query queue(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
   return requests last 50 by .id after c
 ```
-
 The pattern under every recipe: rules say who may touch a row at all, a
 `require … else CODE` in the operation says which change a caller may make and
 answers with your code, and the table's sync line (or `online only`) says
 whose device holds it. `guide refusals` gives the order the checks run in.
-
 On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
 deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts").
 
 ## Roles: admin, staff and members
-
 Everyone signed in is a member. A `roles` row makes a principal staff or an
 admin; `exists roles[viewer]` is the staff grant and `exists roles[viewer,
 role = 'admin']` the admin grant. An admin has a `roles` row, so every staff
@@ -378,3 +375,21 @@ into one run for the latest period only. So a sweep over exactly
 closed, so one run catches up. Test with a running `dev`: `snapback4 clock
 advance 3h` reports `fired`, the period and `skippedPeriods` for each
 schedule (`guide time`, `guide jobs`).
+
+## Parent-scoped history and audiences
+
+Copied immutable owners do not prove parent authority. `read through .loan`
+shares every loan reader. Distinct authors/owners need
+`read <- .author = viewer or exists loans[.loan, owner = viewer]`, `.loan = loan`,
+and `require exists loans[loan, owner = viewer] else FORBIDDEN` on the owner page.
+A readable parent binding alone cannot prove an arbitrary child owner was copied
+correctly. Landlord/tenant/vendor boards use one guarded page per audience,
+merged in the client; private rows stay private. `guide reads` explains `T[]`.
+
+Seller sweeps need child write authority such as
+`update old, next <- exists listings[old.listing, seller = viewer]`, with listing
+immutable and a keyed seller require in the mutation. Pinning buyer would narrow
+seller scope, not authorize every competing offer.
+
+Cap groups use stored columns: set immutable int dayNumber to day(startsAt), then
+`cap 4 by owner, dayNumber`. Caps refuse E_CONSTRAINT; custom else belongs to unique.

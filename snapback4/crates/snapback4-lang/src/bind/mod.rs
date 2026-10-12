@@ -712,16 +712,33 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 if !leading.contains(&column) { leading.push(column); }
             }
             let existing = index.is_plain().then(|| table.indexes.iter().find(|(_, candidate)| candidate.is_plain() && candidate.columns() == leading)).flatten();
+            // @ref LLP 3000.036#18 — a readable parent binding alone is not a proof about copied child audience fields.
+            let parent_advice = index.components.iter().zip(&scan.prefix).find_map(|(part, key)| {
+                let reference = part.column()?;
+                let snapback4_core::schema::ColumnType::Ref { table: parent } = table.columns.get(reference)?.required() else { return None; };
+                let snapback4_core::ir::Expr::Variable(argument) = key.scalar()? else { return None; };
+                if !bound.program.args.contains_key(argument) { return None; }
+                let parent_table = schema.table(&parent)?;
+                let owner = parent_table.rules.read.disjuncts().into_iter().find_map(|rule| match rule {
+                    snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Field(column), snapback4_core::schema::RuleTerm::Viewer) => Some(column),
+                    _ => None,
+                })?;
+                Some(format!(" For parent-scoped history, reading {parent}[{argument}] alone does not prove a copied child audience. If the whole parent audience is intended, declare read through .{reference}; for a parent-owner branch, declare exists {parent}[.{reference}, {owner} = viewer] in the child's read rule and guard its page with require exists {parent}[{argument}, {owner} = viewer] else FORBIDDEN (guide recipes)."))
+            }).unwrap_or_default();
             let columns = leading.join(", ");
             let search_rewrite = matching_merge_rewrite(schema, scan, table);
             let held_rewrite = (search_rewrite.is_none() && unpinned == ["id"] && table.sync.is_some()
                 && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.runs.as_deref() == Some("device")))
                 .then(|| first_paste::held_query(catalog, &bound.site)).flatten();
             let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+            // @ref LLP 3000.036#18 — a runtime parent guard can certify the page for its holders.
+            let conditional = snapback4_core::engine::rules::page_guard_decision(schema, scan).is_some_and(|guard| {
+                let mut fields = std::collections::BTreeSet::new(); guard.fields(&mut fields); !fields.is_empty()
+            });
             notes.push(
                 Diagnostic::new(
                     &bound.site,
-                    "N_NEVER_COMPLETE",
+                    if conditional { "N_CONDITIONAL_COMPLETE" } else { "N_NEVER_COMPLETE" },
                     if held_rewrite.is_some() { format!("query {}: this lookup does not pin an authorized row's id; matching a name does not prove uniqueness or absence. The server may return matches but cannot certify complete. The held replacement (check --verbose) keeps the same matches and shape on the device; it requires acquired coverage and has no server fallback. Keep the original query if server lookup is required", bound.program.name) }
                     else {
                         let grant = snapback4_core::engine::rules::grant_decision(schema, scan);
@@ -755,15 +772,16 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                             Some(grant) => format!("; test.cases.jsonl: run it as a caller `{grant}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)"),
                             None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)"),
                         } };
-                        format!("{} {}: {}the {} over {}[..] by {} is never `complete`{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, if scan.existence { "`exists`" } else { "page" }, scan.table, scan.index,
-                        admitted.as_ref().map_or_else(String::new, |grant| format!(" except for callers `{grant}` admits")),
+                        let verdict = if conditional { "is `complete`" } else { "is never `complete`" };
+                        format!("{} {}: {}the {} over {}[..] by {} {verdict}{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, if scan.existence { "`exists`" } else { "page" }, scan.table, scan.index,
+                        admitted.as_ref().map_or_else(String::new, |grant| if conditional { format!(" for callers `{grant}` admits, and otherwise remains capped") } else { format!(" except for callers `{grant}` admits") }),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     held_rewrite.or(search_rewrite.clone()).unwrap_or_else(|| {
                         let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {
-                            Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}"),
-                            Some((None, pin)) => format!("{base}. As code: {pin}"),
+                            Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}{parent_advice}"),
+                            Some((None, pin)) => format!("{base}. As code: {pin}{parent_advice}"),
                             None => base,
                         }
                     }),

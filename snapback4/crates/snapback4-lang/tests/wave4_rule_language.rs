@@ -21,7 +21,7 @@ fn first(source: &str, code: &str) -> Diagnostic {
 }
 
 fn note<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.notes.iter().find(|n| n.code == code)
+    b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
 }
 
 fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
@@ -173,7 +173,7 @@ fn a_prefix_decided_parent_grant_decides_the_leaders_roster() {
     let open = format!("{rides}{rsvps}query roster(ride: rides, c: cursor ?):\n  return rsvps where .ride = ride first 50 by .id after c\n");
     let b = bound(&open);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
-    assert!(n.message.contains("except for callers `exists rides[.ride, leader = viewer]` admits") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
+    assert!(n.message.contains("for callers `exists rides[.ride, leader = viewer]` admits") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
     let mut unguarded = engine(&open, rows());
     assert_eq!(page(&mut unguarded, "roster", "lee", &pairs), Some((true, 2)));
     assert_eq!(page(&mut unguarded, "roster", "ann", &pairs), Some((false, 1)));

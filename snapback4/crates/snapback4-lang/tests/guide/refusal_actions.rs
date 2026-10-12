@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_REDUNDANT_RULE", &["Omit the entire read line", "making the total public would widen it"]),
+    ("N_CONDITIONAL_COMPLETE", &["Guard the parent branch with keyed require/if", "update expect: \"capped\" cases"]),
     ("E_FOLLOWING_INPUT", &["the SDK owns tokens and fresh revisions"]),
     ("E_FOLLOWING_DECLARATION", &["See `guide feeds` for the frozen-domain guarantee and stalled exceptions"]),
     ("E_FOLLOWING_PAGE_SIZE", &["requires 1–100 events per declared page"]),

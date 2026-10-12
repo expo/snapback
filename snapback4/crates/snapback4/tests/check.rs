@@ -1676,3 +1676,22 @@ fn the_recipes_cards_cases_pass_against_their_schemas() {
         assert!(text.contains(&format!("cases: {} passed, 0 failed", cases.lines().count())), "{heading}: {text}");
     }
 }
+
+#[test]
+fn wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict() {
+    let p = Project::new();
+    p.source("use personas alice, bob\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  author: principal\n  immutable parent, author\n  read <- .author = viewer or exists parents[.parent, owner = viewer]\n  online only\nquery history(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\n");
+    let check = p.run(&["check"]); assert!(check.status.success(), "{check:?}");
+    let text = String::from_utf8_lossy(&check.stdout);
+    assert!(text.contains("N_CONDITIONAL_COMPLETE") && !text.contains("N_NEVER_COMPLETE"), "{text}");
+    fs::create_dir_all(p.0.join("fixture")).unwrap();
+    fs::write(p.0.join("fixture/parents.jsonl"), "{\"id\":\"p\",\"owner\":\"dev:alice\"}\n").unwrap();
+    fs::write(p.0.join("fixture/children.jsonl"), "{\"id\":\"c\",\"parent\":\"p\",\"author\":\"dev:bob\"}\n").unwrap();
+    fs::write(p.0.join("fixture/test.cases.jsonl"), "{\"op\":\"history\",\"as\":\"alice\",\"args\":{\"parent\":\"p\"},\"expect\":\"capped\"}\n").unwrap();
+    let test = p.run(&["test", "--fixture", "fixture"]);
+    assert!(!test.status.success());
+    let text = format!("{}{}", String::from_utf8_lossy(&test.stdout), String::from_utf8_lossy(&test.stderr));
+    assert!(text.contains("now complete — update the case"), "{text}");
+    fs::write(p.0.join("fixture/test.cases.jsonl"), "{\"op\":\"history\",\"as\":\"alice\",\"args\":{\"parent\":\"p\"},\"expect\":\"complete\"}\n{\"op\":\"history\",\"as\":\"bob\",\"args\":{\"parent\":\"p\"}}\n").unwrap();
+    let fixed = p.run(&["test", "--fixture", "fixture"]); assert!(fixed.status.success(), "{fixed:?}");
+}

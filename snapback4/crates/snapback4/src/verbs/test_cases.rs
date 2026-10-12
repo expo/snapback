@@ -134,7 +134,9 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let shown = match &got {
             Ok((word, answer)) => {
                 let admitted = *word == expect || expect == "ok" || (expect == "complete" && *word == "sent");
-                if !admitted { problems.push(format!("expected {expect}, got {word}")); }
+                if !admitted { problems.push(if expect == "capped" && *word == "complete" {
+                    "now complete — update the case: replace expect: \"capped\" with expect: \"complete\" (or omit expect); readable pinned-parent guards can now certify this page".to_owned()
+                } else { format!("expected {expect}, got {word}") }); }
                 if *word == "capped" && let Some(note) = &never_complete {
                     if admitted && explicit.is_none() && verdicts_shown.insert(op.to_owned()) { notes.push(format!("capped is this query's check verdict: {note}")); }
                     if !admitted { notes.push(format!("hint: {note}; a capped answer still holds every row you may read: add \"expect\":\"capped\" (or drop \"expect\"), or pin the page as the note's rewrite says (snapback4 check --verbose)")); }
@@ -208,8 +210,8 @@ fn validate(case: &Json) -> Result<(), String> {
 /// The query's N_NEVER_COMPLETE note, as `N_NEVER_COMPLETE at schema.q:L`.
 fn never_complete(bound: &Bound, program: &snapback4_lang::BoundProgram) -> Option<String> {
     bound.notes.iter().chain(&program.notes)
-        .find(|note| note.code == "N_NEVER_COMPLETE" && note.site == program.site)
-        .map(|note| format!("{} is never complete (N_NEVER_COMPLETE at {}:{})", program.program.name, note.site.file, note.site.line))
+        .find(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") && note.site == program.site)
+        .map(|note| format!("{}: {} ({} at {}:{})", program.program.name, note.message, note.code, note.site.file, note.site.line))
 }
 
 /// Development evidence under a failing refusal: which layer refused, at which

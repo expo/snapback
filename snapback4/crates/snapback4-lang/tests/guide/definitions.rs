@@ -137,6 +137,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_REDUNDANT_RULE", "E_REDUNDANT_RULE means an aggregate read rule repeats its parent's rule"),
+    ("N_CONDITIONAL_COMPLETE", "N_CONDITIONAL_COMPLETE means a readable pinned-parent guard decides the page"),
     ("E_FOLLOWING_INPUT", "rejects invalid opening arguments or a protocol envelope"),
     ("E_FOLLOWING_DECLARATION", "means the view/query lacks an admitted history binding"),
     ("E_FOLLOWING_PAGE_SIZE", "requires 1–100 events per declared page"),

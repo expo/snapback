@@ -537,6 +537,9 @@ impl Parser {
         if !(1..=0xffff_ffff).contains(&max) {
             return Err(syntax_with(&site, "cap requires an integer literal from 1 through 4294967295", rewrite));
         }
+        if self.at("else") {
+            return Err(syntax_with(&self.peek().site, "cap always refuses E_CONSTRAINT; else is supported on unique keys, not caps", format!("cap {max}  -- remove else; handle E_CONSTRAINT in the client")).guide("recipes"));
+        }
         // @ref LLP 3000.007#20.3 — a whole-table cap bounds a fully replicated public broadcast projection.
         if self.at_kind(Kind::Newline) {
             self.newline()?;
@@ -546,12 +549,15 @@ impl Parser {
             return Err(syntax_with(&site, "cap requires non-empty grouping columns", rewrite));
         }
         let mut by = vec![self.word()?.value];
+        if self.at("(") { return Err(syntax_with(&self.peek().site, "cap groups by stored columns, not computed calendar keys", "add an immutable dayNumber: int column, set it to day(startsAt), and write cap N by owner, dayNumber").guide("recipes")); }
         while self.maybe(",") {
             if !self.at_kind(Kind::Word) {
                 return Err(syntax_with(&site, "cap requires a column after the comma", rewrite));
             }
             by.push(self.word()?.value);
+            if self.at("(") { return Err(syntax_with(&self.peek().site, "cap groups by stored columns, not computed calendar keys", "add an immutable dayNumber: int column, set it to day(startsAt), and write cap N by owner, dayNumber").guide("recipes")); }
         }
+        if self.at("else") { return Err(syntax_with(&self.peek().site, "cap always refuses E_CONSTRAINT; else is supported on unique keys, not caps", format!("cap {max} by {}  -- remove else; handle E_CONSTRAINT in the client", by.join(", "))).guide("recipes")); }
         self.newline()?;
         Ok(CapDecl { max: max as u32, by, site })
     }
@@ -702,6 +708,10 @@ impl Parser {
                 format!("{} {name}: sum {source} of .{} where {} {rest}", keyword.value, of.as_deref().unwrap_or("column"), predicate.as_deref().unwrap_or("…"))));
         }
         if aggregate.value == "sum" {
+            if self.at(".") || !self.at("of") {
+                let column = if self.maybe(".") { self.word()?.value } else { "column".into() };
+                return Err(syntax_with(&aggregate.site, "a maintained sum spells its source and value separately: sum source of .column by .group", format!("{} {name}: sum {source} of .{column} by .group", keyword.value)).guide("totals"));
+            }
             self.take("of")?;
             self.maybe(".");
             column = Some(self.word()?.value);

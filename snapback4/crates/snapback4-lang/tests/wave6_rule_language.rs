@@ -16,11 +16,11 @@ fn clean(source: &str) -> Bound {
 }
 
 fn note<'a>(b: &'a Bound, code: &str) -> Option<&'a Diagnostic> {
-    b.notes.iter().find(|n| n.code == code)
+    b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
 }
 
 fn notes<'a>(b: &'a Bound, code: &str) -> Vec<&'a Diagnostic> {
-    b.notes.iter().filter(|n| n.code == code).collect()
+    b.notes.iter().filter(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")).collect()
 }
 
 fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
@@ -329,7 +329,7 @@ fn a_parent_probe_guard_beside_a_grant_is_followed_and_the_runtime_agrees() {
     let open = format!("{schema}query visits(garden: gardens, c: cursor ?):\n  return checkins where .garden = garden first 50 by .at after c\n");
     let b = clean(&open);
     let n = note(&b, "N_NEVER_COMPLETE").unwrap_or_else(|| panic!("{:#?}", b.notes));
-    assert!(n.message.contains("except for callers `exists staff[viewer] or ") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
+    assert!(n.message.contains("for callers `exists staff[viewer] or ") && n.message.contains("is decided by the scan's pins, so the server decides the page once"), "{n}");
     let mut unguarded = engine(&open, rows());
     assert_eq!(page(&mut unguarded, "visits", "gwen", &pairs), (true, BTreeSet::from(["k1".to_owned(), "k2".to_owned()])));
     assert_eq!(page(&mut unguarded, "visits", "vic", &pairs), (false, BTreeSet::from(["k1".to_owned()])));
