@@ -751,7 +751,12 @@ fn unknown_flags_refuse_every_public_verb_before_project_or_store_work() {
     for verb in ["init", "new", "check", "types", "dev", "deploy", "rollback", "prune", "releases", "serve", "run", "clock", "reset", "test", "why", "guide", "data", "sql", "token", "doctor", "witness", "device", "version", "web-shell"] {
         let output = project.run(&[verb, "--hand-unknown"]);
         assert_eq!(output.status.code(), Some(2), "{verb}: {}", text(&output));
-        assert!(text(&output).contains(&format!("E_INPUT: {verb} takes no --hand-unknown")), "{}", text(&output));
+        if verb == "witness" {
+            assert!(text(&output).contains("E_INPUT: witness has an unknown flag"), "{}", text(&output));
+            assert!(!text(&output).contains("hand-unknown"));
+        } else {
+            assert!(text(&output).contains(&format!("E_INPUT: {verb} takes no --hand-unknown")), "{}", text(&output));
+        }
         assert!(!project.0.join(".snapback4").exists(), "{verb} touched a store");
         assert!(!project.0.join("snapback/generated").exists(), "{verb} generated output");
     }

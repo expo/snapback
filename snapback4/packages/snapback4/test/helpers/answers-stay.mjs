@@ -72,8 +72,11 @@ export async function fixture(t, program = source, options) {
   ])).seeded, 4);
   return { ...f, post };
 }
+// Hundreds of openers share immutable compiled input; each still owns its store.
+// Explicit bytes would retain a separate offline engine cache per test opener.
+const fixtureModule = new WebAssembly.Module(readFileSync(new URL("../../src/wasm/snapback4_device_bg.wasm", import.meta.url)));
 export function opener(host, dir) {
-  return host === 'process' ? processDevice({ dir, binary }) : webDevice({ wasm: readFileSync(new URL('../../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() });
+  return host === 'process' ? processDevice({ dir, binary }) : webDevice({ wasm: fixtureModule, persist: memoryPersistence() });
 }
 export async function open(t, f, host, extra = {}) {
   const options = { url: f.url, persona: 'bob', waitSeconds: 0, ...extra };

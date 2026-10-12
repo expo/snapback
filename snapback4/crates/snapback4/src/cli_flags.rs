@@ -17,7 +17,7 @@ fn allowed(verb: &str) -> &'static str {
         "clock" => "port release",
         "reset" => "port seed clock release",
         "test" => "fixture as residency verbose json",
-        "why" => "release values json instance store",
+        "why" => "verbose release values json instance store",
         "guide" => "full sections section find",
         "data" => "limit json",
         "sql" => "release limit json json-objects",

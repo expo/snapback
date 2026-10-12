@@ -3,7 +3,8 @@
 import { readFileSync } from "node:fs";
 import { mock } from "node:test";
 import { webDevice, memoryPersistence } from "../../dist/web.js";
-const wasm = readFileSync(new URL("../../src/wasm/snapback4_device_bg.wasm", import.meta.url));
+// Compile immutable host input before any generated sequence owns virtual time.
+const wasm = new WebAssembly.Module(readFileSync(new URL("../../src/wasm/snapback4_device_bg.wasm", import.meta.url)));
 export const modelBackend = {
   generation: 1,
   // The viewer probe must actually require a remote fact. A static `runs`
