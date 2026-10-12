@@ -93727,3 +93727,16 @@ unsupported by the emitter. All 9 emitter tests and 7 Lean harness tests pass.
 The model and four-signature inherited set remain unchanged. Both rounds of
 actual GPT/Muse review responses and their dispositions are preserved verbatim
 under llp/reviews/; final independent confirmation is in progress.
+
+## 2026-10-12 — Integration 4 paired code/design confirmation
+
+Fresh, mutually independent GPT-6.1 Sol (high) and Muse Spark 1.3 Contributor
+(high) sessions both return READY for aede1021ce. Both inspect release actions,
+dormant lifetime invalidation, union/merged acquisition, fixed persona custody,
+production identity admission, hot activation traffic/crash tests, database alias
+exclusion and the corrected Lean emitter. Muse runs the engine/Lean regression
+with SNAPBACK4_REQUIRE_LEAN=1. Earlier rounds' findings and missing-inspection
+requests are dispositioned without weakening safety or inventing new gates.
+The six actual responses (three rounds per family) are verbatim provenance
+artifacts in llp/reviews/. These verdicts concern code/design; full qualification
+is still running, with no author-acceptance or publication claim inferred.
