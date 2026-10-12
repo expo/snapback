@@ -714,6 +714,16 @@ pub fn narrow(case: &mut Case) {
         *project = None;
     }
     if !matches!(case.program.body, Body::Read { kind: crate::ast::Read::Fold, .. }) {
+        // The CUT generator can make tag a live reference used by a residual.
+        // Narrow both the predicate and its type before dropping the target.
+        for column in &mut case.program.tables[0].columns {
+            if matches!(&column.ty, crate::ast::Type::Reference(target) if target == "tags") {
+                column.ty = crate::ast::Type::Id;
+            }
+        }
+        if case.program.residual.as_deref().is_some_and(|r| r.contains(".tag.rank")) {
+            case.program.residual = None;
+        }
         case.program.tables.retain(|t| t.name != "tags");
         case.rows.retain(|(t, _)| t != "tags");
     }

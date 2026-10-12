@@ -203,3 +203,11 @@ fn isolated_lean_workers_agree_with_serial_counts() {
     assert_eq!(one, two);
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn narrowing_cut_reference_predicates_keeps_generated_sources_well_typed() {
+    for seed in 0..1000 {
+        let case = lean::generate(seed);
+        execute::compile(&case.program.source()).unwrap_or_else(|e| panic!("seed {seed}: {e:?}"));
+    }
+}
