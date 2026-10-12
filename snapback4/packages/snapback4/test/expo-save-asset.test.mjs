@@ -25,4 +25,6 @@ test('Expo save refuses missing module and denied reads; failures always release
   assert.equal(failed.why.code,'E_CLIENT');assert.equal(revoked,1);
   const denied=await saveWithHost({asset:async()=>({denied:{code:'E_ASSET_UNKNOWN',family:'asset',message:'denied'}})},'a',undefined,async()=>true);
   assert.equal(denied.why.code,'E_ASSET_UNKNOWN');
+  const unavailable=await saveWithHost({asset:async()=>{throw Error('asset storage unavailable');}},'a',undefined,async()=>{throw Error('must not present');});
+  assert.equal(unavailable.why.code,'E_CLIENT');assert.match(unavailable.why.message,/asset storage unavailable/);
 });
