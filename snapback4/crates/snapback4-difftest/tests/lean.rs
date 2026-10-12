@@ -211,3 +211,32 @@ fn narrowing_cut_reference_predicates_keeps_generated_sources_well_typed() {
         execute::compile(&case.program.source()).unwrap_or_else(|e| panic!("seed {seed}: {e:?}"));
     }
 }
+
+#[test]
+fn live_reference_fields_agree_with_the_model_for_visible_hidden_and_missing_targets() {
+    if !model_built() { return; }
+    for read in ["allow", "deny"] {
+        let source = format!("table tags:\n  rank: int\n  read <- {read}\n  online only\nquery q(t: tags):\n  return t.rank\nfn same(x: tags): x\nquery helper(t: tags):\n  return same(t).rank\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
+        let rows = vec![("tags".to_owned(), json!({"id":"t","rank":7}))];
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables["tags"], &rows[0].1).unwrap();
+        engine.seed([("tags".into(),row)]).unwrap();
+        let module = lean::module(&source).unwrap();
+        assert_eq!(module.program("helper").unwrap_err().reason, "member-type");
+        for id in ["t", "missing"] {
+            let args = json!({"t":id});
+            let ctx = || snapback4_core::Context::new("alice", [("t".into(),snapback4_core::Value::Id(id.into()))].into_iter().collect());
+            let direct = engine.query("q",ctx()).unwrap();
+            let via_helper = engine.query("helper",ctx()).unwrap();
+            assert_eq!(direct.data, via_helper.data);
+            assert_eq!(direct.data, if read == "allow" && id == "t" { snapback4_core::Value::Int(7) } else { snapback4_core::Value::Null });
+            let case = module.case("q",module.store(&rows).unwrap(),"alice",module.tag_args("q",&args).unwrap(),None).unwrap();
+            let model = lean::ask(&case).unwrap();
+            assert_eq!(model["kind"], "answer", "{model}");
+            assert_eq!(lean::model_value(&model["data"]),lean::engine_value(&direct.data), "{read} {id}");
+            assert_eq!(model["complete"], direct.complete);
+        }
+    }
+}

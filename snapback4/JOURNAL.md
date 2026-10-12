@@ -93709,3 +93709,21 @@ Integration 3. Set 679,918 B = measured gzip + commissioned 500 B headroom;
 no per-feature attribution, Mac measurement or runtime ceiling increase.
 Full qualification and independent review disposition follow in a dated entry.
 No push/publication; no root WORKSTREAM-REPORT.md is created by this integration.
+
+## 2026-10-12 — Integration 4: close the codec and helper review gaps
+
+ROLL moved the activation decoder into a SQLite-only module. Remove the stale
+web codec census exception for engine/mod.rs::activate; module reachability
+already excludes the extracted module, and lifting the gate brings it back
+under the scanner. The complete census file reruns 27/27 tests green. No new
+codec exemption is introduced.
+
+The fresh GPT review of the Lean correction finds helper-returned references
+whose surface type inference is unknown. Emit the named member-type unsupported
+reason, following the existing no-guessing rule, rather than a field read on an
+id. The engine and real Lean oracle now have an agreeing regression for visible,
+hidden and missing direct targets; the equivalent helper engine path is explicitly
+unsupported by the emitter. All 9 emitter tests and 7 Lean harness tests pass.
+The model and four-signature inherited set remain unchanged. Both rounds of
+actual GPT/Muse review responses and their dispositions are preserved verbatim
+under llp/reviews/; final independent confirmation is in progress.

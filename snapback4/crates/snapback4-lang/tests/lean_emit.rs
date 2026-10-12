@@ -224,3 +224,9 @@ fn live_reference_predicate_emits_an_authorized_point_read_before_the_field() {
     let b = body(&m, "q");
     assert_eq!(b[0]["ret"]["page"]["filter"], json!({"bin":["eq",{"field":[{"point":{"table":"tags","key":[["id",{"dot":"tag"}]]}},"rank"]},{"lit":{"int":"1"}}]}));
 }
+
+#[test]
+fn a_helper_reference_with_unknown_return_type_is_named_unsupported() {
+    let m = module("table tags:\n  rank: int\n  read <- allow\n  online only\nfn same(x: tags): x\nquery q(t: tags):\n  return same(t).rank\n");
+    assert_eq!(reason(&m, "q"), "member-type");
+}

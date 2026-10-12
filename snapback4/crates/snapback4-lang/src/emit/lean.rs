@@ -664,6 +664,7 @@ impl<'a> Scope<'a> {
                             Ok(json!({"field": [{"point": {"table": target, "key": [["id", value]]}}, name]}))
                         }
                         Ty::Scalar(Kind::Id(IdSort::Ref(_))) => Ok(value),
+                        Ty::Unknown => no("member-type", print()),
                         _ => Ok(json!({"field": [value, name]})),
                     }
                 },
