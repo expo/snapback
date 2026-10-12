@@ -93542,3 +93542,32 @@ seeds 0–999 find 26 disagreements in 16 signatures already listed in the two
 2026-10-08 expiry-meter/prediction-refusal tickets; no new signature. Lean
 (20,000) finds 198 disagreements only in the existing four C2/W4 signatures.
 These inherited findings remain open rather than being called green.
+
+## 2026-10-12 — Integration 3: preserve the expired predecessor's owed scope
+
+The complete five-crate Rust command finished 359 targets with 5,622 passed,
+22 failed and 40 declared ignores (exit 101). Twenty failures across six
+device targets were the already-fixed non-group scope guard; all six full
+reruns pass 609 tests. Two simulator-review failures remained: the narrowed
+union's window refusal preceded delivered-history, and a temporary replacement
+could erase a previously live expired grant's owed logical revocation.
+Isolate delivered-history by removing the fixture's window. Catch-up now
+includes predecessor-only joins in the current audience epoch and preserves
+their recorded expiry when no current row or later transition remains.
+Closed scopes and never-live/rebound epochs keep their existing guards.
+The strengthened old regression proves actual row removal on both stores
+at limits 1/1,000 and rejects transient ids and rebound scopes. All 30
+review regressions pass. Two fresh blind reviews of the correction return
+READY; verbatim responses/provenance are under llp/reviews/.
+
+All 366 regular client files are qualified after full-file reruns: 7,150
+passed, zero failed and 56 declared skips. The two full-count serial models
+add 81 passed (5,000 session sequences per tier and 3,000 online sequences).
+The export-background maintenance-queue wait failed in a 99.42-second test
+under load, then passed one unchanged complete rerun (70 passed, 34 skips);
+per the commission it is a load-sensitive timeout, not a remaining failure.
+After the server correction, acquisition, horizon-boundary and expiry-retry
+client files also rerun green, 143 tests. Both guide cards stay within their
+printed budgets: sharing 95/150 overview lines, recipes 359/400 printed
+lines (358 source lines). README is 319/320; all 119 guide tests pass.
+Final case-count/evidence accounting is recorded in the integration report.

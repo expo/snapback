@@ -892,7 +892,11 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
     for event in tx.membership_transitions(&partition_of(principal), watermark)?.into_iter().filter(current_epoch) {
         transitions.entry((event.table.clone(), event.id.clone())).or_default().push(event);
     }
-    let keys: BTreeSet<_> = current.keys().chain(transitions.keys()).cloned().collect();
+    // An expired pre-watermark grant may have no current row or new event:
+    // undoing its transient replacement still owes logical revocation.
+    // @ref LLP 3000.036.000.000#9 — a previously live expired predecessor keeps its owed revocation.
+    let keys: BTreeSet<_> = previous.iter().filter_map(|(key, event)| (event.kind == "join").then_some(key))
+        .chain(current.keys()).chain(transitions.keys()).cloned().collect();
     let mut out = BTreeMap::new();
     for key in keys {
         let expiring = schema.table(&key.0).and_then(|table| table.sync.as_ref()).and_then(|sync| match &sync.audience { Audience::Target { table, .. } => schema.table(table), _ => None }).is_some_and(|table| table.is_expiring());
@@ -906,7 +910,7 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
         let held_at_watermark = previous.get(&key).map_or_else(
             || steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope" || predecessor.is_some()),
             |event| event.kind == "join");
-        let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() }
+        let initial_expiry = if steps.is_empty() { current.get(&key).copied().unwrap_or_else(|| previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry)) }
             else { previous.get(&key).map(&expiry).unwrap_or_else(|| predecessor.map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry)) };
         let origin = previous.get(&key).filter(|event| event.kind == "join").map(|event| (event.seq, event.ord, join_lifetime(event)));
         let expired_baseline = previous.get(&key).is_none() && times.get(&key.0)

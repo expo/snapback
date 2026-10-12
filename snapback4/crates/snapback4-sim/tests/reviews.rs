@@ -99,7 +99,7 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
     // a two-audience rule is still refused, as is a union over delivered history.
     let union = CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and");
     refused(union.replace("  sync last 500 by byConvTime", "  sync to memberships[.conversationId] last 500 by byConvTime"), "disagrees with the read rule");
-    refused(union.replace("  sync last 500 by byConvTime", "  sync last 500 by .at"), "delivered-history");
+    refused(union.replace("  sync last 500 by byConvTime", "  sync"), "delivered-history");
     // 7: a non-unique audience index would revoke a group another row still grants.
     let audience = "table memberships:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- exists memberships[conversationId = .conversationId, principal = viewer]\n  sync to memberships[.conversationId]\n";
     let valid = snapback4_lang::compile(&[("schema.q".into(), audience.into())]);
@@ -498,23 +498,35 @@ fn a_born_row_moved_to_another_recipient_reaches_only_it() {
 /// it in the log, at either page size.
 #[test]
 fn undoing_a_replacement_keeps_the_predecessors_revocation() {
-    let mut engine = expiring();
-    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["old-member"], 5);
-    at(&mut engine, "n1", "add", &[], &["note"], 6);
-    let held = engine.seq().unwrap();
-    let (events, _) = engine.snapshot_at("dev:alice", 7).unwrap();
-    assert!(holdings(&events)["notes"].contains("note"), "{:?}", holdings(&events));
-    at(&mut engine, "u1", "replaceThenUndo", &[("old", id("old-member")), ("person", id("dev:alice"))], &["temporary"], 150);
-    for limit in [1, 1_000] {
+    fn check<S: snapback4_device::store::DeviceStore>(store: S, limit: usize) {
+        let mut engine = expiring();
+        at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["old-member"], 5);
+        at(&mut engine, "n1", "add", &[], &["note"], 6);
+        let held = engine.seq().unwrap();
+        let (events, _) = engine.snapshot_at("dev:alice", 7).unwrap();
+        assert!(holdings(&events)["notes"].contains("note"), "{:?}", holdings(&events));
+        let backend = snapback4_device::device::Backend { generation: engine.generation(), schema: engine.schema().public_projection(), programs: engine.programs().cloned().collect() };
+        let mut device = snapback4_device::device::Device::open_store(store, Some(backend)).unwrap();
+        let events: Vec<_> = events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect();
+        device.apply(&serde_json::from_value(serde_json::json!({"snapshot":true,"generation":engine.generation(),"watermark":held,"more":false,"now":7,"events":events})).unwrap(), true).unwrap();
+        at(&mut engine, "u1", "replaceThenUndo", &[("old", id("old-member")), ("person", id("dev:alice"))], &["temporary"], 150);
         let mut from = held;
         let mut scoped = false;
         loop {
             let page = engine.stream_at("dev:alice", from, limit, 151).unwrap();
             scoped |= page.events.iter().any(|e| e.kind == "scope" && e.table == "notes");
+            assert!(page.events.iter().all(|e| e.id != "temporary" && (e.kind != "scope" || e.table != "notes" || e.data.as_ref().is_some_and(|data| data.as_array().is_ok_and(|group| group.first() == Some(&Value::String("g".into())))))), "a transient replacement disclosed its row or rebound group: {:?}", page.events);
+            let events: Vec<_> = page.events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind,"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect();
+            device.apply(&serde_json::from_value(serde_json::json!({"snapshot":false,"generation":engine.generation(),"watermark":page.watermark,"more":page.more,"now":151,"events":events,"acquisitions":page.acquisitions,"images_at":page.images_at,"joined":page.joined})).unwrap(), false).unwrap();
             from = page.watermark;
             if !page.more { break; }
         }
         assert!(scoped, "the expired grant's revocation was lost at limit {limit}");
+        assert_eq!(device.store().witness_count("notes").unwrap(), 0, "the owed scope must retire the held row");
+    }
+    for limit in [1, 1_000] {
+        check(snapback4_device::memory::MemoryStore::new(), limit);
+        check(snapback4_core::Store::memory().unwrap(), limit);
     }
 }
 
