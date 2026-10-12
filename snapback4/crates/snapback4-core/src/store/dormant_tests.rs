@@ -1135,3 +1135,38 @@ fn true_format_two_store_allows_deletion_before_its_first_upgrade() {
     activate(&mut e,V1,1).unwrap();
     assert_eq!(e.store().meta("version").unwrap().as_deref(),Some(dormant::VERSION));
 }
+
+#[test]
+fn direct_expiry_removal_cannot_revive_a_narrowed_source_lifetime() {
+    let wide="table rows:\n  until: time default 50\n  expire at .until\n  status: enum('live','new')\n  public\n";
+    let mut e=engine(wide);
+    let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","until":50,"status":"new"})).unwrap();
+    e.seed_at([("rows".into(),row)],0).unwrap();
+    activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),2).unwrap();
+    activate(&mut e,&wide.replace("  expire at .until\n",""),3).unwrap();
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    assert_eq!(e.store().conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+}
+
+#[test]
+fn whole_table_transfer_preserves_full_source_lifetime_until_classification() {
+    let wide="table parents:\n  public\ntable rows:\n  parent: parents\n  immutable parent\n  until: time default 50\n  expire at .until\n  status: enum('live','new')\n  read through .parent\n";
+    for until in [50,crate::now_ms()+3_600_000] {
+        let mut e=engine(wide);
+        let parent=wire::row_from_json(&e.schema().tables["parents"],&serde_json::json!({"id":"p"})).unwrap();
+        let row=wire::row_from_json(&e.schema().tables["rows"],&serde_json::json!({"id":"r","parent":"p","until":until,"status":"new"})).unwrap();
+        e.seed_at([("parents".into(),parent),("rows".into(),row)],0).unwrap();
+        activate(&mut e,"table parents:\n  public\n",2).unwrap();
+        let narrow=wide.replace("enum('live','new')","enum('live')").replace("  until: time default 50\n","").replace("  expire at .until\n","").replace("  read through .parent","  public");
+        activate(&mut e,&narrow,3).unwrap();
+        if until>50 {
+            let data:String=e.store().conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE id='r'",[],|r|r.get(0)).unwrap();
+            let image:Value=serde_json::from_str(&data).unwrap();
+            assert_eq!(image.field("until").unwrap(),&Value::Int(until));
+            assert_eq!(image.field(crate::schema::through::DEADLINE).unwrap(),&Value::Int(until));
+        }
+        activate(&mut e,wide,4).unwrap();
+        assert_eq!(e.store().count("rows").unwrap(),if until==50 {0} else {1});
+        if until>50 {assert_eq!(e.store().rows("rows").unwrap()[0].field("until").unwrap(),&Value::Int(until));}
+    }
+}

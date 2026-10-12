@@ -151,7 +151,7 @@ impl<'a> Retirement<'a> {
     }
 
     pub(crate) fn retires_image(next:&Table,old:&Table,row:&Value,now:i64) -> bool {
-        Self::changes_lifetime(next,old) && old.expired(row,now)
+        (next.through!=old.through || next.expire!=old.expire || old.expire.as_ref().is_some_and(|field|old.defaults.get(field)!=next.defaults.get(field))) && old.expired(row,now)
     }
 
     pub(crate) fn affects(&self, name: &str) -> bool {

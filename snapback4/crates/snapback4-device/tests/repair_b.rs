@@ -322,16 +322,20 @@ fn adoption_guard<H: Host>(h: &mut H, reopen: bool) {
     let p=next(&mut e,&mut d,1000);
     d.apply(&p,false).unwrap();
     assert_eq!(value(&mut d,"a"),Some(1));
-    let guard=d.store().meta("device:declaration:published").unwrap();
+    assert!(d.store().meta("device:declaration:published").unwrap().is_some());
     d.sync_state().unwrap();
+    e.adopt(backend.schema.clone(),backend.programs.clone()).unwrap();
     if reopen { h.close("repair",d); d=h.open("repair",Some(backend)).unwrap(); }
     else { d.adopt(backend).unwrap(); }
-    assert_eq!(d.store().meta("device:declaration:published").unwrap(),guard);
+    assert_eq!(d.store().meta("device:declaration:published").unwrap(),None);
+    assert!(d.query("one","dev:alice",&json!({"k":"a"}),100).unwrap_err().to_string().contains("E_PREDICT"));
+    assert!(!d.queued().unwrap().is_empty(),"generation replacement retains durable intent custody");
     d.settle("w256",Some(p.watermark)).unwrap();
+    for (n,page) in snapshot_pages(&mut e,"dev:alice",100).iter().enumerate() {d.apply(page,n==0).unwrap();}
     assert_eq!(value(&mut d,"a"),Some(1));
-    assert_eq!(value(&mut d,"b"),Some(256), "already published observations must stay confirmed after adoption");
+    assert_eq!(value(&mut d,"b"),Some(256), "known executions must not replay over reacquired images");
 }
-#[test] fn retained_images_retain_published_replay_guard() {
+#[test] fn generation_reset_reacquires_images_and_preserves_known_execution_guard() {
     for reopen in [false,true] { adoption_guard(&mut Memory::new(),reopen); adoption_guard(&mut Sqlite::new("adopt-guard"),reopen); }
 }
 

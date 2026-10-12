@@ -1271,7 +1271,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }
                         // A refusal can depend on presence too: its watch keeps refreshing (LLP 3000.018 §3.2).
                         if reads_presence && !refusal.retryable { reply["refresh"] = json!(PRESENCE_REFRESH.as_millis() as u64); }
-                        respond_timed(request, shared, if refusal.retryable { 503 } else { 200 }, reply);
+                        respond_timed(request, shared, if refusal.retryable { 503 } else if refusal.code=="E_INPUT" && refusal.family=="input" {400} else {200}, reply);
                     }
                 }
             } else {

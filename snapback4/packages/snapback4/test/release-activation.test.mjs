@@ -918,6 +918,8 @@ test('REL mutation decoding and many-item previews report complete plans', {time
   const {deployment,schema,run}=fixture(t);
   const first=source.replace('  read <- allow','  read <- allow\n  update <- allow').replace('  body: text',"  status: enum('old') default 'old'\n  body: text")+`mutation echo(v: enum('old')):
   return v
+query input(n: int):
+  return n
 `;
   writeFileSync(schema,first);run('deploy',deployment);
   const columns=Array.from({length:20},(_,n)=>`  spare${n}: bool default false`).join('\n');
@@ -926,6 +928,11 @@ test('REL mutation decoding and many-item previews report complete plans', {time
 `;
   writeFileSync(schema,second);run('deploy',deployment);
   await serve(deployment,async(url,headers)=>{
+    for(const args of [{},[],{n:'bad'}]) {
+      const response=await fetch(url+'/q/input',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({args})});
+      const reply=await response.json();assert.equal(response.status,400,JSON.stringify(reply));assert.equal(reply.denied.code,'E_INPUT');
+      assert.equal(reply.generation,2);assert.equal(Number(response.headers.get('x-snapback-generation')),2);
+    }
     const added=await releasePost(url,headers,'/m/add',{},'large-plan-add');assert.equal(added.state,'sent');
     assert.equal((await releasePost(url,headers,'/m/setStatus',{item:added.result.id},'narrow-held')).state,'sent');
     const required=second.replace('  body: text','  mustBackfill: int\n  body: text').replace("{body: 'kept'}","{body: 'kept', mustBackfill: 1}");

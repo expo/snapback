@@ -174,6 +174,12 @@ pub(super) fn transition(
         {
             let t = tx.num(name)?;
             super::activation::walk(tx, t, |id, mut row| {
+                if let Some(source)=source_definitions.get(name) {
+                    if crate::engine::through_activation::Retirement::retires_image(table,source,&row,now) {
+                        tx.delete(name,source,&row)?;
+                        return Ok(());
+                    }
+                }
                 crate::schema::materialize_optional_fields(
                     &mut row,
                     previous.and_then(|s| s.table(name)).unwrap_or(table),

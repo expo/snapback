@@ -364,7 +364,7 @@ pub(super) fn transition(
         {
             definition(tx, name, old, column)?;
         }
-        super::activation::walk(tx, t, |id, mut row| {
+        super::activation::walk(tx, t, |id, row| {
             let removed: Vec<_> = row
                 .as_object()?
                 .iter()
@@ -376,13 +376,7 @@ pub(super) fn transition(
                     save_cell(tx, name, old, id, &column, &value, false)?;
                 }
             }
-            if let Value::Row(fields) | Value::Map(fields) = &mut row {
-                fields.retain(|c, _| table.columns.contains_key(c));
-            }
-            tx.conn().execute(
-                "UPDATE r SET data=?1 WHERE t=?2 AND id=?3",
-                params![canonical_json(&row), t, id],
-            )?;
+            // Full source image/deadlines stay intact until lifetime retirement and narrowed classification.
             Ok(())
         })?;
         let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
