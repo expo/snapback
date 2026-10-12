@@ -93812,3 +93812,13 @@ PAGE final allocation-ledger qualification: the locked Linux web artifact is
 the provisional PAGE budget above. Discovery, owner/system/dynamic target
 read-ahead, merge scratch and actual next-frontier encoding use the existing
 heap meter. No runtime resource ceiling increase or macOS measurement.
+
+PAGE escaped-key/guard qualification: locked Linux web device measures
+2,277,028 B raw / 689,145 B gzip after exact-capacity canonical discovery-key
+serialization and normalized covering guards. Budget 689,645 B is the
+measurement plus required 500 B platform headroom, superseding PAGE's
+provisional 688,442 B. Whole-artifact delta against the worktree baseline is
++31,606 B raw / +9,794 B gzip; no per-feature attribution, macOS measurement
+or runtime resource ceiling change. The regression uses valid quote text;
+NUL remains rejected by text validation. Final reviews and qualification are
+recorded in WORKSTREAM-REPORT.md.
