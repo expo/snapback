@@ -20,6 +20,9 @@ pub fn features(case: &Case) -> BTreeSet<String> {
         out.insert(format!("items-rule/{:?}", table.rule));
         out.insert(format!("items-residency/{:?}", table.residency));
     }
+    if case.program.residual.as_deref().is_some_and(|r| r.contains(".tag.rank")) {
+        out.insert("read/reference-predicate".into());
+    }
     // LLP 3000.036.001: whether the compiled page is the merge of its branches.
     if case.program.domain.is_some() || case.program.tables.first().is_some_and(|t| t.rule == Rule::TwoParty) {
         out.insert("read/branch-shape".into());

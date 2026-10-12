@@ -240,12 +240,18 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.kids.is_some() {
             dims.push("references");
         }
+        if case.program.residual.as_deref().is_some_and(|r| r.contains(".tag.rank")) {
+            dims.push("reference-predicate");
+        }
+        if matches!(case.program.tables[0].residency, Residency::Group) {
+            dims.push("group-pages");
+        }
         if dims.is_empty() {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 9, "{seen:?}");
+    assert_eq!(seen.len(), 11, "{seen:?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate
@@ -299,4 +305,30 @@ fn shrinking_reduces_blocks_preludes_projections_and_expiry() {
     assert!(small.seeded_at.is_none() && !small.sweep && small.steps.iter().all(|s| !s.sweep && s.viewer.is_none()));
     assert!(small.rows.is_empty(), "{:?}", small.rows);
     assert!(small.program.source().contains("upsert items["));
+}
+
+// @ref LLP 3000.007#20.24.1 — the generated reference predicate must be checked by continuation, not just compile.
+#[test]
+fn generated_reference_predicate_is_reached_by_the_meter_oracle() {
+    let mut case = (0..600).map(generate).find(|c| c.program.residual.as_deref() == Some(".tag.rank = 1")).unwrap();
+    case.program.tables[0].rule = Rule::Allow;
+    case.program.tables[0].residency = Residency::Public;
+    case.program.tables[0].expire = None;
+    case.program.tables[0].keys.retain(|(name, _, _)| name != "byTag");
+    case.program.tables.iter_mut().find(|t| t.name == "tags").unwrap().expire = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 2, descending: true, filter: false, owner: false, project: None };
+    case.program.order = Some(vec!["score".into()]);
+    case.program.domain = None;
+    case.program.prelude.clear(); case.steps.clear();
+    case.args["bucket"] = json!(0);
+    case.rows.clear();
+    for (id, score) in [("t1", 10), ("t2", 5)] {
+        case.rows.push(("items".into(), json!({"id":id,"owner":"alice","bucket":0,"score":score,"label":"","flag":true,"maybe":null,"tag":"m1"})));
+    }
+    case.rows.push(("tags".into(), json!({"id":"m1","owner":"alice","rank":1,"name":"target"})));
+    let mut report = Report::default();
+    campaign::check(&case, &mut report, |_| {});
+    assert!(!report.failed(), "{report:#?}");
+    assert!(report.pages_with_resumable_cut > 0);
+    assert_eq!(report.coverage["read/reference-predicate"], 1);
 }

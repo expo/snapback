@@ -94,6 +94,12 @@ impl<'r> Runner<'r> {
     }
 
     pub(super) fn scan_authorized(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool, #[cfg(feature = "server-search")] fields: Option<&[String]>) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
+        self.scan_authorized_prepaid(name, index, prefix, bounds, dir, limit, metered, trusted, false, #[cfg(feature = "server-search")] fields)
+    }
+
+    // @ref LLP 3000.007#20.24.6 — a delivered uniform prefix has prepaid its
+    // logical rule once; provisional rows still undergo physical authorization.
+    pub(super) fn scan_authorized_prepaid(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool, rule_prepaid: bool, #[cfg(feature = "server-search")] fields: Option<&[String]>) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
         let table = &self.schema.tables[name];
         // A public, non-expiring image is authorized before accessing storage.
         // No hidden candidate can influence its actual-size decoder admission.
@@ -112,7 +118,7 @@ impl<'r> Runner<'r> {
             let mut out = Vec::with_capacity(rows.len());
             for (row, key) in rows {
                 let row = if check && self.is_provisional(name, &row)? {
-                    self.prepaid_scan(&[], false, |runner, scope| runner.candidate_verdict(scope, name, index, prefix, row, true))?
+                    self.prepaid_scan(&[], false, |runner, scope| runner.candidate_verdict(scope, name, index, prefix, row, true, rule_prepaid))?
                 } else { Some(AuthorizedRow { projection:self.disclosed_row(table,row),authority:RowAuthorization(()),expiry:Default::default() }) };
                 out.push((row, key));
             }
@@ -131,7 +137,7 @@ impl<'r> Runner<'r> {
                 let Some((row,key)) = selected.into_iter().next() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
-                Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted)?,key)))
+                Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted, rule_prepaid)?,key)))
             })?;
             let Some((row,key)) = candidate else { break; };
             // Only this sealed surviving projection can be priced on the caller ledger.
@@ -146,12 +152,12 @@ impl<'r> Runner<'r> {
 
     /// One fetched candidate's expiry, rule and field verdict, inside an
     /// internal scope. Unadmitted rule work is an unknown fact on a device.
-    fn candidate_verdict(&mut self, scope: &super::authorized_scan::Authorization, name: &str, index: &str, prefix: &[Value], mut row: Value, trusted: bool) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
+    fn candidate_verdict(&mut self, scope: &super::authorized_scan::Authorization, name: &str, index: &str, prefix: &[Value], mut row: Value, trusted: bool, rule_prepaid: bool) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
         let table = &self.schema.tables[name];
         crate::schema::materialize_optional_fields(&mut row,table);
         let provisional = self.is_provisional(name,&row)?;
         let needs_rule = !self.context.is_system() && (!trusted || provisional);
-        if needs_rule && !self.device_work_active && !scope.admit_probes(super::rules::rule_probes(&table.rules.read)) {
+        if needs_rule && !rule_prepaid && !self.device_work_active && !scope.admit_probes(super::rules::rule_probes(&table.rules.read)) {
             // @ref LLP 3000.020#3.2 — unresolved authority is unknown, not an absent contribution.
             if self.device { self.unknown_fact(name, index, prefix, "source rule admission"); }
             return Ok(None);

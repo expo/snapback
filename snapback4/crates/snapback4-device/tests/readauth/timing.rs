@@ -116,19 +116,25 @@ fn probes<S:DeviceStore>(mut store:S) {
     // Five unique-key authorization reservations precede occupant lookup,
     // even for a miss. No output-read authorization is added.
     local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:5,..Default::default()}).unwrap();
+    let mut engine=Engine::memory(b.schema.clone(),b.programs.clone()).unwrap();
+    let mut rows=Vec::new();
+    for (name,table) in &b.schema.tables {
+        rows.extend(tx.scan(name,"byId",&[],&Default::default(),Dir::Asc,100).unwrap().into_iter().map(|(row,_)|(name.clone(),row)));
+        assert!(table.index("byId").is_some());
+    }
+    engine.seed(rows).unwrap();
     for name in ["point","scan","merged","page","total","probe"] {
-        for budget in [0,1] {
+        for budget in [0,1,2] {
             let out=local::query(&Overlay(&tx),&b.schema,program(name),context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100),Ceilings{rule_probes:budget,..Default::default()});
             let out=out.unwrap();
-            assert_eq!(out.metered.rule_probes,1,"{name}/{budget}");
-            if budget==0 {
-                assert!(!out.complete && out.capped_at.is_some(),"{name}: {out:?}");
-                assert!(matches!(out.data,Value::Null|Value::Bool(false)|Value::Int(0)) || out.data.as_array().is_ok_and(|a|a.is_empty()),"{name}: {out:?}");
-            } else {
-                let note=tx.get("notes","note").unwrap().unwrap();
-                let expected=match name {"point"=>note,"probe"=>Value::Bool(true),"total"=>Value::Int(1),_=>Value::Array(vec![note])};
-                assert_eq!(out.data,expected,"{name}: {out:?}");
-                assert!(out.complete && out.cut.is_none() && out.capped_at.is_none(),"{name}: {out:?}");
+            engine.set_ceilings(Ceilings{rule_probes:budget,..Default::default()});
+            let server=engine.query(name,context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100)).unwrap();
+            assert_eq!(out.data,server.data,"{name}/{budget}");
+            assert_eq!(out.complete,server.complete,"{name}/{budget}");
+            assert_eq!(out.cut,server.cut,"{name}/{budget}");
+            assert_eq!(out.metered.rule_probes,server.metered.rule_probes,"{name}/{budget}");
+            if !server.complete {
+                assert!(out.capped_at.is_some(),"{name}: {out:?}");
             }
         }
     }
@@ -137,6 +143,19 @@ fn probes<S:DeviceStore>(mut store:S) {
     let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
     assert!(out.complete && out.data!=Value::Null);
     assert_eq!(out.metered.rule_probes,1);
+    // @ref LLP 3000.007#20.24.6 — one uniform prefix admission covers several
+    // provisional candidates, while each still checks current physical authority.
+    let second = snapback4_core::value::object([
+        ("id", id("second")), ("groupId", id("group")), ("owner", id("bob")),
+        ("body", Value::String("other pending row".into())),
+    ]);
+    tx.put("notes", &b.schema.tables["notes"], &second, None).unwrap();
+    for name in ["scan", "page"] {
+        let out=local::query(&Overlay(&tx),&b.schema,program(name),context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
+        assert!(out.complete && out.cut.is_none(), "{name}: {out:?}");
+        assert_eq!(out.metered.rule_probes,1);
+        assert_eq!(out.data.as_array().unwrap().len(),2);
+    }
     tx.rollback().unwrap();
 }
 #[test] fn reading_probe_meter_memory(){probes(snapback4_device::memory::MemoryStore::new());}

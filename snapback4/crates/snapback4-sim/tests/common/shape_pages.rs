@@ -163,7 +163,7 @@ fn w13h_shape_cut_retries_the_first_unfinished_row_in_both_directions() {
 }
 
 #[test]
-fn w13h_predicate_cut_control_keeps_the_last_rule_visible_position() {
+fn w13h_unfinishable_predicate_retries_without_skipping_then_withholds_next() {
     let source = format!("{}{}query feed(c: cursor ?, q: text <=100):\n  return msgs after c first 20 by byLane where count(extra[.at] first 9000 by byLane) > 0\n", table("msgs"), table("extra"));
     let mut rows = vec![row("a", 0, 0, ""), row("b", 0, 1, "")];
     rows.extend((0..9000).map(|n| extra(n, 0)));
@@ -174,7 +174,9 @@ fn w13h_predicate_cut_control_keeps_the_last_rule_visible_position() {
         assert!(ids(&first).is_empty());
         let next = first.next.unwrap();
         assert_eq!(decode_cursor(&Schema::default(), &next).unwrap().values.last(), Some(&Value::Id("a".into())));
-        assert_eq!(ids(&q("feed", ctx(Some(next))).unwrap()), ["b"]);
+        assert!(decode_cursor(&Schema::default(), &next).unwrap().inclusive);
+        let retry = q("feed", ctx(Some(next))).unwrap();
+        assert!(ids(&retry).is_empty() && !retry.complete && retry.next.is_none());
     });
 }
 
@@ -843,5 +845,34 @@ fn w13h_helper_returned_shape_keeps_partial_rows_and_main_ownership() {
         let second = q("feed", ctx(Some(first.next.expect("main's inlined helper owner")))).unwrap();
         assert_eq!(ids(&second), ["b"]);
         assert!(second.complete && second.next.is_none());
+    });
+}
+
+// @ref LLP 3000.007#20.24.1 — simulator/server/device fixture crosses the default meter inside a reference predicate.
+#[test]
+fn reference_predicate_cut_retries_the_unfinished_row() {
+    let source = include_str!("../../../snapback4-device/tests/cut/predicates.q").replace(
+        "query flagged(c: cursor ?):", "table padding:\n  public\n  sync public\nquery flagged(c: cursor ?):")
+        .replace("  return tasks where .owner = viewer and .meta.ok = true last 2", "  if c = null:\n    spent = count(padding first 8191)\n  return tasks where .owner = viewer and .meta.ok = true last 2");
+    let id = |s: &str| Value::Id(s.into());
+    let mut rows = vec![
+        ("metas".into(), object([("id", id("m1")), ("ok", Value::Bool(true))])),
+        ("tasks".into(), object([("id", id("t1")), ("owner", id("dev:alice")), ("meta", id("m1")), ("at", Value::Int(10))])),
+        ("tasks".into(), object([("id", id("t2")), ("owner", id("dev:alice")), ("meta", id("m1")), ("at", Value::Int(5))])),
+    ];
+    rows.extend((0..8191).map(|n| ("padding".into(), object([("id", id(&format!("p{n:05}")))]))));
+    with_fixture(&source, rows, |q| {
+        let cx = |next| { let mut cx = ctx(next); cx.args.remove("q"); cx };
+        let first = q("flagged", cx(None)).unwrap();
+        assert!(ids(&first).is_empty() && !first.complete);
+        let next = first.next.expect("retry reference candidate");
+        assert!(decode_cursor(&Schema::default(), &next).unwrap().inclusive);
+        let follow = q("flagged", cx(Some(next))).unwrap();
+        assert_eq!(ids(&follow), ["t1", "t2"]);
+        assert!(follow.complete);
+        if let Some(next) = follow.next {
+            let end = q("flagged", cx(Some(next))).unwrap();
+            assert!(ids(&end).is_empty() && end.complete && end.next.is_none());
+        }
     });
 }

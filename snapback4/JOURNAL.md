@@ -92724,7 +92724,6 @@ branch's budget; together the Linux web device measures 651,704 B gzip,
 the reason in `metrics/wasm-budget.json`.
 
 
-<<<<<<< HEAD
 ## 2026-10-12 — UNION integrates sb4-loop 0.4.23; wasm budget rises 2,460 B
 
 Merged file assets, pinned-parent page guards, the revised readauth corpus,
@@ -93595,3 +93594,68 @@ item, commits, actual results and deferrals. No push or publication.
 Release adoption now separates active shapes from dormant tables/cells/index definitions. Older writes preserve retained cells; new rows get candidate literal defaults/nulls on restoration, while enum, required-value, ownership and lifetime conflicts name affected rows and refuse atomically. Removal requires explicit `prune --allow-destructive`, with durable audit/history. `rollback --to N` deliberately restores immutable source. Release stores get a format fence; device/development stores retain their existing format.
 
 An admitted `serve` owns hot deploy over a private same-owner socket. Source/native/worker preparation precedes the transaction; reader/runtime/generation publication shares the writer guard. Native wasm content changes advance semantic generation even when declarations are unchanged. Worker preparation is revision-bound, including named additions/removals. Lost replies and stale convenience pointers recover from the database. LLP 3000.000.000 and SERVER.md own the design and operations; the OPS deploy card points there. Test/review/commit evidence is recorded in WORKSTREAM-REPORT.md. No npm publication or push is part of this workstream.
+
+### 2026-10-12 — CUT: predicate continuation and held-group prefix meters
+
+A cut inside a predicate's referenced-row read now retries the unfinished
+candidate inclusively, as the existence predicate already did. This applies
+to counting predicates too: an incomplete verdict is not a reject. Full pages
+resume exclusively after their last emitted row even if lookahead cuts. A
+repeated empty cut at the same inclusive input position withholds continuation.
+Reference predicates remain excluded from automatic branch merging: the cut
+fix does not remove refusal, missing-fact or short-circuit effects.
+
+Delivered uniform pages reserve the server's static prefix-rule probe count
+for queries, with the same rule scratch admission, before candidate discovery.
+Prediction keeps its existing reservation. Memory/SQLite regressions reproduce
+both bugs on the base and pass with the repair; the actual web wasm test passes.
+The generator now draws group-synced pages and reference-member predicates;
+coverage distinguishes both. The fresh wasm measures 661,463 B gzip against
+661,645 B on the base, within the unchanged 662,145 B budget. Full-suite,
+campaign and independent review results are recorded by the workstream report.
+
+
+### 2026-10-12 — CUT review corrections and qualification scope
+
+Muse and fresh Codex reviews of `6735294f4a` both returned NOT READY. Accepted:
+the unconditional admission bail affected server matching attempt charges and
+private-cut classification; it now stops only a device reservation. Accepted:
+the simulator fixture supplied an undeclared `q` argument; it now supplies the
+cursor alone, and follows a full filtered page's exclusive continuation through
+its final empty page. The 1,000-lane meter assertion now uses equal logical
+probes. Matching keeps its earlier discovery meter; Codex's inherited prefix-key
+heap discrepancy is explicitly ticketed rather than claimed fixed here.
+
+The new group-generator cases hold both audiences and keep items live, isolating
+ordinary uniform prefix-meter parity from inherited expired-candidate examination
+and non-total-disjunction completeness differences. Reference predicates on a
+group keep one pinned domain; online cases still draw the planner fallback.
+The final rebuilt web device is 661,531 B gzip (114 B below the 661,645 B base),
+within the unchanged 662,145 B budget. Exact results and deferrals are recorded
+in the CUT report; independent review artifacts remain verbatim in llp/reviews/.
+
+
+### 2026-10-12 — CUT provisional-candidate qualification correction
+
+The full requested Rust command found a duplicate logical reservation for
+provisional uniform-page candidates. The prefix now prepays their logical
+rule allowance, while every pending row still undergoes physical read-time
+authorization. Other scan consumers keep their previous admission. The existing
+memory/SQLite reading-probe regressions exposed the duplicate; they now compare
+each low-budget outcome with the server, including an explicit merge's two
+prefix verdicts. A two-provisional-row case asserts one prefix probe, complete,
+under a one-probe ceiling. This is shared admission, not skipped authority.
+The final web artifact measures 2,192,440 B raw / 661,536 B gzip, 109 B below
+the 661,645 B base and within the unchanged budget. Focused reviews and full
+qualification of this correction are recorded with the workstream evidence.
+
+
+### 2026-10-12 — CUT tombstone retry expectation
+
+Full qualification completed every target and doctest, with one older simulator
+assertion still expecting an exclusive skip after an interrupted tombstone
+predicate. It now asserts inclusive r1 retry, the same three-examined budget's
+next cut at r2, and r2's eventual complete emission. The five-test filter target
+passes. Runtime code remains the independently reviewed `51d1687277`; this is
+an additional protocol regression, not a runtime change. The exact requested
+four-package command is rerun for an unqualified successful exit.

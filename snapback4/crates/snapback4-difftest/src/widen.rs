@@ -192,7 +192,7 @@ fn step_args(rng: &mut Rng) -> Json {
 pub fn widen(mut case: Case) -> Case {
     let mut rng = Rng::new(case.seed ^ STREAM);
     // Draw every dimension's decision first, in a fixed order.
-    let expire = rng.pick(6) == 0;
+    let expire_draw = rng.pick(6) == 0;
     let project = rng.pick(2) == 0;
     let convert = rng.pick(5) == 0;
     let blocky = rng.pick(2) == 0;
@@ -231,6 +231,8 @@ pub fn widen(mut case: Case) -> Case {
         case.rows.extend(tags_rows(&mut rng));
     }
     branches(&mut case);
+    predicate_reads(&mut case);
+    let expire = expire_draw && !matches!(case.program.tables[0].residency, Residency::Group);
     // Blocks.
     let p = &mut case.program;
     match &p.body {
@@ -271,7 +273,10 @@ pub fn widen(mut case: Case) -> Case {
             step.sweep = expire && rng.pick(3) == 0;
         }
         case.sweep = expire && rng.pick(3) == 0;
-        if expire {
+        // Group cases qualify trusted logical verdicts with live rows. Physical
+        // expired server candidates absent from acquisition have a separate
+        // examined-meter mismatch (the inherited metered-examined signature).
+        if expire && !matches!(case.program.tables[0].residency, Residency::Group) {
             let p = &mut case.program;
             p.tables[0].columns.push(until());
             p.tables[0].expire = Some("until".into());
@@ -324,15 +329,26 @@ fn branches(case: &mut Case) {
         }
         // A bucket disjunction, under the case's rule (decided per bucket only by
         // `Witness`; an owner page keeps its pin and its single-index plan).
-        // A group-synced table (`Residency::Group`) is not drawn yet: a held
-        // group's pinned page charges no rule probe on a device and one on the
-        // server, a parity gap the device oracle reports for every group page,
-        // merged or not (issues/20261012-snapback4-device-group-page-rule-probe-meter.md).
         _ => {
             p.domain = Some("(.bucket = bucket or .bucket = 1)".into());
             if shape == 3 {
                 p.tables[0].rule = Rule::Witness;
-                p.tables[0].residency = Residency::Online;
+                p.tables[0].residency = Residency::Group;
+                // The membership insert rule must prove the group's audience.
+                let access = p.tables.iter_mut().find(|t| t.name == "access").unwrap();
+                access.rule = Rule::Member;
+                access.effects = Some(vec![Rule::Member, Rule::Witness, Rule::Deny, Rule::Deny]);
+                // Membership delivery follows its principal; items follow the held group.
+                access.residency = Residency::Member;
+                // The held-group oracle compares both branch verdicts. Absent
+                // audiences also avoid data scratch on the server; native tests
+                // separately cover a denied branch's data and logical probes.
+                for bucket in [0, 1] {
+                    let held = case.rows.iter().any(|(t, row)| t == "access" && row["bucket"] == json!(bucket) && row["principal"] == json!(case.principal));
+                    if !held {
+                        case.rows.push(("access".into(), json!({"id":format!("cut-held-{bucket}"),"bucket":bucket,"principal":case.principal})));
+                    }
+                }
             }
         }
     }
@@ -383,6 +399,31 @@ fn references(case: &mut Case) {
     }
     case.program.kids = Some(kids);
 }
+// @ref LLP 3000.007#20.24.1 — draw interrupted reference predicates in the meter and device oracles.
+fn predicate_reads(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ 0x4355_5450_5245_4401);
+    if !matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, .. }) || rng.pick(8) != 0 { return; }
+    let p = &mut case.program;
+    p.tables[0].columns.iter_mut().find(|c| c.name == "tag").unwrap().ty = Type::Reference("tags".into());
+    p.residual = Some(".tag.rank = 1".into());
+    // A reference makes a bucket disjunction non-total, keeping one globally
+    // non-uniform server scan while a held partition is complete locally.
+    // Draw the reference on a pinned group instead; ordinary online cases
+    // still cover the non-total disjunction's planner fallback.
+    if matches!(p.tables[0].residency, Residency::Group) { p.domain = None; }
+    // Keep targets live, readable and held so default cases reach continuation,
+    // rather than failing on a missing or unauthorized reference before the cut.
+    let mut tags = tags_table(&mut rng);
+    tags.rule = Rule::Allow; tags.residency = Residency::Public;
+    p.tables.retain(|t| t.name != "tags"); p.tables.push(tags);
+    case.rows.retain(|(t, _)| t != "tags");
+    let targets: std::collections::BTreeSet<String> = case.rows.iter().filter(|(t, _)| t == "items")
+        .filter_map(|(_, row)| row["tag"].as_str().map(str::to_owned)).collect();
+    for (n, tag) in targets.into_iter().enumerate() {
+        case.rows.push(("tags".into(), json!({"id":tag,"owner":"alice","name":format!("target{n}"),"rank":if rng.pick(4)==0 {-1} else {1}})));
+    }
+}
+
 fn projection(rng: &mut Rng) -> Vec<Proj> {
     let mut fields = vec![];
     if rng.pick(2) == 0 {
