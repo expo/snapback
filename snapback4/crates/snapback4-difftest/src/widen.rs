@@ -231,6 +231,7 @@ pub fn widen(mut case: Case) -> Case {
         case.rows.extend(tags_rows(&mut rng));
     }
     branches(&mut case);
+    predicate_reads(&mut case);
     // Blocks.
     let p = &mut case.program;
     match &p.body {
@@ -323,15 +324,17 @@ fn branches(case: &mut Case) {
         }
         // A bucket disjunction, under the case's rule (decided per bucket only by
         // `Witness`; an owner page keeps its pin and its single-index plan).
-        // A group-synced table (`Residency::Group`) is not drawn yet: a held
-        // group's pinned page charges no rule probe on a device and one on the
-        // server, a parity gap the device oracle reports for every group page,
-        // merged or not (issues/20261012-snapback4-device-group-page-rule-probe-meter.md).
         _ => {
             p.domain = Some("(.bucket = bucket or .bucket = 1)".into());
             if shape == 3 {
                 p.tables[0].rule = Rule::Witness;
-                p.tables[0].residency = Residency::Online;
+                p.tables[0].residency = Residency::Group;
+                // The membership insert rule must prove the group's audience.
+                let access = p.tables.iter_mut().find(|t| t.name == "access").unwrap();
+                access.rule = Rule::Member;
+                access.effects = Some(vec![Rule::Member, Rule::Witness, Rule::Deny, Rule::Deny]);
+                // Membership delivery follows its principal; items follow the held group.
+                access.residency = Residency::Member;
             }
         }
     }
@@ -343,6 +346,27 @@ fn branches(case: &mut Case) {
         }
     }
 }
+
+// @ref LLP 3000.007#20.24.1 — draw interrupted reference predicates in the meter and device oracles.
+fn predicate_reads(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ 0x4355_5450_5245_4401);
+    if !matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, .. }) || rng.pick(8) != 0 { return; }
+    let p = &mut case.program;
+    p.tables[0].columns.iter_mut().find(|c| c.name == "tag").unwrap().ty = Type::Reference("tags".into());
+    p.residual = Some(".tag.rank = 1".into());
+    // Keep targets live, readable and held so default cases reach continuation,
+    // rather than failing on a missing or unauthorized reference before the cut.
+    let mut tags = tags_table(&mut rng);
+    tags.rule = Rule::Allow; tags.residency = Residency::Public;
+    p.tables.retain(|t| t.name != "tags"); p.tables.push(tags);
+    case.rows.retain(|(t, _)| t != "tags");
+    let targets: std::collections::BTreeSet<String> = case.rows.iter().filter(|(t, _)| t == "items")
+        .filter_map(|(_, row)| row["tag"].as_str().map(str::to_owned)).collect();
+    for (n, tag) in targets.into_iter().enumerate() {
+        case.rows.push(("tags".into(), json!({"id":tag,"owner":"alice","name":format!("target{n}"),"rank":if rng.pick(4)==0 {-1} else {1}})));
+    }
+}
+
 fn projection(rng: &mut Rng) -> Vec<Proj> {
     let mut fields = vec![];
     if rng.pick(2) == 0 {

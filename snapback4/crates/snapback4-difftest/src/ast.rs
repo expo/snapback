@@ -6,6 +6,8 @@ pub enum Type {
     Int,
     Text,
     Id,
+    /// A member access through this column performs a metered point read.
+    Reference(String),
     Bool,
     Principal,
     Time,
@@ -29,6 +31,7 @@ impl Type {
             Self::Int => "int".into(),
             Self::Text => "text <=64".into(),
             Self::Id => "id".into(),
+            Self::Reference(table) => table.clone(),
             Self::Bool => "bool".into(),
             Self::Principal => "principal".into(),
             Self::Time => "time".into(),
@@ -91,6 +94,8 @@ pub enum Residency {
     Online,
     /// `sync to access[.bucket]`: the group audience of `exists access[.bucket, viewer]`.
     Group,
+    /// Membership rows delivered to their own principal.
+    Member,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Table {
@@ -133,6 +138,7 @@ impl Table {
             Residency::Owner => "  sync to .owner\n",
             Residency::Online => "  online only\n",
             Residency::Group => "  sync to access[.bucket]\n",
+            Residency::Member => "  sync to .principal\n",
         };
         out
     }

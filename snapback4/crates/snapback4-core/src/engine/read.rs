@@ -165,12 +165,14 @@ impl<'r> Runner<'r> {
         }
     }
 
-    // @ref LLP 3000.015#2 — prediction reserves the same complete rule as
-    // the server even when delivered evidence avoids evaluating it locally.
+    // @ref LLP 3000.007#20.24.6 — trusted delivery avoids physical probes,
+    // not the logical prefix verdict or its scratch admission.
     fn reserve_delivered_scan(&mut self, table: &Table, visibility: rules::Visibility, admitted: bool) -> Result<(), RuntimeError> {
-        if self.device && self.meter.cut == crate::meter::Cut::Abort && !self.context.is_system()
+        if self.device && !self.context.is_system()
             && admitted && visibility.uniform && !visibility.decided_true && !table.rules.read.is_uniformly_readable() {
-            self.authorized_scan(&[(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))], |_, _| Ok(()))?;
+            let allowance = [(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))];
+            if self.meter.cut == crate::meter::Cut::Abort { self.authorized_scan(&allowance, |_, _| Ok(()))?; }
+            else { self.authorized_scratch(self.rule_scratch(&table.rules.read), &allowance, |_, _| Ok(()))?; }
         }
         Ok(())
     }
@@ -455,6 +457,7 @@ impl<'r> Runner<'r> {
         let mut prefix_expiry = super::expiry::Pending::default();
         self.private_scan_authority(&scan.table, visibility.uniform, admitted)?;
         self.reserve_delivered_scan(table, visibility, admitted)?;
+        if self.read_capped() { return Ok(None); }
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             return Ok(None);
@@ -924,6 +927,7 @@ impl<'r> Runner<'r> {
         let always_visible = aggregate_parent == Some(true) || !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
         if word.is_none() { self.reserve_delivered_scan(table, visibility, always_visible)?; }
+        if self.read_capped() { return Ok((Vec::new(), Vec::new())); }
         // @ref LLP 3000.036#12 — a row-independent grant (a staff role, a
         // service seat) that holds for this caller makes every row readable:
         // the page is decided once, as a uniform page is. Its static probe
@@ -1166,10 +1170,9 @@ impl<'r> Runner<'r> {
                         self.meter.at(&scan.site);
                         if self.read_capped() && (matched.is_ok() || matches!(&matched, Err(RuntimeError::Bound { kind, .. }) if *kind != MeterKind::HeapBytes)) {
                             capped = true;
-                            // The paved existence predicate has no verdict when its
-                            // one-row search starves. Retry that membership; general
-                            // counting predicates keep their existing forward progress.
-                            filter_interrupted = self.schema.timelines.iter().any(|t| scan.table == t.table("Feed")) || existence_predicate(filter);
+                            // @ref LLP 3000.007#20.24.1 — a cut is an unfinished
+                            // verdict for every predicate, never a rejection.
+                            filter_interrupted = true;
                             break 'outer;
                         }
                         let matched = matched?.as_bool()?;
@@ -1262,13 +1265,14 @@ impl<'r> Runner<'r> {
             let components = index.components.len();
             // @ref LLP 3000.007#5.6 — a full page positions after its last result; a cut may pass filter rejects, never rule-hidden keys.
             let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
-            // A rule-visible membership whose existence filter was cut has no
-            // verdict yet. Retry it inclusively to keep its last-on-page match.
+            // A full page resumes after its last emission, even if lookahead's
+            // predicate was interrupted; only a short page retries that row.
+            let inclusive = filter_interrupted && visible.len() < take;
             let continues = if capped || self.non_uniform || self.word_cut_at.is_some() { position.is_some() } else { has_more };
             let mut next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             // @ref LLP 3000.007#20.24.1 — retry an interrupted predicate once; no emission at the same inclusive input position must not advertise a loop.
-            if filter_interrupted && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
-            self.record_page(scan.site.clone(), PagePosition { variant: scan.variant, view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: filter_interrupted, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
+            if inclusive && visible.is_empty() && next.is_some() && next == bounds.at_or_after { next = None; }
+            self.record_page(scan.site.clone(), PagePosition { variant: scan.variant, view_suffix: None, table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
         page_expiry.emit();
         Ok((visible, keys))
@@ -1546,23 +1550,6 @@ impl Probe for PrefixProbe<'_, '_> {
 #[cfg(all(test, feature = "sqlite"))]
 #[path = "../../tests/read_verdict/mod.rs"]
 mod read_verdict_tests;
-
-// Presence selection does not turn an interrupted one-witness predicate into
-// a negative verdict. Both alternatives must retain that exact consumer.
-fn existence_predicate(value: &Expr) -> bool {
-    match value {
-        Expr::Binary { op: BinaryOp::Gt, left, right } => matches!(right.as_ref(), Expr::Literal(Value::Int(0)))
-            && matches!(left.as_ref(), Expr::Builtin { builtin: Builtin::Count, args }
-                if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)),
-        Expr::Block { body, value } => {
-            let Expr::Variable(target) = value.as_ref() else { return false; };
-            let Some(Stmt::If { then_body, else_body, .. }) = body.last() else { return false; };
-            [then_body, else_body].iter().all(|body| matches!(body.last(), Some(Stmt::Assign { name, value })
-                if name == target && existence_predicate(value)))
-        }
-        _ => false,
-    }
-}
 
 impl PagePosition {
     pub(super) fn shape_keys_heap(&self) -> u64 {

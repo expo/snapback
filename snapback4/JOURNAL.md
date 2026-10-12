@@ -93029,3 +93029,23 @@ lines; ref-check passes. The locked wasm build repeats 2,192,240 B raw /
 661,645 B gzip; budget 662,145 B, measurement plus 500 B, for both features.
 The completed child RFC leaves current/; its document and reviews remain.
 Evidence: `reports/20261012-ws-merge-integration/`. No push or publication.
+
+
+### 2026-10-12 — CUT: predicate continuation and held-group prefix meters
+
+A cut inside a predicate's referenced-row read now retries the unfinished
+candidate inclusively, as the existence predicate already did. This applies
+to counting predicates too: an incomplete verdict is not a reject. Full pages
+resume exclusively after their last emitted row even if lookahead cuts. A
+repeated empty cut at the same inclusive input position withholds continuation.
+Reference predicates remain excluded from automatic branch merging: the cut
+fix does not remove refusal, missing-fact or short-circuit effects.
+
+Delivered uniform pages reserve the server's static prefix-rule probe count
+for queries, with the same rule scratch admission, before candidate discovery.
+Prediction keeps its existing reservation. Memory/SQLite regressions reproduce
+both bugs on the base and pass with the repair; the actual web wasm test passes.
+The generator now draws group-synced pages and reference-member predicates;
+coverage distinguishes both. The fresh wasm measures 661,463 B gzip against
+661,645 B on the base, within the unchanged 662,145 B budget. Full-suite,
+campaign and independent review results are recorded by the workstream report.

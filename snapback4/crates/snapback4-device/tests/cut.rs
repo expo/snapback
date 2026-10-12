@@ -5,14 +5,14 @@ use serde_json::json;
 use snapback4_core::{Ceilings, Value, engine::QueryOutcome, value::object};
 use snapback4_device::{call::call, device::Device, store::DeviceStore};
 
-fn query<S: DeviceStore>(device: &mut Device<S>, op: &str, ceilings: Ceilings) -> serde_json::Value {
+fn query<S: DeviceStore>(device: &mut Device<S>, op: &str, cursor: serde_json::Value, ceilings: Ceilings) -> serde_json::Value {
     let mut spent = serde_json::to_value(Ceilings::default()).unwrap();
     let limits = serde_json::to_value(ceilings).unwrap();
     for (key, value) in spent.as_object_mut().unwrap() { *value = json!(value.as_u64().unwrap() - limits[key].as_u64().unwrap()); }
-    let result = call(device, json!({"op":"query", "name":op, "viewer":"alice", "args":{"c":null}, "now":0, "spent":spent}));
+    let result = call(device, json!({"op":"query", "name":op, "viewer":"alice", "args":{"c":cursor}, "now":0, "spent":spent}));
     let mut out = result["ok"].clone();
     assert!(out.is_object(), "{result}");
-    if let Some(meter) = out["metered"].as_object_mut() {
+    if let Some(meter) = out.get_mut("metered").and_then(serde_json::Value::as_object_mut) {
         for (key, value) in meter { *value = json!(value.as_u64().unwrap() - spent[key].as_u64().unwrap()); }
     }
     out
@@ -37,10 +37,20 @@ fn predicates<H: Host>(host: &mut H) {
             let ceilings = Ceilings { examined: budget, ..Default::default() };
             engine.set_ceilings(ceilings);
             let server = engine.query(op, context("alice", &args)).unwrap();
-            let held = query(&mut device, op, ceilings);
+            let held = query(&mut device, op, json!(null), ceilings);
             assert_eq!(held["unknown"], false, "{} {op}/{budget}", host.label());
             assert_eq!(held["data"], snapback4_core::wire::to_json(&server.data));
             assert_eq!(held["next"], json!(server.next));
+            let mut held_rows: Vec<String> = held["data"].as_array().unwrap().iter().map(|r| r["id"].as_str().unwrap().into()).collect();
+            let mut next = held["next"].clone();
+            for _ in 0..4 {
+                if next.is_null() { break; }
+                let out = query(&mut device, op, next, Ceilings::default());
+                held_rows.extend(out["data"].as_array().unwrap().iter().map(|r| r["id"].as_str().unwrap().to_owned()));
+                next = out["next"].clone();
+            }
+            assert!(next.is_null());
+            assert_eq!(held_rows, expected);
             for first in [server] {
                 let mut rows = ids(&first);
                 let mut next = first.next;
@@ -85,9 +95,17 @@ fn group_meter<H: Host>(host: &mut H) {
                 let mut limits = serde_json::to_value(Ceilings::default()).unwrap(); limits[dimension] = json!(n);
                 let ceilings: Ceilings = serde_json::from_value(limits).unwrap();
                 engine.set_ceilings(ceilings);
-                let server = engine.query(op, context("alice", &[("c", Value::Null)])).unwrap();
-                let held = query(&mut device, op, ceilings);
+                let server = engine.query(op, context("alice", &[("c", Value::Null)]));
+                let held = query(&mut device, op, json!(null), ceilings);
                 assert_eq!(held["unknown"], false, "{} {op}/{dimension}/{n}", host.label());
+                let server = match server {
+                    Ok(out) => out,
+                    Err(error) => {
+                        assert_eq!(held["denied"]["code"], error.code);
+                        assert_eq!(held["denied"]["site"], json!(error.site));
+                        continue;
+                    }
+                };
                 for (key, expected) in [("data", snapback4_core::wire::to_json(&server.data)),
                     ("complete", json!(server.complete)), ("cut", json!(server.cut)), ("next", json!(server.next)),
                     ("metered", json!(server.metered)), ("nextExpiry", json!(server.next_expiry))] {
