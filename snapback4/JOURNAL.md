@@ -92764,3 +92764,11 @@ and daily jobs: its five-hour jump can cross 06:00 UTC, so a fixed expected
 counter of two was a time-of-day assumption. Product clock behavior is unchanged.
 The final workstream report records the full checks and inherited Lean
 OPEN C2/W4 signatures.
+
+REF client qualification: 47 of 48 delete/reset client files initially
+passed. The social receipt-badge cancellation scenario queued without
+prediction because `messages.replyTo` inherited restrict and its complete
+reply group is not held offline. The starter now explicitly declares
+`on delete keep`: replies outlive deletion of their quoted original and
+the point quote becomes unavailable. The social guide states that choice;
+the unchanged receipt-badge regression verifies restored prediction.

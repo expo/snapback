@@ -43,7 +43,7 @@ table messages:
   ordinal: int
   recipients: int
   text: text <=2000
-  replyTo: messages ?
+  replyTo: messages ? on delete keep
   photo: image <=5000000 once ?
   search text
   at: time
