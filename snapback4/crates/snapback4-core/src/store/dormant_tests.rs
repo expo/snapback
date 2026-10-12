@@ -390,3 +390,120 @@ fn dormant_assets_cannot_be_fetched_or_collected_until_explicit_prune() {
         .unwrap();
     assert!(released.is_some());
 }
+
+#[test]
+fn activation_expiry_invalidates_parent_lifetime_and_failed_commit_undoes_it() {
+    let parent = "table roots:\n  public\ntable parents:\n  root: roots\n  until: time default 10\n  immutable root, until\n  read through .root\n  expire at .until\n";
+    let child = format!(
+        "{parent}table children:\n  parent: parents\n  body: text <=100\n  immutable parent\n  read through .parent\n"
+    );
+    let mut e = engine(&child);
+    let row =
+        wire::row_from_json(&e.schema().tables["roots"], &serde_json::json!({"id":"r"})).unwrap();
+    e.seed_at([("roots".into(), row)], 0).unwrap();
+    let row = wire::row_from_json(
+        &e.schema().tables["parents"],
+        &serde_json::json!({"id":"p","root":"r","until":1}),
+    )
+    .unwrap();
+    e.seed_at([("parents".into(), row)], 0).unwrap();
+    let row = wire::row_from_json(
+        &e.schema().tables["children"],
+        &serde_json::json!({"id":"c","parent":"p","body":"old"}),
+    )
+    .unwrap();
+    e.seed_at([("children".into(), row)], 0).unwrap();
+    let older = parent.replace("default 10", "default 20");
+    e.store().conn().commit_hook(Some(|| true)).unwrap();
+    assert!(activate(&mut e, &older, 2).is_err());
+    e.store().conn().commit_hook(None::<fn() -> bool>).unwrap();
+    assert_eq!(e.store().count("parents").unwrap(), 1);
+    assert!(
+        e.store_mut()
+            .dormant_inventory(None, 100)
+            .unwrap()
+            .is_empty()
+    );
+    activate(&mut e, &older, 2).unwrap();
+    assert_eq!(e.store().count("parents").unwrap(), 0);
+    let invalid: i64 = e
+        .store()
+        .conn()
+        .query_row("SELECT invalid FROM _dormant_refs WHERE id='c'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(invalid, 1);
+    let row = wire::row_from_json(
+        &e.schema().tables["parents"],
+        &serde_json::json!({"id":"p","root":"r","until":1}),
+    )
+    .unwrap();
+    e.seed_at([("parents".into(), row)], 0).unwrap();
+    let error = activate(&mut e, &child, 1).unwrap_err().to_string();
+    assert!(error.contains("lifetime") && error.contains("c"), "{error}");
+}
+
+#[test]
+fn audit_pages_distinguish_same_named_column_and_index() {
+    let next = v2().replace(
+        "  extra: int default 7",
+        "  byExtra: int default 11\n  extra: int default 7",
+    );
+    let mut e = engine(&next);
+    seed(
+        &mut e,
+        "rows",
+        serde_json::json!({"id":"a","n":1,"status":"active","extra":42,"byExtra":99}),
+    );
+    activate(&mut e, V1, 2).unwrap();
+    let mut keys = std::collections::BTreeSet::new();
+    let mut after = None;
+    loop {
+        let page = e
+            .store_mut()
+            .dormant_inventory(after.as_deref(), 1)
+            .unwrap();
+        if page.is_empty() {
+            break;
+        }
+        after = Some(page[0].key.clone());
+        assert!(keys.insert(page[0].key.clone()));
+    }
+    assert!(keys.contains("column:rows.byExtra"));
+    assert!(keys.contains("index:rows.byExtra"));
+    let events = e.store_mut().release_status(0, None, None).unwrap();
+    let id = events["events"].as_array().unwrap().last().unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    let items = e.store_mut().release_status(0, None, Some(id)).unwrap();
+    assert_eq!(items["items"].as_array().unwrap().len(), keys.len());
+    activate(&mut e, &next, 1).unwrap();
+    assert_eq!(
+        e.store().rows("rows").unwrap()[0].field("byExtra").unwrap(),
+        &Value::Int(99)
+    );
+}
+
+#[test]
+fn release_refuses_durable_to_ephemeral_or_derived_ownership_with_population() {
+    let original = "table rows:\n  n: int\n  public\n";
+    let mut e = engine(original);
+    seed(&mut e, "rows", serde_json::json!({"id":"owned","n":7}));
+    for candidate in [
+        "table rows:\n  n: int\n  public\n  ephemeral 4s\n",
+        "table source:\n  n: int\n  public\nview rows: sum source of .n by .n\n",
+    ] {
+        let error = activate(&mut e, candidate, 2).unwrap_err().to_string();
+        for detail in [
+            "rows",
+            "1 affected rows",
+            "owned",
+            "prune <dir> --allow-destructive",
+        ] {
+            assert!(error.contains(detail), "{error}");
+        }
+        assert_eq!(e.store().count("rows").unwrap(), 1);
+        assert_eq!(e.store().meta("release").unwrap().as_deref(), Some("1"));
+    }
+}

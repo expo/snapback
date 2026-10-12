@@ -223,7 +223,7 @@ fn groups(
                     |r| r.get(0),
                 )?;
                 if n > max as i64 {
-                    bad.add(id, &crate::wire::to_json(&Value::Array(values)).to_string());
+                    bad.add(id, &value_sample(&Value::Array(values)));
                 }
             }
             Ok(())
@@ -254,9 +254,14 @@ pub(super) fn detail(
     let Some(table) = schema.table(name) else {
         return Ok(step.message.clone());
     };
-    if let ["tables", _, "indexes", index] = path.as_slice() {
-        let definition = &table.indexes[*index];
-        if definition.unique {
+    let changed_column = match path.as_slice() {
+        ["tables", _, "columns", column] => Some(*column),
+        _ => None,
+    };
+    for (index, definition) in &table.indexes {
+        let selected = matches!(path.as_slice(),["tables",_,"indexes",selected] if *selected==index)
+            || changed_column.is_some_and(|column| definition.uses_column(column));
+        if selected && definition.unique {
             if let Err(error) = groups(
                 tx,
                 name,
@@ -276,9 +281,12 @@ pub(super) fn detail(
             }
         }
     }
-    if matches!(path.as_slice(), ["tables", _, "constraints"]) {
+    if matches!(path.as_slice(), ["tables", _, "constraints"]) || changed_column.is_some() {
         for constraint in &table.constraints {
             if let Constraint::Cap { by, max } = constraint {
+                if changed_column.is_some_and(|column| !by.iter().any(|c| c == column)) {
+                    continue;
+                }
                 if let Err(error) = groups(
                     tx,
                     name,
@@ -321,7 +329,7 @@ pub(super) fn detail(
                 {
                     let value = row
                         .field(column)
-                        .map(|v| crate::wire::to_json(v).to_string())
+                        .map(value_sample)
                         .unwrap_or_else(|_| "<missing>".into());
                     samples.add(id, &format!("{name}.{column}={value}"));
                 }

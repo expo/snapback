@@ -126,8 +126,8 @@ impl Engine {
             if let Some(options)=release {
                 let mut items=crate::store::release_history::inventory(tx.conn(),None,usize::MAX)?;
                 let dormant_items=items.len();
-                let remaining:std::collections::BTreeSet<_>=items.iter().map(|i|i.path.clone()).collect();
-                let restored=prior_items.borrow().iter().filter(|i|!remaining.contains(&i.path)).cloned().map(|mut i|{i.action="restored".into();i}).collect::<Vec<_>>();
+                let remaining:std::collections::BTreeSet<_>=items.iter().map(|i|i.key.clone()).collect();
+                let restored=prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned().map(|mut i|{i.action="restored".into();i}).collect::<Vec<_>>();
                 let restored_items=restored.len();items.extend(restored);
                 crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest}),&items)?;
                 tx.conn().execute("DELETE FROM _meta WHERE key='activation_restore'",[])?;

@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DormantItem {
+    /// Stable cursor; column/index names may coincide.
+    pub key: String,
     pub path: String,
     pub kind: String,
     pub action: String,
@@ -39,7 +41,7 @@ pub(crate) fn inventory(
         SELECT table_name AS path,'table' AS kind,table_name,NULL AS column_name FROM _dormant_tables
         UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns WHERE table_name NOT IN (SELECT table_name FROM _dormant_tables)
         UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes)
-        WHERE (?1 IS NULL OR path>?1) ORDER BY path LIMIT ?2")?;
+        WHERE (?1 IS NULL OR kind||':'||path>?1) ORDER BY kind||':'||path LIMIT ?2")?;
     let items: Vec<(String, String, String, Option<String>)> = statement
         .query_map(
             params![after, i64::try_from(limit).unwrap_or(i64::MAX)],
@@ -81,6 +83,7 @@ pub(crate) fn inventory(
             conn.query_row("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL",params![name,if kind=="table"{None}else{column.as_deref()}],|r|r.get::<_,i64>(0).map(|n|n as u64))?
         };
         out.push(DormantItem {
+            key: format!("{kind}:{path}"),
             path,
             kind,
             action: "dormant".into(),
@@ -117,7 +120,7 @@ pub(crate) fn event(
     for item in items {
         tx.conn().execute(
             "INSERT INTO _release_event_items VALUES(?1,?2,?3)",
-            params![id, item.path, canonical_json(item)],
+            params![id, item.key, canonical_json(item)],
         )?;
     }
     Ok(revision)
@@ -168,7 +171,7 @@ impl Store {
             }
         }
         let workers:Vec<(String,String)>=tx.conn().prepare("SELECT key,value FROM _meta WHERE key='worker:status' OR key LIKE 'worker:status:%' ORDER BY key LIMIT 16")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
-        let result = serde_json::json!({"release":tx.meta("release")?.and_then(|v|v.parse::<u64>().ok()),"revision":tx.meta("release_revision")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(0),"generation":tx.meta("generation")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(1),"native_digest":tx.meta("release_native_digest")?,"events_after":events.last().map(|e|e["id"].clone()),"events":events,"items_after":inventory_page.last().map(|i|i["path"].clone()),"items":inventory_page,"event":event_id,"workers":workers});
+        let result = serde_json::json!({"release":tx.meta("release")?.and_then(|v|v.parse::<u64>().ok()),"revision":tx.meta("release_revision")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(0),"generation":tx.meta("generation")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(1),"native_digest":tx.meta("release_native_digest")?,"events_after":events.last().map(|e|e["id"].clone()),"events":events,"items_after":inventory_page.last().map(|i|i["key"].clone()),"items":inventory_page,"event":event_id,"workers":workers});
         tx.rollback()?;
         Ok(result)
     }

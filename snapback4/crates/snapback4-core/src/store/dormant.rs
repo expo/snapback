@@ -148,7 +148,7 @@ fn check_owner(tx: &Tx<'_>, name: &str, old: &Table, next: &Schema) -> Result<()
     }
     if next.maintain_for(name).is_some() {
         return Err(refuse(format!(
-            "table {name}: {}; authoritative storage cannot become a derived table; rename the derived table, or retire {name} and explicitly prune it first",
+            "table {name}: {}; authoritative storage cannot become a derived table; rename the derived table, or retire {name}, run `snapback4 prune <dir> --allow-destructive`, then deploy",
             evidence()?
         )));
     }
@@ -159,7 +159,7 @@ fn check_owner(tx: &Tx<'_>, name: &str, old: &Table, next: &Schema) -> Result<()
     {
         if new.columns.contains_key(column) && !authoritative(new, column) {
             return Err(refuse(format!(
-                "column {name}.{column}: {}; authoritative values cannot become maintained/captured values; rename the new column, or retire and explicitly prune the old column first",
+                "column {name}.{column}: {}; authoritative values cannot become maintained/captured values; rename the new column, or retire it, run `snapback4 prune <dir> --allow-destructive`, then deploy",
                 evidence()?
             )));
         }
@@ -199,8 +199,20 @@ pub(super) fn transition(
             let old: Column =
                 serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
             if old.authoritative && !authoritative(table, column) {
+                let mut samples = super::adopt_refusals::Samples::default();
+                let t = tx.num(name)?;
+                let mut statement = tx.conn().prepare(
+                    "SELECT id,data FROM _dormant_values WHERE t=?1 AND column_name=?2 ORDER BY id",
+                )?;
+                for row in statement.query_map(params![t, column], |r| {
+                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                })? {
+                    let (id, value) = row?;
+                    samples.add(&id, &super::adopt_refusals::bounded(&value));
+                }
                 return Err(refuse(format!(
-                    "column {name}.{column}: dormant authoritative values cannot become maintained/captured; rename it or prune while dormant"
+                    "column {name}.{column}: {}; dormant authoritative values cannot become maintained/captured; rename the new column, or run `snapback4 prune <dir> --allow-destructive` while it is dormant, then deploy",
+                    samples.describe()
                 )));
             }
             reuse.push(format!("{name}.{column}"));

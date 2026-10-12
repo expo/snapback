@@ -567,7 +567,8 @@ fn check_reports_all_narrowing_sites_in_text_and_json_without_adopting() {
         let d = &report["problems"][i];
         assert_eq!(d["code"], "E_ADOPT");
         assert_eq!(d["site"], json!({"file": "schema.q", "line": line, "col": 3}));
-        assert_eq!(d["message"], format!("column messages.{column} is added as required with default {word}; existing rows would read the adoption's {noun}"));
+        assert!(d["message"].as_str().unwrap().starts_with(&format!("column messages.{column} is added as required with default {word}; existing rows would read the adoption's {noun}")));
+        for evidence in ["3 affected rows","m0","m1","m2","<missing>"] {assert!(d["message"].as_str().unwrap().contains(evidence),"{d}");}
         assert_eq!(d["rewrite"], format!("{column}: {kind} ? or {column}: {kind} default <literal>; otherwise backfill existing rows before making the column required"));
         assert_eq!(d["guide"], "types");
     }
@@ -576,7 +577,7 @@ fn check_reports_all_narrowing_sites_in_text_and_json_without_adopting() {
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     let text = String::from_utf8(output.stderr).unwrap();
-    assert_eq!(text, "check: 1 problem\nschema.q:3:3 — E_ADOPT: column messages.at is added as required with default now; existing rows would read the adoption's clock\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\n");
+    assert_eq!(text, format!("check: 1 problem\nschema.q:3:3 — E_ADOPT: {}\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\n",report["problems"][0]["message"].as_str().unwrap()));
     println!("{text}");
     assert_eq!(e.store().meta("generation").unwrap().as_deref(), Some("1"));
     assert_eq!(e.store().rows("messages").unwrap().len(), 3);
@@ -699,7 +700,9 @@ fn changed_default_refuses(unique: bool) {
     let d = &report["problems"][0];
     assert_eq!(d["code"], "E_ADOPT");
     assert_eq!(d["site"], json!({"file":"schema.q", "line":3, "col":3}));
-    assert_eq!(d["message"], "column messages.flag changes its default; existing rows must fit the new definition");
+    assert!(d["message"].as_str().unwrap().starts_with("column messages.flag changes its default; existing rows must fit the new definition"));
+    assert!(d["message"].as_str().unwrap().contains("2 affected rows"),"{d}");
+    for evidence in ["true","explicit","m0"] {assert!(d["message"].as_str().unwrap().contains(evidence),"{d}");}
     assert!(!dev.status.success());
     let text = String::from_utf8(dev.stderr).unwrap();
     // @ref LLP 3000#publication-suite-under-contention — diagnostic order is not an exit-record boundary.
