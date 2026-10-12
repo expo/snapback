@@ -295,8 +295,7 @@ pub fn deploy(options: &Options) -> i32 {
                 options.flags.contains_key("allow-feed-adoption"),
             )?;
             println!(
-                "deploy: release {n} is current in {} — `snapback4 serve {}` runs it",
-                dir.display(),
+                "deploy: release {n} is current in {}",
                 dir.display()
             );
             Ok(())

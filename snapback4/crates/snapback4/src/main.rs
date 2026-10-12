@@ -7,6 +7,7 @@ mod witness_socket;
 mod listen_refusal;
 mod verb_help;
 mod cli_flags;
+mod guide_find;
 mod note_rank;
 mod assets;
 mod host_limits;
@@ -152,7 +153,9 @@ fn main() -> ExitCode {
             let rest = options.positionals.get(named..).unwrap_or_default().join(" ");
             let words_of = |flag: &str| options.flags.get(flag).map(|words| if rest.is_empty() { words.clone() } else { format!("{words} {rest}") });
             match keyword {
-                None => println!("{}", guide::listing()),
+                None => if let Some(words) = options.flags.get("find") {
+                    match guide_find::find(words) { Ok(text) => println!("{text}"), Err(problem) => { println!("{problem}"); return ExitCode::from(1); } }
+                } else { println!("{}", guide::listing()); },
                 Some("aliases") if guide::card("aliases").is_none() => println!("{}", guide::aliases()),
                 Some(keyword) => match guide::card(keyword) {
                     // Cards embed starter sources; print them as init installs them.

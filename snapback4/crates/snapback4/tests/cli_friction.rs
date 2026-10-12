@@ -789,3 +789,25 @@ fn not_run_probes_make_the_summary_incomplete() {
     assert!(out.contains("1 not run") && out.contains("— incomplete"), "{out}");
     assert!(!out.contains("— pass"));
 }
+
+#[test]
+fn guide_find_without_a_card_searches_punctuation_and_reports_literal_misses() {
+    let project=Project::new("query who():\n  return viewer\n");
+    let output=project.run(&["guide","--find","sum("]);
+    assert!(output.status.success(),"{}",text(&output));
+    assert!(text(&output).contains("sum(") && text(&output).contains("guide "));
+    for needle in ["--hand-no-such-option"] {
+        let output=project.run(&["guide","--find",needle]);
+        assert_eq!(output.status.code(),Some(1),"{}",text(&output));
+        assert!(text(&output).contains(needle) && text(&output).contains("no line of any guide card"),"{}",text(&output));
+    }
+}
+
+#[test]
+fn help_as_a_guide_search_term_does_not_select_the_cli_help_page() {
+    let project=Project::new("query who():\n  return viewer\n");
+    let output=project.run(&["guide","--find","--help"]);
+    assert_ne!(output.status.code(),Some(2));
+    assert!(!text(&output).starts_with("snapback4 guide ["),"{}",text(&output));
+    assert!(text(&output).contains("--help"));
+}

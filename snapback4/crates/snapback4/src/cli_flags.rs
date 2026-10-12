@@ -1,5 +1,5 @@
 //! Validate the complete command before any project, store or host work.
-const SWITCHES: &[&str] = &["help", "repack", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
+const SWITCHES: &[&str] = &["help", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
 
 fn allowed(verb: &str) -> &'static str {
     match verb {
@@ -22,7 +22,7 @@ fn allowed(verb: &str) -> &'static str {
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
         "doctor" => "url latency reset json instance release",
-        "witness" => "as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack",
+        "witness" => "as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project",
         _ => "",
     }
 }
@@ -51,6 +51,10 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             // Retired spellings route to their existing no-work explanation,
             // even with a missing value; new unknown flags still refuse here.
             if matches!(verb, "init" | "new") && matches!(name, "recipe" | "prefix" | "authors" | "edges" | "public-profiles" | "public-posts" | "public-follows" | "public-reposts") {
+                if iter.peek().is_some_and(|value| !value.starts_with("--")) { iter.next(); }
+                continue;
+            }
+            if verb == "witness" && matches!(name, "repack" | "app-project") {
                 if iter.peek().is_some_and(|value| !value.starts_with("--")) { iter.next(); }
                 continue;
             }
