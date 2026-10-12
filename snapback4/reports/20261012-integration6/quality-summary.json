@@ -1,0 +1,1982 @@
+{
+  "product_commit": "d7ec18fedd",
+  "status": "qualified",
+  "original_rust_command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+  "original_rust_log": "cargo.log",
+  "original_failing_scopes_repaired": {
+    "snapback4 unit": {
+      "status": "ok",
+      "passed": 411,
+      "failed": 0,
+      "ignored": 5
+    },
+    "snapback4 lifecycle": {
+      "status": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-lang frontend_regressions": {
+      "status": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-lang guide": {
+      "status": "ok",
+      "passed": 119,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4-sim review_corrections": {
+      "status": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "additional_scopes": {
+    "shared_flag_regressions": {
+      "status": "ok",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0
+    },
+    "device_codec": {
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "clients": {
+    "product_commit": "6accc0b75b",
+    "expected_files": 379,
+    "passing_files": 379,
+    "remaining": [],
+    "files": {
+      "packages/snapback4/test/acquisition.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/admit-before-identity.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answer-row-authority.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answer-withdrawal.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answers-stay-bound.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answers-stay-react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answers-stay-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answers-stay-round2.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/answers-stay-round3.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/api-index.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-global-attempts.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-global.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-handles.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-local-outcomes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-local-receipts.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-local-session.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-online-arm.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-online.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-outcomes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-persona.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-receipts.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-retirement.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-session-model.test.mjs": {
+        "passed": true,
+        "log": "models-local-module.log"
+      },
+      "packages/snapback4/test/app-state.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-storage.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app-store-replacement.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/app.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/approval-lifecycle.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/approval-model.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/approval-notifications.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/approval-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/asset-avatars.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/asset-blob-lifecycle.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/asset-buffered.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/asset-files.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/asset-lists.test.mjs": {
+        "passed": true,
+        "log": "focused-clients5.log"
+      },
+      "packages/snapback4/test/asset-pressure.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/asset-retry.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/astra-arguments.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/astra-invalid-input.test.mjs": {
+        "passed": true,
+        "log": "focused-clients.log"
+      },
+      "packages/snapback4/test/astra-projection.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/astra-rebirth.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/bounded-following.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/browser-navigation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/browser-write-warnings.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/cleanup.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/client-lifecycle.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/client-seams.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/close-boundary.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/codec.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/column-stream-recovery.test.mjs": {
+        "passed": true,
+        "log": "focused-clients.log"
+      },
+      "packages/snapback4/test/composed-authority.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/cross-scope-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/custody-read.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/decorated-search.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-activation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-approval.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-cas.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-clients.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-crash.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-integrated.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-outbox.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-publication.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-refusal.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery-web.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/delivery.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/dev-reset.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/device-diet.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/device-residency.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/device-version.test.mjs": {
+        "passed": true,
+        "log": "focused-clients.log"
+      },
+      "packages/snapback4/test/effectful-cancellation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-adoption.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-capability.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-e2e.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-fencing.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-keep.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-lanes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-mock.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-reclamation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-routing.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-sender.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-types.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ephemeral-watches.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/event-slot-capability.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/event-slots.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/expired-server-watch.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/expiry-retry-watch.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/expo-media-storage.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/expo-save-asset.test.mjs": {
+        "passed": true,
+        "log": "expo-save-final.log"
+      },
+      "packages/snapback4/test/expo-scenes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/export-background.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/export-failure.test.mjs": {
+        "passed": true,
+        "log": "focused-clients4.log"
+      },
+      "packages/snapback4/test/export-maintenance-wakeup.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/export-native-round2.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/export-native.test.mjs": {
+        "passed": true,
+        "log": "focused-clients4.log"
+      },
+      "packages/snapback4/test/export-publication.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/familiar-forms.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/first-account.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/fixtures/identity-recipe/crash-cut-plan.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/fixtures/identity-recipe/deadline-sequence.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/fixtures/identity-recipe/diagnostic-secrecy.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/fixtures/identity-recipe/proxy-http-lifecycle.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/fixtures/identity-recipe/proxy-phase.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/follow-window.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/following-history.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/following-hook-react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/following-own-writes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/following-routing.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/following-unfollow.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/generated-effect-context.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/generated-effect-opt-in.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/headless-registration.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/horizon-boundary.test.mjs": {
+        "passed": true,
+        "log": "focused-clients5.log"
+      },
+      "packages/snapback4/test/http-bounds.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/id-from.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/identity-invitation-issuance.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/identity-organizations.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/identity-profile.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/identity-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/identity.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/in-chat-search.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/init-recipe.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/intent-views.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-adoption.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-app-expiry.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-app-model.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-authority-react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-authority.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-clock.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-device.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-expiry.test.mjs": {
+        "passed": true,
+        "log": "focused-clients5.log"
+      },
+      "packages/snapback4/test/keep-incarnation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-observation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keep-reset.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keepalive-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keepalive-headers.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keepalive-retry.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/keepalive-reuse.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/legacy-receipts.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/linux-package.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/list-lower-bounds.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/live-contention.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/live-margin-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/live-margin-settlement.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/live-propagation-fallback.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/live-propagation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/local-e2e.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/local-reads.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/local-signout.test.mjs": {
+        "passed": true,
+        "log": "focused-clients.log"
+      },
+      "packages/snapback4/test/loopbar-bounds.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/loopbar.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/maintained-column-adoption.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/maintained-columns.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/maintains.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/maintenance-evidence.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/measure-launch.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/media-dependencies.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/mixed-evidence-oracle.test.mjs": {
+        "passed": true,
+        "log": "mixed-evidence-qualified.log"
+      },
+      "packages/snapback4/test/native-e2e.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/native-opening.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/native-smoke.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/navigation-model.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/node-transport.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/observation-publication-live.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/observation-publication.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/once-preservation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-bounds.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-commit-evidence.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-dependencies.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-discovery-auth.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-generation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-model.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-prediction-replay.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-review-races.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot-sync-overlap.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/one-shot.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-capture.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-client-model.test.mjs": {
+        "passed": true,
+        "log": "models.log"
+      },
+      "packages/snapback4/test/online-intent-store.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-journal-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-read-order.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-session.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/online-store-order.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-store-terminal.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/online-terminal-entrypoints.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ordinary-history.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ordinary-search-ledger.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/ordinary-search.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/overload-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/overload.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/own-keys.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/package-require.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/package-typecheck.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/page-authority.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/page-cut.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/page-observation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/page-ready.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/pending-items-round1.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/pending-items-round2.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/pending-items-round3.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/pending-items.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/pending-writes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-boundaries.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-inflight.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-liveness.test.mjs": {
+        "passed": true,
+        "log": "focused-clients5.log"
+      },
+      "packages/snapback4/test/per-row-progress.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-publication.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-retention.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-retry.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/per-row-work.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/periphery.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/prediction-routing.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/presence-composed.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/presence-live.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/presence-local.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/presence-refresh.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/profile-upgrade.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/publication-roundtrip.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/publish-linux.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/publish-signing.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/qe2-allocations.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/qe2-ergonomics.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/qualify-linux.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/query-dependencies.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/query-publication-session.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/raw-read-deadlines.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-admission-insert.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-existence-integration.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-existence.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-match.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-nullable-array.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-observation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-allocation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-custody-races.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-custody-server.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-custody.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-peer-rotation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-round4.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-round5.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-round7.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only-server.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-only.test.mjs": {
+        "passed": true,
+        "log": "focused-clients2.log"
+      },
+      "packages/snapback4/test/read-presentation-react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-presentation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-through-provenance.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/read-through-upsert.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/read-through.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/read-types.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/readauth.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/readme-examples.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/receipt-upgrade.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/recorded-compatibility.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/refresh-behavior.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/release-activation.test.mjs": {
+        "passed": true,
+        "log": "focused-clients4.log"
+      },
+      "packages/snapback4/test/remembered-answers.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/repair-b-overflow.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/repair-b-round16.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/repair-b-round7.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/repair-b-round8.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/repair-b-round9.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/repair-b.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/replacement-fixture.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/reservation-app-headroom.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/reservation-parity.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/residency.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retained-history-cut.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retained-history-order.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retained-history.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retained-search-order.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retention-episode.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retention-lifecycle.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retention-online-boundaries.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retention-pages.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/retention-store-withdrawal.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/review-probes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/revocation-retention.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/routes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/row-keyed-view.test.mjs": {
+        "passed": true,
+        "log": "focused-clients4.log"
+      },
+      "packages/snapback4/test/row-view-prediction.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/rx-rule-hop-capability.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/rx-rule-hops.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/schema-capabilities.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/schema-capability-refusals.test.mjs": {
+        "passed": true,
+        "log": "focused-clients4.log"
+      },
+      "packages/snapback4/test/schema-session.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/screen-lifetimes-react.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/screen-lifetimes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/seen-devices.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/seen.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-check.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-clock-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-clock-live.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-clock-recovery.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-clock-regressions.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/server-clock-wire.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-clock.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-e2e.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-output.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-routes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/server-runtime.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/session-reasons.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/session-security.test.mjs": {
+        "passed": true,
+        "log": "focused-clients3.log"
+      },
+      "packages/snapback4/test/social-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/social-quote-jump-browser.test.mjs": {
+        "passed": true,
+        "log": "focused-clients6.log"
+      },
+      "packages/snapback4/test/social-starter.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/store-reset-idb.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/store-reset-reconnect.test.mjs": {
+        "passed": true,
+        "log": "focused-clients6.log"
+      },
+      "packages/snapback4/test/store-reset-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/store-reset.test.mjs": {
+        "passed": true,
+        "log": "focused-clients6.log"
+      },
+      "packages/snapback4/test/subscription-pressure-authority.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-deadline.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-device.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-e2e.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-fairness.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-memory.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-names.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-noop.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-online.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-options.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-round1.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-round2.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-round3.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-scaling.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-scopes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure-watermark.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/subscription-pressure.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/supervised-workers.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/sync-after-call.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/sync-generation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/sync-overflow.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/sync-scale.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/test-command-group.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/test-file-runner.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/test-processes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/test-signals.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/timeline-delivery.test.mjs": {
+        "passed": true,
+        "log": "focused-clients6.log"
+      },
+      "packages/snapback4/test/transport-http.test.mjs": {
+        "passed": true,
+        "log": "focused-clients7.log"
+      },
+      "packages/snapback4/test/transport-outcomes.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/typed-positional-keys.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/typing-expiry.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/unicode.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/unread-range.test.mjs": {
+        "passed": true,
+        "log": "focused-clients7.log"
+      },
+      "packages/snapback4/test/upload-browser.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/upload-hooks.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/upload-intents.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/upload-lifetime.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/upload-retry.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/use-page-cursor.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/value-deadline-types.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/wasm-absent.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/wasm-budget.test.mjs": {
+        "passed": true,
+        "log": "focused-clients6.log"
+      },
+      "packages/snapback4/test/wasm-codec-census.test.mjs": {
+        "passed": true,
+        "log": "codec-census-final.log"
+      },
+      "packages/snapback4/test/wasm-families.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-admission-review.test.mjs": {
+        "passed": true,
+        "log": "focused-clients6.log"
+      },
+      "packages/snapback4/test/web-durability.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-navigation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-pages.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-receipt-upgrade.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-review.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-session-authority.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-shell.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-start.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/web-worker-control.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/witness-acquire.test.mjs": {
+        "passed": true,
+        "log": "focused-clients7.log + witness-privacy-qualified.log",
+        "repair": "Only failed argument-redaction test in the full file was rerun after its parser fix."
+      },
+      "packages/snapback4/test/witness-preparation.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/witness.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/word-expansion.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/worker-ledger-contention.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/worker-regressions.test.mjs": {
+        "passed": true,
+        "log": "clients-final.log"
+      },
+      "packages/snapback4/test/worker.test.mjs": {
+        "passed": true,
+        "log": "worker-qualified.log"
+      },
+      "packages/snapback4/test/write-authority.test.mjs": {
+        "passed": true,
+        "log": "focused-clients7.log"
+      },
+      "packages/snapback4/test/write-ids.test.mjs": {
+        "passed": true,
+        "log": "focused-clients7.log"
+      }
+    }
+  },
+  "mac": {
+    "mac-cargo-final.log": {
+      "summaries": [
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 403,
+          "failed": 0,
+          "ignored": 5
+        },
+        {
+          "status": "ok",
+          "passed": 95,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "FAILED",
+          "passed": 25,
+          "failed": 1,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 41,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 4
+        },
+        {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2
+        },
+        {
+          "status": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 36,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 79,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "mac-cli-flags-qualified.log": {
+      "summaries": [
+        {
+          "status": "ok",
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "host": "TMPDIR=/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/\nea49538ce3dcd93958d0d50f0df6391a0315fb53\n"
+  },
+  "wasm": {
+    "raw": 2259976,
+    "gzip": 686877,
+    "brotli": 520172,
+    "budget": 687377,
+    "headroom": 500,
+    "log": "wasm-budget-qualified.log"
+  },
+  "lean": {
+    "theorem_audits": 54,
+    "examples": 53,
+    "oracle_fixtures": 7,
+    "log": "lean.log"
+  },
+  "reviews": {
+    "muse": "READY",
+    "codex": "READY",
+    "revision": "d0205be3b1",
+    "minor_findings": "Corrected with affected checks; artifacts saved verbatim."
+  },
+  "no_origin_push": true,
+  "difftest": {
+    "run": {
+      "cases": 20000,
+      "generated": 20000,
+      "executed": 1094330,
+      "signatures": {},
+      "time_limited_workers": 0
+    },
+    "devices": {
+      "cases": 1000,
+      "generated": 1000,
+      "executed": 32038,
+      "signatures": {},
+      "time_limited_workers": 0
+    },
+    "lean": {
+      "cases": 20000,
+      "generated": 20000,
+      "executed": 51024,
+      "signatures": {
+        "lean": {
+          "lean--code--E_RULE~NOT_FOUND": 3,
+          "lean--continuation-next--next~no-next": 54,
+          "lean--next--next~no-next": 131,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 25
+        }
+      },
+      "time_limited_workers": 0
+    }
+  },
+  "evidence_note": "Original full runs retain their failures; final qualification combines unchanged passing targets with the named affected reruns. Raw log names are preserved inside linux-evidence.tar.gz."
+}
