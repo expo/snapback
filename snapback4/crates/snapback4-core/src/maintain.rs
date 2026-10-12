@@ -34,7 +34,7 @@ impl CalendarKey {
             || (!self.civil() && (self.millis <= 0 || self.offset < 0 || self.offset >= self.millis))
             || !matches!(self.function.as_str(), "day" | "hour" | "bucket" | "month" | "year")
             || (self.function == "day" && self.millis != 86_400_000) || (self.function == "hour" && self.millis != 3_600_000) {
-            return Err("computed time keys need a required time column, a positive calendar duration and a nonnegative offset smaller than the period".into());
+            return Err("computed time keys need a required time column; day, hour and bucket take a positive period and a nonnegative offset smaller than it, month and year take neither".into());
         }
         Ok(())
     }

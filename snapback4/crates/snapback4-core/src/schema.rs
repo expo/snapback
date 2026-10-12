@@ -436,7 +436,7 @@ pub enum ColumnType {
     Video { max: u32 },
     Int,
     // @ref LLP 3000.040#13-representation — a new tag fails closed on older decoders; `Int` keeps its bytes.
-    IntRange { #[serde(default, skip_serializing_if = "Option::is_none")] min: Option<i64>, #[serde(default, skip_serializing_if = "Option::is_none")] max: Option<i64> },
+    IntRange { #[serde(default = "crate::schema::int_floor", skip_serializing_if = "crate::schema::is_int_floor")] min: i64, #[serde(default = "crate::schema::int_ceiling", skip_serializing_if = "crate::schema::is_int_ceiling")] max: i64 },
     Enum { variants: Vec<String> },
     Decimal { scale: u8 },
     Money { currency: String, scale: u8 },
@@ -499,7 +499,7 @@ impl fmt::Display for ColumnType {
             Self::Image { max, once: true } => write!(f, "image <={max} once"),
             Self::Video { max } => write!(f, "video <={max}"),
             Self::Int => f.write_str("int"),
-            Self::IntRange { min, max } => f.write_str(&int_range_text(*min, *max)),
+            Self::IntRange { min, max } => f.write_str(&int_range_text(int_bound(*min, int_floor()), int_bound(*max, int_ceiling()))),
             Self::Enum { variants } => write!(f, "enum({})", variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")),
             Self::Decimal { scale } => write!(f, "decimal {scale}"),
             Self::Money { currency, scale } => write!(f, "money {currency} {scale}"),
@@ -523,6 +523,15 @@ pub fn int_range_text(min: Option<i64>, max: Option<i64>) -> String {
         (None, None) => "int".into(),
     }
 }
+
+// @ref LLP 3000.040#13-representation — an unwritten end is the i53 limit itself, so the
+// variant stays as small as `Int`'s neighbours (no Option) and the bytes omit it.
+pub fn int_floor() -> i64 { -crate::value::I53_MAX }
+pub fn int_ceiling() -> i64 { crate::value::I53_MAX }
+pub fn is_int_floor(min: &i64) -> bool { *min <= int_floor() }
+pub fn is_int_ceiling(max: &i64) -> bool { *max >= int_ceiling() }
+/// A stored end as written: `None` when it is the i53 limit.
+pub fn int_bound(end: i64, limit: i64) -> Option<i64> { (end != limit).then_some(end) }
 
 /// Whether `value` lies inside an inclusive optional range.
 pub fn int_in_range(value: i64, min: Option<i64>, max: Option<i64>) -> bool {

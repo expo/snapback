@@ -26,7 +26,6 @@ card/actions/1:join | members/insert | {"Exists":{"table":"members","index":"$in
 card/actions/1:leave | eligible
 card/actions/1:pagePass | never
 card/actions/1:post | eligible
-card/actions/1:rate | never
 card/actions/1:react | eligible
 card/actions/1:react | postLikes/maintain | "Deny" | read rule
 card/actions/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -73,7 +72,6 @@ card/effects/3:join | members/insert | {"Exists":{"table":"members","index":"$in
 card/effects/3:leave | eligible
 card/effects/3:pagePass | never
 card/effects/3:post | eligible
-card/effects/3:rate | never
 card/effects/3:react | eligible
 card/effects/3:react | postLikes/maintain | "Deny" | read rule
 card/effects/3:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -110,40 +108,39 @@ card/from-sql/3:setReminder | never
 card/indexes/2:addCategory | eligible
 card/indexes/3:signUp | never
 card/indexes/4:checkin | never
-card/language/17:checkin | never
-card/language/17:createRoom | eligible
-card/language/17:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:edit | eligible
-card/language/17:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:join | eligible
-card/language/17:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:leave | eligible
-card/language/17:pagePass | never
-card/language/17:post | eligible
-card/language/17:rate | never
-card/language/17:react | eligible
-card/language/17:react | postLikes/maintain | "Deny" | read rule
-card/language/17:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/language/17:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-card/language/17:registerProfile | never
-card/language/17:sendBrief | eligible
-card/language/17:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
-card/language/17:split | never
-card/language/18:timelineFollow | never
-card/language/18:timelinePublish | eligible
-card/language/18:timelineRegister | eligible
-card/language/18:timelineRemove | eligible
-card/language/19:markRead | eligible
-card/language/20:timelineFollow | never
-card/language/20:timelinePublish | eligible
-card/language/20:timelineRegister | eligible
-card/language/20:timelineRemove | eligible
-card/language/23:react | eligible
-card/language/23:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:checkin | never
+card/language/16:createRoom | eligible
+card/language/16:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:edit | eligible
+card/language/16:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:join | eligible
+card/language/16:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:leave | eligible
+card/language/16:pagePass | never
+card/language/16:post | eligible
+card/language/16:react | eligible
+card/language/16:react | postLikes/maintain | "Deny" | read rule
+card/language/16:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/16:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/16:registerProfile | never
+card/language/16:sendBrief | eligible
+card/language/16:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/16:split | never
+card/language/17:timelineFollow | never
+card/language/17:timelinePublish | eligible
+card/language/17:timelineRegister | eligible
+card/language/17:timelineRemove | eligible
+card/language/18:markRead | eligible
+card/language/19:timelineFollow | never
+card/language/19:timelinePublish | eligible
+card/language/19:timelineRegister | eligible
+card/language/19:timelineRemove | eligible
+card/language/22:react | eligible
+card/language/22:react | reactions/upsert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"$message.conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:addNote | eligible
 card/language/2:addNote | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/language/3:checkin | never
@@ -159,7 +156,6 @@ card/language/3:join | members/insert | {"Exists":{"table":"members","index":"$i
 card/language/3:leave | eligible
 card/language/3:pagePass | never
 card/language/3:post | eligible
-card/language/3:rate | never
 card/language/3:react | eligible
 card/language/3:react | postLikes/maintain | "Deny" | read rule
 card/language/3:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -182,7 +178,6 @@ card/language/program:join | members/insert | {"Exists":{"table":"members","inde
 card/language/program:leave | eligible
 card/language/program:pagePass | never
 card/language/program:post | eligible
-card/language/program:rate | never
 card/language/program:react | eligible
 card/language/program:react | postLikes/maintain | "Deny" | read rule
 card/language/program:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -232,7 +227,6 @@ card/native/1:join | members/insert | {"Exists":{"table":"members","index":"$int
 card/native/1:leave | eligible
 card/native/1:pagePass | never
 card/native/1:post | eligible
-card/native/1:rate | never
 card/native/1:react | eligible
 card/native/1:react | postLikes/maintain | "Deny" | read rule
 card/native/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -255,7 +249,6 @@ card/personas/1:join | members/insert | {"Exists":{"table":"members","index":"$i
 card/personas/1:leave | eligible
 card/personas/1:pagePass | never
 card/personas/1:post | eligible
-card/personas/1:rate | never
 card/personas/1:react | eligible
 card/personas/1:react | postLikes/maintain | "Deny" | read rule
 card/personas/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -303,7 +296,6 @@ card/presence/1:join | members/insert | {"Exists":{"table":"members","index":"$i
 card/presence/1:leave | eligible
 card/presence/1:pagePass | never
 card/presence/1:post | eligible
-card/presence/1:rate | never
 card/presence/1:react | eligible
 card/presence/1:react | postLikes/maintain | "Deny" | read rule
 card/presence/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -328,7 +320,6 @@ card/programs/1:pagePass | never
 card/programs/1:post | eligible
 card/programs/1:programWrites | eligible
 card/programs/1:programWrites | rooms/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
-card/programs/1:rate | never
 card/programs/1:react | eligible
 card/programs/1:react | postLikes/maintain | "Deny" | read rule
 card/programs/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -352,7 +343,6 @@ card/reads/1:join | members/insert | {"Exists":{"table":"members","index":"$inte
 card/reads/1:leave | eligible
 card/reads/1:pagePass | never
 card/reads/1:post | eligible
-card/reads/1:rate | never
 card/reads/1:react | eligible
 card/reads/1:react | postLikes/maintain | "Deny" | read rule
 card/reads/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -375,7 +365,6 @@ card/reads/2:join | members/insert | {"Exists":{"table":"members","index":"$inte
 card/reads/2:leave | eligible
 card/reads/2:pagePass | never
 card/reads/2:post | eligible
-card/reads/2:rate | never
 card/reads/2:react | eligible
 card/reads/2:react | postLikes/maintain | "Deny" | read rule
 card/reads/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -398,7 +387,6 @@ card/reads/4:join | members/insert | {"Exists":{"table":"members","index":"$inte
 card/reads/4:leave | eligible
 card/reads/4:pagePass | never
 card/reads/4:post | eligible
-card/reads/4:rate | never
 card/reads/4:react | eligible
 card/reads/4:react | postLikes/maintain | "Deny" | read rule
 card/reads/4:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -448,7 +436,6 @@ card/refusals/1:join | members/insert | {"Exists":{"table":"members","index":"$i
 card/refusals/1:leave | eligible
 card/refusals/1:pagePass | never
 card/refusals/1:post | eligible
-card/refusals/1:rate | never
 card/refusals/1:react | eligible
 card/refusals/1:react | postLikes/maintain | "Deny" | read rule
 card/refusals/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -473,7 +460,6 @@ card/routes/1:join | members/insert | {"Exists":{"table":"members","index":"$int
 card/routes/1:leave | eligible
 card/routes/1:pagePass | never
 card/routes/1:post | eligible
-card/routes/1:rate | never
 card/routes/1:react | eligible
 card/routes/1:react | postLikes/maintain | "Deny" | read rule
 card/routes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -504,7 +490,6 @@ card/shapes/1:join | members/insert | {"Exists":{"table":"members","index":"$int
 card/shapes/1:leave | eligible
 card/shapes/1:pagePass | never
 card/shapes/1:post | eligible
-card/shapes/1:rate | never
 card/shapes/1:react | eligible
 card/shapes/1:react | postLikes/maintain | "Deny" | read rule
 card/shapes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -527,7 +512,6 @@ card/shapes/2:join | members/insert | {"Exists":{"table":"members","index":"$int
 card/shapes/2:leave | eligible
 card/shapes/2:pagePass | never
 card/shapes/2:post | eligible
-card/shapes/2:rate | never
 card/shapes/2:react | eligible
 card/shapes/2:react | postLikes/maintain | "Deny" | read rule
 card/shapes/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -576,7 +560,6 @@ card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]
 card/time/1:checkIn | checkins/insert | {"Eq":[{"Field":"person"},"Viewer"]} | read rule
 card/time/1:checkIn | eligible
 card/types/1:createProfile | never
-card/types/4:rate | never
 card/wire/1:addExpense | never
 card/writes/1:checkin | never
 card/writes/1:createRoom | eligible
@@ -591,7 +574,6 @@ card/writes/1:join | members/insert | {"Exists":{"table":"members","index":"$int
 card/writes/1:leave | eligible
 card/writes/1:pagePass | never
 card/writes/1:post | eligible
-card/writes/1:rate | never
 card/writes/1:react | eligible
 card/writes/1:react | postLikes/maintain | "Deny" | read rule
 card/writes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -634,7 +616,6 @@ package/SERVER/1:join | members/insert | {"Exists":{"table":"members","index":"$
 package/SERVER/1:leave | eligible
 package/SERVER/1:pagePass | never
 package/SERVER/1:post | eligible
-package/SERVER/1:rate | never
 package/SERVER/1:react | eligible
 package/SERVER/1:react | postLikes/maintain | "Deny" | read rule
 package/SERVER/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
@@ -660,7 +641,6 @@ package/SERVER/3:join | members/insert | {"Exists":{"table":"members","index":"$
 package/SERVER/3:leave | eligible
 package/SERVER/3:pagePass | never
 package/SERVER/3:post | eligible
-package/SERVER/3:rate | never
 package/SERVER/3:react | eligible
 package/SERVER/3:react | postLikes/maintain | "Deny" | read rule
 package/SERVER/3:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule

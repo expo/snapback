@@ -149,7 +149,7 @@ fn describe(kind: &ArgType) -> String {
         ArgType::Image { .. } => "an image".into(),
         ArgType::Video { .. } => "a video".into(),
         ArgType::Int => "an integer".into(),
-        ArgType::IntRange { min, max } => format!("an integer, {}", crate::schema::int_range_text(*min, *max)),
+        ArgType::IntRange { .. } => format!("an integer, {}", crate::schema::arg_as_column(kind).map(|c| c.to_string()).unwrap_or_default()),
         ArgType::Bool => "a boolean".into(),
         ArgType::Time => "a time in milliseconds".into(),
         ArgType::Json { .. } => "json".into(),

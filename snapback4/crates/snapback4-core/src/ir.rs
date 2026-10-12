@@ -75,7 +75,7 @@ pub enum ArgType {
     Video { max: u32 },
     Int,
     // @ref LLP 3000.040#13-representation — a new tag: an older device cannot decode the program, so it never skips the bound.
-    IntRange { #[serde(default, skip_serializing_if = "Option::is_none")] min: Option<i64>, #[serde(default, skip_serializing_if = "Option::is_none")] max: Option<i64> },
+    IntRange { #[serde(default = "crate::schema::int_floor", skip_serializing_if = "crate::schema::is_int_floor")] min: i64, #[serde(default = "crate::schema::int_ceiling", skip_serializing_if = "crate::schema::is_int_ceiling")] max: i64 },
     Bool,
     Time,
     Json { max_bytes: u32 },
@@ -102,7 +102,7 @@ impl ArgType {
     pub fn bounds_valid(&self) -> bool {
         match self {
             Self::Text { min, max, .. } => min <= max,
-            Self::IntRange { min: Some(min), max: Some(max) } => min <= max,
+            Self::IntRange { min, max } => min <= max,
             Self::ListRange { of, min, max } => min <= max && of.as_ref().is_none_or(|of| of.bounds_valid()),
             Self::Optional(inner) | Self::List { of: Some(inner), .. } => inner.bounds_valid(),
             _ => true,

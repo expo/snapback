@@ -198,12 +198,19 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.tables[0].expire.is_some() {
             dims.push("expiry");
         }
+        // LLP 3000.040 §5: calendar bodies and bounded `score`, from their own stream.
+        if case.program.time_arg {
+            dims.push("calendar");
+        }
+        if case.program.tables[0].columns.iter().any(|c| matches!(c.ty, snapback4_difftest::ast::Type::IntRange(..))) {
+            dims.push("bounded");
+        }
         if dims.is_empty() {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 4, "{seen:?}");
+    assert_eq!(seen.len(), 6, "{seen:?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

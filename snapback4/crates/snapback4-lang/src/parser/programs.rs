@@ -34,7 +34,7 @@ impl Parser {
                     day = self.number()?;
                     if !(1..=28).contains(&day) {
                         return Err(syntax_with(&token.site, format!("day {day} is not in every month; a calendar schedule's day is 1 through 28"),
-                            "at day 28 09:00, or a daily schedule whose job tests month(periodEnd + 1d) != month(periodEnd) for a month's last day").guide("jobs"));
+                            "at day 28 09:00, or a daily schedule whose job tests month(periodStart) != month(periodEnd): that daily period crosses a month's end").guide("jobs"));
                     }
                 }
                 let hours = self.number()?;

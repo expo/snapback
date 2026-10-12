@@ -74,7 +74,7 @@ mutation addCategory(name: text 1..40):
 
 The 51st insert refuses `E_CONSTRAINT: categories holds at most 50 rows`.
 A device predicts it when it holds the whole table (`sync public` with no
-horizon); otherwise the write queues for the server. A cap bounds a read only
+horizon); a private partition, a horizon or an expiring table queues the write for the server. A cap bounds a read only
 up to the 8,192-row examined ceiling, and other meters still apply. Adding or
 lowering a cap on a populated table checks the stored rows (`E_ADOPT`);
 raising one applies in place. On an expiring table the cap counts live rows.

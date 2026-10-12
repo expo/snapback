@@ -213,9 +213,7 @@ fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
         (ColumnType::IntRange { .. }, ColumnType::Int) => Change::Additive,
         (ColumnType::Int, ColumnType::IntRange { .. }) => Change::Narrowing,
         (ColumnType::IntRange { min: amin, max: amax }, ColumnType::IntRange { min: bmin, max: bmax }) => {
-            let lower = match (amin, bmin) { (_, None) => true, (None, Some(_)) => false, (Some(a), Some(b)) => b <= a };
-            let upper = match (amax, bmax) { (_, None) => true, (None, Some(_)) => false, (Some(a), Some(b)) => b >= a };
-            if lower && upper { Change::Additive } else { Change::Narrowing }
+            if bmin <= amin && bmax >= amax { Change::Additive } else { Change::Narrowing }
         }
         (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
             if a.iter().all(|v| b.contains(v)) { Change::Additive } else { Change::Narrowing }

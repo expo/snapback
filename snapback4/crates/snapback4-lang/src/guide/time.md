@@ -87,7 +87,7 @@ mutation checkIn():
 - Keys and views take them like `day`: `unique person, month(at) else ALREADY_THIS_MONTH`,
   `view … by .owner, month(.at)`, `checkins[viewer, month(now)]`.
 - In JS: `Date.UTC(1970, m)` is the month's start; `(d.getUTCFullYear() - 1970) * 12 + d.getUTCMonth()`
-  is the key.
+  is the key. A JS `Date` spans ±8.64e15 ms, less than a `time`, so the extreme times are `Invalid Date`.
 - Months and years are UTC; they take no offset. Local-time months (a time zone) are not available:
   for a fixed-offset zone west of UTC, store the client's local month in an `int` column.
 

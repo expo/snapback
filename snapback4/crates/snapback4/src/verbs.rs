@@ -1228,7 +1228,7 @@ fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &s
             None => "a".repeat((*min).max(1) as usize),
         }),
         ir::ArgType::Int => Value::Int(0),
-        ir::ArgType::IntRange { min, max } => Value::Int(0.clamp(min.unwrap_or(i64::MIN), max.unwrap_or(i64::MAX))),
+        ir::ArgType::IntRange { min, max } => Value::Int(0.clamp(*min, *max)),
         ir::ArgType::Time => Value::Int(snapback4_core::now_ms()),
         ir::ArgType::Bool => Value::Bool(false),
         ir::ArgType::Enum { variants } => Value::String(variants.first()?.clone()),

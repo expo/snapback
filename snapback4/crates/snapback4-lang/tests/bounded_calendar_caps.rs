@@ -26,7 +26,7 @@ const REVIEWS: &str = "table reviews:\n  author: principal\n  stars: int 1..5\n 
 fn bounded_columns_and_arguments_bind_print_and_emit() {
     let b = clean(&format!("{REVIEWS}mutation rate(stars: int 1..5, scores: [int 0..100] <=8, d: int -10..10 ?):\n  return insert reviews {{ author: viewer, stars, scores, delta: d }}\n"));
     let columns = &b.schema.tables["reviews"].columns;
-    assert_eq!(columns["stars"], ColumnType::IntRange { min: Some(1), max: Some(5) });
+    assert_eq!(columns["stars"], ColumnType::IntRange { min: 1, max: 5 });
     assert_eq!(columns["helpful"].to_string(), "int 0..");
     assert_eq!(columns["delta"].to_string(), "int -10..10 ?");
     assert_eq!(columns["budget"].to_string(), "int ..1000 ?");
@@ -125,7 +125,7 @@ fn calendar_schedules_parse_anchor_at_the_epoch_and_keep_fixed_bytes() {
         assert_eq!(diagnostics[0].code, "E_QUARRY_SYNTAX", "{bad}: {diagnostics:#?}");
     }
     let refusal = &schedule("1 month at day 31 09:00").unwrap_err()[0];
-    assert!(refusal.rewrite.contains("month(periodEnd + 1d) != month(periodEnd)") || refusal.rewrite.contains("day 28"), "{refusal:#?}");
+    assert!(refusal.rewrite.contains("month(periodStart) != month(periodEnd)") && refusal.rewrite.contains("day 28"), "{refusal:#?}");
     // A fixed schedule's serialized bytes carry no calendar field.
     let fixed = schedule("1d at 08:00").unwrap();
     assert!(!serde_json::to_string(&fixed).unwrap().contains("months"));
@@ -196,6 +196,14 @@ fn the_monthly_billing_recipe_catches_up_once() {
     assert_eq!(invoices(&e), [oct, oct + 1, oct + 2, oct + 3]);
     assert!(fire(&mut e, at(oct + 4) + 1).is_empty());
     assert_eq!(invoices(&e), [oct, oct + 1, oct + 2, oct + 3]);
+    // A retried run of the same period (by hand, or after a crash) bills nothing again.
+    let period = [("periodStart".to_owned(), Value::Int(at(oct + 3))), ("periodEnd".to_owned(), Value::Int(at(oct + 4)))];
+    for _ in 0..2 {
+        let run = e.run_job("bill", period.clone().into(), at(oct + 4) + 2).unwrap();
+        assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
+        while let Some(more) = e.run_job_chunk(at(oct + 4) + 2).unwrap() { assert_eq!(more.state, snapback4_core::JobState::Done); }
+        assert_eq!(invoices(&e), [oct, oct + 1, oct + 2, oct + 3]);
+    }
     // A two-year backlog: twelve months a run, the oldest first, until caught up.
     e.seed([("subscriptions".into(), object([("id", Value::Id("old".into())), ("owner", Value::Id("bob".into())), ("plan", Value::Id("pro".into())), ("startMonth", Value::Int(oct - 30)), ("billedThrough", Value::Int(oct - 31))]))]).unwrap();
     let bob = |e: &Engine| e.store().rows("invoices").unwrap().iter().filter(|r| r.field("owner").unwrap() == &Value::Id("bob".into())).count();
@@ -208,4 +216,22 @@ fn the_monthly_billing_recipe_catches_up_once() {
     fire(&mut e, at(oct + 8));
     assert_eq!(bob(&e), 38, "oct-30 through oct+7: caught up");
     assert!(e.store().rows("invoices").unwrap().iter().all(|r| r.field("amount").unwrap() == &Value::Int(1_200)));
+}
+
+/// Fixture and `/seed` rows go through the same row validation as writes: an
+/// out-of-range row is refused and not stored. (The load path reports any
+/// invalid row as NOT_FOUND, for text bounds too:
+/// issues/20261012-snapback4-seed-refusal-reports-not-found.md.)
+#[test]
+fn seeded_rows_meet_the_bound() {
+    use snapback4_core::{Engine, Value, value::object};
+    for source in [REVIEWS.to_owned(), REVIEWS.replace("  read <- .author = viewer\n", "  public\n")] {
+        let b = clean(&source);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let row = |stars: i64| object([("id", Value::Id(format!("r{stars}"))), ("author", Value::Id("alice".into())), ("stars", Value::Int(stars)), ("helpful", Value::Int(0)), ("scores", Value::Array(vec![]))]);
+        e.seed([("reviews".into(), row(5))]).unwrap();
+        assert!(e.seed([("reviews".into(), row(6))]).is_err(), "{source}");
+        assert!(e.seed([("reviews".into(), row(0))]).is_err(), "{source}");
+        assert_eq!(e.store().rows("reviews").unwrap().len(), 1, "out-of-range rows are not stored");
+    }
 }

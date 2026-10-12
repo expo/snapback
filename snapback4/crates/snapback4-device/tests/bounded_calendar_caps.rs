@@ -180,6 +180,37 @@ fn whole_table_cap<H: Host>(host: &mut H) {
     host.close("lang2-cap", device);
 }
 
+/// Tightening a range over stored rows (LLP 3000.040 §1.6): the server refuses
+/// E_ADOPT while a row does not fit and adopts once it is repaired; a device that
+/// held the stale image drops it at the new generation and reacquires.
+fn tightening<H: Host>(host: &mut H) {
+    const LOOSE: &str = "table scores:\n  owner: principal\n  stars: int\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  sync to .owner\nquery all():\n  return scores where .owner = viewer first 10 by .id\nmutation fix(s: scores, stars: int):\n  update scores[s] { stars }\n  return null\n";
+    let (mut server, backend) = compile(LOOSE);
+    let table = server.schema().tables["scores"].clone();
+    for (id, stars) in [("low", 0), ("ok", 3)] {
+        server.seed([("scores".into(), snapback4_core::wire::row_from_json(&table, &json!({"id": id, "owner": "alice", "stars": stars})).unwrap())]).unwrap();
+    }
+    let mut device = host.open("lang2-tighten", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut server, "alice", 10).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let held = device.query("all", "alice", &json!({}), NOW).unwrap().data;
+    assert!(snapback4_core::wire::to_json(&held).to_string().contains("\"stars\":0"), "{}", host.label());
+    let (_, tight) = compile(&LOOSE.replace("stars: int\n", "stars: int 1..5\n").replace("stars: int):", "stars: int 1..5):"));
+    let refused = server.adopt(tight.schema.clone(), tight.programs.clone()).unwrap_err();
+    assert_eq!(refused.code(), "E_ADOPT", "{refused}");
+    assert!(refused.to_string().contains("int 1..5"), "{refused}");
+    assert!(matches!(server.mutate("fix", None, context("alice", &[("s", id("low")), ("stars", Value::Int(1))]).at(NOW)).unwrap().state, WriteState::Sent { .. }));
+    server.adopt(tight.schema.clone(), tight.programs.clone()).unwrap();
+    let tight = snapback4_device::device::Backend { generation: server.generation(), ..tight };
+    device.adopt(tight).unwrap();
+    for (n, page) in snapshot_pages(&mut server, "alice", 10).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let read = device.query("all", "alice", &json!({}), NOW).unwrap();
+    let text = snapback4_core::wire::to_json(&read.data).to_string();
+    assert!(!text.contains("\"stars\":0") && text.contains("\"stars\":1"), "{}: {text}", host.label());
+    host.close("lang2-tighten", device);
+}
+
+#[test] fn tightening_server_and_memory_device() { tightening(&mut Memory::new()); }
+#[test] fn tightening_server_and_sqlite_device() { tightening(&mut Sqlite::new("lang2-tighten")); }
 #[test] fn bounded_ints_server_and_memory_device() { bounded(&mut Memory::new()); }
 #[test] fn bounded_ints_server_and_sqlite_device() { bounded(&mut Sqlite::new("lang2-bounded")); }
 #[test] fn calendar_server_and_memory_device() { calendar(&mut Memory::new()); }
