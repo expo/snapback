@@ -17,10 +17,21 @@ impl Binder<'_> {
         }
         let after = self.visible_bindings();
         self.pop_scope();
-        for (name, old) in before {
+        for (name, mut old) in before {
             let new = &after[&name];
             if old.runtime == new.runtime && old.revision != new.revision {
                 self.scopes.last_mut().expect("a scope").insert(name, new.clone());
+            } else if old.runtime == new.runtime {
+                // Facts added inside a lexical block remain local, while a
+                // write's invalidation must reach the enclosing loop header.
+                let surviving_fields: BTreeMap<_, _> = old.fields.iter()
+                    .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
+                    .map(|(path, ty)| (path.clone(), ty.clone()))
+                    .collect();
+                if surviving_fields.len() != old.fields.len() {
+                    old.fields = surviving_fields;
+                    self.scopes.last_mut().expect("a scope").insert(name, old);
+                }
             }
         }
         result
@@ -379,7 +390,24 @@ impl Binder<'_> {
             let mut changed = false;
             for (local, old) in &mut header {
                 let new = &after[local];
-                if new.runtime != old.runtime || new.revision == old.revision {
+                if new.runtime != old.runtime {
+                    continue;
+                }
+                // The zero-iteration path meets the completed body at the
+                // loop header. A write can remove a point/authorization fact
+                // without assigning its lexical root; carry that loss into
+                // the next analysis pass without making the root an
+                // automatic-job accumulator.
+                let surviving_fields: BTreeMap<_, _> = old.fields.iter()
+                    .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
+                    .map(|(path, ty)| (path.clone(), ty.clone()))
+                    .collect();
+                let fields_changed = surviving_fields.len() != old.fields.len();
+                if new.revision == old.revision {
+                    if fields_changed {
+                        old.fields = surviving_fields;
+                        changed = true;
+                    }
                     continue;
                 }
                 let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
