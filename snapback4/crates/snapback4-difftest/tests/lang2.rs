@@ -17,7 +17,7 @@ fn calendar(case: &generate::Case) -> bool {
 }
 
 fn bounded(case: &generate::Case) -> bool {
-    case.program.tables[0].columns.iter().any(|c| matches!(c.ty, Type::IntRange(..)))
+    case.program.tables[0].columns.iter().any(|c| matches!(c.ty, Type::IntRange(..))) || case.program.arg_bound.is_some()
 }
 
 #[test]
@@ -40,8 +40,13 @@ fn calendar_and_bounded_cases_are_drawn_compile_and_reach_the_model() {
                 Err(reason) => assert!(!reason.starts_with("call-") && !reason.starts_with("calendar"), "seed {seed}: {reason}\n{source}"),
             }
         }
-        if bounded(&generate::generate(seed)) {
+        let widened = generate::generate(seed);
+        if bounded(&widened) {
             bounds += 1;
+            execute::compile(&widened.program.source()).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+            if let Some(range) = widened.program.arg_bound {
+                assert!(widened.program.source().contains(&format!("a: {}", Type::IntRange(range.0, range.1).source_text())), "seed {seed}");
+            }
         }
     }
     assert!(calendars >= 100, "{calendars} calendar cases in 3,000 seeds");

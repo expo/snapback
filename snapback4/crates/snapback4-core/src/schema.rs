@@ -530,6 +530,8 @@ pub fn int_floor() -> i64 { -crate::value::I53_MAX }
 pub fn int_ceiling() -> i64 { crate::value::I53_MAX }
 pub fn is_int_floor(min: &i64) -> bool { *min <= int_floor() }
 pub fn is_int_ceiling(max: &i64) -> bool { *max >= int_ceiling() }
+/// An int range some i53 value satisfies, with both ends inside i53.
+pub fn int_range_valid(min: i64, max: i64) -> bool { int_floor() <= min && min <= max && max <= int_ceiling() }
 /// A stored end as written: `None` when it is the i53 limit.
 pub fn int_bound(end: i64, limit: i64) -> Option<i64> { (end != limit).then_some(end) }
 

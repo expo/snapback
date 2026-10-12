@@ -102,7 +102,7 @@ impl ArgType {
     pub fn bounds_valid(&self) -> bool {
         match self {
             Self::Text { min, max, .. } => min <= max,
-            Self::IntRange { min, max } => min <= max,
+            Self::IntRange { min, max } => crate::schema::int_range_valid(*min, *max),
             Self::ListRange { of, min, max } => min <= max && of.as_ref().is_none_or(|of| of.bounds_valid()),
             Self::Optional(inner) | Self::List { of: Some(inner), .. } => inner.bounds_valid(),
             _ => true,

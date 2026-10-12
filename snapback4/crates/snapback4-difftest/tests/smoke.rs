@@ -205,12 +205,15 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.tables[0].columns.iter().any(|c| matches!(c.ty, snapback4_difftest::ast::Type::IntRange(..))) {
             dims.push("bounded");
         }
+        if case.program.arg_bound.is_some() {
+            dims.push("bounded-arg");
+        }
         if dims.is_empty() {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 6, "{seen:?}");
+    assert_eq!(seen.len(), 7, "{seen:?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

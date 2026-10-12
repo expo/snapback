@@ -142,6 +142,8 @@ pub fn timeline_issues(schema: &Schema) -> Vec<SchemaIssue> {
 fn list_bounds_valid(kind: &ColumnType) -> bool {
     match kind {
         ColumnType::ListRange { of, min, max } => min <= max && list_bounds_valid(of),
+        // @ref LLP 3000.040#13-representation — a raw catalog cannot install a range no int satisfies.
+        ColumnType::IntRange { min, max } => crate::schema::int_range_valid(*min, *max),
         ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => list_bounds_valid(inner),
         _ => true,
     }
@@ -153,7 +155,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         for (field, kind) in &table.columns {
             if !list_bounds_valid(kind) {
                 walk.issues.push(SchemaIssue { path: format!("tables.{name}.columns.{field}"),
-                    message: "list minimum must not exceed its maximum".into() });
+                    message: "list minimum must not exceed its maximum, and an int range needs -(2^53 - 1) <= min <= max <= 2^53 - 1".into() });
             }
         }
     }

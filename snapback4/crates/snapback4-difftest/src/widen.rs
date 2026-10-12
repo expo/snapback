@@ -348,6 +348,12 @@ fn lang2(case: &mut Case) {
     let mut rng = Rng::new(case.seed ^ LANG2_STREAM);
     let calendar_body = rng.pick(5) == 0;
     let bounded = rng.pick(6) == 0;
+    let bounded_arg = rng.pick(6) == 0;
+    let arg_bound = BOUNDS[rng.pick(BOUNDS.len() as u64) as usize];
+    if bounded_arg {
+        // `a` takes the generator's i53-edge values, so most calls refuse E_INPUT on every host.
+        case.program.arg_bound = Some(arg_bound);
+    }
     if calendar_body && matches!(case.program.body, Body::Scalar(_)) {
         case.program.body = Body::Scalar(calendar(&mut rng));
         case.program.time_arg = true;

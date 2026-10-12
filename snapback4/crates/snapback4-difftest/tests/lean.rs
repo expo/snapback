@@ -81,9 +81,9 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
         execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed} does not compile: {e}"));
         let module = match lean::module(&source) {
             Ok(m) => m,
-            // Only expiry and int ranges (LLP 3000.040 §1.8) are outside the model at the schema level.
+            // Only expiry is outside the model at the schema level (the campaign drops int ranges).
             Err(r) => {
-                assert!(r == "table-expiry" || r == "int-range", "seed {seed}: {r}");
+                assert_eq!(r, "table-expiry", "seed {seed}");
                 reasons.insert(r);
                 continue;
             }
@@ -101,8 +101,8 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
         }
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
-    // loop of a prefetch-reachable fold, expiry and int ranges, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "int-range", "loop", "shape", "table-expiry"].map(String::from).into());
+    // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "loop", "shape", "table-expiry"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
 }
 

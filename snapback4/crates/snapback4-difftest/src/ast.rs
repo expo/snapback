@@ -14,6 +14,10 @@ pub enum Type {
     IntRange(Option<i64>, Option<i64>),
 }
 impl Type {
+    /// The type as Quarry source.
+    pub fn source_text(&self) -> String {
+        self.source()
+    }
     fn source(&self) -> String {
         match self {
             Self::IntRange(min, max) => match (min, max) {
@@ -424,6 +428,9 @@ pub struct Program {
     /// `run` also takes `t: time` (calendar cases, LLP 3000.040 §5).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub time_arg: bool,
+    /// `run`'s argument `a` declared `int M..N`, `int M..` or `int ..N` (LLP 3000.040 §5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arg_bound: Option<(Option<i64>, Option<i64>)>,
 }
 const SIGNATURE: &str = "key: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
 const WIDE_SIGNATURE: &str = "key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int";
@@ -461,7 +468,10 @@ impl Program {
         }
         out += &declarations.join("\n");
         let mutation = self.mutation();
-        let signature = format!("{}{}", if self.wide() { WIDE_SIGNATURE } else { SIGNATURE }, if self.time_arg { ", t: time" } else { "" });
+        let mut signature = format!("{}{}", if self.wide() { WIDE_SIGNATURE } else { SIGNATURE }, if self.time_arg { ", t: time" } else { "" });
+        if let Some((min, max)) = self.arg_bound {
+            signature = signature.replace(", a: int,", &format!(", a: {},", Type::IntRange(min, max).source()));
+        }
         out += &format!(
             "\n{} run({signature}):\n",
             if mutation { "mutation" } else { "query" }

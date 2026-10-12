@@ -43,9 +43,12 @@ impl Schedule {
         (to - from) / (self.every_ms as i64).max(1)
     }
 
+    // @ref LLP 3000.040#24-monthly-and-yearly-schedules — exact: the month start plus the offset in i128,
+    // never an endpoint substituted at the i53 edges (only ±285,000 years out).
     fn month_boundary(&self, month: i64) -> i64 {
-        crate::calendar::month_start(month).map(|start| start + self.offset_ms as i64)
-            .unwrap_or(if month < 0 { crate::value::I53_MIN } else { crate::value::I53_MAX })
+        let days = crate::calendar::days_from_civil(1970 + i128::from(month).div_euclid(12), i128::from(month).rem_euclid(12) + 1, 1);
+        let at = days * i128::from(crate::calendar::DAY_MS) + i128::from(self.offset_ms);
+        at.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64
     }
 
     /// `every 1 month at day 1 09:00 UTC`, `every 1d at 03:00 UTC`, `every 2m`.

@@ -502,6 +502,12 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(crate::orac
         *report.store_stats.entry(format!("lean-agreed/{}", checked.class)).or_default() += 1;
     }
     let stats = &mut report.store_stats;
+    // @ref LLP 3000.040#25-the-lean-model — calendar evidence is counted where it is compared.
+    if case.program.time_arg {
+        *stats.entry("lean-calendar-generated".into()).or_default() += 1;
+        let class = match &checked.verdict { Verdict::Unsupported(_) => "unsupported", Verdict::Pass => "agreed", Verdict::Disagree(_) => "disagreeing", _ => "other" };
+        *stats.entry(format!("lean-calendar-{class}")).or_default() += 1;
+    }
     match &checked.verdict {
         Verdict::Unsupported(_) => *stats.entry("lean-unsupported".into()).or_default() += 1,
         _ => {
@@ -550,6 +556,7 @@ pub fn reproduce(case: &Case, source: &str) -> Result<Verdict, String> {
 pub fn generate(seed: u64) -> Case {
     use crate::ast::{Residency, Rule};
     let mut case = crate::generate::generate(seed);
+    unbound(&mut case);
     // Half the widened cases the model cannot run (projections, expiry) are
     // narrowed back into its fragment; the other half stay named unsupported.
     if crate::generate::Rng::new(seed ^ 0x4c45_414e_4e41_5257).next() % 2 == 0 {
@@ -632,7 +639,12 @@ pub fn narrow(case: &mut Case) {
     for s in &mut case.steps {
         s.sweep = false;
     }
-    // Slot bounds are outside the model's fragment (LLP 3000.040 §1.8).
+}
+
+/// Slot bounds are outside the model's fragment (LLP 3000.040 §1.8): every
+/// Lean case drops them, so the campaign compares the rest of the case.
+fn unbound(case: &mut Case) {
+    case.program.arg_bound = None;
     for t in &mut case.program.tables {
         for c in &mut t.columns {
             if matches!(c.ty, crate::ast::Type::IntRange(..)) {
@@ -686,6 +698,11 @@ pub fn run_bounded(seed: u64, cases: u64, out: &std::path::Path, seconds: Option
     std::fs::write(out.join("report.json"), serde_json::to_vec_pretty(&report).unwrap()).map_err(|e| e.to_string())?;
     if let Some(error) = failure {
         return Err(error);
+    }
+    // A campaign large enough to qualify must have compared calendar cases (LLP 3000.040 §2.5).
+    let compared = ["lean-calendar-agreed", "lean-calendar-disagreeing"].iter().map(|k| report.store_stats.get(*k).copied().unwrap_or(0)).sum::<u64>();
+    if report.generated >= 5_000 && compared == 0 {
+        return Err(format!("{} cases compared no calendar case: the calendar dimension was not drawn or not supported", report.generated));
     }
     Ok(report)
 }

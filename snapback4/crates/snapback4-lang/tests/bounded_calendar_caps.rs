@@ -235,3 +235,55 @@ fn seeded_rows_meet_the_bound() {
         assert_eq!(e.store().rows("reviews").unwrap().len(), 1, "out-of-range rows are not stored");
     }
 }
+
+/// A raw catalog cannot install a range no int satisfies, at any depth.
+#[test]
+fn raw_int_range_metadata_is_validated() {
+    use snapback4_core::{Engine, ir::ArgType};
+    let i53 = 9_007_199_254_740_991i64;
+    let b = clean("table t:\n  n: int\n  public\n  online only\n");
+    for bad in [
+        ColumnType::IntRange { min: 5, max: 1 },
+        ColumnType::IntRange { min: -i53 - 1, max: 0 },
+        ColumnType::IntRange { min: 0, max: i53 + 1 },
+        ColumnType::Optional(Box::new(ColumnType::IntRange { min: 5, max: 1 })),
+        ColumnType::List { of: Box::new(ColumnType::IntRange { min: 5, max: 1 }), max: 3 },
+        ColumnType::ListRange { of: Box::new(ColumnType::IntRange { min: 5, max: 1 }), min: 0, max: 3 },
+    ] {
+        let mut schema = b.schema.clone();
+        schema.tables.get_mut("t").unwrap().columns.insert("n".into(), bad.clone());
+        assert!(!snapback4_core::schema::columns::validate(&schema).is_empty(), "{bad:?}");
+        assert!(Engine::memory(schema, Vec::new()).is_err(), "{bad:?}");
+    }
+    assert!(!ArgType::IntRange { min: 5, max: 1 }.bounds_valid());
+    assert!(!ArgType::Optional(Box::new(ArgType::IntRange { min: 0, max: i53 + 1 })).bounds_valid());
+    assert!(ArgType::IntRange { min: -i53, max: i53 }.bounds_valid());
+}
+
+/// Calendar schedule boundaries are exact at the i53 edges, never a substituted endpoint.
+#[test]
+fn calendar_schedule_boundaries_are_exact_at_the_edges() {
+    let i53 = 9_007_199_254_740_991i64;
+    let late = schedule("1 month at day 28 00:00").unwrap();
+    for now in [-i53, -i53 + 40 * 86_400_000, -9_007_198_704_000_000, 0, i53 - 40 * 86_400_000, i53] {
+        let b = late.boundary(now);
+        assert!(b <= now && now < late.next(b), "{now}: {b} {}", late.next(b));
+        assert_eq!(late.previous(late.next(b)), b, "{now}");
+    }
+    assert_eq!(late.boundary(-9_007_198_704_000_000), -9_007_198_704_000_000);
+}
+
+/// Adding, lowering and raising a whole-table cap on a populated table.
+#[test]
+fn whole_table_cap_adoption_counts_the_table() {
+    use snapback4_core::{Engine, Value, value::object};
+    let source = |cap: &str| format!("table categories:\n  name: text 1..40\n  public\n  insert <- allow\n{cap}  online only\n");
+    let b = clean(&source(""));
+    let mut e = Engine::memory(b.schema, Vec::new()).unwrap();
+    e.seed((0..3).map(|n| ("categories".into(), object([("id", Value::Id(format!("c{n}"))), ("name", Value::String(format!("c{n}")))])))).unwrap();
+    let adopt = |e: &mut Engine, cap: &str| { let b = clean(&source(cap)); e.adopt(b.schema, Vec::new()) };
+    assert_eq!(adopt(&mut e, "  cap 2\n").unwrap_err().code(), "E_ADOPT");
+    adopt(&mut e, "  cap 3\n").unwrap();
+    assert_eq!(adopt(&mut e, "  cap 2\n").unwrap_err().code(), "E_ADOPT");
+    adopt(&mut e, "  cap 50\n").unwrap();
+}
