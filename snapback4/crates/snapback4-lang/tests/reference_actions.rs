@@ -509,7 +509,7 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
 
 #[test]
 fn reference_argument_lookups_must_reach_each_write() {
-    let schema = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\n";
+    let schema = "table parents:\n  cap 2\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\n";
     let notes = |body: &str, args: &str| {
         let source = format!("{schema}mutation create(id: id, parent: parents{args}):\n{body}");
         let bound = bound(&source);
@@ -525,6 +525,14 @@ fn reference_argument_lookups_must_reach_each_write() {
         "a possibly empty loop does not prove a later lookup");
     assert_eq!(notes("  insert kids { id, parent }\n  ignored = exists parents[parent]\n", ""), 1,
         "a later lookup cannot suppress the earlier write's note");
+    assert_eq!(notes("  ignored = parents where exists parents[id = parent] first 1 by .id\n  insert kids { id, parent }\n", ""), 1,
+        "a scan filter may never run when its source is empty");
+    assert_eq!(notes("  ignored = parents first 1 by .id { checked: exists parents[id = parent] }\n  insert kids { id, parent }\n", ""), 1,
+        "a shape field may never run when its source is empty");
+    let hidden = schema.replace("  read <- allow\ntable kids", "  read <- deny\ntable kids");
+    let hidden_source = format!("{hidden}mutation create(id: id, parent: parents):\n  ignored = parents where exists parents[id = parent] first 1 by .id\n  insert kids {{ id, parent }}\n");
+    assert!(bound(&hidden_source).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"),
+        "a filter over a wholly hidden source may never run");
     assert_eq!(notes("  if check:\n    ignored = checked(parent)\n  else:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", check: bool"), 0,
         "both fallthrough paths perform an exact target-id lookup");
 }

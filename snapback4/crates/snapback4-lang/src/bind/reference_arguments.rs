@@ -261,7 +261,7 @@ fn flow_expression(
             child(base, flow, candidates);
             for field in fields {
                 if let crate::ast::ShapeField::Field { value, .. } = field {
-                    child(value, flow, candidates);
+                    flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
                 }
             }
         }
@@ -310,7 +310,7 @@ fn flow_expression(
                 child(value, flow, candidates);
             }
             if let Some(value) = &merge.filter {
-                child(value, flow, candidates);
+                flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
             }
             if let Some(value) = &merge.cursor {
                 child(value, flow, candidates);
@@ -320,10 +320,26 @@ fn flow_expression(
                     child(value, flow, candidates);
                 }
                 if let Some(value) = &lane.distinct {
-                    child(value, flow, candidates);
+                    flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
                 }
                 if let Some((_, value)) = &lane.loop_ {
                     child(value, flow, candidates);
+                }
+                if let Some(value) = &lane.admission {
+                    flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
+                }
+                if let Some(fields) = &lane.project {
+                    for field in fields {
+                        if let crate::ast::ShapeField::Field { value, .. } = field {
+                            flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
+                        }
+                    }
+                }
+                if let Some(read) = &lane.planned {
+                    flow_conditional_read(catalog, schema, arguments, read, flow, candidates);
+                }
+                if let Some((_, read)) = &lane.nulls {
+                    flow_conditional_read(catalog, schema, arguments, read, flow, candidates);
                 }
             }
         }
@@ -396,7 +412,7 @@ fn flow_read(
     candidates: &mut Vec<Candidate>,
 ) {
     for value in read.computed.values() {
-        flow_expression(catalog, schema, arguments, value, flow, candidates);
+        flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
     }
     for key in &read.keys {
         flow_expression(catalog, schema, arguments, &key.value, flow, candidates);
@@ -405,7 +421,7 @@ fn flow_read(
         flow_expression(catalog, schema, arguments, &seek.value, flow, candidates);
     }
     if let Some(value) = &read.filter {
-        flow_expression(catalog, schema, arguments, value, flow, candidates);
+        flow_conditional_expression(catalog, schema, arguments, value, flow, candidates);
     }
     if let Some(range) = &read.range
         && let Some(value) = &range.cursor
@@ -415,6 +431,19 @@ fn flow_read(
     if let Some(value) = &read.matching {
         flow_expression(catalog, schema, arguments, value, flow, candidates);
     }
+}
+
+/// A row mapper runs only after a live, readable source row exists. Traverse it
+/// to diagnose writes inside the expression, but never carry facts to code
+/// after a scan that may be empty or wholly hidden.
+fn flow_conditional_expression(catalog: &Catalog, schema: &Schema, arguments: &BTreeMap<String, String>, expression: &Expr, flow: &Flow, candidates: &mut Vec<Candidate>) {
+    let mut conditional = flow.clone();
+    flow_expression(catalog, schema, arguments, expression, &mut conditional, candidates);
+}
+
+fn flow_conditional_read(catalog: &Catalog, schema: &Schema, arguments: &BTreeMap<String, String>, read: &ReadExpr, flow: &Flow, candidates: &mut Vec<Candidate>) {
+    let mut conditional = flow.clone();
+    flow_read(catalog, schema, arguments, read, &mut conditional, candidates);
 }
 
 fn record_write(
@@ -512,10 +541,9 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
             || args.iter().enumerate().any(|(position, argument)| matches!(argument, Expr::Name { name, .. } if name == parameter)
                 && helper_looks_up(catalog, schema, name, position, target, stack)),
         Expr::Object { fields, .. } => fields.iter().filter_map(|field| field.value.as_ref()).any(|value| child(value, stack)),
-        Expr::Shape { base, fields, .. } => child(base, stack) || fields.iter().any(|field| match field {
-            crate::ast::ShapeField::Field { value, .. } => child(value, stack),
-            _ => false,
-        }),
+        // Shape fields are row mappers and may never run when the base is
+        // empty or hidden. Only evaluating the base is mandatory.
+        Expr::Shape { base, .. } => child(base, stack),
         Expr::If { condition, then, otherwise, .. } => child(condition, stack) || (child(then, stack) && child(otherwise, stack)),
         Expr::Walk { seed, .. } => child(seed, stack),
         Expr::Write { keys, fields, condition, .. } => keys.iter().any(|key| child(&key.value, stack))
