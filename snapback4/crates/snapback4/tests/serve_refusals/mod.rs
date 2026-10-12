@@ -125,7 +125,7 @@ impl Host {
         let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
         let shared = Arc::new(Shared {
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
-            project: std::env::current_dir().unwrap(), temporary: true,
+            project: std::env::current_dir().unwrap(), release_root: Mutex::new(None), temporary: true,
             latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
@@ -149,7 +149,7 @@ impl Host {
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
             route_verification: routes::Verification::default(), owner: None,
-            auth_work: Mutex::new(None),
+            worker_prepare: Mutex::new(None), auth_work: Mutex::new(None),
             request_work: Mutex::new(None), upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),

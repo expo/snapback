@@ -3052,7 +3052,7 @@ try {
   --fresh`/`--memory` host owns no file, so a plain `run` beside it reads `.snapback4/store.sqlite`, not that
   host's temporary store; `run --port N` forwards to the dev on `127.0.0.1:N` whichever store it serves.
   `data`, `sql` and `test` always read the on-disk store; inspect a fresh dev over HTTP.
-  `token` asks a live host to mint; `test` without a fixture, `deploy` and `rollback` refuse while it runs;
+  `token` asks a live host to mint; `test` without a fixture refuses while it runs; deployed release activation uses the serving owner (see SERVER.md “Release lifecycle”);
   HTTP `/seed` already runs through the dev host. Native devices (process clients and embedded C-ABI hosts) share compatible
   ownership with each other, but refuse a backend owner before initialization and exclude backend writers
   until their SQLite stores close. Exclusion holds while `<database>-owner` is left in place: deleting or
@@ -3360,31 +3360,14 @@ windows; requests completing after shutdown starts are not covered.
 
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 
-- **`snapback4 deploy <dir> [--allow-destructive]`** (from inside the
-  project) compiles it, classifies the change against the current release
-  (additive, a rule change, narrowing, destructive) and refuses a
-  destructive one without the flag, writes the release under
-  `<dir>/releases/N`, installs the schema into the directory's one store,
-  points `current` at it (the store's own release pointer is
-  authoritative; the file is a copy) and appends `releases.jsonl`. Every
-  device re-derives its partition on the next sync; a write queued under
-  the old schema that no longer fits is refused, typed.
-- **`snapback4 rollback <dir> [--allow-destructive]`** moves `current`
-  back, classifying the change the same way.
-- **`snapback4 serve <dir> [--port N] [--bind H]`** runs the current
-  release on the shared store on `127.0.0.1:4400`, tokens only (a persona
-  is refused `E_AUTH`; so is `/seed`). A non-loopback literal bind requires
-  `--i-understand-cleartext` and prints a warning because the socket is HTTP.
-  Put a TLS proxy on the same host in front of the loopback listener: preserve
-  `Authorization` and `Origin`, strip `x-snapback-persona`, restrict direct
-  backend access, and rate-limit by the real client address. The binary does
-  not trust forwarded address or scheme headers. It symlinks the release's
-  store to the directory's, so the filesystem must support symlinks.
-  `--long-waits N`, `--long-waits-per-principal N` and `--claim-waits N`
-  size the held-wait pools (defaults 1,024, 16 and 32); a full bound refuses
-  retryable `E_STREAMS`. Bounds, refusals and the measured cost are in
-  SERVER.md, "Long-wait capacity". Set the proxy's idle timeout above the
-  2-second poll heartbeat and its connection limit above the derived cap.
+- **`snapback4 deploy <dir> [--restore-dormant]`** (from inside the project)
+  stages immutable source and atomically activates it through the live serving
+  owner or an offline writer. Removed storage becomes dormant; fresh source
+  reusing those names requires explicit restoration. See
+  [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
+- **`snapback4 rollback <dir> [--to N]`** selects immutable source with retained
+  storage and owner-mediated hot activation. See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle)
+  for dormant values, explicit prune, roll forward and refusal repairs.
 
 ### Stopped backup and isolated restore
 
@@ -3412,7 +3395,7 @@ The copy includes the database and any SQLite sidecars, the supervised completio
 
 Use the printed isolated URL with a fresh device store and fresh outbox. Check current reads, backed-up identity access and an asset download. Do not attach a device store or pending outbox from the former server. Keep external effect workers disconnected from the restored endpoint. Serving automatically starts declared effect workers and resumes built-in jobs and schedules: they can call providers, change the restored data or enqueue effects, so account for them when interpreting the recovered state. The automated exercise uses an actual parked job and a controlled schedule boundary to keep those records stable.
 
-The release-activation test executes this `cp -a` sequence after owned processes exit, verifies sessions, deduplication, queued effects, a parked job, release/program identity and asset bytes, and reads the restored data through a fresh process device. The original remains present with post-backup writes, proving the restored server is independent. It also verifies a permitted schema widening, a refused destructive candidate, and rollback after a new restored write. Rollback selects earlier source; it does not rewind rows.
+The release-activation test executes this `cp -a` sequence after owned processes exit, verifies sessions, deduplication, queued effects, a parked job, release/program identity and asset bytes, and reads the restored data through a fresh process device. The original remains present with post-backup writes, proving the restored server is independent. It also verifies a permitted schema widening, a refused narrowing candidate, and rollback after a new restored write. Rollback selects earlier source; it does not rewind rows.
 
 Production continuation needs an application-specific plan for old device watermarks and pending writes, identity/revocation changes since backup, unfinished or repeated jobs, and external effects that may already have happened. Restored operation IDs only prove deduplication represented in the backup; post-backup IDs and effect settlements may be missing. Reconcile those outcomes before reconnecting production clients or workers. External worker code, credentials and service configuration outside the deployment need separate recovery arrangements. SQLite uses WAL with `synchronous=FULL`, including background commits that publish
 watermarks. This stopped-process exercise does not establish physical-power-loss durability.

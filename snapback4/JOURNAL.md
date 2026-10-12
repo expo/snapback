@@ -92635,3 +92635,10 @@ File assets and the pinned-parent page guard each landed within their own
 branch's budget; together the Linux web device measures 651,704 B gzip,
 264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
 the reason in `metrics/wasm-budget.json`.
+
+
+## 2026-10-12 — ROLL: retaining rollback and hot release activation
+
+Release adoption now separates active shapes from dormant tables/cells/index definitions. Older writes preserve retained cells; new rows get candidate literal defaults/nulls on restoration, while enum, required-value, ownership and lifetime conflicts name affected rows and refuse atomically. Removal requires explicit `prune --allow-destructive`, with durable audit/history. `rollback --to N` deliberately restores immutable source. Release stores get a format fence; device/development stores retain their existing format.
+
+An admitted `serve` owns hot deploy over a private same-owner socket. Source/native/worker preparation precedes the transaction; reader/runtime/generation publication shares the writer guard. Native wasm content changes advance semantic generation even when declarations are unchanged. Worker preparation is revision-bound, including named additions/removals. Lost replies and stale convenience pointers recover from the database. LLP 3000.000.000 and SERVER.md own the design and operations; the OPS deploy card points there. Test/review/commit evidence is recorded in WORKSTREAM-REPORT.md. No npm publication or push is part of this workstream.

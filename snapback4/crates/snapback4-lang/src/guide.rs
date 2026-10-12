@@ -66,7 +66,7 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, PIPED_FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -117,6 +117,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
     ("persona", "personas"), ("persona picker", "personas"), ("switch persona", "personas"), ("picker", "personas"),
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
+    ("rollback", "deploy"), ("release", "deploy"), ("releases", "deploy"), ("serve", "deploy"), ("prune", "deploy"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("reports", "receipts"), ("delivery", "receipts"), ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"), ("workers", "effects"), ("background", "effects"), ("idempotency", "effects"),
@@ -238,6 +239,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
+        "deploy" => discovery::DEPLOY,
         "types" => types::CARD,
         "time" => include_str!("guide/time.md"),
         "cheatsheet" => include_str!("guide/cheatsheet.md"),

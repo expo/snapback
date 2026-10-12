@@ -11,6 +11,8 @@ mod assets;
 mod host_limits;
 mod auth;
 mod native;
+mod release_control;
+mod release_files;
 mod project;
 mod serve;
 mod dev_worker;
@@ -43,8 +45,10 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
-  deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
-  rollback <dir>                   current → the previous release
+  deploy <dir> [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
+  rollback <dir> [--to N]         select immutable source; retain removed storage; hot when serve is running
+  prune <dir> [--allow-destructive] preview or explicitly drop dormant storage
+  releases <dir> [--after ID] [--items-after KEY] [--event ID]  inspect authoritative release history/storage
   serve <dir> [--port N] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   long-wait flags (dev and serve; SERVER.md \"Long-wait capacity\"):
@@ -118,6 +122,8 @@ fn main() -> ExitCode {
         "init" | "new" => verbs::init(&options),
         "deploy" => verbs::deploy(&options),
         "rollback" => verbs::rollback(&options),
+        "prune" => verbs::prune(&options),
+        "releases" => verbs::releases(&options),
         "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),
         "check" => verbs::check(&options),
         "types" => verbs::types(&options),
@@ -221,7 +227,7 @@ fn main() -> ExitCode {
 /// writer already discards a failed write; `deploy`/`rollback`/`token` change
 /// state and are left to finish.
 fn quiet_broken_pipe(verb: &str) {
-    if matches!(verb, "dev" | "serve" | "device" | "witness" | "deploy" | "rollback" | "token") { return; }
+    if matches!(verb, "dev" | "serve" | "device" | "witness" | "deploy" | "rollback" | "prune" | "token") { return; }
     // SAFETY: process entry, before any thread or child is started.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }

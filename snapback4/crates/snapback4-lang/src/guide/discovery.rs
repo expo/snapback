@@ -112,7 +112,35 @@ Run `snapback4 check` against the dev store, or `check --store <path>`:
 each failed successor step is E_ADOPT at its column, index or table, with
 a rewrite. `dev` refuses that step on save and keeps the previous generation.
 A green check means the current rows fit; a later write can change that.
-Without a store, check only compiles. This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;
+Without a store, check only compiles.
+
+## Release rollback and hot activation
+
+`deploy <dir>` and `rollback <dir> [--to N]` activate atomically while `serve`
+is running. Rollback keeps removed durable tables, columns and index definitions
+as dormant storage, invisible to old programs and sync. Forward restores their
+values. Older updates preserve dormant cells; deletion removes them. New older-
+release rows receive the forward literal default or optional null. A required
+field without a literal default needs an optional/defaulted bridge, backfill,
+then the required definition; contextual defaults never backfill history.
+
+An enum value in use refuses E_ADOPT with counts, sample ids/values and the repair
+command. Repair using the current release before rollback. Restored uniqueness
+and parent-lifetime/audience checks can also refuse; failure keeps the old release.
+`--allow-destructive` never bypasses these checks.
+
+Reusing dormant names with new source requires `deploy <dir> --restore-dormant`;
+`rollback --to N` explicitly selects an immutable release and restoration.
+`prune <dir>` previews counts/bytes/ids; `prune <dir> --allow-destructive`
+permanently removes all dormant storage. Assets stay retained but unreadable
+while dormant. `releases <dir>` inspects database-authoritative history.
+
+Clients reacquire a fresh generation for changed execution content, including
+native-only module changes. A failed hot adoption leaves the old release serving.
+Full lifecycle, concurrency, failure and recovery semantics:
+[SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
+
+This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;
 
 /// A card's `##`/`###` headings outside code fences: (level, heading, first line, end line).
 pub fn sections(card: &str) -> Vec<(usize, String, usize, usize)> {
@@ -452,3 +480,5 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
     out.push_str(&format!("Whole sections: snapback4 guide {name} --section <number>"));
     if any { Err(out) } else { Ok(out) }
 }
+
+pub(super) const DEPLOY: &str = "# Deploy\n\nSee [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle) for deploy, rollback, prune, hot activation and recovery; `guide evolution` covers schema changes.\n";
