@@ -59,6 +59,11 @@ fn smaller(case: &Case) -> Vec<Case> {
         c.program.residual = None;
         out.push(c);
     }
+    if case.program.guard.is_some() {
+        let mut c = case.clone();
+        c.program.guard = None;
+        out.push(c);
+    }
     for i in 0..case.program.tables.len() {
         if case.program.tables[i].effects.is_some() {
             let mut c = case.clone();
