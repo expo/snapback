@@ -63,7 +63,8 @@ fn guards<H: Host>(mut host: H) {
 /// A guard the device cannot decide (an online-only table) stops the lowered
 /// page exactly where it stops the hand-written `if`: an unknown reply whose
 /// executed reads are the guard's, never the page's rows. A probe keyed by a
-/// column of the row is not a guard: it stays in the scan and visits rows
+/// row column is instead a reverse-join discovery: the source keys open target
+/// ranges, and unknown source coverage stops before any target range opens
 /// (LLP 3000.036 §15.4, the device paragraph).
 const UNDECIDED: &str = "table gate:
   principal: principal
@@ -87,6 +88,12 @@ query perRow(c: cursor ?):
 
 fn undecided<H: Host>(mut host: H) {
     let (mut engine, backend) = compile(UNDECIDED);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), UNDECIDED.into())]);
+    let per_row = &bound.programs.iter().find(|program| program.program.name == "perRow").unwrap().program;
+    assert!(snapback4_core::ir::body_merges(&per_row.body).into_iter().any(|merge| merge.lanes.iter().any(|lane| {
+        lane.scan.table == "notes" && lane.source.as_ref().and_then(snapback4_core::ir::LaneSource::scan)
+            .is_some_and(|source| source.table == "gate")
+    })), "the row-correlated probe is a reverse join from gate keys into note.owner ranges");
     let row = |table: &str, fields: Json| (table.to_owned(), wire::row_from_json(&engine.schema().tables[table], &fields).unwrap());
     let rows = vec![
         row("gate", json!({"id":"g1","principal":"alice"})),
@@ -108,8 +115,13 @@ fn undecided<H: Host>(mut host: H) {
         }
         assert_eq!(replies[0], replies[1], "{} {viewer}: the lowered page replies as the hand-written if", host.label());
         let (local, unknown, _) = device.query_with_coverage("perRow", viewer, &json!({"c": null}), 100);
-        assert!(unknown, "{} {viewer} perRow: each row's probe is unknown", host.label());
-        assert!(local.unwrap().tables.iter().any(|table| table == "notes"), "{} {viewer} perRow: a row-keyed probe stays in the scan", host.label());
+        let local = local.unwrap();
+        assert!(unknown && !local.complete && local.next.is_none(), "{} {viewer} perRow: online discovery is unknown", host.label());
+        assert_eq!(local.tables, ["gate"], "{} {viewer} perRow: discovery stops before a note range opens", host.label());
+        assert_eq!(wire::to_json(&local.data), json!([]), "{} {viewer} perRow: no partial target rows escape", host.label());
+        let per_row = engine.query("perRow", context(viewer, &[("c", snapback4_core::Value::Null)]).at(100)).unwrap();
+        assert_eq!(wire::to_json(&per_row.data), json!([{"id":"n1","owner":"alice","open":true}]), "{viewer}: row correlation is preserved");
+        assert!(per_row.complete && per_row.next.is_none(), "{viewer}: the exhausted reverse join is complete: {per_row:?}");
         let server = |op: &str, engine: &mut Engine| wire::to_json(&engine.query(op, context(viewer, &[("c", snapback4_core::Value::Null)]).at(100)).unwrap().data);
         assert_eq!(server("lowered", &mut engine), server("handwritten", &mut engine), "{viewer}: the server agrees");
         host.close(&name, device);
