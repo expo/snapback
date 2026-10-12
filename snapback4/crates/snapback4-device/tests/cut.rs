@@ -92,6 +92,8 @@ fn group_meter<H: Host>(host: &mut H) {
         for dimension in ["examined", "index_entries", "rule_probes", "steps", "heap_bytes", "output_bytes"] {
             let value = serde_json::to_value(&baseline.metered).unwrap()[dimension].as_u64().unwrap();
             let mut boundaries = vec![0, 1, value.saturating_sub(1), value, value + 1];
+            // Low-heap probes retained from the group-page campaign's shrunk
+            // seed 2670: test scratch admission beyond retained-output costs.
             if dimension == "heap_bytes" { boundaries.extend([18032, 18194]); }
             for n in boundaries {
                 let mut limits = serde_json::to_value(Ceilings::default()).unwrap(); limits[dimension] = json!(n);
