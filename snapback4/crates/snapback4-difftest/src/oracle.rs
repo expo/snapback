@@ -54,6 +54,12 @@ impl Rewrite {
             _ => true,
         }
     }
+    /// Commuting a refused expression can reach the failing operand before
+    /// evaluating the other one. Preserve the refusal, not its executed cost.
+    // @ref LLP 3000.035#51-stage-1-a-generator-and-rust-against-rust-comparison — refused commutations compare semantics; the report counts omitted meters.
+    pub fn costs_for(&self, p: &Program, outcome: &Outcome) -> bool {
+        self.costs(p) || (matches!(self, Self::Commute) && outcome.refusal().is_some())
+    }
     pub fn apply(&self, p: &Program) -> Option<Program> {
         let mut q = p.clone();
         match self {
@@ -325,7 +331,7 @@ pub fn rewrite_against(
     }
     let b = execute::execute(&mut right, case, "run", &case.args);
     let mapped = crate::sites::corresponding(left, &right, &b);
-    if let Some(f) = field(a, &mapped, r.costs(&case.program)) {
+    if let Some(f) = field(a, &mapped, r.costs_for(&case.program, a)) {
         return Ok((disagreement(&oracle, &f, a.clone(), b, vec![]), 1));
     }
     let mut executions = 1;

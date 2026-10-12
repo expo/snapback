@@ -128,7 +128,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
         };
         report.executed += n;
         report.record(&format!("rewrite-{}", r.name()), &verdict);
-        if r.costs(&case.program) && !matches!(verdict, Verdict::Unsupported(_)) {
+        if r.costs_for(&case.program, &budgeted) && !matches!(verdict, Verdict::Unsupported(_)) {
             report
                 .by_oracle
                 .get_mut(&format!("rewrite-{}", r.name()))

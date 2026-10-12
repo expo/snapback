@@ -92723,3 +92723,17 @@ The hourly and daily schedules both update the same counter. The test now
 checks the first and resumed advances against both schedules' reported
 firings, including when either advance crosses 06:00 UTC. The scheduler is
 unchanged. The full clock target passes (25/25); the ticket is closed.
+
+## 2026-10-12 — LANG2 post-merge: overflow stops a commuted operand sooner
+
+The `run` differential campaign found seed 50094: `a = (b + b)` refuses
+the same E_OVERFLOW in both operand orders, but after six versus five
+steps. In the commuted order the overflow stops evaluation before reading
+`a`. This is a harness defect: only refused commutations now omit their
+meter record, with the omission counted in the campaign; all semantic
+fields and post-write observations remain compared, and successful
+commutations keep their prior meter checks. The shrunk case is retained
+verbatim under `cases/found/rewrite-commute--metered--E_OVERFLOW`, with a
+diagnosis. The smoke target passes 9/9, including both refused operand
+orders and a successful execution of the same expression. LLP 3000.035
+§5.1 records the comparison rule.
