@@ -92672,3 +92672,18 @@ fixture isolation, version mismatch in text/JSON and matching versions. The
 19-test cli_friction suite passed; the final full package run includes the same
 tests. Serve's regression was additionally bounded and hardened for an occupied
 first range port, equals spelling, held listener and real PID readiness.
+
+## 2026-10-12 — OPS: independent review corrections and clock test isolation
+
+The required fresh Codex and Muse reviews are retained verbatim under
+llp/reviews/3000.007-ops-production-surfaces.*.md, with separate dispositions.
+Codex found a bound custom-session validation path still returning E_AUTH at
+200; it now uses the same 401 identity mapping as legacy minting. Its production
+regression compares both forms. Identity scope/value E_INPUT at 200 remains
+documented as an existing exception; action-lease behavior is unchanged.
+
+The full package run also found an inherited clock regression: crossing 06:00
+UTC in its five-hour advance fired the daily tick into the hourly counter.
+It reproduced alone. The daily explanation fixture now uses a separate
+no-change sweep; the hourly restart assertion stays exact. Isolated clock
+test and all 25 clock tests now pass; no production clock behavior changed.

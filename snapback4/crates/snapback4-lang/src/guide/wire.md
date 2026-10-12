@@ -158,6 +158,7 @@ Dev only, same machine; `serve` refuses each one.
 Authentication refuses before an operation executes. Identity helpers in the
 JS client preserve the `denied` body on 401/403; do not replace it with a proxy
 error page. Rule/constraint refusals after operation admission remain HTTP 200.
+Identity scope/value validation can also return 200 denied/E_INPUT; inspect the body.
 After a streaming heartbeat starts, HTTP stays 200; inspect the final JSON for
 `denied` if the session expires while waiting.
 

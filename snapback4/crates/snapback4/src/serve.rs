@@ -654,7 +654,7 @@ fn session_mint_wire(request: &Request, payload: &Json) -> Result<SessionMintWir
         return Err((400, Refusal::new("E_INPUT", "input", "binding requires { invocationId, intent: \"identity-session/v1\", replaceLostDelivery?: boolean }")));
     }
     snapback4_core::identity::validate_custom_session(&parsed.principal, &parsed.kind)
-        .map_err(|error| (200, error.refusal()))?;
+        .map_err(|error| (crate::auth::error_status(&error), error.refusal()))?;
     let lease = match single_header(request, "x-snapback-action-lease") {
         Ok(Some(token)) if !token.trim().is_empty() => token.trim().to_owned(),
         _ => return Err((200, Refusal::new("E_ACTION_LEASE", "action", "send the current claim's session.token in x-snapback-action-lease").guide("actions"))),
