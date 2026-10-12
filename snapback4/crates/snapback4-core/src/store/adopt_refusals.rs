@@ -168,7 +168,7 @@ pub(super) fn candidate(
                     &format!("{name} cap by {}", by.join(",")),
                     by.len(),
                     u64::from(*max),
-                    false,
+                    table.cap_exempts_null(by),
                     |row| {
                         by.iter()
                             .map(|c| row.field(c).cloned().unwrap_or(Value::Null))

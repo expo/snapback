@@ -1216,3 +1216,25 @@ fn file_allowlist_and_kind_narrowing_preserve_retained_asset_facts() {
         assert_eq!(e.store().rows("rows").unwrap()[0].field("document").unwrap().field("name").unwrap(),&Value::String("note.txt".into()));
     }
 }
+
+#[test]
+fn restoring_null_exempt_caps_matches_runtime_and_successor_assessment() {
+    for action in ["set null","keep"] {
+        let wide=format!("table parents:\n  public\ntable children:\n  parent: parents ? on delete {action}\n  status: enum('live','new')\n  cap 2 by parent\n  public\n");
+        let tight=wide.replace("cap 2","cap 1");
+        let mut e=engine(&wide);
+        for id in ["a","b"] {seed(&mut e,"children",serde_json::json!({"id":id,"parent":null,"status":"new"}));}
+        let (schema,_)=compile(&tight);
+        let steps=e.store_mut().successor(&schema).unwrap();
+        let cap=steps.iter().find(|s|s.path=="tables.children.constraints").unwrap();
+        assert_eq!(cap.change,if action=="set null" {crate::successor::Change::Additive} else {crate::successor::Change::Narrowing});
+        activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),2).unwrap();
+        if action=="set null" {
+            activate(&mut e,&tight,3).unwrap();assert_eq!(e.store().count("children").unwrap(),2);
+        } else {
+            assert_eq!(activate(&mut e,&tight,3).unwrap_err().code(),"E_ADOPT");
+            assert_eq!(e.store().count("children").unwrap(),0);activate(&mut e,&wide,4).unwrap();
+            assert_eq!(e.store().count("children").unwrap(),2);
+        }
+    }
+}

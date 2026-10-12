@@ -7,7 +7,7 @@
 //! the server verifies against the bytes; it is only ever served as an
 //! attachment under `nosniff` and a sandboxing CSP.
 
-use crate::serve::{Shared, cors, lock, principal_of, refusal_json, respond};
+use crate::serve::{Shared, cors, lock, producing_engine, principal_of, refusal_json, respond};
 use serde_json::json;
 use snapback4_core::error::Refusal;
 use std::io::{self, Read as _, Seek, SeekFrom};
@@ -36,7 +36,7 @@ pub fn is_file_upload(url: &str) -> bool {
 /// bound, under the general upload ceiling. A schema with no file column
 /// refuses before any body is read.
 pub fn file_ceiling(shared: &Shared) -> Result<usize, Refusal> {
-    match lock(&shared.engine).file_upload_ceiling() {
+    match producing_engine(shared).file_upload_ceiling() {
         Some(max) => Ok((max as usize).min(UPLOAD_CEILING)),
         None => Err(Refusal::new("E_ASSET_TYPE", "asset", "no column of this backend takes a file; declare one (`doc: file <=10000000`)").guide("assets")),
     }
@@ -65,11 +65,11 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
             // @ref LLP 3000.038#2 — the declared type is verified against the bytes before admission.
             Some(name) => {
                 let content_type = snapback4_core::assets::verify_file(&body, declared.as_deref())?;
-                lock(&shared.engine).prepare_file(&principal, content_type, name, body.len() as u64, shared.now())?
+                producing_engine(shared).prepare_file(&principal, content_type, name, body.len() as u64, shared.now())?
             }
             None => {
                 let sniffed = snapback4_core::assets::sniff(&body)?;
-                lock(&shared.engine).prepare_asset(&principal, sniffed, body.len() as u64, shared.now())?
+                producing_engine(shared).prepare_asset(&principal, sniffed, body.len() as u64, shared.now())?
             }
         };
         #[cfg(test)] crate::serve::test_work(&shared.upload_work);
