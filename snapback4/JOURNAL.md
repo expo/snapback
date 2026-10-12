@@ -93782,3 +93782,25 @@ Final ref-check follows this entry. No push, publication or new root report file
 
 Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
 zero errors and zero unchecked. The tracked worktree is committed without push.
+
+
+## 2026-10-12 — PAGE wave 9
+
+Added owner-or-membership pages over capped viewer memberships, one shared
+cursor, complete discovery before disclosure, and portable/index/heap guards
+(LLP 3000.036.001 §14). Hidden keyed maintained hits and misses now return
+null with matching nullable types and authority-proof invalidation; authorized
+misses retain zero (LLP 3000.013 §14.7). Unique references provide bound one
+for non-null parent groups; summed-child cascades remain safely refused with
+the system/alternate-path explanation (LLP 3000.039). Rule rewrites are
+compiled and executed by golden tests; completeness notes state verdict,
+audience and action, with details under verbose.
+
+Locked Linux web build: 2,263,752 B raw / 684,867 B gzip, +18,330 raw /
++5,516 gzip against this worktree baseline 2,245,422 / 679,351. Raise the wasm
+budget to 685,367 B (measurement plus required 500 B platform headroom).
+Whole-artifact measurement; no per-feature attribution, Mac measurement or
+runtime ceiling change. Membership descriptors remain bounded and metered.
+HAND owns protocol negotiation for the new branch-membership-v1 capability;
+DX owns the broader membership-page recipes. Final verification is recorded
+in the worktree-root WORKSTREAM-REPORT.md.
