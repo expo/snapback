@@ -92741,3 +92741,14 @@ The assertion now checks the exact sum of schedules reported as fired.
 The full clock target and the CLI `check`/`check_notes` targets pass (125
 checks in total), and the final affected language crate passes. No scheduler
 or clock implementation changed.
+
+## 2026-10-12 — MERGE: integrated device budget
+
+The locked Linux revision-6 artifact measures 2,166,371 B raw / 657,042 B
+gzip, unchanged on a hash and size recheck. Set the budget to 657,542 B,
+measured gzip plus the existing 500 B cross-host headroom. Incoming 0.4.23
+recorded 651,704 B gzip / 652,204 B cap: a whole-artifact increase of 5,338 B,
+without a rebuilt control or per-feature attribution. The inherited revision-5
+run measured 658,195 B gzip; the bounded-descriptor artifact is 1,153 B smaller.
+No macOS measurement or runtime ceiling change is claimed. The final budget
+check passes.
