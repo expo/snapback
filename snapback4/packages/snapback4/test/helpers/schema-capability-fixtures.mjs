@@ -34,8 +34,9 @@ const recorded=legacyRecorded.replace(' postId: posts\n',' postId: posts on dele
 export const ordinary=recorded.replace(/maintain totals:[\s\S]*?mutation like/, 'mutation like');
 export const legacyOrdinary=legacyRecorded.replace(/maintain totals:[\s\S]*?mutation like/, 'mutation like');
 const maintained=ordinary.replace('table posts:\n','table posts:\n likeCount: count likes by postId\n');
+const timelinePlain=timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts');
 export const fixtures=[
-  {name:'timeline-v2',capabilities:['timeline-event-slots','timeline-v2'],source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
+  {name:'timeline-v2',capabilities:['timeline-event-slots','timeline-v2'],source:timeline,plain:timelinePlain,legacyPlain:timelinePlain.replaceAll(' on delete keep',''),
     seed:[{table:'profiles',row:{id:'profile',principal:'dev:alice'}}], query:'profiles',op:'publish',args:{postId:'offline'},predictions:3},
   {name:'recorded-attribution',capabilities:['recorded-attribution','source-write-reservations-v1','source-write-reservations-v2'],source:recorded,plain:ordinary,legacyPlain:legacyOrdinary,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:2},

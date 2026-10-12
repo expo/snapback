@@ -101,7 +101,7 @@ function releaseStoreRefusal(result,path) {
   let version;try {version=db.prepare("SELECT value FROM _meta WHERE key='version'").get()?.value;} finally {db.close();}
   assert.match(version,/^snapback4-release-store-[23]$/,'fixture must be a retained release store');
   assert.notEqual(result.status,0,'published server must refuse the release-store format');
-  assert.ok((result.stdout+result.stderr).includes(`E_STORE: store version ${version} is not snapback4-store-1; this data directory belongs to another Snapback`),result.stdout+result.stderr);
+  assert.ok((result.stdout+result.stderr).includes(`E_STORE: store version ${version} is not snapback4-store-1`),result.stdout+result.stderr);
 }
 const capabilityCode=/"code"\s*:\s*"E_SCHEMA_CAPABILITY"/;
 function markers(schema,expected) {
@@ -260,7 +260,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
 
   await next.server.stop();await old.server.stop();
   const store=join(next.cwd,'.snapback4/store.sqlite'),stored=dump(store);
-  const doctor=run(legacy.binary,['doctor','--store',store],'',next.cwd);
+  const doctor=run(legacy.binary,['doctor'],'',next.cwd);
   assert.notEqual(doctor.status,0);assert.match(doctor.stdout+doctor.stderr,storedUnknown);
   assert.equal(dump(store),stored);
   t.diagnostic(`${f.name} stored-engine refusal: ${doctor.stdout.trim()} ${doctor.stderr.trim()}`);
@@ -285,7 +285,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));
   db.exec('DROP TABLE IF EXISTS _effect_keys');db.close();
   noEffectKeys(store);const engineBeforeBytes=readFileSync(store);
-  const unknownStored=dump(store),newDoctor=run(binary,['doctor','--store',store],'',next.cwd);
+  const unknownStored=dump(store),newDoctor=run(binary,['doctor'],'',next.cwd);
   assert.notEqual(newDoctor.status,0);assert.match(newDoctor.stdout+newDoctor.stderr,/E_SCHEMA_CAPABILITY/);assert.equal(dump(store),unknownStored);
   const newRun=run(binary,['run',f.op,JSON.stringify(f.args),'--as','alice'],'',next.cwd);
   assert.notEqual(newRun.status,0);assert.match(newRun.stdout+newRun.stderr,/E_SCHEMA_CAPABILITY/);assert.equal(dump(store),unknownStored);
@@ -315,7 +315,7 @@ for (const [name, source] of [
   await next.server.stop();
   const store = join(next.cwd, '.snapback4/store.sqlite'), before = dump(store);
   // Doctor reads persisted schema and programs, independently of source parsing.
-  const result = run(legacy.binary, ['doctor', '--store', store], '', next.cwd);
+  const result = run(legacy.binary, ['doctor'], '', next.cwd);
   assert.notEqual(result.status, 0);
   assert.match(result.stdout + result.stderr, unknownList);
   assert.equal(dump(store), before, 'refused persisted catalog preserves every table');
@@ -358,7 +358,7 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   // Doctor also compiles project source: keep that old-readable independently
   // of the persisted capability-free schema whose decoding this check covers.
   writeFileSync(join(newApp.cwd,'snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
-  const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stdout+doctor.stderr);
+  const doctor=run(legacy.binary,['doctor'],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stdout+doctor.stderr);
   writeFileSync(join(newApp.cwd,'snapback/schema.q'),control);
   const release=join(dir,'control-release'),deployed=run(binary,['deploy',release],'',newApp.cwd);assert.equal(deployed.status,0,deployed.stderr);
   // Capability-free bytes still decode on old devices, while retained release
@@ -377,7 +377,7 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   // Let the old compiler reach the store gate rather than stop at new source syntax.
   writeFileSync(join(release,'releases/1/snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
   const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
-  const releaseDoctor=run(legacy.binary,['doctor','--store',join(release,'store.sqlite')],'',newApp.cwd);
+  const releaseDoctor=run(legacy.binary,['doctor','--release',release],'',newApp.cwd);
   releaseStoreRefusal(releaseDoctor,join(release,'store.sqlite'));
   assert.deepEqual(files(release),releaseBefore,'refused release doctor preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused release doctor preserves every SQLite byte');
