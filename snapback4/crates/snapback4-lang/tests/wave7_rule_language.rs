@@ -586,3 +586,67 @@ table perks:
     let hop = again.diagnostics.iter().find(|d| d.code == "E_QUARRY_RULE_HOP" && d.site.line == 16).unwrap_or_else(|| panic!("{:#?}", again.diagnostics));
     assert!(!hop.message.contains("more site"), "{hop}");
 }
+
+// ---- 17.8: a total behind its grant's guard (lanes 003 008 020 074) ----
+
+const HOUSEHOLDS: &str = "table roles:
+  principal: principal
+  role: enum('worker', 'coordinator', 'supervisor')
+  unique principal
+  read <- .principal = viewer
+  online only
+table households:
+  worker: principal
+  visited: bool default false
+  read <- .worker = viewer or exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'supervisor']
+  insert <- .worker = viewer
+  online only
+";
+
+fn household_rows() -> Rows {
+    vec![
+        ("roles", vec![("id", id("r1")), ("principal", id("cora")), ("role", text("coordinator"))]),
+        ("roles", vec![("id", id("r2")), ("principal", id("sue")), ("role", text("supervisor"))]),
+        ("roles", vec![("id", id("r3")), ("principal", id("wes")), ("role", text("worker"))]),
+        ("households", vec![("id", id("h1")), ("worker", id("wes")), ("visited", Value::Bool(true))]),
+        ("households", vec![("id", id("h2")), ("worker", id("wes"))]),
+        ("households", vec![("id", id("h3")), ("worker", id("wyn")), ("visited", Value::Bool(true))]),
+    ]
+}
+
+#[test]
+fn a_total_behind_its_grants_guard_compiles_and_the_server_counts_every_row_for_the_holder() {
+    let guarded = [
+        // lane 020's own guard: the read rule's two grants
+        "query coverage():\n  require exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'supervisor'] else MANAGER_ONLY\n  return { total: count(households), visited: count(households where .visited = true) }\n",
+        // one of them
+        "query coverage():\n  require exists roles[viewer, role = 'coordinator'] else MANAGER_ONLY\n  return { total: count(households), visited: count(households where .visited = true) }\n",
+        // an `if` on the grant
+        "query coverage():\n  if exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'supervisor']:\n    return { total: count(households), visited: count(households where .visited = true) }\n  return { total: 0, visited: 0 }\n",
+    ];
+    for query_text in guarded {
+        let source = format!("{HOUSEHOLDS}{query_text}");
+        let mut e = engine(&source, household_rows());
+        let (complete, data) = query(&mut e, "coverage", "cora", &[]).unwrap();
+        assert!(complete, "{query_text}");
+        assert_eq!((data.field("total").ok(), data.field("visited").ok()), (Some(&Value::Int(3)), Some(&Value::Int(2))), "the coordinator's total is every row: {query_text}");
+        // The worker never reaches the total; they read their own rows elsewhere.
+        match query(&mut e, "coverage", "wes", &[]) {
+            Ok((_, data)) => assert_eq!(data.field("total").ok(), Some(&Value::Int(0)), "the else branch: {query_text}"),
+            Err(code) => assert_eq!(code, "MANAGER_ONLY"),
+        }
+    }
+    // The supervisor holds the other grant: whole total under the `or` guard.
+    let mut e = engine(&format!("{HOUSEHOLDS}{}", guarded[0]), household_rows());
+    assert_eq!(query(&mut e, "coverage", "sue", &[]).unwrap().1.field("total").ok(), Some(&Value::Int(3)));
+    // Unguarded, guarded by a role the read rule does not grant, or guarded only on one branch: still refused.
+    for query_text in [
+        "query coverage():\n  return count(households)\n",
+        "query coverage():\n  require exists roles[viewer, role = 'worker'] else WORKER_ONLY\n  return count(households)\n",
+        "query coverage(all: bool):\n  if all:\n    require exists roles[viewer, role = 'coordinator'] else MANAGER_ONLY\n  return count(households)\n",
+    ] {
+        let b = bound(&format!("{HOUSEHOLDS}{query_text}"));
+        let d = problem(&b, "E_QUARRY_BOUND").unwrap_or_else(|| panic!("{query_text}\n{:#?}", b.diagnostics));
+        assert!(d.rewrite.contains("or guard it with the grant"), "{d}");
+    }
+}

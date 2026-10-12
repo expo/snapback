@@ -96,7 +96,7 @@ impl Binder<'_> {
         Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))
     }
 
-    pub(super) fn check_meter_prefix(&self, read: &ReadExpr, scan: &Scan, aggregate: bool) -> Fallible<()> {
+    pub(super) fn check_meter_prefix(&mut self, read: &ReadExpr, scan: &Scan, aggregate: bool) -> Fallible<()> {
         if scan.take != Bound::Meter || snapback4_core::engine::rules::scan_visibility(self.schema, scan).uniform { return Ok(()); }
         let table = &self.schema.tables[&scan.table];
         let index = &table.indexes[&scan.index];
@@ -115,8 +115,17 @@ impl Binder<'_> {
         if aggregate && (self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none()) {
             // @ref LLP 3000.036#11 — a total has no first-N repair (app-farm lane 087).
             let deciding = if missing.is_empty() { leading.join(", ") } else { missing.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ") };
-            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
-                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope); {}; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds"));
+            let grant = snapback4_core::engine::rules::grant_decision(self.schema, scan);
+            // @ref LLP 3000.036#17.8 — a readable grant the program requires before the total (`require exists staff[viewer]`)
+            // makes every row readable for every caller who reaches it, which the server decides once (read.rs `granted`).
+            let guard = grant.as_ref().map_or_else(String::new, |grant| format!("; or guard it with the grant, so every caller who reaches it reads every row: `require {} else …` before it (or `if {}:` around it)", grant.quarry(), grant.quarry()));
+            let diagnostic = Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
+                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope){guard}; {}; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds");
+            if grant.is_some() && self.caller_kind == ProgramKind::Query && self.call_chain.len() == 1 {
+                self.pending_totals.push((scan.site.clone(), diagnostic));
+                return Ok(());
+            }
+            return Err(diagnostic);
         }
         if self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none() {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
