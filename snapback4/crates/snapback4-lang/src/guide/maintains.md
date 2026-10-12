@@ -295,8 +295,7 @@ Attribution capture runs inside the same atomic activation, before that rebuild,
 
 This example credits the author of the immediate target. A direct reply credits
 the original author; a reply to a reply credits that reply's author. `postId`
-always names the root original for thread membership. `replyTarget` names only
-the immediate reply, never an id stored as the wrong table's reference.
+always names the root original for thread membership. `replyTarget` names only the immediate reply, never an id stored as the wrong table's reference.
 The two like tables make target identity explicit. Their maintained totals
 add at read time; no sum-type reference or recursive attribution is needed.
 
@@ -346,7 +345,8 @@ mutation reply(postId: posts, replyTarget: replies ?, body: text <=500):
   if replyTarget != null:
     target = replies[id = replyTarget] ! else REPLY_NOT_FOUND
     require target.postId = postId else WRONG_THREAD
-  return insert replies { postId, replyTarget, authorId: viewer, body }
+    return insert replies { postId, replyTarget: target.id, authorId: viewer, body }
+  return insert replies { postId, replyTarget: null, authorId: viewer, body }
 mutation likePost(postId: posts):
   require exists posts[id = postId] else POST_NOT_FOUND
   return insert postLikes { postId, principal: viewer } if absent

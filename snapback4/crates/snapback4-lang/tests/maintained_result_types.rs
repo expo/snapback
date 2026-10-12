@@ -1,3 +1,4 @@
+use snapback4_core::{Engine, JobState, Value, value::object};
 use snapback4_lang::{compile, types::Ty};
 
 const SOURCE: &str = r#"
@@ -616,6 +617,222 @@ query guardedEnum(visible: enum('visible', 'hidden')):
             bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_RESERVED"),
             "{name}: {:#?}",
             bound.diagnostics
+        );
+    }
+}
+
+#[test]
+fn maintained_target_fields_never_borrow_a_projection_focal() {
+    let schema = r#"
+table measurements:
+  owner: principal
+  value: int
+  category: int
+  read <- allow
+  online only
+view zeroCounts: count measurements by .owner
+  read <- .value = 0
+  online only
+view ownerOrZeroCounts: count measurements by .owner
+  read <- .owner = viewer or .value = 0
+  online only
+view ownerAndZeroCounts: count measurements by .owner
+  read <- .owner = viewer and .value = 0
+  online only
+view ownerCategoryCounts: count measurements by .owner, .category
+  read <- .owner = viewer and .category = 0
+  online only
+"#;
+    for (name, view, guard) in [
+        ("unresolved", "zeroCounts[.owner]", ".value = 0"),
+        (
+            "unresolvedAnd",
+            "ownerAndZeroCounts[.owner]",
+            ".owner = viewer and .value = 0",
+        ),
+    ] {
+        let bound = compile(&[(
+            "schema.q".into(),
+            format!("{schema}query {name}():\n  return measurements first 1 by .id {{ result: {view} + 1 if {guard} else 0 }}\n").into(),
+        )]);
+        assert!(
+            bound
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                    && diagnostic.message.contains("int ?")),
+            "{name}: {:#?}",
+            bound.diagnostics
+        );
+    }
+
+    let controls = compile(&[(
+        "schema.q".into(),
+        format!(r#"{schema}
+query soundOr():
+  return measurements first 1 by .id {{ result: ownerOrZeroCounts[.owner] + 1 if .owner = viewer else 0 }}
+query soundAnd():
+  return measurements first 1 by .id {{ result: ownerCategoryCounts[.owner, .category] + 1 if .owner = viewer and .category = 0 else 0 }}
+"#).into(),
+    )]);
+    assert!(
+        controls.diagnostics.is_empty(),
+        "{:#?}",
+        controls.diagnostics
+    );
+}
+
+const INHERITED_MAINTAIN: &str = r#"
+table parents:
+  expiresAt: time
+  immutable expiresAt
+  read <- deny
+  delete <- allow
+  expire at .expiresAt
+  online only
+table children:
+  parent: parents
+  immutable parent
+  read through .parent
+  online only
+view childCounts: count children by .parent
+  online only
+table work:
+  marker: bool
+  read <- allow
+  online only
+view directCounts: count work by .marker
+  read <- deny
+  online only
+"#;
+
+#[test]
+fn system_jobs_need_a_live_read_through_parent_for_required_totals() {
+    for (name, body) in [
+        ("missing", "value = childCounts['gone'] + 1"),
+        ("expired", "value = childCounts['expired'] + 1"),
+        (
+            "stale",
+            "require exists parents['live'] else MISSING\n    delete parents['live']\n    value = childCounts['live'] + 1",
+        ),
+    ] {
+        let bound = compile(&[(
+            "schema.q".into(),
+            format!("{INHERITED_MAINTAIN}job {name}():\n  for item in work:\n    {body}\n").into(),
+        )]);
+        assert!(
+            bound
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                    && diagnostic.message.contains("int ?")),
+            "{name}: {:#?}",
+            bound.diagnostics
+        );
+    }
+    let stale_loop = compile(&[(
+        "schema.q".into(),
+        format!("{INHERITED_MAINTAIN}job staleLoopRow():\n  for parent in parents:\n    delete parents[parent.id]\n    value = childCounts[parent.id] + 1\n").into(),
+    )]);
+    assert!(
+        stale_loop.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("int ?")),
+        "{:#?}",
+        stale_loop.diagnostics
+    );
+
+    let controls = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{INHERITED_MAINTAIN}
+job liveParent():
+  for item in work:
+    require exists parents['live'] else MISSING
+    value = childCounts['live'] + 1
+job liveParentLoop():
+  for parent in parents:
+    value = childCounts[parent.id] + 1
+job directView():
+  for item in work:
+    value = directCounts[true] + 1
+job handledMissing():
+  for item in work:
+    value = (childCounts['gone'] ?? 0) + 1
+job guardedMissing():
+  for item in work:
+    require exists parents['gone'] else MISSING
+    value = childCounts['gone'] + 1
+job guardedExpired():
+  for item in work:
+    require exists parents['expired'] else MISSING
+    value = childCounts['expired'] + 1
+"#
+        )
+        .into(),
+    )]);
+    assert!(
+        controls.diagnostics.is_empty(),
+        "{:#?}",
+        controls.diagnostics
+    );
+
+    let mut engine = Engine::memory(
+        controls.schema,
+        controls.programs.into_iter().map(|program| program.program),
+    )
+    .unwrap();
+    engine
+        .seed_at(
+            [
+                (
+                    "parents".into(),
+                    object([
+                        ("id", Value::Id("live".into())),
+                        ("expiresAt", Value::Int(100)),
+                    ]),
+                ),
+                (
+                    "parents".into(),
+                    object([
+                        ("id", Value::Id("expired".into())),
+                        ("expiresAt", Value::Int(5)),
+                    ]),
+                ),
+                (
+                    "children".into(),
+                    object([
+                        ("id", Value::Id("child".into())),
+                        ("parent", Value::Id("live".into())),
+                    ]),
+                ),
+                (
+                    "work".into(),
+                    object([
+                        ("id", Value::Id("work".into())),
+                        ("marker", Value::Bool(true)),
+                    ]),
+                ),
+            ],
+            0,
+        )
+        .unwrap();
+    for name in [
+        "liveParent",
+        "liveParentLoop",
+        "directView",
+        "handledMissing",
+    ] {
+        let run = engine.run_job(name, Default::default(), 10).unwrap();
+        assert_eq!(run.state, JobState::Done, "{name}: {run:?}");
+    }
+    for name in ["guardedMissing", "guardedExpired"] {
+        let run = engine.run_job(name, Default::default(), 10).unwrap();
+        assert_eq!(run.state, JobState::Parked, "{name}: {run:?}");
+        assert!(
+            run.error
+                .as_deref()
+                .is_some_and(|error| error.starts_with("MISSING")),
+            "{name}: {run:?}"
         );
     }
 }

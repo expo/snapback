@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use snapback4_core::schema::RuleTerm;
 
 pub(super) const AUTHORIZATION: &str = "$maintainAuthorization";
+const TARGET_ROW: &str = "$maintainTarget";
 
 #[derive(Clone, Copy, Debug)]
 enum AuthorizationDomain {
@@ -26,6 +27,9 @@ impl Binder<'_> {
         read: &ReadExpr,
         ty: Ty,
     ) -> Ty {
+        if !self.maintained_parent_is_live(maintain, read) {
+            return ty.optional();
+        }
         if (self.caller_kind == ProgramKind::Job && self.viewer_depth.is_none())
             || self
                 .schema
@@ -42,6 +46,20 @@ impl Binder<'_> {
         } else {
             ty.optional()
         }
+    }
+
+    /// A system job bypasses read policy, but an inherited maintained point
+    /// still disappears with its through parent. A dominating exact-point
+    /// witness or the live parent row supplying `.id` proves that lifetime.
+    fn maintained_parent_is_live(&self, maintain: &ast::MaintainDecl, read: &ReadExpr) -> bool {
+        let Some(parent) = self.schema.maintain_for(&read.table).and_then(|maintain| maintain.parent_key.as_ref()) else { return true };
+        let Some(key) = group_keys(maintain, read).remove(&parent.reference) else { return false };
+        let site = key.site().clone();
+        self.point_present(&ReadExpr {
+            cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: parent.parent.clone(),
+            keys: vec![ast::KeyPart { column: None, value: key, site: site.clone() }], seeks: Vec::new(), filter: None,
+            index: None, range: None, matching: None, site,
+        })
     }
 
     /// Store a truth fact on every lexical root it depends on. Existing branch
@@ -315,31 +333,37 @@ pub(in crate::bind) fn program_absence_is_raw(
 
 fn substituted_rule(maintain: &ast::MaintainDecl, read: &ReadExpr) -> Option<A> {
     let rule = maintain.read.as_ref()?;
-    if maintain.by.len() != read.keys.len() {
-        return None;
-    }
-    let mut keys: BTreeMap<String, A> = maintain
-        .by
-        .iter()
-        .map(|field| field.trim_start_matches('.').to_owned())
-        .zip(read.keys.iter().map(|key| key.value.clone()))
-        .collect();
-    for key in &read.keys {
-        if let Some(column) = &key.column {
-            keys.insert(column.clone(), key.value.clone());
-        }
-    }
+    let keys = group_keys(maintain, read);
+    if keys.len() != maintain.by.len() { return None; }
     let mut expected = rule.value.clone();
     normalize_rule_constants(&mut expected);
+    // Rule focals name the maintained target row. Seal that namespace before
+    // substituting declared group fields so a remaining target-only field can
+    // never borrow the caller projection's focal row.
+    super::super::intent_walk::expression(&mut expected, &mut |expr| {
+        if let A::Member { base, .. } = expr && let A::Focal { site } = base.as_ref() {
+            **base = A::Name { name: TARGET_ROW.into(), site: site.clone() };
+        }
+    });
     super::super::intent_walk::expression(&mut expected, &mut |expr| {
         if let A::Member { base, name, .. } = expr
-            && matches!(base.as_ref(), A::Focal { .. })
+            && matches!(base.as_ref(), A::Name { name, .. } if name == TARGET_ROW)
             && let Some(value) = keys.get(name)
         {
             *expr = value.clone();
         }
     });
     Some(expected)
+}
+
+fn group_keys(maintain: &ast::MaintainDecl, read: &ReadExpr) -> BTreeMap<String, A> {
+    if maintain.by.len() != read.keys.len() { return BTreeMap::new(); }
+    let mut keys: BTreeMap<_, _> = maintain.by.iter().map(|field| field.trim_start_matches('.').to_owned())
+        .zip(read.keys.iter().map(|key| key.value.clone())).collect();
+    for key in &read.keys {
+        if let Some(column) = &key.column { keys.insert(column.clone(), key.value.clone()); }
+    }
+    keys
 }
 
 /// Rule constants occupy their own namespace. Freeze that identity before a

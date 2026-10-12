@@ -383,6 +383,7 @@ impl Binder<'_> {
             self.returns.truncate(returns);
             self.push_scope();
             let binding = self.declare(name, item.clone());
+            self.narrow_live_row(name, &item, site);
             self.maintenance_local(&binding, site, name);
             self.loops += 1;
             self.loop_transfers.push(LoopTransfers::default());

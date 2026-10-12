@@ -43,6 +43,22 @@ impl Binder<'_> {
             self.scopes.last_mut().unwrap().insert(root, binding);
         }
     }
+    /// A row yielded by a table loop is an exact live point at the loop
+    /// header. Store it in the ordinary point-fact domain so any write clears
+    /// the evidence before later scalar availability checks.
+    pub(super) fn narrow_live_row(&mut self, name: &str, ty: &Ty, site: &Site) {
+        let Ty::Row(table) = ty.required() else { return };
+        let value = A::Member {
+            base: Box::new(A::Name { name: name.into(), site: site.clone() }),
+            name: "id".into(),
+            site: site.clone(),
+        };
+        self.narrow_point(&ReadExpr {
+            cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table,
+            keys: vec![ast::KeyPart { column: None, value, site: site.clone() }], seeks: Vec::new(), filter: None,
+            index: None, range: None, matching: None, site: site.clone(),
+        });
+    }
     pub(super) fn point_present(&self, read: &ReadExpr) -> bool {
         self.point_key(read).is_some_and(|(key, roots)| roots.iter().all(|root|
             self.binding(root).is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool))))
