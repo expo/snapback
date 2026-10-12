@@ -509,7 +509,7 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
 
 #[test]
 fn reference_argument_lookups_must_reach_each_write() {
-    let schema = "table parents:\n  cap 2\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\nfn coalesceSkipped(parent: parents): true ?? exists parents[parent]\nfn coalesceRequired(parent: parents): null ?? exists parents[parent]\nfn coalesceLeft(parent: parents): exists parents[parent] ?? false\n";
+    let schema = "table parents:\n  cap 2\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\nfn andLeft(parent: parents): exists parents[parent] and true\nfn orLeft(parent: parents): exists parents[parent] or false\nfn andSkipped(parent: parents): false and exists parents[parent]\nfn orSkipped(parent: parents): true or exists parents[parent]\nfn andRequired(parent: parents): true and exists parents[parent]\nfn orRequired(parent: parents): false or exists parents[parent]\nfn coalesceSkipped(parent: parents): true ?? exists parents[parent]\nfn coalesceRequired(parent: parents): null ?? exists parents[parent]\nfn coalesceLeft(parent: parents): exists parents[parent] ?? false\n";
     let notes = |body: &str, args: &str| {
         let source = format!("{schema}mutation create(id: id, parent: parents{args}):\n{body}");
         let bound = bound(&source);
@@ -537,6 +537,14 @@ fn reference_argument_lookups_must_reach_each_write() {
         "a literal-null coalesce always evaluates its fallback");
     assert_eq!(notes("  ignored = exists parents[parent] ?? false\n  insert kids { id, parent }\n", ""), 0,
         "the left coalesce input is always evaluated");
+    for helper in ["andLeft", "orLeft", "andRequired", "orRequired"] {
+        assert_eq!(notes(&format!("  ignored = {helper}(parent)\n  insert kids {{ id, parent }}\n"), ""), 0,
+            "{helper}'s target lookup is mandatory");
+    }
+    for helper in ["andSkipped", "orSkipped"] {
+        assert_eq!(notes(&format!("  ignored = {helper}(parent)\n  insert kids {{ id, parent }}\n"), ""), 1,
+            "{helper}'s lazy right target lookup is skipped");
+    }
     assert_eq!(notes("  ignored = coalesceSkipped(parent)\n  insert kids { id, parent }\n", ""), 1,
         "a helper's skipped coalesce fallback is not a mandatory lookup");
     assert_eq!(notes("  ignored = coalesceRequired(parent)\n  insert kids { id, parent }\n", ""), 0,

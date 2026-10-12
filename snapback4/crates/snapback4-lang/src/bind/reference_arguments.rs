@@ -692,7 +692,10 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
         Expr::Read(read) | Expr::Exists { read, .. } if read.table == target && read_checks_target_alias(schema, read, aliases, target) => true,
         Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().any(|key| child(&key.value, stack)),
         Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. } | Expr::ShapeUse { base: value, .. } => child(value, stack),
-        Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "and" | "or") => child(left, stack) && child(right, stack),
+        Expr::Binary { op, left, right, .. } if op == "and" => child(left, stack)
+            || constant_bool(left) == Some(true) && child(right, stack),
+        Expr::Binary { op, left, right, .. } if op == "or" => child(left, stack)
+            || constant_bool(left) == Some(false) && child(right, stack),
         Expr::Binary { op, left, right, .. } if op == "??" => child(left, stack)
             || matches!(left.as_ref(), Expr::Literal { value: crate::ast::Literal::Null, .. }) && child(right, stack),
         Expr::Binary { left, right, .. } => child(left, stack) || child(right, stack),
@@ -710,6 +713,29 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
             || fields.iter().filter_map(|field| field.value.as_ref()).any(|value| child(value, stack))
             || condition.as_deref().is_some_and(|value| child(value, stack)),
         Expr::Merge(_) | Expr::Name { .. } | Expr::Focal { .. } | Expr::Literal { .. } => false,
+    }
+}
+
+/// A small truth evaluator used only to establish that a lazy right operand
+/// must run. Unknown values stay unknown; the always-evaluated left operand's
+/// lookup is handled independently above.
+fn constant_bool(expression: &Expr) -> Option<bool> {
+    match expression {
+        Expr::Literal { value: crate::ast::Literal::Bool(value), .. } => Some(*value),
+        Expr::Unary { op, value, .. } if op == "not" => constant_bool(value).map(|value| !value),
+        Expr::Binary { op, left, right, .. } if op == "and" => match (constant_bool(left), constant_bool(right)) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(true), value) => value,
+            (value, Some(true)) => value,
+            _ => None,
+        },
+        Expr::Binary { op, left, right, .. } if op == "or" => match (constant_bool(left), constant_bool(right)) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(false), value) => value,
+            (value, Some(false)) => value,
+            _ => None,
+        },
+        _ => None,
     }
 }
 
