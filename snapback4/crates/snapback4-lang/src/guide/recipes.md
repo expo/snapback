@@ -42,10 +42,10 @@ grant admits admins too; test `role = 'staff'` where only staff is meant. Each o
 staff queue reads every open ticket and answers `complete: true`. The table's
 update rule admits the author and staff; `retitle` narrows it to the author
 and `close` to staff, one `require` each. A page that staff read whole and
-members read their own rows of is one query that branches on the grant
-(`board`): each branch scans rows its reader may read, so both answer
-`complete: true`. A single `where .author = viewer or exists roles[viewer]`
-scan cannot promise that (`N_NEVER_COMPLETE`), and two queries split the screen.
+members read their own rows of is one plain query (`board`): under `.author =
+viewer or exists roles[viewer]` it reads every row for a grant holder and the
+author's own range for everyone else, so both answer `complete: true` (guide
+indexes, "Private lists").
 
 ```quarry
 use personas alice, bob, carol
@@ -72,9 +72,7 @@ table tickets:
   online only
 
 query board(c: cursor ?):
-  if exists roles[viewer]:
-    return tickets last 50 by .at after c
-  return tickets where .author = viewer last 50 by .at after c
+  return tickets last 50 by .at after c
 
 query mine(c: cursor ?):
   return tickets where .author = viewer last 20 by .at after c
@@ -130,7 +128,8 @@ call `grant` once with it. Cases for `test.cases.jsonl` (with a ticket
 
 An offer is read by exactly its buyer and its seller, offline on both
 devices. `.buyer = viewer or .seller = viewer` is two audiences and cannot
-sync, so each offer gets one `offerParties` row per reader, written by the
+sync (online only, it is one complete query as written: guide indexes), so
+each offer gets one `offerParties` row per reader, written by the
 mutation that creates it (`created offers[.offerId]`) and checked by `after
 insert`. The thread hangs off the offer through the same membership. Listing
 "my offers" pages the caller's own party rows: a parties row read under
