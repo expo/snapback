@@ -31,8 +31,8 @@
 //!   `int M..` or `int ..N`, seeded rows inside the bound, writes of the
 //!   ordinary arithmetic that may leave it (`E_INPUT` on every host).
 //!
-//! The last two draw from their own stream, so every earlier dimension's
-//! decisions are unchanged.
+//! Calendar and bounded-int dimensions draw from their own stream, so
+//! every earlier dimension's decisions are unchanged.
 //! - **branch pages** (LLP 3000.036.001), from their own stream: a page whose
 //!   `where` is an `or` of pinned branches (`.bucket = bucket or .bucket = 1`,
 //!   `.owner = viewer or .helper = viewer`), or whose read rule is two parties
