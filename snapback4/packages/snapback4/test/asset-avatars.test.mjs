@@ -330,7 +330,8 @@ window.start = async options => {
   const device = options.tier === "wasm" ? webDevice() : options.tier === "process" ? {
     async open(name, backend) { const index = await window.deviceOpen(name, backend); return { call: request => window.deviceCall(index, request), close: () => window.deviceClose(index) }; }
   } : undefined;
-  const clientOptions = { url: options.url, sessionStore: sessions, device, assets: { keep: "none", maxBytes: 0 },
+  const clientOptions = { url: options.url, sessionStore: sessions, device,
+    ...(options.tier === "online" ? { writes: "online" } : {}), assets: { keep: "none", maxBytes: 0 },
     fetch: async (input, init) => {
       const asset = new URL(input).pathname.startsWith("/assets/");
       if (!asset || !fault) return fetch(input, init);

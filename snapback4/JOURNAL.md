@@ -93206,3 +93206,31 @@ E_CONSTRAINT, maintained sum spelling, principal lookup keys, redundant
 inherited aggregate rules and calendar-number/time units. Starters select
 journal/device from identity and schema; PageHook comments match matchRead.
 Validation and per-item commits are recorded in root WORKSTREAM-REPORT.md.
+
+## 2026-10-12 — Integration 2: coherent completeness and combined wasm budget
+
+REF merged in `48d5748bce`, followed by W8C in `9e345842af`, both with
+`--no-ff`. Preserve OPS, LANG2, merged owner-or-X pages, declared referential
+actions, browser persona journals, reset schedule priming, diagnostics and
+starters. Direct owner-or-parent pages merge and complete for every caller;
+W8C's conditional-completeness regressions now use a shared helper, whose
+page retains its single-index plan. The existing direct-page runtime tests
+remain. The CLI refusal regression now accepts the fuller check-verdict
+explanation. Four affected Rust targets pass: 95 + 19 + 13 + 6 tests. The
+online browser avatar harness explicitly chooses `writes: "online"` for its
+synced schema; all 20 tests in that file pass.
+
+The locked Linux wasm rebuild repeats **2,234,443 B raw / 676,290 B gzip**.
+Set **676,790 B**, measurement plus the existing 500 B allowance, for the
+combined artifact including referential-action schema and prediction support.
+That is +14,645 B gzip over the preceding integrated sb4-loop measurement;
+no per-feature attribution, macOS measurement or runtime-ceiling change is
+claimed. Lean passes 53/53 examples, 54 audited theorems, seven fixtures.
+
+`run` (20,000): 1,009,344 calls, no disagreements or generator errors.
+`run-lean` (100,000): 76,299 agree, 22,656 unsupported, 1,045 disagreements
+only in the four inherited C2/W4 signatures; no new signatures. The
+delivery-await boundary is regenerated from the merged source and unchanged;
+its online/persona custody classification remains in the instrumentation.
+Readauth's compiled census also passes unchanged. Full integration results
+follow after the remaining Rust/client files finish. No push/publication.

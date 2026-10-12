@@ -401,8 +401,8 @@ shares every loan reader. Distinct authors/owners need
 `read <- .author = viewer or exists loans[.loan, owner = viewer]`, `.loan = loan`,
 and `require exists loans[loan, owner = viewer] else FORBIDDEN` on the owner page.
 A readable parent binding alone cannot prove an arbitrary child owner was copied
-correctly. Landlord/tenant/vendor boards use one guarded page per audience,
-merged in the client; private rows stay private. `guide reads` explains `T[]`.
+correctly. Proven owner-or-X pages merge automatically; other audience boards
+use guarded pages merged in the client. Private rows stay private; `guide reads` explains `T[]`.
 
 Seller sweeps need child write authority such as
 `update old, next <- exists listings[old.listing, seller = viewer]`, with listing

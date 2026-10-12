@@ -473,7 +473,7 @@ fn cases_follow_check_verdicts_name_refusing_layers_and_refuse_undeclared_person
     let out = text(&output);
     assert_eq!(output.status.code(), Some(1), "{out}");
     assert!(out.contains("cases: 2 passed, 5 failed"), "{out}");
-    assert!(out.contains("ok   test.cases.jsonl:1 page (alice) → capped") && out.contains("capped is this query's check verdict: page is never complete (N_NEVER_COMPLETE at schema.q:"), "{out}");
+    assert!(out.contains("ok   test.cases.jsonl:1 page (alice) → capped") && out.contains("capped is this query's check verdict: page:") && out.contains("is never `complete`") && out.contains("(N_NEVER_COMPLETE at schema.q:"), "{out}");
     assert!(out.contains("FAIL test.cases.jsonl:2 page (alice) → capped: expected complete, got capped") && out.contains("add \"expect\":\"capped\""), "{out}");
     assert!(out.contains("NOT_FOUND is the program's own refusal at `i = items[item] ! else NOT_FOUND` (schema.q:")
         && out.contains("the items read rule `read <- .owner = viewer`") && out.contains("a later `require … else NOT_YOURS` never ran"), "{out}");

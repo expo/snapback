@@ -1656,7 +1656,7 @@ mod sql_objects;
 #[test]
 fn wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict() {
     let p = Project::new();
-    p.source("use personas alice, bob\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  author: principal\n  immutable parent, author\n  read <- .author = viewer or exists parents[.parent, owner = viewer]\n  online only\nquery history(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\n");
+    p.source("use personas alice, bob\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  author: principal\n  immutable parent, author\n  read <- .author = viewer or exists parents[.parent, owner = viewer]\n  online only\nfn historyPage(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\nquery history(parent: parents, c: cursor ?):\n  return historyPage(parent, c)\n");
     let check = p.run(&["check"]); assert!(check.status.success(), "{check:?}");
     let text = String::from_utf8_lossy(&check.stdout);
     assert!(text.contains("N_CONDITIONAL_COMPLETE") && !text.contains("N_NEVER_COMPLETE"), "{text}");

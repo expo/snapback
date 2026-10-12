@@ -10,7 +10,9 @@ const PARENT: &str = "table parents:\n  owner: principal\n  immutable owner\n  r
 
 #[test]
 fn pinned_parent_pages_have_a_conditional_verdict_and_agree_with_runtime() {
-    let b = clean(&format!("{PARENT}query history(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\n"));
+    // Shared helper pages retain the single-index plan (LLP 3000.036.001 §2);
+    // direct party-or-parent pages now merge and need no conditional note.
+    let b = clean(&format!("{PARENT}fn historyPage(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\nquery history(parent: parents, c: cursor ?):\n  return historyPage(parent, c)\n"));
     assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
     let note = b.notes.iter().find(|n| n.code == "N_CONDITIONAL_COMPLETE").unwrap();
     assert!(note.message.contains("complete") && note.message.contains("pinned"), "{note}");
