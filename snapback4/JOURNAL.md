@@ -93804,3 +93804,11 @@ runtime ceiling change. Membership descriptors remain bounded and metered.
 HAND owns protocol negotiation for the new branch-membership-v1 capability;
 DX owns the broader membership-page recipes. Final verification is recorded
 in the worktree-root WORKSTREAM-REPORT.md.
+
+PAGE final allocation-ledger qualification: the locked Linux web artifact is
+2,271,627 B raw / 687,942 B gzip, versus the worktree baseline
+2,245,422 / 679,351 (+26,205 raw / +8,591 gzip). The final wasm budget is
+688,442 B (measurement plus required 500 B platform headroom), superseding
+the provisional PAGE budget above. Discovery, owner/system/dynamic target
+read-ahead, merge scratch and actual next-frontier encoding use the existing
+heap meter. No runtime resource ceiling increase or macOS measurement.
