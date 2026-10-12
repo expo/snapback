@@ -16,7 +16,7 @@ fn column_bytes(kind: &ColumnType) -> usize {
         ColumnType::Bytes { max } => (*max as usize).saturating_mul(2).saturating_add(3),
         ColumnType::Enum { variants } => variants.iter().map(|v| key::encode(&[Value::String(v.clone())]).len()).max().unwrap_or(1),
         ColumnType::Bool => 1,
-        ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Time => 9,
+        ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Time => 9,
         // The existing schema validator refuses these in an index.
         _ => usize::MAX,
     }

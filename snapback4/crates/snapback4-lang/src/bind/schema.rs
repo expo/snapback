@@ -927,6 +927,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     let value_type = match &maintain.column {
         None => ScalarType { kind: TypeKind::Int, optional: false },
         Some(column) => match source.columns.get(column) {
+            Some(ty) if matches!(ty.kind, TypeKind::IntRange { .. }) => ScalarType { kind: TypeKind::Int, optional: false },
             Some(ty) if matches!(ty.kind, TypeKind::Int | TypeKind::Decimal { .. } | TypeKind::Money { .. }) => ty.required(),
             Some(ty) => return Err(type_error(&site, format!("sum over {}.{column} needs int, decimal or money, not {}", maintain.source, crate::print::scalar_type(ty)), format!("view {}: count {} by {}", maintain.name, maintain.source, maintain.keys.iter().map(|key| super::maintains::bare_key(key).map_or_else(|| crate::print::expression(key), |name| format!(".{name}"))).collect::<Vec<_>>().join(", ")))),
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),

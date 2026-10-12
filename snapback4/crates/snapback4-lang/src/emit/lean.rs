@@ -70,6 +70,9 @@ impl std::fmt::Display for Unsupported {
 
 type R<T> = Result<T, Unsupported>;
 
+/// The calendar builtins the model evaluates (LLP 3000.040 §2.5).
+const CALENDAR: [&str; 7] = ["day", "hour", "bucket", "month", "year", "monthStart", "yearStart"];
+
 fn no<T>(reason: &str, detail: impl Into<String>) -> R<T> {
     Err(Unsupported::new(reason, detail))
 }
@@ -97,6 +100,8 @@ impl Kind {
     fn of(t: &TypeKind) -> R<Kind> {
         Ok(match t {
             TypeKind::Int | TypeKind::Time => Kind::Int,
+            // @ref LLP 3000.040#18-the-lean-model — slot bounds sit outside the model's fragment, as text bounds do.
+            TypeKind::IntRange { .. } => return no("int-range", "an int range"),
             TypeKind::Text { min: None, max, format: None } => Kind::Text(Some(*max)),
             TypeKind::Text { format: Some(_), .. } => return no("text-format", "a text format"),
             TypeKind::Text { min: Some(_), .. } => return no("text-minimum", "a text minimum length"),
@@ -581,7 +586,7 @@ impl<'a> Scope<'a> {
                     .unwrap_or(Ty::Unknown)
             }
             Expr::Read(read) if read.range.is_none() && read.filter.is_none() && !read.keys.is_empty() => Ty::Row(read.table.clone()),
-            Expr::Call { name, .. } if name == "count" => Ty::Scalar(Kind::Int),
+            Expr::Call { name, .. } if name == "count" || CALENDAR.contains(&name.as_str()) => Ty::Scalar(Kind::Int),
             Expr::Exists { .. } => Ty::Scalar(Kind::Bool),
             Expr::Unary { op, value, .. } => if op == "not" { Ty::Scalar(Kind::Bool) } else { self.ty(value) },
             Expr::Binary { op, left, .. } => match op.as_str() {
@@ -662,6 +667,26 @@ impl<'a> Scope<'a> {
                     return Ok(json!({"call": [name, args.iter().map(|a| self.expr(a)).collect::<R<Vec<_>>>()?]}));
                 }
                 match (name.as_str(), args.as_slice()) {
+                    // @ref LLP 3000.040#25-the-lean-model — calendar builtins are in the fragment.
+                    (calendar, [value, rest @ ..]) if CALENDAR.contains(&calendar) => {
+                        let literal = |e: &Expr| match e {
+                            Expr::Literal { value: Literal::Number(n), .. } => n.parse::<i64>().map_err(|_| Unsupported::new("calendar-duration", print())),
+                            _ => no("calendar-duration", print()),
+                        };
+                        let function = match (calendar, rest) {
+                            ("day", []) => json!({"fn": "period", "ms": 86_400_000, "off": 0}),
+                            ("day", [off]) => json!({"fn": "period", "ms": 86_400_000, "off": literal(off)?}),
+                            ("hour", []) => json!({"fn": "period", "ms": 3_600_000, "off": 0}),
+                            ("hour", [off]) => json!({"fn": "period", "ms": 3_600_000, "off": literal(off)?}),
+                            ("bucket", [ms]) => json!({"fn": "period", "ms": literal(ms)?, "off": 0}),
+                            ("bucket", [ms, off]) => json!({"fn": "period", "ms": literal(ms)?, "off": literal(off)?}),
+                            (civil @ ("month" | "year" | "monthStart" | "yearStart"), []) => json!({"fn": civil}),
+                            _ => return no(&format!("call-{name}"), print()),
+                        };
+                        let mut function = function;
+                        function["arg"] = self.expr(value)?;
+                        Ok(json!({"cal": function}))
+                    }
                     ("count", [Expr::Read(read)]) => {
                         let (pins, filter) = self.domain(read, false)?;
                         Ok(json!({"count": {"table": read.table, "pins": pins, "filter": filter}}))

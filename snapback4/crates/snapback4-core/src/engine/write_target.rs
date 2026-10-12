@@ -334,7 +334,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
         #[cfg(feature = "sqlite")]
         Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
-        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_) | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }
@@ -354,7 +354,7 @@ pub(in crate::engine) fn column_copy_ceiling(ty: &ColumnType) -> u64 {
         // Canonical JSON bytes bound owned strings/bytes and array slots at every
         // depth. Object subtrees, like image/video facts, are shared Arc values.
         ColumnType::Json { max_bytes } => u64::from(*max_bytes) * (std::mem::size_of::<Value>() as u64 + 1),
-        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Bool | ColumnType::Time => 0,
+        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Bool | ColumnType::Time => 0,
     }
 }
 

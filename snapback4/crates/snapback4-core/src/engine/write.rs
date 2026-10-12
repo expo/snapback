@@ -563,8 +563,13 @@ impl Runner<'_> {
                     if count >= *max as u64 {
                         self.observe_sequence_columns(table_name, new, by, effect == Effect::Insert)?;
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
-                        self.refusing_clause(table_name, &format!("cap {}", by.join(", ")));
-                        let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
+                        // @ref LLP 3000.040#32-changes — a whole-table cap has no group to name.
+                        let (clause, message) = if by.is_empty() {
+                            (format!("cap {max}"), format!("{table_name} holds at most {max} rows"))
+                        } else {
+                            (format!("cap {}", by.join(", ")), format!("{table_name} holds at most {max} rows per group by {}", by.join(", ")))
+                        };
+                        self.refusing_clause(table_name, &clause);
                         return Err(if table.is_expiring() {
                             RuntimeError::ExpiringCap { message, site: self.statement_site.clone() }
                         } else { RuntimeError::Constraint(message) });

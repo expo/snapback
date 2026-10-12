@@ -65,6 +65,7 @@ pub fn values(kind: &ColumnType) -> Vec<Json> {
         | ColumnType::Time
         | ColumnType::Decimal { .. }
         | ColumnType::Money { .. } => vec![json!(0), json!(9_007_199_254_740_991i64)],
+        ColumnType::IntRange { min, max } => vec![json!(min.unwrap_or(-9_007_199_254_740_991)), json!(max.unwrap_or(9_007_199_254_740_991))],
         ColumnType::Text { max } => vec![json!(""), json!("x".repeat(*max as usize))],
         ColumnType::Id | ColumnType::Ref { .. } => vec![json!("zero"), json!("max")],
         ColumnType::Principal => vec![json!("bob"), json!("carol")],

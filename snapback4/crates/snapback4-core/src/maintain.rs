@@ -16,12 +16,23 @@ pub struct CalendarKey {
 impl CalendarKey {
     pub fn value(&self, row: &Value) -> Value {
         if self.column.contains('.') && !matches!(row.field(&self.column), Ok(Value::Int(_))) { return Value::Null; }
-        Value::Int(calendar_ordinal(row.field(&self.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0), self.millis, self.offset))
+        let at = row.field(&self.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0);
+        Value::Int(match self.function.as_str() {
+            // @ref LLP 3000.040#23-index-keys-views-and-windows — civil keys carry no duration; the same function as the builtin.
+            "month" => crate::calendar::month_of(at),
+            "year" => crate::calendar::year_of(at),
+            _ => calendar_ordinal(at, self.millis, self.offset),
+        })
     }
+
+    /// `month` and `year` count civil periods; the others count fixed durations.
+    pub fn civil(&self) -> bool { matches!(self.function.as_str(), "month" | "year") }
     pub fn validate(&self, source: &Table) -> Result<(), String> {
         if !source.columns.get(&self.column).is_some_and(|kind| kind == &ColumnType::Time
-            || (source.recorded.contains_key(&self.column) && kind.required() == &ColumnType::Time)) || self.millis <= 0 || self.offset < 0 || self.offset >= self.millis
-            || !matches!(self.function.as_str(), "day" | "hour" | "bucket")
+            || (source.recorded.contains_key(&self.column) && kind.required() == &ColumnType::Time))
+            || (self.civil() && (self.millis != 0 || self.offset != 0))
+            || (!self.civil() && (self.millis <= 0 || self.offset < 0 || self.offset >= self.millis))
+            || !matches!(self.function.as_str(), "day" | "hour" | "bucket" | "month" | "year")
             || (self.function == "day" && self.millis != 86_400_000) || (self.function == "hour" && self.millis != 3_600_000) {
             return Err("computed time keys need a required time column, a positive calendar duration and a nonnegative offset smaller than the period".into());
         }

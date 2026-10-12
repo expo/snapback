@@ -156,6 +156,8 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
         (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(Value::Map(fields))) => fields.get("id").is_some_and(|id| matches!(id, Value::Id(_))),
         (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
         (ColumnType::Int | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. }, Some(Value::Int(value))) => (I53_MIN..=I53_MAX).contains(value),
+        // @ref LLP 3000.040#14-where-the-bound-is-enforced — the slot's bound is part of its type: every stored write and argument meets it here.
+        (ColumnType::IntRange { min, max }, Some(Value::Int(value))) => (I53_MIN..=I53_MAX).contains(value) && crate::schema::int_in_range(*value, *min, *max),
         (ColumnType::Bool, Some(Value::Bool(_))) => true,
         (ColumnType::Json { max_bytes }, Some(value)) => canonical_json(value).len() <= *max_bytes as usize,
         _ => false,

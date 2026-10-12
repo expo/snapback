@@ -134,6 +134,7 @@ fn pin_for(schema: &Schema, program: &Program, scan: &Scan, table: &Table, colum
         Some(ColumnType::Ref { table }) => Some(ArgType::Ref { table: table.clone() }),
         Some(ColumnType::Principal) => Some(ArgType::Principal),
         Some(ColumnType::Int) => Some(ArgType::Int),
+        Some(ColumnType::IntRange { min, max }) => Some(ArgType::IntRange { min: *min, max: *max }),
         Some(ColumnType::Time) => Some(ArgType::Time),
         _ => None,
     };
@@ -144,6 +145,7 @@ fn pin_for(schema: &Schema, program: &Program, scan: &Scan, table: &Table, colum
         Some(ColumnType::Ref { table }) => table.clone(),
         Some(ColumnType::Principal) => "principal".into(),
         Some(ColumnType::Int) => "int".into(),
+        Some(kind @ ColumnType::IntRange { .. }) => kind.to_string(),
         Some(ColumnType::Time) => "time".into(),
         _ => "…".into(),
     };

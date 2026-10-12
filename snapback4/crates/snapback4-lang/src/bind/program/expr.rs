@@ -1,6 +1,7 @@
 //! Expression lowering with branch-owned setup statements.
 
 use super::*;
+use snapback4_core::calendar::Civil;
 
 impl Binder<'_> {
     /// Bare tables are domains only at an aggregate/loop consumer; ordinary
@@ -659,6 +660,22 @@ impl Binder<'_> {
                 if offset != 0 { args.push(Expr::Literal(Value::Int(offset))); }
                 Ok((Expr::Builtin { builtin: Builtin::Calendar { millis }, args }, Ty::Int))
             }
+            // @ref LLP 3000.040#22-builtins — months since 1970-01 and calendar years, UTC, and back to a time.
+            "month" | "year" => {
+                arity(1, &format!("{name}(time); civil periods are UTC and take no offset"))?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                if ty != Ty::Time { return Err(type_error(args[0].site(), format!("{name} needs a required time, got {}", ty.name()), format!("{name}(.at), {name}(now), or {name}(t ?? now)")).guide("time")); }
+                let function = if name == "month" { Civil::Month } else { Civil::Year };
+                Ok((Expr::Builtin { builtin: Builtin::Civil(function), args: vec![value] }, Ty::Int))
+            }
+            "monthStart" | "yearStart" => {
+                let unit = if name == "monthStart" { "month" } else { "year" };
+                arity(1, &format!("{name}({unit}); {unit}(t) gives one"))?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                if ty != Ty::Int { return Err(type_error(args[0].site(), format!("{name} takes a {unit} number (an int), got {}", ty.name()), format!("{name}({unit}(t)), or {name}({unit}(now) + 1) for the next")).guide("time")); }
+                let function = if name == "monthStart" { Civil::MonthStart } else { Civil::YearStart };
+                Ok((Expr::Builtin { builtin: Builtin::Civil(function), args: vec![value] }, Ty::Time))
+            }
             "count" => {
                 arity(1, "count(list)")?;
                 if let Some(read) = self.aggregate_domain(&args[0]) && self.is_page(&read, ReadMode::FilteredPoint)? {
@@ -879,7 +896,7 @@ impl Binder<'_> {
             other => Err(unknown(
                 site,
                 format!("unknown function {other}"),
-                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at"]), None),
+                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at", "day", "hour", "bucket", "month", "year", "monthStart", "yearStart"]), None),
             )),
         }
     }

@@ -646,7 +646,7 @@ impl Scan<'_> {
                     }
                     "sha256" => values[0].summary().with_cardinality(AMBIENT),
                     "sum" | "lower" | "trim" | "join"
-                    | "divmod" | "share" | "day" | "hour" | "bucket" =>
+                    | "divmod" | "share" | "day" | "hour" | "bucket" | "month" | "year" | "monthStart" | "yearStart" =>
                         self.budget.scalar(values.iter().fold(AMBIENT, |bits, value| bits | value.all()))
                             .selected(&values.iter().fold(Control::default(), |control, value| control.union(&value.controls()))),
                     _ => self.budget.scalar(UNKNOWN),
@@ -748,7 +748,7 @@ fn evidence(expr: &Expr) -> String {
 
 fn builtin_arity(name: &str, count: usize) -> bool {
     match name {
-        "count" | "first" | "last" | "lower" | "trim" | "sha256" | "tokens" => count == 1,
+        "count" | "first" | "last" | "lower" | "trim" | "sha256" | "tokens" | "month" | "year" | "monthStart" | "yearStart" => count == 1,
         "at" | "group" | "join" | "min" | "max" | "range" | "sorted" | "divmod" => count == 2,
         "slice" | "share" => count == 3,
         "sum" | "day" | "hour" => matches!(count, 1 | 2),
@@ -790,7 +790,7 @@ fn notes_with_budget(catalog: &Catalog, schema: &snapback4_core::schema::Schema,
         };
         let site = catalog.site_for(&format!("tables.{table}.columns.{column}"));
         let rewrite = super::rewrite(&table, &column, target.columns.get(&column).is_some_and(|ty|
-            matches!(ty.required(), ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. })));
+            matches!(ty.required(), ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Decimal { .. } | ColumnType::Money { .. })));
         Some(crate::diag::Diagnostic::new(&site, "N_PUBLIC_AGGREGATE_COPY", message, rewrite).guide("feeds"))
     }).collect()
 }

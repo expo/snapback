@@ -634,7 +634,7 @@ impl Parser {
                 }
                 self.take(")")?;
                 words = Some((columns.len(), fields));
-            } else if matches!(component.value.as_str(), "day" | "hour" | "bucket") && self.at("(") {
+            } else if matches!(component.value.as_str(), "day" | "hour" | "bucket" | "month" | "year") && self.at("(") {
                 self.position -= 1;
                 let expression = self.expression(0, &[",", "else", "<newline>"]).map_err(|error| {
                     if error.code == "E_QUARRY_MAINTAIN" { crate::diag::type_error(&error.site, error.message, "day(at), hour(at, 30m), or bucket(at, 2h, 30m); declare at: time on this table").guide("indexes") }
@@ -1070,8 +1070,9 @@ impl Parser {
                 "cursor" => TypeKind::Cursor,
                 "id" => TypeKind::Id,
                 "principal" => TypeKind::Principal,
-                "int" if self.at_kind(Kind::Number) || matches!(self.peek().value.as_str(), "<=" | ">=" | "<" | ">" | "-") => {
-                    return Err(self.int_range(&name.site, column));
+                "int" if self.at_kind(Kind::Number) || matches!(self.peek().value.as_str(), "<=" | ">=" | "<" | ">" | "-" | ".") => {
+                    let (min, max) = self.int_range(&name.site)?;
+                    TypeKind::IntRange { min, max }
                 }
                 "int" => TypeKind::Int,
                 "time" => TypeKind::Time,
@@ -1109,37 +1110,53 @@ impl Parser {
         Ok(ScalarType { kind, optional })
     }
 
-    /// `n: int 1..10`: ints take no bound in the type (text's `1..80` is a
-    /// length). Name the supported forms with the author's bound, instead of
-    /// "expected the end of the line, got 1" (wave 5 #5, 11 lanes).
-    // @ref LLP 3000.036#15.7 — a bounded int is a require or a rule, not a type (see §15.7 for why).
-    fn int_range(&mut self, site: &Site, column: bool) -> Diagnostic {
-        let name = (self.position >= 3 && self.tokens[self.position - 2].value == ":" && self.tokens[self.position - 3].kind == Kind::Word)
-            .then(|| self.tokens[self.position - 3].value.clone()).unwrap_or_else(|| "n".into());
-        let start = self.position;
-        while !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) && !matches!(self.peek().value.as_str(), "," | ")" | "?" | ":") { self.position += 1; }
-        let bound = self.source_text(start, self.position).split_whitespace().collect::<String>();
-        let (low, high) = match bound.split_once("..") {
-            Some((low, high)) => (Some(low.to_owned()), Some(high.to_owned())),
-            None if bound.starts_with("<=") => (None, Some(bound[2..].to_owned())),
-            None if bound.starts_with(">=") => (Some(bound[2..].to_owned()), None),
-            None if bound.starts_with('<') => (None, bound[1..].parse::<i64>().ok().map(|n| (n - 1).to_string())),
-            None if bound.starts_with('>') => (bound[1..].parse::<i64>().ok().map(|n| (n + 1).to_string()), None),
-            None => (None, None),
+    /// `int M..N`, `int M..` or `int ..N`: inclusive bounds on the value,
+    /// one spelling each. Other comparisons refuse with the canonical form.
+    // @ref LLP 3000.040#12-surface — reverses LLP 3000.036 §15.7: a bounded int is a type.
+    fn int_range(&mut self, site: &Site) -> Fallible<(Option<i64>, Option<i64>)> {
+        let rewrite = "int 1..5, int 0.. (at least), or int ..100 (at most)";
+        let bound = |parser: &mut Self| -> Fallible<i64> {
+            let negative = parser.maybe("-");
+            let token = parser.peek().clone();
+            if token.kind != Kind::Number {
+                return Err(syntax_with(&token.site, "an int bound is an integer literal", rewrite).guide("types"));
+            }
+            parser.position += 1;
+            if !token.value.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(syntax_with(&token.site, "an int bound is a whole number; fractional bounds are not allowed", rewrite).guide("types"));
+            }
+            let value = token.value.parse::<i64>().ok().map(|n| if negative { -n } else { n })
+                .filter(|n| (snapback4_core::value::I53_MIN..=snapback4_core::value::I53_MAX).contains(n))
+                .ok_or_else(|| syntax_with(&token.site, "an int bound must lie within ±9007199254740991", rewrite).guide("types"))?;
+            Ok(value)
         };
-        let optional = self.at("?");
-        let test = |prefix: &str| {
-            let test = [low.as_ref().map(|low| format!("{prefix}{name} >= {low}")), high.as_ref().map(|high| format!("{prefix}{name} <= {high}"))]
-                .into_iter().flatten().collect::<Vec<_>>().join(" and ");
-            if optional { format!("({prefix}{name} = null or {test})") } else { test }
-        };
-        let ty = if optional { "int ?" } else { "int" };
-        let rewrite = if column {
-            format!("declare `{name}: {ty}` and bound it in the table's rules (`insert <- … and {}`, `update (old, next) <- … and {}`) and in each mutation that writes it (`require {} else OUT_OF_RANGE`)", test("."), test("next."), test(""))
-        } else {
-            format!("declare `{name}: {ty}` and refuse other values first in the body: `require {} else OUT_OF_RANGE`", test(""))
-        };
-        syntax_with(site, format!("int takes no range in its type (`text 1..80` bounds a length); `{bound}` is a check on the value"), rewrite).guide("types")
+        let dots = |parser: &mut Self| parser.at(".") && parser.peek_at(1).value == ".";
+        let at_bound = |parser: &Self| parser.at_kind(Kind::Number) || (parser.at("-") && parser.peek_at(1).kind == Kind::Number);
+        // One spelling: `<=N`, `>=M`, `<N` and `>N` print the canonical range.
+        let operator = self.peek().value.clone();
+        if matches!(operator.as_str(), "<=" | ">=" | "<" | ">") {
+            self.position += 1;
+            let n = bound(self)?;
+            let canonical = match operator.as_str() {
+                "<=" => format!("int ..{n}"),
+                "<" => format!("int ..{}", n - 1),
+                ">=" => format!("int {n}.."),
+                _ => format!("int {}..", n + 1),
+            };
+            let why = if operator == "<=" { " (text's `<=N` starts at 0 because a length is never negative; an int's `..N` has no lower bound)" } else { "" };
+            return Err(syntax_with(site, format!("an int range is written `M..N`, `M..` or `..N`, not `{operator}`{why}"), canonical).guide("types"));
+        }
+        let min = if dots(self) { None } else { Some(bound(self)?) };
+        if !dots(self) {
+            return Err(syntax_with(&self.peek().site.clone(), "an int range is `M..N`, `M..` or `..N`", rewrite).guide("types"));
+        }
+        self.position += 2;
+        let max = if at_bound(self) { Some(bound(self)?) } else { None };
+        match (min, max) {
+            (None, None) => Err(syntax_with(site, "`int ..` bounds nothing; write `int`, or give a bound", rewrite).guide("types")),
+            (Some(min), Some(max)) if min > max => Err(syntax_with(site, format!("int range minimum {min} exceeds its maximum {max}"), format!("int {max}..{min}")).guide("types")),
+            range => Ok(range),
+        }
     }
 
     fn parse_block(&mut self) -> Fallible<Vec<Stmt>> {

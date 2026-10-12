@@ -150,6 +150,7 @@ pub fn scalar_type(type_: &ScalarType) -> String {
         TypeKind::Id => "id".into(),
         TypeKind::Principal => "principal".into(),
         TypeKind::Int => "int".into(),
+        TypeKind::IntRange { min, max } => snapback4_core::schema::int_range_text(*min, *max),
         TypeKind::Decimal { scale } => format!("decimal {scale}"),
         TypeKind::Money { currency, scale } => format!("money {currency} {scale}"),
         TypeKind::Time => "time".into(),

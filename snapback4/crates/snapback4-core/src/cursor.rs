@@ -173,6 +173,7 @@ fn value_matches(value: &Value, kind: &ColumnType) -> bool {
             matches!(value, Value::String(_))
         }
         ColumnType::Int
+        | ColumnType::IntRange { .. }
         | ColumnType::Time
         | ColumnType::Decimal { .. }
         | ColumnType::Money { .. } => matches!(value, Value::Int(_)),

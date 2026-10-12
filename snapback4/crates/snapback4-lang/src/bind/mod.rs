@@ -478,7 +478,7 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
             return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} fires {}, whose argument {name} the clock cannot supply; a scheduled job or action takes periodStart: time and periodEnd: time, or nothing", decl.name, decl.target), if target.program.kind == ProgramKind::Action { format!("action {}(periodStart: time, periodEnd: time)", decl.target) } else { rewrite }));
         }
     }
-    Ok(snapback4_core::schema::Schedule { name: decl.name.clone(), every_ms: decl.every_ms, offset_ms: decl.offset_ms, target: decl.target.clone(), service: decl.service.clone() })
+    Ok(snapback4_core::schema::Schedule { name: decl.name.clone(), every_ms: decl.every_ms, offset_ms: decl.offset_ms, target: decl.target.clone(), service: decl.service.clone(), months: decl.months })
 }
 
 /// A scan whose read rule reads a column the prefix does not pin is

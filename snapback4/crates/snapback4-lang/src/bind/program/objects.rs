@@ -84,6 +84,12 @@ impl Binder<'_> {
                     None => self.name(&field.name, &field.site),
                 }
             };
+            let bound = bound.and_then(|(value, ty)| {
+                if let (Some(table), false) = (table, field.spread) && let Some(scalar) = table.columns.get(&field.name) {
+                    super::literal_in_range(table, &field.name, scalar, &value, &field.site)?;
+                }
+                Ok((value, ty))
+            });
             let (value, ty) = match bound {
                 Ok(bound) => bound,
                 Err(error) => { self.record_error(error.clone()); failed.get_or_insert(error); continue; }

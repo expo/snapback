@@ -103,7 +103,7 @@ fn composition_shape(schema: &Schema, program: &Program) -> Option<crate::schema
         _ => return None,
     };
     let kind = table.columns.get(column)?;
-    if !matches!(kind, crate::schema::ColumnType::Time | crate::schema::ColumnType::Int) { return None; }
+    if !matches!(kind, crate::schema::ColumnType::Time | crate::schema::ColumnType::Int | crate::schema::ColumnType::IntRange { .. }) { return None; }
     Some(crate::schema::SearchComposition { table: scan.table.clone(), index: scan.index.clone(),
         column: column.clone(), kind: kind.clone(), order: scan.order, limit: limit as u64,
         needle: needle.clone(), cursor: cursor.clone(), variant: scan.variant })

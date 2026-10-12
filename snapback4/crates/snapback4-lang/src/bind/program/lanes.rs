@@ -43,7 +43,7 @@ fn range_width(domain: &A) -> Option<u64> {
                 A::Name { .. } | A::Literal { .. } => true,
                 A::Unary { value, .. } => stable(value),
                 A::Binary { left, right, .. } => stable(left) && stable(right),
-                A::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket") => args.iter().all(stable),
+                A::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket" | "month" | "year" | "monthStart" | "yearStart") => args.iter().all(stable),
                 _ => false,
             }
         }

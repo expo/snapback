@@ -33,7 +33,7 @@ fn column(ty: &ColumnType) -> u64 {
         List { of, max } | ListRange { of, max, .. } => u64::from(*max).saturating_mul(256_u64.saturating_add(column(of))).saturating_add(256),
         Json { max_bytes } => u64::from(*max_bytes) * 256,
         Image { .. } | Video { .. } => 16384, // bounded asset facts, never file bytes
-        Int | Decimal { .. } | Money { .. } | Bool | Time => 256,
+        Int | IntRange { .. } | Decimal { .. } | Money { .. } | Bool | Time => 256,
     }
 }
 

@@ -141,7 +141,7 @@ pub(super) fn keys(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<BTre
         match key {
             Expr::Name { name, .. } if source.columns.contains_key(name) => {}
             Expr::Member { .. } if path(key).is_some_and(|p| source.recorded.contains_key(&p) || source.captures.contains_key(&format!("${p}"))) => {}
-            Expr::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket") => {
+            Expr::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket" | "month" | "year") => {
                 let (millis, offset) = calendar(name, args, key.site())?;
                 let column = path(&args[0]).ok_or_else(|| refusal(args[0].site(), "calendar group key needs a source time column or recorded path", "day(.at), hour(postId.at), or bucket(.at, 2m)"))?;
                 if !source.columns.get(&column).is_some_and(|ty| ty.kind == TypeKind::Time && (!ty.optional || source.recorded.contains_key(&column))) {
@@ -149,13 +149,18 @@ pub(super) fn keys(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<BTre
                 }
                 computed.insert(field.clone(), CalendarKey { function: name.clone(), column: column.clone(), millis, offset });
             }
-            _ => return Err(refusal(key.site(), "maintain group keys are bare source columns or day, hour and bucket of a required time column", "by authorId, day(.at)")),
+            _ => return Err(refusal(key.site(), "maintain group keys are bare source columns or day, hour, bucket, month and year of a required time column", "by authorId, day(.at)")),
         }
     }
     Ok(computed)
 }
 
 pub(super) fn calendar(name: &str, args: &[Expr], site: &Site) -> Fallible<(i64, i64)> {
+    // @ref LLP 3000.040#22-builtins — UTC civil periods take no duration and no offset (time zones are deferred).
+    if matches!(name, "month" | "year") {
+        if args.len() != 1 { return Err(refusal(site, format!("{name} takes one time and no offset: civil periods are UTC"), format!("{name}(.at)"))); }
+        return Ok((0, 0));
+    }
     let base = if name == "bucket" { 2 } else { 1 };
     let rewrite = "day(time, 8h), hour(time, 30m), or bucket(time, 1d, 8h); omit the offset for UTC epoch boundaries";
     if args.len() != base && args.len() != base + 1 { return Err(refusal(site, "calendar key takes a time, a bucket duration if needed, and an optional literal offset", rewrite)); }

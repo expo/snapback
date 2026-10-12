@@ -938,11 +938,11 @@ pub fn doctor(options: &Options) -> i32 {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
                         let last = last.and_then(|at| at.parse::<i64>().ok());
                         let state = match last {
-                            Some(at) if at > schedule.boundary(now) => format!("last boundary {at} ({}), ahead of the clock: held until {}; restart with dev --resume-clock or advance the clock", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(at.saturating_add(schedule.every_ms as i64))),
-                            Some(at) => format!("last boundary {at} ({}); next {}", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.boundary(now).saturating_add(schedule.every_ms as i64))),
+                            Some(at) if at > schedule.boundary(now) => format!("last boundary {at} ({}), ahead of the clock: held until {}; restart with dev --resume-clock or advance the clock", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.next(at))),
+                            Some(at) => format!("last boundary {at} ({}); next {}", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.next(schedule.boundary(now)))),
                             None => "not yet started (a running server starts it)".into(),
                         };
-                        lines.push(format!("schedule  {} every {}{} → {}; {state}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02} UTC", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target));
+                        lines.push(format!("schedule  {} {} → {}; {state}", schedule.name, schedule.describe(), schedule.target));
                     }
                     if let Ok(work) = engine.timeline_work_counts() {
                         for (name, pending, parked) in work { lines.push(format!("timeline  {name}: {pending} pending delivery work, {parked} parked")); }
@@ -1228,6 +1228,7 @@ fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &s
             None => "a".repeat((*min).max(1) as usize),
         }),
         ir::ArgType::Int => Value::Int(0),
+        ir::ArgType::IntRange { min, max } => Value::Int(0.clamp(min.unwrap_or(i64::MIN), max.unwrap_or(i64::MAX))),
         ir::ArgType::Time => Value::Int(snapback4_core::now_ms()),
         ir::ArgType::Bool => Value::Bool(false),
         ir::ArgType::Enum { variants } => Value::String(variants.first()?.clone()),

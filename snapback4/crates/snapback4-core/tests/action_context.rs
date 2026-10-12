@@ -183,7 +183,7 @@ fn admitted_policy_is_frozen_and_changed_queued_contract_parks() {
 #[test]
 fn a_scheduled_action_is_admitted_once_under_its_service_seat() {
     let mut schema = schema(WorkPolicy::default());
-    schema.schedules.push(Schedule { name: "hourly".into(), every_ms: 60_000, offset_ms: 0, target: "work".into(), service: Some("service:billing".into()) });
+    schema.schedules.push(Schedule { name: "hourly".into(), every_ms: 60_000, offset_ms: 0, target: "work".into(), service: Some("service:billing".into()), months: 0 });
     let mut engine = Engine::memory(schema, [program()]).unwrap();
     assert!(engine.fire_schedules(0).unwrap().is_empty());
     assert_eq!(engine.fire_schedules(60_000).unwrap(), ["hourly"]);

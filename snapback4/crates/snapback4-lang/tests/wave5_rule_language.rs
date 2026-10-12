@@ -317,22 +317,34 @@ fn a_view_with_where_after_by_names_the_clause_order() {
 }
 
 /// Wave 5 #5 (11 lanes): `int 1..N` failed "expected the end of the line, got 1".
-/// The targeted refusal prints the require (and rule) forms, which compile.
+/// LLP 3000.040 §1 reverses LLP 3000.036 §15.7: the lanes' own spelling is
+/// now the type, enforced on every write; the other comparisons print it.
 #[test]
-fn an_int_range_names_the_require_and_rule_forms() {
-    let d = first("mutation add(k: int 1..7200):\n  return k\n", "E_QUARRY_SYNTAX");
-    assert!(d.message.starts_with("int takes no range in its type"), "{d:#?}");
-    assert_eq!(d.rewrite, "declare `k: int` and refuse other values first in the body: `require k >= 1 and k <= 7200 else OUT_OF_RANGE`");
-    clean("mutation add(k: int):\n  require k >= 1 and k <= 7200 else OUT_OF_RANGE\n  return k\n");
-    let d = first("table items:\n  owner: principal\n  n: int 1..10\n  read <- .owner = viewer\n  online only\n", "E_QUARRY_SYNTAX");
-    assert!(d.rewrite.contains("insert <- … and .n >= 1 and .n <= 10") && d.rewrite.contains("update (old, next) <- … and next.n >= 1 and next.n <= 10"), "{d:#?}");
-    let source = "table items:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  insert <- .owner = viewer and .n >= 1 and .n <= 10\n  update (old, next) <- next.owner = viewer and next.n >= 1 and next.n <= 10\n  online only\n\
-mutation add(n: int):\n  require n >= 1 and n <= 10 else OUT_OF_RANGE\n  return insert items { owner: viewer, n }\n";
+fn an_int_range_is_a_type_and_other_spellings_print_it() {
+    let source = "table items:\n  owner: principal\n  n: int 1..10\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n\
+mutation add(n: int 1..10):\n  return insert items { owner: viewer, n }\nmutation raw(n: int):\n  return insert items { owner: viewer, n }\n";
+    clean(source);
     let mut engine = engine(source, vec![]);
-    let sent = |engine: &mut Engine, n: i64| matches!(engine.mutate("add", None, Context::new("amy", args(&[("n", Value::Int(n))]))).map(|o| o.state), Ok(snapback4_core::WriteState::Sent { .. }));
-    assert!(sent(&mut engine, 4) && !sent(&mut engine, 11) && !sent(&mut engine, 0));
-    let d = first("table items:\n  m: int <=5 ?\n  public 'x'\n  online only\n", "E_QUARRY_SYNTAX");
-    assert!(d.rewrite.starts_with("declare `m: int ?`") && d.rewrite.contains("(.m = null or .m <= 5)"), "{d:#?}");
+    let code = |engine: &mut Engine, op: &str, n: i64| match engine.mutate(op, None, Context::new("amy", args(&[("n", Value::Int(n))]))).map(|o| o.state) {
+        Ok(snapback4_core::WriteState::Sent { .. }) => "sent".to_owned(),
+        Ok(snapback4_core::WriteState::Failed { why, .. }) => why.code,
+        Err(e) => e.code().to_string(),
+    };
+    for op in ["add", "raw"] {
+        assert_eq!(code(&mut engine, op, 4), "sent");
+        assert_eq!(code(&mut engine, op, 11), "E_INPUT", "{op}");
+        assert_eq!(code(&mut engine, op, 0), "E_INPUT", "{op}");
+    }
+    clean("mutation add(k: int 1..7200):\n  return k\n");
+    clean("table items:\n  m: int ..5 ?\n  p: int 0..\n  q: int -3..-1\n  public 'x'\n  online only\n");
+    for (written, canonical) in [("int <=5", "int ..5"), ("int >=1", "int 1.."), ("int <10", "int ..9"), ("int >0", "int 1.."), ("int 9..1", "int 1..9")] {
+        let d = first(&format!("table items:\n  m: {written} ?\n  public 'x'\n  online only\n"), "E_QUARRY_SYNTAX");
+        assert_eq!(d.rewrite, canonical, "{written}: {d:#?}");
+        assert_eq!(d.guide, "types");
+        clean(&format!("table items:\n  m: {canonical} ?\n  public 'x'\n  online only\n"));
+    }
+    let d = first("table items:\n  m: int <=5\n  public 'x'\n  online only\n", "E_QUARRY_SYNTAX");
+    assert!(d.message.contains("text's `<=N` starts at 0"), "{d:#?}");
 }
 
 // ---- #22: a parent delete does not cascade (noted, not changed) ----
