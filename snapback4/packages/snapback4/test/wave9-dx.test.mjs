@@ -71,7 +71,10 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
     // Expo's picker starts with no persona rather than reading ?as=.
     // Exercise the same picker behavior in a real bundled browser app.
     const appPath = join(dir, 'src/App.tsx');
-    writeFileSync(appPath, readFileSync(appPath, 'utf8').replace('useState(() => new URLSearchParams(location.search).get("as"))', 'useState<string | null>(null)'));
+    const generated = readFileSync(appPath, 'utf8');
+    const picker = generated.replace('useState(() => new URLSearchParams(location.search).get("as"))', 'useState<string | null>(null)');
+    assert.notEqual(picker, generated, 'the export must exercise the picker rather than ?as=');
+    writeFileSync(appPath, picker);
     success(run(join(root, 'node_modules/.bin/vite'), ['build'], dir));
     success(invoke([]));
     success(run(bin, ['witness', 'web', 'dist', '--as', 'alice'], dir)); // owned fresh backend
