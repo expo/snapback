@@ -76,7 +76,7 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
         let upload = upload.write(&body)?;
         // Logout while disk I/O was in flight cannot publish a new asset.
         principal_of(&request, shared).map_err(|_| snapback4_core::RuntimeError::Auth("sign in again".into()))?;
-        lock(&shared.engine).finish_asset(upload)
+        {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.finish_asset(upload)}
     })();
     match stored {
         Ok(asset) => {

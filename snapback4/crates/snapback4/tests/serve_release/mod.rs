@@ -499,3 +499,26 @@ fn crash_between_commit_and_publication_recovers_dormant_data_from_database() {
         &snapback4_core::Value::Int(42)
     );
 }
+
+#[test]
+fn following_reply_stamps_the_engine_selected_after_request_intake() {
+    let directory=ReaderTestDirectory::new();let host=directory.host();
+    let (entered,waiting)=mpsc::channel();
+    let barrier=Arc::new((Mutex::new(false),Condvar::new()));
+    let stalled=barrier.clone();
+    *lock(&host.shared.request_work)=Some(Arc::new(move||{
+        entered.send(()).unwrap();
+        let (state,wake)=&*stalled;
+        let mut ready=lock(state);
+        while !*ready {ready=wake.wait(ready).unwrap();}
+    }));
+    let address=host.address;
+    let task=thread::spawn(move||exchange(address,"POST /following/version HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 11\r\n\r\n{\"args\":{}}"));
+    waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+    let command=candidate(&directory.0,2,&READER_SCHEMA.replace("return 1","return 2"),None,0);
+    let switched=release::apply(&host.shared,&directory.0,command).unwrap();assert_eq!(switched["generation"],2);
+    *lock(&barrier.0)=true;barrier.1.notify_all();
+    let reply=task.join().unwrap();
+    assert_eq!(body(&reply)["generation"],2,"{reply}");
+    assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 2\r\n"),"{reply}");
+}

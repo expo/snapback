@@ -41,6 +41,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
     // Lock order is engine then controller. Authentication is checked again at
     // the same engine incarnation that owns the source read transaction.
     let mut engine = lock(&shared.engine);
+    crate::release_requests::stamp(engine.generation());
     if let Err(r) = mutation_authority(&request, shared, &engine, &principal) {
         drop(engine);
         return respond_timed(request, shared, 401, json!({"denied":refusal_json(&r)}));
