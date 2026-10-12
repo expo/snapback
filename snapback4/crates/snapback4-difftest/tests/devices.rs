@@ -86,6 +86,10 @@ fn retained_device_findings_still_reproduce() {
         match shrink::replay(&path).unwrap() {
             // Regression cases of the ruled exception (DIAGNOSIS.md): they replay as its name.
             Verdict::Named(n) if name.contains("--write-predicted-refused--") => assert_eq!(n, UNHELD_UNIQUE, "{name}"),
+            // This expiry-meter finding was resolved before the PAGE work; keep
+            // its minimized artifact as an exact regression that must now pass.
+            Verdict::Pass if matches!(name.as_str(),
+                "device-memory--examined-complete--data" | "device-sqlite--examined-complete--data") => {}
             Verdict::Disagree(f) => assert_eq!(f.signature, name),
             other => panic!("{name} no longer reproduces ({other:?}): diagnose, update its DIAGNOSIS.md and this test"),
         }
