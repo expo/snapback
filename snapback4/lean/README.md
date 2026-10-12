@@ -54,7 +54,7 @@ elan.
 | Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, application codes). |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
 | Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
-| Examples | `Quarry/Examples.lean` | 45 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
+| Examples | `Quarry/Examples.lean` | 47 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
