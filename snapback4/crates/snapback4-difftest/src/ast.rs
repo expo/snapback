@@ -45,6 +45,8 @@ pub enum Rule {
     NamedNext,
     /// `update (old, next) <- old.owner = viewer`.
     NamedOld,
+    /// `.owner = viewer or .helper = viewer`: two parties (LLP 3000.036.001).
+    TwoParty,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -58,6 +60,7 @@ impl Rule {
             Self::NamedBoth => "old.owner = viewer and next.owner = viewer",
             Self::NamedNext => "next.owner = viewer",
             Self::NamedOld => "old.owner = viewer",
+            Self::TwoParty => ".owner = viewer or .helper = viewer",
         }
     }
     /// Whether the rule names the update's two images (`update (old, next)`).
@@ -70,6 +73,8 @@ pub enum Residency {
     Public,
     Owner,
     Online,
+    /// `sync to access[.bucket]`: the group audience of `exists access[.bucket, viewer]`.
+    Group,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Table {
@@ -111,6 +116,7 @@ impl Table {
             Residency::Public => "  sync public\n",
             Residency::Owner => "  sync to .owner\n",
             Residency::Online => "  online only\n",
+            Residency::Group => "  sync to access[.bucket]\n",
         };
         out
     }
@@ -379,6 +385,10 @@ pub struct Program {
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
+    /// The domain's first clause in place of `.bucket = bucket`, as source:
+    /// a disjunction of pinned branches (LLP 3000.036.001).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain: Option<String>,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -438,7 +448,7 @@ impl Program {
                 owner,
                 project,
             } => {
-                let mut domain = "items where .bucket = bucket".to_string();
+                let mut domain = format!("items where {}", self.domain.as_deref().unwrap_or(".bucket = bucket"));
                 if *owner {
                     domain += " and .owner = viewer";
                 }
