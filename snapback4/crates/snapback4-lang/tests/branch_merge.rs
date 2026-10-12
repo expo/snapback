@@ -1136,6 +1136,52 @@ fn oversized_membership_discovery_index_keeps_the_incomplete_single_scan() {
 }
 
 #[test]
+fn overwide_membership_discovery_index_keeps_the_ordinary_scan() {
+    let base = "table memberships:
+  parent: text <=40
+  principal: principal
+  a: int
+  b: int
+  c: int
+  d: int
+  e: int
+  f: int
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[parent = .parent, principal = viewer, a = 0, b = 0, c = 0, d = 0, e = 0, f = 0]
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+    for source in [base.to_owned(), base.replace("  cap 16 by principal\n", "")] {
+        let b = clean(&source);
+        assert!(branch_merges(&b, "documents").is_empty());
+        assert!(!b.schema.tables["documents"].indexes.values().any(|index| index.columns() == ["owner", "at", "id"]));
+        assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns().len() > 8));
+        assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+        assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+
+        let mut e = engine(&source, vec![
+            ("memberships", vec![("id", id("m1")), ("parent", Value::String("p1".into())), ("principal", id("alice")),
+                ("a", Value::Int(0)), ("b", Value::Int(0)), ("c", Value::Int(0)),
+                ("d", Value::Int(0)), ("e", Value::Int(0)), ("f", Value::Int(0))]),
+            document("owned", "alice", "p0", 1), document("shared", "bob", "p1", 2),
+        ]);
+        let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+        assert_eq!(ids(&page.data), ["shared", "owned"]);
+        assert!(!page.complete && page.next.is_some(), "{page:?}");
+    }
+}
+
+#[test]
 fn row_id_membership_keeps_the_incomplete_single_scan() {
     let source = "table documents:
   owner: principal
