@@ -37,7 +37,7 @@ mutation remove(id: messages):
   delete messages[id]
 mutation countWriter(conversation: conversations, member: members):
   insert messages { conversation, sender: viewer, text: 'dependent', photo: null, at: now }
-  require unreadCounts[member] > 0 else COUNT
+  require (unreadCounts[member] ?? 0) > 0 else COUNT
 "#
 }
 
@@ -309,7 +309,7 @@ fn maintenance_refusals_stay_static_and_readers_cannot_consume_frozen_values() {
     let count = "\nview totals: count messages where .recipients > 0 by .conversation\n";
     for (suffix, reason) in [
         (
-            "\nmutation guard(conversation: conversations):\n  require totals[conversation] > 0 else CAP\n  insert messages { conversation, sender: viewer, text: 'x', photo: null, at: now }\n",
+            "\nmutation guard(conversation: conversations):\n  require (totals[conversation] ?? 0) > 0 else CAP\n  insert messages { conversation, sender: viewer, text: 'x', photo: null, at: now }\n",
             "receipt-owned or derived key",
         ),
         (
