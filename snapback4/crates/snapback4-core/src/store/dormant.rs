@@ -430,7 +430,22 @@ pub(super) fn transition(
     for name in next.tables.keys() {
         if next.tables[name].through.is_some() && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1)",[tx.num(name)?],|r|r.get::<_,bool>(0))? {retained_through.insert(name.clone());}
     }
-    super::narrowed::transition(tx,next,previous,now)?;
+    let mut source_definitions=previous.map(|s|s.tables.clone()).unwrap_or_default();
+    for (name,table) in &restoring {source_definitions.insert(name.clone(),table.clone());}
+    for (name,column,text) in &cells {
+        if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column)) {
+            let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
+            let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
+            source.columns.insert(column.clone(),old.kind);
+            if let Some(default)=old.default {source.defaults.insert(column.clone(),default);}
+            if !old.authoritative {
+                if let Some(owner)=candidate.maintained.get(column) {source.maintained.insert(column.clone(),owner.clone());}
+                if let Some(capture)=candidate.recorded.get(column) {source.recorded.insert(column.clone(),capture.clone());}
+            }
+        }
+    }
+    let restored_images=!restoring.is_empty() || cells.iter().any(|(n,c,_)|next.table(n).is_some_and(|t|t.columns.contains_key(c)));
+    super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions)?;
     check_references(tx, next)?;
     // Restored rows have no predecessor indexes. Install the identity scan
     // before the ordinary read-through barrier; preserve historical captures.

@@ -972,3 +972,74 @@ fn equal_schema_activation_closes_new_nominal_references_and_replaces_generation
     activate(&mut e,wide,3).unwrap();
     assert_eq!(e.store().count("children").unwrap(),1);
 }
+
+#[test]
+fn restoration_into_a_narrower_table_or_column_retains_source_values_and_definition() {
+    let wide="table rows:\n  status: enum('live','new') default 'live'\n  public\nquery version():\n  return 1\n";
+    let narrow=wide.replace("enum('live','new')","enum('live')");
+    for retired in ["query version():\n  return 1\n".to_string(),wide.replace("  status: enum('live','new') default 'live'\n","")] {
+        let mut e=engine(wide);
+        seed(&mut e,"rows",serde_json::json!({"id":"r","status":"new"}));
+        activate(&mut e,&retired,2).unwrap();
+        activate(&mut e,&narrow,3).unwrap();
+        assert_eq!(e.store().count("rows").unwrap(),0);
+        // Retiring the field again must preserve the original stored type/value.
+        activate(&mut e,&retired,4).unwrap();
+        activate(&mut e,wide,5).unwrap();
+        assert_eq!(e.store().rows("rows").unwrap()[0].field("status").unwrap(),&Value::String("new".into()));
+    }
+}
+
+#[test]
+fn tentative_restoration_with_no_visibility_delta_keeps_generation_and_cursors() {
+    let wide="table parents:\n  status: enum('live','new')\n  public\ntable children:\n  parent: parents\n  public\n";
+    let old=wide.replace("enum('live','new')","enum('live')");
+    let mut e=engine(wide);
+    seed(&mut e,"parents",serde_json::json!({"id":"p","status":"new"}));
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
+    activate(&mut e,&old,2).unwrap();
+    let generation=e.generation();
+    activate(&mut e,&old,2).unwrap();
+    assert_eq!(e.generation(),generation);
+    assert_eq!(e.store().count("parents").unwrap(),0);
+    assert_eq!(e.store().count("children").unwrap(),0);
+}
+
+#[test]
+fn narrowing_restored_storage_keeps_deleted_parent_evidence_even_after_id_reuse() {
+    let wide="table parents:\n  public\ntable children:\n  parent: parents on delete keep\n  status: enum('live','new')\n  public\n";
+    let narrow=wide.replace("enum('live','new')","enum('live')");
+    for retired in ["table parents:\n  public\n".to_string(),wide.replace("  parent: parents on delete keep\n","")] {
+        let mut e=engine(wide);
+        seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+        seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p","status":"new"}));
+        activate(&mut e,&retired,2).unwrap();
+        let table=e.schema().tables["parents"].clone();
+        {let tx=e.store_mut().transaction().unwrap();let row=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&row).unwrap();tx.commit().unwrap();}
+        seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+        activate(&mut e,&narrow,3).unwrap();
+        assert_eq!(e.store().count("children").unwrap(),0);
+        let invalid:i64=e.store().conn().query_row("SELECT invalid FROM _dormant_refs WHERE id='c' AND column_name='parent'",[],|r|r.get(0)).unwrap();
+        assert_eq!(invalid,1,"moving retained data into narrowed dormancy must not recapture the reused parent");
+        activate(&mut e,wide,4).unwrap();
+        assert_eq!(e.store().count("children").unwrap(),0);
+    }
+}
+
+#[test]
+fn audit_keeps_before_after_and_partial_restoration_counts() {
+    let wide="table rows:\n  status: enum('live','new')\n  extra: int default 7\n  public\n";
+    let retired=wide.replace("  extra: int default 7\n","");
+    let mixed=wide.replace("enum('live','new')","enum('live')");
+    let mut e=engine(wide);
+    seed(&mut e,"rows",serde_json::json!({"id":"a","status":"live","extra":42}));
+    seed(&mut e,"rows",serde_json::json!({"id":"b","status":"new","extra":99}));
+    activate(&mut e,&retired,2).unwrap();activate(&mut e,&mixed,3).unwrap();
+    let status=e.store_mut().release_status(0,None,None).unwrap();
+    let event=status["events"].as_array().unwrap().last().unwrap();
+    assert!(event["summary"]["restored_items"].as_u64().unwrap()>0);
+    let items=e.store_mut().release_status(0,None,event["id"].as_u64()).unwrap();
+    let item=items["items"].as_array().unwrap().iter().find(|i|i["key"]=="column:rows.extra").unwrap();
+    assert_eq!(item["before_rows"],2);assert_eq!(item["after_rows"],1);assert_eq!(item["restored_rows"],1);
+    assert_eq!(item["action"],"partially restored");
+}

@@ -223,8 +223,16 @@ impl Store {
         let plans = super::activation_plan::plans(schema, if population_changed {None} else {previous.as_ref()});
         if let Some(previous)=&previous {
             for step in crate::successor::classify(previous,schema) {
-                let path=step.path.strip_prefix("tables.").unwrap_or(&step.path).replace(".columns.",".").replace(".indexes.",".");
-                report.changes.push(format!("{path} changed"));
+                let parts=step.path.split('.').collect::<Vec<_>>();
+                let label=if parts.first()==Some(&"tables") && parts.len()>=2 {
+                    let name=parts[1];
+                    let label=super::adoption_report::table_label(if schema.table(name).is_some(){schema}else{previous},name);
+                    if label==name && parts.get(2)==Some(&"columns") && parts.get(3).is_some_and(|c|!c.starts_with('$')) {format!("{label}.{}",parts[3])}else{label}
+                } else if let Some(position)=step.path.strip_prefix("maintains[").and_then(|s|s.strip_suffix(']')).and_then(|s|s.parse::<usize>().ok()) {
+                    schema.maintains.get(position).map_or_else(||"view".into(),|m|m.label())
+                } else {"backend".into()};
+                let message=format!("{label} changed");
+                if !report.changes.contains(&message){report.changes.push(message);}
             }
             let retired=tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);
             let restored=tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);

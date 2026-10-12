@@ -14,6 +14,14 @@ pub struct DormantItem {
     pub bytes: u64,
     pub asset_bytes: u64,
     pub sample_ids: Vec<String>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub before_rows:Option<u64>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub after_rows:Option<u64>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub restored_rows:Option<u64>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub before_sample_ids:Option<Vec<String>>,
 }
 
 fn sql_number(n: u64) -> Result<i64, RuntimeError> {
@@ -102,6 +110,7 @@ pub(crate) fn inventory(
             bytes,
             asset_bytes,
             sample_ids: ids,
+            before_rows:None,after_rows:None,restored_rows:None,before_sample_ids:None,
         });
     }
     Ok(out)

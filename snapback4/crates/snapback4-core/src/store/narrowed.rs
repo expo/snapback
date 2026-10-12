@@ -13,7 +13,7 @@ pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
 
 fn incompatible(schema: &Schema, name: &str, row: &Value) -> bool {
     let table = &schema.tables[name];
-    table.columns.iter().any(|(column, kind)| !table.engine_field(column)
+    table.columns.iter().any(|(column, kind)| !table.engine_field(column) && !table.maintained.contains_key(column)
         && row.field(column).is_ok_and(|value| crate::engine::validate::validate_column(name, column, kind, Some(value)).is_err()))
         || table.constraints.iter().any(|c| matches!(c, Constraint::Text {field,min,format}
             if !table.engine_field(field) && row.field(field).is_ok_and(|v| matches!(v, Value::String(s)
@@ -38,6 +38,8 @@ pub(super) fn transition(
     next: &Schema,
     previous: Option<&Schema>,
     now: i64,
+    restored_images: bool,
+    source_definitions: &BTreeMap<String, Table>,
 ) -> Result<(), RuntimeError> {
     // An expired predecessor must not be archived and later revived without its lifetime.
     if let Some(previous) = previous {
@@ -75,10 +77,9 @@ pub(super) fn transition(
             })
         })
     });
-    if !have_dormant && !type_change {
+    if !have_dormant && !type_change && !restored_images {
         return Ok(());
     }
-    let mut changed = false;
     let mut newly_retained = 0u64;
     // Stream on the primary key. Do not retain a store-sized list of images.
     let mut cursor = (0i64, String::new());
@@ -156,7 +157,6 @@ pub(super) fn transition(
             "INSERT INTO r(t,id,data) VALUES(?1,?2,?3)",
             params![t, id, canonical_json(&row)],
         )?;
-        changed = true;
     }
     tx.clear_activation_scan();
     // References to a hidden row hide their dependents, including memberships.
@@ -198,7 +198,7 @@ pub(super) fn transition(
                 )?;
                 if !retained {
                     newly_retained += 1;
-                    let old = previous.and_then(|s| s.table(name)).unwrap_or(table);
+                    let old = source_definitions.get(name).unwrap_or(table);
                     tx.conn().execute(
                         "INSERT INTO _dormant_narrow_rows VALUES(?1,?2,?3,?4,?5)",
                         params![
@@ -210,6 +210,11 @@ pub(super) fn transition(
                         ],
                     )?;
                     for (column, kind) in &old.columns {
+                        // Retained cells/whole rows already captured a lifetime; moving them must not erase deletion evidence.
+                        let captured:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,column],|r|r.get(0))?;
+                        if captured {
+                            continue;
+                        }
                         if let Ok(value) = row.field(column) {
                             super::dormant::capture_refs(tx, t, id, column, kind, value)?;
                         }
@@ -228,14 +233,20 @@ pub(super) fn transition(
         if removed == 0 {
             break;
         }
-        changed = true;
     }
     // Consume only rows that survived the closed population, not hidden dependents.
     let restored:u64=tx.conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",[],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
+    let restored_tables=tx.conn().prepare("SELECT c.name,COUNT(*) FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id) GROUP BY n.t")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
+    for (name, count) in restored_tables {
+        tx.set_meta(
+            &format!("activation_narrowed_restored:{name}"),
+            &count.to_string(),
+        )?;
+    }
     tx.set_meta("activation_narrowed_retained", &newly_retained.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;
     tx.conn().execute("DELETE FROM _dormant_narrow_rows WHERE EXISTS(SELECT 1 FROM r WHERE r.t=_dormant_narrow_rows.t AND r.id=_dormant_narrow_rows.id)",[])?;
-    if changed {
+    if newly_retained > 0 || restored > 0 {
         tx.set_meta("activation_population", "true")?;
     }
     Ok(())

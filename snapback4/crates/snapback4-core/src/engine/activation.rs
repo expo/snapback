@@ -132,11 +132,25 @@ impl Engine {
             if let Some(options)=release {
                 let mut items=crate::store::release_history::inventory(tx.conn(),None,usize::MAX)?;
                 let dormant_items=items.len();
+                let mut restored_items=0usize;
+                for item in &mut items {
+                    let before=prior_items.borrow().iter().find(|i|i.key==item.key).cloned();
+                    let count=before.as_ref().map_or(0,|i|i.rows);
+                    item.before_rows=Some(count);item.after_rows=Some(item.rows);
+                    item.before_sample_ids=Some(before.map_or_else(Vec::new,|i|i.sample_ids));
+                    let restored=if item.kind=="rows" {
+                        tx.meta(&format!("activation_narrowed_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
+                    } else if item.kind=="column" {count.saturating_sub(item.rows)} else {0};
+                    item.restored_rows=Some(restored);
+                    if restored>0 {item.action="partially restored".into();restored_items+=1;}
+                }
                 let remaining:std::collections::BTreeSet<_>=items.iter().map(|i|i.key.clone()).collect();
-                let restored=prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned().map(|mut i|{i.action="restored".into();i}).collect::<Vec<_>>();
-                let restored_items=restored.len();items.extend(restored);
+                let restored=prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned().map(|mut i|{
+                    i.action="restored".into();i.before_rows=Some(i.rows);i.after_rows=Some(0);i.restored_rows=Some(i.rows);i.before_sample_ids=Some(i.sample_ids.clone());i
+                }).collect::<Vec<_>>();
+                restored_items+=restored.len();items.extend(restored);
                 crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
-                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored')",[])?;
+                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored') OR key LIKE 'activation_narrowed_restored:%'",[])?;
             }
             crate::store::opening::Metadata::read(tx)
         })
