@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-12",
+  "base_commit": "15c0a1a589",
+  "implementation_commit": "51d1687277",
+  "documentation_commit": "1a6762efc8",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "node": "v24.13.1",
+  "campaigns": {
+    "engine": {
+      "seed": 0,
+      "requested_cases": 20000,
+      "generated": 20000,
+      "disagreements": 0,
+      "new_signatures": [],
+      "generator_errors": {},
+      "reference_predicate_cases": 756,
+      "group_cases": 385,
+      "exit_code": 0,
+      "report": "run20k-qualified.json"
+    },
+    "devices": {
+      "seed": 0,
+      "requested_cases": 3000,
+      "generated": 3000,
+      "disagreements": 210,
+      "new_signatures": [],
+      "generator_errors": {},
+      "reference_predicate_cases": 128,
+      "group_cases": 54,
+      "exit_code": 1,
+      "report": "devices3k-qualified.json"
+    }
+  },
+  "wasm": {
+    "raw_bytes": 2192440,
+    "gzip_bytes": 661536,
+    "base_gzip_bytes": 661645,
+    "delta_gzip_bytes": -109,
+    "budget_gzip_bytes": 662145,
+    "sha256": "d45442166d6289f04a3af85ae660a8845d6c468cc447fd2f63842f6ad999cc2c"
+  },
+  "reviews": {
+    "gpt": "READY",
+    "muse": "READY",
+    "snapshot": "51d1687277",
+    "round_1": "NOT READY; corrected introduced findings and scoped inherited matching gap",
+    "round_2": "READY on 1d220c7f11",
+    "round_3": "READY on 51d1687277; extra merge budget-2 assertion applied"
+  },
+  "full_rust_suite": {
+    "state": "passed",
+    "exit_code": 0,
+    "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-core -p snapback4-device -p snapback4-sim -p snapback4-lang --no-fail-fast",
+    "cwd": "snapback4",
+    "runtime_commit": "51d1687277",
+    "test_correction_commit": "1a6762efc8",
+    "log": "quality-green.log.gz",
+    "reported_test_summaries": 298,
+    "reported_passes": 4494,
+    "reported_failures": 0,
+    "reported_ignores": 28
+  },
+  "server_page_tests": {
+    "passed": 10,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "client_page_tests": {
+    "passed": 33,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "ref_check": {
+    "exit_code": 0,
+    "errors": 0,
+    "unchecked": 0,
+    "refs": 10922
+  },
+  "superseded_full_rust_run": {
+    "state": "terminated_incomplete",
+    "known_failures": "bad simulator args and matching attempt charges; corrected before final qualification",
+    "log": "superseded-quality-incomplete.log.gz"
+  },
+  "deferrals": [
+    "Matching discovery meter/parity is outside the ordinary-page fix; issues/20261012-snapback4-matching-prefix-heap-meter-parity.md"
+  ],
+  "generator_scope": "Held-group cases hold both bucket audiences and keep items live; reference predicates on groups keep one pinned domain; online cases retain the non-total disjunction fallback.",
+  "provisional_authority_tests": {
+    "native_passed": 88,
+    "native_failed": 0,
+    "client_passed": 13,
+    "client_failed": 0
+  },
+  "superseded_pre_provisional_run": {
+    "state": "terminated_incomplete",
+    "failures": "two readauth reading-probe assertions exposed double provisional admission; fixed in 51d1687277",
+    "log": "superseded-pre-provisional-quality-incomplete.log.gz"
+  },
+  "prior_complete_rust_run": {
+    "exit_code": 101,
+    "failures": [
+      "snapback4-sim::filters::predicate_probe_cut_withholds_row_and_direct_cursor_uses_its_visible_key (stale exclusive retry expectation)"
+    ],
+    "all_other_targets": "pass",
+    "corrected_target": {
+      "passed": 5,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "runtime_code_unchanged": true,
+    "log": "pre-tombstone-expectation-quality.log.gz"
+  }
+}

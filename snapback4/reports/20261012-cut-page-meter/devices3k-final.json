@@ -1,0 +1,452 @@
+{
+  "generated": 3000,
+  "compiled": 3000,
+  "binder_refused_expected": 0,
+  "binder_refused_unexpected": 0,
+  "executed": 107992,
+  "generator_errors": {},
+  "by_oracle": {
+    "device-memory-converge": {
+      "attempted": 554,
+      "passed": 143,
+      "unsupported": {
+        "converge-observe-online-only-unknown-incomplete": 411
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "device-memory-cut": {
+      "attempted": 23079,
+      "passed": 22985,
+      "unsupported": {},
+      "disagreeing": 94,
+      "signatures": {
+        "device-memory--examined-complete--data": 6,
+        "device-memory--examined-data--data": 27,
+        "device-memory--examined-metered-examined--data": 18,
+        "device-memory--examined-metered-heap-bytes--data": 4,
+        "device-memory--examined-metered-steps--data": 3,
+        "device-memory--heap-bytes-metered-examined--data": 10,
+        "device-memory--heap-bytes-metered-examined--loading": 6,
+        "device-memory--output-bytes-metered-examined--data": 10,
+        "device-memory--steps-metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-memory-read": {
+      "attempted": 2446,
+      "passed": 1361,
+      "unsupported": {
+        "online-only-unavailable": 250,
+        "online-only-unknown-incomplete": 825
+      },
+      "disagreeing": 10,
+      "signatures": {
+        "device-memory--metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-memory-write": {
+      "attempted": 554,
+      "passed": 106,
+      "unsupported": {
+        "prediction-declined": 35,
+        "unpredictable-unsynced-table": 411
+      },
+      "named": {
+        "predicted-then-refused-unheld-unique-key": 1
+      },
+      "disagreeing": 1,
+      "signatures": {
+        "device-memory--write-refused--E_CONSTRAINT": 1
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-converge": {
+      "attempted": 554,
+      "passed": 143,
+      "unsupported": {
+        "converge-observe-online-only-unknown-incomplete": 411
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-cut": {
+      "attempted": 23079,
+      "passed": 22985,
+      "unsupported": {},
+      "disagreeing": 94,
+      "signatures": {
+        "device-sqlite--examined-complete--data": 6,
+        "device-sqlite--examined-data--data": 27,
+        "device-sqlite--examined-metered-examined--data": 18,
+        "device-sqlite--examined-metered-heap-bytes--data": 4,
+        "device-sqlite--examined-metered-steps--data": 3,
+        "device-sqlite--heap-bytes-metered-examined--data": 10,
+        "device-sqlite--heap-bytes-metered-examined--loading": 6,
+        "device-sqlite--output-bytes-metered-examined--data": 10,
+        "device-sqlite--steps-metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-read": {
+      "attempted": 2446,
+      "passed": 1361,
+      "unsupported": {
+        "online-only-unavailable": 250,
+        "online-only-unknown-incomplete": 825
+      },
+      "disagreeing": 10,
+      "signatures": {
+        "device-sqlite--metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-write": {
+      "attempted": 554,
+      "passed": 106,
+      "unsupported": {
+        "prediction-declined": 35,
+        "unpredictable-unsynced-table": 411
+      },
+      "named": {
+        "predicted-then-refused-unheld-unique-key": 1
+      },
+      "disagreeing": 1,
+      "signatures": {
+        "device-sqlite--write-refused--E_CONSTRAINT": 1
+      },
+      "meter_fields_omitted": 0
+    }
+  },
+  "coverage": {
+    "block/if": 109,
+    "block/if-else": 99,
+    "block/let": 171,
+    "block/let-chain": 47,
+    "block/multi-write": 219,
+    "block/require": 177,
+    "block/statements-1": 34,
+    "block/statements-2": 118,
+    "block/statements-3": 94,
+    "block/statements-4": 89,
+    "block/statements-5": 39,
+    "block/unique-tag-clash-candidate": 138,
+    "block/write-Delete": 166,
+    "block/write-Insert": 143,
+    "block/write-Update": 165,
+    "block/write-Upsert": 167,
+    "block/write-second-key": 206,
+    "block/write-ttl": 23,
+    "body/Bounded": 188,
+    "body/Count": 94,
+    "body/Delete": 41,
+    "body/Fold": 82,
+    "body/Insert": 51,
+    "body/Max": 96,
+    "body/Min": 78,
+    "body/Page": 756,
+    "body/Point": 99,
+    "body/Sum": 93,
+    "body/Update": 44,
+    "body/Upsert": 44,
+    "body/block": 374,
+    "body/scalar": 960,
+    "clock/advances": 873,
+    "clock/simultaneous-operations": 154,
+    "clock/sweep": 214,
+    "column/Bool": 3000,
+    "column/Id": 2872,
+    "column/Int": 3000,
+    "column/IntRange(None, Some(7))": 98,
+    "column/IntRange(Some(-1), Some(1))": 98,
+    "column/IntRange(Some(-9007199254740990), Some(9007199254740990))": 113,
+    "column/IntRange(Some(0), None)": 102,
+    "column/IntRange(Some(1), Some(1))": 84,
+    "column/Nullable(Int)": 3000,
+    "column/Nullable(Principal)": 122,
+    "column/Nullable(Time)": 508,
+    "column/Principal": 3000,
+    "column/Reference(\"tags\")": 128,
+    "column/Text": 3000,
+    "expire/items": 508,
+    "expire/row-deadline-at-an-operation": 234,
+    "expire/row-expired-by-run": 375,
+    "expire/row-expired-when-seeded": 140,
+    "expire/row-with-deadline": 420,
+    "expire/tags": 25,
+    "expr/Add": 957,
+    "expr/And": 376,
+    "expr/Eq": 765,
+    "expr/Lt": 467,
+    "expr/Mul": 626,
+    "expr/Or": 432,
+    "expr/calendar-bucket": 19,
+    "expr/calendar-day": 25,
+    "expr/calendar-hour": 13,
+    "expr/calendar-month": 59,
+    "expr/calendar-monthStart": 47,
+    "expr/calendar-year": 49,
+    "expr/calendar-yearStart": 42,
+    "expr/helper-call": 48,
+    "expr/local": 292,
+    "expr/non-bmp": 45,
+    "expr/null-assert": 410,
+    "expr/read-in-mutation": 761,
+    "input/near-i53": 2867,
+    "input/non-bmp": 1965,
+    "input/null": 1891,
+    "items-residency/Group": 54,
+    "items-residency/Online": 2240,
+    "items-residency/Owner": 351,
+    "items-residency/Public": 355,
+    "items-rule/Allow": 705,
+    "items-rule/Deny": 715,
+    "items-rule/Owner": 689,
+    "items-rule/TwoParty": 122,
+    "items-rule/Witness": 769,
+    "order/ascending": 488,
+    "order/descending": 456,
+    "prelude/if": 237,
+    "prelude/if-else": 241,
+    "prelude/let": 355,
+    "prelude/let-chain": 109,
+    "prelude/multi-write": 347,
+    "prelude/other-viewer": 279,
+    "prelude/present": 515,
+    "prelude/require": 337,
+    "prelude/statements-1": 131,
+    "prelude/statements-2": 250,
+    "prelude/statements-3": 255,
+    "prelude/statements-4": 204,
+    "prelude/statements-5": 5,
+    "prelude/steps-1": 176,
+    "prelude/steps-2": 171,
+    "prelude/steps-3": 168,
+    "prelude/unique-tag-clash-candidate": 303,
+    "prelude/write-Delete": 312,
+    "prelude/write-Insert": 313,
+    "prelude/write-Update": 300,
+    "prelude/write-Upsert": 292,
+    "prelude/write-second-key": 400,
+    "prelude/write-ttl": 61,
+    "projection/NameLookup": 284,
+    "projection/Score": 281,
+    "projection/TagGet": 441,
+    "read/branch-merged": 176,
+    "read/branch-shape": 235,
+    "read/branch-single-index": 59,
+    "read/filter": 600,
+    "read/prefetch-reachable": 652,
+    "read/projection": 570,
+    "read/reference-predicate": 128,
+    "residency/Group": 54,
+    "residency/Member": 54,
+    "residency/Online": 2311,
+    "residency/Owner": 567,
+    "residency/Public": 2956,
+    "rule/Allow": 2958,
+    "rule/Deny": 779,
+    "rule/Member": 54,
+    "rule/Owner": 978,
+    "rule/TwoParty": 122,
+    "rule/Witness": 769,
+    "schema/index": 3000,
+    "schema/unique-key": 3000,
+    "tags-residency/Online": 249,
+    "tags-residency/Owner": 239,
+    "tags-residency/Public": 221,
+    "tags-rule/Allow": 272,
+    "tags-rule/Deny": 77,
+    "tags-rule/Owner": 360
+  },
+  "rewrite_coverage": {},
+  "meter_dimensions": {
+    "device-memory-examined": {
+      "attempted": 1448,
+      "passed": 1390,
+      "unsupported": {},
+      "disagreeing": 58,
+      "signatures": {
+        "device-memory--examined-complete--data": 6,
+        "device-memory--examined-data--data": 27,
+        "device-memory--examined-metered-examined--data": 18,
+        "device-memory--examined-metered-heap-bytes--data": 4,
+        "device-memory--examined-metered-steps--data": 3
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-memory-heap_bytes": {
+      "attempted": 4814,
+      "passed": 4798,
+      "unsupported": {},
+      "disagreeing": 16,
+      "signatures": {
+        "device-memory--heap-bytes-metered-examined--data": 10,
+        "device-memory--heap-bytes-metered-examined--loading": 6
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-memory-output_bytes": {
+      "attempted": 2182,
+      "passed": 2172,
+      "unsupported": {},
+      "disagreeing": 10,
+      "signatures": {
+        "device-memory--output-bytes-metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-memory-rule_probes": {
+      "attempted": 242,
+      "passed": 242,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "device-memory-steps": {
+      "attempted": 14393,
+      "passed": 14383,
+      "unsupported": {},
+      "disagreeing": 10,
+      "signatures": {
+        "device-memory--steps-metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-examined": {
+      "attempted": 1448,
+      "passed": 1390,
+      "unsupported": {},
+      "disagreeing": 58,
+      "signatures": {
+        "device-sqlite--examined-complete--data": 6,
+        "device-sqlite--examined-data--data": 27,
+        "device-sqlite--examined-metered-examined--data": 18,
+        "device-sqlite--examined-metered-heap-bytes--data": 4,
+        "device-sqlite--examined-metered-steps--data": 3
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-heap_bytes": {
+      "attempted": 4814,
+      "passed": 4798,
+      "unsupported": {},
+      "disagreeing": 16,
+      "signatures": {
+        "device-sqlite--heap-bytes-metered-examined--data": 10,
+        "device-sqlite--heap-bytes-metered-examined--loading": 6
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-output_bytes": {
+      "attempted": 2182,
+      "passed": 2172,
+      "unsupported": {},
+      "disagreeing": 10,
+      "signatures": {
+        "device-sqlite--output-bytes-metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-rule_probes": {
+      "attempted": 242,
+      "passed": 242,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-steps": {
+      "attempted": 14393,
+      "passed": 14383,
+      "unsupported": {},
+      "disagreeing": 10,
+      "signatures": {
+        "device-sqlite--steps-metered-examined--data": 10
+      },
+      "meter_fields_omitted": 0
+    }
+  },
+  "pageable_reads": 0,
+  "pages_with_resumable_cut": 0,
+  "runtime_refusals": {},
+  "runtime_refused_unexpected": {},
+  "store_stats": {
+    "device-memory-converge-complete": 143,
+    "device-memory-converge-online-only-unknown-incomplete": 411,
+    "device-memory-read-complete": 1179,
+    "device-memory-read-online-only-unavailable": 250,
+    "device-memory-read-online-only-unknown-incomplete": 825,
+    "device-memory-read-refused": 280,
+    "device-memory-snapshot-events": 14240,
+    "device-memory-snapshot-pages": 11235,
+    "device-memory-write-block-predicted": 16,
+    "device-memory-write-block-prediction-declined": 26,
+    "device-memory-write-block-refused-E_CONSTRAINT": 9,
+    "device-memory-write-block-refused-E_INPUT": 9,
+    "device-memory-write-block-refused-E_OVERFLOW": 11,
+    "device-memory-write-block-refused-NOT_FOUND": 17,
+    "device-memory-write-block-refused-REQUIRED": 8,
+    "device-memory-write-block-unpredictable-unsynced-table": 278,
+    "device-memory-write-delete-predicted": 1,
+    "device-memory-write-delete-refused-E_INPUT": 2,
+    "device-memory-write-delete-refused-NOT_FOUND": 11,
+    "device-memory-write-delete-unpredictable-unsynced-table": 27,
+    "device-memory-write-insert-predicted": 8,
+    "device-memory-write-insert-refused-E_INPUT": 2,
+    "device-memory-write-insert-refused-E_OVERFLOW": 2,
+    "device-memory-write-insert-unpredictable-unsynced-table": 39,
+    "device-memory-write-update-predicted": 2,
+    "device-memory-write-update-prediction-declined": 5,
+    "device-memory-write-update-refused-E_OVERFLOW": 3,
+    "device-memory-write-update-unpredictable-unsynced-table": 34,
+    "device-memory-write-upsert-predicted": 4,
+    "device-memory-write-upsert-prediction-declined": 4,
+    "device-memory-write-upsert-refused-E_INPUT": 1,
+    "device-memory-write-upsert-refused-E_OVERFLOW": 2,
+    "device-memory-write-upsert-unpredictable-unsynced-table": 33,
+    "device-sqlite-converge-complete": 143,
+    "device-sqlite-converge-online-only-unknown-incomplete": 411,
+    "device-sqlite-read-complete": 1179,
+    "device-sqlite-read-online-only-unavailable": 250,
+    "device-sqlite-read-online-only-unknown-incomplete": 825,
+    "device-sqlite-read-refused": 280,
+    "device-sqlite-snapshot-events": 14240,
+    "device-sqlite-snapshot-pages": 11235,
+    "device-sqlite-write-block-predicted": 16,
+    "device-sqlite-write-block-prediction-declined": 26,
+    "device-sqlite-write-block-refused-E_CONSTRAINT": 9,
+    "device-sqlite-write-block-refused-E_INPUT": 9,
+    "device-sqlite-write-block-refused-E_OVERFLOW": 11,
+    "device-sqlite-write-block-refused-NOT_FOUND": 17,
+    "device-sqlite-write-block-refused-REQUIRED": 8,
+    "device-sqlite-write-block-unpredictable-unsynced-table": 278,
+    "device-sqlite-write-delete-predicted": 1,
+    "device-sqlite-write-delete-refused-E_INPUT": 2,
+    "device-sqlite-write-delete-refused-NOT_FOUND": 11,
+    "device-sqlite-write-delete-unpredictable-unsynced-table": 27,
+    "device-sqlite-write-insert-predicted": 8,
+    "device-sqlite-write-insert-refused-E_INPUT": 2,
+    "device-sqlite-write-insert-refused-E_OVERFLOW": 2,
+    "device-sqlite-write-insert-unpredictable-unsynced-table": 39,
+    "device-sqlite-write-update-predicted": 2,
+    "device-sqlite-write-update-prediction-declined": 5,
+    "device-sqlite-write-update-refused-E_OVERFLOW": 3,
+    "device-sqlite-write-update-unpredictable-unsynced-table": 34,
+    "device-sqlite-write-upsert-predicted": 4,
+    "device-sqlite-write-upsert-prediction-declined": 4,
+    "device-sqlite-write-upsert-refused-E_INPUT": 1,
+    "device-sqlite-write-upsert-refused-E_OVERFLOW": 2,
+    "device-sqlite-write-upsert-unpredictable-unsynced-table": 33
+  },
+  "slowest_case_seconds": 89.990191483,
+  "slowest_case_seed": 2949,
+  "time_limited_workers": 0,
+  "seconds": 131.39558183,
+  "seed": 0,
+  "cases": 3000
+}
