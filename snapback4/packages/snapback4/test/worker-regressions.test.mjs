@@ -92,8 +92,8 @@ function fixture(t, source, cleanupChildren) {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-  return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev", project = dir) {
-    const release = join(dir, 'release');
+  return { dir, get listening() { return servers.at(-1)?.url; }, async start(extra = [], env = {}, watch = false, mode = "dev", project = dir, deployment = join(dir, 'release')) {
+    const release = deployment;
     if (mode === 'serve' && !existsSync(release)) { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
     const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: project, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], mode, diagnostics, workdir: mode === 'serve' ? join(release, 'releases/1') : project };
@@ -863,8 +863,8 @@ import {writeFileSync,renameSync} from 'node:fs';writeFileSync('checked-value.tm
   }
 });
 
-for (const [mode, entry] of [['dev','workers/push.mjs'], ['serve','workers/push.mjs'], ['dev','worker.mjs'], ['serve','external.mjs']])
-test(`${mode} ${entry} runs the published file-output recipe in the project data directory`, async t => {
+for (const [mode, entry, alias] of [['dev','workers/push.mjs'], ['serve','workers/push.mjs'], ['dev','worker.mjs'], ['serve','external.mjs'], ['serve','workers/push.mjs',true], ['serve','external.mjs',true]])
+test(`${mode} ${entry} runs the published file-output recipe in the project data directory${alias ? ' through a deployment symlink' : ''}`, async t => {
   const guide = spawnSync(binary, ['guide','effects','--full'], {encoding:'utf8'});
   assert.equal(guide.status, 0, guide.stderr);
   const recipe = guide.stdout.split('## Worker files and imports')[1].match(/```js\n([\s\S]*?)```/)[1];
@@ -881,8 +881,16 @@ process.chdir('/');
 await recordPush({text:'after chdir'}, {idempotencyKey:'next-key'});
 setInterval(()=>{},1000);
 `);
+  let deployment=join(f.dir,'release');
+  if(alias) {
+    const target=join(f.dir,'real-deployment');mkdirSync(target);
+    symlinkSync(target,deployment,'dir');
+    // Deploy a new release through an existing alias, including worker packaging.
+    const deployed=spawnSync(binary,['deploy',deployment],{cwd:f.dir,encoding:'utf8'});
+    assert.equal(deployed.status,0,deployed.stdout+deployed.stderr);
+  }
   const s = await f.start(mode === 'serve' && entry === 'external.mjs' ? ['--worker',source] : [],
-    {SNAPBACK_PROJECT_DIR:'/must-not-inherit'}, false, mode);
+    {SNAPBACK_PROJECT_DIR:'/must-not-inherit'}, false, mode, f.dir, deployment);
   const log = join(s.workdir,'data/push-log.jsonl');
   await until(() => rows(log).length === 2);
   assert.deepEqual(rows(log), [{id:'stable-key',payload:{text:'acceptance'}},{id:'next-key',payload:{text:'after chdir'}}]);

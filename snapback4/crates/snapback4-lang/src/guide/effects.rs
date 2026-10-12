@@ -64,7 +64,7 @@ prior reports when retiring the previous host's credentials.
 
 ## Worker files and imports
 
-`SNAPBACK_PROJECT_DIR` is the absolute project root in dev, the active release
+`SNAPBACK_PROJECT_DIR` is the canonical absolute project root in dev, the active release
 root in serve, and the initial `process.cwd()`. Relative filesystem paths use
 that cwd; `import.meta.url` and relative imports use the private source copy.
 Write application files under the project's `data/` directory, never beside

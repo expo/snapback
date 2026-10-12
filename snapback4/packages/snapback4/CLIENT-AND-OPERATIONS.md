@@ -2645,7 +2645,7 @@ the injected bearer live; keep using it. Manually minted seats remain refreshabl
 including seats with the same service name.
 #### Worker files, modules and runtime paths
 
-`SNAPBACK_PROJECT_DIR` is the absolute project root for dev and the active
+`SNAPBACK_PROJECT_DIR` is the canonical absolute project root for dev and the active
 release root for serve. It equals the child's initial `process.cwd()` and
 stays fixed even if the worker changes cwd. Relative filesystem paths use cwd;
 `import.meta.url`, `import.meta.dirname` and relative imports refer to the
