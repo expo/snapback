@@ -529,6 +529,24 @@ fn reference_argument_lookups_must_reach_each_write() {
         "a scan filter may never run when its source is empty");
     assert_eq!(notes("  ignored = parents first 1 by .id { checked: exists parents[id = parent] }\n  insert kids { id, parent }\n", ""), 1,
         "a shape field may never run when its source is empty");
+    for expression in [
+        "true and exists parents[parent]",
+        "false or exists parents[parent]",
+        "exists parents[parent] and false",
+        "exists parents[parent] or true",
+    ] {
+        assert_eq!(notes(&format!("  ignored = {expression}\n  insert kids {{ id, parent }}\n"), ""), 0,
+            "the target lookup is on a mandatory lazy-expression path: {expression}");
+    }
+    for (expression, args) in [
+        ("false and exists parents[parent]", ""),
+        ("true or exists parents[parent]", ""),
+        ("skip and exists parents[parent]", ", skip: bool"),
+        ("skip or exists parents[parent]", ", skip: bool"),
+    ] {
+        assert_eq!(notes(&format!("  ignored = {expression}\n  insert kids {{ id, parent }}\n"), args), 1,
+            "the target lookup can be skipped: {expression}");
+    }
     assert_eq!(notes("  ignored = true ?? exists parents[parent]\n  insert kids { id, parent }\n", ""), 1,
         "a coalesce fallback after a present value is skipped");
     assert_eq!(notes("  ignored = maybe ?? exists parents[parent]\n  insert kids { id, parent }\n", ", maybe: bool ?"), 1,

@@ -209,17 +209,10 @@ fn flow_expression(
         | Expr::Assert { value, .. }
         | Expr::ShapeUse { base: value, .. }
         | Expr::Walk { seed: value, .. } => child(value, flow, candidates),
-        Expr::Binary {
-            op, left, right, ..
-        } if matches!(op.as_str(), "and" | "or") => {
+        Expr::Binary { op, left, right, .. }
+            if matches!(op.as_str(), "and" | "or" | "??") => {
             child(left, flow, candidates);
-            let without_right = flow.clone();
-            child(right, flow, candidates);
-            *flow = join_flows(Some(without_right), Some(flow.clone())).unwrap();
-        }
-        Expr::Binary { op, left, right, .. } if op == "??" => {
-            child(left, flow, candidates);
-            if matches!(left.as_ref(), Expr::Literal { value: crate::ast::Literal::Null, .. }) {
+            if lazy_right_must_run(op, left) {
                 child(right, flow, candidates);
             } else {
                 flow_conditional_expression(catalog, schema, arguments, right, flow, candidates);
@@ -692,12 +685,8 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
         Expr::Read(read) | Expr::Exists { read, .. } if read.table == target && read_checks_target_alias(schema, read, aliases, target) => true,
         Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => read.keys.iter().any(|key| child(&key.value, stack)),
         Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. } | Expr::ShapeUse { base: value, .. } => child(value, stack),
-        Expr::Binary { op, left, right, .. } if op == "and" => child(left, stack)
-            || constant_bool(left) == Some(true) && child(right, stack),
-        Expr::Binary { op, left, right, .. } if op == "or" => child(left, stack)
-            || constant_bool(left) == Some(false) && child(right, stack),
-        Expr::Binary { op, left, right, .. } if op == "??" => child(left, stack)
-            || matches!(left.as_ref(), Expr::Literal { value: crate::ast::Literal::Null, .. }) && child(right, stack),
+        Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "and" | "or" | "??") =>
+            child(left, stack) || lazy_right_must_run(op, left) && child(right, stack),
         Expr::Binary { left, right, .. } => child(left, stack) || child(right, stack),
         Expr::Array { items, .. } => items.iter().any(|value| child(value, stack)),
         Expr::Call { name, args, .. } => args.iter().any(|value| child(value, stack))
@@ -736,6 +725,15 @@ fn constant_bool(expression: &Expr) -> Option<bool> {
             _ => None,
         },
         _ => None,
+    }
+}
+
+fn lazy_right_must_run(op: &str, left: &Expr) -> bool {
+    match op {
+        "and" => constant_bool(left) == Some(true),
+        "or" => constant_bool(left) == Some(false),
+        "??" => matches!(left, Expr::Literal { value: crate::ast::Literal::Null, .. }),
+        _ => false,
     }
 }
 
