@@ -114,7 +114,7 @@ view requestsByOwner: sum requests of .amount by .owner, .dept
   read <- .owner = viewer
 
 query deptTotal(dept: text <=20):
-  return requestsTotal[dept]
+  return requestsTotal[dept] ! else NOT_ALLOWED
 query myDeptTotal(dept: text <=20):
   return requestsByOwner[viewer, dept]
 ```

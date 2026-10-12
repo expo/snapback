@@ -127,7 +127,8 @@ mutation newTeam(name: text <=80):
   return t
 
 mutation addTask(team: teams, title: text <=200):
-  return insert tasks { owner: viewer, team, title, at: now }
+  parent = teams[team] ! else NOT_FOUND
+  return insert tasks { owner: viewer, team: parent.id, title, at: now }
 
 mutation give(task: tasks, to: principal):
   t = tasks[task] ! else NOT_FOUND
@@ -371,7 +372,8 @@ mutation createTeam(name: text <=80):
   return t
 
 mutation invite(team: teams, who: principal):
-  return insert teamMembers { team, principal: who } if absent
+  parent = teams[team] ! else NOT_FOUND
+  return insert teamMembers { team: parent.id, principal: who } if absent
 
 mutation comment(task: tasks, body: text <=1000):
   t = tasks[task] ! else NOT_FOUND
@@ -442,12 +444,14 @@ mutation createHousehold(name: text 1..80):
   return h
 
 mutation invite(household: households, who: principal):
+  parent = households[household] ! else NOT_FOUND
   require exists residents[household, viewer] else NOT_RESIDENT
-  return insert residents { household, principal: who }
+  return insert residents { household: parent.id, principal: who }
 
 mutation addCharge(household: households, label: text 1..120, cents: int):
+  parent = households[household] ! else NOT_FOUND
   require exists residents[household, viewer] else NOT_RESIDENT
-  return insert charges { household, payer: viewer, label, cents }
+  return insert charges { household: parent.id, payer: viewer, label, cents }
 ```
 
 Cases (alice and bob in household `h1`, which has one charge; carol in `h2`):
@@ -602,13 +606,15 @@ table posts:
   sync public last 500 by .at
 
 mutation join(club: clubs):
-  return insert joins { club, member: viewer } if absent
+  parent = clubs[club] ! else NOT_FOUND
+  return insert joins { club: parent.id, member: viewer } if absent
 
 mutation leave(club: clubs):
   delete joins[club = club, member = viewer]
 
 mutation post(club: clubs, body: text 1..500):
-  return insert posts { club, author: viewer, body, at: now }
+  parent = clubs[club] ! else NOT_FOUND
+  return insert posts { club: parent.id, author: viewer, body, at: now }
 
 query myClubs(c: cursor ?):
   return joins where .member = viewer first 50 by .id after c { club: clubs[.club] }
@@ -650,10 +656,12 @@ table notices:
   online only
 
 mutation join(club: clubs):
-  return insert joins { club, member: viewer } if absent
+  parent = clubs[club] ! else NOT_FOUND
+  return insert joins { club: parent.id, member: viewer } if absent
 
 mutation notice(club: clubs, body: text 1..500):
-  return insert notices { club, author: viewer, body, at: now }
+  parent = clubs[club] ! else NOT_FOUND
+  return insert notices { club: parent.id, author: viewer, body, at: now }
 
 query clubNotices(club: clubs, c: cursor ?):
   return notices where .club = club last 20 by .at after c

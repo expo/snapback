@@ -64,13 +64,15 @@ query messageReceipts(conversation: conversations, c: cursor ?):
   return messages where .conversation = conversation last 20 by .ordinal after c { id, receipt: receipt(.) }
 
 mutation send(conversation: conversations, text: text <=2000):
+  chat = conversations[conversation] ! else NOT_FOUND
   require exists members[conversation, viewer] else NOT_MEMBER
-  m = insert messages { conversation, sender: viewer, text, at: now }
+  m = insert messages { conversation: chat.id, sender: viewer, text, at: now }
   return m.id
 
 mutation add(conversation: conversations, principal: principal):
+  chat = conversations[conversation] ! else NOT_FOUND
   require exists members[conversation, viewer] else NOT_MEMBER
-  insert members { conversation, principal } if absent
+  insert members { conversation: chat.id, principal } if absent
   return null
 
 mutation leave(conversation: conversations):

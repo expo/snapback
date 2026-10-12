@@ -330,9 +330,10 @@ mutation reply(postId: posts, body: text <=500):
   require exists posts[id = postId] else FEED_APP_NOT_FOUND
   return insert replies { postId, authorId: viewer, body, at: now }
 mutation repost(postId: posts):
-  r = insert reposts { actorId: viewer, postId, at: now } if absent
+  post = posts[postId] ! else FEED_APP_NOT_FOUND
+  r = insert reposts { actorId: viewer, postId: post.id, at: now } if absent
   if r != null:
-    insert events { postId, actorId: viewer, repost: true, at: now }
+    insert events { postId: post.id, actorId: viewer, repost: true, at: now }
   return r
 mutation remove(postId: posts):
   update posts[id = postId] { removed: true }

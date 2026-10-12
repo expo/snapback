@@ -92,10 +92,10 @@ table members:
   role: enum('member', 'admin')
   joinedAt: time
   unique roomId, principal else MEMBER_EXISTS -- one row per key
-  cap 100 by roomId                                    -- at most N rows per group; a product limit
+  cap 100 by roomId                                    -- maximum 100 per room
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
-  insert <- exists members[.roomId, viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
+  insert <- exists rooms[.roomId] and (exists members[.roomId, viewer, role = 'admin'] or created rooms[.roomId])
   delete <- .principal = viewer or exists members[.roomId, viewer, role = 'admin']
   sync to members[.roomId]
 ```
@@ -115,7 +115,7 @@ table messages:
   at: time
   immutable roomId, authorId
   read <- exists members[.roomId, viewer]
-  insert <- .authorId = viewer and exists members[.roomId, viewer]
+  insert <- .authorId = viewer and exists members[.roomId, viewer] and exists rooms[.roomId]
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
@@ -165,7 +165,7 @@ table reactions:
   emoji: text <=20 default 'like'
   unique postId, principal
   read <- .principal = viewer
-  insert <- .principal = viewer
+  insert <- .principal = viewer and exists posts[.postId]
   update <- .principal = viewer
   delete <- .principal = viewer
   sync to .principal last 500 by .id
