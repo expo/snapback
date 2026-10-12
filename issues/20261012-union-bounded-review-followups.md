@@ -19,6 +19,11 @@ READY or author acceptance is claimed. No push was made.
 Remaining work:
 
 - Fresh paired review of revision 8, if the author commissions another loop.
+- Two-column-plus-group world, sparing independently through both columns
+  and walking three window indexes (late Muse round 6).
+- A binder diagnostic for arms with identical column prefixes: their
+  window map collides and the current order-column repair cannot help
+  (fail-closed; late Muse round 6).
 - Windowed pure-column two-/three-party world: independent newest-row floors
   and certification through every column arm (Muse round 5 High).
 - Two-prefix groups and scopes; roster/group cross-table interleaving;
