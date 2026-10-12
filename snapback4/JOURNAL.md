@@ -93822,3 +93822,10 @@ provisional 688,442 B. Whole-artifact delta against the worktree baseline is
 or runtime resource ceiling change. The regression uses valid quote text;
 NUL remains rejected by text validation. Final reviews and qualification are
 recorded in WORKSTREAM-REPORT.md.
+
+PAGE fixed-source-ID qualification: the final locked Linux web artifact is
+2,277,324 B raw / 689,326 B gzip. It passes the existing 689,645 B budget;
+no additional budget increase is needed. Against the worktree baseline
+2,245,422 / 679,351, the whole-artifact delta is +31,902 B raw / +9,975 B
+gzip. The client package rebuild passes. This supersedes the previous PAGE
+artifact measurement, with no runtime resource ceiling change or macOS claim.
