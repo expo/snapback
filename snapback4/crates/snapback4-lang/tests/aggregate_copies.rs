@@ -457,7 +457,10 @@ fn published_pinning_rule_accepts_zero_and_true_count_and_refuses_forgery() {
     let source = guide::quarry(guide::card("maintains").unwrap()).into_iter().find(|block| block.contains("table ranked:") && block.contains("update (old, next) <- exists likeCounts")).unwrap();
     let source = format!("{source}\nmutation setScore(postId: posts, score: int):\n  upsert ranked[postId = postId] {{ postId, score }}\nmutation like(postId: posts):\n  insert likes {{ postId, principal: viewer }} if absent\n");
     let bound = bind(&source);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.notes.len(), 2, "{:?}", bound.notes);
+    assert!(bound.notes.iter().all(|note| note.code == "N_REFERENCE_UNCHECKED"), "{:?}", bound.notes);
+    assert!(bound.notes.iter().any(|note| note.message.contains("mutation setScore") && note.message.contains("posts[postId]")), "{:?}", bound.notes);
+    assert!(bound.notes.iter().any(|note| note.message.contains("mutation like") && note.message.contains("posts[postId]")), "{:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([("posts".into(), snapback4_core::value::object([("id", Value::Id("p".into())), ("author", Value::Id("alice".into()))]))]).unwrap();
     for (index, (score, valid)) in [(999, false), (0, true), (999, false), (1, true)].into_iter().enumerate() {
