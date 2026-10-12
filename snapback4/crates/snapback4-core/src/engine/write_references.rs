@@ -90,19 +90,26 @@ impl Runner<'_> {
             let via = if parent == root_table { String::new() } else { format!(", through a {parent} row this delete cascades to") };
             return Err(RuntimeError::Structural { code: "E_REFERENCED", message: format!("{root_table} at {} is still referenced through {child}.{column} (on delete restrict){via}; delete or retarget those rows first, or declare the reference's action (guide writes)", self.statement_site) });
         }
-        // 5. Set null outside the closure, each row reread current before its write.
+        // 5. Set null outside the closure. Each group is gathered whole before
+        // any of it is cleared: a clear can recount a sibling that shares the
+        // reference's index and move it behind a page cursor. Each row is then
+        // reread current before its write.
+        // @ref LLP 3000.039#3 — gather, then clear: no row moves out of a walk it has not finished.
         for (table, id) in &visits {
             for r in schema.referencing(table) {
                 if r.action != OnDelete::SetNull { continue; }
-                self.each_child(&r, id, true, &mut |runner, child| {
-                    let identity = (r.child.to_owned(), child.as_str()?.to_owned());
-                    if seen.contains(&identity) { return Ok(true); }
-                    let current = runner.metered_scan(|runner, allowance| runner.tx.get(allowance, &identity.0, &identity.1))?;
-                    if let Some(current) = current.filter(|row| row.field(r.column).is_ok_and(|v| v == id)) {
-                        runner.clear_reference(r.child, r.column, current)?;
-                    }
+                let mut group: Vec<String> = Vec::new();
+                self.each_child(&r, id, true, &mut |_, child| {
+                    let child = child.as_str()?.to_owned();
+                    if !seen.contains(&(r.child.to_owned(), child.clone())) { group.push(child); }
                     Ok(true)
                 })?;
+                for child in group {
+                    let current = self.metered_scan(|runner, allowance| runner.tx.get(allowance, r.child, &child))?;
+                    if let Some(current) = current.filter(|row| row.field(r.column).is_ok_and(|v| v == id)) {
+                        self.clear_reference(r.child, r.column, current)?;
+                    }
+                }
             }
         }
         // 6. Delete the closure, children first, each from its current image.
@@ -133,7 +140,7 @@ impl Runner<'_> {
         } else {
             vec![(vec![id.clone()], None)]
         };
-        let (mut live, mut skipped) = (0_u64, 0_usize);
+        let mut live = 0_u64;
         for (prefix, gt) in ranges {
             let mut bounds = Bounds { gt, ..Default::default() };
             loop {
@@ -143,12 +150,11 @@ impl Runner<'_> {
                 let mut ids = Vec::with_capacity(page.len());
                 for (row, _) in page {
                     if self.device {
-                        // @ref LLP 3000.014#5 — retained history is outside the quantifier; only a live, current (or own provisional) row is a witness.
+                        // @ref LLP 3000.039#6.4 — a device predicts only over current rows: retained history queues the delete, and only a live, current (or own provisional) row is a witness.
+                        // A retained, no longer current row is work the reservation does not
+                        // price and a witness the device cannot judge: the delete queues.
                         if self.tx.retained_row(r.child, &row)? && !self.tx.current_row(r.child, &row)? {
-                            // A device wades through at most a page of retained history per scan.
-                            skipped += 1;
-                            if skipped > PAGE { return Err(RuntimeError::Prediction(format!("deleting needs every {} row that references it held; queued without a local delete", r.child))); }
-                            continue;
+                            return Err(RuntimeError::Prediction(format!("deleting meets retained {} history that references it; queued without a local delete", r.child)));
                         }
                         if self.expired(r.table, &row) || !(self.tx.current_row(r.child, &row)? || self.is_provisional(r.child, &row)?) {
                             return Err(RuntimeError::Prediction(format!("deleting needs a current image of every {} row that references it; queued without a local delete", r.child)));
@@ -185,10 +191,13 @@ impl Runner<'_> {
         let mut new = old.clone();
         if let Value::Row(fields) | Value::Map(fields) = &mut new { fields.insert(column.to_owned(), Value::Null); }
         let patch = crate::value::object([(column, Value::Null)]);
-        self.target_attempt(table, |runner| {
+        let outer = std::mem::replace(&mut self.engine_action, true);
+        let result = self.target_attempt(table, |runner| {
             runner.reserve_maintains(table, &runner.schema.tables[table])?;
             runner.replace_authorized(table, old, new, true, &patch, 0)
-        })
+        });
+        self.engine_action = outer;
+        result
     }
 
     /// The engine's own delete of a closure row: no rule, its constraints, its

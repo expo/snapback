@@ -218,6 +218,7 @@ impl Schema {
         let mut price = [0_u64; 7];
         let mut heap = 0_u64;
         let mut identities = 0_u64;
+        let mut gathered = 0_u64;
         let rows_of = |name: &str| bounds.iter().find(|(t, _)| t == name).map_or(0, |(_, n)| *n);
         for (table, n) in &bounds {
             let n = *n;
@@ -252,6 +253,7 @@ impl Schema {
                     }
                     OnDelete::SetNull => {
                         let cap = u64::from(self.reference_cap(r.child, r.column)?);
+                        gathered = gathered.max(cap);
                         let cleared = cap.saturating_mul(n);
                         let unit = self.unit_write(r.child)?;
                         heap = heap.max(unit[4]);
@@ -267,7 +269,8 @@ impl Schema {
         price[2] = price[2].saturating_add(1);
         // The closure's identities (table and id) are held until the last
         // delete, with the root's and one page of child ids.
-        price[4] = heap.saturating_add(identities.saturating_add(1 + REFERENCE_PAGE as u64).saturating_mul(CLOSURE_IDENTITY_BYTES));
+        // A set-null group is gathered whole (at most its cap) before it is cleared.
+        price[4] = heap.saturating_add(identities.saturating_add(1 + REFERENCE_PAGE as u64 + gathered).saturating_mul(CLOSURE_IDENTITY_BYTES));
         Some(price)
     }
 
@@ -285,11 +288,11 @@ impl Schema {
             None => 1,
         }).fold(0_u64, u64::saturating_add);
         let row = crate::engine::row_copy_ceiling(table);
+        // The row copy and every phase's heap are held together until the
+        // write's attempt ends (an asset phase beside a column recount): a sum.
         let mut unit = [4 + 2 * entries, 2 * entries, 1, 1, row.saturating_mul(4), 0, 0];
         for phase in 0..=reservations::VIEW_READ {
-            let p = plan.price(phase);
-            unit[4] = unit[4].max(p[4]);
-            add(&mut unit, [p[0], p[1], p[2], p[3], 0, p[5], p[6]]);
+            add(&mut unit, plan.price(phase));
         }
         Some(unit)
     }

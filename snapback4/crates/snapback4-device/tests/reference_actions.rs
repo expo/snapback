@@ -113,6 +113,50 @@ fn run<H: Host>(host: &mut H) {
     assert_eq!(task_ids(&mut d), json!([{"id":"t1"},{"id":"t2"}]), "nothing was predicted");
     assert_eq!(write(&mut e, "dropProject", "alice", &[("id", id("p"))]), "ok", "the server decides: no secret names p");
     host.close("queued", d);
+
+    // A reused read-through parent has a current child and a retained image
+    // from its former audience. History cannot be skipped into a successful
+    // cascade: it is outside the schema's live cap and reservation.
+    let source = r#"
+table groups:
+  public 'groups'
+  sync public
+table parents:
+  group: groups
+  immutable group
+  read through .group
+  delete <- allow
+  sync
+table children:
+  parent: parents on delete cascade
+  cap 1 by parent
+  immutable parent
+  read through .parent
+  retain delivered-history
+  sync
+mutation drop(id: parents):
+  delete parents[id]
+"#;
+    let (mut e, b) = compile(source);
+    let row = |table: &str, fields: &[(&str, snapback4_core::Value)]| (table.to_owned(), snapback4_core::value::object(fields.iter().cloned()));
+    e.seed_at([row("groups", &[("id", id("old"))]), row("groups", &[("id", id("new"))]),
+        row("parents", &[("id", id("p")), ("group", id("old"))]),
+        row("children", &[("id", id("a")), ("parent", id("p"))])], 100).unwrap();
+    let mut d = host.open("retained-cascade", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 100);
+    let (watermark, generation) = d.state().unwrap();
+    let page: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":[
+        {"table":"children","kind":"scope","id":"scope","data":["old"]},
+        {"table":"parents","kind":"put","id":"p","data":{"id":"p","group":"new","$scope":"new","$deadline":null}},
+        {"table":"children","kind":"put","id":"b","data":{"id":"b","parent":"p","$scope":"new","$deadline":null}}
+    ],"watermark":watermark,"more":false,"generation":generation})).unwrap();
+    d.apply(&page, false).unwrap();
+    assert_eq!(d.store().raw_rows("children").len(), 2, "old history and one current child");
+    let queued = d.predict("drop", "alice", &json!({"id":"p"}), 100, vec![], 1).unwrap_err();
+    assert_eq!(queued.code(), "E_PREDICT", "{queued:?}");
+    assert!(queued.to_string().contains("retained"), "{queued:?}");
+    assert_eq!(d.store().raw_rows("children").len(), 2, "queue rolls back all local writes");
+    host.close("retained-cascade", d);
 }
 
 #[test] fn reference_actions_memory() { run(&mut Memory::new()); }

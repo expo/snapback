@@ -151,26 +151,18 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
     let mut notes = Vec::new();
     for doc in &catalog.documents {
         for program in doc.programs.iter().filter(|p| !matches!(p.kind, ProgramKind::Query) && !p.native) {
-            let mut deletes: Vec<(String, crate::diag::Site)> = Vec::new();
-            let mut counted: BTreeSet<(String, String)> = BTreeSet::new();
-            let mut summed: Vec<(String, String, String, String)> = Vec::new();
             let original = program;
-            let mut program = program.clone();
-            let mut visit = |value: &mut Expr| match value {
-                Expr::Write { op: WriteOp::Delete, table, site, .. } if !deletes.iter().any(|(seen, _)| seen == table) => deletes.push((table.clone(), site.clone())),
-                Expr::Read(read) | Expr::Exists { read, .. } => {
-                    if let Some(pair) = guards.counts.get(&read.table) { counted.insert(pair.clone()); }
-                    if let Some((child, by, column)) = guards.sums.get(&read.table) && !summed.iter().any(|(view, ..)| view == &read.table) {
-                        summed.push((read.table.clone(), child.clone(), by.clone(), column.clone()));
-                    }
-                }
-                _ => {}
-            };
-            walk::statements(&mut program.prelude, &mut visit);
-            walk::statements(&mut program.body, &mut visit);
+            let program = program.clone();
+            // Each delete with the (child, reference) pairs a dominating zero-count
+            // guard proves childless, and every sum view the program reads.
+            let (deletes, summed) = guarded_deletes(&program, &guards);
             let word = if program.kind == ProgramKind::Job { "job" } else { "mutation" };
-            for (parent, site) in deletes {
-                if let Some(price) = schema.delete_reservation(&parent) && let Some(over) = over_ceiling(&price, program.kind == ProgramKind::Job) {
+            let mut noted: BTreeSet<String> = BTreeSet::new();
+            let mut priced: BTreeSet<String> = BTreeSet::new();
+            let mut read_noted: BTreeSet<String> = BTreeSet::new();
+            for (parent, site, counted) in deletes {
+                if noted.contains(&parent) { continue; }
+                if priced.insert(parent.clone()) && let Some(price) = schema.delete_reservation(&parent) && let Some(over) = over_ceiling(&price, program.kind == ProgramKind::Job) {
                     let chain = schema.referencing(&parent).into_iter().filter(|r| r.action.writes())
                         .map(|r| format!("{}.{} ({}, cap {})", r.child, r.column, r.action.words(), schema.reference_cap(r.child, r.column).unwrap_or(0))).collect::<Vec<_>>().join(", ");
                     diagnostics.push(Diagnostic::new(&site, "E_CASCADE_BOUND",
@@ -189,13 +181,14 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                 let kept: Vec<(&str, &str, &str)> = reached.iter().flat_map(|table| undeclared.get(table.as_str()).into_iter().flatten().map(move |(c, col)| (table.as_str(), *c, *col)))
                     .filter(|(target, c, col)| !(*target == parent.as_str() && (counted.contains(&((*c).to_owned(), (*col).to_owned())) || guards.status_guarded(original, &parent, c, col)))).collect();
                 // @ref LLP 3000.039#7 — the read prerequisite is the other behavior change: name it where a deleter may not be a reader.
-                if program.kind != ProgramKind::Job && schema.is_referenced(&parent) && !deleters_read(schema, &parent) && !schema.children(&parent).any(|_| true) {
+                if program.kind != ProgramKind::Job && read_noted.insert(parent.clone()) && schema.is_referenced(&parent) && !deleters_read(schema, &parent) && !schema.children(&parent).any(|_| true) {
                     notes.push(Diagnostic::new(&site, "N_DELETE_NEEDS_READ",
                         format!("mutation {}: `delete {parent}[…]` now also needs read authority on the row: other rows reference {parent} ({}), so a caller the delete rule admits but the read rule does not gets NOT_FOUND", program.name,
                             schema.referencing(&parent).into_iter().map(|r| format!("{}.{}", r.child, r.column)).collect::<Vec<_>>().join(", ")),
                         format!("make every {parent} deleter a reader (`delete <- <the read rule> and …`), or mark the reference `on delete keep` if deleting {parent} should not consult those rows")).guide("writes"));
                 }
                 let Some(&(target, child, column)) = kept.first() else { continue };
+                noted.insert(parent.clone());
                 let named = kept.iter().map(|(_, child, column)| format!("{child}.{column}")).collect::<Vec<_>>().join(", ");
                 let through = if target == parent { String::new() } else { format!(" (through its cascade to {target})") };
                 let sum = summed.iter().find(|(_, c, by, _)| target == parent && c == child && by == column).map(|(view, _, _, summed)| guards.sum_reason(view, child, column, summed)).unwrap_or_default();
@@ -223,4 +216,57 @@ fn deleters_read(schema: &core::Schema, table: &str) -> bool {
     let (read, delete) = (&t.rules.read, &t.rules.delete);
     read.is_uniformly_readable() || matches!(delete, core::RuleExpr::Deny) || delete == read
         || matches!(delete, core::RuleExpr::And(items) if items.iter().any(|item| item == read || matches!(read, core::RuleExpr::And(parts) if parts.iter().all(|p| items.contains(p)))))
+}
+
+/// Every delete in a program, in order, each with the (child, reference)
+/// pairs a guard proves have no row naming the deleted key: a top-level
+/// `require <count>[<the deleted key>] = 0` earlier in the program, over an
+/// unfiltered count (or count-like sum) of that child by that reference, with
+/// no write of the child between it and the delete. A read of a count that
+/// does not dominate the delete, names another key or is not required to be
+/// zero proves nothing. Also every non-count-like sum view the program reads
+/// (the note explains why it does not count).
+// @ref LLP 3000.039#7 — only a dominating zero requirement on the deleted key proves the restrict cannot refuse.
+fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards) -> (Vec<(String, crate::diag::Site, BTreeSet<(String, String)>)>, Vec<(String, String, String, String)>) {
+    let statements: Vec<Stmt> = program.prelude.iter().chain(&program.body).cloned().collect();
+    let zero = |e: &Expr| matches!(e, Expr::Literal { value: Literal::Number(n), .. } if n.parse::<f64>().is_ok_and(|n| n == 0.0));
+    let count_read = |e: &Expr| match e {
+        Expr::Read(read) if read.keys.len() == 1 && read.filter.is_none() && read.range.is_none() =>
+            guards.counts.get(&read.table).map(|pair| (pair.clone(), crate::print::expression(&read.keys[0].value))),
+        _ => None,
+    };
+    // (statement index, (child, reference), key text) for each zero requirement.
+    let mut requires: Vec<(usize, (String, String), String)> = Vec::new();
+    // Tables each statement writes other than by delete.
+    let mut writes: Vec<BTreeSet<String>> = Vec::new();
+    let mut deletes = Vec::new();
+    let mut summed: Vec<(String, String, String, String)> = Vec::new();
+    for (index, statement) in statements.iter().enumerate() {
+        if let Stmt::Require { condition: Expr::Binary { op, left, right, .. }, .. } = statement && (op == "=" || op == "==") {
+            let found = if zero(right) { count_read(left) } else if zero(left) { count_read(right) } else { None };
+            if let Some((pair, key)) = found { requires.push((index, pair, key)); }
+        }
+        let mut body = vec![statement.clone()];
+        let mut written = BTreeSet::new();
+        let mut found: Vec<(String, crate::diag::Site, Option<String>)> = Vec::new();
+        walk::statements(&mut body, &mut |value: &mut Expr| match value {
+            Expr::Write { op: WriteOp::Delete, table, keys, site, .. } =>
+                found.push((table.clone(), site.clone(), (keys.len() == 1).then(|| crate::print::expression(&keys[0].value)))),
+            Expr::Write { table, .. } => { written.insert(table.clone()); }
+            Expr::Read(read) | Expr::Exists { read, .. } => {
+                if let Some((child, by, column)) = guards.sums.get(&read.table) && !summed.iter().any(|(view, ..)| view == &read.table) {
+                    summed.push((read.table.clone(), child.clone(), by.clone(), column.clone()));
+                }
+            }
+            _ => {}
+        });
+        writes.push(written);
+        for (table, site, key) in found {
+            let proven = requires.iter().filter(|(at, (child, _), required)| key.as_deref() == Some(required.as_str())
+                && !writes[at + 1..=index].iter().any(|w| w.contains(child)))
+                .map(|(_, pair, _)| pair.clone()).collect();
+            deletes.push((table, site, proven));
+        }
+    }
+    (deletes, summed)
 }

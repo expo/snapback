@@ -452,7 +452,8 @@ impl Runner<'_> {
     fn check_constraints(&mut self, table_name: &str, old: Option<&Value>, new: &Value, effect: Effect) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).expect("validated");
         let id = new.field("id")?.as_str()?.to_owned();
-        let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
+        // @ref LLP 3000.039#4.1 — an action's own write consults no rule: probing the child's read rule would draw the shared allowance only where a child exists.
+        let readable = match old { Some(old) if effect == Effect::Update && !self.engine_action => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 // byId can only return this id (already checked on insert).

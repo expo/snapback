@@ -250,6 +250,65 @@ mutation dropCategory(id: categories):
     assert_eq!(b.field("filed").unwrap(), &Value::Int(0), "{b:?}");
 }
 
+/// An index the reference shares with a maintained column: clearing one row
+/// recounts another, which moves within the index behind a page cursor. The
+/// walk gathers the group before it clears, so it misses no row.
+#[test]
+fn set_null_clears_rows_a_recount_moves_within_a_shared_index() {
+    let source = r#"
+table categories:
+  read <- allow
+  delete <- allow
+table nodes:
+  category: categories ? on delete set null
+  parent: nodes ? on delete keep
+  filed: count nodes where .category != null by parent
+  by byCategoryCount: category, filed, id
+  cap 20 by category
+  read <- allow
+  delete <- allow
+  online only
+mutation dropCategory(id: categories):
+  delete categories[id]
+"#;
+    let mut e = engine(source);
+    let node = |name: &str, parent: Value| row("nodes", &[("id", id(name)), ("category", id("k")), ("parent", parent)]);
+    e.seed_at(vec![row("categories", &[("id", id("k"))]), node("a", id("b")), node("b", Value::Null), node("c", Value::Null), node("d", Value::Null), node("e", Value::Null)], 500).unwrap();
+    let out = e.mutate("dropCategory", None, ctx("alice", &[("id", id("k"))])).unwrap();
+    assert_eq!(refusal(&out), None, "{out:?}");
+    let nodes = e.store().rows("nodes").unwrap();
+    assert!(nodes.iter().all(|n| n.field("category").is_ok_and(|c| *c == Value::Null)), "{nodes:?}");
+}
+
+/// A cascaded row's write holds its asset and maintained-column reservations
+/// at once, so the delete reserves their sum, not the larger of them.
+#[test]
+fn a_cascaded_write_reserves_its_concurrent_phases_together() {
+    let source = r#"
+table posts:
+  body: text <=1000
+  replies: count replies by post
+  read <- allow
+  delete <- allow
+  online only
+table replies:
+  post: posts on delete cascade
+  scans: [file <=1000000] <=50 ?
+  cap 3 by post
+  read <- allow
+  online only
+mutation drop(id: posts):
+  delete posts[id]
+"#;
+    let b = bound(source);
+    let plan = b.schema.write_reservation("replies").unwrap();
+    let phases: u64 = (0..=snapback4_core::schema::reservations::VIEW_READ).map(|phase| plan.price(phase)[4]).sum();
+    let largest = (0..=snapback4_core::schema::reservations::VIEW_READ).map(|phase| plan.price(phase)[4]).max().unwrap();
+    assert!(phases > largest, "the schema exercises two concurrent phases: {phases} vs {largest}");
+    let heap = b.schema.delete_reservation("posts").unwrap()[4];
+    assert!(heap >= phases, "the delete reserves {heap} heap bytes, below the {phases} its child's write holds at once");
+}
+
 #[test]
 fn the_reply_counts_events_by_schema_not_by_what_actions_reached() {
     let source = r#"
@@ -276,6 +335,30 @@ mutation drop(id: projects):
         (out.events, out.tables, out.metered)
     };
     assert_eq!(run("q"), run("p"));
+}
+
+/// Only a zero requirement on the deleted key, before the delete, proves the
+/// restrict default cannot refuse it: reading the count, or requiring another
+/// key's count, does not silence N_DELETE_RESTRICTED.
+#[test]
+fn only_a_dominating_zero_count_on_the_deleted_key_silences_the_note() {
+    let schema = "table slots:\n  read <- allow\n  delete <- allow\ntable bookings:\n  slot: slots\n  read <- allow\nview bookingsBySlot: count bookings by .slot\n  read <- allow\n";
+    let notes = |program: &str| {
+        let b = snapback4_lang::compile(&[("schema.q".into(), format!("{schema}{program}"))]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        b.notes.iter().filter(|n| n.code == "N_DELETE_RESTRICTED").count()
+    };
+    assert_eq!(notes("mutation drop(slot: slots):\n  require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n  delete slots[slot]\n"), 0, "the guard");
+    for unproven in [
+        "mutation drop(slot: slots, other: slots):\n  n = bookingsBySlot[other]\n  delete slots[slot]\n  return n\n",
+        "mutation drop(slot: slots, other: slots):\n  require bookingsBySlot[other] = 0 else HAS_BOOKINGS\n  delete slots[slot]\n",
+        "mutation drop(slot: slots):\n  delete slots[slot]\n  require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n",
+        "mutation drop(slot: slots):\n  n = bookingsBySlot[slot]\n  delete slots[slot]\n  return n\n",
+        "mutation drop(slot: slots):\n  require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n  insert bookings { slot }\n  delete slots[slot]\n",
+        "mutation drop(slot: slots, flag: bool):\n  if flag:\n    require bookingsBySlot[slot] = 0 else HAS_BOOKINGS\n  delete slots[slot]\n",
+    ] {
+        assert_eq!(notes(unproven), 1, "{unproven}");
+    }
 }
 
 fn diagnostics(source: &str) -> Vec<String> {
@@ -313,4 +396,77 @@ fn check_names_the_delete_sites_the_default_changed() {
         assert!(notes(&declared).is_empty(), "{action}");
     }
     assert!(notes(&source.replace("mutation drop(id: parents):\n  delete parents[id]\n", "")).is_empty(), "no delete site, no note");
+}
+
+/// A `set null` write consults no rule of the child (LLP 3000.039 §4.1): its
+/// read rule's probes would draw on the request's physical authorization
+/// allowance only when a child exists, so a delete whose reservation leaves
+/// none would refuse only in the world with a hidden child (§4.2).
+#[test]
+fn set_null_draws_nothing_from_the_authorization_allowance() {
+    let source = |cap: u32, pins: usize, tasks: u32| {
+        let mut text = format!(r#"
+table categories:
+  read <- allow
+  delete <- allow
+table grants:
+  access: id
+  holder: principal
+  unique access
+  read <- .holder = viewer
+table tasks:
+  category: categories ? on delete set null
+  access: id
+  cap {tasks} by category
+  read <- exists grants[access = .access]
+table boxes:
+  category: categories on delete cascade
+  cap {cap} by category
+  read <- allow
+table stamps:
+  category: categories
+  expiresAt: time
+  expire at .expiresAt
+  read <- allow
+mutation dropCategory(id: categories):
+  delete categories[id]
+"#);
+        for p in 0..pins { text.push_str(&format!("table pins{p}:\n  box: boxes\n  read <- allow\n")); }
+        text
+    };
+    // A reservation that draws the whole 8,192-row allowance: the cascade's
+    // restrict probes are examined work that writes nothing.
+    let examined = |(cap, pins, tasks): (u32, usize, u32)| snapback4_lang::compile(&[("schema.q".into(), source(cap, pins, tasks))]).schema.delete_reservation("categories").map_or(0, |price| price[2]);
+    let (cap, pins, tasks) = (371, 10, 12);
+    assert_eq!(examined((cap, pins, tasks)), 8_192);
+    let run = |child: bool| {
+        let mut e = engine(&source(cap, pins, tasks));
+        // Logical meters out of the way: only the physical allowance binds.
+        e.set_ceilings(snapback4_core::Ceilings { examined: 1 << 20, index_entries: 1 << 22, steps: 1 << 30, rule_probes: 1 << 20, ..Default::default() });
+        let mut rows = vec![row("categories", &[("id", id("c"))]), row("grants", &[("id", id("g")), ("access", id("x")), ("holder", id("carol"))])];
+        if child { rows.push(row("tasks", &[("id", id("t")), ("category", id("c")), ("access", id("x"))])); }
+        e.seed_at(rows, 500).unwrap();
+        let out = e.mutate("dropCategory", None, ctx("alice", &[("id", id("c"))])).unwrap();
+        (refusal(&out), out.metered)
+    };
+    let empty = run(false);
+    assert_eq!(empty.0, None, "{empty:?}");
+    assert_eq!(run(true), empty, "a hidden child changes nothing the caller sees");
+}
+
+#[test]
+fn reset_reseeds_reference_indexes_and_caps_without_running_actions() {
+    let mut e = world(2);
+    let capabilities = e.schema().capabilities.clone();
+    let seeded = vec![row("projects", &[("id", id("p")), ("owner", id("alice"))]),
+        row("tasks", &[("id", id("new")), ("project", id("p")), ("owner", id("bob"))])];
+    e.dev_reset_at(seeded, 500).unwrap();
+    assert_eq!(count(&e, "tasks"), 1);
+    assert_eq!(e.schema().capabilities, capabilities);
+    let out = e.mutate("dropProject", None, ctx("alice", &[("id", id("p"))])).unwrap();
+    assert_eq!(refusal(&out), None, "{out:?}");
+    assert_eq!(count(&e, "tasks"), 0, "only the reseeded child cascades");
+    e.dev_reset_at(vec![row("projects", &[("id", id("p")), ("owner", id("alice"))])], 500).unwrap();
+    let out = e.mutate("dropProject", None, ctx("alice", &[("id", id("p"))])).unwrap();
+    assert_eq!(refusal(&out), None, "no stale cap or reference entries: {out:?}");
 }
