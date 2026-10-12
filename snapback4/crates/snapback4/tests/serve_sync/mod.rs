@@ -127,7 +127,8 @@ fn generation_discovery_keeps_page_authorization() {
                 assert_eq!(status(&stale), 401);
                 assert_eq!(body(&stale), body(&ordinary));
                 assert_eq!(body(&stale)["denied"]["code"], "E_AUTH");
-                assert_eq!(body(&stale).as_object().unwrap().keys().collect::<Vec<_>>(), ["denied","generation"]);
+                assert_eq!(body(&stale).as_object().unwrap().keys().collect::<Vec<_>>(), ["denied"]);
+                assert!(!stale.to_ascii_lowercase().contains("x-snapback-generation:"));
             }
         }
         if !dev {
