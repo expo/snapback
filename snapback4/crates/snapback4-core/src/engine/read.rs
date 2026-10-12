@@ -11,7 +11,7 @@ use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::schema::{Effect, Index, Table, materialize_optional_fields};
 use crate::rows::{Bounds, Dir};
-use crate::value::{Value, canonical_json};
+use crate::value::Value;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 use crate::rows::word_heap;
@@ -1613,9 +1613,12 @@ impl<'r> Runner<'r> {
             let value = std::mem::replace(self.env.get_mut(&lane.binding).expect("lane binding"), Value::Null);
             if key == Value::Null { continue; }
             let bytes = crate::json_codec::value_bytes(&key).map_err(|error| RuntimeError::Store(error.to_string()))?;
-            self.meter.heap(word_heap::allocation(usize::try_from(bytes).unwrap_or(usize::MAX))
+            let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+            self.meter.heap(word_heap::allocation(bytes)
                 + word_heap::insertion::<String, ()>(seen.len()))?;
-            let key = canonical_json(&key);
+            // @ref LLP 3000.036.001#14 — preflight and a fixed-capacity writer keep escaped discovery keys inside their prepaid heap.
+            let key = crate::json_codec::to_text_preallocated(&key, bytes)
+                .map_err(|error| RuntimeError::Store(error.to_string()))?;
             if seen.insert(key) { word_heap::push(&mut self.meter, &mut unique, value)?; }
         }
         if let Some(prior) = prior {

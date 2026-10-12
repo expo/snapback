@@ -77,6 +77,33 @@ pub fn to_text<T: Serialize + ?Sized>(value: &T) -> Result<String, Error> {
     serde_json::to_string(value)
 }
 
+/// Serialize into one allocation whose requested capacity is the exact encoded
+/// length. The bounded writer makes a stale preflight fail instead of growing
+/// the buffer beyond the caller's prepaid allocation.
+pub fn to_text_preallocated<T: Serialize + ?Sized>(value: &T, bytes: usize) -> Result<String, Error> {
+    struct ExactBuffer {
+        bytes: Vec<u8>,
+        limit: usize,
+    }
+    impl std::io::Write for ExactBuffer {
+        fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
+            if input.len() > self.limit.saturating_sub(self.bytes.len()) {
+                return Err(std::io::Error::new(std::io::ErrorKind::WriteZero, "JSON exceeded its prepaid length"));
+            }
+            self.bytes.extend_from_slice(input);
+            Ok(input.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    }
+
+    let mut out = ExactBuffer { bytes: Vec::with_capacity(bytes), limit: bytes };
+    serde_json::to_writer(&mut out, value)?;
+    if out.bytes.len() != bytes {
+        return Err(<Error as serde::ser::Error>::custom("JSON did not fill its prepaid length"));
+    }
+    Ok(String::from_utf8(out.bytes).expect("serde_json always writes UTF-8"))
+}
+
 pub fn to_value<T: Serialize + ?Sized>(value: &T) -> Result<Value, Error> {
     from_owned_text(&to_text(value)?)
 }

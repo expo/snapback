@@ -1257,3 +1257,32 @@ fn membership_merge_prices_all_sixteen_target_buffers_before_payload_allocation(
     assert!(!page.complete && page.next.is_none() && (page.data == Value::Null || ids(&page.data).is_empty()), "{page:?}");
     assert!(page.metered.heap_bytes >= 1024 * 1024, "target payload did not reach the heap boundary: {:?}", page.metered);
 }
+
+#[test]
+fn escaped_membership_parent_uses_a_prepaid_canonical_key_buffer() {
+    let source = OWNER_MEMBERSHIP.replace("text <=40", "text <=400");
+    let query = |parent: &str, heap_bytes: Option<u64>| {
+        let mut engine = engine(&source, vec![
+            membership("m1", parent, "alice"),
+            document("d1", "bob", parent, 1),
+        ]);
+        if let Some(heap_bytes) = heap_bytes {
+            engine.set_ceilings(snapback4_core::Ceilings { heap_bytes, ..snapback4_core::Ceilings::unbounded() });
+        }
+        engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap()
+    };
+
+    let plain = query(&"x".repeat(400), None);
+    let escaped = query(&"\"".repeat(400), None);
+    assert!(plain.complete && escaped.complete && ids(&escaped.data) == ["d1"] && escaped.next.is_none(),
+        "default PAGE execution must admit the largest escaped parent: {escaped:?}");
+    assert!(escaped.metered.heap_bytes > plain.metered.heap_bytes + 350,
+        "canonical escaping must contribute to the context price: plain={:?}, escaped={:?}", plain.metered, escaped.metered);
+
+    let ceiling = plain.metered.heap_bytes + 200;
+    let cut = query(&"\"".repeat(400), Some(ceiling));
+    assert!(!cut.complete && cut.next.is_none()
+        && (cut.data == Value::Null || cut.data.as_array().is_ok_and(|rows| rows.is_empty())),
+        "a discovery-key cut must not expose a partial PAGE result: {cut:?}");
+    assert!(cut.metered.heap_bytes >= ceiling, "escaped discovery did not reach its heap boundary: {:?}", cut.metered);
+}
