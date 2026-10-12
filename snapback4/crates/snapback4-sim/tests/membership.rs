@@ -251,3 +251,124 @@ query page_docs(c: cursor ?):
     assert_eq!(second.data.as_array().unwrap()[0].field("id").unwrap(), &id("new-member"));
     assert!(second.complete && second.next.is_none());
 }
+// @ref LLP 3000.036.001#14 — only live memberships may synthesize PAGE target lanes.
+#[test]
+fn owner_or_membership_page_ignores_an_expired_unswept_witness() {
+    let source = "table page_members:
+  parent: text <=40
+  principal: principal
+  until: time ?
+  unique parent, principal
+  cap 16 by principal
+  by byExpiry: until
+  expire at .until
+  read <- .principal = viewer
+  online only
+table page_docs:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists page_members[.parent, viewer]
+  online only
+query page_docs(c: cursor ?):
+  return page_docs last 10 by .at after c
+";
+    let compiled = bound(source);
+    let program = &compiled
+        .programs
+        .iter()
+        .find(|program| program.program.name == "page_docs")
+        .unwrap()
+        .program;
+    assert!(
+        snapback4_core::ir::body_merges(&program.body)
+            .iter()
+            .any(|merge| merge.lanes.iter().any(|lane| lane.membership()))
+    );
+    let mut engine = Engine::memory(
+        compiled.schema,
+        compiled.programs.into_iter().map(|p| p.program),
+    )
+    .unwrap();
+    engine
+        .seed([
+            (
+                "page_members".into(),
+                snapback4_core::value::object([
+                    ("id", id("expired")),
+                    ("parent", text("p1")),
+                    ("principal", id("alice")),
+                    ("until", Value::Int(5)),
+                ]),
+            ),
+            (
+                "page_members".into(),
+                snapback4_core::value::object([
+                    ("id", id("live")),
+                    ("parent", text("p2")),
+                    ("principal", id("alice")),
+                    ("until", Value::Null),
+                ]),
+            ),
+            (
+                "page_docs".into(),
+                snapback4_core::value::object([
+                    ("id", id("owner")),
+                    ("owner", id("alice")),
+                    ("parent", text("p0")),
+                    ("at", Value::Int(1)),
+                ]),
+            ),
+            (
+                "page_docs".into(),
+                snapback4_core::value::object([
+                    ("id", id("expired-target")),
+                    ("owner", id("bob")),
+                    ("parent", text("p1")),
+                    ("at", Value::Int(2)),
+                ]),
+            ),
+            (
+                "page_docs".into(),
+                snapback4_core::value::object([
+                    ("id", id("live-target")),
+                    ("owner", id("bob")),
+                    ("parent", text("p2")),
+                    ("at", Value::Int(3)),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let before = engine
+        .query("page_docs", context("alice", &[("c", Value::Null)]).at(4))
+        .unwrap();
+    assert_eq!(
+        before
+            .data
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row.field("id").unwrap().as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["live-target", "expired-target", "owner"]
+    );
+    let after = engine
+        .query("page_docs", context("alice", &[("c", Value::Null)]).at(6))
+        .unwrap();
+    assert_eq!(
+        after
+            .data
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row.field("id").unwrap().as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["live-target", "owner"]
+    );
+    assert!(after.complete && after.next.is_none());
+    assert_eq!(
+        engine.store().count("page_members").unwrap(),
+        2,
+        "the witness remains physically unswept"
+    );
+}
