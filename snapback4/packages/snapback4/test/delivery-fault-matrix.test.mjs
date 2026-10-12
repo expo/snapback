@@ -1,3 +1,4 @@
+import { mediaFaultCase } from './upload-delivery-matrix.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -69,7 +70,7 @@ test('every delivery await is explicitly classified',()=>{
   assert.deepEqual(awaitBoundary(), JSON.parse(readFileSync(new URL('./delivery-await-boundary.json',import.meta.url),'utf8')), 'new or changed await needs delivery reachability classification, including outside existing helper scopes');
   assert.deepEqual(sites.map((s,index)=>({index,id:s.id,recipe:recipe(index),classification:required.has(fixtureIndex(index))?'required':'optional',absorbs:absorbs.has(fixtureIndex(index))})),classified,'new or changed awaited delivery site needs a classification and fault recipe');
 });
-const cases = selected.map(site => ({site, competing: false}));
+const cases = selected.filter(site => recipe(sites.indexOf(site)) !== 'upload').map(site => ({site, competing: false}));
 // Run the complete delivery/recovery/FIFO assertions against the adversarial
 // schedule too, including the nonrejecting follow timer's failed-sync input.
 cases.push(...selected.filter(site => sharedAwaits.has(site.id) || site.id === followRetry).map(site => ({site, competing: true})));
@@ -381,6 +382,18 @@ if (selected.some(site => site.id === followSync)) for (const kind of ['host rej
     assert.equal(retryWaits, 1, 'recovery needs no further failure wait');
   });
 }
+for (const site of selected.filter(site => recipe(sites.indexOf(site)) === 'upload')) for (const mode of ['transient', 'persistent']) {
+  test(`upload custody: ${site.id} (${mode})`, async t => {
+    enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear(); alias = site.expression.includes('new Promise') ? 'assets.ts:uploadAsset:doFetch' : undefined; direct = !site.expression.includes('new Promise');
+    await mediaFaultCase({ t, site, mode, directory, createLocalClient, webDevice,
+      arm: () => { enabled = true; }, release: () => { enabled = false; }, fault,
+      injected: () => failures });
+    assert.ok(seen.has(site.id), 'the selected media await was actually reached');
+    assert.ok(failures > 0, 'the media boundary experienced a real failure');
+    results.push({index: sites.indexOf(site), id:site.id, mode, recipe:'upload', classification:'required', injected:failures, reached:true});
+  });
+}
+
 test.after(() => {
   enabled = false;
   if (process.env.RG_MATRIX_OUTPUT) writeFileSync(process.env.RG_MATRIX_OUTPUT, JSON.stringify(results, null, 2)+'\n');

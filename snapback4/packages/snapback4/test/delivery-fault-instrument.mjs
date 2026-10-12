@@ -44,6 +44,10 @@ export const scope = {
   // The shared decoder now owns both mutation-body I/O and optional query
   // decoding. Retry waits/send calls remain covered by their caller awaits.
   'http-response.ts': ['readResponse'],
+  'uploads.ts': '*',
+  'assets.ts': ['uploadAsset'],
+  'app-uploads.ts': '*',
+  'web-upload-admission.ts': '*',
 };
 function name(node) {
   if (node.name) return node.name.getText();
@@ -369,3 +373,22 @@ export function awaitBoundary() {
 // awaits are outside device delivery. Both identity kinds test opening read
 // failure with a surviving capture and no leaked runtime lock; Chromium
 // exercises store replacement observed by a read and lock release.
+
+// MEDIA: uploads/assets add admission, dependency, transport and refusal-finalization
+// boundaries. app-uploads adds the public session facade before the same device
+// operations. upload-delivery-matrix exercises every selected await with transient
+// and persistent failure; real upload/browser tests separately cover lost accepted
+// replies, failed commits, restart/orphans and cancellation. The upload retry timer
+// never rejects: its recipe faults the next real upload attempt after a genuine
+// admission refusal. local-upload moves the unchanged connected-only helper out of
+// local.ts to honor the source-size limit; it owns no upload/placing outbox custody.
+// Immediate-upload/asset/blob tests cover its session and host failure paths.
+// useUpload only awaits the classified public methods and state observations;
+// upload-hooks tests cover retirement and a completion across provider replacement.
+
+// MEDIA authority and identity recovery: web-upload-admission owns the session
+// lock through the upload's strict commit and imports value-free shared identity.
+// Its new waits receive admission fault recipes; the browser authority fixture
+// also proves peer epoch replacement while admission is held. Quota deferral
+// stops the entire source suffix, retaining source FIFO. No blob bytes enter
+// the journal or shared terminal receipt window.
