@@ -78,9 +78,9 @@ the call still needs its facts on this device and must fit the meter and rules.
 the reason and rewrite. It does not promise prediction on every call. Remove
 the named server dependency to keep `predicts`, or remove that assertion and let the client queue
 without prediction.
-Every `check` summarizes mutations that never predict, insert arms that
-never predict, and eligible mutations whose reads can queue without a row
-past a horizon, even on an unchanged program. `check --verbose` keeps the full site lists and rewrites; plain `check` gives the verdict and summary first. `why` qualifies the heading:
+Every `check` of a schema that syncs a table summarizes mutations that never
+predict, insert arms that never predict, and eligible mutations whose reads
+can queue without a row past a horizon (all-online schemas: `--verbose`). `check --verbose` keeps the full site lists and rewrites; plain `check` gives the verdict and summary first. `why` qualifies the heading:
 `predicts: eligible except past the horizon at …`, naming each read and site.
 A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root

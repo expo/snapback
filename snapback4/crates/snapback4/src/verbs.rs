@@ -311,7 +311,8 @@ pub fn check(options: &Options) -> i32 {
         }
     }
     if details && !options.json {
-        print_prediction(&bound, options.flags.contains_key("verbose"));
+        // @ref LLP 3000.036#17.7 — with every table online only, "never predicts" is every mutation and needs no action: verbose keeps it.
+        if options.flags.contains_key("verbose") || bound.schema.synced().next().is_some() { print_prediction(&bound, options.flags.contains_key("verbose")); }
         if !options.flags.contains_key("verbose") { println!("check --verbose for explanations, rewrites and execution details; why <op> for one operation"); }
     }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", present(&residency::facts(&bound))); }
