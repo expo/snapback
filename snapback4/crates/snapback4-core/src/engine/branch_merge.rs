@@ -364,6 +364,9 @@ impl Runner<'_> {
             max_key = max_key.max(bytes);
             if shaped { shape_bytes += word_heap::vec_growth::<Value>(position_len) + copied + appended; }
         }
+        // A meter frontier can continue an empty page, and may be wider than
+        // every emitted key. Cursor encoding must reserve that actual key.
+        if let Some(key) = next { max_key = max_key.max(DisclosedKeys(key).heap()); }
         let trims = self.page_plan.shapes.iter().filter(|(_, shape)| shape.page == site).enumerate().map(|(n, (name, _))| {
             word_heap::text(name) + max_key
                 + word_heap::insertion::<String, super::super::shaping::ShapePosition>(self.shape_positions.len() + n)

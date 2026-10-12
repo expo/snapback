@@ -526,11 +526,13 @@ def merged : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
   { name := "page-membership-target-pinned-in-alternatives-not-merged"
-    source := "LLP 3000.036.001 §14: alternatives that pin the membership target keep the incomplete scan"
+    source := "LLP 3000.036.001 §14: PAGE fallback also excludes the older decided-alternative case when every alternative pins the target"
     case := { schema := membershipDocs, store := membershipDocStore, viewer := alice,
-              program := query [.ret (.page "documents" [] (some (.or (.bin .eq (.dot "parent") (txt "p1")) (.bin .eq (.dot "parent") (txt "p2")))) ["at"] true 10 none)] }
+              program := query [.ret (.page "documents" [] (some (.or
+                (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "parent") (txt "p1")))
+                (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "parent") (txt "p2"))))) ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3}],"complete":false,"next":null}"# },
+    expected := r#"{"kind":"answer","data":[{"id":"d3","owner":"alice","parent":"p1","at":3}],"complete":false,"next":null}"# },
   { name := "page-row-id-membership-not-merged"
     source := "LLP 3000.036.001 §14: a membership keyed by the target id keeps the incomplete scan"
     case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,

@@ -922,7 +922,7 @@ table items:
   online only
 
 query items(bucket: int, c: cursor ?):
-  return items where .bucket = bucket or .bucket = 1 first 1 by .tag after c
+  return items where (.owner = viewer and .bucket = bucket) or (.owner = viewer and .bucket = 1) first 1 by .tag after c
 ";
     let b = clean(source);
     assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
@@ -1008,6 +1008,17 @@ fn membership_source_with_a_true_pinned_disjunct_still_merges() {
 }
 
 #[test]
+fn a_decided_false_membership_source_commits_no_speculative_indexes() {
+    let source = OWNER_MEMBERSHIP.replace("  read <- .principal = viewer\n", "  read <- deny\n");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(!b.schema.tables["documents"].indexes.values().any(|index| index.columns() == ["owner", "at", "id"]));
+    assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
 fn a_discovery_cut_emits_no_owner_rows_and_no_cursor() {
     let mut e = engine(OWNER_MEMBERSHIP, vec![
         membership("m1", "p1", "alice"), membership("m2", "p2", "alice"),
@@ -1017,6 +1028,38 @@ fn a_discovery_cut_emits_no_owner_rows_and_no_cursor() {
     let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
     assert!(ids(&page.data).is_empty(), "a partial source cannot release even an owner row: {page:?}");
     assert!(!page.complete && page.next.is_none());
+}
+
+#[test]
+fn an_empty_membership_frontier_prices_its_actual_continuation_key() {
+    let source = OWNER_MEMBERSHIP
+        .replace("  at: int\n", "  at: int\n  rank: text <=300\n  tag: text <=1\n")
+        .replace("return documents last 2 by .at after c", "return documents where .tag != 'x' last 2 by .rank after c");
+    let rows = |wide: bool| {
+        let mut rows = vec![membership("m1", "p1", "alice")];
+        for n in 0..4 {
+            let name = Box::leak(format!("d{n}").into_boxed_str());
+            let rank = if wide { format!("{}{}", "r".repeat(298), n) } else { format!("r{n}") };
+            rows.push(("documents", vec![("id", id(name)), ("owner", id("bob")), ("parent", Value::String("p1".into())),
+                ("at", Value::Int(n)), ("rank", Value::String(rank)), ("tag", Value::String("x".into()))]));
+        }
+        rows
+    };
+    let run = |wide: bool, examined| {
+        let mut engine = engine(&source, rows(wide));
+        engine.set_ceilings(snapback4_core::Ceilings { examined, ..snapback4_core::Ceilings::unbounded() });
+        engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap()
+    };
+    let (examined, wide) = (1..40).find_map(|examined| {
+        let page = run(true, examined);
+        (!page.complete && ids(&page.data).is_empty() && page.next.is_some()).then_some((examined, page))
+    }).expect("a target filter cut has an empty safe frontier");
+    let position = snapback4_core::cursor::decode_cursor(&engine(&source, rows(true)).schema().clone(), wide.next.as_ref().unwrap()).unwrap();
+    assert!(position.values.iter().any(|value| value.as_str().is_ok_and(|text| text.len() > 250)), "{position:?}");
+    let short = run(false, examined);
+    assert!(short.next.is_some() && ids(&short.data).is_empty(), "{short:?}");
+    assert!(wide.metered.heap_bytes > short.metered.heap_bytes + 20_000,
+        "the actual frontier key must size cursor scratch: wide={:?}, short={:?}", wide.metered, short.metered);
 }
 
 #[test]

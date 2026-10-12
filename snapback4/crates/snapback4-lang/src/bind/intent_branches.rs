@@ -110,7 +110,10 @@ fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Opti
             let Expr::Read(source) = source else { return None };
             candidate.read(tables, source, false);
             let source_table = tables.get(&source.table)?;
-            if !membership_source_capped(tables, source) || !decided(tables, source)
+            // Uniform denial is not an empty discovery range. PAGE may commit
+            // its speculative indexes only when the fixed source pins prove
+            // a true read-rule disjunct, matching the core validator.
+            if !membership_source_capped(tables, source) || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
                 || !candidate.branch_index_fits(source_table, source) { return None; }
             push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
                 lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;

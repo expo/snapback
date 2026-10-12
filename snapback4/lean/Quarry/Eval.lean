@@ -432,7 +432,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.
     let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
-    let case1 := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
+    let case1Candidate := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
     -- The grant lane is the read as written, planned as the single-index page
     -- is: its prefix is the page's pins off the order (an equality on the
     -- first order column would become a pin there and change its order, so
@@ -440,13 +440,14 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     let guardPins := pins.filter fun p => p.1 != "id" && !order.contains p.1
     let membershipRule := td.read.ownerMembership? sch
     -- When an exact membership target is already pinned the Rust planner
-    -- keeps the original scan; do not re-admit that same probe as the older
-    -- generic page-guard case. Other shapes retain case 2.
+    -- keeps the original scan. That PAGE fallback governs every older branch
+    -- case as well; otherwise case 1 could still classify the same read.
     let pinnedMembership := membershipRule.any fun leaves => leaves.any fun leaf => match leaf with
       | .membership _ key => (membershipColumns key).any fun pair =>
           pins.any (·.1 == pair.2)
             || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
       | .party _ => false
+    let case1 := if pinnedMembership then false else case1Candidate
     let case2 := if !guards || pinnedMembership then false else match td.read.branchParties sch guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
