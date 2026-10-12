@@ -49,7 +49,7 @@ pub fn aggregate_tables_constant(mut factory: impl FnMut(&str) -> Box<dyn Backen
                         Value::Int(if world == "expired" { 150 } else { 300 }),
                     );
                 }
-                let expected = if denied && inherited {
+                let expected = if denied {
                     Value::Null
                 } else {
                     Value::Int(i64::from(!denied && world == "live"))
@@ -126,11 +126,7 @@ pub fn aggregate_denied_gate_expiry(mut factory: impl FnMut(&str) -> Box<dyn Bac
                     system(&mut *e, "gate", &[("until", Value::Int(until))]);
                 }
                 let context = ctx("bob", 200, &[("p", id("p"))]);
-                let denied = if path == "ordinary" {
-                    Value::Int(0)
-                } else {
-                    Value::Null
-                };
+                let denied = Value::Null;
                 let expected = if op == "total" {
                     denied
                 } else {

@@ -33,6 +33,14 @@ impl read_through_support::Backend for SqliteBackend {
 fn sqlite(source: &str) -> Box<dyn read_through_support::Backend> {
     let b = bound(source);
     assert!(b.notes.is_empty(), "{:?}", b.notes);
+    sqlite_bound(b)
+}
+fn sqlite_with_maintain_note(source: &str) -> Box<dyn read_through_support::Backend> {
+    let b = bound(source);
+    assert_maintain_note(&b);
+    sqlite_bound(b)
+}
+fn sqlite_bound(b: snapback4_lang::Bound) -> Box<dyn read_through_support::Backend> {
     let queries = b
         .programs
         .iter()
@@ -77,8 +85,15 @@ impl read_through_support::Backend for MemoryBackend {
     }
 }
 fn memory(source: &str) -> Box<dyn read_through_support::Backend> {
+    memory_bound(bound(source))
+}
+fn memory_with_maintain_note(source: &str) -> Box<dyn read_through_support::Backend> {
+    let b = bound(source);
+    assert_maintain_note(&b);
+    memory_bound(b)
+}
+fn memory_bound(mut b: snapback4_lang::Bound) -> Box<dyn read_through_support::Backend> {
     use snapback4_device::store::DeviceStore;
-    let mut b = bound(source);
     b.schema.prepare_contribution_indexes();
     let mut store = snapback4_device::memory::MemoryStore::new();
     store
@@ -102,7 +117,7 @@ fn four_level_chains_sqlite_and_memory() {
 }
 #[test]
 fn clique_sqlite_and_memory() {
-    for factory in [sqlite, memory] {
+    for factory in [sqlite_with_maintain_note, memory_with_maintain_note] {
         read_through_support::clique(factory);
     }
 }
@@ -126,6 +141,12 @@ fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     b
+}
+fn assert_maintain_note(bound: &snapback4_lang::Bound) {
+    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
+    let note = &bound.notes[0];
+    assert_eq!(note.code, "N_MAINTAIN_AUTHORIZATION", "{note}");
+    assert!(note.message.contains("hidden hit or miss returns null"), "{note}");
 }
 fn id(x: &str) -> Value {
     Value::Id(x.into())
@@ -237,7 +258,7 @@ fn keyed_counts_and_private_inherited_path() {
         "{MODEL}\nview counts: count children by .parent\nquery total(id: parents):\n  return counts[id]\nview unread: count children by .parent.owner\nquery unreadFor(owner: principal):\n  return unread[owner]\n"
     );
     let b = bound(&source);
-    assert!(b.notes.is_empty(), "{:?}", b.notes);
+    assert_maintain_note(&b);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     sent(
         &mut e,
@@ -394,7 +415,7 @@ fn inherited_aggregate_cost_depends_on_backlog_not_live_population() {
     for live in [100, 10_000] {
         for backlog in [0, 50] {
             let b = bound(source);
-            assert!(b.notes.is_empty(), "{:?}", b.notes);
+            assert_maintain_note(&b);
             let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
             let mut rows = Vec::new();
             for (parent, until, count) in [("live", 500, live), ("expired", 150, backlog)] {

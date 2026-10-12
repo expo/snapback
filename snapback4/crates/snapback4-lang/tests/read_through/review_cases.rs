@@ -94,7 +94,7 @@ pub fn aggregate_actual_row(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
                     run(&mut *e, "total", viewer, 100, &[("p", id("p"))])
                         .0
                         .unwrap(),
-                    if inherited { Value::Null } else { Value::Int(0) },
+                    Value::Null,
                     "{rule}: preserve each aggregate form's denied result"
                 );
             }
@@ -126,7 +126,7 @@ pub fn aggregate_actual_row(mut factory: impl FnMut(&str) -> Box<dyn Backend>) {
                 run(&mut *e, "total", "bob", 200, &[("p", id("p"))])
                     .0
                     .unwrap(),
-                if rule == ".value != 1" || !inherited {
+                if rule == ".value != 1" {
                     Value::Int(0)
                 } else {
                     Value::Null
