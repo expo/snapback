@@ -402,6 +402,24 @@ fn a_plain_unique_reference_is_a_cascade_cap_of_one() {
     let composite = source.replace("  unique parent\n", "  position: int\n  unique parent, position\n");
     let b = snapback4_lang::compile(&[("schema.q".into(), composite)]);
     assert!(b.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_CASCADE_BOUND"), "{:#?}", b.diagnostics);
+
+    let optional = source.replace("parent: parents on delete cascade", "parent: parents ? on delete cascade");
+    let b = bound(&optional);
+    let wire = snapback4_core::json_codec::to_text(&b.schema).unwrap();
+    let schema: snapback4_core::Schema = snapback4_core::json_codec::from_text(&wire).unwrap();
+    assert_eq!(schema.reference_cap("kids", "parent"), Some(1), "the inferred bound survives schema serialization");
+    let mut e = Engine::memory(schema, b.programs.into_iter().map(|program| program.program)).unwrap();
+    e.seed_at([
+        row("parents", &[("id", id("p"))]),
+        row("kids", &[("id", id("linked")), ("parent", id("p"))]),
+        row("kids", &[("id", id("null-a")), ("parent", Value::Null)]),
+        row("kids", &[("id", id("null-b")), ("parent", Value::Null)]),
+    ], 500).unwrap();
+    let out = e.mutate("drop", None, ctx("alice", &[("parent", id("p"))])).unwrap();
+    assert_eq!(refusal(&out), None, "{out:?}");
+    let rows = e.store().rows("kids").unwrap();
+    assert_eq!(rows.len(), 2, "only the one non-null unique reference cascades");
+    assert!(rows.iter().all(|row| row.field("parent") == Ok(&Value::Null)), "{rows:?}");
 }
 
 #[test]
@@ -425,6 +443,9 @@ fn delete_authority_that_structurally_implies_read_needs_no_note() {
     assert!(has_note(source(".assistant = viewer", ".owner = viewer")), "an unrelated deleter can still get NOT_FOUND");
     let admins = "table admins:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\ntable parents:\n  owner: principal\n  read <- exists admins[viewer]\n  delete <- .owner = viewer\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n";
     assert!(has_note(admins.into()), "a row-uniform admin rule does not admit every owner");
+    let boolean = |optional: &str, read: &str| format!("table parents:\n  flag: bool{optional}\n  read <- {read}\n  delete <- .flag != true\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n");
+    assert!(!has_note(boolean("", "not .flag")), "required-bool `flag != true` is the same authority as `not flag`");
+    assert!(has_note(boolean(" ?", ".flag = false")), "an optional bool preserves null: null != true, while null = false is false");
 }
 
 #[test]
@@ -438,8 +459,23 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
     let checked = format!("{schema}mutation create(id: id, parent: parents):\n  p = parents[parent] ! else NOT_FOUND\n  insert kids {{ id, parent: p.id }}\n");
     assert!(!bound(&checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
 
+    let helpers = format!("{schema}fn identity(parent: parents): parent\nfn ignore(parent: parents): null\nfn checked(parent: parents): exists parents[parent]\nfn conditional(parent: parents, check: bool):\n  if check:\n    return exists parents[parent]\n  return false\nfn earlyReturn(parent: parents, skip: bool):\n  if skip:\n    return false\n  unused = exists parents[parent]\n  return true\nfn redirected(parent: parents, other: parents): exists parents[other]\nmutation throughIdentity(id: id, parent: parents):\n  unused = identity(parent)\n  insert kids {{ id, parent }}\nmutation throughIgnore(id: id, parent: parents):\n  unused = ignore(parent)\n  insert kids {{ id, parent }}\nmutation throughLookup(id: id, parent: parents):\n  unused = checked(parent)\n  insert kids {{ id, parent }}\nmutation throughConditional(id: id, parent: parents, check: bool):\n  unused = conditional(parent, check)\n  insert kids {{ id, parent }}\nmutation throughEarlyReturn(id: id, parent: parents, skip: bool):\n  unused = earlyReturn(parent, skip)\n  insert kids {{ id, parent }}\nmutation throughRebound(id: id, parent: parents, other: parents):\n  unused = redirected(parent, other)\n  insert kids {{ id, parent }}\n");
+    let helper_notes: Vec<_> = bound(&helpers).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(helper_notes.len(), 5, "pass-through, conditional and redirected helper arguments remain unchecked: {helper_notes:#?}");
+    for name in ["throughIdentity", "throughIgnore", "throughConditional", "throughEarlyReturn", "throughRebound"] {
+        assert!(helper_notes.iter().any(|note| note.message.contains(name)), "{name}: {helper_notes:#?}");
+    }
+    assert!(!helper_notes.iter().any(|note| note.message.contains("throughLookup")), "a helper's mandatory target-id lookup counts");
+
     let rule_checked = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- exists parents[.parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
     assert!(!bound(rule_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+    let alias_probe = "table parents:\n  alias: id\n  unique alias\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- exists parents[alias = .parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(bound(alias_probe).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "an alias rule probe does not establish parents[parent]");
+    let alias_program_probe = alias_probe.replace("  insert <- exists parents[alias = .parent]\n", "  insert <- allow\n")
+        .replace("  insert kids { id, parent }", "  ignored = parents[alias = parent]\n  insert kids { id, parent }");
+    assert!(bound(&alias_program_probe).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "a program lookup by alias does not establish parents[parent]");
+    let alias_and_id = alias_probe.replace("exists parents[alias = .parent]", "exists parents[id = .parent, alias = .parent]");
+    assert!(!bound(&alias_and_id).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "an exact target-id equality establishes the reference");
 
     let conditionally_checked = rule_checked.replace("insert <- exists parents[.parent]", "insert <- exists parents[.parent] or allow");
     assert!(bound(&conditionally_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "every admitted write path must prove existence");
@@ -465,6 +501,10 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
     let notes: Vec<_> = bound(after_insert).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
     assert_eq!(notes.len(), 1, "after insert proves only the insert arm: {notes:#?}");
     assert!(notes[0].message.contains("mutation put"), "{notes:#?}");
+    let alias_after_insert = after_insert.replace("table parents:\n  read", "table parents:\n  alias: id\n  unique alias\n  read")
+        .replace("exists parents[.parent]", "exists parents[alias = .parent]");
+    let notes: Vec<_> = bound(&alias_after_insert).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(notes.len(), 2, "a final-exists alias probe checks another row key: {notes:#?}");
 }
 
 #[test]

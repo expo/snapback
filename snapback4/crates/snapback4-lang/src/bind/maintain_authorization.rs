@@ -60,12 +60,16 @@ fn inspect(statements: &[Stmt], requirements: &mut Vec<Expr>, visit: &mut impl F
                 *requirements = then_requirements;
             }
             Stmt::For { name, body, .. } => {
-                let mut body_requirements = requirements.clone();
-                body_requirements.retain(|condition| !mentions_any(condition, std::slice::from_ref(name)));
-                inspect(body, &mut body_requirements, visit);
+                // A later iteration enters with every assignment from the
+                // preceding one. Invalidate loop-carried requirements before
+                // visiting returns in the body, not only after the loop.
                 let mut assigned = BTreeSet::new();
                 assigned_names(body, &mut assigned);
                 let assigned: Vec<_> = assigned.into_iter().collect();
+                let mut body_requirements = requirements.clone();
+                body_requirements.retain(|condition| !mentions_any(condition, &assigned));
+                body_requirements.retain(|condition| !mentions_any(condition, std::slice::from_ref(name)));
+                inspect(body, &mut body_requirements, visit);
                 requirements.retain(|condition| !mentions_any(condition, &assigned));
             }
             Stmt::As { body, .. } => {

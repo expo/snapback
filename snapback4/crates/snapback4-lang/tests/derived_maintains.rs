@@ -280,6 +280,14 @@ query loopRebound(a: principal, b: principal):
   for ignored in [true]:
     key = b
   return chairedMeetingCounts[key]
+query loopCarriedReturn(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  for i in range(0, 2):
+    if i = 1:
+      return chairedMeetingCounts[key]
+    key = b
+  return null
 query stableBranch(a: principal, b: principal, choose: bool):
   key = a
   require key = viewer else NOT_OWNER
@@ -295,8 +303,8 @@ query stableLoop(a: principal, b: principal):
 "#;
     let b = bound(source);
     let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
-    assert_eq!(notes.len(), 6, "unrelated and stale requirements must not suppress the note: {:#?}", b.notes);
-    for name in ["bare", "unrelated", "rebound", "nestedReturn", "branchRebound", "loopRebound"] {
+    assert_eq!(notes.len(), 7, "unrelated and stale requirements must not suppress the note: {:#?}", b.notes);
+    for name in ["bare", "unrelated", "rebound", "nestedReturn", "branchRebound", "loopRebound", "loopCarriedReturn"] {
         assert!(notes.iter().any(|note| note.message.contains(&format!("query {name}"))), "{name}: {notes:#?}");
     }
     assert!(!notes.iter().any(|note| note.message.contains("query inheritedSelfAuthorized")), "{notes:#?}");

@@ -215,17 +215,34 @@ fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
 /// satisfiability solver: an unproved application invariant keeps the note.
 fn deleters_read(schema: &core::Schema, table: &str) -> bool {
     let Some(t) = schema.table(table) else { return true };
-    fn implies(stronger: &core::RuleExpr, weaker: &core::RuleExpr) -> bool {
-        if stronger == weaker || weaker.is_uniformly_readable() || matches!(stronger, core::RuleExpr::Deny) { return true; }
+    fn required_bool_fact(table: &core::Table, rule: &core::RuleExpr) -> Option<(core::RuleTerm, bool)> {
+        let comparison = |left: &core::RuleTerm, right: &core::RuleTerm, equal: bool| {
+            let (term, core::RuleTerm::Literal(snapback4_core::Value::Bool(value))) = (match (left, right) {
+                (term, literal @ core::RuleTerm::Literal(_)) | (literal @ core::RuleTerm::Literal(_), term) => (term, literal),
+                _ => return None,
+            }) else { return None };
+            let core::RuleTerm::Field(field) = term else { return None };
+            matches!(table.columns.get(field), Some(core::ColumnType::Bool)).then(|| (term.clone(), if equal { *value } else { !*value }))
+        };
+        match rule {
+            core::RuleExpr::Eq(left, right) => comparison(left, right, true),
+            core::RuleExpr::Ne(left, right) => comparison(left, right, false),
+            core::RuleExpr::Not(inner) => required_bool_fact(table, inner).map(|(term, value)| (term, !value)),
+            _ => None,
+        }
+    }
+    fn implies(table: &core::Table, stronger: &core::RuleExpr, weaker: &core::RuleExpr) -> bool {
+        if stronger == weaker || required_bool_fact(table, stronger).is_some_and(|fact| Some(fact) == required_bool_fact(table, weaker))
+            || weaker.is_uniformly_readable() || matches!(stronger, core::RuleExpr::Deny) { return true; }
         match (stronger, weaker) {
-            (_, core::RuleExpr::And(items)) => items.iter().all(|item| implies(stronger, item)),
-            (core::RuleExpr::Or(items), _) => items.iter().all(|item| implies(item, weaker)),
-            (core::RuleExpr::And(items), _) => items.iter().any(|item| implies(item, weaker)),
-            (_, core::RuleExpr::Or(items)) => items.iter().any(|item| implies(stronger, item)),
+            (_, core::RuleExpr::And(items)) => items.iter().all(|item| implies(table, stronger, item)),
+            (core::RuleExpr::Or(items), _) => items.iter().all(|item| implies(table, item, weaker)),
+            (core::RuleExpr::And(items), _) => items.iter().any(|item| implies(table, item, weaker)),
+            (_, core::RuleExpr::Or(items)) => items.iter().any(|item| implies(table, stronger, item)),
             _ => false,
         }
     }
-    implies(&t.rules.delete, &t.rules.read)
+    implies(t, &t.rules.delete, &t.rules.read)
 }
 
 /// Every delete in a program, in order, each with the (child, reference)
