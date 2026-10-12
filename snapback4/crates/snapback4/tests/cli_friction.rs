@@ -740,3 +740,52 @@ fn check_warns_about_installed_expo_core_version_mismatch() {
     project.write("node_modules/snapback4-expo/package.json", r#"{"version":"0.4.23"}"#);
     assert!(!text(&project.run(&["check"])).contains("WARNING"));
 }
+
+#[test]
+fn unknown_flags_refuse_every_public_verb_before_project_or_store_work() {
+    let project = Project::new("use personas alice, bob\nquery who():\n  return viewer\n");
+    for verb in ["init", "new", "check", "types", "dev", "deploy", "rollback", "prune", "releases", "serve", "run", "clock", "reset", "test", "why", "guide", "data", "sql", "token", "doctor", "witness", "device", "version", "web-shell"] {
+        let output = project.run(&[verb, "--hand-unknown"]);
+        assert_eq!(output.status.code(), Some(2), "{verb}: {}", text(&output));
+        assert!(text(&output).contains(&format!("E_INPUT: {verb} takes no --hand-unknown")), "{}", text(&output));
+        assert!(!project.0.join(".snapback4").exists(), "{verb} touched a store");
+        assert!(!project.0.join("snapback/generated").exists(), "{verb} generated output");
+    }
+    assert!(text(&project.run(&["deploy", "deployment", "--dry-run"])).contains("E_INPUT: deploy takes no --dry-run"));
+    assert!(!project.0.join("deployment").exists());
+}
+
+#[test]
+fn persona_lists_and_repeated_flags_run_each_requested_persona() {
+    let project = Project::new("use personas alice, bob\nquery who():\n  return viewer\n");
+    for args in [&["test", "--as", "alice,bob"][..], &["test", "--as", "alice", "--as", "bob"]] {
+        let output = project.run(args);
+        assert!(output.status.success(), "{}", text(&output));
+        let out = text(&output);
+        assert!(out.contains("alice") && out.contains("bob"), "{out}");
+        assert!(out.contains("2 complete"), "{out}");
+    }
+}
+
+#[test]
+fn literal_guide_find_and_sql_object_envelope() {
+    let project = Project::new("query who():\n  return viewer\n");
+    for needle in ["--json-objects", "{", "'"] {
+        let output = project.run(&["guide", "deploy", "--find", needle]);
+        let out = text(&output);
+        assert!(!out.contains("E_INPUT:"), "{out}");
+        assert!(out.contains(needle), "literal search was lost: {out}");
+    }
+    let out = text(&project.run(&["sql", "--help"]));
+    for field in ["columns", "header", "limit", "more", "rows", "ruleFiltered"] { assert!(out.contains(field), "{out}"); }
+}
+
+#[test]
+fn not_run_probes_make_the_summary_incomplete() {
+    let project = Project::new("use personas alice\nquery missing(id: id):\n  return id\n");
+    let output = project.run(&["test"]);
+    assert!(output.status.success(), "{}", text(&output));
+    let out = text(&output);
+    assert!(out.contains("1 not run") && out.contains("— incomplete"), "{out}");
+    assert!(!out.contains("— pass"));
+}

@@ -1092,7 +1092,7 @@ fn w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store() {
     let p = Project::new();
     for missing in ["absent", "not-a-directory"] {
         if missing == "not-a-directory" { fs::write(p.0.join(missing), "file").unwrap(); }
-        let output = p.run(&["test", "--memory", "--residency", "--fixture", missing, "--as", "alice"]);
+        let output = p.run(&["test",  "--residency", "--fixture", missing, "--as", "alice"]);
         println!("fixture {missing}: {}", String::from_utf8_lossy(&output.stderr));
         assert_eq!(output.status.code(), Some(1), "{output:?}");
         assert!(String::from_utf8_lossy(&output.stderr).contains("cannot read fixture directory"));
@@ -1101,7 +1101,7 @@ fn w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store() {
     }
     fs::create_dir(p.0.join("fixture")).unwrap();
     fs::write(p.0.join("fixture/messages.jsonl"), "{\"id\":\"one\",\"body\":\"hello\"}\n").unwrap();
-    let output = p.run(&["test", "--memory", "--residency", "--fixture", "fixture", "--as", "alice"]);
+    let output = p.run(&["test",  "--residency", "--fixture", "fixture", "--as", "alice"]);
     assert!(output.status.success(), "{output:?}");
     assert!(String::from_utf8_lossy(&output.stdout).contains("loaded 1 rows"));
 }
@@ -1261,25 +1261,25 @@ fn w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary() {
     p.source(&format!("{table}{query}"));
     let fixture = p.0.join("fixture"); fs::create_dir(&fixture).unwrap();
     fs::write(fixture.join("entries.jsonl"), (0..4312).map(|n| format!("{{\"id\":\"r{n}\"}}\n")).collect::<String>()).unwrap();
-    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    let output = p.run(&["test",  "--fixture", "fixture"]);
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap(); println!("{text}");
     assert!(text.contains("everywhere (alice) examined 4,312 of 8,192"), "{text}");
     p.source(&format!("{table}{}", (0..12).map(|n| query.replace("everywhere", &format!("everywhere{n}"))).collect::<String>()));
-    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    let output = p.run(&["test",  "--fixture", "fixture"]);
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(output.status.success(), "{text}");
     assert_eq!(text.lines().filter(|line| line.starts_with("near ceiling:")).count(), 11, "{text}");
     assert!(text.contains("near ceiling: 2 more query/persona reads passed half a ceiling without a cut"), "{text}");
     p.source(&format!("{table}{query}"));
     fs::write(fixture.join("entries.jsonl"), "{\"id\":\"one\"}\n").unwrap();
-    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    let output = p.run(&["test",  "--fixture", "fixture"]);
     assert!(output.status.success());
     assert!(!String::from_utf8(output.stdout).unwrap().contains("near ceiling:"));
     // A real cut already has the ordinary capped row, not an approach warning.
     p.source(&format!("{table}query everywhere():\n  return entries[] first 1 by byId where .id = 'absent'\n"));
     fs::write(fixture.join("entries.jsonl"), (0..8200).map(|n| format!("{{\"id\":\"r{n}\"}}\n")).collect::<String>()).unwrap();
-    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    let output = p.run(&["test",  "--fixture", "fixture"]);
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(text.contains("capped")); assert!(!text.contains("near ceiling:"));

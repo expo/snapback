@@ -672,9 +672,9 @@ fn development_banner_and_release_auth_boundary() {
 fn dev_refuses_an_explicit_worker_path_instead_of_ignoring_it() {
     let dir = Directory::new();
     let out = dir.run(&["dev", "--worker", "custom.mjs"]);
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(2));
     assert!(out.stdout.is_empty());
-    assert!(String::from_utf8(out.stderr).unwrap().contains("dev does not accept --worker"));
+    assert!(String::from_utf8(out.stderr).unwrap().contains("E_INPUT: dev takes no --worker"));
 }
 
 #[test]

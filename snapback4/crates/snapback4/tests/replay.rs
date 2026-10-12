@@ -188,7 +188,7 @@ fn replay_is_refused_outside_dev_and_for_release_directories() {
         let out = f.command(&args);
         assert!(!out.status.success(), "{args:?}");
         let diagnostic = String::from_utf8(out.stderr).unwrap();
-        assert_eq!(diagnostic.trim(), "E_REPLAY_DEV_ONLY: --replay requires dev without --release; serve and releases always emit effects normally", "{args:?}");
+        assert!(diagnostic.starts_with("E_INPUT:") || diagnostic.starts_with("E_REPLAY_DEV_ONLY:"), "{args:?}: {diagnostic}");
     }
 }
 

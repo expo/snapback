@@ -197,7 +197,7 @@ States:
   denied CODE                   a refusal: a failure
   not run                       an argument test cannot derive
 
-The last line counts each state and the cases and ends in pass or FAIL. Exit 1 when a query is denied,
+The last line counts each state and the cases and ends in pass, incomplete (some probes not run), or FAIL. Exit 1 when a query is denied,
 a case fails or the fixture does not load (a bad row, an unknown table file);
 0 otherwise. snapback4 guide testing: fixture rows, test.cases.jsonl and an
 acceptance script over HTTP.";
