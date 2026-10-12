@@ -903,6 +903,33 @@ query items(bucket: int, c: cursor ?):
 }
 
 #[test]
+fn membership_page_with_parent_pinned_in_each_alternative_keeps_the_original_scan() {
+    let source = "table access:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  cap 16 by principal
+  read <- allow
+  online only
+
+table items:
+  owner: principal
+  bucket: int
+  tag: id
+  read <- .owner = viewer or exists access[.bucket, viewer]
+  online only
+
+query items(bucket: int, c: cursor ?):
+  return items where .bucket = bucket or .bucket = 1 first 1 by .tag after c
+";
+    let b = clean(source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    let mut e = engine(source, vec![]);
+    let page = e.query("items", Context::new("alice", BTreeMap::from([("bucket".into(), Value::Int(0)), ("c".into(), Value::Null)]))).unwrap();
+    assert!(!page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
+}
+
+#[test]
 fn membership_cap_may_exceed_the_static_branch_limit() {
     let mut rows = Vec::new();
     for n in 0..10 {

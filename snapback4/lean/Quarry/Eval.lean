@@ -439,10 +439,15 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- such a page is not merged), and it counts toward the 8 lanes.
     let guardPins := pins.filter fun p => p.1 != "id" && !order.contains p.1
     let membershipRule := td.read.ownerMembership? sch
-    -- An exact owner-or-membership rule belongs wholly to PAGE's classifier.
-    -- When its target is already pinned the Rust planner keeps the original
-    -- scan; do not re-admit it as the older generic page-guard case.
-    let case2 := if !guards || membershipRule.isSome then false else match td.read.branchParties sch guardPins true with
+    -- When an exact membership target is already pinned the Rust planner
+    -- keeps the original scan; do not re-admit that same probe as the older
+    -- generic page-guard case. Other shapes retain case 2.
+    let pinnedMembership := membershipRule.any fun leaves => leaves.any fun leaf => match leaf with
+      | .membership _ key => (membershipColumns key).any fun pair =>
+          pins.any (·.1 == pair.2)
+            || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
+      | .party _ => false
+    let case2 := if !guards || pinnedMembership then false else match td.read.branchParties sch guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
@@ -465,6 +470,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
                 && laneFits order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
             | .membership _ key => (membershipColumns key).any fun pair =>
                 !order.contains pair.2 && !pins.any (·.1 == pair.2)
+                  && !(a.filterMap Expr.eqPin).any (·.1 == pair.2)
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
     total && (case1 || case2 || case3)
