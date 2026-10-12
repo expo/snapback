@@ -451,6 +451,26 @@ def taskStore : Store := mkStore [("tasks", [
   mkRow "k3" [("owner", I "bob"), ("helper", .null), ("n", N 5)],
   mkRow "k4" [("owner", I "carol"), ("helper", I "bob"), ("n", N 3)]])]
 
+/-- PAGE's capped owner-or-membership rule. The membership cap is grouped by
+the fixed viewer component; `parent` is the one dynamic target prefix. -/
+def membershipDocs : Schema := { tables := [
+  { name := "members", cols := [c "parent", c "principal"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent", c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" [("parent", self "parent"), ("principal", .viewer)]) }] }
+
+def membershipDocStore : Store := mkStore [
+  ("members", [mkRow "m1" [("parent", T "p1"), ("principal", I "alice")],
+               mkRow "m2" [("parent", T "p2"), ("principal", I "alice")]]),
+  ("documents", [mkRow "d1" [("owner", I "alice"), ("parent", T "p0"), ("at", N 1)],
+                 mkRow "d2" [("owner", I "bob"), ("parent", T "p9"), ("at", N 2)],
+                 mkRow "d3" [("owner", I "alice"), ("parent", T "p1"), ("at", N 3)],
+                 mkRow "d4" [("owner", I "bob"), ("parent", T "p1"), ("at", N 4)],
+                 mkRow "d5" [("owner", I "bob"), ("parent", T "p2"), ("at", N 5)]])]
+
 def merged : List Example := [
   { name := "page-parties-merged"
     source := "LLP 3000.036.001 §2 case 2: a read rule of parties supplies the branches; the page is complete"
@@ -482,7 +502,13 @@ def merged : List Example := [
     case := { schema := tasks, store := taskStore, viewer := cps "erin",
               program := query [.ret (.exists_ "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))))] }
     tables := []
-    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# } ]
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# },
+  { name := "page-owner-membership-merged"
+    source := "LLP 3000.036.001 §14: an owner range and capped per-parent membership ranges form one complete page"
+    case := { schema := membershipDocs, store := membershipDocStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# } ]
 
 
 /-! ## Referential actions (LLP 3000.039) -/

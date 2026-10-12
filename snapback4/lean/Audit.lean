@@ -31,6 +31,10 @@ open Quarry
 #print axioms pageRead_complete
 #print axioms partyLeaves_cover
 #print axioms parties_cover_view
+#print axioms accessLeaves_sound
+#print axioms accessLeaves_cover
+#print axioms ownerMembership_sound
+#print axioms ownerMembership_cover
 #print axioms decided_store
 #print axioms pageRead_complete_store
 #print axioms walk_complete

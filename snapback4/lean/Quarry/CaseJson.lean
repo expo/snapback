@@ -229,7 +229,12 @@ def table (j : Json) : D TableDecl := do
   let codes ← (← arr j "uniqueCodes").toList.mapM fun c => match c with
     | .null => pure none
     | x => do return some (← x.getStr?)
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes,
+  let caps ← match optField j "caps" with
+    | none => pure []
+    | some cs => (← cs.getArr?).toList.mapM fun cap => do
+      let columns ← (← arr cap "by").toList.mapM (·.getStr?)
+      return ({ columns, max := ← (← field cap "max").getNat? } : CapDecl)
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 

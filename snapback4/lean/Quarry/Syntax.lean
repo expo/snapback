@@ -52,6 +52,12 @@ structure ColDecl where
   onDelete : Option OnDelete := none
   deriving Repr, DecidableEq
 
+/-- A finite row bound for every group whose `by` columns have one value. -/
+structure CapDecl where
+  columns : List String
+  max : Nat
+  deriving Repr, DecidableEq
+
 /-- Which image of a row a rule term reads: the row itself (read, insert,
 delete), or the old or next image of an update. -/
 inductive Img where
@@ -88,6 +94,8 @@ structure TableDecl where
   /-- The application refusal code for a visible clash on each unique key,
   when declared with `else CODE` (indexed like `uniques`). -/
   uniqueCodes : List (Option String) := []
+  /-- Declared finite group bounds (`cap N by ...`). -/
+  caps : List CapDecl := []
   read : Rule := .deny
   insert : Rule := .deny
   update : Rule := .deny

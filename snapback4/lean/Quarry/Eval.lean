@@ -285,6 +285,63 @@ def Rule.parties (r : Rule) : Option (List String) :=
   | .or _ _ => r.partyLeaves.map List.eraseDups
   | _ => none
 
+/-- One static descriptor of an owner-or-membership plan. The membership
+descriptor keeps the exact probe; at runtime its one row-dependent key
+component becomes the dynamic target prefix. -/
+inductive AccessBranch where
+  | party (column : String)
+  | membership (table : String) (key : List (String × Term))
+  deriving Repr
+
+/-- The syntactic leaves accepted by PAGE: parties and exact probes, joined
+only by top-level `or`. Eligibility of a probe is checked separately. -/
+def Rule.accessLeaves : Rule → Option (List AccessBranch)
+  | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some [.party c]
+  | .probe t key => some [.membership t key]
+  | .or a b => do return (← a.accessLeaves) ++ (← b.accessLeaves)
+  | _ => none
+
+def Term.fixedExpr : Term → Option Expr
+  | .viewer => some .viewer
+  | .lit v => some (.lit (.s v))
+  | _ => none
+
+/-- The one row-dependent `(source column, target column)` of a membership
+probe. Every other exact-key component must be viewer/literal fixed. -/
+def membershipColumns (key : List (String × Term)) : Option (String × String) := do
+  let dynamic := key.filterMap fun p => match p.2 with
+    | .col .self outer => some (p.1, outer)
+    | _ => none
+  let [pair] := dynamic | none
+  if key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
+  then some pair else none
+
+/-- An exact membership probe has a declared unique key, one target-row
+component, fixed readable source pins, and a finite cap grouped wholly by
+those fixed columns (LLP 3000.036.001 §14). -/
+def membershipEligible (sch : Schema) (t : String) (key : List (String × Term)) : Bool :=
+  match sch.table? t, membershipColumns key with
+  | some td, some _ =>
+    let columns := key.map (·.1)
+    let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
+    td.uniques.contains columns
+      && td.caps.any (fun cap => cap.columns.all fun c => fixed.any (·.1 == c))
+      && td.read.byForm fixed
+  | _, _ => false
+
+/-- Classify the exact PAGE rule. At least one party and membership branch
+are required, every leaf is eligible, and the static descriptors plus the
+system lane fit the ordinary eight-descriptor limit. -/
+def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch) := do
+  let leaves ← r.accessLeaves
+  let topOr := match r with | .or _ _ => true | _ => false
+  let party := leaves.any fun b => match b with | .party _ => true | _ => false
+  let membership := leaves.any fun b => match b with | .membership _ _ => true | _ => false
+  let eligible := leaves.all fun b => match b with
+    | .party _ => true
+    | .membership t key => membershipEligible sch t key
+  if topOr && party && membership && eligible && leaves.length + 1 ≤ 8 then some leaves else none
+
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its
 holder may read. A probe's target row must be readable by its own read rule
 given the probe's key (`byForm`), where a pinned row column is an unknown
@@ -341,9 +398,12 @@ def eligiblePin (td : TableDecl) (e : Expr) : Bool :=
 /-- A branch's prefix: its own equalities first, then the page's pins, each
 column once, never `id` or an order column (a merge lane keeps those as
 seeks), within an index's 8 components. -/
-def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
+def laneFits (order : List String) (eqs pins : List (String × Expr)) : Bool :=
   let lane := (eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1
-  (lane.map (·.1)).eraseDups.length + order.length + 1 ≤ 8 && decidedPins td lane
+  (lane.map (·.1)).eraseDups.length + order.length + 1 ≤ 8
+
+def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
+  laneFits order eqs pins && decidedPins td ((eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1)
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
 boolean conjuncts, except `id` and an order column other than the first,
@@ -388,7 +448,22 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
           && (guardPins.map (·.1)).eraseDups.length + order.length + 1 ≤ 8
           && bases.all fun a => ps.all fun c => laneDecided td order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
-    total && (case1 || case2)
+    -- PAGE: one system descriptor, party descriptors and eligible capped
+    -- membership descriptors. A dynamic cap does not count against eight;
+    -- its static membership descriptor does.
+    let case3 := if !guards then false else match td.read.ownerMembership? sch with
+      | some leaves =>
+        let bases := alts.getD [[]]
+        bases.length * leaves.length + 1 ≤ 8
+          && !(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
+          && bases.all fun a => leaves.all fun leaf => match leaf with
+            | .party c => c != "id" && !order.contains c
+                && laneFits order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
+            | .membership _ key => (membershipColumns key).any fun pair =>
+                pair.2 != "id" && !order.contains pair.2
+                  && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
+      | none => false
+    total && (case1 || case2 || case3)
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 
