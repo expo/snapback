@@ -374,7 +374,7 @@ fn unread_inherits_member_authority_and_expiry_timer() {
     let hidden = e
         .query("unreadFor", ctx(&[("member", id("b"))], 1))
         .unwrap();
-    assert_eq!(hidden.data, Value::Int(0));
+    assert_eq!(hidden.data, Value::Null);
 }
 #[test]
 fn live_cap_ignores_unswept_expired_members() {
@@ -1161,7 +1161,7 @@ fn sequence_field_authority_and_row_view_share_one_runtime() {
     write(&mut e,"mark",&[("member",id("a")),("readUpTo",Value::Int(1))]);
     count(&mut e,"a",1);
     let hidden = e.query("unreadFor",ctx(&[("member",id("b"))],1)).unwrap();
-    assert_eq!(hidden.data,Value::Int(0));
+    assert_eq!(hidden.data,Value::Null);
     let refused=e.mutate("mark",None,ctx(&[("member",id("b")),("readUpTo",Value::Int(1))],1)).unwrap();
     assert!(matches!(refused.state,WriteState::Failed {..}));
     let ordinals=e.store().rows("messages").unwrap().into_iter().map(|r|r.field("ordinal").unwrap().as_int().unwrap()).collect::<Vec<_>>();

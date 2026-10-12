@@ -329,7 +329,9 @@ fn integrated_delivered_run_merge(probes: bool) {
         delivered
     } else { delivered.to_owned() };
     let integrated = format!("fn skipExpired_messages{helper}\nmutation delivered{delivered}\n")
-        .replace("conversationId", "conversation").replace("joinedAt", "joinedOrdinal");
+        .replace("conversationId", "conversation").replace("joinedAt", "joinedOrdinal")
+        .replace("conversation = conversations[conversation] ! else NOT_FOUND", "chat = conversations[conversation] ! else NOT_FOUND")
+        .replace("conversation: conversation.id", "conversation: chat.id");
     let (_, messaging) = docs.iter_mut().find(|(name, _)| name == "messaging.q").unwrap();
     let start = messaging.find("mutation delivered(").unwrap();
     let end = messaging.find("mutation seen(").unwrap();
