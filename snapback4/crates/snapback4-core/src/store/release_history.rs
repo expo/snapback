@@ -37,11 +37,15 @@ pub(crate) fn inventory(
     if !present(conn)? {
         return Ok(Vec::new());
     }
-    let mut statement=conn.prepare("SELECT path,kind,table_name,column_name FROM (
+    let narrowed = if super::narrowed::present(conn)? {
+        " UNION ALL SELECT c.name,'rows',c.name,NULL FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t GROUP BY n.t "
+    } else {""};
+    let query=format!("SELECT path,kind,table_name,column_name FROM (
         SELECT table_name AS path,'table' AS kind,table_name,NULL AS column_name FROM _dormant_tables
         UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns WHERE table_name NOT IN (SELECT table_name FROM _dormant_tables)
-        UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes)
-        WHERE (?1 IS NULL OR kind||':'||path>?1) ORDER BY kind||':'||path LIMIT ?2")?;
+        UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes {narrowed})
+        WHERE (?1 IS NULL OR kind||':'||path>?1) ORDER BY kind||':'||path LIMIT ?2");
+    let mut statement=conn.prepare(&query)?;
     let items: Vec<(String, String, String, Option<String>)> = statement
         .query_map(
             params![after, i64::try_from(limit).unwrap_or(i64::MAX)],
@@ -58,10 +62,12 @@ pub(crate) fn inventory(
         let Some(t) = t else { continue };
         let (count,bytes):(u64,u64)=match kind.as_str(){
             "table"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0)+(SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values WHERE t=?1) FROM _dormant_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
+            "rows"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_narrow_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "column"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values WHERE t=?1 AND column_name=?2",params![t,column],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             _=>conn.query_row("SELECT COUNT(*),0 FROM (SELECT id FROM r WHERE t=?1 UNION SELECT id FROM _dormant_rows WHERE t=?1)",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
         };
         let query = match kind.as_str() {
+            "rows" => "SELECT id FROM _dormant_narrow_rows WHERE t=?1 AND ?2 IS NULL ORDER BY id LIMIT 5",
             "table" => "SELECT id FROM _dormant_rows WHERE t=?1 AND ?2 IS NULL ORDER BY id LIMIT 5",
             "column" => {
                 "SELECT id FROM _dormant_values WHERE t=?1 AND column_name=?2 ORDER BY id LIMIT 5"
@@ -80,7 +86,7 @@ pub(crate) fn inventory(
         let asset_bytes = if kind == "index" {
             0
         } else {
-            conn.query_row("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL",params![name,if kind=="table"{None}else{column.as_deref()}],|r|r.get::<_,i64>(0).map(|n|n as u64))?
+            conn.query_row("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL",params![name,if kind=="table" || kind=="rows" {None}else{column.as_deref()}],|r|r.get::<_,i64>(0).map(|n|n as u64))?
         };
         out.push(DormantItem {
             key: format!("{kind}:{path}"),
@@ -203,6 +209,11 @@ impl Store {
         }
         // Release only dormant homes; active application data is untouched.
         tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?1) WHERE home_table IN (SELECT table_name FROM _dormant_tables) OR EXISTS(SELECT 1 FROM _dormant_columns d WHERE d.table_name=_assets.home_table AND d.column_name=_assets.home_column)",[crate::now_ms()])?;
+        if super::narrowed::present(tx.conn())? {
+            tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?1) WHERE EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE c.name=_assets.home_table AND n.id=_assets.home_id)",[crate::now_ms()])?;
+            tx.conn().execute("DELETE FROM _dormant_values WHERE EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",[])?;
+            tx.conn().execute("DELETE FROM _dormant_narrow_rows",[])?;
+        }
         let revision = event(
             &tx,
             "prune",

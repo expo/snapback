@@ -93,13 +93,14 @@ impl Engine {
                     tx.set_meta(&partition::audience_epoch_time_key(&table), &now.to_string())?;
                 }
             }
+            let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
-                (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
+                (changed && (population_changed || previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))))
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
             let attribution = recorded::paths_changed(schema, previous.as_ref());
-            let columns = column_activation::changed_parents(schema, previous.as_ref());
+            let columns = column_activation::changed_parents(schema, if population_changed {None} else {previous.as_ref()});
             if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
             let seq = tx.next_seq()?;
             let phase = std::time::Instant::now();
@@ -134,8 +135,8 @@ impl Engine {
                 let remaining:std::collections::BTreeSet<_>=items.iter().map(|i|i.key.clone()).collect();
                 let restored=prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned().map(|mut i|{i.action="restored".into();i}).collect::<Vec<_>>();
                 let restored_items=restored.len();items.extend(restored);
-                crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest}),&items)?;
-                tx.conn().execute("DELETE FROM _meta WHERE key='activation_restore'",[])?;
+                crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
+                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored')",[])?;
             }
             crate::store::opening::Metadata::read(tx)
         })

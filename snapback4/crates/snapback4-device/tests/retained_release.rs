@@ -42,7 +42,7 @@ fn trace<H: Host>(host: &mut H, viewer: &str, reopen: bool) {
     seed(
         &mut engine,
         "items",
-        serde_json::json!({"id":"a","owner":"alice","n":1,"status":"active","extra":42}),
+        serde_json::json!({"id":"a","owner":"alice","n":1,"status":"new","extra":42}),
     );
     seed(
         &mut engine,
@@ -97,6 +97,8 @@ fn trace<H: Host>(host: &mut H, viewer: &str, reopen: bool) {
             .iter()
             .all(|r| r.field("extra").is_err())
     );
+    assert_eq!(before.data.as_array().unwrap().len(),1,"new enum row must leave both device stores on rollback");
+    assert!(before.data.as_array().unwrap().iter().all(|row|row.field("id").unwrap()!=&id("a")));
     for page in first_pages.iter().rev() {
         assert_eq!(
             device.apply(page, false).unwrap_err().code(),

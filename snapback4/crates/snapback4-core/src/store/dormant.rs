@@ -5,7 +5,7 @@ use crate::schema::{ColumnDefault, ColumnType, materialize_optional_fields};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-pub(crate) const VERSION: &str = "snapback4-release-store-2";
+pub(crate) const VERSION: &str = "snapback4-release-store-3";
 
 #[derive(Serialize, Deserialize)]
 struct Column {
@@ -15,7 +15,8 @@ struct Column {
 }
 
 pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
-    conn.execute_batch("CREATE TABLE IF NOT EXISTS _dormant_tables(table_name TEXT PRIMARY KEY, definition TEXT NOT NULL);
+    conn.execute_batch("CREATE TABLE IF NOT EXISTS _dormant_narrow_rows(t INTEGER NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,definition TEXT NOT NULL,reason TEXT NOT NULL,PRIMARY KEY(t,id)) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS _dormant_tables(table_name TEXT PRIMARY KEY, definition TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS _dormant_rows(t INTEGER NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_columns(table_name TEXT NOT NULL,column_name TEXT NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,column_name)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_values(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;
@@ -36,7 +37,7 @@ fn authoritative(table: &Table, column: &str) -> bool {
     !table.maintained.contains_key(column) && !table.engine_field(column)
 }
 
-fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
+pub(super) fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -> Result<(), RuntimeError> {
     let value = Column {
         kind: table.columns[column].clone(),
         default: table.defaults.get(column).cloned(),
@@ -59,7 +60,7 @@ fn references(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>)
     }
 }
 
-fn capture_refs(
+pub(super) fn capture_refs(
     tx: &Tx<'_>,
     t: i64,
     id: &str,
@@ -90,7 +91,7 @@ fn add_reference(
     let parent_t = tx.num(parent)?;
     let invalid = tx.get(parent, parent_id)?.is_none()
         && !tx.conn().query_row(
-            "SELECT EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1 AND id=?2)",
+            "SELECT EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1 AND id=?2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",
             params![parent_t, parent_id],
             |r| r.get::<_, bool>(0),
         )?;
@@ -100,7 +101,7 @@ fn add_reference(
     )?;
     Ok(())
 }
-fn capture_through_parent(
+pub(super) fn capture_through_parent(
     tx: &Tx<'_>,
     name: &str,
     table: &Table,
@@ -122,7 +123,7 @@ fn capture_through_parent(
     Ok(())
 }
 
-fn save_cell(
+pub(super) fn save_cell(
     tx: &Tx<'_>,
     name: &str,
     table: &Table,
@@ -147,7 +148,7 @@ fn refuse(message: String) -> RuntimeError {
     }
 }
 
-fn check_owner(tx: &Tx<'_>, name: &str, old: &Table, next: &Schema) -> Result<(), RuntimeError> {
+pub(super) fn check_owner(tx: &Tx<'_>, name: &str, old: &Table, next: &Schema) -> Result<(), RuntimeError> {
     let Some(new) = next.table(name) else {
         return Ok(());
     };
@@ -213,6 +214,7 @@ pub(super) fn transition(
     next: &Schema,
     previous: Option<&Schema>,
     restore: bool,
+    now:i64,
 ) -> Result<BTreeSet<String>, RuntimeError> {
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
@@ -424,13 +426,21 @@ pub(super) fn transition(
             Ok(())
         })?;
     }
+    for name in next.tables.keys() {
+        if next.tables[name].through.is_some() && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1)",[tx.num(name)?],|r|r.get::<_,bool>(0))? {retained_through.insert(name.clone());}
+    }
+    super::narrowed::transition(tx,next,previous,now)?;
     check_references(tx, next)?;
     // Restored rows have no predecessor indexes. Install the identity scan
     // before the ordinary read-through barrier; preserve historical captures.
-    for (name, _) in &restoring {
+    let identity_tables:BTreeSet<String>=if tx.meta("activation_population")?.as_deref()==Some("true") {
+        next.tables.iter().filter(|(n,t)|t.ephemeral.is_none() && next.maintain_for(n).is_none()).map(|(n,_)|n.clone()).collect()
+    } else {restoring.iter().map(|(n,_)|n.clone()).collect()};
+    for name in &identity_tables {
         let table = &next.tables[name];
         let t = tx.num(name)?;
         let index = tx.num(&format!("{name}.byId"))?;
+        tx.conn().execute("DELETE FROM i WHERE ti=?1",[index])?;
         super::activation::walk(tx, t, |id, row| {
             for key in index_keys(&table.indexes["byId"], &row, id) {
                 tx.conn().execute(
@@ -445,16 +455,16 @@ pub(super) fn transition(
         let t = tx.num(name)?;
         for column in table.columns.keys() {
             tx.conn().execute(
-                "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2",
+                "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",
                 params![t, column],
             )?;
             tx.conn().execute(
-                "DELETE FROM _dormant_refs WHERE t=?1 AND column_name=?2",
+                "DELETE FROM _dormant_refs WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_refs.t AND n.id=_dormant_refs.id)",
                 params![t, column],
             )?;
             tx.conn().execute(
-                "DELETE FROM _dormant_columns WHERE table_name=?1 AND column_name=?2",
-                params![name, column],
+                "DELETE FROM _dormant_columns WHERE table_name=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?3 AND column_name=?2)",
+                params![name, column,t],
             )?;
         }
         for index in table.indexes.keys() {
@@ -471,7 +481,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         let mut bad = super::adopt_refusals::Samples::default();
-        let mut statement=tx.conn().prepare("SELECT DISTINCT d.id,d.column_name,d.parent_id,d.invalid FROM _dormant_refs d LEFT JOIN r p ON p.t=d.parent_t AND p.id=d.parent_id WHERE d.t=?1 AND (d.invalid=1 OR p.id IS NULL) ORDER BY d.id,d.column_name")?;
+        let mut statement=tx.conn().prepare("SELECT DISTINCT d.id,d.column_name,d.parent_id,d.invalid FROM _dormant_refs d LEFT JOIN r p ON p.t=d.parent_t AND p.id=d.parent_id WHERE d.t=?1 AND EXISTS(SELECT 1 FROM r child WHERE child.t=d.t AND child.id=d.id) AND (d.invalid=1 OR (p.id IS NULL AND d.invalid!=2)) ORDER BY d.id,d.column_name")?;
         let mut rows = statement.query([t])?;
         while let Some(row) = rows.next()? {
             let column: String = row.get(1)?;
@@ -570,7 +580,7 @@ pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str, name: &str) -> Result<(), Ru
         return Ok(());
     }
     tx.conn().execute(
-        "UPDATE _dormant_refs SET invalid=1 WHERE parent_t=?1 AND parent_id=?2",
+        "UPDATE _dormant_refs SET invalid=1 WHERE parent_t=?1 AND parent_id=?2 AND invalid=0",
         params![t, id],
     )?;
     tx.conn().execute("UPDATE _assets SET released_at=COALESCE(released_at,?3) WHERE home_table=?1 AND home_id=?2 AND (home_column IN (SELECT column_name FROM _dormant_values WHERE t=?4 AND id=?2))",params![name,id,crate::now_ms(),t])?;
@@ -593,5 +603,5 @@ pub(super) fn holds_home(tx: &Tx<'_>, table: &str, column: &str) -> Result<bool,
     if !enabled(tx)? {
         return Ok(false);
     }
-    Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_tables WHERE table_name=?1) OR EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=?1 AND column_name=?2)",params![table,column],|r|r.get(0))?)
+    Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_tables WHERE table_name=?1) OR EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=?1 AND column_name=?2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON n.t=c.num WHERE c.name=?1)",params![table,column],|r|r.get(0))?)
 }

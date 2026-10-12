@@ -89,7 +89,7 @@ impl Store {
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
         if programs.is_some() {
-            if let Some(estimate) = self.adoption_estimate(schema)? {
+            if let Some(estimate) = self.adoption_estimate(schema)?.filter(|e| e.seconds().1 > 1.0) {
                 crate::diagnostic!("snapback4: atomic adoption: {}", estimate.summary());
             }
             let estimates = self.check_timeline_activation_at(schema, now, allow_launch)?;
@@ -181,7 +181,7 @@ impl Store {
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
             let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
-            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore)?;
+            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now)?;
         }
         if schema_changed && programs.is_some() && !reset {
             let started = std::time::Instant::now();
@@ -203,7 +203,7 @@ impl Store {
             if super::dormant::enabled(&tx)? {
                 let old:Option<String>=tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|r.get(0)).optional()?;
                 let old:Option<Schema>=old.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
-                super::adopt_refusals::candidate(&tx,schema,old.as_ref(),false)?;
+                super::adopt_refusals::candidate(&tx,schema,if tx.meta("activation_population")?.as_deref()==Some("true"){None}else{old.as_ref()},false)?;
             }
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                 return Err(step.refusal(schema));
@@ -216,7 +216,18 @@ impl Store {
         } else { None };
         #[cfg(test)]
         let previous = if self.full_adoption { None } else { previous };
-        let plans = super::activation_plan::plans(schema, previous.as_ref());
+        let population_changed = tx.meta("activation_population")?.as_deref()==Some("true");
+        let plans = super::activation_plan::plans(schema, if population_changed {None} else {previous.as_ref()});
+        if let Some(previous)=&previous {
+            for step in crate::successor::classify(previous,schema) {
+                let path=step.path.strip_prefix("tables.").unwrap_or(&step.path).replace(".columns.",".").replace(".indexes.",".");
+                report.changes.push(format!("{path} changed"));
+            }
+            let retired=tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);
+            let restored=tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);
+            if retired>0 || restored>0 {report.changes.insert(0,format!("{retired} rows dormant, {restored} restored"));}
+        }
+
         report.phase("preflight", &mut phase);
         if schema_changed {
             // @ref LLP 3000.000#implementation-follow-up — keys are still evaluated,
@@ -313,7 +324,7 @@ impl Store {
         build(&tx, changed, &mut report)?;
         report.phase("derived rebuild", &mut phase);
         if schema_changed && programs.is_some() && super::dormant::enabled(&tx)? {
-            super::adopt_refusals::candidate(&tx,schema,previous.as_ref(),true)?;
+            super::adopt_refusals::candidate(&tx,schema,if population_changed{None}else{previous.as_ref()},true)?;
         }
         if schema_changed {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {

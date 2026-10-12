@@ -124,7 +124,7 @@ fn additive_rollback_keeps_cells_tables_and_older_writes_without_disclosure() {
 }
 
 #[test]
-fn enum_in_use_names_rows_and_values_and_rolls_back_dormancy() {
+fn enum_in_use_is_hidden_on_rollback_and_restored_verbatim() {
     let mut e = engine(V1);
     seed(
         &mut e,
@@ -134,24 +134,15 @@ fn enum_in_use_names_rows_and_values_and_rolls_back_dormancy() {
     activate(&mut e, &v2(), 2).unwrap();
     mutate(&mut e, "badStatus", "bad");
     let generation = e.generation();
-    let failure = activate(&mut e, V1, 1).unwrap_err().to_string();
-    for text in ["E_ADOPT", "rows.status", "1 affected rows", "a", "new"] {
-        assert!(failure.contains(text), "{failure}");
-    }
-    assert_eq!(e.generation(), generation);
-    assert!(
-        e.store_mut()
-            .dormant_inventory(None, 100)
-            .unwrap()
-            .is_empty()
-    );
-    mutate(&mut e, "repair", "repair");
     activate(&mut e, V1, 1).unwrap();
+    assert_eq!(e.generation(), generation+1);
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    assert!(e.snapshot("alice").unwrap().0.iter().all(|event|event.table!="rows"));
+    let items=e.store_mut().dormant_inventory(None,100).unwrap();
+    assert!(items.iter().any(|i|i.key=="rows:rows" && i.rows==1));
     activate(&mut e, &v2(), 2).unwrap();
-    assert_eq!(
-        e.store().rows("rows").unwrap()[0].field("status").unwrap(),
-        &Value::String("active".into())
-    );
+    assert_eq!(e.store().rows("rows").unwrap()[0].field("status").unwrap(),&Value::String("new".into()));
+
 }
 
 #[test]
@@ -826,4 +817,99 @@ fn rollback_replaces_newer_actions_on_a_reference_that_stays_active() {
     assert!(matches!(out.state, WriteState::Failed { .. }));
     assert_eq!(e.store().count("parents").unwrap(), 1);
     assert_eq!(e.store().count("children").unwrap(), 1);
+}
+
+#[test]
+fn narrowing_hides_reference_closure_and_rebuilds_unchanged_counts_and_indexes() {
+    let wide="table parents:\n  status: enum('live', 'new')\n  public\n  sync public\ntable children:\n  parent: parents\n  immutable parent\n  public\n  sync public\ntable leaves:\n  child: children\n  immutable child\n  public\n  sync public\nview counts: count children by .parent\nquery total(p: parents):\n  return counts[p]\n";
+    let old=wide.replace("enum('live', 'new')","enum('live')");
+    let mut e=engine(wide);
+    seed(&mut e,"parents",serde_json::json!({"id":"p","status":"new"}));
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
+    seed(&mut e,"leaves",serde_json::json!({"id":"l","child":"c"}));
+    let total=|e:&mut Engine|e.query("total",Context::new("alice",[("p".into(),Value::Id("p".into()))].into())).unwrap().data;
+    assert_eq!(total(&mut e),Value::Int(1));
+    activate(&mut e,&old,2).unwrap();
+    for table in ["parents","children","leaves"] {assert_eq!(e.store().count(table).unwrap(),0, "{table}");}
+    assert_eq!(total(&mut e),Value::Int(0));
+    assert!(e.snapshot("alice").unwrap().0.iter().all(|event| !["parents","children","leaves"].contains(&event.table.as_str())));
+    activate(&mut e,wide,3).unwrap();
+    for table in ["parents","children","leaves"] {assert_eq!(e.store().count(table).unwrap(),1, "{table}");}
+    assert_eq!(total(&mut e),Value::Int(1));
+    let status=e.store_mut().release_status(0,None,None).unwrap();
+    assert_eq!(status["events"][1]["summary"]["narrowed_retained"],3);
+    assert_eq!(status["events"][2]["summary"]["narrowed_restored"],3);
+}
+
+#[test]
+fn too_short_old_writes_are_dormant_on_forward_and_restored_on_rollback() {
+    let loose="table codes:\n  code: text 4..12\n  unique code\n  public\n  sync public\n";
+    let tight=loose.replace("4..12","6..12");
+    let mut e=engine(loose);
+    seed(&mut e,"codes",serde_json::json!({"id":"short","code":"four"}));
+    seed(&mut e,"codes",serde_json::json!({"id":"long","code":"longer"}));
+    activate(&mut e,&tight,2).unwrap();
+    assert_eq!(e.store().count("codes").unwrap(),1);
+    // Primary identity and references cannot overwrite or acquire hidden rows.
+    let result=e.seed([("codes".into(),wire::row_from_json(&e.schema().tables["codes"],&serde_json::json!({"id":"short","code":"newer"})).unwrap())]);
+    assert!(matches!(result.unwrap_err().code().as_str(),"E_RULE"|"E_CONSTRAINT"));
+    activate(&mut e,loose,1).unwrap();
+    let rows=e.store().rows("codes").unwrap();
+    assert_eq!(rows.len(),2);
+    assert!(rows.iter().any(|r|r.field("code").unwrap()==&Value::String("four".into())));
+    activate(&mut e,&tight,2).unwrap();
+    let preview=e.store_mut().prune_dormant(false,None).unwrap();
+    assert!(preview["items"].as_array().unwrap().iter().any(|i|i["key"]=="rows:codes"));
+    e.store_mut().prune_dormant(true,None).unwrap();
+    activate(&mut e,loose,1).unwrap();
+    assert_eq!(e.store().count("codes").unwrap(),1);
+}
+
+#[test]
+fn dormant_row_reference_never_recaptures_a_deleted_parent_lifetime() {
+    let wide="table parents:\n  public\ntable children:\n  parent: parents\n  status: enum('live','new')\n  public\n";
+    let old=wide.replace("enum('live','new')","enum('live')");
+    let mut e=engine(wide);
+    seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p","status":"new"}));
+    activate(&mut e,&old,2).unwrap();
+    {let table=e.schema().tables["parents"].clone();let tx=e.store_mut().transaction().unwrap();let row=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&row).unwrap();tx.commit().unwrap();}
+    seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+    activate(&mut e,wide,3).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),0);
+    assert_eq!(e.store_mut().dormant_inventory(None,100).unwrap().iter().find(|i|i.key=="rows:children").unwrap().rows,1);
+}
+
+#[test]
+fn narrowing_preserves_legally_dangling_keep_references_and_omitted_invalid_cells() {
+    let wide="table parents:\n  public\ntable children:\n  parent: parents on delete keep\n  status: enum('live','new')\n  public\n";
+    let old=wide.replace("enum('live','new')","enum('live')");
+    let mut e=engine(wide);
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"already-gone","status":"new"}));
+    activate(&mut e,&old,2).unwrap();activate(&mut e,wide,3).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),1);
+    seed(&mut e,"parents",serde_json::json!({"id":"p"}));
+    seed(&mut e,"children",serde_json::json!({"id":"other","parent":"p","status":"new"}));
+    activate(&mut e,&old,2).unwrap();
+    let table=e.schema().tables["parents"].clone();
+    {let tx=e.store_mut().transaction().unwrap();let row=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&row).unwrap();tx.commit().unwrap();}
+    let without_ref=wide.replace("  parent: parents on delete keep\n","");
+    activate(&mut e,&without_ref,4).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),2,"omitted invalid reference must not hide compatible visible fields");
+    assert!(e.store_mut().dormant_inventory(None,100).unwrap().iter().any(|i|i.key=="column:children.parent" && i.rows==2));
+}
+
+#[test]
+fn combined_narrowing_and_lifetime_removal_never_resurrects_expired_children() {
+    let wide="table parents:\n  public\ntable children:\n  parent: parents\n  immutable parent\n  until: time\n  expire at .until\n  status: enum('live','new')\n  read through .parent\n";
+    let mut e=engine(wide);
+    let parent=wire::row_from_json(&e.schema().tables["parents"],&serde_json::json!({"id":"p"})).unwrap();
+    let child=wire::row_from_json(&e.schema().tables["children"],&serde_json::json!({"id":"c","parent":"p","until":50,"status":"new"})).unwrap();
+    e.seed_at([("parents".into(),parent),("children".into(),child)],0).unwrap();
+    let old=wide.replace("enum('live','new')","enum('live')").replace("  expire at .until\n","").replace("  read through .parent","  public");
+    activate(&mut e,&old,2).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),0);
+    assert!(e.store_mut().dormant_inventory(None,100).unwrap().iter().all(|i|i.key!="rows:children"));
+    activate(&mut e,&old.replace("enum('live')","enum('live','new')"),3).unwrap();
+    assert_eq!(e.store().count("children").unwrap(),0);
 }
