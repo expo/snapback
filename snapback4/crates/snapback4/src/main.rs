@@ -16,6 +16,7 @@ mod serve;
 mod dev_worker;
 mod dev_replay;
 mod dev_clock;
+mod dev_reset;
 mod dev_clock_store;
 mod lifecycle;
 mod thread_priority;
@@ -52,6 +53,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     --claim-waits N                  service workers' claim polls, a separate pool (default 32, max 1024; SNAPBACK4_CLAIM_WAITS)
   run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
+  reset [--port N] [--seed <fixture dir|rows.json>] [--clock reset]  empty a running dev's store (POST /dev/reset): rows, views, queues, assets, accounts; a new store identity; reseed in the same transaction; personas and service seats stay
   test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
@@ -121,6 +123,7 @@ fn main() -> ExitCode {
         "types" => verbs::types(&options),
         "run" => verbs::run(&options),
         "clock" => dev_clock::command(&options),
+        "reset" => dev_reset::command(&options),
         "test" => verbs::test(&options),
         "why" => verbs::why(&options),
         "data" => verbs::data(&options),

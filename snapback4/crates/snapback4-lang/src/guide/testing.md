@@ -155,8 +155,9 @@ has the lifecycle.
 
 Each scenario starts from state you know. Earlier steps change what later ones read (bob's list grows
 when alice invites him), so assert every persona's baseline before the first write, and give each
-scenario its own rows: distinct ids and owners per scenario, or a fresh `dev --memory` per scenario
-(each start is an empty store). `/seed` is an upsert, so reseeding does not remove rows a scenario added.
+scenario its own rows: `POST /dev/reset` before each one (below), distinct ids and owners per
+scenario, or a fresh `dev --memory` per scenario (each start is an empty store). `/seed` is an upsert,
+so reseeding alone does not remove rows a scenario added.
 
 ```js
 // node scripts/acceptance.mjs
@@ -201,6 +202,39 @@ try {
 } finally { await dev.stop(); }
 ```
 
+### Per-test isolation: `POST /dev/reset`
+
+One dev serves the whole suite; `POST /dev/reset` before each test empties its store and seeds the
+test's rows in the same transaction, in a few milliseconds:
+
+```js
+// Inside the script above, after `post` is defined:
+const reset = async seed => {
+  const answer = await post("/dev/reset", { seed });
+  assert.equal(answer.reset, true, JSON.stringify(answer)); // a refused row answers {denied}; nothing was reset
+  return answer;
+};
+for (const [name, scenario] of [["alice adds a card", async () => {
+  assert.equal((await post("/m/addCard", { args: { board: "b1", text: "milk" } }, "alice")).state, "sent");
+}]]) {
+  await reset([{ table: "boards", row: { id: "b1", owner: "dev:alice", title: "Groceries" } }]);
+  assert.equal((await post("/q/cardsOn", { args: { board: "b1" } }, "alice")).data.length, 0, name); // baseline
+  await scenario();
+}
+```
+
+- Fresh means: no application rows, views, maintained columns, sync log, queued effects, jobs or
+  actions, uploaded assets, signed-up users or guests. The schema, personas and service seats stay,
+  so persona headers work at once; a test that signs up does so again after the reset.
+- The body is a `/seed` array, `{"seed": [..]}`, or empty. `{"clock": "reset"}` also returns the dev
+  clock to wall time (drops `--clock-offset` and earlier `clock advance`s); by default it stays.
+- `snapback4 reset --port N --seed fixtures` does the same from a shell, reading a fixture directory
+  (`<table>.jsonl`; `test.cases.jsonl` is skipped) or a JSON file holding a `/seed` array.
+- The store takes a new identity. A local client follows it and re-acquires; an online client halts
+  with `E_STORE_REPLACED` (`createApp` reopens it). Open clients after the reset, or wait for that.
+- A reset empties the whole store, so tests sharing one dev run one at a time; give each parallel
+  worker its own `dev --port 0 --memory`.
+
 The same `stopChild` stops a frontend server: spawn `node_modules/.bin/vite` (not `npx vite`) and
 strip ANSI colors before matching its `Local:` line.
 
@@ -215,10 +249,11 @@ Every route answers JSON; read the field for the route (`guide wire` has the res
 | a request that does not decode (bad JSON type, unknown argument) | 400 | `{denied: {code: "E_INPUT"}}` | `body.denied.code` |
 | an undeclared persona, no credential | 401 | `{denied: {code: "E_AUTH"}}` | `body.denied.code` |
 | `POST /seed` | 200 | `{seeded: N}`, or `{denied}` with nothing written | `body.seeded` |
+| `POST /dev/reset` | 200 | `{reset: true, seeded: N, storeId, …}`, or `{denied}` with nothing reset | `body.reset` |
 
 A `unique ... else CODE` refuses with your code; without one, a clash is `E_CONSTRAINT` naming the index.
 `/seed` takes a JSON array, writes as the system and
 skips rules, with fixture-row semantics (defaults, sequences); seed parents and children in one call.
 It is an upsert by `id`: a reseed updates mutable columns, and changing an `immutable` one refuses
-`E_CONSTRAINT` (use a new id, or restart with `--memory`). Personas and `/seed` exist only under `dev`,
+`E_CONSTRAINT` (use a new id, `POST /dev/reset`, or restart with `--memory`). Personas, `/seed` and `/dev/reset` exist only under `dev`,
 and a persona must be declared in `use personas` (an outsider is 401 `E_AUTH`).

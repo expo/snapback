@@ -112,8 +112,23 @@ Dev only, same machine; `serve` refuses each one.
   names its own (any unique string; `idFrom(label)` gives a stable one), a
   reseed updates the mutable columns of an existing row, and a different value
   for an `immutable` column refuses E_CONSTRAINT ("… is immutable; /seed is an
-  upsert by id …"): keep the original value, use a new id, or restart dev with
-  `--memory`. A principal field holds `"dev:alice"`, not `"alice"`.
+  upsert by id …"): keep the original value, use a new id, `POST /dev/reset`
+  first, or restart dev with `--memory`. A principal field holds `"dev:alice"`,
+  not `"alice"`.
+- `/dev/reset` empties the store for the next test, in one transaction: every
+  application row, view and maintained column, the sync log, the effect, job
+  and action queues, uploaded assets, and accounts with their sessions
+  (signed-up users, guests). The adopted schema, personas and service seats
+  (`snapback4 token`, the dev worker's) stay. The store takes a new identity:
+  a local client re-acquires the new store by itself, an online client halts
+  with `E_STORE_REPLACED` (`createApp` reopens it). The head keeps counting.
+  The body is empty, a `/seed` array, or `{"seed": [..], "clock": "reset"}`
+  (either key optional): seed rows are written as `/seed` writes them, in the
+  same transaction (a refused row resets nothing), and `"clock": "reset"`
+  drops `--clock-offset` and every advance (by default the dev clock stays).
+  It answers `{reset: true, seeded: N, generation, storeId, previousStoreId,
+  head, now, clockOffsetMs, ms}` in a few milliseconds on a small store;
+  `snapback4 reset [--port N] [--seed fixtures] [--clock reset]` posts it.
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.
@@ -131,7 +146,7 @@ a number for `text`), or an argument the operation does not take is **400**
 `{denied:{code:"E_INPUT"}}`. No or a dead credential (or an undeclared
 persona) is **401** E_AUTH; an unknown operation or route is **404** E_OP, and
 a declared one at the wrong door (a job or query at `/m/`, a mutation at
-`/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed`) is **413**. Once
+`/q/`) is **400** E_OP naming the right one; a body past its ceiling (1 MiB of JSON, 16 MiB for `/seed` and `/dev/reset`) is **413**. Once
 decoded, the operation runs, and everything it refuses is **200**: a query
 answers `{denied}`, a mutation `{state:"failed", why}`. That includes value
 checks made while it runs — a missing required argument, text outside its

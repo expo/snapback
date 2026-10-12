@@ -105,7 +105,9 @@ Store:
 
 Identity: x-snapback-persona: alice acts as dev:alice for a persona declared
 in `use personas`; an undeclared name is refused E_AUTH. POST /seed writes
-rows as the system (guide wire). Development only: deploy + serve refuse both.
+rows as the system (guide wire); POST /dev/reset (snapback4 reset) empties the
+store between tests and can reseed it in the same transaction (guide testing).
+Development only: deploy + serve refuse all three.
 
 Scripted lifecycle (an acceptance script): spawn the installed binary
 (node_modules/.bin/snapback4, or node_modules/snapback4-<platform>/snapback4)

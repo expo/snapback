@@ -1226,58 +1226,8 @@ impl Engine {
 
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
-        let rows = through_activation::ancestor_order(&self.schema, rows);
-        let targets: std::collections::BTreeSet<_> = self.schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
         let tx = self.store.transaction()?;
-        let mut imports = BTreeMap::<(String, String), Value>::new();
-        let rows: Box<dyn Iterator<Item = (String, Value)> + '_> = if targets.is_empty() { Box::new(rows.into_iter()) } else {
-            let rows: Vec<_> = rows.into_iter().collect();
-            // A capture sees the imported target's eventual image, including
-            // fields retained by patches, defaults and assigned ordinals.
-            // Preview every allocation in input order (counters cross tables),
-            // then undo the preview; ordinary writes allocate in that same
-            // transaction and still own all validation, events and rollback.
-            tx.savepoint("seed_sequences")?;
-            let mut staging = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
-            for (name, row) in &rows {
-                self.schema.refuse_ephemeral_import(name)?;
-                let table = self.schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
-                sequences::refuse_fields(table, name, row)?;
-                let id = row.field("id")?.as_str()?.to_owned();
-                let old = match imports.get(&(name.clone(), id.clone())) { Some(row) => Some(row.clone()), None => tx.get(name, &id)? }.filter(|row| !table.expired(row, now));
-                let mut fields = old.as_ref().map(|row| row.as_object().cloned()).transpose()?.unwrap_or_default();
-                fields.extend(row.as_object()?.clone());
-                if old.is_none() { for (field, default) in &table.defaults { fields.entry(field.clone()).or_insert_with(|| default.value(now, crate::SYSTEM_PRINCIPAL)); } }
-                let mut image = Value::Row(fields.into());
-                if old.is_none() {
-                    let (assigned, full) = staging.sequence_fields(name, image.import_input(&ImportInput(())))?;
-                    if full { return Err(sequences::exhausted()); }
-                    staging.commit_sequences(name, &assigned)?;
-                    image = assigned;
-                }
-                imports.insert((name.clone(), id), image);
-            }
-            drop(staging);
-            tx.rollback_to("seed_sequences")?;
-            Box::new(rows.into_iter())
-        };
-        let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-        runner.import_targets = Some(&imports);
-        let mut count = 0;
-        for (table, row) in rows {
-            self.schema.refuse_ephemeral_import(&table)?;
-            timeline::check_import(&self.schema, &table)?;
-            runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
-            count += 1;
-        }
-        let events = runner.events.take();
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        drop(runner);
-        if count > 0 {
-            tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, count)?;
-            partition::append(&tx, seq, &events)?;
-        }
+        let count = seed_rows(&self.schema, &tx, rows, now)?;
         tx.commit()?;
         Ok(count)
     }
@@ -1484,9 +1434,71 @@ pub use row_views::ViewChunk;
 
 mod receipts;
 
+#[cfg(feature = "sqlite")]
+mod dev_reset;
+#[cfg(feature = "sqlite")]
+pub use dev_reset::DevReset;
+
 /// Server-only exact Following history and resumable protocol custody.
 #[cfg(feature = "sqlite")]
 pub mod following_history;
 // @ref LLP 3000.033#1.6 — the device has no Engine; this option is server-only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeliveryManifest { Build, Skip }
+
+/// `/seed`'s write inside the caller's transaction: one commit when any row is written.
+#[cfg(feature = "sqlite")]
+pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+    let rows = through_activation::ancestor_order(schema, rows);
+    let targets: std::collections::BTreeSet<_> = schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
+    let mut imports = BTreeMap::<(String, String), Value>::new();
+    let rows: Box<dyn Iterator<Item = (String, Value)> + '_> = if targets.is_empty() { Box::new(rows.into_iter()) } else {
+        let rows: Vec<_> = rows.into_iter().collect();
+        // A capture sees the imported target's eventual image, including
+        // fields retained by patches, defaults and assigned ordinals.
+        // Preview every allocation in input order (counters cross tables),
+        // then undo the preview; ordinary writes allocate in that same
+        // transaction and still own all validation, events and rollback.
+        tx.savepoint("seed_sequences")?;
+        let mut staging = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+        for (name, row) in &rows {
+            schema.refuse_ephemeral_import(name)?;
+            let table = schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
+            sequences::refuse_fields(table, name, row)?;
+            let id = row.field("id")?.as_str()?.to_owned();
+            let old = match imports.get(&(name.clone(), id.clone())) { Some(row) => Some(row.clone()), None => tx.get(name, &id)? }.filter(|row| !table.expired(row, now));
+            let mut fields = old.as_ref().map(|row| row.as_object().cloned()).transpose()?.unwrap_or_default();
+            fields.extend(row.as_object()?.clone());
+            if old.is_none() { for (field, default) in &table.defaults { fields.entry(field.clone()).or_insert_with(|| default.value(now, crate::SYSTEM_PRINCIPAL)); } }
+            let mut image = Value::Row(fields.into());
+            if old.is_none() {
+                let (assigned, full) = staging.sequence_fields(name, image.import_input(&ImportInput(())))?;
+                if full { return Err(sequences::exhausted()); }
+                staging.commit_sequences(name, &assigned)?;
+                image = assigned;
+            }
+            imports.insert((name.clone(), id), image);
+        }
+        drop(staging);
+        tx.rollback_to("seed_sequences")?;
+        Box::new(rows.into_iter())
+    };
+    let seq = tx.next_seq()?;
+    let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+    runner.import_targets = Some(&imports);
+    let mut count = 0;
+    for (table, row) in rows {
+        schema.refuse_ephemeral_import(&table)?;
+        timeline::check_import(schema, &table)?;
+        runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
+        count += 1;
+    }
+    let events = runner.events.take();
+    let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+    drop(runner);
+    if count > 0 {
+        tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, count)?;
+        partition::append(tx, seq, &events)?;
+    }
+    Ok(count)
+    }

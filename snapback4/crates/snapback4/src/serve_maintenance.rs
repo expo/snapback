@@ -147,8 +147,8 @@ pub(super) struct State {
     resume_at: Instant,
     empty_pause: Duration,
     advancing: bool,
-    // Separate clock callers may wait here; maintenance never takes this lock.
-    advance: Arc<std::sync::Mutex<()>>,
+    // Separate clock callers (and a dev reset) may wait here; maintenance never takes this lock.
+    pub(super) advance: Arc<std::sync::Mutex<()>>,
 }
 impl Default for State {
     fn default() -> Self {

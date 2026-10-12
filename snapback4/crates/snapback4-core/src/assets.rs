@@ -89,6 +89,12 @@ impl AssetSweep {
         }
     }
 
+    /// Every named asset's bytes in `directory`, for a caller that has
+    /// already forgotten the ledger rows (a development reset).
+    pub(crate) fn named(ids: impl IntoIterator<Item = String>, directory: &std::path::Path) -> Self {
+        Self { items: ids.into_iter().map(|id| { let path = directory.join(&id); (id, path) }).collect() }
+    }
+
     pub fn len(&self) -> usize {
         self.items.len()
     }
