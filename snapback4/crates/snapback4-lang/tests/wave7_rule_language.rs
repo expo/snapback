@@ -650,3 +650,59 @@ fn a_total_behind_its_grants_guard_compiles_and_the_server_counts_every_row_for_
         assert!(d.rewrite.contains("or guard it with the grant"), "{d}");
     }
 }
+
+// ---- 17.9: an omitted optional argument clears a patched column (lanes 047 090) ----
+
+const REQUESTS: &str = "table requests:
+  owner: principal
+  title: text 1..80
+  details: text <=500 ?
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+query one(r: requests):
+  return requests[r]
+";
+
+#[test]
+fn n_patch_clears_names_an_edit_that_an_omitted_argument_clears_and_the_rewrite_keeps_it() {
+    let edit = "mutation editRequest(request: requests, title: text 1..80, details: text <=500 ?):\n  r = requests[request] ! else NOT_FOUND\n  update requests[request] { title, details }\n";
+    let source = format!("{REQUESTS}{edit}");
+    let b = clean(&source);
+    let n = note(&b, "N_PATCH_CLEARS").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(n.message.contains("`details`") && n.rewrite.contains("details: details ?? r.details"), "{n}");
+    let rows = || -> Rows { vec![("requests", vec![("id", id("q1")), ("owner", id("ann")), ("title", text("Ride")), ("details", text("Tue 9am"))])] };
+    // The runtime: omitted and explicit null are the same argument, and both clear the column.
+    for pairs in [vec![("request", id("q1")), ("title", text("Ride!"))], vec![("request", id("q1")), ("title", text("Ride!")), ("details", Value::Null)]] {
+        let mut e = engine(&source, rows());
+        assert_eq!(mutate(&mut e, "editRequest", "ann", &pairs), "ok");
+        assert_eq!(query(&mut e, "one", "ann", &[("r", id("q1"))]).unwrap().1.field("details").ok(), Some(&Value::Null), "{pairs:?}");
+    }
+    // The rewrite keeps it; the clear flag still clears.
+    let kept = format!("{REQUESTS}mutation editRequest(request: requests, title: text 1..80, details: text <=500 ?, clear: bool ?):\n  r = requests[request] ! else NOT_FOUND\n  update requests[request] {{ title, details: null if clear = true else details ?? r.details }}\n");
+    assert!(note(&clean(&kept), "N_PATCH_CLEARS").is_none());
+    let mut e = engine(&kept, rows());
+    assert_eq!(mutate(&mut e, "editRequest", "ann", &[("request", id("q1")), ("title", text("Ride!"))]), "ok");
+    assert_eq!(query(&mut e, "one", "ann", &[("r", id("q1"))]).unwrap().1.field("details").ok(), Some(&text("Tue 9am")));
+    assert_eq!(mutate(&mut e, "editRequest", "ann", &[("request", id("q1")), ("title", text("Ride!")), ("clear", Value::Bool(true))]), "ok");
+    assert_eq!(query(&mut e, "one", "ann", &[("r", id("q1"))]).unwrap().1.field("details").ok(), Some(&Value::Null));
+    // Near misses: a one-field setter, an argument the mutation tests.
+    for near in [
+        "mutation setDetails(request: requests, details: text <=500 ?):\n  update requests[request] { details }\n",
+        "mutation editRequest(request: requests, title: text 1..80, details: text <=500 ?):\n  if details != null:\n    update requests[request] { title, details }\n",
+    ] {
+        assert!(note(&clean(&format!("{REQUESTS}{near}")), "N_PATCH_CLEARS").is_none(), "{near}");
+    }
+}
+
+/// Every farm schema's N_PATCH_CLEARS (counted in §17.9).
+#[test]
+fn farm_patch_clears() {
+    let mut hits = 0;
+    for (label, sources) in farm() {
+        for n in compile(&sources).notes.iter().filter(|n| n.code == "N_PATCH_CLEARS") { hits += 1; println!("{label}: {}", n.message); }
+    }
+    println!("N_PATCH_CLEARS: {hits}");
+}

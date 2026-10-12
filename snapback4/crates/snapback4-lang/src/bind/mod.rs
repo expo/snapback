@@ -32,6 +32,7 @@ pub(crate) mod where_guards;
 mod bracket_ranges;
 mod delete_children;
 mod private_scans;
+mod optional_patches;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -285,6 +286,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(denied_reads(&catalog, &schema, &programs));
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(auth_lints::notes(&catalog, &schema));
+    notes.extend(optional_patches::notes(&catalog));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));

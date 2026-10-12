@@ -20,6 +20,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_JOB_VIEWER_READ_ONLY", &["Compute inside as; act outside the block."]),
     ("E_SYSTEM_PRINCIPAL_WRITE", &["make the column optional and write `null` for system events, or name a service principal"]),
     ("N_DELETE_ORPHANS", &["Delete or retarget the children in the same mutation first", "keep the parent and mark it"]),
+    ("N_PATCH_CLEARS", &["To keep the stored value", "if clearing is meant too"]),
     ("N_WRITE_DENIED", &["write the rule its callers need, or do the write in a job", "snapback4 run` prints the clause"]),
     ("N_PROBE_ONLY_READ", &["write `read through", "name the caller"]),
     ("N_VACUOUS_RULE", &["If being one is a role, test it"]),

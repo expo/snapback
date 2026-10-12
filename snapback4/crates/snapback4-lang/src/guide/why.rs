@@ -9,6 +9,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "E_READ_THROUGH_ADOPT" => include_str!("why/E_READ_THROUGH_ADOPT.md"),
         "E_PARENT_HAS_CHILDREN" => include_str!("why/E_PARENT_HAS_CHILDREN.md"),
         "N_DELETE_ORPHANS" => include_str!("why/N_DELETE_ORPHANS.md"),
+        "N_PATCH_CLEARS" => include_str!("why/N_PATCH_CLEARS.md"),
         "N_PROBE_ONLY_READ" => include_str!("why/N_PROBE_ONLY_READ.md"),
         "N_VACUOUS_RULE" => include_str!("why/N_VACUOUS_RULE.md"),
         "N_LOOKUP_HIDDEN" => include_str!("why/N_LOOKUP_HIDDEN.md"),
