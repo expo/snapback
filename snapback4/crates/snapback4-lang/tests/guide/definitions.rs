@@ -160,6 +160,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_PROBE_ONLY_READ", "A rule probe sees every row"),
     ("N_VACUOUS_RULE", "An insert rule a mutation always satisfies guards nothing"),
     ("N_LOOKUP_HIDDEN", "A mutation finds a row under its read rule before the write rule runs."),
+    ("N_REQUIRE_HIDDEN", "A program `exists` sees only the rows its caller may read"),
+    ("N_REQUIRE_REFUSED", "A mutation's `require` does not admit a write the table's rule refuses"),
     ("N_READ_DENIED", "looks up an aggregate by key whose read rule is `deny`"),
     ("E_JOB_VIEWER_QUERY", "a job viewer call requires a declared durable Quarry query"),
     ("E_JOB_VIEWER_READ", "the viewer query is unavailable or cannot certify exhaustion"),

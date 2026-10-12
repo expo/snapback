@@ -24,6 +24,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_PROBE_ONLY_READ", &["write `read through", "name the caller"]),
     ("N_VACUOUS_RULE", &["If being one is a role, test it"]),
     ("N_LOOKUP_HIDDEN", &["Let the role read the rows it acts on"]),
+    ("N_REQUIRE_HIDDEN", &["Let the callers who run the check read those rows"]),
+    ("N_REQUIRE_REFUSED", &["add them to the delete rule", "drop that branch from the require"]),
     ("N_READ_DENIED", &["give it the rule its readers need over its group keys"]),
     ("E_JOB_VIEWER_FLOW", &["Assign a local inside, then return outside; break and continue need a loop inside the block."]),
     ("E_JOB_VIEWER_QUERY", &["Use all(query(...)) directly in a for domain with one cursor argument and a list return."]),

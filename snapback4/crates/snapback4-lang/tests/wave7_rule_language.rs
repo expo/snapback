@@ -409,3 +409,131 @@ fn a_sum_guard_proves_no_children_only_over_a_count_like_column() {
         assert!(note(&bound(&source), "N_DELETE_ORPHANS").is_some(), "{source}");
     }
 }
+
+// ---- 17.5: a `require` the table's own rules decide against (lanes 001 072) ----
+
+/// Lane 001: a pcp names a specialist; the roster's read rule shows each clinician only their own row.
+fn clinic(read: &str) -> String {
+    format!("table clinicians:
+  principal: principal
+  role: enum('pcp', 'specialist')
+  unique principal
+  read <- {read}
+  online only
+table referrals:
+  pcp: principal
+  specialist: principal
+  immutable pcp, specialist
+  read <- .pcp = viewer or .specialist = viewer
+  insert <- .pcp = viewer
+  online only
+mutation refer(specialist: principal):
+  require exists clinicians[principal = viewer, role = 'pcp'] else NOT_PCP
+  require exists clinicians[principal = specialist, role = 'specialist'] else UNKNOWN_SPECIALIST
+  return insert referrals {{ pcp: viewer, specialist }}
+")
+}
+
+fn clinic_rows() -> Rows {
+    vec![
+        ("clinicians", vec![("id", id("c1")), ("principal", id("pam")), ("role", text("pcp"))]),
+        ("clinicians", vec![("id", id("c2")), ("principal", id("sol")), ("role", text("specialist"))]),
+    ]
+}
+
+#[test]
+fn n_require_hidden_names_a_require_exists_over_a_row_its_read_rule_hides_and_the_runtime_agrees() {
+    let lane = clinic(".principal = viewer");
+    let b = clean(&lane);
+    let hidden: Vec<&Diagnostic> = b.notes.iter().filter(|n| n.code == "N_REQUIRE_HIDDEN").collect();
+    assert_eq!(hidden.len(), 1, "only the specialist probe; the caller's own `principal = viewer` probe is readable: {hidden:#?}");
+    let n = hidden[0];
+    assert!(n.message.contains("passes only when `specialist` is the caller") && n.message.contains("UNKNOWN_SPECIALIST"), "{n}");
+    // The runtime: sol's row exists, but pam cannot read it.
+    let mut e = engine(&lane, clinic_rows());
+    assert_eq!(mutate(&mut e, "refer", "pam", &[("specialist", id("sol"))]), "UNKNOWN_SPECIALIST");
+    // The rewrite: roster members read the roster. Silent, and the referral goes through.
+    let read = n.rewrite.split('`').nth(1).unwrap().strip_prefix("read <- ").unwrap();
+    let repaired = clinic(read);
+    assert!(note(&clean(&repaired), "N_REQUIRE_HIDDEN").is_none(), "{read}");
+    let mut e = engine(&repaired, clinic_rows());
+    assert_eq!(mutate(&mut e, "refer", "pam", &[("specialist", id("sol"))]), "ok");
+    // Near misses: a roster readable by a grant, or a probe of the caller's own row, say nothing.
+    for read in [".principal = viewer or exists clinicians[viewer]", "allow"] {
+        assert!(note(&bound(&clinic(read)), "N_REQUIRE_HIDDEN").is_none(), "{read}");
+    }
+}
+
+/// Lane 072: the captain, an admin or the member leaving may remove a member.
+fn teams(delete: &str) -> String {
+    format!("table admins:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table teams:
+  captain: principal
+  immutable captain
+  read <- allow
+  insert <- .captain = viewer
+  online only
+table memberships:
+  team: teams
+  member: principal
+  unique team, member
+  immutable team, member
+  read <- allow
+  insert <- exists teams[.team, captain = viewer] or .member = viewer
+  delete <- {delete}
+  online only
+mutation removeMember(team: teams, person: principal):
+  t = teams[team] ! else NOT_FOUND
+  require t.captain = viewer or exists admins[viewer] or person = viewer else NOT_CAPTAIN
+  if exists memberships[team, person]:
+    delete memberships[team, person]
+  return null
+")
+}
+
+fn team_rows() -> Rows {
+    vec![
+        ("teams", vec![("id", id("t1")), ("captain", id("cap"))]),
+        ("memberships", vec![("id", id("m1")), ("team", id("t1")), ("member", id("mel"))]),
+        ("memberships", vec![("id", id("m2")), ("team", id("t1")), ("member", id("max"))]),
+    ]
+}
+
+#[test]
+fn n_require_refused_names_a_require_branch_the_delete_rule_refuses_and_the_runtime_agrees() {
+    let lane = teams("exists teams[.team, captain = viewer] or exists admins[viewer]");
+    let b = clean(&lane);
+    let refused: Vec<&Diagnostic> = b.notes.iter().filter(|n| n.code == "N_REQUIRE_REFUSED").collect();
+    assert_eq!(refused.len(), 1, "{refused:#?}");
+    let n = refused[0];
+    assert!(n.message.contains("`.member = viewer`") && n.message.contains("NOT_CAPTAIN") && !n.message.contains("captain = viewer`"), "only the member's branch: {n}");
+    // The runtime: the member leaving passes the require and is refused E_RULE; the captain is not.
+    let mut e = engine(&lane, team_rows());
+    assert_eq!(mutate(&mut e, "removeMember", "mel", &[("team", id("t1")), ("person", id("mel"))]), "E_RULE");
+    assert_eq!(mutate(&mut e, "removeMember", "cap", &[("team", id("t1")), ("person", id("max"))]), "ok");
+    // The rewrite: add the party to the delete rule. Silent, and the member leaves.
+    let delete = n.rewrite.split('`').nth(1).unwrap().strip_prefix("delete <- ").unwrap();
+    let repaired = teams(delete);
+    assert!(note(&clean(&repaired), "N_REQUIRE_REFUSED").is_none(), "{delete}");
+    let mut e = engine(&repaired, team_rows());
+    assert_eq!(mutate(&mut e, "removeMember", "mel", &[("team", id("t1")), ("person", id("mel"))]), "ok");
+    // The hop spelling of the captain is the same test as the probe.
+    assert!(note(&clean(&teams("teams[.team].captain = viewer or exists admins[viewer] or .member = viewer")), "N_REQUIRE_REFUSED").is_none());
+}
+
+/// Every farm schema: the two lints' hits (the final schemas: none expected).
+#[test]
+fn farm_require_lints() {
+    let mut hits = BTreeMap::<String, usize>::new();
+    for (label, sources) in farm() {
+        for n in compile(&sources).notes.iter().filter(|n| n.code == "N_REQUIRE_HIDDEN" || n.code == "N_REQUIRE_REFUSED") {
+            *hits.entry(n.code.clone()).or_default() += 1;
+            println!("{label}\n  {n}\n");
+        }
+    }
+    println!("{hits:?}");
+}
