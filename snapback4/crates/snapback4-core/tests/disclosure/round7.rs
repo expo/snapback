@@ -163,7 +163,7 @@ fn two_finite_alternatives_keep_the_later_deadline() {
     // replicas. It is now a source refusal, not an expiry contract.
     let tied = pair.source.replace("exists access[tag = 0, approved = true] or exists access[tag = 1, approved = true]", "exists access[tag = 0, approved = true]")
         .replace("unique tag", "by byTag: tag, approved");
-    let bound = snapback4_lang::compile(&[("schema.q".into(), tied)]);
+    let bound = crate::generated::runtime_compile(&[("schema.q".into(), tied)]);
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"), "{:?}", bound.diagnostics);
     for seed in &mut pair.seeds {
         let mut later = seed.iter().find(|(table,_)|table == "access").unwrap().clone();

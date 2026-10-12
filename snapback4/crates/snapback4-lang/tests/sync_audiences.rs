@@ -199,10 +199,11 @@ fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
     assert!(reference.find("**A staff console, online.**").unwrap() < reference.find("**An org roster.**").unwrap());
     assert!(reference.contains("never predict") && reference.contains("E_OFFLINE"));
     // The opening example and the six recipes (LLP 3000.036 §12.1 adds the
-    // online staff console; wave 4 the open group, synced public and online);
-    // tests/guide.rs compiles every card's blocks too.
+    // online staff console; wave 4 the open group, synced public and online;
+    // wave 7 a group's private list, complete); tests/guide.rs compiles every
+    // card's blocks too.
     let blocks = snapback4_lang::guide::quarry(card);
-    assert_eq!(blocks.len(), 8);
+    assert_eq!(blocks.len(), 9);
     for block in &blocks { clean(block); }
     // The sync card and the code's explanation point here.
     assert!(snapback4_lang::guide::card("sync").unwrap().contains("`guide sharing`"));

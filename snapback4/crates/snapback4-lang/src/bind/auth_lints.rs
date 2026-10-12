@@ -16,6 +16,14 @@
 //! - `N_WRITE_DENIED` (counter): a mutation increments a column whose table's
 //!   update rule admits only role holders, without requiring the role, so
 //!   every other caller is refused `E_RULE` at the counter.
+//! - `N_REQUIRE_HIDDEN` (wave 7, lane 001): `require exists t[col = x]` where
+//!   every disjunct of t's read rule admits only the row whose `col` is the
+//!   caller: a program probe reads under the read rule, so it passes only
+//!   when `x` is the caller.
+//! - `N_REQUIRE_REFUSED` (wave 7, lane 072): a disjunct of a `require` admits
+//!   callers (`person = viewer`, the deleted row's member) whom no disjunct of
+//!   the table's delete rule admits: they pass the require and are refused
+//!   `E_RULE` at the delete.
 // @ref LLP 3000.036#16.4 — the four lints: precise conditions, so the guide and the farm corpus stay silent.
 use super::catalog::Catalog;
 use crate::{Site, ast::*, diag::Diagnostic};
@@ -30,6 +38,11 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     vacuous_inserts(catalog, schema, &mutations, &mut notes);
     hidden_lookups(catalog, schema, &mutations, &mut notes);
     denied_counters(catalog, schema, &mutations, &mut notes);
+    // @ref LLP 3000.036#17.5 — wave 7 lanes 001 072: a `require` the table's own rules decide against.
+    let programs: Vec<&ProgramDecl> = catalog.documents.iter().flat_map(|doc| &doc.programs)
+        .filter(|program| matches!(program.kind, ProgramKind::Mutation | ProgramKind::Query) && !program.native).collect();
+    hidden_requires(catalog, schema, &programs, &mut notes);
+    refused_requires(catalog, schema, &mutations, &mut notes);
     notes
 }
 
@@ -349,4 +362,242 @@ fn denied_counters(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl
                 format!("keep the count from the rows the callers write instead, as a maintained view the engine keeps as the system (`view <name>: sum <rows> of .<amount> by .<reference to {name}>`, or `count <rows> by .<reference>`, read as `<name>[id]` and tested in `require`; guide maintains), and drop the column; or `require` the role first in {} with your own code if only its holders should call it", program.name)).guide("rules"));
         }
     }
+}
+
+// ---- N_REQUIRE_HIDDEN (wave 7, lane 001) ----
+
+/// `{ column: value }` a read pins, its keys resolved against the table's
+/// indexes (named keys, or positional keys of the one unique index of that
+/// width) and its `where` equalities. None when a positional key is ambiguous.
+fn pins(catalog: &Catalog, read: &ReadExpr) -> Option<BTreeMap<String, Expr>> {
+    let info = catalog.tables.get(&read.table)?;
+    let mut out = BTreeMap::new();
+    let positional: Vec<&KeyPart> = read.keys.iter().filter(|k| k.column.is_none()).collect();
+    if !positional.is_empty() {
+        let columns = match read.index.as_ref().and_then(|name| info.indexes.iter().find(|index| &index.name == name)) {
+            Some(index) => index.columns.clone(),
+            None => {
+                let unique: Vec<&IndexDecl> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len() && !index.columns.iter().any(|c| c == "id")).collect();
+                match unique.as_slice() { [index] => index.columns.clone(), _ => return None }
+            }
+        };
+        if columns.len() < read.keys.len() { return None; }
+        for (column, key) in columns.iter().zip(&read.keys) { out.insert(key.column.clone().unwrap_or_else(|| column.clone()), key.value.clone()); }
+    } else {
+        for key in &read.keys { out.insert(key.column.clone()?, key.value.clone()); }
+    }
+    let mut filters = Vec::new();
+    if let Some(filter) = &read.filter { super::intent::split((**filter).clone(), &mut filters); }
+    for filter in filters {
+        if let Expr::Binary { op, left, right, .. } = &filter && op == "="
+            && let Some(column) = super::intent::column(left) { out.entry(column.to_owned()).or_insert_with(|| (**right).clone()); }
+    }
+    Some(out)
+}
+
+/// Every `exists` a condition asserts (outside `not`): `a and exists t[…]`, either side of `or`.
+fn asserted_probes<'a>(condition: &'a Expr, out: &mut Vec<&'a ReadExpr>) {
+    match condition {
+        Expr::Exists { read, .. } => out.push(read),
+        Expr::Binary { op, left, right, .. } if op == "and" || op == "or" => { asserted_probes(left, out); asserted_probes(right, out); }
+        _ => {}
+    }
+}
+
+fn requires(body: &[Stmt], out: &mut Vec<(Expr, String)>) {
+    for statement in body {
+        match statement {
+            Stmt::Require { condition, code, .. } => out.push((condition.clone(), code.clone())),
+            Stmt::If { then_body, else_body, .. } => { requires(then_body, out); requires(else_body, out); }
+            Stmt::For { body, .. } | Stmt::As { body, .. } => requires(body, out),
+            _ => {}
+        }
+    }
+}
+
+fn hidden_requires(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+    let mut seen = BTreeSet::new();
+    for program in programs {
+        let mut tested = Vec::new();
+        requires(&program.prelude, &mut tested);
+        requires(&program.body, &mut tested);
+        for (condition, code) in &tested {
+            let mut probes = Vec::new();
+            asserted_probes(condition, &mut probes);
+            for read in probes {
+                let Some(table) = schema.table(&read.table) else { continue };
+                let Some(info) = catalog.tables.get(&read.table) else { continue };
+                if table.through.is_some() || info.maintained.is_some() || table.rules.read.is_uniformly_readable() { continue; }
+                let Some(pinned) = pins(catalog, read) else { continue };
+                // Every read disjunct admits only the row whose pinned `column` is the caller,
+                // and the probe pins that column to something else.
+                let owners: Vec<Option<(String, String)>> = table.rules.read.disjuncts().into_iter().map(|disjunct| conjuncts(disjunct).into_iter().find_map(|c| match c {
+                    RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) =>
+                        pinned.get(column).filter(|value| !is_viewer(value)).map(|value| (column.clone(), crate::print::expression(value))),
+                    _ => None,
+                })).collect();
+                if owners.is_empty() || owners.iter().any(Option::is_none) { continue; }
+                let Some((column, value)) = owners[0].clone() else { continue };
+                if !seen.insert((program.name.clone(), read.site.to_string())) { continue; }
+                let probe = crate::print::expression(&Expr::Exists { read: read.clone(), site: read.site.clone() });
+                let site = rule_site(catalog, &read.table, Effect::Read).map(|s| format!(" ({s})")).unwrap_or_default();
+                notes.push(Diagnostic::new(&read.site, "N_REQUIRE_HIDDEN",
+                    format!("{} {}: `{probe}` reads {} under its read rule `{}`{site}, which admits only the row whose {column} is the caller, so this require passes only when `{value}` is the caller: for every other {} row, which exists but is hidden, it refuses {code} (a program `exists` sees only readable rows; a rule probe sees every row)",
+                        if program.kind == ProgramKind::Query { "query" } else { "mutation" }, program.name, read.table, table.rules.read.quarry(), read.table),
+                    format!("let the callers who run this check read those rows: `read <- {} or exists {}[viewer]` (a roster its members read), or a role (`… or exists staff[viewer]`); if only the caller's own row is meant, write `{column} = viewer`", table.rules.read.quarry(), read.table)).guide("rules"));
+            }
+        }
+    }
+}
+
+// ---- N_REQUIRE_REFUSED (wave 7, lane 072) ----
+
+/// A program condition, rewritten as a rule over the row `delete t[key]` removes:
+/// a name the key pins becomes `.column`, a lookup of that row (`m = t[key]`)
+/// its columns, and `y.c = viewer` on a lookup `y = u[e]` of a row `e` the key
+/// pins becomes the probe `exists u[.column, c = viewer]`. None for anything else.
+struct Row<'a> {
+    table: &'a str,
+    pinned: BTreeMap<String, String>,
+    rows: BTreeSet<String>,
+    lookups: BTreeMap<String, (String, String)>,
+}
+
+impl Row<'_> {
+    fn focal(column: &str, site: &Site) -> Expr {
+        Expr::Member { base: Box::new(Expr::Focal { site: site.clone() }), name: column.to_owned(), site: site.clone() }
+    }
+
+    fn term(&self, value: &Expr) -> Option<Expr> {
+        match value {
+            Expr::Literal { .. } => Some(value.clone()),
+            _ if is_viewer(value) => Some(value.clone()),
+            Expr::Member { base, name, site } if matches!(base.as_ref(), Expr::Name { name: row, .. } if self.rows.contains(row)) => Some(Self::focal(name, site)),
+            _ => self.pinned.iter().find(|(_, text)| **text == crate::print::expression(value)).map(|(column, _)| Self::focal(column, value.site())),
+        }
+    }
+
+    fn rule(&self, condition: &Expr) -> Option<Expr> {
+        match condition {
+            Expr::Binary { op, left, right, site } if op == "and" || op == "or" =>
+                Some(Expr::Binary { op: op.clone(), left: Box::new(self.rule(left)?), right: Box::new(self.rule(right)?), site: site.clone() }),
+            Expr::Binary { op, left, right, site } if op == "=" || op == "!=" => {
+                // `t.captain = viewer`, `t = teams[team]`, the row's `.team` is `team`: `exists teams[.team, captain = viewer]`.
+                let hop = |member: &Expr, other: &Expr| match member {
+                    Expr::Member { base, name, .. } if op == "=" && is_viewer(other) => match base.as_ref() {
+                        Expr::Name { name: lookup, .. } => self.lookups.get(lookup).and_then(|(target, key)| {
+                            let column = self.pinned.iter().find(|(_, text)| *text == key)?.0;
+                            let read = ReadExpr { table: target.clone(), keys: vec![
+                                KeyPart { column: None, value: Self::focal(column, site), site: site.clone() },
+                                KeyPart { column: Some(name.clone()), value: other.clone(), site: site.clone() },
+                            ], ..empty_read(target, site) };
+                            Some(Expr::Exists { read, site: site.clone() })
+                        }),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(probe) = hop(left, right).or_else(|| hop(right, left)) { return Some(probe); }
+                Some(Expr::Binary { op: op.clone(), left: Box::new(self.term(left)?), right: Box::new(self.term(right)?), site: site.clone() })
+            }
+            Expr::Exists { read, site } => {
+                let mut read = read.clone();
+                for key in &mut read.keys { key.value = self.term(&key.value)?; }
+                if read.filter.is_some() || read.range.is_some() || read.table == self.table { return None; }
+                Some(Expr::Exists { read, site: site.clone() })
+            }
+            _ => None,
+        }
+    }
+}
+
+fn refused_requires(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+    for program in mutations {
+        // `delete t[key]` anywhere; the requires and lookups at the top of the body.
+        for (op, name, keys, _, write_site) in writes(program) {
+            if !matches!(op, WriteOp::Delete) || keys.is_empty() { continue; }
+            let (Some(table), Some(info)) = (schema.table(&name), catalog.tables.get(&name)) else { continue };
+            if table.through.is_some() || info.maintained.is_some() || matches!(table.rules.delete, RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. }) { continue; }
+            let key_read = ReadExpr { keys: keys.clone(), ..empty_read(&name, &write_site) };
+            let Some(pinned) = pins(catalog, &key_read) else { continue };
+            let pinned: BTreeMap<String, String> = pinned.into_iter().map(|(column, value)| (column, crate::print::expression(&value))).collect();
+            let key_text = |read: &ReadExpr| pins(catalog, read).map(|p| p.into_iter().map(|(c, v)| (c, crate::print::expression(&v))).collect::<BTreeMap<_, _>>());
+            let mut rows = BTreeSet::new();
+            let mut lookups = BTreeMap::new();
+            for statement in &program.body {
+                let Stmt::Bind { names, value, .. } = statement else { continue };
+                let [bound] = names.as_slice() else { continue };
+                let read = match value { Expr::Assert { value, .. } => value.as_ref(), other => other };
+                let Expr::Read(read) = read else { continue };
+                if read.table == name && key_text(read).as_ref() == Some(&pinned) { rows.insert(bound.clone()); }
+                else if let [key] = read.keys.as_slice() && key.column.is_none() && read.filter.is_none() && read.range.is_none() {
+                    lookups.insert(bound.clone(), (read.table.clone(), crate::print::expression(&key.value)));
+                }
+            }
+            let row = Row { table: &name, pinned, rows, lookups };
+            let decl = |value: Expr| RuleDecl { effect: Effect::Delete, bindings: Vec::new(), site: value.site().clone(), value };
+            let bind = |value: Expr| super::schema::bind_rule(catalog, info, &decl(value)).ok();
+            let top: Vec<(&Expr, &String, &Site)> = program.body.iter().filter_map(|s| match s { Stmt::Require { condition, code, site, .. } => Some((condition, code, site)), _ => None }).collect();
+            // What every caller past the top-level requires holds: their single-disjunct
+            // conditions, and a key column the delete pins to `viewer` itself.
+            let mut facts: Vec<RuleExpr> = top.iter().filter_map(|(condition, ..)| bind(row.rule(condition)?))
+                .filter(|rule| rule.disjuncts().len() == 1).flat_map(|rule| conjuncts(&rule).into_iter().cloned().collect::<Vec<_>>()).collect();
+            facts.extend(row.pinned.iter().filter(|(_, value)| value.as_str() == "viewer").map(|(column, _)| RuleExpr::Eq(RuleTerm::Field(column.clone()), RuleTerm::Viewer)));
+            let parties = |rule: &RuleExpr| -> Vec<RuleExpr> { conjuncts(rule).into_iter().filter(|c| mentions_viewer(c)).cloned().collect() };
+            let row_party = |rule: &RuleExpr| match rule { RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => Some(column.clone()), _ => None };
+            for (condition, code, _) in &top {
+                if !names_viewer(condition) { continue; }
+                let Some(rule) = row.rule(condition).and_then(bind) else { continue };
+                for disjunct in rule.disjuncts() {
+                    // A caller identified by a column of the deleted row (`person = viewer`, the
+                    // row's member), and only by positive identity tests.
+                    let own = parties(disjunct);
+                    let Some(column) = own.iter().find_map(row_party) else { continue };
+                    if !own.iter().all(|c| matches!(c, RuleExpr::Eq(..) | RuleExpr::Exists { .. })) { continue; }
+                    let mut have: Vec<RuleExpr> = conjuncts(disjunct).into_iter().cloned().collect();
+                    have.extend(facts.iter().cloned());
+                    let delete = table.rules.delete.disjuncts();
+                    // Another column of the row naming the caller may equal this one by the app's own invariant.
+                    if delete.iter().flat_map(|d| parties(d)).filter_map(|c| row_party(&c)).any(|other| other != column) { continue; }
+                    let admitted = delete.into_iter().any(|option| parties(option).iter().all(|need| have.iter().any(|h| same_test(schema, h, need))));
+                    if admitted { continue; }
+                    let site = rule_site(catalog, &name, Effect::Delete).map(|s| format!(" ({s})")).unwrap_or_default();
+                    let party = disjunct.quarry();
+                    notes.push(Diagnostic::new(&write_site, "N_REQUIRE_REFUSED",
+                        format!("mutation {}: `require {}` admits a caller by `{party}` (on the deleted {name} row), but {name}'s delete rule `{}`{site} admits no such caller: they pass the require, then the delete refuses them E_RULE, never your {code}", program.name, crate::print::expression(condition), table.rules.delete.quarry()),
+                        format!("if that caller may delete the row, add them to the rule (`delete <- {} or {party}`); otherwise drop that branch from the require so they get {code}", table.rules.delete.quarry())).guide("rules"));
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// `have` decides `need`: `implies`, or the same parent test spelled as a
+/// probe (`exists teams[.team, captain = viewer]`) and as a hop
+/// (`teams[.team].captain = viewer`).
+fn same_test(schema: &Schema, have: &RuleExpr, need: &RuleExpr) -> bool {
+    fn canon(schema: &Schema, rule: &RuleExpr) -> Option<(String, BTreeSet<(String, String)>)> {
+        let term = |t: &RuleTerm| format!("{t:?}");
+        match rule {
+            RuleExpr::Eq(RuleTerm::Reference { table, column, field, old: false }, RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Reference { table, column, field, old: false }) =>
+                Some((table.clone(), BTreeSet::from([("id".to_owned(), term(&RuleTerm::Field(column.clone()))), (field.clone(), term(&RuleTerm::Viewer))]))),
+            RuleExpr::Exists { table, index, key, equalities, .. } => {
+                let columns = schema.table(table)?.index(index)?.columns();
+                let mut pairs: BTreeSet<(String, String)> = columns.into_iter().zip(key.iter().map(term)).collect();
+                pairs.extend(equalities.iter().map(|(column, t)| (column.clone(), term(t))));
+                Some((table.clone(), pairs))
+            }
+            _ => None,
+        }
+    }
+    if implies(have, need) { return true; }
+    match (canon(schema, have), canon(schema, need)) {
+        (Some((a, have)), Some((b, need))) => a == b && need.is_subset(&have),
+        _ => false,
+    }
+}
+
+fn empty_read(table: &str, site: &Site) -> ReadExpr {
+    ReadExpr { cursor_prefix: None, computed: BTreeMap::new(), order_keys: Vec::new(), table: table.to_owned(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: None, range: None, matching: None, site: site.clone() }
 }

@@ -306,8 +306,8 @@ rewrite; `why <table>` includes the rule used for inference. The generated
 `N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
 Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
 and deduplicated sites and rewrites.
-Every text `check` also summarizes mutations that never predict, blocked insert
-arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
+A text `check` of a schema that syncs a table (or any `--verbose`) summarizes mutations
+that never predict, blocked insert arms and horizon reads; JSON includes `predictionSummary`.
 `check --verbose` and `why` keep every read and site visible on unchanged checks. Plain `check` starts with the verdict and summarizes notes and prediction; sequence, field, view, ephemeral and scale details stay under `--verbose` (or the relevant `--cost`/`--residency` flag). JSON keeps its full report. This includes the expiring source behind a live-aggregate
 write-rule probe: prediction needs that source without a horizon.
 `N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;

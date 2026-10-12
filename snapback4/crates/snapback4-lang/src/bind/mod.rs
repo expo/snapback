@@ -31,6 +31,8 @@ mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
 mod delete_children;
+mod private_scans;
+mod optional_patches;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -283,6 +285,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(denied_reads(&catalog, &schema, &programs));
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(auth_lints::notes(&catalog, &schema));
+    notes.extend(optional_patches::notes(&catalog));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
@@ -316,6 +319,9 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
         note.message = spell_internals_except(&note.message, &authored);
         note.rewrite = spell_internals_except(&note.rewrite, &authored);
     }
+    // Last, so the programs went through admission as before: a page the server
+    // always refuses is still a program the disclosure suites can run.
+    private_scans::check(&catalog, &schema, &programs, &mut diagnostics);
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
     Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
@@ -733,11 +739,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         let admitted = (!admitted.is_empty()).then(|| admitted.join(" or "));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
+                        // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "there is no single …"); the sentence around it never repeats it (wave 7 R1).
+                        let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
                         let complete_form = match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
                             complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
                             complete_form::Outcome::None(_) => "there is no single complete form: keep the query and expect `capped`".to_owned(),
-                            complete_form::Outcome::NotApplicable if parties >= 2 => "the complete form is one query per party".to_owned(),
-                            complete_form::Outcome::NotApplicable => "the complete form is the pin".to_owned(),
+                            complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
+                            complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
                         };
                         // @ref LLP 3000.036#15.12 — an `exists` answers a visible match as `true` and nothing else: say what it returns.
                         let treatment = if search_rewrite.is_some() { String::new() } else if scan.existence {

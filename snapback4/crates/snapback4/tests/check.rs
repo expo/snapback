@@ -874,7 +874,7 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let compact = p.run(&["check"]);
     assert!(compact.status.success());
     let compact = String::from_utf8(compact.stdout).unwrap();
-    assert!(compact.contains("N_MAINTAIN_SYNCED: 2 synced maintains: likeCounts, ownerCounts."), "{compact}");
+    assert!(compact.contains("N_MAINTAIN_SYNCED: no action for an online app. 2 synced maintains: likeCounts, ownerCounts."), "{compact}");
     assert!(compact.contains("createPost, like, repost would stop predicting"), "{compact}");
     assert!(!compact.contains("maintain likeCounts:"), "{compact}");
     let output = p.run(&["check", "--residency", "--verbose"]);

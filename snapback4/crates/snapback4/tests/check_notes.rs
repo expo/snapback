@@ -117,3 +117,34 @@ fn check_counts_views_apart_from_tables() {
     assert_eq!((json["tables"].as_u64(), json["views"].as_u64()), (Some(2), Some(1)), "{json}");
     fs::remove_dir_all(dir).unwrap();
 }
+
+/// Wave 7 #11 (LLP 3000.036 §17.7): an all-online schema's check prints no
+/// "never predict" paragraph (every mutation runs on the server, by design;
+/// `--verbose` keeps it), and every note line leads with its verdict.
+#[test]
+fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_with_a_verdict() {
+    let dir = std::env::temp_dir().join(format!("sb4-check-verdicts-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let run = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let online = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  online only\nquery all():\n  return tickets first 50 by .at\nmutation open(at: time):\n  return insert tickets { owner: viewer, at }\n";
+    fs::write(dir.join("snapback/schema.q"), online).unwrap();
+    let plain = run(&["check"]);
+    assert!(!plain.contains("never predict"), "{plain}");
+    assert!(run(&["check", "--verbose"]).contains("1 mutation never predicts: open"));
+    let notes: Vec<&str> = plain.lines().filter(|line| line.starts_with("note: schema.q")).collect();
+    assert!(!notes.is_empty(), "{plain}");
+    for line in &notes {
+        let verdict = line.split_once(": ").unwrap().1.split_once(": ").unwrap().1;
+        assert!(["fix:", "review", "no action", "no one-query fix"].iter().any(|v| verdict.starts_with(v)), "{line}");
+    }
+    assert!(plain.contains("N_NEVER_COMPLETE: fix: use the complete form below"), "{plain}");
+    assert!(plain.contains("N_NO_CURSOR: no action for a top-N list."), "{plain}");
+    // A synced table keeps the paragraph.
+    fs::write(dir.join("snapback/schema.q"), "table notes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync\ntable log:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add():\n  insert log { owner: viewer }\n  return insert notes { owner: viewer }\n").unwrap();
+    assert!(run(&["check"]).contains("never predict"), "{}", run(&["check"]));
+    fs::remove_dir_all(dir).unwrap();
+}
