@@ -226,10 +226,10 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // the separately requested adoption, which must not change any bytes.
   const currentOpen=native(binary,priorPath,null,[query]);
   assert.equal(currentOpen.status,0,currentOpen.stderr);sameAnswer(currentOpen.replies[1],priorAnswer);
-  noEffectKeys(priorPath);const beforeBytes=readFileSync(priorPath);
+  noEffectKeys(priorPath);const openedBefore=dump(priorPath),beforeBytes=readFileSync(priorPath);
   const denied=native(binary,priorPath,null,[{op:'adopt',backend:future},query]);
   assert.equal(denied.status,0,denied.stdout+denied.stderr);
-  assert.equal(dump(priorPath),before,'current adoption refusal preserves the old store');
+  assert.equal(dump(priorPath),openedBefore,'current adoption refusal preserves the successfully opened store');
   noEffectKeys(priorPath);assert.deepEqual(readFileSync(priorPath),beforeBytes,'refused native adoption preserves every SQLite byte');
   assert.deepEqual(native(legacy.binary,priorPath,null,[query]).replies[1],priorAnswer);
   assert.equal(denied.replies[1].denied.code,'E_SCHEMA_CAPABILITY');sameAnswer(denied.replies[2],priorAnswer);
@@ -355,7 +355,11 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   }
   t.diagnostic('capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed');
   await newApp.server.stop();await oldApp.server.stop();
-  const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stderr);
+  // Doctor also compiles project source: keep that old-readable independently
+  // of the persisted capability-free schema whose decoding this check covers.
+  writeFileSync(join(newApp.cwd,'snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
+  const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stdout+doctor.stderr);
+  writeFileSync(join(newApp.cwd,'snapback/schema.q'),control);
   const release=join(dir,'control-release'),deployed=run(binary,['deploy',release],'',newApp.cwd);assert.equal(deployed.status,0,deployed.stderr);
   // Capability-free bytes still decode on old devices, while retained release
   // stores require a retention-aware server. First serve with the matching
