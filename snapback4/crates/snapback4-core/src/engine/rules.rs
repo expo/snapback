@@ -540,8 +540,13 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     if !matches!(base.as_ref(), Expr::Variable(name) if name == &lane.binding) { return false; }
     let Some(source_table) = schema.table(&source.table) else { return false };
     let Some(source_index) = source_table.index(&source.index) else { return false };
-    if source.existence || source.prefix.len() >= source_index.components.len()
-        || source_index.components.get(source.prefix.len()).and_then(|part| part.column()) != Some(source_column)
+    let next_component = source.prefix.len() < source_index.components.len()
+        && source_index.components.get(source.prefix.len()).and_then(|part| part.column()) == Some(source_column);
+    let implicit_row_id = source_column == "id" && source.prefix.len() == source_index.components.len()
+        && source_index.unique && source_index.is_plain()
+        && source_index.components.iter().all(|part| part.column().and_then(|column| source_table.columns.get(column))
+            .is_some_and(|kind| !kind.is_optional()));
+    if source.existence || (!next_component && !implicit_row_id)
         || !scan_visibility(schema, source).decided_true { return false; }
     let Bound::Literal(take) = source.take else { return false };
     let prefix_has = |field: &String| source_index.components.iter().take(source.prefix.len())
@@ -550,7 +555,7 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
         crate::schema::Constraint::Cap { by, max } if by.iter().all(prefix_has) && !source_table.cap_exempts_null(by) => Some(*max),
         _ => None,
     }).min();
-    if cap.is_none_or(|cap| cap > take) { return false; }
+    if cap.is_none_or(|cap| cap > take && !implicit_row_id) { return false; }
     let Some(outer_table) = schema.table(&lane.scan.table) else { return false };
     let Some(outer_index) = outer_table.index(&lane.scan.index) else { return false };
     let mut outer_column: Option<&String> = None;

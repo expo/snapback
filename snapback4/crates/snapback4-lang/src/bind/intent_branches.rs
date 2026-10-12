@@ -110,6 +110,9 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             let Expr::Read(source) = source else { return None };
             candidate.read(tables, source, false);
             let source_table = tables.get(&source.table)?;
+            if membership_source_column(predicate) == Some("id")
+                && let Some(source_index) = source.index.as_ref().and_then(|name| source_table.indexes.iter().find(|index| &index.name == name))
+                && source.keys.len() == source_index.columns.len() && !source_table.total_unique(source_index) { return None; }
             // Uniform denial is not an empty discovery range. PAGE may commit
             // its speculative indexes only when the fixed source pins prove
             // a true read-rule disjunct, matching the core validator.
@@ -188,6 +191,11 @@ fn membership_target(predicate: &Expr) -> Option<String> {
         } else if !intent::independent(&key.value) { return None; }
     }
     target
+}
+
+fn membership_source_column(predicate: &Expr) -> Option<&str> {
+    let Expr::Exists { read, .. } = predicate else { return None };
+    read.keys.iter().find_map(|key| intent::column(&key.value).and(key.column.as_deref()))
 }
 
 fn owner_membership_shape(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, read: &ReadExpr) -> bool {

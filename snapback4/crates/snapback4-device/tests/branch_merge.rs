@@ -220,6 +220,58 @@ fn owner_membership<H: Host>(host: &mut H) {
 fn sqlite_owner_membership_pages_use_acquired_groups() { owner_membership(&mut Sqlite::new("branch-owner-membership")); }
 #[test]
 fn memory_owner_membership_pages_use_acquired_groups() { owner_membership(&mut Memory::new()); }
+
+const SINGLE_OWNER_MEMBERSHIP: &str = "table groups:
+  principal: principal
+  unique principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+
+table documents:
+  owner: principal
+  parent: groups
+  at: int
+  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+
+// @ref LLP 3000.036.001#14 — a fully pinned total-unique online source remains incomplete on both device stores.
+fn single_owner_membership<H: Host>(host: &mut H) {
+    let (mut engine, backend) = compile(SINGLE_OWNER_MEMBERSHIP);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SINGLE_OWNER_MEMBERSHIP.into())]);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    engine.seed(vec![
+        row("groups", vec![("id", id("g0")), ("principal", id("bob"))]),
+        row("groups", vec![("id", id("g1")), ("principal", id("ann"))]),
+        row("documents", vec![("id", id("owned")), ("owner", id("ann")), ("parent", id("g0")), ("at", Value::Int(1))]),
+        row("documents", vec![("id", id("shared")), ("owner", id("bob")), ("parent", id("g1")), ("at", Value::Int(2))]),
+        row("documents", vec![("id", id("hidden")), ("owner", id("bob")), ("parent", id("g0")), ("at", Value::Int(3))]),
+    ]).unwrap();
+    let server = walk_server(&mut engine, "documents", "ann", &[]);
+    assert_eq!(server, (vec!["shared".into(), "owned".into()], true));
+
+    let mut missing = host.open("single-owner-membership-missing", Some(backend.clone())).unwrap();
+    let (out, unknown, _) = missing.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    let out = out.unwrap();
+    assert!(unknown && !out.complete && out.next.is_none() && out.data.as_array().unwrap().is_empty());
+
+    let mut device = host.open("single-owner-membership", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "ann", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let (out, unknown, _) = device.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    let out = out.unwrap();
+    assert!(unknown && !out.complete && out.data.as_array().unwrap().is_empty(), "{}: {out:?}", host.label());
+}
+
+#[test]
+fn sqlite_total_unique_membership_source_uses_implicit_id() { single_owner_membership(&mut Sqlite::new("single-owner-membership")); }
+#[test]
+fn memory_total_unique_membership_source_uses_implicit_id() { single_owner_membership(&mut Memory::new()); }
+
 fn owner_membership_rows(expired: bool) -> Vec<(String, Value)> {
     let membership = |name: &str, parent: &str, until: Value| {
         row(

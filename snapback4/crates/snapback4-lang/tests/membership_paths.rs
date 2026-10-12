@@ -1,6 +1,8 @@
 mod membership_paths { pub mod fixture; }
 use membership_paths::fixture::source;
+use snapback4_core::{Context, Engine, Value, value::object};
 use snapback4_lang::{Bound, compile};
+use std::collections::BTreeMap;
 fn bind(text: &str) -> Bound { compile(&[("schema.q".into(), text.into())]) }
 fn clean(text: &str) -> Bound { let b=bind(text); assert!(b.diagnostics.is_empty(),"{:?}\n{text}",b.diagnostics); b }
 
@@ -62,4 +64,62 @@ fn mismatched_audiences_keep_sync_code_and_schema_specific_repair() {
         let repaired=bad.replace("read <- exists members[.parent.group, viewer]","read through .parent").replace(audience,"sync");
         clean(&repaired);
     }}
+}
+
+const SINGLE_MEMBERSHIP: &str = "table groups:
+  principal: principal
+  until: time ?
+  unique principal
+  cap 16 by principal
+  by byExpiry: until
+  expire at .until
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: groups
+  at: int
+  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 10 by .at after c
+";
+
+fn single_membership_engine(bound: &Bound, include_group: bool) -> Engine {
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|program| program.program.clone())).unwrap();
+    let mut rows = vec![
+        ("groups".into(), object([("id", Value::Id("g0".into())), ("principal", Value::Id("bob".into())), ("until", Value::Null)])),
+        ("documents".into(), object([("id", Value::Id("owned".into())), ("owner", Value::Id("alice".into())), ("parent", Value::Id("g0".into())), ("at", Value::Int(1))])),
+    ];
+    if include_group { rows.extend([
+        ("groups".into(), object([("id", Value::Id("g1".into())), ("principal", Value::Id("alice".into())), ("until", Value::Int(5))])),
+        ("documents".into(), object([("id", Value::Id("shared".into())), ("owner", Value::Id("bob".into())), ("parent", Value::Id("g1".into())), ("at", Value::Int(2))])),
+    ]); }
+    engine.seed(rows).unwrap(); engine
+}
+
+// @ref LLP 3000.036.001#14 — a total one-row source key may return its implicit row id as the parent lane.
+#[test]
+fn total_unique_membership_source_uses_its_implicit_row_id() {
+    let bound = clean(SINGLE_MEMBERSHIP);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    assert!(bound.schema.required_capabilities().contains("branch-membership-v1"));
+    let ask = |engine: &mut Engine, at| engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)])).at(at)).unwrap();
+    let mut live = single_membership_engine(&bound, true);
+    let before = ask(&mut live, 4); assert!(before.complete); assert_eq!(before.data.as_array().unwrap().len(), 2);
+    let after = ask(&mut live, 6); assert!(after.complete); assert_eq!(after.data.as_array().unwrap().len(), 1);
+    let mut missing = single_membership_engine(&bound, false);
+    let absent = ask(&mut missing, 4); assert!(absent.complete); assert_eq!(absent.data.as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn nullable_unique_membership_source_keeps_the_original_scan() {
+    let bound = clean(&SINGLE_MEMBERSHIP.replace("principal: principal\n", "principal: principal ?\n"));
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(bound.schema.tables["documents"].indexes.iter().all(|(name, index)| !name.starts_with("$intent")
+        || !matches!(index.columns().as_slice(), [first, ..] if first == "owner" || first == "parent")));
+    assert_eq!(bound.schema.tables["groups"].indexes.values().filter(|index| index.columns() == ["principal"]).count(), 1);
+    assert_eq!(bound.schema.tables["groups"].indexes.len(), 3, "only byId, byExpiry and the declared unique remain");
+    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
+    assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
 }

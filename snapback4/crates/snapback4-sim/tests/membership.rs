@@ -372,3 +372,48 @@ query page_docs(c: cursor ?):
         "the witness remains physically unswept"
     );
 }
+
+// @ref LLP 3000.036.001#14 — a total one-row source yields its implicit id, but only while that row is live.
+#[test]
+fn owner_or_total_unique_source_id_expires_as_one_complete_lane() {
+    let source = "table groups:
+  principal: principal
+  until: time ?
+  unique principal
+  cap 16 by principal
+  by byExpiry: until
+  expire at .until
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: id
+  at: int
+  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 10 by .at after c
+";
+    let compiled = bound(source);
+    assert!(snapback4_core::ir::body_merges(&compiled.programs[0].program.body)
+        .into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|program| program.program)).unwrap();
+    engine.seed([
+        ("groups".into(), snapback4_core::value::object([
+            ("id", id("g1")), ("principal", id("alice")), ("until", Value::Int(5)),
+        ])),
+        ("documents".into(), snapback4_core::value::object([
+            ("id", id("owned")), ("owner", id("alice")), ("parent", id("g0")), ("at", Value::Int(1)),
+        ])),
+        ("documents".into(), snapback4_core::value::object([
+            ("id", id("shared")), ("owner", id("bob")), ("parent", id("g1")), ("at", Value::Int(2)),
+        ])),
+    ]).unwrap();
+    let ids = |out: &snapback4_core::QueryOutcome| out.data.as_array().unwrap().iter()
+        .map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()).collect::<Vec<_>>();
+    let before = engine.query("documents", context("alice", &[("c", Value::Null)]).at(4)).unwrap();
+    assert_eq!(ids(&before), ["shared", "owned"]); assert!(before.complete && before.next.is_none());
+    let after = engine.query("documents", context("alice", &[("c", Value::Null)]).at(6)).unwrap();
+    assert_eq!(ids(&after), ["owned"]); assert!(after.complete && after.next.is_none());
+    assert_eq!(engine.store().count("groups").unwrap(), 1, "expired source remains physically unswept");
+}
