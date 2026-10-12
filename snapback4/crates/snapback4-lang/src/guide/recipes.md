@@ -1,4 +1,4 @@
-# Recipes: roles, two parties, booking and schedules
+# Recipes: roles, two parties, booking, deleting and schedules
 
 Each recipe is one compiled schema for an app shape that otherwise takes several cards to assemble.
 Copy one whole, then rename its tables; each says how it syncs, how to test it and which refusals to expect.
@@ -244,7 +244,7 @@ table slots:
   sync public last 500 by .startsAt
 
 table bookings:
-  slot: slots
+  slot: slots on delete restrict         -- a slot with seats taken is not deleted (the default, declared)
   guest: principal
   at: time default now
   unique slot, guest else ALREADY_BOOKED 'You already hold a seat.'
@@ -284,13 +284,12 @@ mutation removeSlot(slot: slots):
   delete slots[slot]
 ```
 
-A delete does not cascade: a removed slot would leave its bookings naming
-a deleted row (N_DELETE_ORPHANS). `removeSlot` refuses while any booking
-exists, by the public count: `require not exists bookings[slot = slot]` is
-refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
-bookings, and a count is the one fact about them the host may see. The
-`require taken[slot] = 0` guard is what silences N_DELETE_ORPHANS; any
-unfiltered `count child by .ref` view does the same for its child table.
+`slot: slots on delete restrict` refuses a slot's delete while a booking
+names it (E_REFERENCED); `on delete cascade` would cancel the guests'
+bookings instead (`guide writes`). `removeSlot` checks first, by the public
+count, to answer with its own code: `require not exists bookings[slot = slot]`
+is refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
+bookings, and a count is the one fact about them the host may see.
 
 Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 
@@ -302,6 +301,68 @@ Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 {"as":"carol","op":"book","args":{"slot":"s1"}}
 {"as":"alice","op":"removeSlot","args":{"slot":"s1"},"expect":"HAS_BOOKINGS","label":"alice hosts s1; carol still holds its seat"}
 ```
+
+## Deleting: cascade, restrict, set null, keep
+
+Each reference column says what deleting its target does to the rows that
+name it. Undeclared is `on delete restrict`.
+
+```quarry
+table projects:
+  owner: principal
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  delete <- .owner = viewer
+table folders:
+  owner: principal
+  read <- .owner = viewer
+  delete <- .owner = viewer
+table tasks:
+  project: projects on delete cascade     -- deleted with the project, in the same commit
+  folder: folders ? on delete set null    -- cleared; only an optional reference no rule reads
+  owner: principal
+  cap 500 by project                      -- cascade and set null need a cap on the reference
+  cap 500 by folder
+  read <- .owner = viewer
+  insert <- .owner = viewer
+table comments:
+  task: tasks on delete restrict          -- the default: the task's delete refuses E_REFERENCED
+  author: principal
+  read <- .author = viewer
+table audits:
+  task: tasks on delete keep              -- stays, naming a deleted task (the meaning before 0.5)
+  read <- deny
+mutation dropProject(id: projects):
+  delete projects[id]                     -- its tasks go too, unless a comment still names one
+mutation dropFolder(id: folders):
+  delete folders[id]                      -- its tasks stay, unfiled
+```
+
+- `restrict` refuses while a live row references the target, naming
+  `comments.task`; the deleter learns only that some row does. Anyone whose
+  insert rule admits a referencing row can hold your row this way, so a
+  reference other principals create to your rows (a like, a bookmark, an
+  RSVP) should be `cascade`.
+- `cascade` deletes the referencing rows, and their references act in turn;
+  rows the same delete removes never hold each other back. The parent's
+  delete authorizes it (the children's rules are not consulted), and nothing
+  the caller sees — meter, touched tables, event count — depends on how many
+  there were: each delete reserves its chain's worst case from the caps. A
+  cascade too large for a mutation is refused by `check` (E_CASCADE_BOUND):
+  lower the cap, or keep `restrict` and delete the children in a job first.
+- `set null` clears an optional reference that carries no authority: no rule
+  of any table reads it (E_REFERENCE_ACTION otherwise). `keep` is for
+  history that outlives its subject.
+- A table that `restrict`, `cascade` or `set null` references name needs its
+  deleter to read the row too (N_DELETE_NEEDS_READ). Expiry is not a delete:
+  an expired target fires nothing. Writes still do not check that a target
+  exists: insert parents with minted ids, and write
+  `insert <- … and exists projects[.project]` where a child needs a live one.
+- A device predicts such a delete only when it holds every referencing row;
+  otherwise the call queues for the server.
+- Since 0.5 an undeclared reference refuses instead of keeping its rows;
+  `check` names each delete that changed (N_DELETE_RESTRICTED). Declare
+  `on delete keep` to restore the old meaning.
 
 ## Schedules: close at a time, remind ahead, catch up
 

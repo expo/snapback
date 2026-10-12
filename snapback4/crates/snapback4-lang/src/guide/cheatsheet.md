@@ -19,7 +19,7 @@ table lists:                              -- every table has an implicit `id`
   cap 100 by owner                        -- at most 100 rows per owner
   sync to .owner last 100 by .at          -- each owner's devices hold their newest 100
 table items:
-  list: lists                             -- a reference: the parent row's id
+  list: lists on delete cascade           -- a reference: the parent's id; deleting it deletes these
   owner: principal
   text: text 1..200
   done: bool default false
@@ -83,8 +83,8 @@ mutation removeItem(item: items):
 - Pages: `where` is optional (`return pieces first 50 by .id after c`). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.
 - Writes: `insert t { .. }`, `update t[id] { .. }`, `upsert t[k] { .. }`, `delete t[id]` (`guide writes`).
   A missing target refuses NOT_FOUND, `delete` too: guard it with `if exists t[id]:` and `delete t[id]` on the next line.
-  Each statement checks `unique`, so swap two keys through a free value. Deleting a row leaves rows
-  that reference it (delete them first); `read through` children refuse with E_PARENT_HAS_CHILDREN.
+  Each statement checks `unique`, so swap two keys through a free value. A reference says what deleting
+  its target does: `on delete restrict` (default; E_REFERENCED), `cascade`, `set null`, `keep` (`guide recipes`).
 - Table clauses: `unique a, b else CODE`, `cap N by col`, `immutable col`, `expire at .col`, `search col`,
   `public 'why'`, `online only`, `sync to .col last N by .at` (`guide sync`, `guide bounds`).
 - Reserved as column names: `after by cap delete deliver ephemeral expire immutable insert online public read

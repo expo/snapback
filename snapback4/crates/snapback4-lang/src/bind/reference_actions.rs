@@ -28,8 +28,10 @@ pub(super) fn indexes(catalog: &mut Catalog) {
             let TypeKind::Ref { table: parent } = &column.type_.kind else { continue };
             if column.on_delete.as_ref().is_some_and(|(a, _)| *a == OnDelete::Keep) || !ordinary(catalog, parent) { continue; }
             if info.through.as_ref().is_some_and(|through| through.reference == column.name) { continue; }
+            // @ref LLP 3000.038#2.3 — the effective deadline: a read-through child's `$deadline`, else `expire at`.
             let mut leading = vec![column.name.clone()];
-            if let Some((expire, _)) = &info.decl.expire { leading.push(expire.clone()); }
+            if info.through.as_ref().is_some_and(|t| t.expiring) { leading.push(snapback4_core::schema::through::DEADLINE.to_owned()); }
+            else if let Some((expire, _)) = &info.decl.expire { leading.push(expire.clone()); }
             if info.indexes.iter().any(|index| index.is_plain() && index.columns.starts_with(&leading)) { continue; }
             leading.push("id".into());
             wanted.push((name.clone(), IndexDecl { name: references::reference_index_name(&column.name), columns: leading, unique: false, refusal: None, words: None, computed: BTreeMap::new(), site: column.site.clone() }));
@@ -88,7 +90,9 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
                     format!("cap 500 by {}   -- choose the product limit; for an unbounded relation keep `on delete restrict` and delete the {name} rows in a job first (guide writes)", column.name)).guide("writes"));
                 continue;
             }
-            lowered.push((name.clone(), column.name.clone(), chosen));
+            // `keep` is the legacy meaning, so the schema spells it by absence: a
+            // schema whose references all keep stays byte-identical and capability-free.
+            if chosen != Action::Keep { lowered.push((name.clone(), column.name.clone(), chosen)); }
         }
     }
     for (name, column, chosen) in lowered {
@@ -98,11 +102,16 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
     let mut reported = BTreeSet::new();
     for name in schema.tables.keys().cloned().collect::<Vec<_>>() {
         if schema.delete_reservation(&name).is_some() || !schema.is_referenced(&name) { continue; }
-        let Some(r) = schema.referencing(&name).find(|r| r.action == Action::Cascade) else { continue };
+        let Some(r) = schema.referencing(&name).into_iter().find(|r| r.action == Action::Cascade) else { continue };
         if !reported.insert((r.child.to_owned(), r.column.to_owned())) { continue; }
         let site = catalog.tables.get(r.child).and_then(|info| info.decl.columns.iter().find(|c| c.name == r.column)).map(|c| c.on_delete.as_ref().map_or(&c.site, |(_, s)| s).clone()).unwrap_or_default();
         diagnostics.push(Diagnostic::new(&site, "E_REFERENCE_ACTION", format!("on delete cascade from {name} reaches {name} again: a cascade must end, so the cascading references cannot form a cycle"),
             format!("{}: {name} on delete restrict   -- or set null on an optional reference", r.column)).guide("writes"));
+    }
+    if let Some(table) = schema.deletion_cycle() && !diagnostics.iter().any(|d| d.code == "E_REFERENCE_ACTION") {
+        let site = catalog.tables.get(&table).map(|info| info.decl.site.clone()).unwrap_or_default();
+        diagnostics.push(Diagnostic::new(&site, "E_REFERENCE_ACTION", format!("{table} reaches itself through `on delete cascade` and `read through`: a cascade deletes children before parents, and a read-through child must go before its parent, so no order can delete those rows"),
+            "make one of the cascading references `on delete restrict`").guide("writes"));
     }
     for issue in references::validate(schema) {
         let site = catalog.site_for(&issue.path);
@@ -113,7 +122,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
 
 /// Every delete site: a cascade whose reservation cannot fit its program is
 /// `E_CASCADE_BOUND`; an undeclared reference that can now refuse the delete
-/// is `N_DELETE_RESTRICTED` (it replaces `N_DELETE_ORPHANS`).
+/// is `N_DELETE_RESTRICTED` (it replaces the 0.4 orphans note).
 // @ref LLP 3000.038#7 — the note fires exactly where the restrict default changed a delete's behavior.
 pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut Vec<Diagnostic>) -> Vec<Diagnostic> {
     // parent -> the undeclared references that now refuse its delete.
@@ -128,19 +137,31 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
             }
         }
     }
+    // A count of a child by its reference (`view rsvpCount: count rsvps by
+    // .night`, unfiltered): `require rsvpCount[night] = 0` before the delete
+    // proves no child exists, so the default cannot change that delete.
+    // @ref LLP 3000.036#16.2 — wave 6 R2: the zero-count guard handles the children.
+    let counts: BTreeMap<String, (String, String)> = catalog.maintains.iter().filter_map(|(name, m)| {
+        let [by] = m.by.as_slice() else { return None };
+        (m.aggregate == "count" && m.filter.is_none() && m.row_key.is_none()).then(|| (name.clone(), (m.source.clone(), by.trim_start_matches('.').to_owned())))
+    }).collect();
     let mut notes = Vec::new();
     for doc in &catalog.documents {
         for program in doc.programs.iter().filter(|p| !matches!(p.kind, ProgramKind::Query) && !p.native) {
             let mut deletes: Vec<(String, crate::diag::Site)> = Vec::new();
+            let mut counted: BTreeSet<(String, String)> = BTreeSet::new();
             let mut program = program.clone();
-            let mut visit = |value: &mut Expr| if let Expr::Write { op: WriteOp::Delete, table, site, .. } = value
-                && !deletes.iter().any(|(seen, _)| seen == table) { deletes.push((table.clone(), site.clone())); };
+            let mut visit = |value: &mut Expr| match value {
+                Expr::Write { op: WriteOp::Delete, table, site, .. } if !deletes.iter().any(|(seen, _)| seen == table) => deletes.push((table.clone(), site.clone())),
+                Expr::Read(read) | Expr::Exists { read, .. } => if let Some(pair) = counts.get(&read.table) { counted.insert(pair.clone()); },
+                _ => {}
+            };
             walk::statements(&mut program.prelude, &mut visit);
             walk::statements(&mut program.body, &mut visit);
             let word = if program.kind == ProgramKind::Job { "job" } else { "mutation" };
             for (parent, site) in deletes {
                 if let Some(price) = schema.delete_reservation(&parent) && let Some(over) = over_ceiling(&price, program.kind == ProgramKind::Job) {
-                    let chain = schema.referencing(&parent).filter(|r| r.action.writes())
+                    let chain = schema.referencing(&parent).into_iter().filter(|r| r.action.writes())
                         .map(|r| format!("{}.{} ({}, cap {})", r.child, r.column, r.action.words(), schema.reference_cap(r.child, r.column).unwrap_or(0))).collect::<Vec<_>>().join(", ");
                     diagnostics.push(Diagnostic::new(&site, "E_CASCADE_BOUND",
                         format!("{word} {}: `delete {parent}[…]` reserves {over} for what it deletes or clears through {chain}, whether or not those rows exist, so the {word} can never commit", program.name),
@@ -151,11 +172,19 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                 let mut reached = vec![parent.clone()];
                 let mut at = 0;
                 while at < reached.len() {
-                    let next: Vec<String> = schema.referencing(&reached[at]).filter(|r| r.action == Action::Cascade).map(|r| r.child.to_owned()).collect();
+                    let next: Vec<String> = schema.referencing(&reached[at]).into_iter().filter(|r| r.action == Action::Cascade).map(|r| r.child.to_owned()).collect();
                     for table in next { if !reached.contains(&table) { reached.push(table); } }
                     at += 1;
                 }
-                let kept: Vec<(&str, &str, &str)> = reached.iter().flat_map(|table| undeclared.get(table.as_str()).into_iter().flatten().map(move |(c, col)| (table.as_str(), *c, *col))).collect();
+                let kept: Vec<(&str, &str, &str)> = reached.iter().flat_map(|table| undeclared.get(table.as_str()).into_iter().flatten().map(move |(c, col)| (table.as_str(), *c, *col)))
+                    .filter(|(target, c, col)| !(*target == parent.as_str() && counted.contains(&((*c).to_owned(), (*col).to_owned())))).collect();
+                // @ref LLP 3000.038#7 — the read prerequisite is the other behavior change: name it where a deleter may not be a reader.
+                if program.kind != ProgramKind::Job && schema.is_referenced(&parent) && !deleters_read(schema, &parent) && !schema.children(&parent).any(|_| true) {
+                    notes.push(Diagnostic::new(&site, "N_DELETE_NEEDS_READ",
+                        format!("mutation {}: `delete {parent}[…]` now also needs read authority on the row: other rows reference {parent} ({}), so a caller the delete rule admits but the read rule does not gets NOT_FOUND", program.name,
+                            schema.referencing(&parent).into_iter().map(|r| format!("{}.{}", r.child, r.column)).collect::<Vec<_>>().join(", ")),
+                        format!("make every {parent} deleter a reader (`delete <- <the read rule> and …`), or mark the reference `on delete keep` if deleting {parent} should not consult those rows")).guide("writes"));
+                }
                 let Some(&(target, child, column)) = kept.first() else { continue };
                 let named = kept.iter().map(|(_, child, column)| format!("{child}.{column}")).collect::<Vec<_>>().join(", ");
                 let through = if target == parent { String::new() } else { format!(" (through its cascade to {target})") };
@@ -173,4 +202,14 @@ fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
     let c = if job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };
     let limits = [(price[3], c.rows_written, "rows written"), (price[2], c.examined, "rows examined"), (price[1], c.index_entries, "index entries"), (price[0], c.steps, "steps"), (price[4], c.heap_bytes, "heap bytes"), (price[6], c.rule_probes, "rule probes")];
     limits.iter().find(|(used, limit, _)| used > limit).map(|(used, limit, kind)| format!("{used} {kind} (a {} may use {limit})", if job { "job chunk" } else { "mutation" }))
+}
+
+/// Whether every principal the delete rule admits can read the row, by a
+/// structural sufficient condition: a uniformly readable or denied table, or a
+/// delete rule that is the read rule or a conjunction containing it.
+fn deleters_read(schema: &core::Schema, table: &str) -> bool {
+    let Some(t) = schema.table(table) else { return true };
+    let (read, delete) = (&t.rules.read, &t.rules.delete);
+    read.is_uniformly_readable() || matches!(delete, core::RuleExpr::Deny) || delete == read
+        || matches!(delete, core::RuleExpr::And(items) if items.iter().any(|item| item == read || matches!(read, core::RuleExpr::And(parts) if parts.iter().all(|p| items.contains(p)))))
 }

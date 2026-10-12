@@ -7,7 +7,7 @@ table posts:
  insert <- .authorId = viewer
  sync public
 table likes:
- postId: posts
+ postId: posts on delete keep
  principal: principal
  immutable postId
  read <- allow

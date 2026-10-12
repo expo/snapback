@@ -17,7 +17,7 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
 `upsert` inserts/patches; `delete` removes the row: NOT_FOUND when absent
-(guard with `if exists t[id]:`); rows referencing it stay (N_DELETE_ORPHANS).
+(guard with `if exists t[id]:`); references obey `on delete` (recipes).
 An omitted optional argument is null, the same as an explicit null: `x = null`
 is true either way, and no test tells them apart. So a patch `{ c: x }` clears `c` when `x` is omitted: write
 `x ?? row.c` to keep it, and pass a flag when clearing is meant (Details).

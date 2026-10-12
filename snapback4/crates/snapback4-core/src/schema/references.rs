@@ -39,6 +39,10 @@ pub struct Referencing<'a> {
 pub const REFERENCE_INDEX_PREFIX: &str = "$reference:";
 pub fn reference_index_name(column: &str) -> String { format!("{REFERENCE_INDEX_PREFIX}{column}") }
 
+/// Heap a closure keeps per reached row: its table and id (an id is at most
+/// 144 canonical bytes) and the set and queue entries holding them.
+pub const CLOSURE_IDENTITY_BYTES: u64 = 384;
+
 impl Schema {
     /// Whether rows of `name` take part in referential actions, as child or
     /// parent: an ordinary durable application table. Ephemeral rows, engine
@@ -52,16 +56,22 @@ impl Schema {
 
     /// Every reference into `parent` a delete consults (all but `keep`), in
     /// (child, column) order.
-    pub fn referencing<'a>(&'a self, parent: &'a str) -> impl Iterator<Item = Referencing<'a>> + 'a {
-        self.tables.iter().flat_map(move |(child, table)| table.on_delete.iter().filter_map(move |(column, action)| {
-            (action.acts() && matches!(table.columns.get(column).map(ColumnType::required), Some(ColumnType::Ref { table: target }) if target == parent))
-                .then_some(Referencing { child, table, column, action: *action })
-        }))
+    pub fn referencing<'a>(&'a self, parent: &str) -> Vec<Referencing<'a>> {
+        // A plain loop into a vector: iterator adapters monomorphize per call site on the web device.
+        let mut out = Vec::new();
+        for (child, table) in &self.tables {
+            for (column, action) in &table.on_delete {
+                if action.acts() && matches!(table.columns.get(column).map(ColumnType::required), Some(ColumnType::Ref { table: target }) if target == parent) {
+                    out.push(Referencing { child, table, column, action: *action });
+                }
+            }
+        }
+        out
     }
 
     /// A delete of a `parent` row consults its referencing rows, so it needs
     /// read authority on that row (LLP 3000.038 §3 step 1).
-    pub fn is_referenced(&self, parent: &str) -> bool { self.referencing(parent).next().is_some() }
+    pub fn is_referenced(&self, parent: &str) -> bool { !self.referencing(parent).is_empty() }
 
     /// The index a reference is probed through: its column first, then the
     /// child's deadline column when the child can expire, so one seek skips an
@@ -71,7 +81,8 @@ impl Schema {
         if table.through.as_ref().is_some_and(|t| t.reference == column) {
             return table.indexes.contains_key(through::CHILDREN).then_some(through::CHILDREN);
         }
-        let deadline = table.expire.as_deref();
+        // The effective deadline: a read-through child's `$deadline`, else `expire at`.
+        let deadline = table.expiry_column();
         table.indexes.iter().find(|(_, index)| {
             let columns = index.columns();
             index.is_plain() && columns.first().map(String::as_str) == Some(column)
@@ -108,7 +119,40 @@ impl Schema {
                 if r.action == OnDelete::Cascade { queue.push(r.child.to_owned()); }
             }
         }
+        // What a write of each of those tables writes in turn: the derived
+        // destinations `row_changed` names (aggregate targets, maintained-column
+        // owners, row-keyed views).
+        let derived: Vec<String> = self.maintains.iter().filter(|m| out.written.contains(&m.source) || m.row_key.as_ref().is_some_and(|k| out.written.contains(&k.table)))
+            .flat_map(|m| [Some(m.target.clone()), m.private.as_ref().map(|owner| owner.table.clone())]).flatten().collect();
+        out.written.extend(derived);
         out
+    }
+
+    /// The order a delete's closure is removed in: a row before any table it
+    /// must not outlive — its cascade parent, and its `read through` parent.
+    /// A cycle through those edges has no valid order and is refused.
+    pub fn deletion_precedes(&self, child: &str, parent: &str) -> bool {
+        self.table(child).is_some_and(|t| t.through.as_ref().is_some_and(|through| through.parent == parent))
+            || self.referencing(parent).into_iter().any(|r| r.child == child && r.action == OnDelete::Cascade)
+    }
+
+    /// A table that reaches itself through cascade and `read through` edges.
+    pub fn deletion_cycle(&self) -> Option<String> {
+        fn visit<'a>(schema: &'a Schema, name: &'a str, path: &mut Vec<&'a str>, done: &mut BTreeSet<&'a str>) -> Option<String> {
+            if path.contains(&name) { return Some(name.to_owned()); }
+            if !done.insert(name) { return None; }
+            path.push(name);
+            for (child, _) in &schema.tables {
+                if schema.deletion_precedes(child, name) && let Some(cycle) = visit(schema, child, path, done) { return Some(cycle); }
+            }
+            path.pop();
+            None
+        }
+        let mut done = BTreeSet::new();
+        self.tables.keys().find_map(|name| if self.tables[name].on_delete.values().any(|a| *a == OnDelete::Cascade) || self.is_referenced(name) {
+            let mut path = Vec::new();
+            visit(self, name, &mut path, &mut done)
+        } else { None })
     }
 
     /// Whether `name` is a table a timeline orders the writes of.
@@ -116,46 +160,98 @@ impl Schema {
         self.timelines.iter().any(|t| t.owns(name) || t.maps(name) || t.authors.first().is_some_and(|a| a == name))
     }
 
-    /// The fixed charge a delete of a `parent` row reserves before it probes,
-    /// cascades or clears any child. A function of the schema only — caps, the
-    /// reference graph, each child's indexes and row size, and each child's
-    /// exported source-write price — so a meter, and an `E_BOUND` abort, never
-    /// depend on how many (hidden) children exist, and every host charges the
-    /// same: a device's projection keeps every table that can carry an action
-    /// and every exported price. `None` when the cascade graph from `parent` is
-    /// cyclic, a writing reference lacks its cap, or a written child has no
-    /// fixed write price.
-    // @ref LLP 3000.038#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
-    pub fn delete_reservation(&self, parent: &str) -> Option<Price> {
-        self.reservation_from(parent, &mut Vec::new())
+    /// The most rows of each table one delete of a `parent` row can reach
+    /// through its cascades (its closure), the root included: each cascade
+    /// edge multiplies by its cap, and edges into a table add up. `None` when
+    /// the cascade graph from `parent` is cyclic or a cascade lacks its cap.
+    pub fn closure_bounds(&self, parent: &str) -> Option<Vec<(String, u64)>> {
+        // Vectors, not maps: the web device pays for every new collection type.
+        let mut reach: Vec<String> = vec![parent.to_owned()];
+        let mut edges: Vec<(usize, usize, u64)> = Vec::new();
+        let mut at = 0;
+        while at < reach.len() {
+            let table = reach[at].clone();
+            for r in self.referencing(&table) {
+                if r.action != OnDelete::Cascade { continue; }
+                let cap = u64::from(self.reference_cap(r.child, r.column)?);
+                let child = reach.iter().position(|t| t == r.child).unwrap_or_else(|| { reach.push(r.child.to_owned()); reach.len() - 1 });
+                edges.push((at, child, cap));
+            }
+            at += 1;
+        }
+        // Kahn's order over the reached cascade subgraph; a leftover table is a cycle.
+        let mut indegree = vec![0_usize; reach.len()];
+        for &(_, child, _) in &edges { indegree[child] += 1; }
+        let mut bounds = vec![0_u64; reach.len()];
+        bounds[0] = 1;
+        let mut ready: Vec<usize> = (0..reach.len()).filter(|&t| indegree[t] == 0).collect();
+        let mut done = 0;
+        while let Some(table) = ready.pop() {
+            done += 1;
+            for &(from, child, cap) in edges.iter().filter(|(from, _, _)| *from == table) {
+                bounds[child] = bounds[child].saturating_add(bounds[from].saturating_mul(cap));
+                indegree[child] -= 1;
+                if indegree[child] == 0 { ready.push(child); }
+            }
+        }
+        (done == reach.len()).then(|| reach.into_iter().zip(bounds).collect())
     }
 
-    fn reservation_from(&self, parent: &str, path: &mut Vec<String>) -> Option<Price> {
-        if path.iter().any(|seen| seen == parent) { return None; }
-        path.push(parent.to_owned());
+    /// The fixed charge a delete of a `parent` row reserves before it probes,
+    /// cascades or clears any row, over every meter: the closure's rows and
+    /// their identities, every restrict probe (one seek per closure row, plus
+    /// the closure rows it skips), every set-null row, and one engine write of
+    /// each, priced from the source-write plan the engine already exports. A
+    /// function of the schema only — caps, the reference graph, each table's
+    /// indexes and row size, and the exported plans — so a meter, an `E_BOUND`
+    /// abort or the physical allowance never depends on how many (hidden) rows
+    /// exist, and every host charges alike: a device's projection keeps every
+    /// table that can carry an action and every exported price. `None` when the
+    /// closure is unbounded (a cycle or a missing cap) or a written table has no
+    /// fixed write price. Heap is the closure's identity scratch plus the largest
+    /// single row's transient work: rows are processed one at a time.
+    // @ref LLP 3000.038#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
+    pub fn delete_reservation(&self, parent: &str) -> Option<Price> {
+        let bounds = self.closure_bounds(parent)?;
         let mut price = [0_u64; 7];
         let mut heap = 0_u64;
-        for r in self.referencing(parent).collect::<Vec<_>>() {
-            let row = crate::engine::row_copy_ceiling(r.table);
-            let seeks = if r.table.expire.is_some() { 2 } else { 1 };
-            // The probe: bounded seeks (two for an expiring child) at a fixed charge.
-            add(&mut price, [seeks * 2, seeks, seeks * 2, 0, 0, 0, 0]);
-            heap = heap.max(row.saturating_mul(2));
-            if !r.action.writes() { continue; }
-            let cap = u64::from(self.reference_cap(r.child, r.column)?);
-            let mut unit = self.unit_write(r.child)?;
-            heap = heap.max(unit[4]);
-            unit[4] = 0;
-            if r.action == OnDelete::Cascade {
-                let mut nested = self.reservation_from(r.child, path)?;
-                heap = heap.max(nested[4]);
-                nested[4] = 0;
-                add(&mut unit, nested);
+        let mut identities = 0_u64;
+        let rows_of = |name: &str| bounds.iter().find(|(t, _)| t == name).map_or(0, |(_, n)| *n);
+        for (table, n) in &bounds {
+            let n = *n;
+            if table != parent {
+                // Fetched by the closure walk and again, current, before its delete.
+                let unit = self.unit_write(table)?;
+                heap = heap.max(unit[4]);
+                add(&mut price, [unit[0], unit[1], unit[2] + 1, unit[3], 0, unit[5], unit[6]].map(|v| v.saturating_mul(n)));
+                identities = identities.saturating_add(n);
             }
-            add(&mut price, unit.map(|n| n.saturating_mul(cap)));
+            for r in self.referencing(table) {
+                let row = crate::engine::row_copy_ceiling(r.table);
+                heap = heap.max(row.saturating_mul(4));
+                let seeks = if r.table.expiry_column().is_some() && r.table.through.as_ref().is_none_or(|t| t.reference != r.column) { 2 } else { 1 };
+                match r.action {
+                    // A read-through child's probe: three seeks per closure row (LLP 3000.014 §6).
+                    OnDelete::Restrict if r.table.through.as_ref().is_some_and(|t| t.reference == r.column) =>
+                        if table != parent { add(&mut price, [3_u64, 0, 3, 0, 0, 0, 0].map(|v| v.saturating_mul(n))); },
+                    // One probe per closure row, which may skip the closure rows that name it.
+                    OnDelete::Restrict => add(&mut price, [2 * seeks * n + rows_of(r.child), seeks * n, seeks * n + rows_of(r.child) + n, 0, 0, 0, 0]),
+                    OnDelete::Cascade => add(&mut price, [2 * seeks * n, seeks * n, seeks * n, 0, 0, 0, 0]),
+                    OnDelete::SetNull => {
+                        let cleared = u64::from(self.reference_cap(r.child, r.column)?).saturating_mul(n);
+                        let unit = self.unit_write(r.child)?;
+                        heap = heap.max(unit[4]);
+                        add(&mut price, [2 * seeks * n, seeks * n, seeks * n, 0, 0, 0, 0]);
+                        add(&mut price, [unit[0], unit[1], unit[2] + 1, unit[3], 0, unit[5], unit[6]].map(|v| v.saturating_mul(cleared)));
+                    }
+                    OnDelete::Keep => {}
+                }
+            }
         }
-        price[4] = heap;
-        path.pop();
+        // The root is read again, current, before its own removal.
+        price[2] = price[2].saturating_add(1);
+        // The closure's identities (table and id) are held until the last delete.
+        price[4] = heap.saturating_add(identities.saturating_mul(CLOSURE_IDENTITY_BYTES));
         Some(price)
     }
 
@@ -253,6 +349,8 @@ pub fn write_target_refusal(schema: &Schema, name: &str) -> Option<String> {
     if table.constraints.iter().any(|c| matches!(c, Constraint::AppendOnly)) { Some(format!("{name} is append only")) }
     else if !table.written_by.is_empty() { Some(format!("{name} has field-owned (`written by`) columns, whose owners the schema singled out")) }
     else if schema.timeline_member(name) { Some(format!("a timeline orders {name}'s writes")) }
+    else if schema.maintains.iter().any(|m| m.row_key.as_ref().is_some_and(|k| k.table == name)) { Some(format!("{name} is a row-keyed view's member table, whose writes may recount a group outside any fixed price")) }
+    else if schema.maintains.iter().any(|m| m.source == name && matches!(m.kind, MaintainKind::Sum { .. })) { Some(format!("{name} feeds a maintained sum, whose total another row's delete could push out of range: a refusal that would depend on rows the deleter cannot see")) }
     else if schema.write_reservation(name).is_none_or(|plan| plan.server_only) { Some(format!("{name}'s writes have no fixed price, so a cascade into it cannot be reserved")) }
     else { None }
 }
@@ -295,10 +393,13 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             }
         }
     }
+    if let Some(table) = schema.deletion_cycle() {
+        issues.push(SchemaIssue { path: format!("tables.{table}"), message: format!("{table} reaches itself through on delete cascade and read through: no order can delete those rows") });
+    }
     for name in schema.tables.keys() {
         if schema.is_referenced(name) && schema.delete_reservation(name).is_none()
             && schema.action_tables(name).written.iter().all(|t| write_target_refusal(schema, t).is_none())
-            && schema.referencing(name).all(|r| !r.action.writes() || schema.reference_cap(r.child, r.column).is_some()) {
+            && schema.referencing(name).into_iter().all(|r| !r.action.writes() || schema.reference_cap(r.child, r.column).is_some()) {
             issues.push(SchemaIssue { path: format!("tables.{name}"), message: format!("on delete cascade from {name} reaches {name} again; a cascade cannot be cyclic") });
         }
     }

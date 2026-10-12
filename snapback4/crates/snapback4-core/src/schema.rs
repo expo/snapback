@@ -280,8 +280,10 @@ pub struct Table {
     /// Lifetime-bound inherited authority. Absent on legacy schemas.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub through: Option<through::Through>,
-    /// What deleting a referenced row does, per reference column. Absent on
-    /// legacy schemas, whose references kept their children (LLP 3000.038).
+    /// What deleting a referenced row does, per reference column. A reference
+    /// with no entry keeps its rows when its target is deleted (`on delete
+    /// keep`, the only meaning before LLP 3000.038), so a schema whose
+    /// references all keep serializes exactly as it did before.
     #[serde(default, rename = "onDelete", skip_serializing_if = "BTreeMap::is_empty")]
     pub on_delete: BTreeMap<String, references::OnDelete>,
     /// Engine-maintained readable fields, with their derivation identity.

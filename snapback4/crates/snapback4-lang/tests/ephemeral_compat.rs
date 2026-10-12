@@ -13,7 +13,7 @@ fn durable_schema_and_types_keep_base_bytes() {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         if !bound.diagnostics.is_empty() { continue; } // Repair fixtures deliberately refuse.
         actual.insert(file.file_name().unwrap().to_str().unwrap().to_owned(), (
-            serde_json::to_string(&bound.schema).unwrap(), snapback4_lang::emit::typescript(&bound)));
+            strip_reference_actions(&serde_json::to_string(&bound.schema).unwrap()), snapback4_lang::emit::typescript(&bound)));
     }
     assert!(actual.len() >= 20, "only {} compilable fixtures", actual.len());
     let mut expected: BTreeMap<String, (String, String)> = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
@@ -149,4 +149,23 @@ fn strip_following(types: &str, schema: &str) -> String {
         types.replace_range(start..end, "");
     }
     types
+}
+
+// @ref LLP 3000.038#8 — referential actions add exactly these schema fields:
+// each reference's `onDelete`, the `$reference:` index it is probed through,
+// and the `reference-actions` capability. Every other byte stays frozen.
+fn strip_reference_actions(text: &str) -> String {
+    let mut schema: serde_json::Value = serde_json::from_str(text).unwrap();
+    for table in schema["tables"].as_object_mut().unwrap().values_mut() {
+        let table = table.as_object_mut().unwrap();
+        table.remove("onDelete");
+        if let Some(indexes) = table.get_mut("indexes").and_then(|i| i.as_object_mut()) { indexes.retain(|name, _| !name.starts_with("$reference:")); }
+        if let Some(constraints) = table.get_mut("constraints").and_then(|c| c.as_array_mut()) {
+            for constraint in constraints.iter_mut() {
+                if let Some(names) = constraint.get_mut("Capabilities").and_then(|c| c.as_array_mut()) { names.retain(|n| n != "reference-actions"); }
+            }
+            constraints.retain(|c| c.get("Capabilities").is_none_or(|names| !names.as_array().unwrap().is_empty()));
+        }
+    }
+    serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap()
 }

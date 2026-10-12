@@ -2,7 +2,7 @@
 -- spelling. Named indexes are retained for the pre-planner binder.
 table posts:
   authorId: principal
-  parentId: posts ?
+  parentId: posts ? on delete keep
   at: time
   likeCount: count likes
   repostCount: count reposts
@@ -12,7 +12,7 @@ table posts:
   delete <- .authorId = viewer
 
 table likes:
-  postId: posts
+  postId: posts on delete keep
   principal: principal
   at: time
   weight: int
@@ -23,7 +23,7 @@ table likes:
   delete <- .principal = viewer
 
 table reposts:
-  postId: posts
+  postId: posts on delete keep
   actorId: principal
   at: time
   immutable postId, actorId, at

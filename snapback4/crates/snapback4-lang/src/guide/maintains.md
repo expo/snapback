@@ -309,8 +309,8 @@ table posts:
   insert <- .authorId = viewer
   delete <- .authorId = viewer
 table replies:
-  postId: posts
-  replyTarget: replies ?
+  postId: posts on delete keep
+  replyTarget: replies ? on delete keep
   authorId: principal
   body: text <=500
   immutable postId, replyTarget, authorId
@@ -318,7 +318,7 @@ table replies:
   insert <- .authorId = viewer
   delete <- .authorId = viewer
 table postLikes:
-  postId: posts
+  postId: posts on delete keep
   principal: principal
   unique postId, principal
   immutable postId, principal
@@ -326,7 +326,7 @@ table postLikes:
   insert <- .principal = viewer
   delete <- .principal = viewer
 table replyLikes:
-  replyId: replies
+  replyId: replies on delete keep
   principal: principal
   unique replyId, principal
   immutable replyId, principal
@@ -374,7 +374,7 @@ counts of still-present contributions with recorded target authors, not counts
 of all events ever created and not live joins against current targets.
 
 Deleting Bob's reply removes its contribution to Alice. Carol's reply and a
-like of Bob's deleted reply still credit Bob. Deleting either contributing row
+like of Bob's deleted reply still credit Bob (`on delete keep`). Deleting either contributing row
 removes that credit. Deleting and recreating the target with the same id never
 reattributes old contributions; fresh contributions capture the new author.
 The mutations above require live targets, while imported or pre-existing rows

@@ -336,7 +336,19 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
-        self.apply_reference_actions(table_name, &old)?;
+        let old = if self.schema.is_referenced(table_name) {
+            self.apply_reference_actions(table_name, &old)?;
+            // @ref LLP 3000.038#3 — the actions may have changed the root (a maintained column mirrored from its children): remove its current image.
+            let id = old.field("id")?.as_str()?.to_owned();
+            self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, &id))?.unwrap_or(old)
+        } else { old };
+        self.delete_row(table_name, old)
+    }
+
+    /// A delete's own removal of one row, its rules already decided: receipt
+    /// membership, the read-through child probe, constraints, maintains and
+    /// the partition event. A referential cascade removes each row this way.
+    pub(super) fn delete_row(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
         let table = &self.schema.tables[table_name];
         self.receipt_member_removed(table_name, &old)?;
         self.refuse_live_children(table_name,old.field("id")?)?;
@@ -721,6 +733,10 @@ impl Runner<'_> {
             }
         }
         self.rows_written += 1;
+        // @ref LLP 3000.038#4.2 — rows a delete's actions change, derived rows included, are not counted in the reply.
+        if self.in_reference_actions && let Some(id) = old.or(new).and_then(|row| row.field("id").ok()).and_then(|id| id.as_str().ok()) {
+            self.action_rows.insert((table_name.to_owned(), id.to_owned()));
+        }
         if origin == Origin::Maintained { self.charge_maintain(MeterKind::RowsWritten, 1)?; }
         else { self.meter.charge(MeterKind::RowsWritten, 1)?; }
         let table = self.schema.table(table_name).expect("validated");

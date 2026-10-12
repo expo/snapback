@@ -65,7 +65,8 @@ fn declaration_classification_facts_and_emission() {
     );
     assert_eq!(
         b.schema.required_capabilities(),
-        ["ephemeral".into()].into()
+        // members.roomId is a reference between durable tables (LLP 3000.038).
+        ["ephemeral".into(), "reference-actions".into()].into()
     );
     let wire = serde_json::to_string(&b.schema).unwrap();
     assert_eq!(

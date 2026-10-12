@@ -229,6 +229,7 @@ pub struct Runner<'a> {
     /// Rows a delete's referential actions wrote (LLP 3000.038 §4.2): their
     /// events are not counted in the reply.
     pub(crate) action_rows: BTreeSet<(String, String)>,
+    pub(crate) in_reference_actions: bool,
     pub(crate) capture_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
@@ -371,6 +372,7 @@ impl<'a> Runner<'a> {
             charged_untaken: false,
             maintain_prepaid: false,
             action_rows: BTreeSet::new(),
+            in_reference_actions: false,
             capture_prepaid: false,
             maintain_heap: 0,
             timeline_authority: None,

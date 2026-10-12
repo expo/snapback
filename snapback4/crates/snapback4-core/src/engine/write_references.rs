@@ -4,7 +4,6 @@
 //! from outside the closure, clear `set null` references outside it, and
 //! remove the closure children first. The caller then removes the row itself.
 // @ref LLP 3000.038#3 — closure first; probes exclude the closure; deletion dominates set null.
-use super::Origin;
 use crate::engine::runner::Runner;
 use crate::{
     error::{MeterKind, RuntimeError},
@@ -13,7 +12,7 @@ use crate::{
     schema::{Effect, references::{OnDelete, Referencing}},
     value::Value,
 };
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 
 impl Runner<'_> {
     pub(super) fn apply_reference_actions(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
@@ -38,7 +37,9 @@ impl Runner<'_> {
         // @ref LLP 3000.038#3 — draw the reservation's rows from the request's physical allowance before the first seek.
         if !self.context.is_system() { self.tx.draw(table_name, price[2])?; }
         let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::unbounded(), Cut::Abort));
+        let outer = std::mem::replace(&mut self.in_reference_actions, true);
         let result = self.reference_closure(table_name, old);
+        self.in_reference_actions = outer;
         self.meter = meter;
         self.meter.release_heap(mark);
         result
@@ -49,74 +50,101 @@ impl Runner<'_> {
         let schema = self.schema;
         let key = |table: &str, row: &Value| -> Result<(String, String), RuntimeError> { Ok((table.to_owned(), row.field("id")?.as_str()?.to_owned())) };
         let mut seen: BTreeSet<(String, String)> = BTreeSet::from([key(root_table, root)?]);
-        let mut reached: Vec<(String, Value)> = Vec::new();
+        // The closure keeps identities only (images are re-read before each
+        // write), plus how many closure rows name each target through each
+        // reference: what a restrict probe must skip (LLP 3000.038 §5.1).
+        let mut reached: Vec<(String, String)> = Vec::new();
+        // (Vectors, not maps: the web device pays for every new collection type.)
+        let mut naming: Vec<(String, String, String)> = Vec::new();
         let mut visits: Vec<(String, Value)> = vec![(root_table.to_owned(), root.field("id")?.clone())];
-        let mut queue: VecDeque<(String, Value)> = VecDeque::from([(root_table.to_owned(), root.field("id")?.clone())]);
-        // 3. Close over cascades. Every reached row's referencing groups must be held on a device.
-        while let Some((table, id)) = queue.pop_front() {
-            for r in schema.referencing(&table).collect::<Vec<_>>() {
+        // 3. Close over cascades, breadth first. Every reached row's referencing groups must be held on a device.
+        let mut next = 0;
+        while next < visits.len() {
+            let (table, id) = visits[next].clone();
+            next += 1;
+            for r in schema.referencing(&table) {
                 if self.device && !through_reference(&r) { self.prove_reference_held(&r, &id)?; }
                 if r.action != OnDelete::Cascade { continue; }
                 for child in self.live_children(&r, &id)? {
-                    if seen.insert(key(r.child, &child)?) {
-                        let child_id = child.field("id")?.clone();
-                        queue.push_back((r.child.to_owned(), child_id.clone()));
-                        visits.push((r.child.to_owned(), child_id));
-                        reached.push((r.child.to_owned(), child));
+                    let child_key = key(r.child, &child)?;
+                    if !seen.insert(child_key.clone()) { continue; }
+                    for column in r.table.on_delete.keys() {
+                        if let Ok(target) = child.field(column).and_then(|value| value.as_str()) {
+                            naming.push((r.child.to_owned(), column.clone(), target.to_owned()));
+                        }
                     }
+                    visits.push((r.child.to_owned(), child.field("id")?.clone()));
+                    reached.push(child_key);
                 }
             }
         }
         // 4. Restrict: every probe runs; the first occupied reference in schema order is reported.
-        let mut occupied: BTreeSet<(String, String, String)> = BTreeSet::new();
+        let mut occupied: Vec<(String, String, String)> = Vec::new();
         for (table, id) in &visits {
-            for r in schema.referencing(table).filter(|r| r.action == OnDelete::Restrict && !through_reference(r)).collect::<Vec<_>>() {
-                let outside = self.live_children(&r, id)?.into_iter().any(|row| key(r.child, &row).is_ok_and(|k| !seen.contains(&k)));
-                if outside { occupied.insert((r.child.to_owned(), r.column.to_owned(), table.clone())); }
+            for r in schema.referencing(table) {
+                if r.action != OnDelete::Restrict || through_reference(&r) { continue; }
+                // Skip only the closure rows that name this one: each closure row names
+                // one target per reference, so one reference's probes visit each closure
+                // row at most once, plus one witness per probe (LLP 3000.038 §5.1).
+                let target = id.as_str()?;
+                let inside = naming.iter().filter(|(child, column, named)| child == r.child && column == r.column && named == target).count();
+                let outside = self.children_page(&r, id, inside + 1)?.into_iter().any(|row| key(r.child, &row).is_ok_and(|k| !seen.contains(&k)));
+                if outside { occupied.push((r.child.to_owned(), r.column.to_owned(), table.clone())); }
             }
         }
-        if let Some((child, column, parent)) = occupied.into_iter().next() {
+        if let Some((child, column, parent)) = occupied.into_iter().min() {
             #[cfg(feature = "sqlite")]
             self.refusing_clause(&child, &format!("{column}: {parent} (on delete restrict)"));
-            return Err(RuntimeError::Structural { code: "E_REFERENCED", message: format!("{root_table} at {} is still referenced through {child}.{column} ({parent} rows reached by this delete are named by live {child} rows; on delete restrict); delete or retarget those rows first, or declare the reference's action (guide writes)", self.statement_site) });
+            let via = if parent == root_table { String::new() } else { format!(", through a {parent} row this delete cascades to") };
+            return Err(RuntimeError::Structural { code: "E_REFERENCED", message: format!("{root_table} at {} is still referenced through {child}.{column} (on delete restrict){via}; delete or retarget those rows first, or declare the reference's action (guide writes)", self.statement_site) });
         }
         // 5. Set null outside the closure, each from its current image.
         for (table, id) in &visits {
-            for r in schema.referencing(table).filter(|r| r.action == OnDelete::SetNull).collect::<Vec<_>>() {
+            for r in schema.referencing(table) {
+                if r.action != OnDelete::SetNull { continue; }
                 for row in self.live_children(&r, id)? {
-                    let row_key = key(r.child, &row)?;
-                    if seen.contains(&row_key) { continue; }
+                    if seen.contains(&key(r.child, &row)?) { continue; }
                     self.clear_reference(r.child, r.column, row)?;
-                    self.action_rows.insert(row_key);
                 }
             }
         }
         // 6. Delete the closure, children first, each from its current image.
-        let order = deletion_order(schema, &reached);
-        for (table, row) in order {
-            let id = row.field("id")?.as_str()?.to_owned();
+        for (table, id) in deletion_order(schema, &reached) {
             let current = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &table, &id))?;
             let Some(current) = current else { continue };
             self.delete_reached(&table, current)?;
-            self.action_rows.insert((table, id));
         }
         Ok(())
     }
 
-    /// The live rows referencing `id` through `r`, found through its index.
+    /// The live rows referencing `id` through a writing reference: at most its cap.
     fn live_children(&mut self, r: &Referencing<'_>, id: &Value) -> Result<Vec<Value>, RuntimeError> {
+        let cap = self.schema.reference_cap(r.child, r.column).map_or(usize::MAX, |cap| cap as usize);
+        let rows = self.children_page(r, id, cap.saturating_add(1))?;
+        // Activation validates caps and every write keeps them; more than the cap
+        // is a store that broke its own invariant, never a hidden-row count.
+        if rows.len() > cap { return Err(RuntimeError::Schema(format!("{}.{} holds more rows than its cap for one {} row", r.child, r.column, r.column))); }
+        Ok(rows)
+    }
+
+    /// Up to `limit` live rows referencing `id` through `r`, through its index:
+    /// seeks that start at the live suffix, so an expired backlog is never visited.
+    fn children_page(&mut self, r: &Referencing<'_>, id: &Value, limit: usize) -> Result<Vec<Value>, RuntimeError> {
         let schema = self.schema;
         let index = schema.reference_index(r.child, r.column).ok_or_else(|| RuntimeError::Schema(format!("{}.{} has no reference index", r.child, r.column)))?.to_owned();
-        let expiring = r.table.expire.is_some() && !through_reference(r);
+        // @ref LLP 3000.038#2.3 — seek on the effective deadline (a read-through child's `$deadline`), so no expired row is visited.
+        let expiring = r.table.expiry_column().is_some() && !through_reference(r);
         let mut rows = Vec::new();
         if expiring {
             let now = self.context.now.ok_or_else(|| RuntimeError::Input("delete clock is not pinned".into()))?;
             for (prefix, bounds) in [(vec![id.clone(), Value::Null], Bounds::default()), (vec![id.clone()], Bounds { gt: Some(Value::Int(now)), ..Default::default() })] {
-                rows.extend(self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, &prefix, &bounds, Dir::Asc, usize::MAX))?.into_iter().map(|(row, _)| row));
+                rows.extend(self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, &prefix, &bounds, Dir::Asc, limit))?.into_iter().map(|(row, _)| row));
             }
+            rows.truncate(limit);
         } else {
-            rows.extend(self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, std::slice::from_ref(id), &Bounds::default(), Dir::Asc, usize::MAX))?.into_iter().map(|(row, _)| row));
+            rows.extend(self.metered_scan(|runner, allowance| runner.tx.scan(allowance, r.child, &index, std::slice::from_ref(id), &Bounds::default(), Dir::Asc, limit))?.into_iter().map(|(row, _)| row));
         }
+        let full = rows.len() >= limit;
         let mut live = Vec::with_capacity(rows.len());
         for row in rows {
             if self.device {
@@ -128,6 +156,10 @@ impl Runner<'_> {
             } else if self.expired(r.table, &row) { continue; }
             live.push(row);
         }
+        // A device that skipped retained history may have stopped short of a witness.
+        if self.device && full && live.len() < limit {
+            return Err(RuntimeError::Prediction(format!("deleting needs every {} row that references it held; queued without a local delete", r.child)));
+        }
         Ok(live)
     }
 
@@ -136,7 +168,9 @@ impl Runner<'_> {
     fn prove_reference_held(&mut self, r: &Referencing<'_>, id: &Value) -> Result<(), RuntimeError> {
         let index = self.schema.reference_index(r.child, r.column).ok_or_else(|| RuntimeError::Schema(format!("{}.{} has no reference index", r.child, r.column)))?.to_owned();
         let (child, key) = (r.child.to_owned(), [id.clone()]);
-        if self.device_work(|runner| runner.upsert_absence_proven(&child, &index, &key))? { return Ok(()); }
+        // Key-decided readability, and the group itself held (a rejoined or
+        // unacquired range is unknown even when the rule admits the viewer).
+        if self.device_work(|runner| runner.upsert_absence_proven(&child, &index, &key))? && self.tx.current_group(&child, &index, &key)? { return Ok(()); }
         Err(RuntimeError::Prediction(format!("deleting needs every {} row that references it held; queued without a local delete", r.child)))
     }
 
@@ -158,12 +192,7 @@ impl Runner<'_> {
             runner.refuse_engine_owned(table_name, Effect::Delete)?;
             let table = &runner.schema.tables[table_name];
             runner.reserve_maintains(table_name, table)?;
-            runner.receipt_member_removed(table_name, &old)?;
-            runner.refuse_live_children(table_name, old.field("id")?)?;
-            runner.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
-            let entries = runner.maintain_scratch(runner.contribution_heap(table), |runner| runner.tx.delete(table_name, table, &old))?;
-            runner.charge_source_indexes(table, Some(&old), None, entries)?;
-            runner.row_changed(table_name, Some(&old), None, Origin::Source)
+            runner.delete_row(table_name, old)
         })
     }
 }
@@ -172,27 +201,29 @@ fn through_reference(r: &Referencing<'_>) -> bool {
     r.table.through.as_ref().is_some_and(|t| t.reference == r.column)
 }
 
-/// The closure's rows, children before parents: a table whose rows reference
-/// another reached table goes first (cascade graphs are acyclic; any other
-/// cycle keeps discovery order), and within a table, later discoveries first.
-fn deletion_order(schema: &crate::schema::Schema, reached: &[(String, Value)]) -> Vec<(String, Value)> {
+/// The closure's rows, children before parents: a table goes first when no
+/// other reached table must be removed before it (the cascade and `read
+/// through` edges are acyclic by `check`), and within a table, later
+/// discoveries first.
+fn deletion_order(schema: &crate::schema::Schema, reached: &[(String, String)]) -> Vec<(String, String)> {
     let tables: Vec<&str> = {
         let mut seen = Vec::new();
         for (table, _) in reached { if !seen.contains(&table.as_str()) { seen.push(table.as_str()); } }
         seen
     };
-    // edges: child table -> parent tables it references (among the reached tables)
-    let mut parents: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
-    for &parent in &tables {
-        for r in schema.referencing(parent) {
-            if r.child != parent && tables.contains(&r.child) { parents.entry(r.child).or_default().insert(parent); }
+    // edges: child table -> the reached tables it must be removed before
+    // (its cascade parents and its `read through` parent; LLP 3000.038 §3).
+    let mut edges: Vec<(&str, &str)> = Vec::new();
+    for &child in &tables {
+        for &parent in &tables {
+            if child != parent && schema.deletion_precedes(child, parent) { edges.push((child, parent)); }
         }
     }
     let mut order: Vec<&str> = Vec::new();
     let mut remaining = tables.clone();
     while !remaining.is_empty() {
         // A table no remaining table references can go now (its referencers are gone).
-        let position = remaining.iter().position(|t| !remaining.iter().any(|other| other != t && parents.get(other).is_some_and(|p| p.contains(t))))
+        let position = remaining.iter().position(|t| !remaining.iter().any(|other| other != t && edges.contains(&(*other, *t))))
             .unwrap_or(remaining.len() - 1);
         order.push(remaining.remove(position));
     }
