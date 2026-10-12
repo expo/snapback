@@ -88,7 +88,7 @@ fn write_contract_checks(schema: &Schema, candidate: &Candidate) -> bool {
     let rule_checks = |rule: &RuleExpr| rule_checks_target(rule, &candidate.target, &candidate.column);
     let final_exists = || table.constraints.iter().any(|constraint| {
         matches!(constraint, Constraint::FinalExistsOnInsert { table, key, .. }
-            if table == &candidate.target && key.iter().any(|term| term_reads_column(term, &candidate.column)))
+            if table == &candidate.target && key.iter().any(|term| term_reads_new_column(term, &candidate.column)))
     });
     match candidate.op {
         WriteOp::Insert => rule_checks(&table.rules.insert) || final_exists(),
@@ -107,14 +107,17 @@ fn rule_checks_target(rule: &RuleExpr, target: &str, column: &str) -> bool {
             [left, right].iter().any(|term| term_looks_up_column(term, column))
         }
         RuleExpr::Exists { table, key, equalities, .. } | RuleExpr::Created { table, key, equalities, .. } => {
-            table == target && key.iter().chain(equalities.iter().map(|(_, term)| term)).any(|term| term_reads_column(term, column))
+            table == target && key.iter().chain(equalities.iter().map(|(_, term)| term)).any(|term| term_reads_new_column(term, column))
         }
         RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => false,
     }
 }
 
-fn term_reads_column(term: &RuleTerm, column: &str) -> bool {
-    matches!(term, RuleTerm::Field(field) | RuleTerm::OldField(field) | RuleTerm::NextField(field) if field == column)
+/// Only the image being stored proves the new argument exists. An old-image
+/// field or reference hop checks the row's previous parent and says nothing
+/// about the replacement supplied by this mutation.
+fn term_reads_new_column(term: &RuleTerm, column: &str) -> bool {
+    matches!(term, RuleTerm::Field(field) | RuleTerm::NextField(field) if field == column)
         || term_looks_up_column(term, column)
 }
 

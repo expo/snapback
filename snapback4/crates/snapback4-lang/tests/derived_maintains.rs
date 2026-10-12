@@ -261,14 +261,46 @@ query rebound(a: principal, b: principal):
   require key = viewer else NOT_OWNER
   key = b
   return chairedMeetingCounts[key]
+query nestedReturn(a: principal, b: principal, choose: bool):
+  key = a
+  require key = viewer else NOT_OWNER
+  if choose:
+    key = b
+    return chairedMeetingCounts[key]
+  return null
+query branchRebound(a: principal, b: principal, choose: bool):
+  key = a
+  require key = viewer else NOT_OWNER
+  if choose:
+    key = b
+  return chairedMeetingCounts[key]
+query loopRebound(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  for ignored in [true]:
+    key = b
+  return chairedMeetingCounts[key]
+query stableBranch(a: principal, b: principal, choose: bool):
+  key = a
+  require key = viewer else NOT_OWNER
+  if choose:
+    other = b
+  return chairedMeetingCounts[key]
+query stableLoop(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  for ignored in [true]:
+    other = b
+  return chairedMeetingCounts[key]
 "#;
     let b = bound(source);
     let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
-    assert_eq!(notes.len(), 3, "unrelated and stale requirements must not suppress the note: {:#?}", b.notes);
-    assert!(notes.iter().any(|note| note.message.contains("query bare")), "{notes:#?}");
-    assert!(notes.iter().any(|note| note.message.contains("query unrelated")), "{notes:#?}");
-    assert!(notes.iter().any(|note| note.message.contains("query rebound")), "{notes:#?}");
+    assert_eq!(notes.len(), 6, "unrelated and stale requirements must not suppress the note: {:#?}", b.notes);
+    for name in ["bare", "unrelated", "rebound", "nestedReturn", "branchRebound", "loopRebound"] {
+        assert!(notes.iter().any(|note| note.message.contains(&format!("query {name}"))), "{name}: {notes:#?}");
+    }
     assert!(!notes.iter().any(|note| note.message.contains("query inheritedSelfAuthorized")), "{notes:#?}");
+    assert!(!notes.iter().any(|note| note.message.contains("query stableBranch") || note.message.contains("query stableLoop")), "{notes:#?}");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|program| program.program)).unwrap();
     e.seed_at([
         ("meetings".into(), snapback4_core::value::object([("id", id("with")), ("chair", id("alice"))])),

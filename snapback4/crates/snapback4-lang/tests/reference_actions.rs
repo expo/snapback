@@ -449,6 +449,15 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
     let hop_bypassed = hop_checked.replace("insert <- .parent.active = true", "insert <- .parent.active = true or allow");
     assert!(bound(&hop_bypassed).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
 
+    let update_checked = "table parents:\n  active: bool\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  update (old, next) <- exists parents[next.parent]\nmutation change(id: kids, parent: parents):\n  update kids[id] { parent }\n";
+    assert!(!bound(update_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+    let old_exists = update_checked.replace("exists parents[next.parent]", "exists parents[old.parent]");
+    assert!(bound(&old_exists).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "the old parent is not the newly stored argument");
+    let old_hop = update_checked.replace("exists parents[next.parent]", "old.parent.active = true");
+    assert!(bound(&old_hop).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "an old-image reference hop checks only the previous parent");
+    let next_hop = update_checked.replace("exists parents[next.parent]", "next.parent.active = true");
+    assert!(!bound(&next_hop).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
     let through_checked = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete cascade\n  immutable parent\n  unique parent\n  read through .parent\n  insert <- allow\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
     assert!(!bound(through_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
 

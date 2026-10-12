@@ -7,8 +7,8 @@ use snapback4_core::schema::{RuleExpr, Schema};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// A bare maintained point exposes three outcomes: value, authorized zero,
-/// and hidden null. Name that decision when no earlier top-level requirement
-/// makes the query's refusal contract explicit.
+/// and hidden null. Name that decision when no dominating requirement makes
+/// the query's refusal contract explicit.
 // @ref LLP 3000.013#14.7 — hidden hit and miss are both null; only an admitted
 // absent group has the aggregate identity.
 pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
@@ -17,19 +17,11 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     for doc in &catalog.documents {
         for program in doc.programs.iter().filter(|program| program.kind == ProgramKind::Query && !program.native) {
             let mut requirements: Vec<Expr> = Vec::new();
-            for statement in program.prelude.iter().chain(&program.body) {
-                if let Stmt::Require { condition, .. } = statement {
-                    requirements.push(condition.clone());
-                    continue;
-                }
-                if let Stmt::Bind { names, .. } = statement {
-                    requirements.retain(|condition| !mentions_any(condition, names));
-                    continue;
-                }
-                let Stmt::Return { value: Expr::Read(read), .. } = statement else { continue };
-                let Some(info) = catalog.tables.get(&read.table) else { continue };
-                let Some(maintain) = &info.maintained else { continue };
-                let Some(table) = schema.table(&read.table) else { continue };
+            let statements: Vec<_> = program.prelude.iter().chain(&program.body).cloned().collect();
+            inspect(&statements, &mut requirements, &mut |read, requirements| {
+                let Some(info) = catalog.tables.get(&read.table) else { return };
+                let Some(maintain) = &info.maintained else { return };
+                let Some(table) = schema.table(&read.table) else { return };
                 let expected = info.decl.rules.iter().find(|rule| rule.effect == Effect::Read)
                     .and_then(|rule| substituted_view_rule(maintain, rule, read));
                 if expected.as_ref().is_some_and(|expected| constant_bool(expected) == Some(true))
@@ -37,15 +29,76 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
                     || read.range.is_some() || read.keys.len() != maintain.by.len()
                     || table.rules.read.is_uniformly_readable() || matches!(table.rules.read, RuleExpr::Deny)
                     || !seen.insert((program.site.file.clone(), program.name.clone(), read.table.clone())) {
-                    continue;
+                    return;
                 }
                 notes.push(Diagnostic::new(&read.site, "N_MAINTAIN_AUTHORIZATION",
                     format!("query {} returns bare maintained point {}: its read rule is narrower than the query's callers, so an admitted hit returns its value, an admitted miss returns zero, and a hidden hit or miss returns null", program.name, read.table),
                     format!("add `require <the matching {} read condition> else NOT_ALLOWED` before this lookup, or return and handle the nullable result when unauthorized callers are intentional", read.table)).guide("maintains"));
-            }
+            });
         }
     }
     notes
+}
+
+/// Visit returns with the requirements that still dominate them. Branches
+/// carry independent facts; a fact survives a join only when both arms keep
+/// it. A loop may run, so an assignment in its body invalidates the fact
+/// after the loop too. An `as` body starts under another viewer.
+fn inspect(statements: &[Stmt], requirements: &mut Vec<Expr>, visit: &mut impl FnMut(&ReadExpr, &[Expr])) {
+    for statement in statements {
+        match statement {
+            Stmt::Require { condition, .. } => requirements.push(condition.clone()),
+            Stmt::Bind { names, .. } => requirements.retain(|condition| !mentions_any(condition, names)),
+            Stmt::Return { value: Expr::Read(read), .. } => visit(read, requirements),
+            Stmt::If { then_body, else_body, .. } => {
+                let mut then_requirements = requirements.clone();
+                inspect(then_body, &mut then_requirements, visit);
+                let mut else_requirements = requirements.clone();
+                inspect(else_body, &mut else_requirements, visit);
+                then_requirements.retain(|condition| contains(&else_requirements, condition));
+                then_requirements.dedup_by(|left, right| canonical(left.clone()) == canonical(right.clone()));
+                *requirements = then_requirements;
+            }
+            Stmt::For { name, body, .. } => {
+                let mut body_requirements = requirements.clone();
+                body_requirements.retain(|condition| !mentions_any(condition, std::slice::from_ref(name)));
+                inspect(body, &mut body_requirements, visit);
+                let mut assigned = BTreeSet::new();
+                assigned_names(body, &mut assigned);
+                let assigned: Vec<_> = assigned.into_iter().collect();
+                requirements.retain(|condition| !mentions_any(condition, &assigned));
+            }
+            Stmt::As { body, .. } => {
+                let mut scoped = Vec::new();
+                inspect(body, &mut scoped, visit);
+                let mut assigned = BTreeSet::new();
+                assigned_names(body, &mut assigned);
+                let assigned: Vec<_> = assigned.into_iter().collect();
+                requirements.retain(|condition| !mentions_any(condition, &assigned));
+            }
+            Stmt::Expr { .. } | Stmt::Emit { .. } | Stmt::Break { .. } | Stmt::Continue { .. }
+            | Stmt::Return { .. } => {}
+        }
+    }
+}
+
+fn contains(requirements: &[Expr], condition: &Expr) -> bool {
+    let condition = canonical(condition.clone());
+    requirements.iter().any(|candidate| canonical(candidate.clone()) == condition)
+}
+
+fn assigned_names(statements: &[Stmt], names: &mut BTreeSet<String>) {
+    for statement in statements {
+        match statement {
+            Stmt::Bind { names: assigned, .. } => names.extend(assigned.iter().cloned()),
+            Stmt::If { then_body, else_body, .. } => {
+                assigned_names(then_body, names);
+                assigned_names(else_body, names);
+            }
+            Stmt::As { body, .. } | Stmt::For { body, .. } => assigned_names(body, names),
+            _ => {}
+        }
+    }
 }
 
 fn mentions_any(expression: &Expr, names: &[String]) -> bool {
