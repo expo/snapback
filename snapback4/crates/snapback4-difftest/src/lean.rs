@@ -444,13 +444,19 @@ pub fn features(case: &Case) -> Vec<String> {
         out.push("items-effect-rules".into());
     }
     // LLP 3000.036.001: branch pages (the merged plan is decided by OPEN C8's branch rule).
-    if let Some(domain) = &case.program.domain {
+    let where_branch = case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "));
+    if let Some(domain) = case.program.domain.as_ref().filter(|_| where_branch) {
         out.push(format!("branch-where-{}", if domain.contains("helper") { "parties" } else { "buckets" }));
     }
     if rules[0] == Rule::TwoParty {
         out.push("branch-rule-two-party".into());
     }
-    if case.program.domain.is_some() || rules[0] == Rule::TwoParty {
+    let membership_branch = rules[0] == Rule::OwnerOrWitness
+        && matches!(body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
+    if membership_branch {
+        out.push("branch-rule-membership".into());
+    }
+    if where_branch || rules[0] == Rule::TwoParty || membership_branch {
         let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
         let merged = bound.programs.iter().filter(|p| p.program.name == "run")
             .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));
@@ -662,7 +668,30 @@ pub fn generate(seed: u64) -> Case {
         let guards = ["exists access[bucket, viewer]", "not exists access[bucket, viewer]", "a < b"];
         case.program.guard = Some(guards[extra.pick(3) as usize].to_owned());
     }
+    membership_page(&mut case, seed);
     case
+}
+
+/// An unpinned owner-or-membership page. The membership roster has cap 16 by
+/// its fixed principal and the inverse `(principal, bucket)` index, so the
+/// compiler may discover every distinct bucket before merging target lanes.
+fn membership_page(case: &mut Case, seed: u64) {
+    use crate::ast::{Read, Residency, Rule};
+    let mut rng = crate::generate::Rng::new(seed ^ 0x4d45_4d42_4552_5047);
+    let Body::Read { kind: Read::Page | Read::Bounded, owner, .. } = &mut case.program.body else { return };
+    if rng.pick(8) != 0 { return }
+    *owner = false;
+    let items = &mut case.program.tables[0];
+    items.rule = Rule::OwnerOrWitness;
+    items.effects = None;
+    items.residency = Residency::Online;
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
+    access.rule = Rule::Allow;
+    access.effects = None;
+    access.residency = Residency::Public;
+    case.program.domain = Some("true".into());
+    case.program.order = Some(vec!["id".into()]);
+    case.program.guard = None;
 }
 
 /// The variants of the first two streams (`generate`).

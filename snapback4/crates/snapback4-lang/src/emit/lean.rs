@@ -150,7 +150,7 @@ struct Table {
     codes: Vec<Option<String>>,
     /// Caps are carried as unenforced declarations: a program that inserts
     /// into or updates a capped table is outside the fragment (`table-cap`).
-    capped: bool,
+    caps: Vec<(u32, Vec<String>)>,
 }
 
 impl Table {
@@ -319,7 +319,8 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
             codes.push(i.refusal.as_ref().map(|(code, _)| code.clone()));
         }
     }
-    Ok(Table { name: t.name.clone(), cols, uniques, codes, capped: !t.caps.is_empty() })
+    Ok(Table { name: t.name.clone(), cols, uniques, codes,
+        caps: t.caps.iter().map(|cap| (cap.max, cap.by.clone())).collect() })
 }
 
 fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
@@ -357,6 +358,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         }).collect::<Vec<_>>(),
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
+        "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
 }
@@ -847,7 +849,7 @@ impl<'a> Scope<'a> {
         let Expr::Write { op, table, keys, fields, if_absent, condition, .. } = e else { unreachable!() };
         if *op != WriteOp::Insert && keys.is_empty() { return no("row-variable-write", crate::print::expression(e)); }
         let t = self.table(table)?;
-        if t.capped && *op != WriteOp::Delete {
+        if !t.caps.is_empty() && *op != WriteOp::Delete {
             return no("table-cap", format!("{} writes capped table {table}; the model does not enforce caps", crate::print::expression(e)));
         }
         Ok(match op {

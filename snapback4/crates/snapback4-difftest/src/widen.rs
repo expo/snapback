@@ -166,6 +166,7 @@ fn tags_table(rng: &mut Rng) -> Table {
         name: "tags".into(),
         columns: vec![column("owner", Type::Principal), column("rank", Type::Int), column("name", Type::Text)],
         keys: vec![("byName".into(), vec!["name".into()], true)],
+        caps: vec![],
         rule,
         residency,
         effects: None,

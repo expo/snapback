@@ -102,6 +102,9 @@ pub struct Table {
     pub name: String,
     pub columns: Vec<Column>,
     pub keys: Vec<(String, Vec<String>, bool)>,
+    /// Bounded cardinality declarations `(maximum, group columns)`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caps: Vec<(u32, Vec<String>)>,
     pub rule: Rule,
     pub residency: Residency,
     /// Per-effect rules (read, insert, update, delete) replacing `rule`;
@@ -124,6 +127,9 @@ impl Table {
                 if *unique { "unique" } else { "by" },
                 cols.join(", ")
             );
+        }
+        for (max, by) in &self.caps {
+            out += &format!("  cap {max}{}\n", if by.is_empty() { String::new() } else { format!(" by {}", by.join(", ")) });
         }
         for (i, effect) in ["read", "insert", "update", "delete"].into_iter().enumerate() {
             let rule = self.effects.as_ref().map_or(&self.rule, |e| &e[i]);

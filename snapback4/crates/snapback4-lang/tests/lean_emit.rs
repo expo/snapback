@@ -27,6 +27,7 @@ const ROOMS: &str = "table members:
   roomId: id
   principal: principal
   unique roomId, principal else MEMBER_EXISTS
+  cap 16 by principal
   read <- exists members[.roomId, viewer]
   insert <- .principal = viewer
   update <- .principal = viewer
@@ -74,6 +75,7 @@ fn schema_expansions_follow_syntax_lean() {
     assert_eq!(members["delete"], json!("deny"));
     assert_eq!(members["uniques"], json!([["roomId", "principal"]]));
     assert_eq!(members["uniqueCodes"], json!(["MEMBER_EXISTS"]));
+    assert_eq!(members["caps"], json!([{"by": ["principal"], "max": 16}]));
     let notes = table(&m, "notes");
     assert_eq!(notes["update"], json!({"and": [{"eq": [{"col": ["old", "ownerId"]}, "viewer"]}, {"eq": [{"col": ["next", "ownerId"]}, "viewer"]}]}));
     // A text literal beside a principal is an id (OPEN V1).

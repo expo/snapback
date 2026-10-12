@@ -234,7 +234,11 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
             dims.push("bounded-arg");
         }
         // LLP 3000.036.001: branch pages, from their own stream.
-        if case.program.domain.is_some() || case.program.tables[0].rule == snapback4_difftest::ast::Rule::TwoParty {
+        let read_rule = case.program.tables[0].effects.as_ref().map_or(&case.program.tables[0].rule, |effects| &effects[0]);
+        if case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "))
+            || read_rule == &snapback4_difftest::ast::Rule::TwoParty
+            || read_rule == &snapback4_difftest::ast::Rule::OwnerOrWitness
+                && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. }) {
             dims.push("branches");
         }
         if case.program.kids.is_some() {
@@ -252,6 +256,23 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         seen.extend(dims);
     }
     assert_eq!(seen.len(), 11, "{seen:?}");
+}
+
+#[test]
+fn lean_generator_reaches_a_capped_unpinned_membership_page() {
+    let case = (0..2_000).map(snapback4_difftest::lean::generate).find(|case| {
+        let table = &case.program.tables[0];
+        let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrWitness
+            && case.program.domain.as_deref() == Some("true")
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
+    }).expect("membership-page stream must be reachable");
+    let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
+    assert_eq!(access.caps, vec![(16, vec!["principal".into()])]);
+    assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
+    let features = snapback4_difftest::lean::features(&case);
+    assert!(features.iter().any(|feature| feature == "branch-rule-membership"), "{features:?}\n{}", case.program.source());
+    assert!(features.iter().any(|feature| feature == "branch-merged"), "{features:?}\n{}", case.program.source());
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate
