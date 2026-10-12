@@ -1,0 +1,146 @@
+{
+  "merge": "4a011e26b56178e1c0b3abfdef7fcdae5fe12618",
+  "root_repairs": "f540d8037f",
+  "status": "qualified; no requested check remains red",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "wasm": {
+    "raw": 2246968,
+    "gzip": 680192,
+    "brotli": 515250,
+    "budget": 680692,
+    "headroom": 500
+  },
+  "censuses": {
+    "entries": 718,
+    "mutation_occurrences": 409,
+    "private_write_sites": 89,
+    "delivery_await_boundary": "unchanged"
+  },
+  "reviews": {
+    "revision": "4a011e26b56178e1c0b3abfdef7fcdae5fe12618",
+    "muse": "READY",
+    "gpt-6.1-sol": "READY"
+  },
+  "difftest": {
+    "difftest-run.final": {
+      "seed": 0,
+      "cases": 20000,
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 1094330,
+      "disagreements": 0,
+      "signatures": [],
+      "generator_errors": {},
+      "seconds": 92.967910074
+    },
+    "difftest-devices.final": {
+      "seed": 0,
+      "cases": 1000,
+      "generated": 1000,
+      "compiled": 1000,
+      "executed": 32038,
+      "disagreements": 0,
+      "signatures": [],
+      "generator_errors": {},
+      "seconds": 3.789175214
+    }
+  },
+  "clients": {
+    "regular_initial": {
+      "passed": 7151,
+      "failed": 6,
+      "skipped": 56,
+      "cause": "old generated event-slot traces"
+    },
+    "regular_final": {
+      "runner_entries": 367,
+      "tests": 7213,
+      "passed": 7154,
+      "failed": 3,
+      "skipped": 56
+    },
+    "browser_unchanged_rerun": {
+      "passed": 35,
+      "failed": 3,
+      "cause": "different load-sensitive beyond-horizon timeout; layout assertion passed"
+    },
+    "browser_timeout_single_unchanged_rerun": {
+      "passed": 38,
+      "failed": 0
+    },
+    "qualified_regular": {
+      "passed": 7157,
+      "failed": 0,
+      "skipped": 56
+    },
+    "models_final": {
+      "passed": 81,
+      "failed": 0
+    },
+    "fixtures": {
+      "passed": 9,
+      "failed": 0
+    },
+    "qualified_total": {
+      "passed": 7247,
+      "failed": 0,
+      "skipped": 56
+    },
+    "accounting": "replace failed complete-file evidence rather than adding rerun totals; hierarchical Node failure counts retained explicitly"
+  },
+  "other_checks": {
+    "docs_budget": "pass, README 319/320",
+    "inventories": "pass, 365 package tests / 35 scripts tests / 31 demos and catalog entries / 487 publication leaves / 162 Guide pages / 1937 snippets",
+    "guide": "22 passed / 0 failed / 121 warning-only notices",
+    "root_fixtures": "51 passed",
+    "nightly_runner": "13 passed",
+    "proof_gate_inventory": "185 run declarations / 184 stable ids / 19 inapplicability pairs",
+    "codec_census": "27 passed",
+    "device_envelopes": "217 captured passed / 0 failed",
+    "difftest_devices_regressions": "11 passed / 0 failed",
+    "system_scan_regression": "passed; both directions and heap boundaries"
+  },
+  "rust": {
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "exit": 0,
+    "captured_summaries": 362,
+    "passed": 5694,
+    "failed": 0,
+    "ignored": 41,
+    "accounting": "captured summaries include nested subprocess evidence; rerun totals are not added to these counts",
+    "final_affected_libraries": {
+      "top_level_passed": 417,
+      "nested_passed_summary": 1,
+      "ignored": 3,
+      "failed": 0,
+      "exit": 0
+    },
+    "new_core_regression": "one additional passing core unit test compared with the initial full command; final core target 307/0/3",
+    "difftest_devices_regressions": {
+      "passed": 11,
+      "failed": 0
+    },
+    "device_envelope_verification": {
+      "captured_passed": 217,
+      "failed": 0
+    }
+  },
+  "initial_requested_check_failures_resolved": [
+    "old generated event-slot traces",
+    "strict wasm serde families",
+    "inherited root inventory/Guide records"
+  ],
+  "remaining_red_checks": [],
+  "inherited_followups": [
+    "issues/20261012-snapback4-rule-probes-count-expired-rows-against-the-authorization-walk.md",
+    "issues/20261012-snapback4-check-cost-certificate-for-backlog-reads-names-the-wrong-bound.md"
+  ],
+  "ref_check": {
+    "exit": 0,
+    "result": "ref-check: ok \u2014 541 LLP docs, 11656 refs in 41197 files, 0 errors, 0 unchecked"
+  }
+}

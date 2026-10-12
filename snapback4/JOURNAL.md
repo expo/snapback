@@ -93910,3 +93910,47 @@ The 51 root fixture tests pass. Root inventories pass: 365 package tests,
 162 Guide pages and 1,937 snippets. Full check-guide passes all 22 checks;
 121 recorded freshness/GAP warnings remain warnings, not failures.
 No root runtime, package version or publication is changed.
+
+## 2026-10-12 — Integration 5 qualification completes
+
+The requested five-crate Rust command exits 0 with no failing target:
+362 captured summaries, 5,694 passed, zero failed, 41 ignored.
+Those summaries include nested subprocess evidence. The final five-package
+library rerun passes 417 top-level tests plus one nested summary, 3 ignored;
+its core target is 307/0/3, including the new system-scan regression. The
+11 difftest device regressions pass, including oversized output after an
+unproved insert on both stores. Focused device envelope verification passes
+217 captured tests; codec census 27/27; nightly runner 13/13. No rerun totals
+are silently added to the requested command's count.
+
+Final ordinary difftest: 20,000 generated/compiled, 1,094,330 executions,
+zero disagreements, signatures or generator errors. Final devices seeds
+0–999: 1,000 generated/compiled, 32,038 executions, zero disagreements,
+signatures or generator errors on both stores. The two existing main
+follow-ups (expired witness authorization walks and backlog cost wording)
+remain open; no broader Lean/Postgres qualification is inferred.
+
+All 367 regular client runner entries finish, including their nested fixture
+files. The final regular run reports 7,154 passed, 3 hierarchical failures
+from one browser layout assertion, 56 skipped. Its unchanged complete-file
+rerun passes that assertion but reaches a different beyond-horizon timeout;
+the timeout passes its single unchanged complete-file rerun (38/38).
+No browser source or assertion changes. Replace the browser file's 35/3
+evidence with 38/0: qualified regular aggregate 7,157 passed. Final full-count
+models add 81 and fixture wrappers 9: qualified clients 7,247 passed,
+zero failed, 56 skipped. Earlier event-slot mismatches are resolved by
+regenerating the merged producer before final dispatch replay, not by
+changing its proven refusal assertions.
+
+Final native CLI/wasm/package build passes and repeats 680,192 B gzip under
+the 680,692 B budget. Censuses remain unchanged. Docs budget passes at
+319/320 README lines. Root inventory and all 22 Guide checks pass after
+f540d8037f; freshness/GAP warnings remain explicitly warning-only.
+Both independent round-two families mark merge 4a011e26b5 READY. All four
+verbatim review responses and their disposition are retained. Exact accounting
+is in reports/20261012-integration5/quality-summary.json; this integration
+also supplies the commissioned root WORKSTREAM-REPORT.md. Final ref-check
+follows this entry. No push or publication.
+
+Final ref-check passes: 541 LLP documents, 11,656 refs, zero errors and
+zero unchecked. All requested checks are reconciled; no requested red remains.
