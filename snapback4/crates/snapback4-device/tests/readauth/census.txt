@@ -59,6 +59,7 @@ card/cheatsheet/1:removeItem | openItems/maintain | {"Eq":[{"Field":"owner"},"Vi
 card/cheatsheet/1:toggle | eligible
 card/cheatsheet/1:toggle | items/update | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:toggle | openItems/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/deploy/1:grantAdmin | never
 card/effects/1:send | eligible
 card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/effects/2:send | eligible

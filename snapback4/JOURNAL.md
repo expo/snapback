@@ -92687,3 +92687,31 @@ UTC in its five-hour advance fired the daily tick into the hourly counter.
 It reproduced alone. The daily explanation fixture now uses a separate
 no-change sweep; the hourly restart assertion stays exact. Isolated clock
 test and all 25 clock tests now pass; no production clock behavior changed.
+
+## 2026-10-12 — OPS: day-two guide and object SQL output (DT2, DT8–DT10)
+
+Guide deploy is the tested production entry point for upgrades (including the
+exact-version Expo adapter), deploy/serve, password accounts, a first admin
+through an ops service seat, schema evolution, rollback, sessions, stopped
+backup and proxy/TLS operation. Rollback remains one isolated section describing
+current adoption behavior; stop → deploy → restart is explicit. All requested
+production aliases reach the card, and admin lands on its First admin section.
+The insert-only grant recipe compiles and runs under ops/existing-admin/public
+viewers; the readauth census adds just its never-predicted operation. Current
+is documented as a text copy of the database's authoritative release pointer.
+
+SQL keeps positional --json for existing consumers and adds --json-objects.
+Direct boolean columns recover their types from the adopted schema and SQL
+projection, including aliases, nullable/default values, subqueries and supported
+CTEs. Numeric expressions remain numeric. Ambiguous/unresolved lineage refuses
+with a positional-JSON fallback: schema-qualified relations, recursive,
+shadowing and forward CTEs cannot silently coerce integers into booleans.
+The parser is CLI-only (sqlparser 0.59.0, std only), with no core/device format,
+Quarry execution, read authority or wasm changes.
+
+Validation: guide 119/119; readauth 88/88; clients 828/828 across 25 files,
+plus a final 16-test auth/headless rerun. README remains 319/320 lines and the
+docs-budget self-contained screen test passes. Ref-check is clean. Full Rust
+package verification and the complete per-item mapping are in the workstream
+report. Two actual independent reviews and dispositions are retained; no RFC
+status changed and no rollback/hot-deploy semantics were edited.

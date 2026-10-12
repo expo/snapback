@@ -1077,7 +1077,7 @@ fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
 
 #[test]
 fn natural_words_find_their_cards() {
-    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "evolution"), ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
+    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "deploy"), ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
         assert!(card(word).is_some(), "{word} must find {target}");
         assert_eq!(card(word), card(target), "{word}");
     }
@@ -1181,7 +1181,7 @@ fn every_alias_targets_a_keyword_and_nearest_uses_aliases() {
     }
     assert_eq!(guide::nearest("pagintion")[0], "reads");
     assert_eq!(guide::nearest("redict")[0], "prediction");
-    assert_eq!(guide::nearest("migratio")[0], "evolution");
+    assert_eq!(guide::nearest("migratio")[0], "deploy");
     assert_eq!(guide::nearest("σ").len(), 3);
     assert_eq!(guide::nearest("banana").iter().collect::<std::collections::BTreeSet<_>>().len(), 3);
 }
@@ -1593,3 +1593,6 @@ fn guessed_section_words_land_on_one_section_even_in_another_card() {
     assert!(card("react") == card("client") && guide::alias_landing("react", "client", card("client").unwrap()).unwrap().contains("matchRead"));
     assert_eq!(card("money"), card("types"));
 }
+
+#[path = "guide/deploy.rs"]
+mod deploy;

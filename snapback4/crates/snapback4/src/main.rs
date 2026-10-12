@@ -57,11 +57,12 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   reset [--port N] [--seed <fixture dir|rows.json>] [--clock reset]  empty a running dev's store (POST /dev/reset): rows, views, queues, assets, accounts; a new store identity; reseed in the same transaction; personas and service seats stay
-  test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
+  test [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
-  sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
+  sql <SELECT> [--release dir] [--limit N] [--json|--json-objects]  read-only inspection of your store (not rule-filtered)
+    --json-objects                  object rows; declared boolean columns are true/false, SQL expressions keep SQLite types
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
     sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once

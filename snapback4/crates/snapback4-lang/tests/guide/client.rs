@@ -5,7 +5,7 @@ mod published;
 #[test]
 fn headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card() {
     let auth = card("auth").unwrap();
-    for alias in ["seed", "replay", "headless", "signup", "sign-up", "register", "replay adapter"] {
+    for alias in ["seed", "replay", "headless", "replay adapter"] {
         assert_eq!(card(alias), Some(auth), "{alias}");
         assert!(snapback4_lang::guide::aliases().contains(alias), "{alias}");
     }
