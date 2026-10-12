@@ -265,6 +265,8 @@ impl Binder<'_> {
                     if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "break cannot leave an as block or helper", "put break in a loop inside this block or helper")); }
                     return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
+                let bindings = self.visible_bindings();
+                self.loop_transfers.last_mut().expect("an enclosing loop").breaks.push(bindings);
                 out.push(Stmt::Break);
                 Ok(())
             }
@@ -274,6 +276,8 @@ impl Binder<'_> {
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.
+                let bindings = self.visible_bindings();
+                self.loop_transfers.last_mut().expect("an enclosing loop").continues.push(bindings);
                 out.push(Stmt::Continue);
                 Ok(())
             }
@@ -381,53 +385,33 @@ impl Binder<'_> {
             let binding = self.declare(name, item.clone());
             self.maintenance_local(&binding, site, name);
             self.loops += 1;
+            self.loop_transfers.push(LoopTransfers::default());
             let mut out = setup::Body::default();
             let result = self.block(body, &mut out, false);
+            let transfers = self.loop_transfers.pop().expect("loop transfer frame");
             self.loops -= 1;
             let after = self.visible_bindings();
             self.pop_scope();
             result?;
+            let flow = flow::Outcomes::block(&out);
+            let carried = transfers.continues.iter().chain(flow.falls_through().then_some(&after));
             let mut changed = false;
             for (local, old) in &mut header {
-                let new = &after[local];
-                if new.runtime != old.runtime {
-                    continue;
+                for bindings in carried.clone() {
+                    let new = &bindings[local];
+                    let (candidate_changed, candidate_grows) = self.join_loop_binding(local, old, new, site)?;
+                    changed |= candidate_changed;
+                    if candidate_grows { growing_list.get_or_insert_with(|| local.clone()); }
                 }
-                // The zero-iteration path meets the completed body at the
-                // loop header. A write can remove a point/authorization fact
-                // without assigning its lexical root; carry that loss into
-                // the next analysis pass without making the root an
-                // automatic-job accumulator.
-                let surviving_fields: BTreeMap<_, _> = old.fields.iter()
-                    .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
-                    .map(|(path, ty)| (path.clone(), ty.clone()))
-                    .collect();
-                let fields_changed = surviving_fields.len() != old.fields.len();
-                if new.revision == old.revision {
-                    if fields_changed {
-                        old.fields = surviving_fields;
-                        changed = true;
-                    }
-                    continue;
-                }
-                let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
-                let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
-                let type_changed = old.ty != ty || old.declared != declared;
-                if type_changed && matches!(ty, Ty::List(..))
-                    && new.origins.iter().any(|(_, source)| has_concat(source)) {
-                    growing_list.get_or_insert_with(|| local.clone());
-                }
-                changed |= type_changed || !old.fields.is_empty();
-                old.fields.clear();
-                old.ty = ty;
-                old.declared = declared;
-                for origin in &new.origins {
-                    if !old.origins.iter().any(|(_, source)| *source == origin.1) { old.origins.push(origin.clone()); }
-                }
-                old.revision = new.revision;
             }
             if !changed {
-                self.scopes.last_mut().expect("a scope").extend(header);
+                let mut exit = header;
+                for bindings in &transfers.breaks {
+                    for (local, binding) in &mut exit {
+                        self.join_loop_binding(local, binding, &bindings[local], site)?;
+                    }
+                }
+                self.scopes.last_mut().expect("a scope").extend(exit);
                 return Ok((binding, out));
             }
         }
@@ -438,6 +422,36 @@ impl Binder<'_> {
             return Err(recursive_list_error(site, &local));
         }
         Err(type_error(site, "this loop keeps growing a recursive value type", "accumulate items of a fixed type rather than nesting an accumulator inside itself"))
+    }
+
+    /// Meet one loop edge with the zero-iteration path. A field proof survives
+    /// only when both paths retain the same fact; assignments additionally
+    /// widen the declared type and keep their revision for job carry checks.
+    fn join_loop_binding(&self, local: &str, old: &mut Binding, new: &Binding, site: &Site) -> Fallible<(bool, bool)> {
+        if new.runtime != old.runtime { return Ok((false, false)); }
+        let surviving_fields: BTreeMap<_, _> = old.fields.iter()
+            .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
+            .map(|(path, ty)| (path.clone(), ty.clone()))
+            .collect();
+        let fields_changed = surviving_fields.len() != old.fields.len();
+        if new.revision == old.revision {
+            old.fields = surviving_fields;
+            return Ok((fields_changed, false));
+        }
+        let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
+        let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
+        let type_changed = old.ty != ty || old.declared != declared;
+        let grows = type_changed && matches!(ty, Ty::List(..))
+            && new.origins.iter().any(|(_, source)| has_concat(source));
+        let changed = type_changed || !old.fields.is_empty();
+        old.fields.clear();
+        old.ty = ty;
+        old.declared = declared;
+        for origin in &new.origins {
+            if !old.origins.iter().any(|(_, source)| *source == origin.1) { old.origins.push(origin.clone()); }
+        }
+        old.revision = old.revision.max(new.revision);
+        Ok((changed, grows))
     }
 
     /// After `require x != null` or inside `if x != null:`, `x` is present.

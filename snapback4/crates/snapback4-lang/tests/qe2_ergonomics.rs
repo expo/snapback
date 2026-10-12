@@ -142,6 +142,8 @@ fn point_facts_do_not_survive_changed_keys_writes_branches_or_loop_iterations() 
         "require exists conversations[key] else NOT_FOUND\n  ignored = remove(key) if true else false\n  return ttl(conversations[key].disappearing)",
         "require exists conversations[key] and remove(key) else NOT_FOUND\n  return ttl(conversations[key].disappearing)",
         "require exists conversations[key] else NOT_FOUND\n  if true:\n    delete conversations[key]\n  return ttl(conversations[key].disappearing)",
+        "require exists conversations[key] else NOT_FOUND\n  for n in [1]:\n    if n = 1:\n      delete conversations[key]\n      break\n  return ttl(conversations[key].disappearing)",
+        "require exists conversations[key] else NOT_FOUND\n  for n in [1, 2]:\n    if n = 1:\n      delete conversations[key]\n      continue\n    x = ttl(conversations[key].disappearing)\n  return null",
     ] {
         let source = format!("{REFERENCES}fn remove(k: conversations):\n  delete conversations[k]\n  return true\nmutation run(key: conversations, other: conversations):\n  {body}\n");
         let b = compile(&[("schema.q".into(), source.clone())]);

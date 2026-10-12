@@ -206,6 +206,53 @@ mutation stale(owner: principal):
 }
 
 #[test]
+fn loop_transfer_edges_carry_revoked_authorization_to_their_destinations() {
+    for (name, body) in [
+        (
+            "breakRevoked",
+            "  for i in range(0, 2):\n    if i = 0:\n      delete moderators[viewer]\n      break\n  return narrowCounts[owner] + 1",
+        ),
+        (
+            "continueRevoked",
+            "  for i in range(0, 2):\n    if i = 0:\n      delete moderators[viewer]\n      continue\n    value = narrowCounts[owner] + 1\n  return 0",
+        ),
+    ] {
+        let bound = compile(&[(
+            "schema.q".into(),
+            format!(
+                "{SOURCE}mutation {name}(owner: principal):\n  require owner = viewer else NOT_ALLOWED\n  require exists moderators[viewer] else NOT_MODERATOR\n{body}\n"
+            )
+            .into(),
+        )]);
+        assert!(
+            bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+            "{name}: {:#?}",
+            bound.diagnostics
+        );
+    }
+
+    checked(
+        r#"
+query stableBreak(owner: principal):
+  require owner = viewer else NOT_ALLOWED
+  require exists moderators[viewer] else NOT_MODERATOR
+  for i in range(0, 2):
+    if i = 0:
+      break
+  return narrowCounts[owner] + 1
+query stableContinue(owner: principal):
+  require owner = viewer else NOT_ALLOWED
+  require exists moderators[viewer] else NOT_MODERATOR
+  for i in range(0, 2):
+    if i = 0:
+      continue
+  return narrowCounts[owner] + 1
+"#,
+    );
+}
+
+#[test]
 fn a_job_is_system_only_outside_viewer_scopes() {
     let bound = compile(&[(
         "schema.q".into(),

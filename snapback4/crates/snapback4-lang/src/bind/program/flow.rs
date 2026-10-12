@@ -41,6 +41,7 @@ impl Outcomes {
     }
 
     pub(super) fn exits(self) -> bool { self.0 & FALLS_THROUGH == 0 }
+    pub(super) fn falls_through(self) -> bool { self.0 & FALLS_THROUGH != 0 }
     pub(super) fn terminates(self) -> bool { self.0 == RETURNS }
 }
 
