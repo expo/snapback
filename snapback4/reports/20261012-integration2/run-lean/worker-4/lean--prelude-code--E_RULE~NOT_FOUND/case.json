@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 51362,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            },
+            {
+              "name": "flag",
+              "ty": "Bool"
+            },
+            {
+              "name": "maybe",
+              "ty": {
+                "Nullable": "Int"
+              }
+            },
+            {
+              "name": "tag",
+              "ty": "Id"
+            }
+          ],
+          "keys": [
+            [
+              "byTag",
+              [
+                "tag"
+              ],
+              true
+            ]
+          ],
+          "rule": "Owner",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Exists",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": true
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "prelude": [
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Insert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Bool": false
+          }
+        },
+        {
+          "stmts": [
+            {
+              "Write": {
+                "kind": "Upsert",
+                "target": "Key",
+                "value": {
+                  "Int": 0
+                },
+                "tag": "tag"
+              }
+            }
+          ],
+          "ret": {
+            "Int": 0
+          }
+        }
+      ]
+    },
+    "rows": [],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "k2": "r1",
+      "key": "missing",
+      "n": null
+    },
+    "clock": 387362,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 15274,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    },
+    "steps": [
+      {
+        "args": {
+          "a": -1,
+          "b": 1,
+          "bucket": 1,
+          "c": null,
+          "k2": "r2",
+          "key": "r1",
+          "n": -1
+        },
+        "at": 387362
+      },
+      {
+        "args": {
+          "a": 0,
+          "b": -1,
+          "bucket": 0,
+          "c": null,
+          "k2": "r3",
+          "key": "missing",
+          "n": null
+        },
+        "at": 387362,
+        "viewer": "bob"
+      }
+    ]
+  },
+  "finding": {
+    "signature": "lean--prelude-code--E_RULE~NOT_FOUND",
+    "oracle": "Lean",
+    "field": "prelude-code",
+    "left": {
+      "kind": "mutation",
+      "value": {
+        "events": 0,
+        "metered": {
+          "examined": 0,
+          "heap_bytes": 1415,
+          "index_entries": 0,
+          "output_bytes": 0,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 12
+        },
+        "receipt_only": false,
+        "replayed": false,
+        "state": "failed",
+        "tables": [],
+        "why": {
+          "code": "E_RULE",
+          "family": "auth",
+          "guide": "rules",
+          "message": "items's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"
+        }
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "code": "NOT_FOUND",
+        "kind": "refused"
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "bool": false
+            },
+            "kind": "committed",
+            "next": false
+          },
+          "model": {
+            "code": null,
+            "complete": null,
+            "data": {
+              "bool": false
+            },
+            "kind": "committed",
+            "next": false
+          }
+        }
+      },
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": "E_RULE",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          },
+          "model": {
+            "code": "NOT_FOUND",
+            "complete": null,
+            "data": null,
+            "kind": "refused",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 234
+}

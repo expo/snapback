@@ -93261,3 +93261,40 @@ load-sensitive timeout, not an outstanding failure. The complete first
 client invocation covered 366 files; every failing file now has a passing
 full-file rerun. The two full-count client models run in a separate serial
 slot. Full Rust and final evidence accounting continue below.
+
+## 2026-10-12 — Integration 2 qualification completes
+
+The requested five-crate Rust command finishes all 357 targets: initially
+5,606 passed, four failures and 38 declared ignores (exit 101). The failures
+are the two previously corrected CLI fixture assertions, the combined
+recipes card's already-corrected piped budget, and the simulator membership
+fixture's old N_NEVER_COMPLETE expectation for a readable pinned guard.
+The full affected targets rerun green: check 95, cli_friction 19, guide 119,
+membership 5. No executable-launch errors or Rust timeout failures. Qualified
+aggregate: **5,610 passed, zero failed, 38 declared ignores**. Initial and
+corrected logs remain separate; the initial command is not called green.
+
+Final guide text distinguishes complete branch merges, pinned-parent
+conditional completeness and a separate grant that can still admit callers
+under N_NEVER_COMPLETE. Its word and line budgets pass; no examples removed.
+Lean: 53 examples, 54 audited theorems, seven fixtures. Readauth census: 402
+mutation occurrences, 84 private write sites; its regenerated projection is
+unchanged. Delivery-await regeneration is unchanged and its complete fault
+matrix passes; codec census passes without adding exceptions.
+
+All 366 regular client files are qualified after full-file corrective
+reruns: **7,150 passed, zero failed, 56 declared skips**. The two full-count
+serial model files add **81 passed**, including 5,000 session sequences
+per tier and 3,000 online sequences. The sole load-sensitive timeout is the
+export maintenance-result wait, whose one unchanged rerun passed. Browser
+fixture corrections and the stable-artifact once-preservation rerun are
+recorded above.
+
+`run`: 20,000 cases, 1,009,344 calls, zero disagreements or generator errors.
+`run-lean`: 100,000 cases, 76,299 agree, 22,656 unsupported, 1,045 only in
+four inherited C2/W4 signatures (exit 1); no new signatures. Locked wasm
+repeats 2,234,443 B raw / 676,290 B gzip; cap 676,790 B, measurement + 500.
+README 319/320 lines; recipes 380/400; docs-budget and ref-check pass.
+Evidence and per-file qualification are in reports/20261012-integration2/.
+The integration report goes in the final response; no WORKSTREAM-REPORT.md.
+No push or publication.

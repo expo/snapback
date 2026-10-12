@@ -1,0 +1,4415 @@
+{
+  "files": 366,
+  "counts": {
+    "tests": 7206,
+    "pass": 7150,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 56,
+    "todo": 0
+  },
+  "evidence": {
+    "packages/snapback4/test/answers-stay-bound.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/answer-row-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/api-index.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/answers-stay-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 38,
+        "pass": 38,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-global-attempts.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-handles.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-global.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/answer-withdrawal.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 42,
+        "pass": 42,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-local-outcomes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-local-session.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-local-receipts.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-outcomes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-persona.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-receipts.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/answers-stay-round2.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 33,
+        "pass": 33,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-retirement.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-storage.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/answers-stay-react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 66,
+        "pass": 66,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-online.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/approval-lifecycle.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 51,
+        "pass": 51,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-online-arm.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-state.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/approval-notifications.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/approval-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-blob-lifecycle.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 64,
+        "pass": 64,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/answers-stay-round3.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-buffered.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-files.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-pressure.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 78,
+        "pass": 78,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/astra-arguments.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/astra-invalid-input.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/astra-projection.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/admit-before-identity.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 59,
+        "pass": 59,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-retry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 38,
+        "pass": 38,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/astra-rebirth.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/browser-write-warnings.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/cleanup.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/browser-navigation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/approval-model.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 425,
+        "pass": 425,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-avatars.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client-avatar-fix.log.gz"
+    },
+    "packages/snapback4/test/codec.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/close-boundary.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 41,
+        "pass": 41,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/composed-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/cross-scope-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/custody-read.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/column-stream-recovery.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-activation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/app-store-replacement.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-cas.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-clients.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-crash.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/client-lifecycle.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 57,
+        "pass": 57,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-integrated.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-approval.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 29,
+        "pass": 29,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-outbox.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-refusal.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/client-seams.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 65,
+        "pass": 65,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 66,
+        "pass": 66,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-web.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/device-diet.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/dev-reset.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/effectful-cancellation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/device-residency.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-publication.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-capability.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-adoption.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-fencing.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-lanes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-mock.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/decorated-search.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 57,
+        "pass": 57,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-keep.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-sender.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-reclamation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-types.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/event-slot-capability.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-routing.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/event-slots.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 46,
+        "pass": 46,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/expiry-retry-watch.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/expo-media-storage.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/expo-scenes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/acquisition.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 47,
+        "pass": 47,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/expired-server-watch.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/export-failure.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/export-native-round2.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-watches.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/export-publication.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/export-native.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/familiar-forms.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/asset-lists.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 42,
+        "pass": 42,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/first-account.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/following-hook-react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/following-own-writes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ephemeral-e2e.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/follow-window.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/following-routing.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/generated-effect-opt-in.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/headless-registration.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/following-unfollow.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/id-from.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/identity-invitation-issuance.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 38,
+        "pass": 38,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/identity-organizations.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/http-bounds.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/identity-profile.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/identity.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/identity-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/init-recipe.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/intent-views.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/in-chat-search.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/generated-effect-context.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-app-expiry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-adoption.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/following-history.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 19,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 51,
+        "pass": 51,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-device.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 31,
+        "pass": 31,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/delivery-fault-matrix.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 339,
+        "pass": 339,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-expiry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 31,
+        "pass": 31,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-incarnation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 19,
+        "pass": 19,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-observation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 33,
+        "pass": 33,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-reset.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 36,
+        "pass": 36,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/horizon-boundary.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 82,
+        "pass": 82,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keepalive-retry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keepalive-reuse.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keepalive-headers.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/linux-package.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/list-lower-bounds.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keepalive-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/live-margin-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/live-margin-settlement.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/live-contention.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/live-propagation-fallback.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/live-propagation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/local-reads.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/local-signout.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/loopbar-bounds.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/loopbar.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/local-e2e.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/maintained-column-adoption.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/maintains.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/maintenance-evidence.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/measure-launch.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/legacy-receipts.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/media-dependencies.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/native-e2e.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/native-opening.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/native-smoke.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/maintained-columns.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/node-transport.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/observation-publication-live.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/observation-publication.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 62,
+        "pass": 62,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/once-preservation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client-once-rerun.log.gz"
+    },
+    "packages/snapback4/test/one-shot-bounds.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-commit-evidence.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 31,
+        "pass": 31,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/bounded-following.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-discovery-auth.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-generation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-model.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-prediction-replay.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-review-races.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-clock.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 53,
+        "pass": 53,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/navigation-model.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 62,
+        "pass": 62,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-dependencies.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 100,
+        "pass": 100,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-intent-store.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-capture.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 39,
+        "pass": 37,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-read-order.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot-sync-overlap.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-store-order.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-session.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-journal-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-terminal-entrypoints.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ordinary-search-ledger.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/online-store-terminal.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ordinary-history.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ordinary-search.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/overload-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/own-keys.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/package-require.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-authority-react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client-react-final.log.gz"
+    },
+    "packages/snapback4/test/package-typecheck.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/page-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/page-ready.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/pending-items-round1.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/pending-items-round2.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/pending-items-round3.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/pending-items.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/pending-writes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-boundaries.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-inflight.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-liveness.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-progress.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-publication.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/page-observation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-retention.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 54,
+        "pass": 54,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/one-shot.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-retry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/overload.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 109,
+        "pass": 109,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-work.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 25,
+        "pass": 25,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/per-row-react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/periphery.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/presence-composed.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/presence-refresh.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/profile-upgrade.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/presence-live.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/publication-roundtrip.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/publish-signing.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/keep-app-model.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/qe2-ergonomics.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/publish-linux.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 48,
+        "pass": 48,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/query-dependencies.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/qe2-allocations.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/raw-read-deadlines.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/qualify-linux.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-admission-insert.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 73,
+        "pass": 73,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client-react-final.log.gz"
+    },
+    "packages/snapback4/test/read-existence.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-match.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-nullable-array.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-observation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-allocation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-existence-integration.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-custody-races.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/query-publication-session.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-custody.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-custody-server.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-peer-rotation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-round4.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-round7.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 23,
+        "pass": 23,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-round5.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-presentation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-presentation-react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-through-upsert.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-through-provenance.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-through.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-only-server.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/presence-local.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/receipt-upgrade.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/recorded-compatibility.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/readme-examples.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/refresh-behavior.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/release-activation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/remembered-answers.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/read-types.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/repair-b-round7.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/repair-b-round8.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/repair-b-overflow.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/repair-b-round16.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/repair-b-round9.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 47,
+        "pass": 47,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/reservation-app-headroom.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/replacement-fixture.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/repair-b.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retained-history-cut.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retained-history-order.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 41,
+        "pass": 41,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/residency.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/reservation-parity.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 50,
+        "pass": 50,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/readauth.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retained-search-order.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retention-episode.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 65,
+        "pass": 65,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retention-pages.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/export-background.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 104,
+        "pass": 70,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 34,
+        "todo": 0
+      },
+      "log": "client-export-rerun.log.gz"
+    },
+    "packages/snapback4/test/retention-store-withdrawal.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 34,
+        "pass": 34,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retention-online-boundaries.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/revocation-retention.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/row-keyed-view.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/review-probes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/rx-rule-hop-capability.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 0,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 4,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/row-view-prediction.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/schema-capabilities.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 7,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/rx-rule-hops.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/schema-capability-refusals.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/schema-session.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/screen-lifetimes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/seen-devices.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/seen.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/prediction-routing.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 223,
+        "pass": 223,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retention-lifecycle.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 186,
+        "pass": 186,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-clock-live.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-check.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-clock-recovery.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/routes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-clock-regressions.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 19,
+        "pass": 19,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-clock.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 29,
+        "pass": 29,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-output.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/screen-lifetimes-react.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-routes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-runtime.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 47,
+        "pass": 47,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/session-security.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-clock-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/session-reasons.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 33,
+        "pass": 33,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/social-starter.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/store-reset-idb.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/social-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/retained-history.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 78,
+        "pass": 78,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/mixed-evidence-oracle.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-deadline.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/store-reset.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-clock-wire.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-fairness.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-device.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/store-reset-reconnect.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-names.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-online.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-e2e.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-options.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-memory.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-round1.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-scaling.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/server-e2e.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-scopes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-round3.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-watermark.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/sync-after-call.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/supervised-workers.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-round2.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/sync-generation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 41,
+        "pass": 40,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 1,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/store-reset-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 60,
+        "pass": 60,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/sync-scale.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/test-command-group.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/subscription-pressure-noop.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/ordinary-search-oracle.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/test-processes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 53,
+        "pass": 53,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/typed-positional-keys.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/typing-expiry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/test-signals.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 16,
+        "pass": 16,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/unicode.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/sync-overflow.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 23,
+        "pass": 23,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/test-file-runner.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 42,
+        "pass": 42,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/timeline-delivery.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/use-page-cursor.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/wasm-absent.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/transport-outcomes.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/upload-retry.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/wasm-budget.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/wasm-families.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-durability.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/upload-lifetime.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 46,
+        "pass": 46,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/social-quote-jump-browser.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 38,
+        "pass": 38,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client-quote-final.log.gz"
+    },
+    "packages/snapback4/test/transport-http.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-pages.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/wasm-codec-census.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 27,
+        "pass": 27,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-shell.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/unread-range.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 62,
+        "pass": 62,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-worker-control.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-navigation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 28,
+        "pass": 28,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/value-deadline-types.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/witness.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/witness-preparation.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/word-expansion.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-session-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 19,
+        "pass": 19,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-start.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/worker-ledger-contention.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-receipt-upgrade.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/write-authority.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/write-ids.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/worker.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/witness-acquire.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 43,
+        "pass": 43,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/worker-regressions.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 77,
+        "pass": 77,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    },
+    "packages/snapback4/test/web-admission-review.test.mjs": {
+      "passed": true,
+      "counts": {
+        "tests": 55,
+        "pass": 55,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": "client.log.gz"
+    }
+  },
+  "load_sensitive_timeout": {
+    "file": "export-background.test.mjs",
+    "first": "maintenance-result wait expired under load",
+    "single_unchanged_full_file_rerun": "passed"
+  },
+  "fixture_interruption": {
+    "file": "once-preservation.test.mjs",
+    "cause": "wasm rebuild briefly removed the artifact during two reads",
+    "stable_artifact_full_file_rerun": "passed"
+  }
+}

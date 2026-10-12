@@ -109,7 +109,8 @@ fn literal_and_other_table_probes_do_not_absorb_membership_equality() {
         let bound = bound(&source);
         assert_eq!(fields(&bound), BTreeSet::from(["chatKey".into(), "principal".into()]));
         assert_eq!(visibility(&bound, "roster"), Visibility { uniform: false, decided_true: false });
-        assert!(bound.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE" && n.message.contains("query roster:")), "{:?}", bound.notes);
+        // @ref LLP 3000.036#18 — a readable pinned guard is conditional completeness; self-key absorption is unchanged.
+        assert!(bound.notes.iter().any(|n| n.code == "N_CONDITIONAL_COMPLETE" && n.message.contains("query roster:")), "{:?}", bound.notes);
         let mut engine = engine(&bound);
         let roster = engine.query("roster", context("dev:bob", &[("chatKey", text("alpha"))])).unwrap();
         let rows = roster.data.as_array().unwrap();

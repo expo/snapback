@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 62524,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            },
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "score",
+              "ty": "Int"
+            },
+            {
+              "name": "label",
+              "ty": "Text"
+            }
+          ],
+          "keys": [],
+          "rule": "Witness",
+          "residency": "Online",
+          "effects": [
+            "OwnerOrWitness",
+            "Allow",
+            "NamedOld",
+            "Witness"
+          ]
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Allow",
+          "residency": "Online"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": false,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "domain": "(.bucket = bucket or .bucket = 1)",
+      "kids": {
+        "action": "cascade",
+        "nullable": false,
+        "owner_read": true,
+        "synced": true,
+        "notes": true
+      }
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "bucket": 1,
+          "id": "r4",
+          "label": "a",
+          "owner": "bob",
+          "score": -9007199254740990
+        }
+      ],
+      [
+        "access",
+        {
+          "bucket": 1,
+          "id": "alice1",
+          "principal": "alice"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "r0",
+      "n": null
+    },
+    "clock": 377224,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 16348,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "lean--next--next~no-next",
+    "oracle": "Lean",
+    "field": "next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": false,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "bucket": {
+                  "Int": 1
+                },
+                "id": {
+                  "Id": "r4"
+                },
+                "label": {
+                  "String": "a"
+                },
+                "owner": {
+                  "Id": "bob"
+                },
+                "score": {
+                  "Int": -9007199254740990
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 1,
+          "heap_bytes": 471,
+          "index_entries": 0,
+          "output_bytes": 135,
+          "rows_written": 0,
+          "rule_probes": 2,
+          "steps": 17
+        },
+        "next": "WzIsIml0ZW1zIiwiJGludGVudDpieUxhYmVsU2NvcmU6NDcwODYzYTQ3NGM0MWMzMSIsIkFzYyIsW3sibmFtZSI6ImxhYmVsIiwia2luZCI6eyJUZXh0Ijp7Im1heCI6NjR9fX0seyJuYW1lIjoic2NvcmUiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siU3RyaW5nIjoiYSJ9LHsiSW50IjotOTAwNzE5OTI1NDc0MDk5MH0seyJJZCI6InI0In1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXX1d",
+        "seq": 1,
+        "tables": [
+          "access",
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "lean",
+      "value": {
+        "complete": false,
+        "data": {
+          "arr": [
+            {
+              "row": [
+                [
+                  "id",
+                  {
+                    "id": "r4"
+                  }
+                ],
+                [
+                  "owner",
+                  {
+                    "id": "bob"
+                  }
+                ],
+                [
+                  "bucket",
+                  {
+                    "int": "1"
+                  }
+                ],
+                [
+                  "score",
+                  {
+                    "int": "-9007199254740990"
+                  }
+                ],
+                [
+                  "label",
+                  {
+                    "text": "a"
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        "kind": "answer",
+        "next": {
+          "null": null
+        }
+      }
+    },
+    "continuation": [
+      {
+        "kind": "canonical",
+        "value": {
+          "engine": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r4"
+                    },
+                    "label": {
+                      "text": "a"
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "score": {
+                      "int": "-9007199254740990"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": true
+          },
+          "model": {
+            "code": null,
+            "complete": false,
+            "data": {
+              "arr": [
+                {
+                  "row": {
+                    "bucket": {
+                      "int": "1"
+                    },
+                    "id": {
+                      "id": "r4"
+                    },
+                    "label": {
+                      "text": "a"
+                    },
+                    "owner": {
+                      "id": "bob"
+                    },
+                    "score": {
+                      "int": "-9007199254740990"
+                    }
+                  }
+                }
+              ]
+            },
+            "kind": "answer",
+            "next": false
+          }
+        }
+      }
+    ]
+  },
+  "shrink_attempts": 170
+}

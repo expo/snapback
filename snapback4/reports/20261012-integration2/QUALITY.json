@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-12",
+  "merges": [
+    {
+      "branch": "sb4-ws-ref",
+      "commit": "48d5748bce"
+    },
+    {
+      "branch": "sb4-ws-w8c",
+      "commit": "9e345842af"
+    }
+  ],
+  "integration_fixes": [
+    "ad146e5874",
+    "18eb83d3ce"
+  ],
+  "rust": {
+    "initial_full_command": {
+      "targets": 357,
+      "passed": 5606,
+      "failed": 4,
+      "ignored": 38,
+      "exit": 101
+    },
+    "qualified": {
+      "targets": 357,
+      "passed": 5610,
+      "failed": 0,
+      "ignored": 38
+    },
+    "corrections": {
+      "wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict": "fixes.log.gz",
+      "cases_follow_check_verdicts_name_refusing_layers_and_refuse_undeclared_personas": "fixes.log.gz",
+      "a_piped_card_prints_whole_up_to_the_cap": "guide-final3.log.gz",
+      "literal_and_other_table_probes_do_not_absorb_membership_equality": "membership-fix.log.gz"
+    },
+    "launch_errors": 0
+  },
+  "difftest_run": {
+    "cases": 20000,
+    "calls": 1009344,
+    "disagreements": 0,
+    "generator_errors": {},
+    "exit": 0
+  },
+  "difftest_run_lean": {
+    "cases": 100000,
+    "passed": 76299,
+    "unsupported": 22656,
+    "disagreements": 1045,
+    "signatures": {
+      "lean--code--E_RULE~NOT_FOUND": 35,
+      "lean--continuation-next--next~no-next": 231,
+      "lean--next--next~no-next": 667,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 112
+    },
+    "new_signatures": [],
+    "exit": 1
+  },
+  "lean_check": {
+    "examples": 53,
+    "audited_theorems": 54,
+    "oracle_fixtures": 7
+  },
+  "client_files": {
+    "files": 366,
+    "counts": {
+      "tests": 7206,
+      "pass": 7150,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    }
+  },
+  "client_models": {
+    "files": 2,
+    "tests": 81,
+    "passed": 81,
+    "failed": 0,
+    "session_sequences_per_tier": 5000,
+    "online_sequences": 3000
+  },
+  "censuses": {
+    "readauth": {
+      "mutation_occurrences": 402,
+      "private_write_sites": 84,
+      "unchanged_after_regeneration": true
+    },
+    "delivery_await": "regenerated from merged sources; unchanged; full fault matrix passed",
+    "codec": "full census passed, no exception changes required"
+  },
+  "wasm": {
+    "raw": 2234443,
+    "gzip": 676290,
+    "budget": 676790,
+    "headroom": 500,
+    "repeated_identically": true
+  },
+  "docs": {
+    "README_lines": 319,
+    "README_limit": 320,
+    "recipes_lines": 380,
+    "recipes_piped_limit": 400,
+    "guide_tests_passed": 119
+  },
+  "ref_check": "passed",
+  "load_sensitive_timeout": {
+    "file": "export-background.test.mjs",
+    "first": "maintenance-result wait expired under load",
+    "single_unchanged_full_file_rerun": "passed"
+  },
+  "fixture_interruption": {
+    "file": "once-preservation.test.mjs",
+    "cause": "wasm rebuild briefly removed the artifact during two reads",
+    "stable_artifact_full_file_rerun": "passed"
+  },
+  "deferrals": [
+    "Four inherited Lean C2/W4 signatures; no new signatures.",
+    "Existing Rust ignores and client skips remain declared."
+  ],
+  "push": false,
+  "publication": false
+}
