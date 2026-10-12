@@ -141,13 +141,15 @@ case fails, `test` (and dev's refusal log) say whether the lookup's row was hidd
 ## An acceptance script over HTTP
 
 Spawn the binary itself: `resolveBinary()` from `snapback4/bin-path` (file `dist/bin-path.js`) returns
-the platform binary, so the child's PID is the server's. The `node_modules/.bin/snapback4` wrapper also
+the platform binary, so the child's PID is the server's (it runs the native verbs; `web-shell` is the
+npm wrapper's, `node_modules/.bin/snapback4 web-shell dist`). The `node_modules/.bin/snapback4` wrapper also
 works: it forwards `SIGTERM`/`SIGINT`, and the server stops when the wrapper dies, even by `SIGKILL`.
 Never spawn `npx` (npm and a shell sit in between). `--port 0` takes a free port and `--memory` keeps no
 store, so parallel runs never contend; a fixed port that is taken refuses at once (`E_ADDRINUSE`, naming
 the holder). On a host that assigns you a port range, pass it: `--port 20100-20109` binds the first free
-port in it (`E_ADDRINUSE` only when all are taken), so no port-scanning loop is needed. Readiness: stdout's first line is the URL; host diagnostics go to stderr, so read stdout
-alone, or, reading both streams together, match the stderr line `SNAPBACK4_READY … url=… pid=…`.
+port in it (`E_ADDRINUSE` only when all are taken), so no port-scanning loop is needed. Readiness: stdout's first line is the URL and nothing else,
+exactly `http://127.0.0.1:41234` (no trailing slash: request `url + "/q/cardsOn"`); host diagnostics go to stderr, so read stdout
+alone, or, reading both streams together, match the stderr line `SNAPBACK4_READY verb=dev generation=1 url=http://127.0.0.1:41234 pid=4242`.
 `GET /dev/status` names the server's `pid` (and `wrapperPid` through the wrapper). `snapback4 dev --help`
 has the lifecycle.
 
@@ -173,22 +175,30 @@ async function stopChild(child, graceMs = 5000) {
   await exited;
   clearTimeout(timer);
 }
-
-const dev = spawn(resolveBinary(), ["dev", "--port", "0", "--memory"], { stdio: ["ignore", "pipe", "inherit"] });
-try {
-  const died = once(dev, "exit").then(([code]) => { throw new Error(`dev exited ${code} before its URL`); });
+// `dev` on a free port with an empty store: its URL and stop(). Reuse it for every scenario and proof script.
+async function startDev(args = ["--port", "0", "--memory"]) {
+  const child = spawn(resolveBinary(), ["dev", ...args], { stdio: ["ignore", "pipe", "inherit"] });
+  const died = once(child, "exit").then(([code]) => { throw new Error(`dev exited ${code} before its URL`); });
   died.catch(() => {}); // only the race below reports it
-  const [line] = await Promise.race([once(createInterface({ input: dev.stdout }), "line"), died]);
-  const url = line.trim();
-  const post = async (path, body, persona) => (await fetch(url + path, { method: "POST", body: JSON.stringify(body),
+  try {
+    const [line] = await Promise.race([once(createInterface({ input: child.stdout }), "line"), died]);
+    return { url: line.trim(), stop: () => stopChild(child) };
+  } catch (error) { await stopChild(child); throw error; }
+}
+// A refusal's code from either envelope (a query's {denied}, a mutation's {state: "failed", why}); undefined when answered.
+const refusal = body => body.denied?.code ?? (body.state === "failed" ? body.why.code : undefined);
+
+const dev = await startDev();
+try {
+  const post = async (path, body, persona) => (await fetch(dev.url + path, { method: "POST", body: JSON.stringify(body),
     headers: { "content-type": "application/json", ...(persona && { "x-snapback-persona": persona }) } })).json();
   assert.equal((await post("/seed", [{ table: "boards", row: { id: "b1", owner: "dev:alice", title: "Groceries" } }])).seeded, 1);
   assert.equal((await post("/q/cardsOn", { args: { board: "b1" } }, "alice")).data.length, 0); // baseline first
   assert.equal((await post("/m/addCard", { args: { board: "b1", text: "milk" } }, "alice")).state, "sent");
-  const refused = await post("/m/addCard", { args: { board: "b1", text: "spam" } }, "bob");
-  assert.equal(refused.state, "failed"); // refused.why.code is "E_RULE"
+  assert.equal(refusal(await post("/m/addCard", { args: { board: "b1", text: "spam" } }, "bob")), "E_RULE");
+  assert.equal(refusal(await post("/q/myBoard", { args: { board: "b1" } }, "bob")), "NOT_OWNER"); // a query's own require
   assert.equal((await post("/q/cardsOn", { args: { board: "b1" } }, "alice")).data.length, 1);
-} finally { await stopChild(dev); }
+} finally { await dev.stop(); }
 ```
 
 The same `stopChild` stops a frontend server: spawn `node_modules/.bin/vite` (not `npx vite`) and

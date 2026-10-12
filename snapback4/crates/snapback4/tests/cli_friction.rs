@@ -635,3 +635,20 @@ query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     assert_eq!(output.status.code(), Some(1));
     assert!(text(&output).contains("cases: 0 passed, 1 failed — FAIL"), "{}", text(&output));
 }
+
+/// Wave 7 (HTTP acceptance, 11 lanes): the guide's script handles both refusal
+/// envelopes in one helper (002), shows the literal ready line (016 097), and
+/// wraps the server lifecycle once (064 099); the platform binary names the npm
+/// wrapper for `web-shell` instead of "unknown verb" (060).
+#[test]
+fn the_acceptance_recipe_reads_both_refusal_envelopes_and_web_shell_names_its_wrapper() {
+    let guide = Command::new(BIN).args(["guide", "testing", "--section", "acceptance"]).output().unwrap();
+    let guide = text(&guide);
+    for term in ["const refusal = body => body.denied?.code ?? (body.state === \"failed\" ? body.why.code : undefined)", "async function startDev(", "exactly `http://127.0.0.1:41234` (no trailing slash", "\"NOT_OWNER\"", "web-shell dist"] {
+        assert!(guide.contains(term), "guide testing's acceptance section names {term}:\n{guide}");
+    }
+    let output = Command::new(BIN).args(["web-shell", "dist"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("web-shell is the npm wrapper's verb") && stderr.contains("node_modules/.bin/snapback4 web-shell dist") && !stderr.contains("unknown verb"), "{stderr}");
+}
