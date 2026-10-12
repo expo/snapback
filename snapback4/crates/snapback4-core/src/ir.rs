@@ -73,6 +73,11 @@ pub enum ArgType {
     Bytes { max: u32 },
     Image { max: u32 },
     Video { max: u32 },
+    File {
+        max: u32,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        types: Vec<String>,
+    },
     Int,
     // @ref LLP 3000.040#13-representation — a new tag: an older device cannot decode the program, so it never skips the bound.
     IntRange { #[serde(default = "crate::schema::int_floor", skip_serializing_if = "crate::schema::is_int_floor")] min: i64, #[serde(default = "crate::schema::int_ceiling", skip_serializing_if = "crate::schema::is_int_ceiling")] max: i64 },

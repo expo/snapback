@@ -58,7 +58,7 @@ fn media_results_validate_nested_facts_and_authoritative_byte_bounds() {
             let nested = ArgType::Optional(Box::new(ArgType::List { of: Some(Box::new(kind.clone())), max: 2 }));
             declared.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::from([("media".into(), nested)]));
             let mut engine = Engine::memory(declared, [program()]).unwrap();
-            engine.store().record_asset(&Asset { id: "asset".into(), owner: "dev:alice".into(), kind: asset_kind, content_type: "image/png".into(), bytes, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None }).unwrap();
+            engine.store().record_asset(&Asset { id: "asset".into(), owner: "dev:alice".into(), kind: asset_kind, content_type: "image/png".into(), bytes, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None, name: None }).unwrap();
             admit(&mut engine, "media", 0); let lease = claim(&mut engine, 0);
             let result = json!({"media":[value]});
             let run = engine.settle_action("media", "service:worker", &lease, ActionSettled::Done(result.clone()), 1).unwrap();

@@ -308,6 +308,10 @@ pub fn parallel_command(
     if seconds.is_some() && verb == "run" {
         return Err("--seconds applies only to run-stores and run-devices".into());
     }
+    // One refresh per campaign; workers get the refreshed oracle's path.
+    if verb == "run-lean" {
+        crate::lean::refresh()?;
+    }
     if workers == 1 {
         match verb {
             "run-stores" => {
@@ -355,6 +359,9 @@ pub fn parallel_command(
         let log = std::fs::File::create(out.join(format!("worker-{i}.log")))
             .map_err(|e| e.to_string())?;
         let mut command = std::process::Command::new(executable);
+        if verb == "run-lean" {
+            command.env("SNAPBACK4_LEAN_ORACLE", crate::lean::oracle_path());
+        }
         command
             .args([
                 verb,

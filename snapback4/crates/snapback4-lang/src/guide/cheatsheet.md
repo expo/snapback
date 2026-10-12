@@ -93,6 +93,39 @@ mutation removeItem(item: items):
   true update upsert viewer walk while`. A shape or object field cannot be named `pending` (row metadata).
 - Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).
 
+## Roles and rosters
+
+A role is a roster row, and a rule or `exists` probe names one row, so the roster needs a unique key:
+`exists teams[coach = viewer, division = .division]` over a table without one refuses `E_QUARRY_POINT_KEY`.
+
+```quarry
+table coaches:                            -- the roster: unique, so a probe is one row
+  principal: principal
+  division: text 1..40
+  unique principal, division
+  read <- .principal = viewer
+  online only
+table teams:
+  name: text 1..80
+  division: text 1..40
+  read <- exists coaches[viewer, .division]                           -- positional: the key's columns in order
+  update <- exists coaches[principal = viewer, division = .division]  -- or named
+  online only
+query divisionTeams(division: text 1..40, c: cursor ?):
+  require exists coaches[viewer, division] else NOT_COACH
+  return teams where .division = division first 50 by .id after c
+```
+
+- Positional values bind in order: one value of the table's own id (or a reference to it) is that row;
+  otherwise the declared unique key whose column types accept them, in key order (`coaches[viewer, .division]`
+  is principal, then division). Named tests may follow a full positional key (`docs[.docId, ownerId = viewer]`);
+  when types fit two keys, name the columns (`profiles[principal = viewer]`).
+- A rule's probe sees every roster row; a program's `exists` or `t[k]` sees only rows the caller may read.
+  `require exists coaches[principal = other, division = division]` is false for another coach's row while the roster reads
+  `.principal = viewer`: widen the roster's read rule (`or exists coaches[viewer, .division]`), or test it in a rule.
+- Refusals fire in program order after the arguments decode: a `t[x] !` lookup of a row the caller cannot read
+  answers `NOT_FOUND` before any later `require` (`guide refusals`).
+
 ## The loop
 
 ```sh

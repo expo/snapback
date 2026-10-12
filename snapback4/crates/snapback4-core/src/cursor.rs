@@ -183,7 +183,7 @@ fn value_matches(value: &Value, kind: &ColumnType) -> bool {
             value,
             Value::Bool(_) | Value::Int(_) | Value::String(_) | Value::Id(_) | Value::Bytes(_)
         ),
-        ColumnType::List { .. } | ColumnType::ListRange { .. } | ColumnType::Image { .. } | ColumnType::Video { .. } => false,
+        ColumnType::List { .. } | ColumnType::ListRange { .. } | ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => false,
     }
 }
 

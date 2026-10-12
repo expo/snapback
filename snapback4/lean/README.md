@@ -49,13 +49,13 @@ elan.
 | --- | --- | --- |
 | Values | `Quarry/Value.lean` | Scalars: null, bool, i53 int, text (as code points), nominal id, bytes. Values: scalars, arrays, rows. The one total order. A self-delimiting order-preserving key encoding. |
 | Syntax | `Quarry/Syntax.lean` | Schema: tables, typed nullable columns, unique keys with `else CODE`, read/insert/update/delete rules. Rules: allow, deny, `=`, `!=`, `exists t[..]` probes, and, or, not, over the row, old/next images and `viewer`. Expressions: arithmetic, comparison, and/or/not, `!` / `else`, `??`, conditionals, pure helper calls, arrays, records, point reads, pages, `count`, `exists`. Statements: `x = e`, `require`, `if`, `return`, and insert/upsert/update/delete. |
-| Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`). |
-| Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and exists. Reads see only a `View` of visible rows. |
+| Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`), a rule's disjuncts and terms. |
+| Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a page guard: a grant or a pinned parent probe). Reads see only a `View` of visible rows. |
 | Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, application codes). |
 | Calendar | `Quarry/Calendar.lean` | The UTC builtins of LLP 3000.040 §2.2: `day`, `hour`, `bucket` as period ordinals; `month`, `year`, `monthStart`, `yearStart` over the proleptic Gregorian calendar, by a 400/100/4/1-year decomposition independent of the engine's algorithm. Unbounded `Int`; the evaluator refuses `E_OVERFLOW` outside i53. |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
 | Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
-| Examples | `Quarry/Examples.lean` | 35 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
+| Examples | `Quarry/Examples.lean` | 45 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
@@ -94,9 +94,9 @@ Every statement below is a theorem over the operational semantics, with no
 
 - `run_deterministic`: one outcome per case. This holds by construction.
 - `sortRows_perm`, `candidates_perm`, `pageRead_perm`: **scan order is
-  determined by key order**. If ids are unique, any physical ordering of a
-  table's rows gives the same candidates in the same order, and the same
-  page.
+  determined by key order**. If ids are unique, any physical ordering of the
+  tables' rows gives the same candidates in the same order, and the same
+  page. `Rule.eval_perm`: no rule verdict depends on that ordering either.
 
 **No disclosure** (`Proofs/Disclosure.lean`)
 
@@ -108,7 +108,9 @@ Every statement below is a theorem over the operational semantics, with no
 - `countRead_eq`: **what a count reveals**. `count(domain)` is exactly the
   number of visible rows in the domain that match its filter, and nothing
   else.
-- `existsRead_eq`: `exists` is true exactly when a visible row matches.
+- `existsRead_eq`: `exists` is true exactly when a visible row matches,
+  whenever it answers; `existsRead_decided`: it never answers `false` from
+  an undecided scan (LLP 3000.036 §15.12).
 - `query_ignores_hidden_insert`: inserting a row the viewer cannot read,
   into a table no read rule probes, changes no query outcome.
 - `query_writes_nothing`: a query never changes its world.
@@ -131,9 +133,17 @@ returned. Changing a witness row is a change of authority, not a disclosure.
 
 **Completeness soundness** (`Proofs/Disclosure.lean`, `Proofs/Continuation.lean`)
 
-- `pageRead_complete`: a page that leaves `complete` true was decided by its
-  pins (it is uniform). It returned exactly the first N qualifying visible
-  rows after its cursor, in key order.
+- `pageRead_complete`: a page that leaves `complete` true was decided (by its
+  pins, or by a page guard: a readable grant or a pinned parent probe). It returned exactly the first N qualifying
+  visible rows after its cursor, in key order.
+- `decided_store`, `pageRead_complete_store`: **a decided scan sees all of
+  its rows or none**. The rows its pins select in the store are all readable
+  to the caller, or none is, so a complete page omits no qualifying row. Its
+  parts: `uniform_readable_eq` (pins that fix every column the rule reads
+  give one verdict) and `granted_readable` (a positive disjunct whose row
+  columns are all pinned — none, for a grant — that holds over the caller's
+  view with the pinned values makes every row the pins select readable;
+  `Rule.eval_mono`, `Rule.eval_pin`).
 - `walk_complete`: the same fact for the underlying candidate walk.
 - `cut_continuation`: a page cut by the ceiling, followed by the leading
   qualifying rows of its continuation from `next`, equals the uncut page.

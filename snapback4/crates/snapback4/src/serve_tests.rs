@@ -24,6 +24,8 @@ mod timeline_tests;
 mod store_tests;
 #[path = "../tests/serve_assets/mod.rs"]
 mod asset_list_tests;
+#[path = "../tests/serve_reset/mod.rs"]
+mod reset_tests;
 #[path = "../tests/serve_long_waits/mod.rs"]
 mod long_wait_tests;
 #[test]
@@ -397,6 +399,7 @@ fn foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate() {
             ("POST", "/q/who", "{}"),
             ("POST", "/seed", "[]"),
             ("OPTIONS", "/seed", ""),
+            ("POST", "/dev/reset", ""),
         ] {
             let response = host.request(method, path, &headers, payload);
             assert_eq!(status(&response), 403, "{origin}: {response}");
@@ -518,6 +521,7 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
         }
         if !dev {
             assert_eq!(status(&host.request("POST", "/seed", "", "[]")), 403);
+            assert_eq!(status(&host.request("POST", "/dev/reset", "", "")), 403);
         }
     }
 }

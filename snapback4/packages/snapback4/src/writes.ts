@@ -24,7 +24,7 @@ interface Submission {
   running?: Promise<Write>;
 }
 
-function inputKey(op: string, args: unknown): string {
+export function inputKey(op: string, args: unknown): string {
   const sorted = (value: unknown): unknown => Array.isArray(value) ? value.map(sorted)
     : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, child]) => [key, sorted(child)])) : value;
   return JSON.stringify([op, sorted(args)]);
@@ -60,6 +60,9 @@ export class MutationIds {
       this.terminal.delete(oldest); this.submissions.delete(oldest);
     }
   }
+
+  /** Hand a reserved id back: its durable intent is replayed by a new call. */
+  release(id: string): void { this.seen.delete(id); this.submissions.delete(id); this.terminal.delete(id); }
 
   run<R>(id: string, op: string, args: unknown, recover: () => Promise<Write | undefined>, submit: (args: unknown, pending: PendingWrite) => Promise<Write<R>>): Promise<Write<R>> {
     if (typeof id !== "string" || !/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id)) return failedAdmission<R>(id, refused(id, "E_WRITE_ID", "write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form); for a stable label use idFrom(label)").why);

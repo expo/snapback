@@ -1,4 +1,4 @@
-# Recipes: roles, two parties, booking, schedules and monthly billing
+# Recipes: roles, two parties, booking and schedules
 
 Each recipe is one compiled schema for an app shape that otherwise takes several cards to assemble.
 Copy one whole, then rename its tables; each says how it syncs, how to test it and which refusals to expect.
@@ -31,6 +31,9 @@ The pattern under every recipe: rules say who may touch a row at all, a
 `require … else CODE` in the operation says which change a caller may make and
 answers with your code, and the table's sync line (or `online only`) says
 whose device holds it. `guide refusals` gives the order the checks run in.
+
+On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
+deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts"). Monthly billing with `money`: `guide time --section billing`.
 
 ## Roles: admin, staff and members
 
@@ -375,74 +378,3 @@ into one run for the latest period only. So a sweep over exactly
 closed, so one run catches up. Test with a running `dev`: `snapback4 clock
 advance 3h` reports `fired`, the period and `skippedPeriods` for each
 schedule (`guide time`, `guide jobs`).
-
-## Monthly billing (UTC) with `money`
-
-One invoice per subscription per calendar month, billed by a monthly
-schedule. `month(t)` is the month ordinal (681 is 2026-10), so the months to
-bill are plain ints and `unique subscription, month` makes each invoice once.
-
-```quarry
-table plans:
-  name: text 1..40
-  price: money USD
-  unique name
-  public 'the price list'
-  insert <- deny
-  cap 20
-  sync public
-
-table subscriptions:
-  owner: principal
-  plan: plans
-  startMonth: int
-  billedThrough: int                     -- the last month invoiced
-  immutable owner, plan, startMonth
-  read <- .owner = viewer
-  insert <- .owner = viewer
-  update <- deny
-  online only
-
-table invoices:
-  subscription: subscriptions
-  owner: principal
-  month: int
-  amount: money USD
-  unique subscription, month
-  immutable subscription, owner, month, amount
-  read <- .owner = viewer
-  insert <- deny
-  update <- deny
-  delete <- deny
-  online only
-
-mutation subscribe(plan: plans):
-  require exists plans[plan] else NOT_FOUND
-  m = month(now)
-  return insert subscriptions { owner: viewer, plan, startMonth: m, billedThrough: m - 1 }
-
-query myInvoices(c: cursor ?):
-  return invoices where .owner = viewer last 12 by .month after c
-
-job bill(periodStart: time, periodEnd: time):
-  due = month(periodStart)                -- the month that just ended
-  for s in subscriptions:
-    p = plans[s.plan]
-    upto = min(due, s.billedThrough + 12)  -- at most twelve months per subscription per run
-    if p != null and s.billedThrough < upto:
-      for m in range(s.billedThrough + 1, upto + 1):
-        insert invoices { subscription: s.id, owner: s.owner, month: m, amount: p.price } if absent
-      update subscriptions[s.id] { billedThrough: upto }
-
-schedule billing every 1 month at day 1 09:00: bill
-```
-
-The schedule fires at 09:00 UTC on the 1st. Missed boundaries coalesce into
-one run, so the job bills from `billedThrough`, not just `periodStart`'s
-month: after a two-month outage the next run bills both months, and a rerun
-writes nothing (`if absent`, then `billedThrough` has moved). A backlog
-longer than twelve months shrinks by eleven a run. Charge a payment provider
-from an `effect` keyed by the invoice id, the provider's idempotency key;
-the unique invoice stops duplicate rows, not duplicate charges. Test with
-`snapback4 clock advance 62d` on a running `dev`. Months here are UTC; a
-local-time month needs a time zone, which Quarry does not have.

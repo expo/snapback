@@ -22,6 +22,80 @@ pub(super) struct Shape {
     /// The screen behind the sign-in: the todo list over the starter's own
     /// operations, or the neutral `Home` beside a schema without them.
     pub body: Body,
+    /// What the kept schema syncs, for the README's offline sentence.
+    pub offline: Offline,
+}
+
+/// Which tables of the project's schema a device holds offline: the README
+/// and init's summary say what works offline from this, never from the
+/// starter's own (synced) todos schema.
+// @ref LLP 3000.011.003.000#7.6 — wave 7 (R3): "works offline" was printed beside online-only schemas.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub(super) enum Offline {
+    /// The schema does not compile (yet), or there is none: no claim either way.
+    Unknown,
+    /// The tables that declare `sync`, and how many tables there are (views excluded).
+    Tables { synced: Vec<String>, total: usize },
+}
+
+impl Offline {
+    /// The README paragraph (it always starts with "Offline", which is how
+    /// `init --adapt` finds it again), wrapped like the rest of the README.
+    pub(super) fn paragraph(&self, platform: Platform) -> String {
+        let lead = match platform { Platform::Web => "Offline:", Platform::Expo => "Offline, in device builds and on the web:" };
+        let body = match self {
+            Offline::Unknown => "tables that declare `sync` read and write offline and sync when the link returns; the others read from the server, and writes to them made offline are kept on this device and sent when the link returns (`npx snapback4 guide sync`).".to_owned(),
+            Offline::Tables { synced, .. } if synced.is_empty() => "no table in `snapback/*.q` declares `sync`, so reads need the server. Writes made offline are kept on this device and sent when the link returns. Add `sync` to a table to read it offline (`npx snapback4 guide sync`).".to_owned(),
+            Offline::Tables { synced, total } if synced.len() >= *total => "every table declares `sync`, so the app reads and writes offline and syncs when the link returns.".to_owned(),
+            Offline::Tables { synced, .. } => format!("the synced {} ({}) {} and {} offline and {} when the link returns; the other tables read from the server, and writes to them made offline are sent when the link returns (`npx snapback4 guide sync`).",
+                if synced.len() == 1 { "table" } else { "tables" }, synced.iter().map(|name| format!("`{name}`")).collect::<Vec<_>>().join(", "),
+                if synced.len() == 1 { "reads" } else { "read" }, if synced.len() == 1 { "writes" } else { "write" }, if synced.len() == 1 { "syncs" } else { "sync" }),
+        };
+        wrap(&format!("{lead} {body}"), 80)
+    }
+
+    /// init's one-line summary of the same fact, or nothing when unknown.
+    pub(super) fn summary(&self) -> &'static str {
+        match self {
+            Offline::Unknown => "",
+            Offline::Tables { synced, .. } if synced.is_empty() => ", online reads (no table declares `sync`; offline writes queue on the device)",
+            Offline::Tables { .. } => ", offline-capable for its synced tables",
+        }
+    }
+}
+
+/// Wrap at `width`, never inside a `code span`.
+fn wrap(text: &str, width: usize) -> String {
+    let mut words: Vec<String> = Vec::new();
+    for word in text.split(' ') {
+        match words.last_mut() {
+            Some(open) if open.matches('`').count() % 2 == 1 => { open.push(' '); open.push_str(word); }
+            _ => words.push(word.to_owned()),
+        }
+    }
+    let mut lines: Vec<String> = Vec::new();
+    for word in &words {
+        match lines.last_mut() {
+            Some(line) if line.len() + 1 + word.len() <= width => { line.push(' '); line.push_str(word); }
+            _ => lines.push(word.clone()),
+        }
+    }
+    lines.join("\n")
+}
+
+/// A README with its offline paragraph replaced by `OFFLINE`, and 0.4.22's
+/// claim in the opening paragraph rewritten to today's opening, so `init
+/// --adapt` recognizes an unmodified starter README whatever its schema
+/// synced when it was written.
+pub(super) fn without_offline(text: &str) -> String {
+    let legacy = [
+        ("the Snapback 4 web starter. It works offline and syncs when the link returns.\n", "the Snapback 4 web starter.\n\nOFFLINE\n"),
+        ("started from the Snapback 4 Expo starter. Development and production builds\nopen the native device and work offline; Expo Go uses the online client; web\nuses the wasm device.\n",
+            "started from the Snapback 4 Expo starter. Development and production builds\nopen the native device; Expo Go uses the online client; web uses the wasm\ndevice.\n\nOFFLINE\n"),
+    ];
+    let mut text = text.to_owned();
+    for (old, new) in legacy { text = text.replacen(old, new, 1); }
+    text.split("\n\n").map(|paragraph| if paragraph.starts_with("Offline") { "OFFLINE" } else { paragraph }).collect::<Vec<_>>().join("\n\n")
 }
 
 /// Which starter screen pair: the guest sign-in, or the persona picker.
@@ -137,11 +211,12 @@ const PERSONA_SIGN_IN: &str = "The first screen (on the web also `?as=<name>`) a
 /// own schema and screen; beside a project's schema (the neutral `Home`) the
 /// README is named after the directory and describes that schema's sign-in.
 // @ref LLP 3000.011.003.000#7.4 — wave 6 (042): an adapted starter kept a README about todos and guest sign-in.
-pub(super) fn readme(platform: Platform, title: &str, body: &Body, personas: bool) -> String {
+pub(super) fn readme(platform: Platform, title: &str, body: &Body, personas: bool, offline: &Offline) -> String {
     let todos = match platform { Platform::Web => include_str!("starter/web/README.md"), Platform::Expo => include_str!("starter/expo/README.md") };
     if *body == Body::Todos { return todos.to_owned(); }
     let home = match platform { Platform::Web => include_str!("starter/web/README.home.md"), Platform::Expo => include_str!("starter/expo/README.home.md") };
-    let text = home.replacen("# TITLE", &format!("# {title}"), 1).replace("SIGN_IN", if personas { PERSONA_SIGN_IN } else { GUEST_SIGN_IN });
+    let text = home.replacen("# TITLE", &format!("# {title}"), 1).replace("SIGN_IN", if personas { PERSONA_SIGN_IN } else { GUEST_SIGN_IN })
+        .replacen("OFFLINE\n", &format!("{}\n", offline.paragraph(platform)), 1);
     if platform == Platform::Web { return text; }
     // The Expo toolchain notes are the Todos README's own, word for word.
     let advisories = todos.split_once("\n> ").map(|(_, rest)| format!("> {}", rest.split_once("\n\n").expect("the advisory box ends").0)).expect("the Expo README has its advisory box");
@@ -182,7 +257,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/client.ts", client),
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
-        ("README.md", readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some())),
+        ("README.md", readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
@@ -215,7 +290,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/client.ts", client),
         ("src/native-smoke.ts", include_str!("native-smoke.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
-        ("README.md", readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some())),
+        ("README.md", readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 

@@ -159,6 +159,8 @@ pub fn scalar_type(type_: &ScalarType) -> String {
         TypeKind::Bytes { max } => format!("bytes <={max}"),
         TypeKind::Image { max, once } => format!("image <={max}{}", if *once { " once" } else { "" }),
         TypeKind::Video { max } => format!("video <={max}"),
+        TypeKind::File { max, types } if types.is_empty() => format!("file <={max}"),
+        TypeKind::File { max, types } => format!("file <={max} ({})", types.iter().map(|t| format!("'{t}'")).collect::<Vec<_>>().join(", ")),
         TypeKind::Enum { variants } => format!("enum({})", variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")),
         TypeKind::Ref { table } => table.clone(),
         TypeKind::List { item, min: 0, max } => format!("[{}] <={max}", scalar_type(item)),

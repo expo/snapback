@@ -55,6 +55,15 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
     } else if let Some(grant) = disjuncts.iter().find(|d| row_independent(d)) {
         out.push(format!("the grant `{}` reads no row field, but its holders cannot read the row that grants it, so it does not decide the page (that would disclose the hidden row): they receive every row with complete: false. Let each holder read their own grant row (`read <- .principal = viewer` on the probed table) to make their pages complete", grant.quarry()));
     }
+    // @ref LLP 3000.036#16.3 — a disjunct the pins decide is a page guard for its holders, as a grant is.
+    let pinned: std::collections::BTreeSet<String> = table.index(&scan.index).map(|index| index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| key.scalar().and(component.column()).cloned()).collect()).unwrap_or_default();
+    for decided in prefix_decided(table, &pinned) {
+        if snapback4_core::engine::rules::pinned_probe_readable(schema, &decided) {
+            out.push(format!("for callers `{}` admits with the pinned values, this page is decided once and answers `complete: true` (an `if` or `require` on that probe is followed)", decided.quarry()));
+        } else {
+            out.push(format!("`{}` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page (that would disclose the hidden row): they receive every row with complete: false", decided.quarry()));
+        }
+    }
     Some((code, out.join("; ")))
 }
 
@@ -162,41 +171,14 @@ fn contains_viewer_eq(rule: &RuleExpr, column: &str) -> bool {
 
 /// Disjuncts of the read rule that read row columns, all of which the scan
 /// pins (`exists rides[.ride, leader = viewer]` under `.ride = ride`). They
-/// decide the rule for this page and this caller, but the server only decides
-/// a page from a disjunct that reads no column of the row (`grant_decision`),
-/// so the page stays `complete: false` for their holders too.
-pub(super) fn prefix_decided(scan: &Scan, table: &Table, pinned: &std::collections::BTreeSet<String>) -> Vec<RuleExpr> {
-    let _ = scan;
+/// decide the rule for this page and this caller: the server evaluates the
+/// ones whose probed rows their holders can read once, with the pinned
+/// values, as it does a grant (`rules::page_guard_decision`).
+pub(super) fn prefix_decided(table: &Table, pinned: &std::collections::BTreeSet<String>) -> Vec<RuleExpr> {
     if !matches!(table.rules.read, RuleExpr::Or(_)) { return Vec::new(); }
     table.rules.read.disjuncts().into_iter().filter(|disjunct| {
         let mut fields = std::collections::BTreeSet::new();
         disjunct.fields(&mut fields);
         !fields.is_empty() && fields.iter().all(|field| pinned.contains(field))
     }).cloned().collect()
-}
-
-/// The repair that makes a prefix-decided parent grant complete: copy the
-/// deciding principal onto the row (immutable, checked against the parent at
-/// insert), read it as a column, and pin it in the holders' page.
-// @ref LLP 3000.036#14.1 — lane 039: the leader's roster is complete once the leader is on the row.
-pub(super) fn copy_recipe(name: &str, table: &Table, disjunct: &RuleExpr, page: Option<&str>) -> Option<String> {
-    let RuleExpr::Exists { table: parent, key, equalities, .. } = disjunct else { return None };
-    let ([RuleTerm::Field(reference)], [(column, RuleTerm::Viewer)]) = (key.as_slice(), equalities.as_slice()) else { return None };
-    if !matches!(table.columns.get(reference).map(ColumnType::required), Some(ColumnType::Ref { table }) if table == parent) { return None; }
-    let copy = match table.columns.get(column).map(ColumnType::required) {
-        None | Some(ColumnType::Principal) => column.clone(),
-        Some(_) => format!("{reference}{}{}", column[..1].to_ascii_uppercase(), &column[1..]),
-    };
-    let declare = if table.columns.contains_key(&copy) { String::new() } else { format!("`{copy}: principal`, ") };
-    let rule = table.rules.read.disjuncts().iter().map(|d| if *d == disjunct { format!(".{copy} = viewer") } else { d.quarry() }).collect::<Vec<_>>().join(" or ");
-    let pinned = page.map(|page| format!("; the holders' page then pins it and is complete: `{}`", add_pin(page, &copy))).unwrap_or_default();
-    Some(format!("to make the page complete for `{}`'s holders, copy the deciding principal onto {name}: declare {declare}`immutable {reference}, {copy}`, add `and exists {parent}[.{reference}, {column} = .{copy}]` to the insert rule (the inserting mutation sets `{copy}` from the {parent} row), and read it as a column: `read <- {rule}`{pinned} (the copy is checked at insert, so it holds while {parent}.{column} cannot change)", disjunct.quarry()))
-}
-
-/// `t where … first …` with `.column = viewer` added to its where.
-fn add_pin(page: &str, column: &str) -> String {
-    match page.split_once(" where ") {
-        Some((table, rest)) => format!("{table} where .{column} = viewer and {rest}"),
-        None => match page.split_once(' ') { Some((table, rest)) => format!("{table} where .{column} = viewer {rest}"), None => format!("{page} where .{column} = viewer") },
-    }
 }

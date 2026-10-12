@@ -30,7 +30,10 @@ const CLASSIFIED: [&str; 4] = [
 ///   reached it under eight more signatures.
 /// - OPEN E4: the model refused field access on a null base, a model defect
 ///   (`why E_FIELD`), fixed 2026-10-08.
-const RESOLVED: [&str; 23] = [
+/// - OPEN C8: a readable grant decides the page (LLP 3000.036 §12.1); the
+///   model gained the arm 2026-10-12, and a stale oracle build showed it
+///   again on a merged tree (now refreshed by `lean::refresh`).
+const RESOLVED: [&str; 24] = [
     // C9
     "lean--next--no-next~next",
     // R2
@@ -57,9 +60,13 @@ const RESOLVED: [&str; 23] = [
     "lean--prelude-code--NOT_FOUND~E_MODEL_TYPE",
     "lean--prelude-code--REQUIRED~E_MODEL_TYPE",
     "lean--prelude-kind--committed~E_MODEL_TYPE",
+    // C8
+    "lean--complete--complete~incomplete",
 ];
 
 fn model_built() -> bool {
+    // A stale `.lake` build is another model (a merge left one, 2026-10-12).
+    lean::refresh().unwrap_or_else(|e| panic!("{e}"));
     let path = lean::oracle_path();
     if path.is_file() {
         return true;

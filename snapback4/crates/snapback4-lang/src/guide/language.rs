@@ -76,7 +76,7 @@ table documents:
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
   ownerId: principal                  -- principal | id | <table> (a reference to its row) | int [M..N] | time (milliseconds) | bool
-  kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
+  kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video|file <=N
   tags: [text <=20] <=8               -- [T] 1..N inclusive; [T] <=N means 0..N
   parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
   createdAt: time default now          -- omitted on insert; evaluated on the writing host

@@ -210,6 +210,7 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..) => "number".into(),
         Ty::Text(_) | Ty::Id | Ty::Principal | Ty::Ref(_) | Ty::Bytes => "string".into(),
         Ty::Image | Ty::Video => "{ id: string; width?: number | null; height?: number | null; bytes?: number; type?: string; duration?: number | null }".into(),
+        Ty::File => "{ id: string; bytes?: number; type?: string; name?: string | null }".into(),
         Ty::Enum(variants) => variants.iter().map(|v| string_literal(v)).collect::<Vec<_>>().join(" | "),
         Ty::Cursor => "Cursor".into(),
         Ty::Optional(inner) => format!("{} | null", ty_ts(inner)),

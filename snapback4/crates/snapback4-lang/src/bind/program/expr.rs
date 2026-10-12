@@ -407,6 +407,13 @@ impl Binder<'_> {
                 "type" => Ty::Text(64),
                 _ => return Err(unknown(site, format!("assets have no field {name}"), "id, width, height, bytes, type, duration")),
             },
+            Ty::File => match name {
+                "id" => Ty::Id,
+                "bytes" => Ty::Int,
+                "type" => Ty::Text(128),
+                "name" => Ty::Text(snapback4_core::assets::MAX_NAME_BYTES as u32),
+                _ => return Err(unknown(site, format!("files have no field {name}"), "id, bytes, type, name")),
+            },
             // A scalar already *is* the value, so the repair is to drop the field access,
             // not to go and find a row. `int has no fields` was the most frequent compile
             // error of the 0.2.28 calibration — 20 of its 32 E_QUARRY_TYPE — and the

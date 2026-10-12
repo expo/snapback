@@ -159,13 +159,13 @@ fn bound_and_cap_changes_classify_by_what_stored_rows_can_violate() {
     assert_eq!(change(&schema("int", none), &schema("int", "cap 5")), Change::Narrowing);
 }
 
-/// The recipes card's UTC monthly billing (LLP 3000.040 §6), end to end on the
+/// The time card's UTC monthly billing (LLP 3000.040 §6), end to end on the
 /// engine: a two-month outage bills both months once, a rerun bills nothing,
 /// and a backlog longer than one run's lookback converges.
 #[test]
 fn the_monthly_billing_recipe_catches_up_once() {
     use snapback4_core::{Context, Engine, Value, value::object};
-    let card = snapback4_lang::guide::card("recipes").unwrap();
+    let card = snapback4_lang::guide::card("time").unwrap();
     let block = snapback4_lang::guide::quarry(card).into_iter().find(|b| b.contains("job bill(")).unwrap();
     let b = clean(&block);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();

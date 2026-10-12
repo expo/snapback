@@ -7,6 +7,7 @@ import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
+import { saveAsset, type Saved } from "./files.ts";
 import { assetWaiting, assetWaitDelay, readAsset, type AssetProgressDetail, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
 export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // The React arm: one provider and hooks over the client card.
@@ -20,7 +21,7 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, otherwiseAll, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadPresentation } from "./contract.ts";
+export { matchRead, otherwiseAll, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadMatchOverrides, type OtherwiseAll, type ReadPresentation } from "./contract.ts";
 export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 // React apps name the app they hand to <AppProvider> here; `createApp` itself
 // stays in snapback4/app so this entry never imports the session runtime.
@@ -139,14 +140,31 @@ class Observation<R> {
  * including generation changes. There is no inactive Read or query cache.
  * @ref LLP 3000.023#13 — tested route-owned composition before another hook option.
  */
-export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> {
+export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptions): Read<R> {
   const client = useClient();
-  const key = readKey(op, args);
-  const observed = useMemo(() => new Observation(
-    () => client.observe(op, args, options),
-    () => peekObservation(client, op, args, options)), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
+  const skip = options?.skip === true;
+  const key = skip ? null : readKey(op, args);
+  const observed = useMemo(() => skip ? SKIPPED_READ as Observed<R> : new Observation(
+    () => client.observe(op, args, observeOptions(options)),
+    () => peekObservation(client, op, args, observeOptions(options))), [client, op, key, options?.keep, skip]); // eslint-disable-line react-hooks/exhaustive-deps
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
+
+/** `useQuery`/`usePage` options: `keep` (as `client.observe`), and `skip`.
+ * `skip: true` reads nothing: the hook returns `{ loading: true }` (a page:
+ * no items, no more) and opens no observation, for a read whose arguments
+ * do not exist yet. Pass placeholder arguments of the right type:
+ * `useQuery(api.thread, { id: selected ?? "" }, { skip: !selected })`.
+ * Turning `skip` off opens the read as if the hook had just mounted. */
+// @ref LLP 3000.013#6.8 — conditional reads without a wrapper component; a skipped read owns nothing.
+export interface ReadHookOptions extends ObserveOptions { readonly skip?: boolean }
+/** The observation a skipped hook holds: always loading, never subscribed. */
+const SKIPPED_READ = { getSnapshot: () => LOADING, subscribe: () => () => {}, close: () => {} } satisfies Observed<never>;
+const observeOptions = (options: ReadHookOptions | undefined): ObserveOptions | undefined => {
+  if (!options || !("skip" in options)) return options;
+  const { skip: _skip, ...observe } = options;
+  return observe;
+};
 
 /** What `useQuery(op, args)` returns, named by the operation, for props:
  * `function Header({ me }: { me: UseQuery<typeof api.myProfile> })`. A hook
@@ -176,14 +194,18 @@ type PagedQuery<A, R> = Query<A, R> & ("c" extends keyof A ? unknown
  * outside that child and bound point-reader IDs to requested pages/visible rows.
  * See the bounded screen recipe in CLIENT-AND-OPERATIONS.md.
  */
-export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ObserveOptions): PageHook<R> {
+export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ReadHookOptions): PageHook<R> {
   const client = useClient();
-  const key = readKey(op, args);
+  const skip = options?.skip === true;
+  const key = skip ? null : readKey(op, args);
   const paged = op as Query<A & { c?: Cursor | null }, R>;
-  const pages = useMemo(() => new Pages(client, paged, args as A & { c?: Cursor | null }, options), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pages = useMemo(() => skip ? SKIPPED_PAGES : new Pages(client, paged, args as A & { c?: Cursor | null }, observeOptions(options)), [client, op, key, options?.keep, skip]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
-  return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
+  return { items: snapshot.items as R[number][], hasMore: snapshot.hasMore, read: snapshot.read as Read<R>, loadMore: pages.loadMore };
 }
+/** The page chain a skipped `usePage` holds: loading, no items, nothing to load. */
+const SKIPPED_PAGE_SNAPSHOT = { items: [] as never[], hasMore: false, read: LOADING };
+const SKIPPED_PAGES = { subscribe: () => () => {}, getSnapshot: () => SKIPPED_PAGE_SNAPSHOT, loadMore: () => {} };
 
 /** Complete online Following history; the SDK owns preparation and replay. */
 export function useFollowing<A, R extends readonly unknown[]>(op: FollowingQuery<A, R>, args: A) {
@@ -492,7 +514,7 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, read);
 }
 
-export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting?: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
+export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting?: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string; readonly name?: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
 
 /** The bytes of an asset a row the viewer may read holds, fetched under
  * the viewer's credentials as a blob URL for `src`. Revoked when the id
@@ -552,7 +574,7 @@ export function useAsset(id: string | null | undefined): AssetState {
           if ("url" in result) result.revoke();
           return;
         }
-        publish("url" in result ? { status: "ready", url: result.url, type: result.type }
+        publish("url" in result ? { status: "ready", url: result.url, type: result.type, ...(result.name === undefined ? {} : { name: result.name }) }
           : { status: assetError(result.denied) ? "error" : "denied", why: result.denied });
       } catch (error) {
         read = null;
@@ -595,6 +617,27 @@ export function useAsset(id: string | null | undefined): AssetState {
   if (!id) return { status: "empty" };
   if (signedOut) return { status: "denied", why: { code: "E_AUTH", family: "auth", message: "Sign in before loading an asset.", rewrite: "read the asset's home row with the signed-in client, then pass its asset id to useAsset", guide: "assets" } };
   return resolved?.owner === owner && resolved.lifetime.live ? resolved.state : { status: "loading", waiting: assetWaiting("scheduled", owner.since) };
+}
+
+/** Save a document on demand (LLP 3000.038): `save(id, name?)` fetches the
+ * file under the viewer's credentials and hands it to the browser as a
+ * download named `name` (default: the file's own name), so a list of files
+ * fetches nothing until a button asks. `saving` is true while a save runs;
+ * `why` keeps the last refusal. Browser only, like `saveAsset`. */
+export function useSaveAsset(): { readonly save: (id: string, name?: string) => Promise<Saved>; readonly saving: boolean; readonly why: Refusal | null } {
+  const client = useClient();
+  const [state, setState] = useState<{ readonly running: number; readonly why: Refusal | null }>({ running: 0, why: null });
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const save = useCallback(async (id: string, name?: string) => {
+    setState(previous => ({ running: previous.running + 1, why: null }));
+    let saved: Saved;
+    try { saved = await saveAsset(client, id, name); }
+    catch (error) { saved = { ok: false, why: { code: "E_CLIENT", family: "client", message: `the file could not be saved: ${error instanceof Error ? error.message : String(error)}` } }; }
+    if (mounted.current) setState(previous => ({ running: previous.running - 1, why: saved.ok ? previous.why : saved.why }));
+    return saved;
+  }, [client]);
+  return { save, saving: state.running > 0, why: state.why };
 }
 
 /** Opt-in development overlay data; disabled means no timer or inspection work. */

@@ -19,7 +19,7 @@ fn scalar(kind: &ColumnType, n: u64) -> Value {
         ColumnType::ListRange { of, min, .. } => Value::Array(vec![scalar(of, n); *min as usize]),
         ColumnType::Bytes { .. } => Value::Bytes(vec![]),
         ColumnType::Json { .. } => Value::Map(BTreeMap::new().into()),
-        ColumnType::Image { .. } | ColumnType::Video { .. } => Value::Null,
+        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => Value::Null,
     }
 }
 fn row(table: &Table, id: &str, n: u64) -> Value {
@@ -317,7 +317,7 @@ fn asset_and_once_consumption_cover_every_viewer() {
         let source = format!("use server\ntable docs:\n  photo: {kind}\n  public\n  insert <- allow\n  update <- allow\n  delete <- allow\nmutation place(photo: {argument}):\n  insert docs {{ photo }}\nmutation clear():\n  {clear}\n", argument=kind.replace(" once", ""));
         let mut e = engine(&source);
         let id = format!("asset-{seed:x}");
-        e.store().record_asset(&Asset { id:id.clone(),owner:"dev:alice".into(),kind:if kind.starts_with("video") {AssetKind::Video} else {AssetKind::Image},content_type:"image/png".into(),bytes:24,width:Some(10),height:Some(10),duration:None,created_at:0,home:None,released_at:None }).unwrap();
+        e.store().record_asset(&Asset { id:id.clone(),owner:"dev:alice".into(),kind:if kind.starts_with("video") {AssetKind::Video} else {AssetKind::Image},content_type:"image/png".into(),bytes:24,width:Some(10),height:Some(10),duration:None,created_at:0,home:None,released_at: None, name: None }).unwrap();
         let asset = Value::Map(BTreeMap::from([("id".into(),Value::Id(id.clone()))]).into());
         let photo = if kind.starts_with("[[") {Value::Array(vec![Value::Array(vec![asset])])} else {asset};
         let out = e.mutate("place",None,Context::new("dev:alice",[("photo".into(),photo)].into()).with_ids(["a".into()]).at(100)).unwrap();

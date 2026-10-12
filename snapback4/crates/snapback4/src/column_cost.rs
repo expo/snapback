@@ -19,7 +19,7 @@ fn value_bytes(kind: &ColumnType) -> Option<u64> {
         // Tagged JSON bounds the smaller untagged wire representation.
         ColumnType::Json {max_bytes} => u64::from(*max_bytes),
         // Asset map admission has no schema bound on extra metadata.
-        ColumnType::Image {..} | ColumnType::Video {..} => return None,
+        ColumnType::Image {..} | ColumnType::Video {..} | ColumnType::File {..} => return None,
     })
 }
 pub(crate) fn row_bytes(table: &Table) -> Option<u64> {

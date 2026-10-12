@@ -1562,3 +1562,40 @@ mod client;
 
 #[path = "guide/start.rs"]
 mod start;
+
+// Wave 7 (LLP 3000.007 §20.1): 11 lanes asked for the whole card when piped
+// (four fix-first) and five overflowed their tool output on several `--full`
+// cards, so a piped card prints whole up to a cap and the longest keep the
+// opening, first section and index.
+#[test]
+fn a_piped_card_prints_whole_up_to_the_cap() {
+    let mut whole = 0;
+    for name in KEYWORDS {
+        let text = card(name).unwrap();
+        let piped = guide::piped(name, text);
+        if text.lines().count() <= guide::PIPED_FULL_LINES { assert_eq!(piped, text, "{name}"); whole += 1; }
+        else { assert_eq!(Some(piped), guide::overview_and_first_section(name, text), "{name}"); }
+    }
+    for name in ["testing", "rules", "recipes", "reads", "client", "wire"] { assert_eq!(guide::piped(name, card(name).unwrap()), card(name).unwrap(), "{name} prints whole"); }
+    assert!(guide::piped("language", card("language").unwrap()).lines().count() < 150, "the language card stays an overview");
+    assert!(whole * 4 >= KEYWORDS.len() * 3, "most cards print whole: {whole}/{}", KEYWORDS.len());
+}
+
+// Wave 7: `--section` words builders guessed (008 009 023 065 070 092).
+#[test]
+fn guessed_section_words_land_on_one_section_even_in_another_card() {
+    let land = |name: &str, words: &str| guide::section(name, card(name).unwrap(), words).unwrap_or_else(|miss| panic!("guide {name} --section {words}: {miss}"));
+    let wire = land("wire", "acceptance");
+    assert!(wire.starts_with("No heading of guide wire is named \"acceptance\"; it is a section of guide testing") && wire.contains("## An acceptance script over HTTP"), "{wire}");
+    for (name, words, heading) in [("language", "statements", "## Details"), ("writes", "statements", "## Details"), ("writes", "loops", "### Loops"), ("language", "loops", "### Loops"),
+        ("client", "react", "## React"), ("client", "hooks", "## React"), ("client", "React", "## React")] {
+        let text = land(name, words);
+        assert!(text.lines().any(|line| line.starts_with(heading)), "{name} --section {words}: {text}");
+        assert!(text.lines().count() < card(if name == "language" && words == "statements" { "writes" } else if name == "writes" && words == "loops" { "language" } else { name }).unwrap().lines().count());
+    }
+    // A plurality of mentions lands on one section and names the others; a tie lists the mentions.
+    let count = land("totals", "count");
+    assert!(count.starts_with("No heading of guide totals is named \"count\"; 0. Opening holds") && count.contains("; also "), "{count}");
+    assert!(card("react") == card("client") && guide::alias_landing("react", "client", card("client").unwrap()).unwrap().contains("matchRead"));
+    assert_eq!(card("money"), card("types"));
+}

@@ -121,8 +121,15 @@ query myDeptTotal(dept: text <=20):
 
 Finance reads every department's total; each requester reads their own.
 `E_QUARRY_BOUND`'s rewrite prints this view for your table, column and group.
-A role guard (`if exists staff[viewer]:`) does not admit an inline total,
-as it admits a staff page (`guide indexes`): use the view.
+A view groups by at least one column (`count requests` alone does not parse):
+for a whole-table total, give every row the same key (`totalKey:
+enum('all') default 'all'`, `immutable totalKey`), group by it and read
+`requestsCount['all']`.
+A guard on the read rule's own grant admits an inline total, as it admits a
+staff page (`guide indexes`): after `require exists staff[principal = viewer,
+role = 'finance'] else …` (or inside `if` on it), `sum(requests, .amount)` is
+every row's total, because every caller who reaches it reads every row. A guard
+on any other role does not; use the view.
 
 ## Choosing
 

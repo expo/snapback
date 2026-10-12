@@ -72,7 +72,7 @@ fn rust_type(kind: &ColumnType) -> String {
         ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } | ColumnType::Text { .. } | ColumnType::Enum { .. } | ColumnType::Bytes { .. } => "String".into(),
         ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => "i64".into(),
         ColumnType::Bool => "bool".into(),
-        ColumnType::Json { .. } | ColumnType::Image { .. } | ColumnType::Video { .. } => "snapback4_native::Json".into(),
+        ColumnType::Json { .. } | ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => "snapback4_native::Json".into(),
         ColumnType::Optional(inner) => format!("Option<{}>", rust_type(inner)),
         ColumnType::List { of, .. } | ColumnType::ListRange { of, .. } => format!("Vec<{}>", rust_type(of)),
     }

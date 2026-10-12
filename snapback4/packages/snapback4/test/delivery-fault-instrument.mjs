@@ -316,3 +316,39 @@ export function awaitBoundary() {
 // await only wraps the same synchronous createClient in sdkOwned (a counter
 // that suppresses the bare-client browser warning); its count is unchanged.
 // bin-path.ts has no awaits. No delivery site, classification or recipe changes.
+
+// LLP 3000.013.000 (the device-less browser write journal): app-online.ts gains
+// thirteen awaits and online-capture.ts one; app.ts five. None is on the
+// device's delivery path classified above, and none dispatches or settles: the
+// raw online transport's send, receipt and retry awaits are unchanged.
+// app-online.ts: the captured admission's commit (journal lock, then session
+// lock: the locked authority read, the journal read, the awaited admission
+// body, the journal save) and its outcome; the recovery gate before a captured
+// admission; recovery (the journal and session locks, candidates' Web Locks
+// query, the authority reads, the journal read and save); the runtime lock's
+// grant before custody returns. online-capture.ts: navigator.locks.query in
+// candidates(). app.ts: the scope's /schema request, its body, awaiting that
+// read, the identity wait raced against one second, and closing the raw client
+// when the opening was cancelled meanwhile. Admission refusals stay
+// synchronous; a failed commit keeps the localStorage record and its call
+// pending. online-capture.test.mjs covers capture, bounds, refusals, markers,
+// failed commits, recovery, ordering and saturation; online-journal-browser
+// covers page loss, held responses, live and closed tabs and a full
+// localStorage in Chromium. No delivery site, classification or recipe changes.
+// LLP 3000.013.000 round 3: app-online.ts's one added await is the captured
+// call's store-refused path awaiting the existing refusedStore before it
+// decides whether to cancel or keep its localStorage record; app.ts's await
+// counts are unchanged (the /schema reply check is synchronous). No delivery
+// site, classification or recipe changes.
+// LLP 3000.013.000 round 4: recovery's known-capture removal moved after its
+// commit and a receipt return clears replay ownership; the await set is the
+// same (the hash moves because that body sits inside an awaited lock). No delivery
+// site, classification or recipe changes.
+
+// FILE + JR merge (0.4.23): file assets change only asset-upload awaits.
+// assets.ts uploads with the declared content type and `?as=file` target;
+// client.ts and local.ts pass the new upload `options` through to it (await
+// counts unchanged). files.ts adds saveAsset's one await, `client.asset(id)`, a
+// read that downloads bytes for a browser save. None of these admits, sends,
+// stores or settles a write: no delivery site, classification or fault recipe
+// changes. The boundary is regenerated over both families' sources.

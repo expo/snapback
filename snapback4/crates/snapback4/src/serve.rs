@@ -593,7 +593,7 @@ fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Res
     }).map_err(|e| e.refusal())?.ok_or_else(refused)
 }
 
-fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
+pub(crate) fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
     let mut headers = request.headers().iter().filter(|h| h.field.as_str().as_str().eq_ignore_ascii_case(name));
     let value = headers.next().map(|h| h.value.as_str());
     if headers.next().is_some() { Err(()) } else { Ok(value) }
@@ -872,7 +872,7 @@ pub(crate) fn refusal_json(refusal: &Refusal) -> Json {
 }
 
 
-fn query_params(url: &str) -> BTreeMap<String, String> {
+pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
     fn decode(text: &str) -> String {
         let mut out = Vec::with_capacity(text.len());
         let bytes = text.as_bytes();
@@ -987,6 +987,9 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post && path == "/seed" && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
     }
+    if path == "/dev/reset" && !shared.personas {
+        return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&dev_doors::reset_release()) }));
+    }
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
@@ -1022,17 +1025,27 @@ fn handle(mut request: Request, shared: &Shared) {
         }
     } else { None };
     let mut bytes = Vec::new();
+    // @ref LLP 3000.038#3 — a file upload streams at most the schema's largest file bound, refused before reading when declared larger.
+    let file_upload = method == Method::Post && path == "/assets" && crate::assets::is_file_upload(&url);
     if method == Method::Post {
         let ceiling = match path.as_str() {
+            "/assets" if file_upload => match crate::assets::file_ceiling(shared) {
+                Ok(ceiling) => ceiling,
+                Err(refusal) => return reject(request, 415, refusal),
+            },
             "/assets" => crate::assets::UPLOAD_CEILING,
-            "/seed" => SEED_REQUEST_CEILING,
+            "/seed" | "/dev/reset" => SEED_REQUEST_CEILING,
             "/sync" => SYNC_REQUEST_CEILING,
             path if path.starts_with("/auth/") => crate::auth::BODY_CEILING,
             path if path.starts_with("/following/") => 64 * 1024,
             _ => JSON_REQUEST_CEILING,
         };
         let length = request.body_length();
-        let too_large = || Refusal::new("E_INPUT", "input", format!("the request body exceeds its {ceiling}-byte limit; split it into smaller requests"));
+        let too_large = || if file_upload {
+            Refusal::new("E_ASSET_TOO_LARGE", "asset", format!("the file exceeds {ceiling} bytes, the largest file column's bound")).guide("assets")
+        } else {
+            Refusal::new("E_INPUT", "input", format!("the request body exceeds its {ceiling}-byte limit; split it into smaller requests"))
+        };
         if length.is_some_and(|length| length > ceiling) {
             return reject(request, 413, too_large());
         }
@@ -1480,6 +1493,7 @@ fn handle(mut request: Request, shared: &Shared) {
             crate::auth::handle(request, shared, &path, &body);
         }
         (Method::Post, "/seed") => dev_doors::seed(request, shared, &body),
+        (Method::Post, "/dev/reset") => dev_doors::reset(request, shared, &body),
         _ => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
     }
 }
