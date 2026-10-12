@@ -1277,3 +1277,45 @@ fn wave8_web_client_chooses_principal_journal_for_both_identity_modes_when_nothi
         }
     }
 }
+
+#[test]
+fn password_starters_and_expo_web_journal_follow_schema() {
+    for flag in ["--web", "--expo"] {
+        for identity in ["use identity password", "use personas alice"] {
+            let dir = Dir::new(); fs::create_dir(dir.0.join("snapback")).unwrap();
+            fs::write(dir.0.join("snapback/schema.q"), format!("{identity}\ntable notes:\n  body: text 1..80\n  public\n  online only\nmutation add(body: text 1..80):\n  return insert notes {{ body }}\n")).unwrap();
+            let out = dir.run(flag); assert!(out.status.success(), "{out:?}");
+            let app = fs::read_to_string(dir.0.join(if flag == "--expo" { "App.tsx" } else { "src/App.tsx" })).unwrap();
+            if identity.contains("password") { assert!(app.contains("auth.signup") && app.contains("auth.login") && !app.contains("auth.guest"), "{app}"); }
+            let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
+            assert!(!client.contains("webDevice"), "{client}");
+            assert!(client.contains("get(\"api\")") && client.contains("registerWebWitness"), "{client}");
+            if flag == "--expo" { assert!(client.contains("nativeDevice"), "{client}"); }
+            let pkg: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
+            assert!(pkg["scripts"]["build:web"].is_string());
+            if flag == "--expo" { assert!(pkg["scripts"]["build:web"].as_str().unwrap().contains("--clear")); }
+        }
+    }
+}
+
+#[test]
+fn adapt_switches_guest_password_and_persona_and_keeps_password_readme() {
+    for mode in ["--web", "--expo"] {
+        let dir = Dir::new(); assert!(dir.run(mode).status.success());
+        let path = dir.0.join("snapback/schema.q");
+        let original = fs::read_to_string(&path).unwrap();
+        for (identity, expected) in [("use identity password", "the password sign-in"), ("use personas alice", "a persona picker"), ("use identity password", "the password sign-in"), ("use identity", "the guest sign-in")] {
+            let body = original.lines().filter(|line| !line.starts_with("use identity") && !line.starts_with("use personas")).collect::<Vec<_>>().join("\n");
+            fs::write(&path, format!("{identity}\n{body}\n")).unwrap();
+            let out = dir.init(&["--adapt"]); assert!(out.status.success(), "{out:?}");
+            let text = String::from_utf8_lossy(&out.stdout); assert!(text.contains(expected), "{text}");
+            let app = fs::read_to_string(dir.0.join(if mode == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
+            if identity.contains("password") {
+                assert!(app.contains("auth.signup") && !app.contains("auth.guest"));
+                let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
+                assert!(!readme.contains("Choose \"Continue as a"), "{readme}");
+                assert!(readme.contains("Sign up or sign in"), "{readme}");
+            }
+        }
+    }
+}

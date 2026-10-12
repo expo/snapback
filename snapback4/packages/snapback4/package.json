@@ -76,6 +76,11 @@
       "types": "./dist/bin-path.d.ts",
       "import": "./dist/bin-path.js",
       "default": "./dist/bin-path.js"
+    },
+    "./witness-web": {
+      "types": "./dist/witness-web.d.ts",
+      "import": "./dist/witness-web.js",
+      "default": "./dist/witness-web.js"
     }
   },
   "imports": {
@@ -99,7 +104,8 @@
   },
   "dependencies": {
     "openid-client": "6.8.8",
-    "undici": "8.11.2"
+    "undici": "8.11.2",
+    "playwright-core": "1.55.1"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/",

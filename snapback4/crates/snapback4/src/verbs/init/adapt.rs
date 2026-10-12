@@ -68,10 +68,10 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>) {
         let masked = starter::without_offline(&text);
         let matched = ports.into_iter().find(|&(port, web_port)| {
             [(Body::Todos, false), (Body::Home(None), false), (Body::Home(None), true)].iter()
-                .any(|(body, personas)| masked == starter::without_offline(&super::localize(path, &super::without_design_references(&starter::readme(platform, &title, body, *personas, &starter::Offline::Unknown)), port, web_port)))
+                .any(|(body, personas)| [false, true].iter().any(|password| masked == starter::without_offline(&super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, body, *personas, &starter::Offline::Unknown, *password)), port, web_port))))
         });
         let Some((port, web_port)) = matched else { continue };
-        let wanted = super::localize(path, &super::without_design_references(&starter::readme(platform, &title, &wanted_body, personas, &own.offline)), port, web_port);
+        let wanted = super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, &wanted_body, personas, &own.offline, own.identity.is_some_and(|(password, guests)| password && !guests))), port, web_port);
         if wanted == text { continue; }
         let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
         let only_offline = !text.starts_with("# Todos") && starter::without_offline(&wanted) == masked;
@@ -111,12 +111,20 @@ fn number_after(text: &str, prefix: &str) -> Option<u16> {
 /// The sign-in a schema admits, as the starter screen it needs: the guest
 /// screen (`None`), the persona picker (`Some(personas)`), or no starter
 /// screen fits (`Err(advice)`).
-fn wanted(own: &OwnSchema) -> Result<Option<Vec<String>>, &'static str> {
+#[derive(Clone, PartialEq, Eq)]
+enum SignIn { Guest, Password, Personas(Vec<String>) }
+impl SignIn {
+    fn label(&self) -> String {
+        match self { Self::Guest => "the guest sign-in".into(), Self::Password => "the password sign-in".into(), Self::Personas(names) => format!("a persona picker ({})", names.join(", ")) }
+    }
+    fn personas(&self) -> Option<&[String]> { match self { Self::Personas(names) => Some(names), _ => None } }
+}
+fn wanted(own: &OwnSchema) -> Result<SignIn, &'static str> {
     match own.identity {
-        Some((_, true)) => Ok(None),
-        Some((_, false)) => Err("declares `use identity password`, which has no guests: replace the starter's `auth.guest()` with `auth.signup`/`auth.login` (`snapback4 guide personas`)"),
-        None if !own.personas.is_empty() => Ok(Some(own.personas.clone())),
-        None => Err("declares neither `use identity` nor `use personas`, so nobody can act: add `use identity` for the guest sign-in or `use personas alice, bob` for development, then rerun `snapback4 init --adapt`"),
+        Some((_, true)) => Ok(SignIn::Guest),
+        Some((true, false)) => Ok(SignIn::Password),
+        None if !own.personas.is_empty() => Ok(SignIn::Personas(own.personas.clone())),
+        _ => Err("declares neither `use identity` nor `use personas`, so nobody can act: add `use identity` for the guest sign-in or `use personas alice, bob` for development, then rerun `snapback4 init --adapt`"),
     }
 }
 
@@ -128,12 +136,14 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let journal_shape = starter::Offline::Tables { synced: vec![], total: 0 };
     let client_shape = normalized(&client);
     let matches_client = |reference: &str| client_shape == normalized(reference)
-        || platform == Platform::Web && client_shape == normalized(&starter::web_client(reference.to_owned(), &journal_shape));
+        || client_shape == normalized(&starter::web_client(reference.to_owned(), &journal_shape));
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| {
         let (guest_app, guest_client) = starter::screens(platform, None, &body);
         let (persona_app, persona_client) = starter::screens(platform, Some(&[]), &body);
-        if app == guest_app && matches_client(&guest_client) { Some((None, body)) }
-        else if app == persona_app && matches_client(&persona_client) { Some((Some(personas_of(&client)), body)) }
+        let (password_app, password_client) = starter::identity_screens(platform, None, &body, true);
+        if app == guest_app && matches_client(&guest_client) { Some((SignIn::Guest, body)) }
+        else if app == password_app && matches_client(&password_client) { Some((SignIn::Password, body)) }
+        else if app == persona_app && matches_client(&persona_client) { Some((SignIn::Personas(personas_of(&client)), body)) }
         else { None }
     });
     let Some((sign_in, body)) = current else { return };
@@ -149,24 +159,19 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let wanted_sign_in = match wanted(own) {
         Ok(wanted) => wanted,
         Err(why) => {
-            advice.push(format!("{app_path} is the starter's {}, but your snapback/*.q {why}", if sign_in.is_none() { "guest sign-in" } else { "persona picker" }));
+            advice.push(format!("{app_path} is the starter's {}, but your snapback/*.q {why}", sign_in.label()));
             sign_in.clone()
         }
     };
-    let (app_text, mut client_text) = starter::screens(platform, wanted_sign_in.as_deref(), &wanted_body);
-    if platform == Platform::Web { client_text = starter::web_client(client_text, &own.offline); }
+    let (app_text, mut client_text) = starter::identity_screens(platform, wanted_sign_in.personas(), &wanted_body, wanted_sign_in == SignIn::Password);
+    client_text = starter::web_client(client_text, &own.offline);
     let client_changed = client_shape != normalized(&client_text);
-    if wanted_sign_in == sign_in && wanted_body == body && !client_changed { return; }
+    if wanted_sign_in == sign_in && app == app_text && wanted_body == body && !client_changed { return; }
     let mut reasons = Vec::new();
     let mut client_leftover = None;
     if wanted_sign_in != sign_in {
-        let (from, to) = match (&sign_in, &wanted_sign_in) {
-            (None, Some(personas)) => ("the guest sign-in".to_owned(), format!("a persona picker ({})", personas.join(", "))),
-            (Some(_), None) => ("a persona picker".to_owned(), "the guest sign-in".to_owned()),
-            (Some(old), Some(new)) => (format!("a picker for {}", old.join(", ")), format!("one for {}", new.join(", "))),
-            (None, None) => unreachable!(),
-        };
-        let because = if wanted_sign_in.is_some() { "your snapback/*.q declares `use personas` and no `use identity`" } else { "your snapback/*.q declares `use identity`" };
+        let (from, to) = (sign_in.label(), wanted_sign_in.label());
+        let because = match &wanted_sign_in { SignIn::Personas(_) => "your snapback/*.q declares `use personas` and no `use identity`", SignIn::Password => "your snapback/*.q declares `use identity password`", SignIn::Guest => "your snapback/*.q admits guests" };
         reasons.push(format!("the unmodified starter screen shows {from}, but {because}; adapt writes {to}"));
         // Keep the backend port init wrote.
         if let Some(port) = port_of(&client) { client_text = client_text.replace("127.0.0.1:4400", &format!("127.0.0.1:{port}")); }
