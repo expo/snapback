@@ -922,7 +922,7 @@ impl<'r> Runner<'r> {
         // the page is decided once, as a uniform page is. Its static probe
         // charge is paid on either verdict; an unproven grant walks as before.
         let mut grant_expiry = None;
-        // @ref LLP 3000.038#3 — a branch merge's grant lane was admitted by its grant before it opened; one verdict, one charge.
+        // @ref LLP 3000.036.001#3 — a branch merge's grant lane was admitted by its grant before it opened; one verdict, one charge.
         let lane_grant = self.merge_grant.take();
         let granted = if let Some(pending) = lane_grant { grant_expiry = Some(pending); !always_visible } else {
             !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
@@ -1376,7 +1376,7 @@ impl<'r> Runner<'r> {
         // A merge's cursor names the merge's own scope; it is checked before
         // lane discovery so an empty discovery cannot admit a foreign token.
         self.record_shape_cursor(&merge.site, None);
-        // @ref LLP 3000.038#3 — a branch merge outside the lazy path keeps its branch-set descriptor.
+        // @ref LLP 3000.036.001#3 — a branch merge outside the lazy path keeps its branch-set descriptor.
         let (descriptor, view_suffix) = if merge.branches() { (merge.branch_descriptor(), Some(suffix.clone())) } else { (first.scan.index.clone(), None) };
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()

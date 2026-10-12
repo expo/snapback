@@ -463,7 +463,7 @@ impl Merge {
     /// disjunctive branches, each lane an index range of one table whose
     /// prefix decides the read rule (or a grant lane). Its lanes carry
     /// `BRANCH_LANE` or `GRANT_LANE` as their branch identity; no view does.
-    // @ref LLP 3000.038#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
+    // @ref LLP 3000.036.001#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
     pub fn branches(&self) -> bool {
         self.view.is_none() && !self.lanes.is_empty()
             && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE)))

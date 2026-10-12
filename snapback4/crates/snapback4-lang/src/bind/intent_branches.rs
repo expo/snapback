@@ -1,6 +1,6 @@
 //! A query page whose predicate, or whose table's read rule, is a
 //! disjunction of branches each pinning an index prefix that decides the read
-//! rule plans as the merge of the branch ranges (LLP 3000.038): `tasks where
+//! rule plans as the merge of the branch ranges (LLP 3000.036.001): `tasks where
 //! .owner = viewer or .assignee = viewer last 50 by .at after c`, or the same
 //! list read through `read <- .owner = viewer or .assignee = viewer`. A page
 //! its own pins already decide is never rewritten, so no complete plan, index
@@ -20,7 +20,7 @@ type Tables = BTreeMap<String, TableInfo>;
 /// One branch's conjuncts, and whether it is the grant branch.
 type Branch = (Vec<Expr>, bool);
 
-// @ref LLP 3000.038#2 — the rule: where-branches first, then the read rule's parties and readable grants.
+// @ref LLP 3000.036.001#2 — the rule: where-branches first, then the read rule's parties and readable grants.
 pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
     let range = read.range.as_ref()?;
     let branches = branches(tables, requests, read, true)?;
@@ -50,7 +50,7 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) 
 /// `exists t where W` with `W` branch-decided: `exists (branch 1) or …`, each
 /// a decided existence read, so the answer is `true` or `false`. A rule with a
 /// grant keeps its single read (a grant-guarded existence lane is not planned).
-// @ref LLP 3000.038#8 — exists over the same shapes, without grants.
+// @ref LLP 3000.036.001#8 — exists over the same shapes, without grants.
 pub(super) fn exists(tables: &Tables, requests: &mut Requests, read: &ReadExpr, site: &Site) -> Option<Expr> {
     if read.range.is_some() { return None; }
     let branches = branches(tables, requests, read, false)?;

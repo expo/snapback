@@ -103,7 +103,7 @@ impl Binder<'_> {
         }
         if result.is_none() && !lanes.is_empty() {
             let planned = Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site, lanes };
-            // @ref LLP 3000.038#3 — the binding check: the runtime's own analysis must agree that every
+            // @ref LLP 3000.036.001#3 — the binding check: the runtime's own analysis must agree that every
             // lane is decided (a grant lane by a grant covering the rule) and that the lanes share one
             // position. Otherwise a page with a grant branch reads as written, the grant branch alone.
             if planned.branches() && !(planned.lanes.iter().filter(|lane| lane.grant()).all(|lane| snapback4_core::engine::rules::covering_grant(self.schema, &lane.scan).is_some())

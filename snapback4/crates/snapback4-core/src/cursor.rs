@@ -78,7 +78,7 @@ pub fn encode_cursor(schema: &Schema, position: &CursorPosition) -> Result<Strin
         &position.suffix,
         &position.values,
     );
-    // @ref LLP 3000.038#5 — a branch merge's position travels as version 4, so an older engine refuses it by version.
+    // @ref LLP 3000.036.001#5 — a branch merge's position travels as version 4 or 5, so an older engine refuses it by version.
     // Version 5 is its inclusive form: an unfinished first returned shape resumes at its row.
     let branch = position.index.starts_with(crate::ir::BRANCH_DESCRIPTOR);
     let bytes = if branch || position.inclusive {

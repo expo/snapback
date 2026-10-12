@@ -1,5 +1,5 @@
 //! A query page planned as the k-way merge of its disjunctive branches
-//! (LLP 3000.038): `tasks where .owner = viewer or .assignee = viewer`, or
+//! (LLP 3000.036.001): `tasks where .owner = viewer or .assignee = viewer`, or
 //! the same list read through `read <- .owner = viewer or .assignee = viewer`.
 //! Each lane is an index range of one table whose prefix decides the read
 //! rule; lanes may read different indexes. Every lane resumes on its own
@@ -25,7 +25,7 @@ struct Lane {
 }
 
 impl Runner<'_> {
-    // @ref LLP 3000.038#3 — the lazy merge across indexes: one heap of lane heads, one shared position.
+    // @ref LLP 3000.036.001#3 — the lazy merge across indexes: one heap of lane heads, one shared position.
     pub(super) fn merge_branches(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
         let first = &merge.lanes[0].scan;
         let site = merge.site.as_str();
@@ -43,7 +43,7 @@ impl Runner<'_> {
                 Value::String(token) => {
                     let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                     crate::cursor::check_variant(&position, merge.variant)?;
-                    // @ref LLP 3000.038#5 — a token minted by another plan of this read (one index, or another branch set) restarts it.
+                    // @ref LLP 3000.036.001#5 — a token minted by another plan of this read (one index, or another branch set) restarts it.
                     if position.check_descriptor(&first.table, &descriptor, order, &suffix).is_err() {
                         if position.table == first.table {
                             return Err(RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to another plan of this read; it now merges its branches (owner or another party): restart this read with a null cursor".into() });

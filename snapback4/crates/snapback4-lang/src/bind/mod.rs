@@ -682,7 +682,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             continue;
         }
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
-        // @ref LLP 3000.038#8 — a branch merge's grant lane is decided per caller before it opens.
+        // @ref LLP 3000.036.001#8 — a branch merge's grant lane is decided per caller before it opens.
         let grant_lanes: Vec<*const snapback4_core::ir::Scan> = merges(&bound.program.body).into_iter()
             .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant()).map(|lane| &lane.scan as *const _)).collect();
 

@@ -399,7 +399,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             } else if lanes && let Expr::Read(read) = value
                 && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string())
                 && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
-                // @ref LLP 3000.038#3 — an undecided page whose branches each decide the rule reads as their merge.
+                // @ref LLP 3000.036.001#3 — an undecided page whose branches each decide the rule reads as their merge.
                 *value = Expr::Merge(merge);
             } else if lanes && let Expr::Exists { read, site } = value
                 && !requests.merged.contains(&read.site.to_string())

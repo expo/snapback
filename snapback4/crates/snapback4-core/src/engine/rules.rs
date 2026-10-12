@@ -449,7 +449,7 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
 /// needs scalar pins, a total position and the same position columns. A
 /// party or `where` lane must be decided by its prefix; a grant lane is
 /// decided per caller before it opens (`word_merge.rs`).
-// @ref LLP 3000.038#3 — the binding check makes these hold; a lane that fails one keeps the eager traversal.
+// @ref LLP 3000.036.001#3 — the binding check makes these hold; a lane that fails one keeps the eager traversal.
 pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
     let Some(first) = merge.lanes.first() else { return true };
     let Some(table) = schema.table(&first.scan.table) else { return false };
@@ -483,7 +483,7 @@ pub fn merge_position(table: &Table, index: &crate::schema::Index, prefix_len: u
 /// of `grant_decision`, only when they are every disjunct of the read rule
 /// that reads no column of the row. Otherwise a caller could be admitted by
 /// a grant the lane cannot evaluate, and its page would miss rows.
-// @ref LLP 3000.038#2 — every grant disjunct must be readable, or the read binds as its grant lane alone.
+// @ref LLP 3000.036.001#2 — every grant disjunct must be readable, or the read binds as its grant lane alone.
 pub fn covering_grant(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     let grant = grant_decision(schema, scan)?;
