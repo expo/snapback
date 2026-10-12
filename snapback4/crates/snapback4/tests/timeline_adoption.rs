@@ -152,7 +152,7 @@ fn dev_removes_populated_view_and_preserves_sources_and_other_views() {
 }
 
 #[test]
-fn deploy_removal_uses_the_same_destructive_flag_as_maintained_views() {
+fn deploy_removal_retains_owned_storage_and_rebuildable_views_need_no_destructive_flag() {
     for maintained in [false, true] {
         let dir = Dir::new();
         let before = if maintained { format!("{}\nview totals: count posts by .authorId\n  online only\n", without_view(&source())) } else { source() };
@@ -174,10 +174,13 @@ fn deploy_removal_uses_the_same_destructive_flag_as_maintained_views() {
         }
         let mut e = Engine::open(Store::open(&path).unwrap()).unwrap(); drain(&mut e); drop(e);
         dir.source(&without_view(&source()));
-        let r = dir.command(&["deploy", "release"]); assert!(!r.status.success(), "{r:?}");
-        assert!(String::from_utf8_lossy(&r.stderr).contains("--allow-destructive"), "{r:?}");
-        let r = dir.command(&["deploy", "release", "--allow-destructive"]); assert!(r.status.success(), "{r:?}");
-        let e = Engine::open(Store::open(&path).unwrap()).unwrap();
+        let r = dir.command(&["deploy", "release"]); assert!(r.status.success(), "{r:?}");
+        let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
+        if !maintained {
+            let retained=e.store_mut().dormant_inventory(None,64).unwrap();
+            assert!(retained.iter().any(|item|item.path=="followingPosts"&&item.rows==1),"{retained:?}");
+            assert_eq!(e.store().count("followingPosts").unwrap(),0);
+        }
         assert_eq!(e.store().rows("posts").unwrap().len(), 1);
         assert!(e.schema().timelines.is_empty());
         assert!(e.schema().maintains.iter().all(|m| m.own_keys.is_some()), "source owner-key policies survive retirement of the feed");

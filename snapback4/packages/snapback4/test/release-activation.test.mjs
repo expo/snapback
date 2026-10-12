@@ -76,7 +76,7 @@ async function serve(deployment, inspect) {
     assert.equal((await anonymous.json()).denied?.code, "E_AUTH");
     const signedIn = await (await fetch(url + "/auth/guest", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
     assert.ok(signedIn.session?.token, JSON.stringify(signedIn));
-    await inspect(url, { authorization: `Bearer ${signedIn.session.token}` }, signedIn.session);
+    await inspect(url, { authorization: `Bearer ${signedIn.session.token}` }, signedIn.session, () => log, child);
   }, async () => {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     try {
@@ -123,25 +123,20 @@ test("rollback then deploy keeps immutable source identities and serving only at
   assert.deepEqual(state(database), before, "startup must not activate source or advance generation");
 });
 
-test("a live release refuses deploy and rollback until the server stops", { timeout: hangBudget(3) }, async (t) => {
-  const { deployment, schema, invoke, run } = fixture(t);
+test("live release deploy and rollback activate without restart", { timeout: hangBudget(3) }, async (t) => {
+  const { deployment, schema, run } = fixture(t);
   run("deploy", deployment);
-  const database = join(deployment, "store.sqlite"), before = state(database);
   writeFileSync(schema, source.replace("return 1", "return 2"));
   await serve(deployment, async (url, headers) => {
-    for (const args of [["deploy", deployment], ["rollback", deployment]]) {
-      const blocked = invoke(...args);
-      assert.equal(blocked.error, undefined);
-      assert.equal(blocked.status, 1);
-      assert.match(blocked.stderr, /store is live/);
-      assert.deepEqual(state(database), before, "a refused activation must not move the database");
-    }
-    const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(hangBudget()) })).json();
-    assert.equal(backend.generation, Number(before.metadata.generation));
+    run("deploy", deployment);
+    let backend = await (await fetch(url + "/schema", { headers })).json();
+    assert.equal(backend.generation, 2);
+    assert.deepEqual(backend.programs.find((p) => p.name === "q").body, [{ Return: { Literal: { Int: 2 } } }]);
+    run("rollback", deployment);
+    backend = await (await fetch(url + "/schema", { headers })).json();
+    assert.equal(backend.generation, 3);
     assert.deepEqual(backend.programs.find((p) => p.name === "q").body, [{ Return: { Literal: { Int: 1 } } }]);
   });
-  run("deploy", deployment);
-  assert.equal(state(database).metadata.release, "2", "activation proceeds after the serving process releases the lock");
 });
 
 test("required pointer and ledger failures happen before database activation", { timeout: hangBudget(1) }, (t) => {
@@ -450,10 +445,10 @@ schedule checkpointDaily every 1d: checkpoint
     assert.equal((await post(url, originalHeaders, "/m/add", { id: "restored-new", args: { body: "restored only" } })).state, "sent");
   });
   const beforeRefusal = recoveryState(restored);
-  writeFileSync(schema, "use identity guests\nquery q():\n  return 0\n");
+  writeFileSync(schema, recoverySource.replaceAll("text <=100", "text <=4"));
   const refused = invoke("deploy", restored);
   assert.equal(refused.status, 1);
-  assert.match(refused.stderr, /loses data/);
+  assert.match(refused.stderr, /E_ADOPT/);
   assert.deepEqual(recoveryState(restored), beforeRefusal);
   run("rollback", restored);
   assert.equal(state(join(restored, "store.sqlite")).metadata.release, "1");
@@ -655,3 +650,205 @@ query reverse():
     });
   });
 }
+
+async function releasePost(url, headers, path, args = {}, id) {
+  const response = await fetch(url + path, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ args, ...(id ? { id } : {}) }), signal: AbortSignal.timeout(hangBudget()) });
+  const value = await response.json();
+  if (path.startsWith('/m/')) assert.equal(value.state, 'sent', JSON.stringify(value));
+  return value;
+}
+async function invokeAsync(app, ...args) {
+  const child = spawn(binary, args, { cwd: app, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CARGO_INCREMENTAL: '0', CARGO_PROFILE_DEV_DEBUG: '0', CARGO_PROFILE_TEST_DEBUG: '0' } });
+  let stdout = '', stderr = '';
+  child.stdout.on('data', data => { stdout += data; });
+  child.stderr.on('data', data => { stderr += data; });
+  const [status] = await once(child, 'exit');
+  return { status, stdout, stderr };
+}
+function localReleaseDevice(dir, children, capture) {
+  const opener = processDevice({ binary, dir, spawn: (cmd, args) => {
+    const child = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'inherit'] }); children.push(child); return child;
+  }, writeFile: async (path, text) => writeFileSync(path, text) });
+  return { async open(...args) { const core = await opener.open(...args); capture?.(core); return core; } };
+}
+async function closeReleaseClient(client, children) {
+  try { await cleanup(() => client.close(), 'release client close', () => JSON.stringify(children.map(c => ({ pid: c.pid, exitCode: c.exitCode, signalCode: c.signalCode }))), children); }
+  finally { for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); }
+}
+
+test('hot additive rollback and forward preserve dormant data, old writes and a connected client', { timeout: hangBudget(15) }, async t => {
+  const { app, deployment, schema, invoke, run } = fixture(t);
+  const first = source.replace('  read <- allow', '  read <- allow\n  update <- allow\n  delete <- allow').replace('  body: text', "  status: enum('active') default 'active'\n  body: text") + `
+query all():
+  return items[] first 20 by byId
+mutation edit(item: items, body: text <=100):
+  update items[item] {body}
+mutation remove(item: items):
+  delete items[item]
+`;
+  const second = first.replace('  body: text', '  extra: int default 7\n  by byExtra: extra, id\n  body: text').replace("enum('active')", "enum('active', 'new')").replace('return 1', 'return 2') + `
+table extraRows:
+  n: int
+  read <- allow
+  insert <- allow
+  sync public
+mutation setExtra(item: items, extra: int):
+  update items[item] {extra}
+mutation newStatus(item: items):
+  update items[item] {status: 'new'}
+mutation repairStatus(item: items):
+  update items[item] {status: 'active'}
+mutation addExtra(n: int):
+  return insert extraRows {n}
+query extras():
+  return extraRows[] first 20 by byId
+`;
+  writeFileSync(schema, first); run('deploy', deployment);
+  await serve(deployment, async (url, headers, session) => {
+    const added = await releasePost(url, headers, '/m/add', {}, 'v1-add'); assert.equal(added.state, 'sent'); const id = added.result.id;
+    const removed = await releasePost(url, headers, '/m/add', {}, 'v1-remove'); const gone = removed.result.id;
+    const deviceDir = join(dirname(app), 'lifecycle-device'); mkdirSync(deviceDir);
+    const children = [];
+    const client = await createLocalClient({ url, session, waitSeconds: 1, device: localReleaseDevice(deviceDir, children) });
+    await withCleanup(async () => {
+      await client.sync(); assert.equal((await client.query({ kind: 'query', name: 'all' }, {})).data.length, 2);
+      writeFileSync(schema, second);
+      let stop = false, observations = [];
+      const traffic = (async () => { while (!stop) { const value = await releasePost(url, headers, '/q/q'); if (!value.denied) observations.push([value.generation, value.data]); } })();
+      try { const deployed = await invokeAsync(app, 'deploy', deployment); assert.equal(deployed.status, 0, deployed.stderr); }
+      finally { stop = true; await traffic; }
+      assert.ok(observations.length > 0); assert.ok(observations.every(([g, v]) => (g === 1 && v === 1) || (g === 2 && v === 2)), JSON.stringify(observations));
+      assert.equal((await releasePost(url, headers, '/m/setExtra', { item: id, extra: 42 }, 'v2-extra')).state, 'sent');
+      assert.equal((await releasePost(url, headers, '/m/addExtra', { n: 45 }, 'v2-row')).state, 'sent');
+      await client.sync(); let local = await client.query({ kind: 'query', name: 'all' }, {}); assert.equal(local.data.find(row => row.id === id).extra, 42);
+      const oldGeneration = JSON.parse(run('releases', deployment)).generation;
+      await releasePost(url, headers, '/m/newStatus', { item: id }, 'v2-new-status');
+      const refused = invoke('rollback', deployment); assert.equal(refused.status, 1); assert.match(refused.stderr, /E_ADOPT/); assert.ok(refused.stderr.includes(id)); assert.match(refused.stderr, /1 affected rows/); assert.match(refused.stderr, /new/);
+      assert.equal(JSON.parse(run('releases', deployment)).release, 2);
+      await releasePost(url, headers, '/m/repairStatus', { item: id }, 'v2-repair');
+      run('rollback', deployment);
+      const current = JSON.parse(run('releases', deployment)); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 1);
+      const stale = await (await fetch(url + '/sync', { method: 'POST', headers, body: JSON.stringify({ generation: oldGeneration, from: 0, limit: 100, after: null, stream: false, pending: [] }) })).json(); assert.equal(stale.denied.code, 'E_SYNC_GENERATION');
+      await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {}); assert.ok(local.data.every(row => !Object.hasOwn(row, 'extra')));
+      assert.equal((await releasePost(url, headers, '/m/edit', { item: id, body: 'old write' }, 'v1-edit')).state, 'sent');
+      assert.equal((await releasePost(url, headers, '/m/remove', { item: gone }, 'v1-delete')).state, 'sent');
+      const newRow = await releasePost(url, headers, '/m/add', {}, 'v1-new'); assert.equal(newRow.state, 'sent');
+      // A new-source deployment must explicitly select retained name reuse.
+      const unselected = invoke('deploy', deployment); assert.equal(unselected.status, 1); assert.match(unselected.stderr, /--restore-dormant/);
+      run('rollback', deployment, '--to', '2');
+      await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {});
+      assert.equal(local.data.find(row => row.id === id).extra, 42); assert.equal(local.data.find(row => row.id === id).body, 'old write');
+      assert.equal(local.data.find(row => row.id === newRow.result.id).extra, 7); assert.ok(local.data.every(row => row.id !== gone));
+      assert.deepEqual((await releasePost(url, headers, '/q/extras')).data.map(row => row.n), [45]);
+      // Failed hot narrowing leaves this generation and the connected client usable.
+      writeFileSync(schema, second.replaceAll('text <=100', 'text <=4'));
+      const before = JSON.parse(run('releases', deployment)); const failed = await invokeAsync(app, 'deploy', deployment); assert.equal(failed.status, 1); assert.match(failed.stderr, /E_ADOPT/);
+      const after = JSON.parse(run('releases', deployment)); assert.equal(after.release, before.release); assert.equal(after.generation, before.generation); assert.equal(after.revision, before.revision);
+      assert.equal((await releasePost(url, headers, '/q/all')).data.find(row => row.id === id).extra, 42);
+      run('rollback', deployment, '--to', '1');
+      const preview = run('prune', deployment); assert.match(preview, /extraRows/); assert.match(preview, /preview only/);
+      const pruned = run('prune', deployment, '--allow-destructive'); assert.match(pruned, /"pruned": true/);
+      run('rollback', deployment, '--to', '2'); await client.sync();
+      assert.equal((await client.query({ kind: 'query', name: 'all' }, {})).data.find(row => row.id === id).extra, 7);
+      assert.deepEqual((await releasePost(url, headers, '/q/extras')).data, []);
+    }, () => closeReleaseClient(client, children));
+  });
+});
+
+test('native-only hot activation advances generation and refreshes an already connected device', { timeout: hangBudget(25) }, async t => {
+  const { app, deployment, schema, run } = fixture(t);
+  writeFileSync(schema, source + '\nquery nativeRead(): native\n');
+  const native = join(app, 'snapback/native'); mkdirSync(join(native, 'src'), { recursive: true });
+  writeFileSync(join(native, 'Cargo.toml'), `[package]\nname="sb4-roll-native"\nversion="0.0.0"\nedition="2024"\n[lib]\ncrate-type=["cdylib"]\n[dependencies]\nsnapback4-native={path=${JSON.stringify(join(root, 'crates/snapback4-native'))}}\n[workspace]\n[profile.release]\nopt-level="z"\nlto=true\ncodegen-units=1\npanic="abort"\nstrip=true\n`);
+  const code = value => `use snapback4_native::{Ctx,Json,Result,json};\nsnapback4_native::module!{reads:[nativeRead]}\n#[allow(non_snake_case)]\nfn nativeRead(_ctx:&Ctx,_args:&Json)->Result<Json>{Ok(json!("${value}"))}\n`;
+  writeFileSync(join(native, 'src/lib.rs'), code('A'));
+  const initial = await invokeAsync(app, 'deploy', deployment); assert.equal(initial.status, 0, initial.stderr);
+  await serve(deployment, async (url, headers, session) => {
+    const backendA = await (await fetch(url + '/schema', { headers })).json();
+    const bytesA = Buffer.from(await (await fetch(url + '/native.wasm', { headers })).arrayBuffer());
+    const deviceDir = join(dirname(app), 'native-generation-device'); mkdirSync(deviceDir); const children = []; let core;
+    const client = await createLocalClient({ url, session, waitSeconds: 1, device: localReleaseDevice(deviceDir, children, value => { core = value; }) });
+    await withCleanup(async () => {
+      await client.sync(); assert.equal((await client.query({ kind: 'query', name: 'nativeRead' }, {})).data, 'A');
+      writeFileSync(join(native, 'src/lib.rs'), code('B'));
+      const deployed = await invokeAsync(app, 'deploy', deployment); assert.equal(deployed.status, 0, deployed.stderr);
+      const backendB = await (await fetch(url + '/schema', { headers })).json(); assert.equal(backendB.generation, backendA.generation + 1); assert.notEqual(backendB.native.digest, backendA.native.digest);
+      assert.deepEqual(backendB.programs, backendA.programs, 'Quarry declarations did not change');
+      await client.sync(); assert.equal((await client.query({ kind: 'query', name: 'nativeRead' }, {})).data, 'B');
+      assert.equal((await releasePost(url, headers, '/q/nativeRead')).data, 'B');
+      const late = await core.call({ op: 'install_native', wasm: bytesA.toString('hex'), digest: backendA.native.digest, generation: backendA.generation });
+      assert.equal(late.denied.code, 'E_GENERATION'); assert.equal((await client.query({ kind: 'query', name: 'nativeRead' }, {})).data, 'B');
+      run('rollback', deployment); await client.sync(); assert.equal((await client.query({ kind: 'query', name: 'nativeRead' }, {})).data, 'A');
+    }, () => closeReleaseClient(client, children));
+  });
+});
+
+
+test('hot release replaces, adds and retires named workers without restarting serve', { timeout: hangBudget(12) }, async t => {
+  const { app, deployment, run } = fixture(t);
+  const workers=join(app,'snapback/workers');mkdirSync(workers,{recursive:true});
+  const worker=marker=>`console.log('${marker}');setInterval(() => {}, 1000);\n`;
+  writeFileSync(join(workers,'alpha.mjs'),worker('ROLL_ALPHA_V1'));
+  run('deploy',deployment);
+  const statuses=()=>{const db=new DatabaseSync(join(deployment,'store.sqlite'),{readOnly:true});try{return Object.fromEntries(db.prepare("SELECT key,value FROM _meta WHERE key LIKE 'worker:status:%'").all().map(r=>[r.key,JSON.parse(r.value)]));}finally{db.close();}};
+  await serve(deployment,async(_url,_headers,_session,logs)=>{
+    await waitFor(()=>logs().includes('ROLL_ALPHA_V1'),'first named worker starts',{diagnostics:logs});
+    const first=statuses()['worker:status:alpha'].pid;
+    const before=JSON.parse(run('releases',deployment));
+    writeFileSync(join(workers,'alpha.mjs'),"// snapback4 secrets: NOT_DECLARED\n"+worker('ROLL_BAD_SECRET'));
+    const failure=spawnSync(binary,['deploy',deployment],{cwd:app,encoding:'utf8',timeout:hangBudget()});
+    assert.equal(failure.status,1);assert.match(failure.stderr,/alpha.*NOT_DECLARED|NOT_DECLARED/);
+    const unchanged=JSON.parse(run('releases',deployment));
+    for (const field of ['release','revision','generation'])assert.equal(unchanged[field],before[field]);
+    assert.equal(statuses()['worker:status:alpha'].pid,first);assert.equal(logs().includes('ROLL_BAD_SECRET'),false);
+
+    writeFileSync(join(workers,'alpha.mjs'),worker('ROLL_ALPHA_V2'));
+    writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V2'));
+    run('deploy',deployment);
+    await waitFor(()=>logs().includes('ROLL_ALPHA_V2')&&logs().includes('ROLL_BETA_V2'),'replacement and added worker start',{diagnostics:logs});
+    assert.notEqual(statuses()['worker:status:alpha'].pid,first);
+    rmSync(join(workers,'alpha.mjs'));writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V3'));
+    run('deploy',deployment);
+    await waitFor(()=>logs().includes('ROLL_BETA_V3')&&statuses()['worker:status:alpha']?.state==='stopped','removed worker retires and remaining worker restarts',{diagnostics:()=>logs()+JSON.stringify(statuses())});
+    const history=JSON.parse(run('releases',deployment));assert.equal(history.release,4);
+    assert.equal(history.workers.find(([key])=>key==='worker:status:beta')[1].includes('running'),true);
+  });
+});
+
+
+test('an unserved release cannot create a shadow development store', { timeout: hangBudget(3) }, t => {
+  const { deployment, run }=fixture(t);run('deploy',deployment);
+  const release=join(deployment,'releases/1');
+  assert.equal(readlinkSync(join(release,'.snapback4/store.sqlite')),'../../../store.sqlite');
+  for (const args of [['run','q'],['dev','--port','0']]) {
+    const result=spawnSync(binary,args,{cwd:release,encoding:'utf8',timeout:hangBudget()});
+    assert.notEqual(result.status,0,`${result.stdout}\n${result.stderr}`);assert.match(result.stderr,/belongs to a deployment/);
+  }
+});
+
+test('owned serve death before hot commit and after commit recovers database authority', { timeout: hangBudget(12) }, async t => {
+  const { app, deployment, schema, run }=fixture(t);run('deploy',deployment);
+  await serve(deployment,async(url,headers,_session,_logs,child)=>{
+    const written=await(await fetch(url+'/m/add',{method:'POST',headers,body:JSON.stringify({id:'before-crash',args:{}})})).json();assert.equal(written.state,'sent');
+    writeFileSync(schema,source.replace('return 1','return 2'));
+    const db=new DatabaseSync(join(deployment,'store.sqlite'));db.exec('BEGIN IMMEDIATE');
+    const pending=invokeAsync(app,'deploy',deployment);
+    try {
+      await waitFor(()=>existsSync(join(deployment,`.current-${child.pid}-2`)),'hot command prepared before blocked transaction');
+      const exit=once(child,'exit');child.kill('SIGKILL');await exit;
+    } finally {db.exec('ROLLBACK');db.close();}
+    const failed=await pending;assert.equal(failed.status,1);assert.match(failed.stderr,/unknown|inspect/);
+    assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'1');
+  });
+  await serve(deployment,async(url,headers,_session,_logs,child)=>{
+    const before=await(await fetch(url+'/q/q',{method:'POST',headers,body:'{"args":{}}'})).json();assert.equal(before.data,1);
+    run('rollback',deployment,'--to','2');
+    assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
+    const exit=once(child,'exit');child.kill('SIGKILL');await exit;
+    writeFileSync(join(deployment,'current'),'1\n');
+  });
+  await serve(deployment,async(url,headers)=>{
+    const after=await(await fetch(url+'/q/q',{method:'POST',headers,body:'{"args":{}}'})).json();assert.equal(after.data,2);
+    const rows=state(join(deployment,'store.sqlite')).rows;assert.equal(rows.length,1);assert.match(rows[0].data,/kept/);
+  });
+});

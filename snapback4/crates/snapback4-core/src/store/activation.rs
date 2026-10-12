@@ -3,6 +3,7 @@
 // @ref LLP 3000.000#implementation-follow-up — one atomic activation boundary
 
 use super::*;
+use std::collections::BTreeSet;
 use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
 use crate::value::digest;
@@ -133,7 +134,9 @@ impl Store {
         }
         report.phase("key validation", &mut phase);
         let schema_hash = schema.hash();
-        let activation_hash = programs.map(|programs| digest(&(schema, programs)));
+        // @ref LLP 3000.000.000#6-devices-and-partitions — executable native content changes the existing semantic generation.
+        let native: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key='release_native_digest'", [], |r|r.get(0)).optional()?;
+        let activation_hash = programs.map(|programs| match &native {Some(native)=>digest(&(schema,programs,native)),None=>digest(&(schema,programs))});
         let schema_changed = before.0.as_deref() != Some(&schema_hash);
         let changed = schema_changed || activation_hash.as_ref().is_some_and(|hash| before.1.as_ref() != Some(hash));
         let mut catalog: BTreeMap<String, i64> = sql.prepare("SELECT name, num FROM _catalog")?
@@ -173,11 +176,18 @@ impl Store {
             tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
             if tx.has_sequence_table()? { tx.conn().execute_batch("DELETE FROM _sequences;")?; }
         }
+        let mut retained_through=BTreeSet::new();
+        if schema_changed && programs.is_some() && !reset {
+            let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
+            let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
+            let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
+            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore)?;
+        }
         if schema_changed && programs.is_some() && !reset {
             let started = std::time::Instant::now();
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;
-            let shortened = crate::engine::through_activation::activate(&tx,schema,previous.as_ref(),now)?;
+            let shortened = crate::engine::through_activation::activate_retained(&tx,schema,previous.as_ref(),now,&retained_through)?;
             tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
             report.detail("read-through retirement", started);
         }
@@ -190,6 +200,11 @@ impl Store {
             super::event_slots::fill(&tx, schema, now)?;
             report.detail("event slot fill", started);
             let started = std::time::Instant::now();
+            if super::dormant::enabled(&tx)? {
+                let old:Option<String>=tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|r.get(0)).optional()?;
+                let old:Option<Schema>=old.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
+                super::adopt_refusals::candidate(&tx,schema,old.as_ref(),false)?;
+            }
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                 return Err(step.refusal(schema));
             }
@@ -297,6 +312,9 @@ impl Store {
         report.phase("cap counts", &mut phase);
         build(&tx, changed, &mut report)?;
         report.phase("derived rebuild", &mut phase);
+        if schema_changed && programs.is_some() && super::dormant::enabled(&tx)? {
+            super::adopt_refusals::candidate(&tx,schema,previous.as_ref(),true)?;
+        }
         if schema_changed {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let plan = &plans[name];
@@ -331,7 +349,7 @@ impl Store {
             // projection. The ordinary collector removes bytes after commit.
             let homes: Vec<(String, String)> = tx.conn().prepare("SELECT DISTINCT home_table, home_column FROM _assets WHERE home_table IS NOT NULL AND released_at IS NULL")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
             for (table, column) in homes {
-                if schema.table(&table).and_then(|t| t.columns.get(&column)).is_none_or(|kind| !contains_asset_type(kind)) {
+                if schema.table(&table).and_then(|t| t.columns.get(&column)).is_none_or(|kind| !contains_asset_type(kind)) && !super::dormant::holds_home(&tx,&table,&column)? {
                     tx.conn().execute("UPDATE _assets SET released_at = ?3 WHERE home_table = ?1 AND home_column = ?2 AND released_at IS NULL", params![table, column, crate::now_ms()])?;
                 }
             }

@@ -127,7 +127,9 @@ impl Runner<'_> {
                 if page.is_empty() { break; }
                 for (old, key) in page {
                     bounds.after = crate::key::decode(&key);
-                    let row = self.capture_recorded(table, old.clone(), &paths)?;
+                    // @ref LLP 3000.000.000#2-retain-by-default — even null is historical attribution after dormant restoration.
+                    let missing:Vec<_>=paths.iter().filter(|path|old.field(path).is_err()).cloned().collect();
+                    let row = self.capture_recorded(table, old.clone(), &missing)?;
                     super::validate::validate_row(self.schema, name, &crate::schema::row_image(&row, table))?;
                     let entries = self.tx.put(name, &captured_table, &row, Some(&old))?;
                     self.meter.charge(MeterKind::IndexEntries, entries)?;

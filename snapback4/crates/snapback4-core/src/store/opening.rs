@@ -35,7 +35,7 @@ impl Backend {
 impl Store {
     pub(super) fn check_version(conn: &Connection) -> Result<(), RuntimeError> {
         let version: String = conn.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |r| r.get(0))?;
-        if version != STORE_VERSION {
+        if version != STORE_VERSION && version != super::dormant::VERSION {
             return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback")));
         }
         Ok(())

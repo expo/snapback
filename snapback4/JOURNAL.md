@@ -58344,8 +58344,7 @@ doctests passed; client tests: 1,534 passed, 9 existing skips, 0 failures;
 client models: 78 passed, 0 failures. Then `./ref-check --verbose` passed
 (509 LLP docs, 9,311 refs in 26,229 files, 0 errors, 0 unchecked),
 `git diff --check` passed for the working, staged and full integrated diff,
-`git grep -n '^<<<<<<<'` was empty, and the wasm rebuild confirmed the
-measurement and 1,000 B slack above. Preliminary integration failures were
+`git grep -n '^measurement and 1,000 B slack above. Preliminary integration failures were
 fixed; none is treated as an inherited exception.
 
 The file-by-file conflict table, test dispositions and merge commit IDs are
@@ -92725,6 +92724,7 @@ branch's budget; together the Linux web device measures 651,704 B gzip,
 the reason in `metrics/wasm-budget.json`.
 
 
+<<<<<<< HEAD
 ## 2026-10-12 — UNION integrates sb4-loop 0.4.23; wasm budget rises 2,460 B
 
 Merged file assets, pinned-parent page guards, the revised readauth corpus,
@@ -93590,3 +93590,8 @@ is called green. Final strict wasm repeats 2,245,239 B raw / 679,647 B gzip,
 cap 680,147 B = measurement + 500 B. Docs-budget and ref-check pass.
 The root WORKSTREAM-REPORT.md and reports/20261012-integration3/ record each
 item, commits, actual results and deferrals. No push or publication.
+## 2026-10-12 — ROLL: retaining rollback and hot release activation
+
+Release adoption now separates active shapes from dormant tables/cells/index definitions. Older writes preserve retained cells; new rows get candidate literal defaults/nulls on restoration, while enum, required-value, ownership and lifetime conflicts name affected rows and refuse atomically. Removal requires explicit `prune --allow-destructive`, with durable audit/history. `rollback --to N` deliberately restores immutable source. Release stores get a format fence; device/development stores retain their existing format.
+
+An admitted `serve` owns hot deploy over a private same-owner socket. Source/native/worker preparation precedes the transaction; reader/runtime/generation publication shares the writer guard. Native wasm content changes advance semantic generation even when declarations are unchanged. Worker preparation is revision-bound, including named additions/removals. Lost replies and stale convenience pointers recover from the database. LLP 3000.000.000 and SERVER.md own the design and operations; the OPS deploy card points there. Test/review/commit evidence is recorded in WORKSTREAM-REPORT.md. No npm publication or push is part of this workstream.

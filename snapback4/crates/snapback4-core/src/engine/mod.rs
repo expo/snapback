@@ -6,6 +6,10 @@
 #[cfg(feature = "sqlite")]
 pub mod effects;
 #[cfg(feature = "sqlite")]
+mod activation;
+#[cfg(feature = "sqlite")]
+pub mod release;
+#[cfg(feature = "sqlite")]
 mod asset_columns;
 mod write_reservations;
 #[cfg(feature = "sqlite")]
@@ -410,25 +414,6 @@ impl Engine {
     }
 
 
-    /// Activate an immutable source release. Its pointer lives in the same
-    /// transaction as rows/programs/generation; the filesystem pointer is a
-    /// checked convenience copy, never an independent authority.
-    pub fn new_release(store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
-        Self::new_release_with_feed_adoption(store, schema, programs, release, expected_previous, false)
-    }
-
-    pub fn new_release_with_feed_adoption(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>, allow_feed_adoption: bool) -> Result<Self, RuntimeError> {
-        columns::validate_before_prepare(&schema)?;
-        schema.check_row_view_audiences()?;
-        schema.prepare_contribution_indexes();
-        schema.prepare_delivery_lookup();
-        if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let (generation, metadata) = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms(), allow_feed_adoption, None, None)?;
-        store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
-    }
-
     /// Attach to an already activated semantic generation without installing
     /// caller source. Reads of its identity and compiled content are one snapshot.
     pub fn open(store: Store) -> Result<Self, RuntimeError> {
@@ -585,93 +570,6 @@ impl Engine {
         Ok(generation)
     }
 
-    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64, allow_feed_adoption: bool, expected_release: Option<u64>, expected_backend: Option<&crate::store::opening::Backend>) -> Result<(u64, crate::store::opening::Metadata), RuntimeError> {
-        schema.validate_column_owners()?;
-        for program in programs.values() {
-            crate::schema::ephemeral::admit_program(schema, program)?;
-            admission::check_state_predicates(schema, program)?;
-        }
-        for program in programs.values() {
-            for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
-        }
-        for schedule in &schema.schedules {
-            if !schedule.valid() {
-                return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));
-            }
-            let Some(program) = programs.get(&schedule.target).filter(|p| matches!(p.kind, ProgramKind::Job | ProgramKind::Action)) else {
-                return Err(RuntimeError::Schema(format!("schedule {} names missing job or action {}; restore or remove the schedule", schedule.name, schedule.target)));
-            };
-            if program.kind == ProgramKind::Action {
-                let seat = schedule.service.as_deref().filter(|seat| crate::identity::is_service(seat)).ok_or_else(|| RuntimeError::Schema("a scheduled action requires its declared service seat".into()))?;
-                actions::authorize(program, seat)?;
-            } else if schedule.service.is_some() { return Err(RuntimeError::Schema("a scheduled job cannot name a service seat".into())); }
-            if program.args.iter().any(|(name, kind)| !matches!(name.as_str(), "periodStart" | "periodEnd") || *kind != crate::ir::ArgType::Time) {
-                return Err(RuntimeError::Schema("scheduled work takes periodStart: time and periodEnd: time, or nothing".into()));
-            }
-        }
-        store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |conn| {
-            Store::check_selected_release(conn, expected_release)?;
-            if let Some(backend) = expected_backend { backend.check(conn)?; }
-            Ok(())
-        }, |tx, changed, report| {
-            if let Some((release, expected)) = release {
-                use rusqlite::OptionalExtension;
-                let actual: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
-                // Legacy stores have no DB pointer yet. Their predecessor
-                // was checked from the file; the first adoption establishes it.
-                if actual.as_ref().is_some_and(|s| s.parse::<u64>().ok() != expected) {
-                    return Err(RuntimeError::Generation("the current release changed during deployment; retry against its new schema".into()));
-                }
-                tx.set_meta("release", &release.to_string())?;
-            }
-            use rusqlite::OptionalExtension;
-            let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
-            if !changed && !repair_live_sums { return Ok(()); }
-            let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
-            let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
-            if changed {
-                let epoch = tx.next_seq()?;
-                for table in partition::changed_group_audiences(previous.as_ref(), schema) {
-                    tx.set_meta(&partition::audience_epoch_key(&table), &epoch.to_string())?;
-                    tx.set_meta(&partition::audience_epoch_time_key(&table), &now.to_string())?;
-                }
-            }
-            let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
-                (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
-                    || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
-            }).collect();
-            tx.set_meta("live_sum_candidates", "1")?;
-            let attribution = recorded::paths_changed(schema, previous.as_ref());
-            let columns = column_activation::changed_parents(schema, previous.as_ref());
-            if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
-            let seq = tx.next_seq()?;
-            let phase = std::time::Instant::now();
-            if attribution {
-                // This runner owns only activation rewrites; ordinary rebuilds
-                // below retain their commit and partition accounting.
-                let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-                capture.capture_activation(previous.as_ref(), Some(report))?;
-                report.detail("capture recorded paths", phase);
-                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
-            }
-            let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-            runner.activate_columns(previous.as_ref(), &rebuild, &columns, Some(report))?;
-            for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {
-                if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {
-                    runner.rebuild_maintain_reported(maintain, report)?;
-                }
-            }
-            let events = runner.events.take();
-            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-            let written = runner.rows_written;
-            drop(runner);
-            if written > 0 || !columns.is_empty() {
-                tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
-                partition::append(tx, seq, &events)?;
-            }
-            Ok(())
-        }, crate::store::opening::Metadata::read)
-    }
 
     /// Record an upload under `owner`: sniffed, bounded by the largest
     /// column of its kind in this schema, written beside the store. The

@@ -10,6 +10,8 @@ use std::io::{Read, Write};
 use std::{net::{SocketAddr, TcpStream}, sync::mpsc, thread::{self, JoinHandle}};
 #[path = "../tests/serve_adoption/mod.rs"]
 mod adoption_tests;
+#[path = "../tests/serve_release/mod.rs"]
+mod release_lifecycle_tests;
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
 #[path = "../tests/serve_ephemeral/mod.rs"]

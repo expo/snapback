@@ -65,7 +65,8 @@ fn contextual_defaults_narrow_populated_tables_but_adopt_empty_ones_and_still_fi
             let step = steps.iter().find(|s| s.path.ends_with(column)).unwrap();
             assert_eq!(step.change, if count == 0 { Change::Additive } else { Change::Narrowing });
             if count != 0 {
-                assert_eq!(step.message, format!("column messages.{column} is added as required with default {default}; existing rows would read the adoption's {noun}"));
+                assert!(step.message.starts_with(&format!("column messages.{column} is added as required with default {default}; existing rows would read the adoption's {noun}")));
+                for item in ["3 affected rows","m0","m1","m2","<missing>"] {assert!(step.message.contains(item),"{}",step.message);}
                 let error = e.adopt(b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap_err();
                 assert_eq!(error.to_string(), step.refusal(&b.schema).to_string());
                 assert_eq!(e.generation(), 1);

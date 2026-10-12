@@ -373,7 +373,8 @@ fn dev_and_serve_report_signals_without_a_configured_worker() {
                 assert_eq!(post(host.port, "/q/changed", json!({"args": {}}))["data"], true);
             }
             let status = host.signal(signal);
-            if verb == "dev" && matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) {
+            // Serve now also joins its private release-control transport.
+            if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) {
                 assert_eq!(status.code(), Some(128 + signal));
             } else { assert_eq!(status.signal(), Some(signal)); }
             let name = match signal { libc::SIGTERM => "SIGTERM", libc::SIGINT => "SIGINT", libc::SIGHUP => "SIGHUP", libc::SIGBUS => "SIGBUS", _ => "SIGABRT" };
@@ -381,6 +382,7 @@ fn dev_and_serve_report_signals_without_a_configured_worker() {
             assert!(host.log().lines().any(|l| l == line), "{}", host.log());
             println!("{line}");
             assert_eq!(fs::read_to_string(&host.stdout).unwrap().lines().count(), 1);
+            if verb=="serve" && matches!(signal,libc::SIGTERM|libc::SIGINT|libc::SIGHUP) {assert!(!release.join(".release-control.sock").exists(),"managed shutdown removes the owned control socket");}
         }
     }
 }

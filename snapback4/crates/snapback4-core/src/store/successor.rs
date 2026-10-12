@@ -38,6 +38,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                     // Assess the same activation-time capture that the atomic
                     // migration will write; grouping uncaptured paths as null
                     // could falsely reject sums that fit their real groups.
+                    let paths:Vec<_>=paths.iter().filter(|path|row.field(path).is_err()).cloned().collect();
                     let row = capture.capture_recorded(source, crate::schema::row_image(&row, source).into_owned(), &paths)?;
                     if validate_row(schema, &maintain.source, &row).is_err() { fits = false; return Ok(()); }
                     if !count_safe && maintain.selected(&row) {
@@ -153,6 +154,9 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
         } else {
             step.change = Change::Narrowing;
         }
+    }
+    for step in steps.iter_mut().filter(|s|s.change==Change::Narrowing) {
+        step.message=super::adopt_refusals::detail(tx,schema,step)?;
     }
     Ok(steps)
 }

@@ -5,6 +5,105 @@ project; repeating it is harmless. Actions, routes and schedules naming an
 action require it. Effects (including secrets, retry, backoff, deadline and
 cancellation), jobs, schedules naming a job and service seats need no directive.
 
+## Release lifecycle
+
+`deploy <dir>` stages immutable source, validates the live data and selects a release.
+`rollback <dir>` selects the preceding immutable release; `rollback <dir> --to N`
+selects any existing release, including a deliberate roll forward. Both activate
+inside a running `serve` process without restarting it. A stopped deployment uses
+the same transaction offline.
+
+### Retained storage and roll forward
+
+Removed durable tables, columns and index definitions become **dormant**. They
+stay in separate private storage, invisible to the older programs, rules, sync and
+clients. Forward activation restores their data and rebuilds indexes against the
+current rows. Rollback selects source; it does not rewind application writes.
+
+- Updating a row under the older release preserves its dormant column values.
+- Deleting an active row removes its dormant values. Reusing its id cannot
+  resurrect those values. Deleting a parent invalidates dormant references to
+  its lifetime, including when an identical parent id/value is recreated.
+- A new row written under the older release receives the forward schema's literal
+  default or optional null when its newer field is reactivated. Existing dormant
+  values restore verbatim, including the defaults they previously represented.
+- A required column without a literal default refuses when older-release rows
+  lack it. Deploy a bridge with that field optional or defaulted using
+  `--restore-dormant`, backfill through a bridge mutation, then deploy the required
+  definition. `default now` and `default viewer` never invent historical values.
+- An enum value in use refuses rollback with `E_ADOPT`: table/column, affected
+  count, up to five ids and values, and a repair/inspection command. Repair those
+  rows through the current release, then retry. A flag never coerces or hides them.
+- A newly introduced unique index can refuse forward if older writes created
+  duplicate keys. Restored references also refuse deleted/reused parents or changed
+  read-through audience captures. Authoritative storage cannot become derived
+  storage implicitly. Refusals preserve the current release and dormant data.
+
+Reusing dormant names in **new source** requires `deploy <dir> --restore-dormant`.
+Selecting an immutable release with `rollback --to N` explicitly selects restoration.
+A partial table restoration preserves omitted newer columns as dormant; another
+forward can recover them. A rename has two independent names.
+
+`prune <dir>` previews dormant tables, columns and indexes, row counts, logical
+serialized bytes, retained asset bytes and sample ids. `prune <dir> --allow-destructive`
+permanently removes **all** currently dormant storage and records the exact set in
+history. Active rows/programs stay active; later restoration gets empty tables and
+ordinary default/backfill behavior. There is no automatic age/size pruning.
+`--allow-destructive` on deploy/rollback does not prune or bypass validation.
+To convert durable to ephemeral, first deploy without that table, explicitly
+prune its dormant storage, then deploy the ephemeral definition.
+
+Dormant asset homes remain retained but cannot be fetched, even by id; pruning
+or deleting their active row releases them for the ordinary collector. Dormant
+rows run no old jobs/expiry sweeps; candidate liveness applies on reactivation.
+The release-store format fences older binaries with `E_STORE`. This cannot recover
+storage already deleted by releases before this retention implementation.
+
+### Hot activation, devices and failure
+
+An executing writer completes before activation acquires the server's writer.
+A query already pinned to a SQLite snapshot can finish on its old generation.
+Unpinned old readers retry through the new factory; queued writes recheck generation
+and authority. Validation can pause writes; no process restart is required.
+A refused adoption keeps the old backend serving. Native module compilation and
+worker source/environment validation happen before commit. A post-commit worker
+spawn failure reports degraded availability and retries; it does not undo activation.
+Named workers switch their immutable release root and declaration set. An external
+`serve --worker` remains an operator-provided entry.
+
+Every changed execution identity gets a fresh monotone generation, including
+rollback/forward and native-only wasm changes. Equal schema/program/module content
+retains its generation while the activation revision advances. Existing clients
+learn the new backend, replace obsolete partitions and reacquire; old watermarks,
+late pages and late native module fetches cannot mix with the new generation.
+Queued intents follow the existing operation/authority rejudgment rules. Store id
+stays the same, so ordinary rollback is not a replaced-store recovery.
+
+The local control socket lives in the private deployment directory (0700), is
+0600 and checks same-UID peer credentials. It accepts only numeric immutable
+release ids bound to content and database identity; no public HTTP/admin door is
+added. Keep the directory and its sidecars private. If the local owner is an older,
+unreachable server or another CLI, `E_STORE_BUSY` names the stop/retry sequence.
+Never delete the owner sidecar to bypass exclusion.
+
+Serving now joins the private control transport during SIGTERM, SIGINT and SIGHUP shutdown and returns `128 + signal`; fatal signals retain their OS signal status.
+
+The database owns current release, generation, activation revision and history.
+Required source/native/worker artifacts are flushed before selecting them. A crash
+or convenience-file error can leave `current` or `releases.jsonl` stale; startup
+attaches to database authority. A socket timeout after admission is **ambiguous**:
+the server continues the operation. Inspect `releases <dir>` before any retry;
+do not automatically deploy another release.
+
+### Inspecting history
+
+`releases <dir>` reports authoritative identity, worker status, activation/prune
+events and dormant storage. Follow `--after <event-id>` for history and
+`--items-after <key>` for inventory pages, using the returned `items_after` value.
+Item keys distinguish tables, columns and indexes even when names coincide. `--event <id>` inspects the exact
+items recorded by an activation/prune. Continuation fields are explicit; history
+is never rewound. This inspection is read-only and works while `serve` is live.
+
 ## Declaring actions
 
 ```quarry

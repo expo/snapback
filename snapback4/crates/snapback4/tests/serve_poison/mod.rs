@@ -8,7 +8,7 @@ fn a_request_after_engine_poison_still_serves() {
     let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
     let shared = Arc::new(Shared {
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
-        project: std::env::current_dir().unwrap(), temporary: true,
+        project: std::env::current_dir().unwrap(), release_root: Mutex::new(None), temporary: true,
         refusals: dev_refusals::Recent::default(),
         latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
         ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
@@ -33,7 +33,9 @@ fn a_request_after_engine_poison_still_serves() {
         auth: crate::auth::Admission::default(),
         uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: None,
-        auth_work: Mutex::new(None),
+        release_committed: Mutex::new(None),
+        #[cfg(test)]
+        worker_prepare: Mutex::new(None), auth_work: Mutex::new(None),
         request_work: Mutex::new(None),
         upload_work: Mutex::new(None),
         effect_wait: Mutex::new(None),

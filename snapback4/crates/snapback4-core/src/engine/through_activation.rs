@@ -26,12 +26,40 @@ where
     Box::new(rows.into_iter())
 }
 
-fn refusal(name: &str, count: usize, reason: &str) -> RuntimeError {
+fn refusal(name: &str, count: usize, reason: &str, samples: &[String]) -> RuntimeError {
     RuntimeError::Structural {
         code: "E_READ_THROUGH_ADOPT",
         message: format!(
-            "{name}: {count} child rows cannot adopt read through: {reason}; reconcile their audience fields and live parents before adoption (guide rules)"
+            "{name}: {count} child rows cannot adopt read through: {reason}; sample ids/parent values [{}]; rewrite: reconcile the named audience fields and live parents in a bridge release, then `snapback4 deploy <dir> --restore-dormant` (guide rules)",
+            samples.join(", ")
         ),
+    }
+}
+
+fn sample(samples: &mut Vec<String>, row: &Value, reference: &str, parent: &str) {
+    fn bounded(text: &str) -> &str {
+        let mut end = text.len().min(256);
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        &text[..end]
+    }
+    if samples.len() < 5 {
+        let id = row
+            .field("id")
+            .ok()
+            .and_then(|v| v.as_str().ok())
+            .unwrap_or("<missing>");
+        let value = row
+            .field(reference)
+            .ok()
+            .and_then(|v| v.as_str().ok())
+            .unwrap_or("<missing>");
+        samples.push(format!(
+            "{}: {reference} -> {parent}[{}]",
+            bounded(id),
+            bounded(value)
+        ));
     }
 }
 
@@ -106,14 +134,21 @@ pub(crate) struct Retirement<'a> {
 
 impl<'a> Retirement<'a> {
     pub(crate) fn new(next: &Schema, previous: &'a Schema, now: i64) -> Self {
-        let affected = next.through_order().into_iter().filter_map(|name| {
-            let next = &next.tables[&name];
-            let old = previous.table(&name)?;
-            (next.through != old.through || next.through.is_some()
-                && (next.expire != old.expire || next.expire.as_ref().is_some_and(|field|
-                    old.defaults.get(field) != next.defaults.get(field))))
+        let affected = next
+            .through_order()
+            .into_iter()
+            .filter_map(|name| {
+                let next = &next.tables[&name];
+                let old = previous.table(&name)?;
+                (next.through != old.through
+                    || next.through.is_some()
+                        && (next.expire != old.expire
+                            || next.expire.as_ref().is_some_and(|field| {
+                                old.defaults.get(field) != next.defaults.get(field)
+                            })))
                 .then_some((name, old))
-        }).collect();
+            })
+            .collect();
         Self { affected, now }
     }
 
@@ -122,7 +157,9 @@ impl<'a> Retirement<'a> {
     }
 
     pub(crate) fn retires(&self, name: &str, row: &Value) -> bool {
-        self.affected.iter().find(|(table, _)| table == name)
+        self.affected
+            .iter()
+            .find(|(table, _)| table == name)
             .is_some_and(|(_, old)| old.expired(row, self.now))
     }
 }
@@ -133,6 +170,16 @@ pub fn activate(
     next: &Schema,
     previous: Option<&Schema>,
     now: i64,
+) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
+    activate_retained(tx, next, previous, now, &Default::default())
+}
+
+pub(crate) fn activate_retained(
+    tx: &dyn Rows,
+    next: &Schema,
+    previous: Option<&Schema>,
+    now: i64,
+    retained: &std::collections::BTreeSet<String>,
 ) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
     let mut shortened = std::collections::BTreeMap::new();
     let Some(previous) = previous else {
@@ -159,12 +206,14 @@ pub fn activate(
         };
         let parent = previous
             .table(&t.parent)
-            .ok_or_else(|| refusal(name, 0, "the previous parent schema is absent"))?;
+            .ok_or_else(|| refusal(name, 0, "the previous parent schema is absent", &[]))?;
         let map = correspondence(&old.rules.read, &parent.rules.read);
         let mut invalid = 0;
+        let mut samples = Vec::new();
         rows(tx, name, |row| {
             let Some(map) = &map else {
                 invalid += 1;
+                sample(&mut samples, &row, &t.reference, &t.parent);
                 return Ok(());
             };
             let row = crate::schema::row_image(&row, old);
@@ -184,6 +233,7 @@ pub fn activate(
             });
             if !matches {
                 invalid += 1;
+                sample(&mut samples, &row, &t.reference, &t.parent);
             }
             Ok(())
         })?;
@@ -192,6 +242,7 @@ pub fn activate(
                 name,
                 invalid,
                 "missing, ambiguous or disagreeing predecessor audience correspondence",
+                &samples,
             ));
         }
     }
@@ -203,9 +254,13 @@ pub fn activate(
         let parent = &next.tables[&t.parent];
         let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
+        let mut samples = Vec::new();
         rows(tx, &name, |old| {
             let mut row = old.clone();
-            if recapture {
+            // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
+            let historical = retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
+            if recapture && (!historical || t.fields.keys().any(|field| old.field(field).is_err()))
+            {
                 let parent_row = old
                     .field(&t.reference)
                     .ok()
@@ -216,9 +271,20 @@ pub fn activate(
                 // @ref LLP 3000.014#7-activation — previous-schema expiry was retired before projection; a newly due deadline must propagate, not veto adoption.
                 let Some(parent_row) = parent_row else {
                     invalid += 1;
+                    sample(&mut samples, &old, &t.reference, &t.parent);
                     return Ok(());
                 };
-                super::through::stamp(parent, t, &parent_row, &mut row)?;
+                if historical {
+                    let mut fresh = row.clone();
+                    super::through::stamp(parent, t, &parent_row, &mut fresh)?;
+                    if let Value::Row(fields) | Value::Map(fields) = &mut row {
+                        for field in t.fields.keys().filter(|field| old.field(field).is_err()) {
+                            fields.insert(field.clone(), fresh.field(field)?.clone());
+                        }
+                    }
+                } else {
+                    super::through::stamp(parent, t, &parent_row, &mut row)?;
+                }
             }
             table.recompute_deadline(&mut row)?;
             let before = previous.table(&name).and_then(|table| table.deadline(&old));
@@ -232,7 +298,7 @@ pub fn activate(
             Ok(())
         })?;
         if invalid > 0 {
-            return Err(refusal(&name, invalid, "missing parent"));
+            return Err(refusal(&name, invalid, "missing parent", &samples));
         }
     }
     Ok(shortened)
@@ -247,6 +313,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
         };
         let parent = &schema.tables[&t.parent];
         let mut invalid = 0;
+        let mut samples = Vec::new();
         rows(tx, &name, |row| {
             let found = row
                 .field(&t.reference)
@@ -267,6 +334,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
             });
             if !matches {
                 invalid += 1;
+                sample(&mut samples, &row, &t.reference, &t.parent);
             }
             Ok(())
         })?;
@@ -275,6 +343,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
                 &name,
                 invalid,
                 "restored captures do not match a live parent",
+                &samples,
             ));
         }
     }
@@ -353,7 +422,11 @@ impl super::runner::Runner<'_> {
         for (name, row) in rows {
             super::timeline::check_import(self.schema, &name)?;
             // Adoption rewrites are system imports of stored images (LLP 3000.015 §1).
-            self.upsert(&name, &row.field("id")?.clone(), row.import_input(&super::ImportInput(())))?;
+            self.upsert(
+                &name,
+                &row.field("id")?.clone(),
+                row.import_input(&super::ImportInput(())),
+            )?;
         }
         self.check_final_exists()?;
         Ok(count)
@@ -376,9 +449,17 @@ impl super::runner::Runner<'_> {
                 continue;
             };
             while count < limit as u64 {
-                let bounds = Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+                let bounds = Bounds {
+                    gte: Some(Value::Int(i64::MIN)),
+                    lte: Some(Value::Int(now)),
+                    ..Default::default()
+                };
                 let batch = (limit - count as usize).min(256);
-                let page = self.metered_scan(|runner, scope| runner.tx.scan(scope, &name, index, &[], &bounds, Dir::Asc, batch))?;
+                let page = self.metered_scan(|runner, scope| {
+                    runner
+                        .tx
+                        .scan(scope, &name, index, &[], &bounds, Dir::Asc, batch)
+                })?;
                 if page.is_empty() {
                     break;
                 }
