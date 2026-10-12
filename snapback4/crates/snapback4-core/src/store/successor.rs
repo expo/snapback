@@ -154,6 +154,9 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
             step.change = Change::Narrowing;
         }
     }
+    for step in steps.iter_mut().filter(|s|s.change==Change::Narrowing) {
+        step.message=super::adopt_refusals::detail(tx,schema,step)?;
+    }
     Ok(steps)
 }
 

@@ -20,6 +20,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+pub(crate) mod dormant;
+pub(crate) mod release_history;
+mod adopt_refusals;
+#[cfg(test)]
+mod dormant_tests;
 mod activation_cache;
 mod activation_index;
 mod activation_scan;
@@ -108,7 +113,7 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let tx = conn.transaction()?;
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
-        if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        if version != STORE_VERSION && version != dormant::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
         tx.rollback()?;
@@ -248,7 +253,7 @@ impl Store {
             if server { Self::initialize_change_evidence(&opened)?; }
         }
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
-        if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        if version != STORE_VERSION && version != dormant::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
         let identity = activation::identity(&opened)?;
         opened.commit()?;
@@ -636,6 +641,7 @@ impl<'a> Tx<'a> {
         let t = self.num(table_name)?;
         self.changes.borrow_mut().record(table_name, table, Some(old), None);
         let id = old.field("id")?.as_str()?.to_owned();
+        dormant::delete(self,t,&id,table_name)?;
         self.conn().prepare_cached("DELETE FROM r WHERE t = ?1 AND id = ?2")?.execute(params![t, id])?;
         let mut entries = 0;
         for (index_name, index) in &table.indexes {

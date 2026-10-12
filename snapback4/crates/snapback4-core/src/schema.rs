@@ -903,6 +903,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
+        if table_name.starts_with('_') { issue(&mut issues,path.clone(),"table names starting with _ are reserved for internal storage".into()); }
         for (column, parent) in &table.sequences {
             let valid = table.columns.get(column) == Some(&ColumnType::Int)
                 && matches!(table.columns.get(parent), Some(ColumnType::Ref { table }) if schema.tables.contains_key(table))

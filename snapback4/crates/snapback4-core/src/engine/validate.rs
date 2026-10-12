@@ -12,6 +12,20 @@ pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<()
     validate_image(schema, table_name, row, None, false, false)
 }
 
+/// Adoption builders still own recorded/captured slots. Check authoritative
+/// fields before their work, and validate the complete image afterward.
+#[cfg(feature="sqlite")]
+pub(crate) fn validate_adoption_input(schema:&Schema,name:&str,row:&Value)->Result<(),RuntimeError>{
+    let table=&schema.tables[name];
+    for (column,kind) in &table.columns {
+        if !table.engine_field(column) {validate_column(name,column,kind,row.field(column).ok())?;}
+    }
+    for constraint in &table.constraints {
+        if let Constraint::Text{field,min,format}=constraint && !table.engine_field(field) && let Ok(Value::String(text))=row.field(field){validate_text(&format!("{name}.{field}"),text,*min,*format)?;}
+    }
+    Ok(())
+}
+
 // @ref LLP 3000.015#3 — row-view storage is a private numerical cache, not a disclosure.
 // No certificate yet means no computed fields; public/input validation stays strict.
 #[cfg(feature = "sqlite")]
