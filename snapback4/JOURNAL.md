@@ -93804,3 +93804,22 @@ guide deploy are REL-owned. Independent reviews exposed restoration, reference
 lifetime, expiry, exact asset pruning and audit edge cases; each correction has
 regression coverage. Final qualification and verdicts are recorded in the root
 WORKSTREAM-REPORT.md and verbatim llp/reviews artifacts. No push/publication.
+
+
+### 2026-10-12 — Wave 9 REL final qualification
+
+Final implementation a16a54518e has both Muse and fresh gpt-6.1-sol READY on
+round thirteen, reviewing the same unchanged implementation and release amendment.
+Verbatim/provenance records are under llp/reviews/3000.000.000-rel-round13-*.
+Scoped results: 43 retained-storage regressions, 400 serving tests (5 existing
+ignores), 19 CLI friction + 27 lifecycle + 28 run-admission, 110 repair_b,
+129 client generation/release/reset (1 existing skip), 119 guide, and 19 asset-list
++ 6 file-asset + 28 corpus tests pass. Both device stores' adoption and release
+traces pass. Hot activation stress repeatedly covers 16 callers and 12 switches.
+The full requested four-package no-fail-fast battery completed 229 targets with
+3950 passes, four reported failures and 27 ignores; its four failures were the
+watchdog timing case plus obsolete help/image-retention assertions, all addressed
+and their targets green on rerun. Later corrections were qualified by affected
+checks. Wasm repeats 675836 B gzip within unchanged 679918 B budget; package
+build and ref-check pass. Root WORKSTREAM-REPORT.md maps every item, commit,
+qualification and lane pointer. No push or publication.
