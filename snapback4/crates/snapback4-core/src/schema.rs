@@ -24,6 +24,7 @@ pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
 pub mod timeline;
 mod capabilities;
+mod union;
 mod delivery;
 mod receipts;
 pub use receipts::ReceiptFamily;
@@ -386,6 +387,19 @@ pub enum LeavePolicy {
 /// with an optional horizon `last N by index` (LLP 2000.000 §7.1, LLP 3000 §7).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sync {
+    /// The group arm when the table has one, else the first column arm.
+    pub audience: Audience,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub horizon: Option<Horizon>,
+    /// A union's further arms, principal columns only: a device holds a
+    /// row while any arm admits its viewer (LLP 3000.036.000.000 §2.3).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub also: Vec<SyncArm>,
+}
+
+/// One further arm of a union audience, with its own window.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyncArm {
     pub audience: Audience,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub horizon: Option<Horizon>,
@@ -410,14 +424,69 @@ pub struct Horizon {
     pub by: String,
 }
 
+impl Audience {
+    /// The content columns that name this audience's group: none for the
+    /// public, the column for a column audience, the prefix for a target.
+    pub fn columns(&self) -> Vec<String> {
+        match self {
+            Audience::Public => Vec::new(),
+            Audience::Column(column) => vec![column.clone()],
+            Audience::Target { prefix, .. } => prefix.clone(),
+        }
+    }
+
+    /// `.owner` or `members[.team]`, as one arm of a `sync to` line.
+    pub fn arm(&self) -> String {
+        match self {
+            Audience::Public => "public".to_owned(),
+            Audience::Column(column) => format!(".{column}"),
+            Audience::Target { table, prefix, .. } => format!("{table}[{}]", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
+        }
+    }
+}
+
 impl Sync {
+    pub fn single(audience: Audience, horizon: Option<Horizon>) -> Self {
+        Self { audience, horizon, also: Vec::new() }
+    }
+
+    /// Whether this table syncs to a union of audiences.
+    pub fn is_union(&self) -> bool {
+        !self.also.is_empty()
+    }
+
+    /// Every arm with its window: the first arm, then the union's others.
+    // @ref LLP 3000.036.000.000#2.3 — the group arm, when present, is always the first.
+    pub fn arms(&self) -> impl Iterator<Item = (&Audience, Option<&Horizon>)> {
+        std::iter::once((&self.audience, self.horizon.as_ref())).chain(self.also.iter().map(|arm| (&arm.audience, arm.horizon.as_ref())))
+    }
+
+    /// The principal columns of a union's column arms, in arm order.
+    pub fn column_arms(&self) -> impl Iterator<Item = &str> {
+        self.arms().filter_map(|(audience, _)| match audience { Audience::Column(column) => Some(column.as_str()), _ => None })
+    }
+
+    /// The arm whose window index is `index`, if any.
+    pub fn arm_by_window(&self, index: &str) -> Option<(&Audience, &Horizon)> {
+        self.arms().find_map(|(audience, horizon)| horizon.filter(|h| h.by == index).map(|h| (audience, h)))
+    }
+
     pub fn line(&self) -> String {
-        let audience = match &self.audience {
-            Audience::Public => "sync public".to_owned(),
-            Audience::Column(column) => format!("sync to .{column}"),
-            // A roster with no group columns has no `sync to` spelling: it is the inferred `sync`.
-            Audience::Target { prefix, .. } if prefix.is_empty() => "sync".to_owned(),
-            Audience::Target { table, prefix, .. } => format!("sync to {table}[{}]", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
+        let audience = if self.is_union() {
+            // Column arms first, the group arm last; an empty-group roster
+            // has no `to` spelling, so a union holding one is the inferred `sync`.
+            let mut arms: Vec<&Audience> = self.arms().map(|(audience, _)| audience).collect();
+            arms.sort_by_key(|audience| matches!(audience, Audience::Target { .. }));
+            if arms.iter().any(|audience| matches!(audience, Audience::Target { prefix, .. } if prefix.is_empty())) { "sync".to_owned() }
+            else { format!("sync to {}", arms.iter().map(|audience| audience.arm()).collect::<Vec<_>>().join(" or ")) }
+        } else {
+            match &self.audience {
+                Audience::Public => "sync public".to_owned(),
+                Audience::Column(column) => format!("sync to .{column}"),
+                // A roster with no group columns has no `sync to` spelling: it is the inferred `sync`.
+                Audience::Target { prefix, .. } if prefix.is_empty() => "sync".to_owned(),
+                Audience::Target { table, prefix, .. } => format!("sync to {table}[{}]", prefix.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
+            }
         };
         match &self.horizon {
             Some(horizon) => format!("{audience} last {} by {}", horizon.last, horizon.by),
@@ -1187,6 +1256,10 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     // A delivered aggregate reveals a count: every recipient must be able to
     // read every contributing row, so the aggregate's audience is its
     // source's audience, grouped by the audience columns.
+    // @ref LLP 3000.036.000.000#5.4 — a count over a union source is not a count over any one arm's group.
+    if target.sync.is_some() && source.sync.as_ref().is_some_and(Sync::is_union) {
+        issue(issues, format!("maintain target {} cannot sync: its source {} syncs to a union of audiences, and a device would hold a count over rows only some of its readers hold; make the aggregate `online only`", maintain.target, maintain.source));
+    }
     if let Some(target_sync) = &target.sync
         && !source.rules.read.is_uniformly_readable()
     {
@@ -1206,6 +1279,7 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
 
 /// Why a `sync` line cannot be honoured, as the term the author must change.
 fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
+    if sync.is_union() { return union::validate(schema, table_name, table, sync, path, issues); }
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
     let audience_rule = table.rules.read.sync_audience_rule(table_name, table);
     // @ref LLP 3000.014#5 — a child admits exactly its substituted audience, never a public subset.
@@ -1255,7 +1329,19 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             }
             match audience_binding(schema, table_name, table, sync) {
                 Err(why) => issue(issues, why),
-                Ok(binding) if !audience_rule.is_uniformly_readable() => {
+                Ok(binding) if !audience_rule.is_uniformly_readable() => target_grant_issues(schema, table_name, target_name, target, principal, &binding, &mut |message| issue(issues, message)),
+                _ => {}
+            }
+        }
+    }
+    sync_index_issues(table_name, table, sync, &sync.audience, sync.horizon.as_ref(), &mut |message| issue(issues, message));
+}
+
+/// The grant checks a private group audience needs on its target table: an
+/// independent grant probe on every insert branch, and on every update
+/// branch unless the audience columns are immutable.
+// @ref LLP 3000#7-decisions-during-execution — every audience-granting branch requires prior authority
+pub(super) fn target_grant_issues(schema: &Schema, table_name: &str, target_name: &str, target: &Table, principal: &str, binding: &AudienceBinding, issue: &mut dyn FnMut(String)) {
                     if !grant_guard(
                         &target.rules.insert,
                         &binding.columns,
@@ -1265,7 +1351,6 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
                         schema,
                     ) {
                         issue(
-                            issues,
                             format!(
                                 "{target_name} grants the private audience of {table_name}: every insert rule branch needs an independent grant probe in {target_name}, `exists {target_name}[{}]`, binding its recipient to viewer and its group columns to this group's columns{}, or a created probe for the new group; `.{principal} = viewer` alone lets anyone join. This also governs insert if absent and upsert",
                                 binding.columns.iter().map(|column| format!(".{column}, ")).collect::<String>() + "viewer",
@@ -1286,47 +1371,39 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
                         )
                     {
                         issue(
-                            issues,
                             format!(
                                 "{target_name} can retarget the private audience of {table_name}: make the audience columns immutable or guard every update branch with an independent grant probe"
                             ),
                         );
                     }
-                }
-                _ => {}
-            }
-        }
-    }
+    let _ = principal;
+}
+
+/// One arm's index needs: without a window, an index leading with the
+/// arm's columns (a device takes a group's rows through it); with one, a
+/// plain window index leading with them.
+pub(super) fn sync_index_issues(table_name: &str, table: &Table, sync: &Sync, audience: &Audience, horizon: Option<&Horizon>, issue: &mut dyn FnMut(String)) {
     // Without a horizon, a group's rows are taken from an index leading with
     // the audience columns; `check` says so, or the first sync would.
-    if sync.horizon.is_none() {
-        let group: Vec<String> = match &sync.audience {
-            Audience::Public => Vec::new(),
-            Audience::Column(column) => vec![column.clone()],
-            Audience::Target { prefix, .. } => prefix.clone(),
-        };
+    let group = audience.columns();
+    if horizon.is_none() {
         if !group.is_empty() && !table.indexes.values().any(|index| index.is_plain() && index.columns().starts_with(&group)) {
-            issue(issues, format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line(), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")),
+            issue(format!("{} needs an index on {table_name} leading with {} so a device can take a group's rows: `by by{}: {}, id`", sync.line(), group.join(", "), group.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>(), group.join(", ")),
             );
         }
     }
-    if let Some(horizon) = &sync.horizon {
+    if let Some(horizon) = horizon {
         match table.index(&horizon.by) {
-            None => issue(issues, format!("horizon names unknown index {table_name}.{}", horizon.by),
+            None => issue(format!("horizon names unknown index {table_name}.{}", horizon.by),
             ),
             Some(index) => {
-                let group: Vec<String> = match &sync.audience {
-                    Audience::Public => Vec::new(),
-                    Audience::Column(column) => vec![column.clone()],
-                    Audience::Target { prefix, .. } => prefix.clone(),
-                };
                 if !index.is_plain() || !index.columns().starts_with(&group) {
-                    issue(issues, format!(
+                    issue(format!(
                             "horizon index {} must be plain and lead with the audience columns {}", horizon.by, group.join(", ")),
                     );
                 }
                 if horizon.last == 0 {
-                    issue(issues, "a horizon keeps at least one row".into());
+                    issue("a horizon keeps at least one row".into());
                 }
             }
         }
@@ -1475,7 +1552,11 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
         // would admit viewers the partition never delivers to; a conjunct
         // or a literal in the key would deliver rows the rule denies.
         let exact = format!("sync to {target_name}[{spelled_prefix}] is only sound when the read rule is exactly `exists {target_name}[{spelled_want}]`; it reads under `{}`", table.rules.read.quarry());
-        let RuleExpr::Exists { table: probed, index, key, equalities, .. } = audience_rule.as_ref() else { return Err(exact) };
+        // @ref LLP 3000.036.000.000#2.2 — a union's group arm inverts its own whole disjunct.
+        let probe = if sync.is_union() {
+            audience_rule.disjuncts().into_iter().find(|disjunct| matches!(disjunct, RuleExpr::Exists { .. })).ok_or_else(|| exact.clone())?
+        } else { audience_rule.as_ref() };
+        let RuleExpr::Exists { table: probed, index, key, equalities, .. } = probe else { return Err(exact) };
         if probed != target_name || *key != want || !equalities.is_empty() {
             return Err(exact);
         }

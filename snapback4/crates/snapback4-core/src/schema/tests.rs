@@ -6,7 +6,7 @@ fn target_sync_schema(content_optional: bool, audience_optional: bool) -> Schema
     audience.rules.insert = RuleExpr::Deny;
     audience.rules.update = RuleExpr::Deny;
     let mut content = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(content_optional))]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["room", "id"], false))]));
-    content.sync = Some(Sync { audience: Audience::Target { table: "memberships".into(), prefix: vec!["room".into()], principal: "principal".into() }, horizon: None });
+    content.sync = Some(Sync { audience: Audience::Target { table: "memberships".into(), prefix: vec!["room".into()], principal: "principal".into() }, horizon: None, also: Vec::new() });
     Schema { tables: BTreeMap::from([("memberships".into(), audience), ("messages".into(), content)]), ..Schema::default() }
 }
 
@@ -65,7 +65,7 @@ fn a_roster_without_group_columns_grants_through_membership_only() {
         staff.rules.read = probe("staff", "byPrincipal", vec![RuleTerm::Viewer]);
         staff.rules.insert = insert;
         staff.rules.update = RuleExpr::Deny;
-        staff.sync = Some(Sync { audience: Audience::Target { table: "staff".into(), prefix: vec![], principal: "principal".into() }, horizon: None });
+        staff.sync = Some(Sync { audience: Audience::Target { table: "staff".into(), prefix: vec![], principal: "principal".into() }, horizon: None, also: Vec::new() });
         Schema { tables: BTreeMap::from([("staff".into(), staff)]), ..Schema::default() }
     };
     let member = probe("staff", "byPrincipal", vec![RuleTerm::Viewer]);

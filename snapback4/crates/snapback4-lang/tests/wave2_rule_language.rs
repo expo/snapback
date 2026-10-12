@@ -532,8 +532,10 @@ fn a_two_party_list_prints_the_authors_query_once_per_party_and_it_compiles() {
 
 #[test]
 fn a_union_sync_line_and_a_viewer_keyed_roster_name_their_recipes() {
+    // @ref LLP 3000.036.000.000#2.1 — the union's arms are joined with `or`; the rewrite compiles.
     let d = first("table bookings:\n  student: principal\n  chef: principal\n  read <- .student = viewer or .chef = viewer\n  sync to .student, .chef\n", "E_QUARRY_SYNTAX");
-    assert!(d.message.contains("one audience") && d.rewrite.contains("online only") && d.rewrite.contains("two parties") && d.guide == "sharing", "{d}");
+    assert!(d.message.contains("joined with `or`") && d.rewrite.starts_with("sync to .student or .chef") && d.guide == "sharing", "{d}");
+    clean("table bookings:\n  student: principal\n  chef: principal\n  read <- .student = viewer or .chef = viewer\n  sync to .student or .chef\n");
     let d = first("table engineers:\n  principal: principal\n  unique principal\n  read <- exists engineers[viewer]\n  sync\ntable jobs:\n  title: text\n  read <- exists engineers[viewer]\n  sync to engineers[principal = viewer]\n", "E_QUARRY_SYNTAX");
     assert!(d.rewrite.contains("then a bare `sync` line") && d.guide == "sharing", "{d}");
     // The rewrite it names compiles.

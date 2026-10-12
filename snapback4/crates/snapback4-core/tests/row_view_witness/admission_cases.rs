@@ -27,11 +27,11 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
             out.push((format!("{table}.{field}/effect{effect}/through2"),schema,programs.clone()));
         }
         let mut schema=base.clone();
-        schema.tables.get_mut(&table).unwrap().sync=Some(Sync {audience:Audience::Column(field.clone()),horizon:None});
+        schema.tables.get_mut(&table).unwrap().sync=Some(Sync {audience:Audience::Column(field.clone()),horizon:None,also:Vec::new()});
         // Private work tables are excluded from visible table traversal; their
         // audience may instead be named by a visible target's delivery declaration.
         if table!="unread" {
-            schema.tables.get_mut("gates").unwrap().sync=Some(Sync {audience:Audience::Target {table:table.clone(),prefix:vec![],principal:field.clone()},horizon:None});
+            schema.tables.get_mut("gates").unwrap().sync=Some(Sync {audience:Audience::Target {table:table.clone(),prefix:vec![],principal:field.clone()},horizon:None,also:Vec::new()});
         }
         out.push((format!("{table}.{field}/sync"),schema,programs.clone()));
         if table == "unread" {

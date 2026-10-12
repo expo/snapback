@@ -161,49 +161,72 @@ fn a_named_window_index_works_on_a_hopped_audience_and_inline_ones_get_both_repa
     clean(&inline.replace("  by byAt: at, id\n", "  by byAt: team, at, id\n"));
 }
 
+// @ref LLP 3000.036.000.000#2.2 — the shapes the farms asked for sync as unions; what is not a whole audience is refused with the branch named.
 #[test]
-fn union_read_rules_get_the_recipe_for_their_shape() {
-    // Two parties: a parties table, spelled against these columns.
+fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
+    use snapback4_core::schema::SyncArm;
+    // Two parties: a union of two column arms, inferred or spelled.
     let two = "table orders:\n  customer: principal\n  seller: principal\n  read <- .customer = viewer or .seller = viewer\n  insert <- .customer = viewer\n  sync\n";
-    let refused = refusal(two);
-    assert!(refused.message.contains("do not make private rows public"));
-    for word in ["`table ordersParties:`", "`insert <- created orders[.item]`", "`after insert <- exists ordersParties[item = .id, party = .customer]`", "party = .seller]", "two parties", "`online only`"] {
-        assert!(refused.rewrite.contains(word), "{word}: {}", refused.rewrite);
-    }
-    clean("table orders:\n  customer: principal\n  seller: principal\n  read <- exists ordersParties[.id, viewer]\n  insert <- .customer = viewer\n  after insert <- exists ordersParties[item = .id, party = .customer]\n  after insert <- exists ordersParties[item = .id, party = .seller]\n  sync\ntable ordersParties:\n  item: orders\n  party: principal\n  unique item, party\n  immutable item, party\n  read <- exists ordersParties[.item, viewer]\n  insert <- created orders[.item]\n  sync\n");
-    // An owner beside a group: fold the owner into the group.
-    let shares = "table plants:\n  owner: principal\n  read <- .owner = viewer or exists shares[.id, viewer]\n  insert <- .owner = viewer\n  sync\ntable shares:\n  plant: plants\n  principal: principal\n  unique plant, principal\n  immutable plant, principal\n  read <- .principal = viewer\n  insert <- exists plants[id = .plant, owner = viewer]\n  sync\n";
-    let refused = refusal(shares);
-    for word in ["drop `.owner = viewer`", "`read <- exists shares[.id, viewer]`", "`after insert <- exists shares[plant = .id, principal = .owner]`", "`insert <- created plants[.plant] or exists shares[.plant, viewer]`"] {
-        assert!(refused.rewrite.contains(word), "{word}: {}", refused.rewrite);
-    }
-    clean(&shares.replace("  read <- .owner = viewer or exists shares[.id, viewer]\n", "  read <- exists shares[.id, viewer]\n  after insert <- exists shares[plant = .id, principal = .owner]\n")
-        .replace("  insert <- exists plants[id = .plant, owner = viewer]\n", "  insert <- created plants[.plant] or exists shares[.plant, viewer]\n"));
-    // An owner beside a role: one table per audience; union stays refused.
+    let bound = clean(two);
+    let sync = bound.schema.tables["orders"].sync.clone().unwrap();
+    assert_eq!((sync.audience.clone(), sync.also.clone()), (Audience::Column("customer".into()), vec![SyncArm { audience: Audience::Column("seller".into()), horizon: None }]));
+    assert_eq!(sync.line(), "sync to .customer or .seller");
+    assert!(bound.schema.required_capabilities().contains("union-audience"));
+    assert_eq!(clean(&two.replace("  sync\n", "  sync to .seller or .customer\n")).schema.tables["orders"].sync, Some(sync));
+    // Naming one branch disagrees, and the rewrite is the union.
+    let one = refusal(&two.replace("  sync\n", "  sync to .customer\n"));
+    assert!(one.message.contains("disagrees") && one.rewrite.contains("`sync to .customer or .seller`"), "{one:?}");
+    // An owner beside a group: the group arm first, with its grant rules.
+    let shares = "table plants:\n  owner: principal\n  read <- .owner = viewer or exists shares[.id, viewer]\n  insert <- .owner = viewer\n  sync\ntable shares:\n  plant: plants\n  principal: principal\n  unique plant, principal\n  immutable plant, principal\n  read <- .principal = viewer\n  insert <- created plants[.plant] or exists shares[.plant, viewer]\n  sync\n";
+    let sync = clean(shares).schema.tables["plants"].sync.clone().unwrap();
+    assert_eq!(sync.audience, Audience::Target { table: "shares".into(), prefix: vec!["id".into()], principal: "principal".into() });
+    assert_eq!(sync.line(), "sync to .owner or shares[.id]");
+    // The group arm keeps its grant rule: an owner who is not a member grants nothing.
+    let grant = refusal(&shares.replace("created plants[.plant] or exists shares[.plant, viewer]", "exists plants[id = .plant, owner = viewer]"));
+    assert!(grant.message.contains("independent grant"), "{grant:?}");
+    // An owner beside a role: the roster is the empty-group arm.
     let staff = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- deny\n  sync\ntable requests:\n  tenant: principal\n  read <- .tenant = viewer or exists staff[viewer]\n  insert <- .tenant = viewer\n  sync\n";
-    let refused = refusal(staff);
-    assert!(refused.rewrite.contains("an owner plus a role (exists staff[viewer])") && refused.rewrite.contains("which sync does not deliver") && refused.rewrite.contains("(guide sharing: an owner plus staff)"), "{}", refused.rewrite);
-    // An explicit audience naming one disjunct is still a union: refused.
-    assert!(compile(&staff.replace("  read <- .tenant = viewer or exists staff[viewer]\n  insert <- .tenant = viewer\n  sync\n", "  read <- .tenant = viewer or exists staff[viewer]\n  insert <- .tenant = viewer\n  sync to .tenant\n")).diagnostics.iter().any(|d| d.code == "E_SYNC"));
+    let sync = clean(staff).schema.tables["requests"].sync.clone().unwrap();
+    assert_eq!(sync.audience, Audience::Target { table: "staff".into(), prefix: vec![], principal: "principal".into() });
+    assert_eq!(sync.line(), "sync");
+    // A union window gives each arm its own window index, leading with its columns.
+    let windowed = clean(&two.replace("  sync\n", "  at: time\n  sync last 50 by .at\n").replace("  read <-", "  at2: time ?\n  read <-"));
+    let table = &windowed.schema.tables["orders"];
+    for (audience, horizon) in table.sync.as_ref().unwrap().arms() {
+        let horizon = horizon.expect("every arm has a window");
+        assert_eq!(horizon.last, 50);
+        assert_eq!(table.indexes[&horizon.by].columns(), [audience.columns()[0].as_str(), "at", "id"]);
+    }
+    // A named window index cannot lead with both arms: the rewrite is the column form.
+    let named = refusal(&two.replace("  sync\n", "  at: time\n  by byAt: customer, at, id\n  sync last 50 by byAt\n"));
+    assert!(named.rewrite.starts_with("last 50 by .customer, .at"), "{named:?}");
+    // A branch with an extra condition is not a whole audience.
+    let partial = refusal(&two.replace("read <- .customer = viewer or .seller = viewer", "read <- .customer = viewer or (.seller = viewer and .customer = .seller)"));
+    assert!(partial.message.contains("do not make private rows public") && partial.rewrite.contains("is not") && partial.rewrite.contains("`.customer = viewer`"), "{partial:?}");
+    // Two group audiences are refused.
+    let groups = "table a:\n  principal: principal\n  unique principal\n  read <- exists a[viewer]\n  insert <- deny\n  sync\ntable b:\n  principal: principal\n  unique principal\n  read <- exists b[viewer]\n  insert <- deny\n  sync\ntable notes:\n  read <- exists a[viewer] or exists b[viewer]\n  insert <- deny\n  sync\n";
+    assert!(refusal(groups).message.contains("at most one group audience"));
+    // The exclusions: delivered history, a public branch.
+    assert!(refusal(&two.replace("  sync\n", "  retain delivered-history\n  sync\n")).message.contains("delivered-history"));
+    assert!(refusal(&two.replace(".customer = viewer or .seller = viewer", "public or .seller = viewer")).code == "E_SYNC");
 }
 
 #[test]
 fn the_sharing_card_holds_each_recipe_the_refusals_point_to() {
     let card = snapback4_lang::guide::card("sharing").unwrap();
-    for recipe in ["**An org roster.**", "**A team the owner manages, and children of the team.**", "**Two parties (buyer and seller).**", "**An owner plus staff.**", "**A staff console, online.**", "**Open groups.**"] {
+    for recipe in ["### An owner or a team", "**A buyer and a seller.**", "**A tenant and the staff.**", "**An org roster.**", "**A team the owner manages, and children of the team.**", "**Open groups.**"] {
         assert!(card.contains(recipe), "{recipe}");
     }
-    // Wave 4: `online only` and its cost lead, before the recipes that keep rows offline.
     let reference = card.split_once("## Reference").unwrap().1;
-    assert!(reference.find("online only").unwrap() < reference.find("**An org roster.**").unwrap());
-    assert!(reference.find("**A staff console, online.**").unwrap() < reference.find("**An org roster.**").unwrap());
-    assert!(reference.contains("never predict") && reference.contains("E_OFFLINE"));
-    // The opening example and the six recipes (LLP 3000.036 §12.1 adds the
-    // online staff console; wave 4 the open group, synced public and online);
-    // tests/guide.rs compiles every card's blocks too.
+    assert!(reference.contains("never predict") && reference.contains("E_OFFLINE") && reference.contains("union"));
+    // The opening example and the recipes; tests/guide.rs compiles every card's blocks too.
     let blocks = snapback4_lang::guide::quarry(card);
     assert_eq!(blocks.len(), 8);
     for block in &blocks { clean(block); }
+    // The union recipes really sync as unions.
+    for block in &blocks[..4] {
+        assert!(clean(block).schema.tables.values().any(|table| table.sync.as_ref().is_some_and(|sync| sync.is_union())), "{block}");
+    }
     // The sync card and the code's explanation point here.
     assert!(snapback4_lang::guide::card("sync").unwrap().contains("`guide sharing`"));
     assert!(snapback4_lang::guide::explain_code("E_SYNC").unwrap().contains("guide sharing"));

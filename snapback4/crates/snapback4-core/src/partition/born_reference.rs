@@ -1,4 +1,6 @@
-//! Frozen Vec-based oracle from 88549c7d7 (born tracking introduced by 0388900b8).
+//! Frozen Vec-based oracle from 88549c7d7 (born tracking introduced by 0388900b8),
+//! with the commit-boundary accounting of LLP 3000.036.000.000 §3 for rows that
+//! existed before the commit.
 //! Only the event-list parameter is separate from Runner so both implementations
 //! can execute against the same post-write store with independent birth maps.
 use super::*;
@@ -64,10 +66,25 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                     log_events::put(events, table_name, &id, new, &after);
                 }
             } else {
+                // Commit-boundary accounting (LLP 3000.036.000.000 §3): a
+                // row that existed before the commit is accounted from the
+                // partitions it was in then.
+                let boundary = match runner.touched_rows.get(&key) {
+                    Some((earlier, start)) => {
+                        let (earlier, start) = (*earlier, start.clone());
+                        withdraw(events, earlier, row_event);
+                        start
+                    }
+                    None => {
+                        let earlier = events.iter().filter(|event| row_event(event)).count();
+                        runner.touched_rows.insert(key.clone(), (earlier, before.clone()));
+                        before.clone()
+                    }
+                };
                 if let Some(new) = new {
                     log_events::put(events, table_name, &id, new, &after);
                 }
-                log_events::del(events, table_name, &id, &before, &after);
+                log_events::del(events, table_name, &id, &boundary, &after);
             }
         }
         if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }

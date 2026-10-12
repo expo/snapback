@@ -625,8 +625,8 @@ fn raw_dependency_walk_covers_lifetime_delivery_constraints_and_capture() {
             1=>posts.rules.insert=RuleExpr::Created {table:"posts".into(),index:"byLikes".into(),key:vec![RuleTerm::Literal(Value::Int(0))],equalities:vec![],provenance:KeyProvenance::Computed},
             2=>{posts.defaults.insert("likeCount".into(),ColumnDefault::Literal(Value::Int(0)));},
             3=>posts.expire=Some("likeCount".into()),
-            4=>posts.sync=Some(Sync {audience:Audience::Column("likeCount".into()),horizon:None}),
-            5=>schema.tables.get_mut("likes").unwrap().sync=Some(Sync {audience:Audience::Target {table:"posts".into(),prefix:vec!["likeCount".into()],principal:"at".into()},horizon:None}),
+            4=>posts.sync=Some(Sync {audience:Audience::Column("likeCount".into()),horizon:None,also:Vec::new()}),
+            5=>schema.tables.get_mut("likes").unwrap().sync=Some(Sync {audience:Audience::Target {table:"posts".into(),prefix:vec!["likeCount".into()],principal:"at".into()},horizon:None,also:Vec::new()}),
             6=>{posts.indexes.insert("byWords".into(),Index {components:vec![IndexComponent::WordPrefixes {fields:vec!["likeCount".into()],contract:Default::default()},IndexComponent::Column("id".into())],unique:false});},
             7=>{
                 let likes=schema.tables.get_mut("likes").unwrap();

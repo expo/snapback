@@ -247,7 +247,7 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
             "scope" => {
                 let group = scope_group(table, event)?;
                 candidates.leave(schema, &event.table, &group)?;
-                leave(tx, schema, &event.table, &group)?;
+                leave(tx, schema, &event.table, &group, scope_keeper(table, event)?.as_deref())?;
                 boundaries.scope(tx, &event.table, table, &group)?;
             }
             _ => return Err(RuntimeError::Input("unknown stream event".into())),

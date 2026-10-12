@@ -9,35 +9,52 @@ pub(super) struct AudienceNeed {
 }
 
 // @ref LLP 3000.013#2.2 — planning consumes the same admitted rule/index order as sync binding.
-pub(super) fn need(table: &TableInfo, catalog: &Catalog) -> AudienceNeed {
+/// One need per arm: a single audience has one; a union one per disjunct
+/// (LLP 3000.036.000.000 §2.1), each with its own prefix index and window.
+pub(super) fn needs(table: &TableInfo, catalog: &Catalog) -> Vec<AudienceNeed> {
     let empty = || AudienceNeed { prefix: Vec::new(), inverse: None };
-    let Some(sync) = &table.decl.sync else { return empty(); };
+    let Some(sync) = &table.decl.sync else { return vec![empty()]; };
     let rule = table.decl.rules.iter().find(|rule| rule.effect == Effect::Read)
         .and_then(|rule| super::schema::bind_rule(catalog, table, rule).ok())
         .map(|rule| audience_rule(&table.decl.name, table, &rule));
-    if let Some(RuleExpr::Exists { table: target, index, key, equalities, .. }) = &rule
-        && equalities.is_empty() && key.last() == Some(&RuleTerm::Viewer)
-        && let Some(index) = catalog.tables.get(target).and_then(|t| t.indexes.iter().find(|i| &i.name == index))
-        && index.is_plain() && index.columns.len() == key.len() {
+    let probe = |rule: &RuleExpr| -> Option<AudienceNeed> {
+        let RuleExpr::Exists { table: target, index, key, equalities, .. } = rule else { return None };
+        if !equalities.is_empty() || key.last() != Some(&RuleTerm::Viewer) { return None; }
+        let index = catalog.tables.get(target).and_then(|t| t.indexes.iter().find(|i| &i.name == index))?;
+        if !index.is_plain() || index.columns.len() != key.len() { return None; }
         let prefix = key[..key.len()-1].iter().map(|term| match term {
             RuleTerm::Field(column) => Some(column.clone()), _ => None,
-        }).collect::<Option<Vec<_>>>();
-        if let Some(prefix) = prefix {
-            let mut inverse = vec![index.columns.last().unwrap().clone()];
-            inverse.extend(index.columns[..index.columns.len()-1].iter().cloned());
-            return AudienceNeed { prefix, inverse: Some((target.clone(), inverse)) };
+        }).collect::<Option<Vec<_>>>()?;
+        let mut inverse = vec![index.columns.last().unwrap().clone()];
+        inverse.extend(index.columns[..index.columns.len()-1].iter().cloned());
+        Some(AudienceNeed { prefix, inverse: Some((target.clone(), inverse)) })
+    };
+    let column = |rule: &RuleExpr| match rule {
+        RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => Some(column.clone()),
+        _ => None,
+    };
+    if let Some(rule) = &rule {
+        let disjuncts = rule.disjuncts();
+        // A union whose every disjunct is an arm plans every arm.
+        if disjuncts.len() > 1 && !matches!(sync.audience, SyncAudience::Public) {
+            let arms: Option<Vec<AudienceNeed>> = disjuncts.iter().map(|disjunct| probe(disjunct)
+                .or_else(|| column(disjunct).map(|column| AudienceNeed { prefix: vec![column], inverse: None }))).collect();
+            if let Some(mut arms) = arms {
+                // The group arm first, as the bound declaration orders it.
+                arms.sort_by_key(|arm| arm.inverse.is_none());
+                arms.dedup_by(|a, b| a.prefix == b.prefix && a.inverse == b.inverse);
+                return arms;
+            }
         }
+        if let Some(need) = probe(rule) { return vec![need]; }
     }
     let prefix = match &sync.audience {
         SyncAudience::Column(column) => vec![column.clone()],
         SyncAudience::Target { prefix, .. } => prefix.clone(),
-        SyncAudience::Inferred { .. } => match &rule {
-            Some(RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column))) => vec![column.clone()],
-            _ => Vec::new(),
-        },
-        SyncAudience::Public => Vec::new(),
+        SyncAudience::Inferred { .. } => rule.as_ref().and_then(column).map(|column| vec![column]).unwrap_or_default(),
+        SyncAudience::Public | SyncAudience::Union(_) => Vec::new(),
     };
-    AudienceNeed { prefix, inverse: None }
+    vec![AudienceNeed { prefix, inverse: None }]
 }
 
 /// The read rule as a sync audience: service grants removed, then each

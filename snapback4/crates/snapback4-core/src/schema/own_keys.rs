@@ -51,7 +51,7 @@ pub fn projection(source: &Table, owner: &str, by: &[String]) -> Table {
     table.rules = Rules::deny();
     table.rules.read = RuleExpr::Eq(RuleTerm::Field(owner.into()), RuleTerm::Viewer);
     table.constraints = vec![Constraint::Unique { index: "byGroup".into() }];
-    table.sync = Some(Sync { audience: Audience::Column(owner.into()), horizon: None });
+    table.sync = Some(Sync { audience: Audience::Column(owner.into()), horizon: None, also: Vec::new() });
     table
 }
 

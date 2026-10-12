@@ -314,6 +314,9 @@ pub struct SyncDecl {
     pub horizon: Option<(u32, SyncOrder)>,
     pub own_keys: Option<String>,
     pub site: Site,
+    /// A union's planned window index per arm, keyed by the arm's audience
+    /// columns (filled by intent planning from a column-form window).
+    pub windows: std::collections::BTreeMap<Vec<String>, String>,
 }
 
 // @ref LLP 3000.019#3.1 — column intent resolves to the same ordinary index as a named window.
@@ -338,6 +341,22 @@ pub enum SyncAudience {
     Public,
     Column(String),
     Target { table: String, prefix: Vec<String>, principal: Option<String> },
+    /// `sync to .owner or members[.team]`: column and target arms, as written.
+    Union(Vec<SyncAudience>),
+}
+
+impl SyncAudience {
+    /// One arm as written in a `sync to` line.
+    pub fn arm(&self) -> String {
+        match self {
+            Self::Inferred { principal: None } => "sync".into(),
+            Self::Inferred { principal: Some(column) } => format!("sync by .{column}"),
+            Self::Public => "public".into(),
+            Self::Column(column) => format!(".{column}"),
+            Self::Target { table, prefix, principal } => format!("{table}[{}]{}", prefix.iter().map(|p| format!(".{p}")).collect::<Vec<_>>().join(", "), principal.as_ref().map(|p| format!(" by .{p}")).unwrap_or_default()),
+            Self::Union(arms) => arms.iter().map(Self::arm).collect::<Vec<_>>().join(" or "),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

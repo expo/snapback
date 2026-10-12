@@ -401,6 +401,19 @@ impl Parser {
             if !self.maybe("to") {
                 return Err(syntax_with(&site, "sync takes public, to .column, or to table[.column, ...]", rewrite));
             }
+            // @ref LLP 3000.036.000.000#2.1 — `sync to ARM or ARM`: a union of audiences, each arm a whole disjunct of the read rule.
+            let first = self.parse_sync_arm(&site, rewrite)?;
+            let mut arms = vec![first];
+            while self.maybe("or") { arms.push(self.parse_sync_arm(&site, rewrite)?); }
+            if arms.len() == 1 { arms.pop().expect("one arm") } else { SyncAudience::Union(arms) }
+        };
+        self.parse_sync_rest(site, audience, rewrite)
+    }
+
+    /// One `sync to` arm: `.column` or `table[.a, .b] [by .principal]`.
+    fn parse_sync_arm(&mut self, site: &Site, rewrite: &str) -> Fallible<SyncAudience> {
+        let site = site.clone();
+        Ok({
             if self.at(".") {
                 self.take(".")?;
                 SyncAudience::Column(self.word()?.value)
@@ -437,7 +450,10 @@ impl Parser {
                 }
                 SyncAudience::Target { table, prefix, principal }
             }
-        };
+        })
+    }
+
+    fn parse_sync_rest(&mut self, site: Site, audience: SyncAudience, rewrite: &str) -> Fallible<SyncDecl> {
         let mut horizon = None;
         if self.maybe("last") {
             let n = self.number()?;
@@ -487,26 +503,29 @@ impl Parser {
             self.take(".")?;
             Some(self.word()?.value)
         } else { None };
-        // @ref LLP 3000.036#12 — wave 2 (035): `sync to .a, .b` asks for a union audience.
-        if matches!(audience, SyncAudience::Column(_)) && horizon.is_none() && self.at(",") && self.peek_at(1).value == "." {
-            let SyncAudience::Column(first) = &audience else { unreachable!() };
-            let second = self.peek_at(2).value.clone();
-            return Err(syntax_with(&self.peek().site.clone(), format!("a table syncs to one audience; `sync to .{first}, .{second}` would be a union of two readers, which sync does not deliver"),
-                format!("for two parties, give each row a parties membership that names both readers (guide sharing: two parties), or keep `read <- .{first} = viewer or .{second} = viewer` and replace the sync line with `online only`")).guide("sharing"));
+        // @ref LLP 3000.036.000.000#2.1 — `sync to .a, .b` is spelled `sync to .a or .b`: the window's columns use commas.
+        if matches!(audience, SyncAudience::Column(_) | SyncAudience::Target { .. } | SyncAudience::Union(_)) && horizon.is_none() && self.at(",") {
+            let mut arms = vec![audience.arm()];
+            let mut at = 1;
+            while self.peek_at(at).value == "." && self.peek_at(at + 1).kind == Kind::Word {
+                arms.push(format!(".{}", self.peek_at(at + 1).value));
+                if self.peek_at(at + 2).value != "," { break; }
+                at += 3;
+            }
+            return Err(syntax_with(&self.peek().site.clone(), format!("the arms of a union audience are joined with `or`, not a comma: `sync to {}`", arms.join(", ")),
+                format!("sync to {}  -- each arm is one whole disjunct of the read rule (guide sharing)", arms.join(" or "))).guide("sharing"));
         }
         if !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) {
             let audience_text = match &audience {
                 SyncAudience::Public => "sync public".to_owned(),
-                SyncAudience::Inferred { principal: None } => "sync".to_owned(),
-                SyncAudience::Inferred { principal: Some(column) } => format!("sync by .{column}"),
-                SyncAudience::Column(column) => format!("sync to .{column}"),
-                SyncAudience::Target { table, prefix, principal } => format!("sync to {table}[{}]{}", prefix.iter().map(|p| format!(".{p}")).collect::<Vec<_>>().join(", "), principal.as_ref().map(|p| format!(" by .{p}")).unwrap_or_default()),
+                SyncAudience::Inferred { .. } => audience.arm(),
+                other => format!("sync to {}", other.arm()),
             };
             let written = format!("{audience_text}{}", horizon.as_ref().map(|(n, order)| format!(" last {n} by {order}")).unwrap_or_default());
             return Err(syntax_with(&self.peek().site.clone(), format!("unexpected {} after `{written}`", self.peek().value), format!("end the sync line after `{written}`; a window is `last N by .column, .id` or `last N by indexName`")));
         }
         self.newline()?;
-        Ok(SyncDecl { audience, horizon, own_keys, site })
+        Ok(SyncDecl { audience, horizon, own_keys, site, windows: Default::default() })
     }
 
     fn parse_retention(&mut self) -> Fallible<(String, Site)> {

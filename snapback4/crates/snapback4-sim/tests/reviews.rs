@@ -94,8 +94,12 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
         let messages: Vec<String> = bound.diagnostics.iter().map(|d| d.message.clone()).collect();
         assert!(messages.iter().any(|m| m.contains(expect)), "expected a diagnostic containing {expect:?}; got {messages:?}");
     };
-    // 8: a second disjunct admits viewers the sync never delivers to.
-    refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "sync cannot infer an audience");
+    // 8: a second disjunct admits viewers the sync never delivers to. A
+    // union delivers to both (LLP 3000.036.000.000); one audience named for
+    // a two-audience rule is still refused, as is a union over delivered history.
+    let union = CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and");
+    refused(union.replace("  sync last 500 by byConvTime", "  sync to memberships[.conversationId] last 500 by byConvTime"), "disagrees with the read rule");
+    refused(union.replace("  sync last 500 by byConvTime", "  sync last 500 by .at"), "delivered-history");
     // 7: a non-unique audience index would revoke a group another row still grants.
     let audience = "table memberships:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- exists memberships[conversationId = .conversationId, principal = viewer]\n  sync to memberships[.conversationId]\n";
     let valid = snapback4_lang::compile(&[("schema.q".into(), audience.into())]);
@@ -120,7 +124,7 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
     missing_index.tables.get_mut("messages").unwrap().indexes.retain(|_, index| index.columns().first().map(String::as_str) != Some("conversationId"));
     assert!(snapback4_core::schema::validate(&missing_index).iter().any(|issue| issue.message.contains("leading with conversationId")));
     let mut schema = bound.schema.clone();
-    schema.tables.get_mut("messageCounts").unwrap().sync = Some(snapback4_core::schema::Sync { audience: snapback4_core::schema::Audience::Public, horizon: None });
+    schema.tables.get_mut("messageCounts").unwrap().sync = Some(snapback4_core::schema::Sync { audience: snapback4_core::schema::Audience::Public, horizon: None, also: Vec::new() });
     schema.tables.get_mut("messageCounts").unwrap().rules.read = snapback4_core::schema::RuleExpr::Allow;
     let issues = snapback4_core::schema::validate(&schema);
     assert!(issues.iter().any(|i| i.message.contains("syncs to an audience its source")), "{issues:?}");

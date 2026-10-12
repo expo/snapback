@@ -47,7 +47,7 @@ mutation like(postId: posts):
 fn backend(retain: bool, horizon: bool) -> (Engine, Backend) {
     let (_, mut b) = compile(SOURCE);
     let posts = b.schema.tables.get_mut("posts").unwrap();
-    posts.sync = Some(Sync { audience: Audience::Target {table:"members".into(),prefix:vec!["authorId".into()],principal:"principal".into()}, horizon:horizon.then(|| Horizon {last:1,by:"byAuthor".into()}) });
+    posts.sync = Some(Sync { audience: Audience::Target {table:"members".into(),prefix:vec!["authorId".into()],principal:"principal".into()}, horizon:horizon.then(|| Horizon {last:1,by:"byAuthor".into()}), also: Vec::new() });
     posts.leave = if retain { LeavePolicy::DeliveredHistory } else { LeavePolicy::UntilRevoked };
     let e = Engine::memory(b.schema.clone(),b.programs.clone()).unwrap();
     b.generation=e.generation(); (e,b)

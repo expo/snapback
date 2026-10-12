@@ -92519,3 +92519,24 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — Union sync audiences; the wasm budget rises 2,409 B
+
+- Workstream UNION, branch `sb4-ws-union`: LLP 3000.036.000.000 designs and
+  implements union sync audiences — a table syncs to principal-column arms and
+  at most one group arm (`sync to .owner or members[.team]`, or the inferred
+  `sync`), and a device holds a row while any arm admits its viewer. R1 (the
+  stream serves a union `del` from serve-time state), R2 (a union scope carries
+  the recipient, and both device stores keep the group's rows naming it in a
+  column arm), per-arm windows and acquisition boundaries, commit-boundary
+  accounting for rows that existed before a commit (every synced table), and an
+  audience epoch on activation. Two blind rounds (GPT gpt-6.1-sol, Muse
+  spark-1.3) under `llp/reviews/3000.036.000.000-*`.
+- The simulator's `tests/union.rs` (owner or team, windowed, owner or staff, two
+  parties) fails without each mechanism: without R1, a task moved between
+  Bob's teams leaves his device while `myCount` says complete; without R2, a
+  leave drops the leaver's own tasks; without commit-boundary accounting, a
+  task bounced through another team names its id to that team's members.
+- Wasm: 651,233 B gzip on Linux against 648,672 B at the base (+2,561 B, the
+  device's R2, per-arm boundaries and any-arm absence). Budget 649,324 →
+  651,733 B (measurement + 500 B), reason in `metrics/wasm-budget.json`.

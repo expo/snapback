@@ -141,13 +141,16 @@ impl Dependencies {
             self.column(name,&authority.owner);
         }
         if let Some(sync) = &table.sync {
-            match &sync.audience {
-                Audience::Public => (),
-                Audience::Column(c) => self.column(name,c),
-                Audience::Target { table, prefix, .. } => {
-                    for c in prefix { self.column(name,c); }
-                    self.tables.insert(table.clone(),None);
-                    if let Some(t) = schema.table(table) { self.table(schema,table,t); } else { self.unknown = true; }
+            // @ref LLP 3000.036.000.000#7 — every arm of a union decides whether a viewer holds a row.
+            for (audience, _) in sync.arms() {
+                match audience {
+                    Audience::Public => (),
+                    Audience::Column(c) => self.column(name,c),
+                    Audience::Target { table, prefix, .. } => {
+                        for c in prefix { self.column(name,c); }
+                        self.tables.insert(table.clone(),None);
+                        if let Some(t) = schema.table(table) { self.table(schema,table,t); } else { self.unknown = true; }
+                    }
                 }
             }
         }
