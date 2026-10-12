@@ -1206,6 +1206,13 @@ impl<S: DeviceStore> Device<S> {
     pub fn enqueue(&mut self, entry: &Queued) -> Result<(), RuntimeError> {
         if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
+        if let Some(data)=tx.outbox_get(&entry.id)?{
+            let original:Queued=decoded(&data)?;
+            if original.upload.is_some()||entry.upload.is_some(){
+                if !upload::same_input(&original,entry){return Err(RuntimeError::Structural{code:"E_WRITE_ID_REUSE",message:"source and destination own different input under the same id; keep source custody".into()});}
+                tx.rollback()?;return Ok(());
+            }
+        }
         if entry.upload.is_some() && upload::terminal(&tx,entry)?.is_some(){tx.rollback()?;return Ok(());}
         upload::transfer(&tx,entry)?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;

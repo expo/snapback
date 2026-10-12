@@ -70,3 +70,20 @@ fn terminal_identity<H:Host>(host:&mut H) {
 }
 #[test] fn memory_terminal_identity(){terminal_identity(&mut Memory::new());}
 #[test] fn sqlite_terminal_identity(){terminal_identity(&mut Sqlite::new("terminal"));}
+fn transfer_identity<H:Host>(host:&mut H){
+    let (_,b)=compile(SOURCE);let mut d=host.open("transfer",Some(b)).unwrap();
+    call(&mut d,json!({"op":"apply","first":true,"page":{"snapshot":true,"store_id":"A","generation":1,"events":[],"watermark":0,"more":false}}));
+    let input=json!({"id":"same","seq":1,"op":"attach","args":{},"viewer":"dev:alice","now":1,"upload":{"bytes":"ff","argument":"doc","file":{"name":"a.pdf","type":"application/pdf"},"store_id":"A"}});
+    let admitted=call(&mut d,json!({"op":"admit_upload","entry":input}))["ok"].clone();
+    let mut changed=admitted.clone();changed["upload"]["bytes"]=json!("ee");changed["seq"]=json!(2);
+    assert_eq!(call(&mut d,json!({"op":"enqueue","entry":changed}))["denied"]["code"],"E_WRITE_ID_REUSE");
+    assert!(call(&mut d,json!({"op":"enqueue","entry":admitted})).get("denied").is_none());
+    let ack=call(&mut d,json!({"op":"apply","page":{"snapshot":false,"store_id":"A","generation":1,"events":[],"watermark":1,"more":false,"acknowledged":{"same":1},"sent":{"same":1}}}));
+    assert!(ack.get("denied").is_none(),"{ack}");
+    let held=call(&mut d,json!({"op":"queued"}));assert_eq!(held["ok"][0]["upload"]["bytes"],"ff");assert!(held["ok"][0]["sent_seq"].is_null());
+    let oversized={let mut e=input;e["id"]=json!("large");e["upload"]["file"]["name"]=json!("x".repeat(256));e};
+    assert_eq!(call(&mut d,json!({"op":"admit_upload","entry":oversized}))["denied"]["code"],"E_UPLOAD_ARGUMENT");
+    host.close("transfer",d);
+}
+#[test]fn memory_transfer_identity(){transfer_identity(&mut Memory::new());}
+#[test]fn sqlite_transfer_identity(){transfer_identity(&mut Sqlite::new("transfer"));}

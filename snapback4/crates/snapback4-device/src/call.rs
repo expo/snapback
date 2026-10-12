@@ -191,6 +191,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 Json::Null
             }
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0), &request["home"])?,
+            "check_upload_receipt"=>device.check_upload_receipt(&queued_entry(take(&mut request,"entry")?)?,arg(&request,"write")?)?,
             "upload_state" => device.upload_state(text(&request, "id")?, text(&request, "viewer")?, text(&request, "state")?, request.get("why"))?,
             "upload_ready" => device.upload_ready(text(&request, "id")?, text(&request, "viewer")?, text(&request, "store_id")?, arg(&request, "asset")?)?,
             "admit_upload" | "admit" => {
