@@ -1305,9 +1305,12 @@ fn spared(table: &Table, keeper: Option<&str>, row: &Value) -> bool {
 fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, group: &[Value], keeper: Option<&str>) -> Result<(), RuntimeError> {
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("scope names unknown table {table_name}")))?;
     let sync = table.sync.as_ref().ok_or_else(|| RuntimeError::Schema(format!("scope names unsynced table {table_name}")))?;
-    if !matches!(sync.audience, Audience::Target { .. }) { return Err(RuntimeError::Schema(format!("scope names a non-group audience on {table_name}"))); }
-    if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
+    if sync.is_union() && !matches!(sync.audience, Audience::Target { .. }) { return Err(RuntimeError::Schema(format!("scope names a non-group union audience on {table_name}"))); }
+    // Single column audiences also carry read-through departure scopes.
+    // Validate their key rather than rejecting that existing protocol.
     let prefix = audience_prefix(table);
+    if group.len() != prefix.len() { return Err(RuntimeError::Schema(format!("scope has the wrong group width on {table_name}"))); }
+    if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
     let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
     let index = index.ok_or_else(|| RuntimeError::Schema(format!("scope has no group index on {table_name}")))?;
     let mut bounds = Bounds::default();

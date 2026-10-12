@@ -59,3 +59,32 @@ fn malformed_scope_schemas_refuse_on_both_stores() {
     #[cfg(feature = "native")]
     publication_tests::with_sqlite(scope_errors);
 }
+
+// Read-through children can inherit a single principal-column audience. Their
+// departure scope remains supported alongside the union's group-only scopes.
+fn column_scopes<S: DeviceStore>(mut store: S) {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), "table notes:\n  owner: principal\n  body: text <=20\n  read <- .owner = viewer\n  sync\n".into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    store.install(&bound.schema, &BTreeMap::new(), false).unwrap();
+    for history in [false, true] {
+        let mut schema = bound.schema.clone();
+        let table = schema.tables.get_mut("notes").unwrap();
+        if history { table.leave = LeavePolicy::DeliveredHistory; }
+        let tx = store.transaction().unwrap();
+        for (id, owner) in [("a", "alice"), ("b", "bob")] {
+            let row = snapback4_core::value::object([("id", Value::Id(id.into())), ("owner", Value::Id(owner.into())), ("body", Value::String("x".into()))]);
+            tx.put("notes", table, &row, None).unwrap();
+        }
+        leave(&tx, &schema, "notes", &[Value::Id("alice".into())], None).unwrap();
+        assert_eq!(tx.get("notes", "a").unwrap().is_some(), history);
+        assert!(tx.get("notes", "b").unwrap().is_some());
+        tx.rollback().unwrap();
+    }
+}
+
+#[test]
+fn single_column_departure_scopes_keep_their_existing_retention_policy() {
+    column_scopes(crate::memory::MemoryStore::new());
+    #[cfg(feature = "native")]
+    publication_tests::with_sqlite(column_scopes);
+}

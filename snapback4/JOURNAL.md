@@ -93507,3 +93507,38 @@ combined integration evidence, not per-feature byte attribution or a Mac
 measurement. Runtime resource ceilings stay as before. Integration's
 referential-event reservation and new cascade regression are qualified in
 follow-up commits; evidence is under reports/20261012-integration3/.
+
+## 2026-10-12 — Integration 3: fixed event reservations and scope compatibility
+
+Referential-action event allowances now price the maximum sync-arm count of
+all direct/derived row destinations, keeping the charge schema-fixed even
+when recipients coincide. The exported price, recomputed projected price
+and parent delete-reservation heap are checked. A cascade removes content
+and memberships together: both stores retire column-arm rows and group
+scopes at page sizes 1 and 1000, retain another board's rows and disclose
+no private id/scope to a non-reader. Set-null eligibility checks every
+serialized arm/horizon. Two independent reviews of LLP 3000.039 §5.1 return
+Sol READY and Muse READY WITH CHANGES; all Muse recommendations are handled
+and their verbatim responses/provenance are under llp/reviews/.
+
+The initial broad suites exposed the incoming scope guard refusing all
+non-group audiences, including existing single-column read-through departure
+scopes and public media scopes. Restrict that refusal to unions and validate
+key width for every single audience. The malformed-schema test still passes;
+a new both-store test pins single-column until-revoked/delivered-history.
+The full retained-browse and one-shot-race client reruns pass, 69 tests. The
+race file initially overlapped replacement of the wasm file, an artifact
+interruption, not a product failure. The union simulator is split into scoped
+test modules, each below 1,500 lines, without removing a case.
+
+After this scope repair the locked Linux artifact is 2,245,239 B raw /
+679,647 B gzip. The budget is 680,147 B, final measurement + 500 B, superseding
+the provisional merge measurement above (+3,357 B over Integration 2).
+No runtime ceiling change or Mac measurement. Readauth is regenerated from
+CENSUS_ITEM output: unchanged 718 entries, 409 mutation occurrences and 89
+private write sites. Delivery-await regeneration is also byte-identical.
+Ordinary difftest run (20,000 cases) passes 1,009,341 executions. Device
+seeds 0–999 find 26 disagreements in 16 signatures already listed in the two
+2026-10-08 expiry-meter/prediction-refusal tickets; no new signature. Lean
+(20,000) finds 198 disagreements only in the existing four C2/W4 signatures.
+These inherited findings remain open rather than being called green.
