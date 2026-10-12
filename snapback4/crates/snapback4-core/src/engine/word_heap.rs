@@ -261,7 +261,7 @@ pub(crate) fn stored_value_bytes(row: &Value) -> Result<u64, RuntimeError> {
         fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
     }
     let mut shape = Shape::default();
-    serde_json::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    crate::json_codec::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;
     let Shape { len, objects, tags, arrays, fields, commas, .. } = shape;
     let fields = fields - (tags - objects);
     Ok(4 * allocation(len) + (objects + if fields > 11 { 2 * (fields / 5) } else { 0 }) * node::<String, Value>()
@@ -320,12 +320,19 @@ impl StoreGuard {
     pub fn reserve(&mut self, meter: &mut crate::engine::InternalMeter<'_>, bytes: u64) -> Result<(), RuntimeError> {
         let used = meter.add_scratch(bytes).saturating_sub(self.start);
         if used <= self.limit { return Ok(()); }
-        Err(RuntimeError::Structural { code: "E_STORE_MEMORY", message: String::from("a store scan exceeded its memory guard (256 MiB on SQLite and Postgres, 64 MiB on the memory store); read a smaller page") })
+        Err(store_memory())
     }
     /// The encoded range copies a native store makes for its statement.
     pub fn range(&mut self, meter: &mut crate::engine::InternalMeter<'_>, copies: u64, prefix: &[Value], bounds: &Bounds) -> Result<(), RuntimeError> {
         self.reserve(meter, copies.saturating_mul(range_bytes(prefix, bounds)))
     }
+}
+
+/// A store guard's refusal; also a read's guard on unswept expired rows.
+#[cold]
+#[inline(never)]
+pub(crate) fn store_memory() -> RuntimeError {
+    RuntimeError::Structural { code: "E_STORE_MEMORY", message: String::from("a store scan exceeded its memory guard (256 MiB on SQLite and Postgres, 64 MiB on the memory store); read a smaller page") }
 }
 
 // A test may shrink every guard in its thread to reach it with small rows.

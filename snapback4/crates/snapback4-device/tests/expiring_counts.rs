@@ -33,10 +33,14 @@ fn server_cost_is_constant_plus_backlog_and_cuts_never_return_a_number() {
             let answer = read(&mut server,100);
             assert!(answer.complete, "{answer:?}");
             assert_eq!(answer.data, Value::Int(live as i64));
-            assert_eq!(answer.metered.examined, backlog as u64 + 2);
+            // @ref LLP 3000.007#20.24.6 — the backlog is store work: constant on the meter.
+            assert_eq!(answer.metered.examined, 2);
             println!("live={live} backlog={backlog} examined={}",answer.metered.examined);
             if backlog > 0 {
                 server.set_ceilings(Ceilings {examined: 100, ..Ceilings::default()});
+                let fits = read(&mut server,100);
+                assert!(fits.complete && fits.data == Value::Int(live as i64), "a backlog no longer cuts: {fits:?}");
+                server.set_ceilings(Ceilings {examined: 1, ..Ceilings::default()});
                 let cut = read(&mut server,100);
                 assert!(!cut.complete && cut.data == Value::Null, "{cut:?}");
                 server.set_ceilings(Ceilings::default());
@@ -270,7 +274,7 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
         assert_eq!(server.schema().tables[&maintain.source].indexes[&maintain.contribution_index()].components.len(), 2);
     }
     assert_eq!(read(&mut server,100).data,Value::Int(2));
-    assert_eq!(read(&mut server,100).metered.examined,3);
+    assert_eq!(read(&mut server,100).metered.examined,2);
     let row=server.store().rows("unreadCounts").unwrap().remove(0);
     assert_eq!(row.field("value").unwrap(),&Value::Int(3));
     drop(server);

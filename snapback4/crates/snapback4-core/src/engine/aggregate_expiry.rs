@@ -18,10 +18,10 @@ impl Runner<'_> {
                 let rows = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 32))?;
                 let count = rows.len();
                 for (mut candidate, key) in rows {
-                    if !self.read_charge(MeterKind::Examined, 1)? { self.meter.require_uncapped()?; }
+                    // @ref LLP 3000.007#20.24.6 — the backlog is expired rows: store work on the expiry guard, never the public meter.
                     materialize_optional_fields(&mut candidate, source);
+                    self.step_expired(source, &candidate, &key)?;
                     bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                    if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { self.meter.require_uncapped()?; }
                     total -= super::maintains::delta(maintain, &candidate, 1)?;
                 }
                 if count < 32 { break; }

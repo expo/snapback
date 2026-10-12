@@ -143,7 +143,7 @@ fn probes<S:DeviceStore>(mut store:S) {
     let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
     assert!(out.complete && out.data!=Value::Null);
     assert_eq!(out.metered.rule_probes,1);
-    // @ref LLP 3000.007#20.24.6 — one uniform prefix admission covers several
+    // @ref LLP 3000.007#20.24.7 — one uniform prefix admission covers several
     // provisional candidates, while each still checks current physical authority.
     let second = snapback4_core::value::object([
         ("id", id("second")), ("groupId", id("group")), ("owner", id("bob")),

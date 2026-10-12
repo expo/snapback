@@ -97,7 +97,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let bytes = snapback4_core::value::decode_bytes_hex(text(&request, "wasm")?).ok_or_else(|| RuntimeError::Input("wasm is the module's bytes as lowercase base16".into()))?;
                 let generation = arg(&request, "generation")?.as_u64().ok_or_else(|| RuntimeError::Input("generation is an unsigned integer".into()))?;
                 let (jobs, reads) = device.install_native(&bytes, text(&request, "digest")?, generation)?;
-                json!({ "jobs": jobs, "reads": reads })
+                json!({ "jobs": Json::Array(jobs.into_iter().map(Json::String).collect()), "reads": Json::Array(reads.into_iter().map(Json::String).collect()) })
             }
             "sync_state" => encoded(&if request.get("capture").and_then(Json::as_bool) == Some(false) { device.sync_state_read()? } else { device.sync_state()? })?,
             "begin_send" => json!({ "send_revision": device.begin_send_for(request.get("id").and_then(Json::as_str))? }),
@@ -141,7 +141,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let (result, unknown, retained, components, provenance, watermark) = device.query_observation_search(text(&request, "name")?, text(&request, "viewer")?, &args, now, true, search, spent);
                 let mut reply = match result {
                     Ok(mut outcome) => {
-                        let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "decorationExpiry": outcome.decoration_expiry, "tables": outcome.tables, "scopes": device.read_scopes.take() });
+                        let mut reply = json!({ "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "nextExpiry": outcome.next_expiry, "decorationExpiry": outcome.decoration_expiry, "tables": Json::Array(outcome.tables.into_iter().map(Json::String).collect()), "scopes": device.read_scopes.take() });
                         if search || spent.is_some() { reply["metered"] = encoded(&outcome.metered)?; }
                         if !outcome.unavailable && outcome.data.has_retained_rows() {
                             reply["retainedRows"] = snapback4_core::wire::to_json(&outcome.data.retained_rows_mask());
@@ -235,7 +235,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.dequeue(text(&request, "id")?)?;
                 Json::Null
             }
-            "meta" => json!(device.meta(text(&request, "key")?)?),
+            "meta" => device.meta(text(&request, "key")?)?.map(Json::String).unwrap_or(Json::Null),
             "set_meta" => {
                 device.set_meta(text(&request, "key")?, text(&request, "value")?)?;
                 Json::Null
@@ -293,7 +293,7 @@ fn page_call<S: DeviceStore>(device: &mut Device<S>, command: PageArgument) -> R
     if command.op == "observe_store" { return encoded(&device.observe_store(&command.page)?); }
     // A missing marker is a continuation; starting a snapshot must be explicit.
     let (touched, published) = device.apply_publication(&command.page, command.first.as_bool().unwrap_or(false))?;
-    Ok(json!({ "touched": touched, "published": published }))
+    Ok(json!({ "touched": Json::Array(touched.into_iter().map(Json::String).collect()), "published": published }))
 }
 
 #[cfg(test)]
@@ -307,9 +307,10 @@ std::thread_local! {
 #[path = "../tests/codec/route.rs"]
 mod route_tests;
 
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — dynamic reply arrays own JSON string scalars; never serialize a typed string container into the envelope.
 fn change_answer<S: DeviceStore>(device: &mut Device<S>, op: &str, mut result: Json) -> Json {
     if matches!(op, "apply" | "admit" | "settle") && result.get("ok").is_some() {
-        if let Some(preserved) = device.preserved.take() { result["preserved"] = json!(preserved); }
+        if let Some(preserved) = device.preserved.take() { result["preserved"] = Json::Array(preserved.into_iter().map(Json::String).collect()); }
         if op == "settle" && device.settlement_unchanged { result["settlement_unchanged"] = Json::Bool(true); }
     }
     result

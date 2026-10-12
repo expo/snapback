@@ -53,8 +53,8 @@ mutation annotateNotes(): server
   return null
 ```
 
-Pages still need uniform plain prefixes; unswept expiry costs examined work
-(guide bounds; why E_BOUND).
+Pages still need uniform plain prefixes; unswept expired rows cost no meter
+(guide bounds).
 
 ### App files and modules
 

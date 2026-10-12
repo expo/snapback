@@ -308,7 +308,7 @@ the admission rule. This applies to both `view` and `maintain … timeline`.
 Point reads, writes and authorization witnesses charge fixed declared
 reservations and results that pass row-read and field authorization. Range
 and cursor pages retain an examined-count residual: some scan paths charge
-candidates before rejecting expired or unreadable rows, so examined counts
+candidates before rejecting unreadable rows (never expired ones), so counts
 and meter cuts can vary within the physical walk bound. A private page that
 exhausts that bound cannot expose a hidden continuation key, including when
 a nested witness consumes the allowance.

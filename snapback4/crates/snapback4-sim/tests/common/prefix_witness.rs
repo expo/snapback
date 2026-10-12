@@ -94,19 +94,30 @@ fn grouped_walk(eager: bool) {
 
 #[test]
 fn first_witness_predicate_retry_without_shape_stops_when_it_cannot_progress() {
-    let source = "table rooms:\n  public 'rooms'\n  sync public\ntable messages:\n  roomId: rooms\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiry: expiresAt\n  by byRoom: roomId, id\n  public 'messages'\n  sync public\nquery grouped(c: cursor ?):\n  return rooms after c first 2 by byId where exists (messages[.id] by byRoom)\n";
-    for expired in [false, true] {
+    let source = "table rooms:\n  public 'rooms'\n  sync public\ntable messages:\n  roomId: rooms\n  gone: bool\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiry: expiresAt\n  by byRoom: roomId, id\n  public 'messages'\n  sync public\nquery grouped(c: cursor ?):\n  return rooms after c first 2 by byId where exists (messages[.id] by byRoom where not .gone)\n";
+    // Room a holds 8,193 messages that do not witness: rejected by the
+    // predicate (a live scan the meter cuts), or expired and not yet swept,
+    // which the meter never sees (LLP 3000.007 §20.24.6).
+    for world in ["live", "rejected", "expired"] {
         let mut rows = ["a", "b"].map(|id| ("rooms".into(), object([("id", Value::Id(id.into()))]))).to_vec();
         for room in ["a", "b"] { for n in 0..if room == "a" { 8193 } else { 1 } {
             rows.push(("messages".into(), object([("id", Value::Id(format!("{room}{n:05}"))), ("roomId", Value::Id(room.into())),
-                ("expiresAt", Value::Int(if expired && room == "a" { 1 } else { 1_000_000 }))])));
+                ("gone", Value::Bool(world == "rejected" && room == "a")),
+                ("expiresAt", Value::Int(if world == "expired" && room == "a" { 1 } else { 1_000_000 }))])));
         } }
         super::with_fixture(source, rows, |query| {
             let context = |cursor| Context::new("dev:alice", [("c".into(), cursor)].into()).at(100);
             let first = query("grouped", context(Value::Null)).unwrap();
-            if !expired {
+            if world == "live" {
                 assert_eq!(first.data.as_array().unwrap().len(), 2);
                 assert!(first.complete && first.cut.is_none());
+                return;
+            }
+            if world == "expired" {
+                let ids: Vec<_> = first.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().clone()).collect();
+                assert_eq!(ids, [Value::Id("b".into())], "{first:?}");
+                assert!(first.complete && first.cut.is_none(), "{first:?}");
+                assert!(first.metered.examined < 8, "{first:?}");
                 return;
             }
             assert!(first.data.as_array().unwrap().is_empty() && !first.complete);

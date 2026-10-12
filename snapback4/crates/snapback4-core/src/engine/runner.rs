@@ -111,6 +111,12 @@ pub struct Runner<'a> {
     /// Sticky after consuming an unsettled ordinal: aliases and control flow
     /// can carry that dependency into a later refusal.
     pub(super) provisional_sequence_read: bool,
+    /// Sticky after a device predicts an insert whose unique facts it could
+    /// not prove: the server may refuse that insert first (guide prediction).
+    pub(super) unproved_write: bool,
+    /// Expired, unswept rows this execution stepped over: store work, priced
+    /// on the internal guard and never on the public meter.
+    pub(super) expired_steps: u64,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
@@ -310,6 +316,8 @@ impl<'a> Runner<'a> {
             inserted: Vec::new(),
             provisional_rows: BTreeSet::new(),
             provisional_sequence_read: false,
+            unproved_write: false,
+            expired_steps: 0,
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,

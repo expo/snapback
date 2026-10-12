@@ -136,6 +136,10 @@ def validate_report(path, cases, stores=False, devices=False, lean=False):
     return sum(c['disagreeing'] for c in report['by_oracle'].values())
 
 
+# Rounds per budgeted run; each round reruns all four oracles on fresh seeds.
+MAX_ROUNDS = 8
+
+
 def interrupted(number, _frame):
     raise InterruptedError(f'signal {number}')
 
@@ -146,7 +150,7 @@ def main():
     parser.add_argument('--state-dir', type=Path, default=Path.home() / '.snapback-quarry-difftest')
     size = parser.add_mutually_exclusive_group()
     size.add_argument('--cases', type=int, help='explicit case count; otherwise calibrate to --hours')
-    size.add_argument('--hours', type=float, default=3.0, help='campaign budget estimated from a 256-case calibration (default: 3)')
+    size.add_argument('--hours', type=float, default=3.0, help='campaign budget filled by rounds; a 256-case calibration sizes the first (default: 3)')
     parser.add_argument('--external-postgres', help='dry-run only: supplied connection, never started or stopped')
     parser.add_argument('--workers', type=int, default=min(8, os.cpu_count() or 1))
     parser.add_argument('--dry-run', action='store_true', help='allow a short campaign; tickets go to previews, no commit or push')
@@ -235,42 +239,61 @@ def main():
             calibration_seconds = time.monotonic() - calibration_started
             rate = 256 / max(calibration_seconds, 0.001)
             # Calibration is an estimate, with 20% headroom for tail cases.
-            args.cases = min(1_000_000, max(256, int(max(0, args.hours*3600-calibration_seconds)*rate*0.8)))
-            if seed + args.cases > 2**64:
-                raise RuntimeError('calibrated window exhausts u64 seeds')
-            report.update(cases=args.cases, last_seed=seed+args.cases-1,
-                          sizing={'hours':args.hours, 'calibration_cases':256, 'seconds':calibration_seconds,
-                                  'cases_per_hour':rate*3600, 'headroom':0.2, 'kind':'estimate, not a hard timeout'})
-            atomic_json(destination / 'run.json', report)
+            # Calibration only sizes the first round; later rounds use the rate
+            # a real round measured (a 256-case sample is dominated by shrinking).
+            cases = min(1_000_000, max(256, int(max(0, args.hours*3600-calibration_seconds)*rate*0.8)))
+            report['sizing'] = {'hours': args.hours, 'calibration_cases': 256, 'seconds': calibration_seconds,
+                                'cases_per_hour': rate*3600, 'headroom': 0.2, 'max_rounds': MAX_ROUNDS,
+                                'kind': 'rounds sized from measured rates, not a hard timeout', 'rounds': []}
+        else:
+            cases = args.cases
         disagreements = 0
         store_unsupported = 0
         device_unsupported = 0
         lean_unsupported = 0
-        for command, directory in [('run', 'sqlite'), ('run-stores', 'stores'), ('run-devices', 'devices'), ('run-lean', 'lean')]:
-            output = destination / directory
-            status = run([binary, command, '--seed', seed, '--cases', args.cases, '--workers', args.workers, '--out', output],
-                         cwd=workspace, env=env, log=destination / f'{directory}.log', supervise=True)
-            if status not in (0, 1):
-                raise RuntimeError(f'{command} failed with status {status}; no completed run')
-            count = validate_report(output / 'report.json', args.cases, directory == 'stores', directory == 'devices', directory == 'lean')
-            if bool(status) != bool(count):
-                raise RuntimeError(f'{command}: exit status disagrees with report')
-            disagreements += count
-            if directory == 'stores':
-                counts=json.loads((output / 'report.json').read_text())['by_oracle']
-                store_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
-            if directory == 'devices':
-                # Online-only reads and unpredictable writes are the device's named
-                # reasons, expected in every run: recorded, never a pass, not a failure.
-                counts=json.loads((output / 'report.json').read_text())['by_oracle']
-                device_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
-            if directory == 'lean':
-                # Programs outside the model's fragment are the emitter's named
-                # reasons (LLP 3000.035 §5.2): recorded, never a pass, not a failure.
-                counts=json.loads((output / 'report.json').read_text())['by_oracle']
-                lean_unsupported=sum(sum(c.get('unsupported',{}).values()) for c in counts.values())
+        total = 0
+        for number in range(MAX_ROUNDS):
+            if seed + total + cases > 2**64:
+                raise RuntimeError('sized window exhausts u64 seeds')
+            round_seed, round_started = seed + total, time.monotonic()
+            # Round 0 keeps the historical layout; later rounds nest beside it.
+            base = destination if number == 0 else destination / f'round-{number}'
+            base.mkdir(exist_ok=True)
+            for command, directory in [('run', 'sqlite'), ('run-stores', 'stores'), ('run-devices', 'devices'), ('run-lean', 'lean')]:
+                output = base / directory
+                status = run([binary, command, '--seed', round_seed, '--cases', cases, '--workers', args.workers, '--out', output],
+                             cwd=workspace, env=env, log=base / f'{directory}.log', supervise=True)
+                if status not in (0, 1):
+                    raise RuntimeError(f'{command} failed with status {status}; no completed run')
+                count = validate_report(output / 'report.json', cases, directory == 'stores', directory == 'devices', directory == 'lean')
+                if bool(status) != bool(count):
+                    raise RuntimeError(f'{command}: exit status disagrees with report')
+                disagreements += count
+                counts = json.loads((output / 'report.json').read_text())['by_oracle']
+                unsupported = sum(sum(c.get('unsupported', {}).values()) for c in counts.values())
+                if directory == 'stores':
+                    store_unsupported += unsupported
+                if directory == 'devices':
+                    # Online-only reads and unpredictable writes are the device's named
+                    # reasons, expected in every run: recorded, never a pass, not a failure.
+                    device_unsupported += unsupported
+                if directory == 'lean':
+                    # Programs outside the model's fragment are the emitter's named
+                    # reasons (LLP 3000.035 §5.2): recorded, never a pass, not a failure.
+                    lean_unsupported += unsupported
+            total += cases
+            report.update(cases=total, last_seed=seed+total-1)
+            if args.cases is not None:
+                break
+            round_seconds = time.monotonic() - round_started
+            report['sizing']['rounds'].append({'seed': round_seed, 'cases': cases, 'seconds': round_seconds})
+            atomic_json(destination / 'run.json', report)
+            remaining = args.hours*3600 - (time.monotonic() - calibration_started)
+            cases = min(1_000_000, int(remaining * cases / max(round_seconds, 0.001) * 0.8))
+            if cases < 256:
+                break
         report['seconds'] = time.monotonic() - started
-        report['cases_per_hour'] = args.cases * 3600 / report['seconds']
+        report['cases_per_hour'] = total * 3600 / report['seconds']
         # Stable replay inherits the private cluster only for this scoped call.
         os.environ['SNAPBACK4_EVAL_POSTGRES'] = env['SNAPBACK4_EVAL_POSTGRES']
         os.environ['SNAPBACK4_LEAN_ORACLE'] = env['SNAPBACK4_LEAN_ORACLE']
@@ -287,7 +310,7 @@ def main():
         if cluster is not None:
             must(['pg_ctl', '-D', cluster / 'data', '-m', 'fast', '-w', 'stop'], log=destination / 'pg-stop.log', timeout=120)
             cluster = None
-        atomic_json(seed_file, {'version': 1, 'next_seed': seed + args.cases})
+        atomic_json(seed_file, {'version': 1, 'next_seed': seed + total})
         report['status'] = 'completed-with-findings' if disagreements else 'completed-with-unsupported' if store_unsupported else 'completed'
         atomic_json(destination / 'run.json', report)
         print(json.dumps(report, indent=2))

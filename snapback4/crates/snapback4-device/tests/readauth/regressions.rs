@@ -104,9 +104,11 @@ fn retained_grant<H:Host>(mut h:H) {
 fn own_read<H:Host>(mut h:H) {
     let (mut e,b)=compile(SOURCE);
     let mut d=start(&mut h,&mut e,b);
-    let error=d.admit(serde_json::from_value(json!({"id":"own-read","seq":1,"op":"readOwnHidden","viewer":"alice","args":{},"now":100,"predictable":true})).unwrap()).unwrap_err();
-    assert_eq!(error.code(),"HIDDEN","definite denial is an ordinary require refusal");
-    assert!(d.queued().unwrap().is_empty());
+    // @ref LLP 3000.007#20.5 — the HIDDEN refusal follows an insert whose supplied id
+    // 'note' this device cannot prove absent, so the server's verdict is the one reported.
+    let queued=d.admit(serde_json::from_value(json!({"id":"own-read","seq":1,"op":"readOwnHidden","viewer":"alice","args":{},"now":100,"predictable":true})).unwrap()).unwrap();
+    assert!(!queued.predictable && queued.predicted.is_empty(),"{queued:?}");
+    assert_eq!(d.queued().unwrap().len(),1);
     assert!(d.store().raw_rows("notes").is_empty());
     assert!(d.store().raw_rows("groups").is_empty());
 }

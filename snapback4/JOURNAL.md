@@ -93782,3 +93782,104 @@ Final ref-check follows this entry. No push, publication or new root report file
 
 Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
 zero errors and zero unchecked. The tracked worktree is committed without push.
+
+## 2026-10-12 — Lane EX: the meter charges only live rows; a refusal after an unproved insert defers to the server
+
+Two findings of the widened generator (LLP 3000.035 §5.1), branch
+`sb4/device-meter-expiry`.
+
+- **Ruling A (Charlie, 2026-10-08), LLP 3000.007 §20.24.6.** The public meter
+  charges only rows live at the read's clock. The server's scans charged an
+  expired row the sweep had not removed (examined, then steps and heap), which
+  the device never received, so meters diverged and low ceilings cut on the
+  server where the device completed. Now `scan_authorized` (both paths, a
+  system read through a new `live_store_scan`), the private authorization walk,
+  the device's live recount and the server's maintained backlog read step over
+  expired rows before any public charge. `Runner::step_expired` prices them on
+  their own guard (256 B plus key per row, `E_STORE_MEMORY` past 256 MiB per
+  execution) and returns their unit of the 8,192-row walk. One engine change
+  covers SQLite, PostgreSQL, `MemoryRows` and both device stores.
+- **Defect B, LLP 3000.007 §20.5.** A device predicted an insert over a hidden
+  id or unique value, carried on, and refused locally later in the block
+  (`E_CONSTRAINT`, `NOT_FOUND`, `E_OVERFLOW`), a final code the server never
+  reports (it refuses `E_RULE` at the insert). Each authored plain device insert
+  now runs the upsert insert-arm proof on the device allowance; after an
+  unproved one, `predict` turns a later refusal into `E_PREDICT`, so the write
+  queues and the server's refusal is reported. Provable refusals stay final.
+- **Tests.** Four focused tests in `snapback4-difftest/tests/devices.rs` (server
+  against both device stores at every boundary of every dimension; a cut before
+  and after the sweep; the three refusal shapes queue; provable refusals stay
+  local); all fail on the old engine. About thirty tests pinned the old model
+  (expired rows charged, backlogs cutting reads or refusing `E_BOUND`, literal-id
+  inserts refusing locally) and now state the new contract; where a backlog was
+  only a device to force a cut, a rejected live row or a lower ceiling does it.
+- **Harness (main's widened generator).** `run-devices --seed 0 --cases 20000`:
+  0 read and 0 cut disagreements in 152,256 positions per store (the 14 expired-meter
+  signatures per store are gone); writes: 11 named unique-key outcomes per store
+  and 1 disagreement per store, the known insert beside an `upsert` branch
+  (outside the named condition, recorded in the GW follow-up); the three
+  `write-refused` signatures are gone. `run-stores --seed 0 --cases 5000` with a
+  private PostgreSQL 17 cluster: 0 disagreements (128,202 positions per prefetch
+  mode, 1,124 prelude, 3,964,936 SQLite repeats). The 30 retained device cases
+  replay as resolved regressions (`pass`, or `prediction-declined` for the
+  refusals).
+- **wasm.** 646,316 → 646,816 B gzip (+500; budget 646,816 unchanged, zero
+  headroom). The first spelling cost +2,363; compaction: a web device never reads
+  as the system, so `live_store_scan` is SQLite-only; the step price is a fixed
+  reservation, not a serialized row size; `device_work` split into non-generic
+  enter/leave halves (−157 across its instantiations); B reuses
+  `prove_upsert_insert` instead of a refactored proof; short messages.
+- **What was surprising:** the meter used to carry a time-hidden existence bit
+  (a word held only by an expired row cost a seek; a maintained backlog cost
+  observable examined work). The ruling closes it; the attack witness in
+  `expiring_mutations.rs` now shows the worlds agree even without the admission
+  guard.
+- **What was hard:** the collateral. Literal-id inserts into partitioned tables
+  are common in tests, so B changed the expected outcome of every such test
+  whose program refuses after the insert. The wasm budget had 500 B of room.
+
+## 2026-10-12 — Integration 5: bring sb4-loop to origin/main
+
+Merge origin/main c5a3095e70 into sb4-loop e82bb70b97 with `--no-ff`, without
+rebase or push. Five conflict paths: LLP 3000.007, LLP 3000.035, this journal,
+authorized_point.rs and the refusals card. Keep both journals and LLP additions.
+EX retains §20.24.6; CUT's prepaid uniform-prefix verdict becomes §20.24.7,
+with its live references updated (historical journal/review records stay as
+written). The candidate loop skips expired rows before any public charge while
+retaining CUT's prepaid rule argument. The refusals card keeps the moderation
+and duplicate-order examples alongside EX's live-only E_BOUND explanation.
+
+Decoded-row pricing stays behind json_codec::to_writer. Remove its obsolete
+source-census bypass exception. The integrated symbol audit exposes optional
+string and borrowed-string owned-tree serializers in device reply envelopes.
+Construct their string/null/array JSON values directly, preserving order and
+wire contents; add no serde family exemption. Rebuild both dispatcher hosts.
+The strict family and server-only absence audits pass. A missing local brotli
+command initially yielded an incomplete measurement; discard that uncommitted
+zero-byte row and repeat with a locally extracted brotli 1.1.0 executable.
+Final locked Linux measurement: 2,246,968 B raw / 680,192 B gzip / 515,250 B
+brotli. Budget 680,692 B = gzip measurement + commissioned 500 B platform
+headroom, +774 B gzip versus Integration 4. No Mac measurement, per-feature
+attribution or runtime-ceiling change.
+
+Fresh mutually blind Muse Spark 1.3 Contributor/high and GPT-6.1 Sol/high
+reviews are preserved verbatim under llp/reviews/3000-integration5.r1.*.
+Their staged/worktree concerns are resolved by staging the full merge. GPT
+also finds two incoming edge cases: final output pricing could refuse after an
+unproved insert, and a system expiry scan could price an expired cursor key
+or another scan opening. Extend the conservative refusal treatment through
+output pricing; open the authored system range once and price only live rows
+through the canonical codec. Regressions cover the oversized output on both
+device stores and both scan directions/heap boundaries with interleaved expired
+keys. These implement EX's existing ruling rather than a new authority policy.
+
+The authoring census regenerates unchanged: 718 entries, 409 mutation
+occurrences, 89 private write sites. The delivery await boundary is unchanged.
+The first regular client run finishes all 367 files (including five nested
+identity fixture files): six event-slot replay mismatches against an older
+generated trace. Regenerate target/event-slots-traces.json with the merged
+producer (2/2 passing) before the final dispatcher replay. A temporary attempt
+to change its proven log-order refusal expectations was incorrect and reverted;
+the producer retains main's assertions. The two client models pass all 81 tests
+and fixture-wrapper tests pass 9/9. Complete qualification and round-two review
+disposition follow in a dated entry; no publication claim is made here.

@@ -179,21 +179,16 @@ fn expired_boundary_on<H: Host>(mut host: H) {
         // Acquire the population while live, then advance only the query clock.
         for (i, page) in snapshot_at_zero(&mut engine).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         let mut page = device.query("search", "dev:alice", &serde_json::json!({"q":"kx", "c":null}), 100_000).unwrap();
-        assert_eq!(page.metered.index_entries, PRELUDE + if extra { 47 } else { 46 });
+        assert_eq!(page.metered.index_entries, PRELUDE + 46);
         // The device boundary has no ceiling override. Remove only the known
-        // prelude from the private counter before the shared 46/47 assertion.
+        // prelude from the private counter before the shared 46-seek assertion.
         page.metered.index_entries -= PRELUDE;
         worlds.push(page);
         wires.push(snapback4_device::call::call_text(&mut device, &serde_json::json!({"op":"query","name":"search","viewer":"dev:alice","args":{"q":"kx","c":null},"now":100_000}).to_string()));
         host.close(&name, device);
     }
     assert_expired_boundary(&worlds[0], &worlds[1]);
-    let mut expected = wires[0].clone();
-    expected["ok"]["data"] = serde_json::json!([]);
-    expected["ok"]["complete"] = serde_json::json!(false);
-    expected["ok"]["cut"] = serde_json::json!("meter");
-    expected["ok"]["next"] = serde_json::Value::Null;
-    assert_eq!(wires[1], expected, "full device envelopes, including expiry and coverage");
+    assert_eq!(wires[1], wires[0], "full device envelopes, including expiry and coverage");
 }
 #[test]
 fn search_expired_meter_boundary_memory() { expired_boundary_on(Memory::new()); }

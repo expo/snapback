@@ -128,7 +128,7 @@ fn thousand_lane_merge_loads_boundaries_once() {
     println!("1000-lane merge: lanes={} whole-map-parses={} boundary-namespace-loads={}", counts.lanes.get(), counts.legacy.get(), counts.boundary_loads.get());
     let server = engine.query("merged", context("dev:bob", &[("c", Value::Null)]).at(20_000)).unwrap();
     println!("1000-lane merge probes: server={} device={} server-examined={} device-examined={}", server.metered.rule_probes, read.metered.rule_probes, server.metered.examined, read.metered.examined);
-    // @ref LLP 3000.007#20.24.6 — delivery skips physical verdicts, while each uniform lane pays its logical probe.
+    // @ref LLP 3000.007#20.24.7 — delivery skips physical verdicts, while each uniform lane pays its logical probe.
     assert_eq!((server.metered.rule_probes, read.metered.rule_probes), (1001, 1001));
     assert!(read.complete); assert_eq!(read.data.as_array().unwrap().len(), 1);
     // Each singleton lane reads its page in one store scan, as on the server

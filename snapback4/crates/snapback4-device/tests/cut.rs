@@ -75,7 +75,7 @@ fn predicates<H: Host>(host: &mut H) {
 #[test] fn memory_predicate_read_cut_never_loses_a_row() { predicates(&mut Memory::new()); }
 #[test] fn sqlite_predicate_read_cut_never_loses_a_row() { predicates(&mut Sqlite::new("predicate-cut")); }
 
-// @ref LLP 3000.007#20.24.6 — delivered uniform pages pay the server's logical prefix verdict.
+// @ref LLP 3000.007#20.24.7 — delivered uniform pages pay the server's logical prefix verdict.
 fn group_meter<H: Host>(host: &mut H) {
     let source = include_str!("cut/groups.q");
     let (mut engine, backend) = compile(source);

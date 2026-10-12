@@ -93,7 +93,14 @@ after it. A clash with a row the caller cannot read is `E_RULE`, whatever the
 only on a readable table. `guide recipes --section booking` puts these checks in order
 beside a public occupancy count.
 
+
 ## Your codes on constraints, and E_BOUND
+
+Unswept expired rows never count toward `E_BOUND`. For delivery
+reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK calls
+`onDeliveryRefused` once and parks the interval until the next start, which
+retries with a new id. There is no retry within the session. A committed report
+that runs again is a no-op report (`why E_BOUND`, `guide receipts`).
 
 `unique handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
 constraint's user-facing code and message. Render `message`; `detail` retains

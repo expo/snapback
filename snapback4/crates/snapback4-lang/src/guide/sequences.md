@@ -110,8 +110,8 @@ mutation skipExpiredBefore(next: messages):
 merged runs and writes. Mutation scans of expiring tables require
 `predicts: "never"` (here declared `: server`) and an initial read-only phase;
 a write or emit anywhere in an enclosing statement ends it (`guide programs`).
-Expired unswept rows still cost examined work, even with `first 1`; exceeding
-the ceiling refuses `E_BOUND` atomically. A smaller page cannot clear a backlog.
+Expired unswept rows cost no examined work; only live rows count, and exceeding
+the ceiling refuses `E_BOUND` atomically (guide bounds).
 For delivery reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK
 calls `onDeliveryRefused` once and parks the interval until the next start,
 which retries with a new id. There is no retry within the session. A committed

@@ -317,7 +317,7 @@ rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
 invent an empty row or mint different IDs on replay.
 
-A plain `insert` still predicts without proving its caller-supplied id or any unique-key value absent: if a row this device cannot read already has that id or value, the server refuses `E_RULE`, the write settles `failed` and its pending row is withdrawn. An omitted id or `new` is minted for the call and never collides this way.
+A plain `insert` still predicts without proving its caller-supplied id or any unique-key value absent: if a row this device cannot read already has that id or value, the server refuses `E_RULE`, the write settles `failed` and its pending row is withdrawn. An omitted id or `new` is minted for the call and never collides this way. Such an unproved insert (or cap group) also makes any later refusal in the same mutation non-final: the write queues (`E_PREDICT`) and the server's refusal is the one reported.
 
 ## Read-through upserts
 

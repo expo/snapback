@@ -164,3 +164,33 @@ fn admitted_candidate_deadline_waits_for_emission() {
         }
     }
 }
+
+#[test]
+fn system_expiry_scan_prices_only_the_authored_range_and_live_entries() {
+    fn run(expired: bool, dir: crate::rows::Dir, limit: usize, heap: u64) -> (String, crate::meter::Metered) {
+        let source = "table items:\n  body: text <=400\n  until: time\n  by byBody: body, id\n  expire at .until\n  read <- allow\n  insert <- allow\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let schema: Schema = serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap();
+        let rows = MemoryRows::new();
+        let mut seed = Runner::new(&rows, &schema, Context::system().at(0), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+        for (id, body, until) in [("live-a", "a".into(), 500), ("live-c", "c".into(), 500), ("live-e", "e".into(), 500), ("expired-b", "b".repeat(350), 100), ("expired-d", "d".repeat(350), 100)] {
+            if expired || until == 500 {
+                seed.insert("items", object([("id", Value::Id(id.into())), ("body", Value::String(body)), ("until", Value::Int(until))]).import_input(&crate::engine::ImportInput(()))).unwrap();
+            }
+        }
+        drop(seed);
+        let mut runner = Runner::new(&rows, &schema, Context::system().at(200), Meter::new(Ceilings { heap_bytes: heap, ..Ceilings::unbounded() }, Cut::Abort), 0);
+        let result = runner.scan_disclosed("items", "byBody", &[], &Default::default(), dir, limit)
+            .map(|rows| rows.into_iter().map(|(row, key)| (row.map(|row| row.into_value()), key)).collect::<Vec<_>>());
+        (format!("{result:?}"), runner.metered())
+    }
+    for dir in [crate::rows::Dir::Asc, crate::rows::Dir::Desc] {
+        for limit in 1..=5 {
+            let baseline = run(false, dir, limit, u64::MAX);
+            for heap in [0, baseline.1.heap_bytes - 1, baseline.1.heap_bytes, baseline.1.heap_bytes + 1, u64::MAX] {
+                assert_eq!(run(true, dir, limit, heap), run(false, dir, limit, heap), "{dir:?} limit={limit} heap={heap}");
+            }
+        }
+    }
+}

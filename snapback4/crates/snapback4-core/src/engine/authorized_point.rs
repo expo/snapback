@@ -97,7 +97,7 @@ impl<'r> Runner<'r> {
         self.scan_authorized_prepaid(name, index, prefix, bounds, dir, limit, metered, trusted, false, #[cfg(feature = "server-search")] fields)
     }
 
-    // @ref LLP 3000.007#20.24.6 — a delivered uniform prefix has prepaid its
+    // @ref LLP 3000.007#20.24.7 — a delivered uniform prefix has prepaid its
     // logical rule once; provisional rows still undergo physical authorization.
     pub(super) fn scan_authorized_prepaid(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool, trusted: bool, rule_prepaid: bool, #[cfg(feature = "server-search")] fields: Option<&[String]>) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
         let table = &self.schema.tables[name];
@@ -107,8 +107,14 @@ impl<'r> Runner<'r> {
         // decodes a full transient image; the streaming consumer retains only
         // its ordering key. Selection remains useful in the private decoder.
         if (self.context.is_system() || trusted && !table.is_expiring()) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
-            let rows = if metered {
-                self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
+            if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?; }
+            #[cfg(feature = "sqlite")]
+            let live = table.is_expiring();
+            // A web device never reads as the system, the only reader of an expiring table here.
+            #[cfg(not(feature = "sqlite"))]
+            let live = false;
+            let rows = if live { self.live_store_scan(name, index, prefix, bounds, dir, limit, metered)? }
+            else if metered {
                 self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?
             } else { self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,bounds,dir,limit))? };
             // @ref LLP 3000.007#20.24.5 — a device prices the server's image with the server's charge. Its
@@ -129,7 +135,7 @@ impl<'r> Runner<'r> {
         let mut cursor = bounds.clone();
         let mut out = Vec::with_capacity(limit);
         for _ in 0..limit {
-            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| {
+            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| loop {
                 #[cfg(not(feature = "server-search"))]
                 let selected = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?;
                 #[cfg(feature = "server-search")]
@@ -137,7 +143,9 @@ impl<'r> Runner<'r> {
                 let Some((row,key)) = selected.into_iter().next() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
-                Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted, rule_prepaid)?,key)))
+                // @ref LLP 3000.007#20.24.6 — an expired, unswept candidate is never returned, counted or charged.
+                if runner.step_expired(table, &row, &key)? { continue; }
+                return Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted, rule_prepaid)?,key)));
             })?;
             let Some((row,key)) = candidate else { break; };
             // Only this sealed surviving projection can be priced on the caller ledger.
@@ -146,6 +154,40 @@ impl<'r> Runner<'r> {
                     + crate::rows::word_heap::key_decode(table.index(index).map_or(1,|i|i.components.len()+1),key.len()))?;
             }
             out.push((row,key));
+        }
+        Ok(out)
+    }
+
+    /// A system read of an expiring table takes the store path, so the store
+    /// would price every fetched entry. Open the authored range once, step
+    /// over expired entries internally, and price live entries through the
+    /// same canonical-image codec used by every store.
+    // @ref LLP 3000.007#20.24.6 — the public meter charges only rows live at the read's clock.
+    #[cfg_attr(not(feature = "sqlite"), allow(dead_code))]
+    fn live_store_scan(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let table = &self.schema.tables[name];
+        let mut cursor = bounds.clone();
+        let mut out = Vec::new();
+        // Price the authored range once. Internal cursors over expired keys
+        // cannot select another public scan-opening charge or wider bounds.
+        let mut guard = super::authorized_scan::InternalLedger::with_meter(&mut self.meter, |meter, scope| {
+            if metered { crate::rows::word_heap::scan_open(meter, name, index, prefix, bounds, scope)?; }
+            Ok::<_, RuntimeError>(crate::rows::word_heap::StoreGuard::open(meter, super::read::EXPIRED_STEP_GUARD))
+        })?;
+        while out.len() < limit {
+            let window = self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,&cursor,dir,limit - out.len()))?;
+            if window.is_empty() { break; }
+            for (row, key) in window {
+                cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
+                if self.step_expired(table, &row, &key)? { continue; }
+                if metered {
+                    let additional = super::authorized_scan::InternalLedger::with_meter(&mut self.meter, |meter, _| {
+                        crate::rows::word_heap::scan_value_entry(meter, &mut guard, out.len(), out.capacity(), &row, &key)
+                    })?;
+                    if additional != 0 { out.reserve_exact(additional); }
+                }
+                out.push((row, key));
+            }
         }
         Ok(out)
     }

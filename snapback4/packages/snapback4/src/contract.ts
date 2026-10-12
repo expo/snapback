@@ -129,7 +129,8 @@ export interface Pending {
  * A prediction can still end `failed`: an insert predicts without proving its caller-supplied id or
  * any unique-key value absent, so a row this device cannot read with that id or value makes the
  * server refuse `E_RULE` and settlement withdraws the pending row. Row ids minted for the call never
- * collide this way; another unique value can. */
+ * collide this way; another unique value can. After such an unproved insert, a later refusal
+ * in the same mutation queues for the server's verdict. */
 // @ref LLP 3000.007#17 — replay confirms execution without historical read authority
 export type Write<R = unknown> =
   | { readonly state: "pending"; readonly id: string; readonly reason?: string }

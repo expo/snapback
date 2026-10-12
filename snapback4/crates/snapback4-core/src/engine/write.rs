@@ -146,14 +146,15 @@ impl Runner<'_> {
             }
         }
         let id = row.field("id")?.as_str()?.to_owned();
-        if if_absent && self.device {
-            // @ref LLP 3000.007#20.5 — if-absent's insert arm needs the same image, unique-population and cap proof as upsert.
-            // Upsert mints its insert id; if-absent may instead supply one.
-            // Only a freshly minted id can skip the primary-key absence proof.
-            let index = if self.context.minted_ids.contains(&id) {
-                table.indexes.iter().find(|(name, index)| name.as_str() != "byId" && index.unique && !index_values(index, &row).contains(&Value::Null))
-                    .map_or("byId", |(name, _)| name.as_str())
-            } else { "byId" };
+        // @ref LLP 3000.007#20.5 — if-absent's insert arm needs the same image, unique-population and cap proof as upsert.
+        // Upsert mints its insert id; if-absent may instead supply one.
+        // Only a freshly minted id can skip the primary-key absence proof.
+        let minted = self.context.minted_ids.contains(&id);
+        let proof = if !self.device { None } else if minted {
+            table.indexes.iter().find(|(name, index)| name.as_str() != "byId" && index.unique && !index_values(index, &row).contains(&Value::Null))
+                .map(|(name, _)| name.as_str()).or_else(|| table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })).then_some("byId"))
+        } else { Some("byId") };
+        if if_absent && let Some(index) = proof.or(self.device.then_some("byId")) {
             self.prove_upsert_insert(table_name, index, &row)?;
         }
         // An upsert has already resolved this exact address (or minted the id)
@@ -192,6 +193,19 @@ impl Runner<'_> {
             // The expired predecessor is internal authorization work, not a
             // disclosed examination (LLP 3000.015 §§1–2).
             self.remove(table_name, existing)?;
+        }
+        // @ref LLP 3000.007#20.5 — an authored plain insert predicts unproved; a later refusal is then the server's
+        // to report. The engine's own timeline writes are not the author's prediction.
+        if let Some(index) = proof.filter(|_| !if_absent && upsert_index.is_none() && !self.unproved_write && self.timeline_authority.is_none()) {
+            // An earlier unknown fact already makes this prediction unproved.
+            // Otherwise the proof's own unknown fact is not the prediction's.
+            self.unproved_write = self.missing_fact.is_some();
+            if !self.unproved_write {
+                let beyond = self.beyond_horizon;
+                let proved = self.device_work(|runner| runner.prove_upsert_insert(table_name, index, &row));
+                (self.beyond_horizon, self.missing_fact) = (beyond, None);
+                match proved { Err(RuntimeError::Prediction(_)) => self.unproved_write = true, other => other? }
+            }
         }
         // The server's same-id expired replacement preserves occupancy in
         // unchanged cap groups. A device cannot rely on an expired predecessor.

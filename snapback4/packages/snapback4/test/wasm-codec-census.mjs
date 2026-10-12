@@ -237,7 +237,6 @@ export const refusalAllow = [
 // Their custody and single-use checks remain as strict as the other entries.
 export const streamingAllow = [
   { file: core + 'assets.rs', item: 'verify_file', line: '"application/json" => text(bytes).is_some_and(|text| serde_json::from_str::<serde::de::IgnoredAny>(text).is_ok()),' },
-  { file: core + 'engine/word_heap.rs', item: 'stored_value_bytes', line: 'serde_json::to_writer(&mut shape, row).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
 ];
 export function census(sources, exceptions = [...allow, ...refusalAllow, ...representationAllow, ...streamingAllow]) {
   const used = new Map(exceptions.map(entry => [entry, 0])), errors = [];

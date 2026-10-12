@@ -8,8 +8,8 @@ runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync, without changing the device clock (guide clock).
 Disappearing messages are one field on
 insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
-reads its physical total minus unswept expired contributions under the read
-meter through an internal group/expiry/source-id index. Live rows add no server
+reads its physical total minus unswept expired contributions through an
+internal group/expiry/source-id index, as store work off the meter. Live rows add no server
 read work. Devices still recompute live source contributions under their meter;
 partial source coverage or a cut cannot supply an exact aggregate. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
 exists at one rule-probe unit, regardless of expired sources. A rule equality

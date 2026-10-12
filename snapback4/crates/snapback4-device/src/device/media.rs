@@ -147,7 +147,7 @@ impl<S: DeviceStore> Device<S> {
         home["generation"] = json!(self.generation);
         home["expiresAt"] = json!(read.next_expiry);
         // @ref LLP 3000.023#10 — disjoint commits need not repeat this authorized home read.
-        home["tables"] = json!(read.tables);
+        home["tables"] = Json::Array(read.tables.into_iter().map(Json::String).collect());
         home["type"] = json!(asset.field("type").ok().and_then(|v| v.as_str().ok()));
         if let Some(name) = asset.field("name").ok().and_then(|v| v.as_str().ok()) { home["name"] = json!(name); }
         tx.rollback()?;

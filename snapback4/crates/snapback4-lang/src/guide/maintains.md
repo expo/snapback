@@ -237,7 +237,7 @@ by selected group, expiry (null last), and source id. Work is constant plus
 that backlog, never the live group size. The backlog is what the server expiry
 sweep has not reached: one tick per second, at most 2,000 rows per pass, with
 short cooperative time slices. This is no maximum lag guarantee.
-Zero-sum occupancy uses one entry. If the meter interrupts a backlog scan or a
+Zero-sum occupancy uses one entry. If the meter interrupts a
 maintained point lookup, the Quarry query returns `data: null, complete: false`
 without a continuation; an unfinished count is neither zero nor a partial total.
 A missing group still reads as zero when its lookup completes. An existence-only
@@ -252,10 +252,10 @@ deadlines. Only an emitted row or answer adds them to `next_expiry`; denial,
 interruption or an unavailable answer discards them, keeping charges and cuts.
 A partial page keeps deadlines from rows it already emitted. An empty page
 does not publish a private deadline learned by its prefix authorization.
-An authorized reader can observe the metered cost of the group's unswept expired
-contributions, including an `unavailable` cut when the backlog exceeds the
-examined ceiling. These contributions belonged to that reader's count; sweeping
-bounds the backlog. Expired rows still cost examined work and steps.
+The group's unswept expired contributions are store work, never charged to
+the reader's meter: a backlog cannot cut the read, and only one past the store
+guard refuses `E_STORE_MEMORY`. Sweeping bounds the backlog; the meter charges
+only rows live at the read's clock (guide bounds).
 Unauthorized denials remain identical across empty, expired-only and live groups.
 
 An inherited aggregate has no horizon and remains until-revoked even when its

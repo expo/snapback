@@ -55,7 +55,7 @@ fn expiry_counts_and_041_upgrade_match_sqlite() {
     engine.seed_at(rows,0).unwrap();
     let query=|engine:&mut PostgresEngine|engine.query("unread",Context::new("alice",BTreeMap::new()).at(100)).unwrap();
     assert_eq!(query(&mut engine).data,Value::Int(2));
-    assert_eq!(query(&mut engine).metered.examined,3);
+    assert_eq!(query(&mut engine).metered.examined,2,"the expired backlog is store work (LLP 3000.007 §20.24.6)");
     let mut legacy=engine.schema.clone();
     for table in legacy.tables.values_mut() {for index in table.indexes.values_mut() {
         if matches!(index.components.first(),Some(crate::schema::IndexComponent::Contribution(_))) {index.components.truncate(1);}
@@ -77,7 +77,7 @@ fn expiry_counts_and_041_upgrade_match_sqlite() {
     let mut engine=PostgresEngine::open(Client::connect(&connection,postgres::NoTls).unwrap(),&name).unwrap();
     assert_eq!(engine.generation(),2);
     assert_eq!(query(&mut engine).data,Value::Int(2));
-    assert_eq!(query(&mut engine).metered.examined,3);
+    assert_eq!(query(&mut engine).metered.examined,2,"the expired backlog is store work (LLP 3000.007 §20.24.6)");
     let tx=engine.store.transaction(None).unwrap();
     let group=tx.scan("unreadCounts","byId",&[],&Bounds::default(),Dir::Asc,1).unwrap().remove(0).0;
     assert_eq!(group.field("value").unwrap(),&Value::Int(3));
@@ -137,7 +137,8 @@ fn ordinary_payloads_adopt_across_multiple_pages() {
             assert!(result.complete,"{result:?}");
             let expired=(count+1)/3;
             assert_eq!(result.data,Value::Int(count-expired));
-            assert_eq!(result.metered.examined,expired as u64+2);
+            // The expired backlog is store work, off the meter (LLP 3000.007 §20.24.6).
+            assert_eq!(result.metered.examined,2);
         }
         drop(engine);
         let mut engine=PostgresEngine::open(Client::connect(&connection,postgres::NoTls).unwrap(),&name).unwrap();

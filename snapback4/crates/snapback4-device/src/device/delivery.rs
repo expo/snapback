@@ -124,14 +124,14 @@ fn collect(state: &mut Json, binding: &DeliveryBinding, row: &Value, scope: Stri
         let kept = if kept["fingerprint"] == binding.fingerprint { kept } else { &Json::Null };
         let refused = kept.get("refused").cloned().unwrap_or(json!([]));
         let saturated = kept["saturated"] == true;
-        state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":binding.args,"fingerprint":binding.fingerprint},
+        state["groups"][&key] = json!({"binding":{"table":binding.table,"mutation":binding.mutation,"args":Json::Array(binding.args.iter().cloned().map(Json::String).collect()),"fingerprint":binding.fingerprint},
             "group":group,"incarnation":incarnation,"collected":incarnation,"ready":incarnation,"owed":[],"reported":[],"refused":refused,
             "parked":[],"saturated":saturated,"wake":false,"recent":[],"scope":scope});
     }
     // An older compiled generation must not collect into a newer manifest binding.
     let debt = &state["groups"][&key];
     if debt["binding"]["fingerprint"] != binding.fingerprint || debt["saturated"] == true { return Ok(true); }
-    if let Some(compact) = &binding.compact { state["groups"][&key]["binding"]["compact"] = json!(compact); }
+    if let Some(compact) = &binding.compact { state["groups"][&key]["binding"]["compact"] = Json::String(compact.clone()); }
     let debt = &state["groups"][&key];
     // Activation pauses before a collection could displace an owed or parked
     // run. A publication retains its ordinary bounded under-reporting policy.

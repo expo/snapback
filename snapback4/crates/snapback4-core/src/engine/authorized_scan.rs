@@ -38,6 +38,11 @@ impl<'a> GuardedRows<'a> {
     fn charge(&self, fetched: usize) {
         if self.authorizing.get() && !self.reference_prepaid.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
     }
+    /// Return the walk allowance of a fetched row the store stepped over as
+    /// expired: such rows are absent, so they cannot exhaust a read's walk.
+    pub(super) fn refund(&self, fetched: usize) {
+        if self.authorizing.get() { self.remaining.set(self.remaining.get() + fetched); }
+    }
     pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.limit(table, 1)?;
         let row = self.raw.get(table, id)?;

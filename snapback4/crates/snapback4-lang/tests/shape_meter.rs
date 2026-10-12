@@ -169,7 +169,14 @@ fn ordered_extrema_are_advised_and_refuse_after_9000_expired_children() {
             ("id", Value::Id(format!("c{n:05}"))), ("parent", Value::Id("p".into())),
             ("amount", Value::Int(n)), ("until", Value::Int(1)),
         ]))))).unwrap();
-    for op in ["lowest", "highest"] { refuses_on_follow(&mut engine, op); }
+    // @ref LLP 3000.007#20.24.6 — the expired children are store work: the shape no
+    // longer refuses after them; it answers the live (empty) group in one page.
+    for op in ["lowest", "highest"] {
+        let answer = engine.query(op, Context::new("alice", BTreeMap::from([("c".into(), Value::Null)])).at(5000)).unwrap();
+        assert!(answer.complete, "{op}: {answer:?}");
+        assert_eq!(answer.data.as_array().unwrap()[0].field("total").unwrap(), &Value::Null, "{op}: {answer:?}");
+        assert!(answer.metered.examined < 8, "{op}: {answer:?}");
+    }
 }
 
 #[test]

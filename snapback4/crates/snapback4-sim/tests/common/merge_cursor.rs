@@ -51,17 +51,17 @@ pub fn ids(page: &QueryOutcome) -> Vec<String> {
     page.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().as_str().unwrap().to_owned()).collect()
 }
 
+// @ref LLP 3000.007#20.24.6 — unswept expired rows cannot cut a read: the meter charges only live rows.
 pub fn check_cut(mut query: impl FnMut(Option<String>) -> QueryOutcome) {
+    // CEILING + 1 expired rows above the competing row used to exhaust the
+    // examined ceiling and cut lane b before it; now the merge sees only live rows.
     let first = query(None);
-    assert_eq!(ids(&first), ["shown-10"]);
-    assert!(!first.complete);
-    assert_eq!(first.metered.examined, CEILING as u64 + 1);
-    println!("merge cut: examined={} complete={} next={:?}", first.metered.examined, first.complete, first.next);
-    if let Some(next) = first.next.clone() {
-        let second = query(Some(next));
-        assert_eq!(ids(&second), ["competing"], "continuation skipped readable time 15 forever: {second:?}");
-    }
-    assert!(first.next.is_none(), "the shared cursor cannot represent the unfinished second lane");
+    assert_eq!(ids(&first), ["competing"], "{first:?}");
+    assert!(first.complete && first.cut.is_none(), "{first:?}");
+    assert!(first.metered.examined < 8, "{first:?}");
+    println!("merge over an expired backlog: examined={} complete={} next={:?}", first.metered.examined, first.complete, first.next);
+    let second = query(Some(first.next.clone().expect("the merge continues after the competing row")));
+    assert_eq!(ids(&second), ["shown-10"], "continuation skipped readable time 10: {second:?}");
 }
 
 // The full /q response in serve.rs, including explicit nulls; operator-only

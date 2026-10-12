@@ -81,8 +81,8 @@ impl<S: DeviceStore> Device<S> {
         if initial {
             let (left, current): (Vec<_>, Vec<_>) = groups.get(&plan.table).into_iter().flat_map(|groups| groups.iter())
                 .partition(|(_, state)| **state == history::Membership::Left);
-            result["left"] = serde_json::json!(left.into_iter().map(|(key, _)| key.clone()).collect::<Vec<_>>());
-            result["current"] = serde_json::json!(current.into_iter().map(|(key, _)| key.clone()).collect::<Vec<_>>());
+            result["left"] = serde_json::Value::Array(left.into_iter().map(|(key, _)| serde_json::Value::String(key.clone())).collect());
+            result["current"] = serde_json::Value::Array(current.into_iter().map(|(key, _)| serde_json::Value::String(key.clone())).collect());
             result["ceilings"] = decoded::<serde_json::Value>(&encoded(&Ceilings::default())?)?;
         }
         Ok(result)

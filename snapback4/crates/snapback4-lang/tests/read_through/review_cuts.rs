@@ -176,10 +176,11 @@ pub fn aggregate_live_recount_cut_expiry(mut factory: impl FnMut(&str) -> Box<dy
             child(&mut *e, "b", 900);
             child(&mut *e, "expired", 150);
             system(&mut *e, "clock", &[]);
-            // Q's server path visits the expired backlog and seeks the next
-            // live contribution. The device recount also exceeds this limit.
+            // Q's server path steps over the expired backlog as store work
+            // (LLP 3000.007 §20.24.6) and meters the lookup and the next live
+            // seek. The device recount also exceeds this limit.
             let limit = Ceilings {
-                examined: if op == "total" { 2 } else { 3 },
+                examined: if op == "total" { 1 } else { 2 },
                 ..Ceilings::default()
             };
             let context = ctx("bob", 200, &[("p", id("p"))]);

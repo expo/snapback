@@ -236,6 +236,13 @@ class ScheduledTests(unittest.TestCase):
             if not fail_start:
                 next_seed=json.loads((state/'next-seed.dry-run.json').read_text())['next_seed']
                 self.assertGreaterEqual(next_seed,256) if calibrate else self.assertEqual(next_seed,10)
+                if calibrate:
+                    # A budget fills in measured rounds over contiguous seeds.
+                    rounds=json.loads(next((state/'runs').glob('*/run.json')).read_text())['sizing']['rounds']
+                    self.assertGreater(len(rounds),1)
+                    self.assertEqual([r['seed'] for r in rounds],[sum(q['cases'] for q in rounds[:i]) for i in range(len(rounds))])
+                    self.assertEqual(next_seed,sum(r['cases'] for r in rounds))
+                    self.assertTrue((next((state/'runs').iterdir())/'round-1/devices/report.json').exists())
                 if external:
                     self.assertFalse(any(c[0] in ['initdb','pg_ctl'] for c in calls))
                     self.assertTrue(any(c[0]=='psql' for c in calls))

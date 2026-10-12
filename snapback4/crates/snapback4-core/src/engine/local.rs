@@ -145,6 +145,11 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     if runner.reservation_deferred && matches!(result, Err(RuntimeError::Bound { .. })) {
         return Err(RuntimeError::Prediction("deferred maintenance reservation exhausted; queue for server settlement".into()));
     }
+    // @ref LLP 3000.007#20.5 — a refusal after an insert this device could not prove may not be
+    // the server's (it can refuse that insert first): the write queues and the server's verdict stands.
+    if runner.unproved_write && result.as_ref().is_err_and(|error| error.is_refusal() && !matches!(error, RuntimeError::Prediction(_))) {
+        return Err(RuntimeError::Prediction("refusal after an unproved insert".into()));
+    }
     if runner.provisional_sequence_read && result.is_err() {
         return Err(RuntimeError::Prediction("a refusal depends on a provisional sequence; queue the write for the server (guide writes)".into()));
     }
@@ -164,7 +169,11 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     let result = result.map_err(|error| counterfactual(error, runner.charged_untaken))?;
     if !runner.receipt_allocation {
         let charged = runner.charged_untaken;
-        runner.charge_output(&result).map_err(|error| counterfactual(error, charged))?;
+        runner.charge_output(&result).map_err(|error| {
+            if runner.unproved_write && error.is_refusal() {
+                RuntimeError::Prediction("refusal after an unproved insert".into())
+            } else { counterfactual(error, charged) }
+        })?;
     }
     Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }
@@ -230,17 +239,33 @@ impl Runner<'_> {
     // @ref LLP 3000.007.003#3.2 — device-only authority work may prevent
     // prediction, but cannot spend the server-equivalent mutation budget.
     pub(super) fn device_work<T>(&mut self, work: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
-        let Some(mut allowance) = self.device_allowance.take() else { return work(self) };
-        std::mem::swap(&mut self.meter, &mut allowance);
+        let Some(allowance) = self.device_allowance.take() else { return work(self) };
+        let (caller, entered) = self.enter_device_work(allowance);
+        let result = entered.and_then(|_| work(self));
+        self.leave_device_work(caller, result.as_ref().err())?;
+        result
+    }
+
+    // Shared by every device_work instantiation (wasm size): swap in the
+    // device allowance and charge its step; returns the caller's meter.
+    #[inline(never)]
+    fn enter_device_work(&mut self, mut meter: Meter) -> (Meter, Result<(), RuntimeError>) {
+        std::mem::swap(&mut self.meter, &mut meter);
         self.device_work_active = true;
-        let result = self.meter.step(1).and_then(|_| work(self));
+        let step = self.meter.step(1);
+        (meter, step)
+    }
+
+    /// Restore the caller's meter; an exhausted allowance cannot refuse the write.
+    #[inline(never)]
+    fn leave_device_work(&mut self, mut caller: Meter, error: Option<&RuntimeError>) -> Result<(), RuntimeError> {
         self.device_work_active = false;
-        std::mem::swap(&mut self.meter, &mut allowance);
-        self.device_allowance = Some(allowance);
-        result.map_err(|error| match error {
-            RuntimeError::Bound { .. } => RuntimeError::Prediction("device authority allowance exhausted; queued without a predicted row".into()),
-            other => other,
-        })
+        std::mem::swap(&mut self.meter, &mut caller);
+        self.device_allowance = Some(caller);
+        match error {
+            Some(RuntimeError::Bound { .. }) => Err(RuntimeError::Prediction("device authority allowance exhausted; queued without a predicted row".into())),
+            _ => Ok(()),
+        }
     }
 
     // @ref LLP 3000.007#18.2 — retained history suppresses fallback only when no independent unknown or incomplete reason remains.

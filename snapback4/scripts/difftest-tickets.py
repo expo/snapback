@@ -96,7 +96,8 @@ this ticket to `issues/closed/`.
 def artifacts(run):
     # Only merged campaign artifacts, never worker copies of the same signature.
     result = {}
-    for campaign in [Path(run), Path(run) / 'sqlite', Path(run) / 'stores', Path(run) / 'devices', Path(run) / 'lean']:
+    rounds = [Path(run), *sorted(Path(run).glob('round-*'))]
+    for campaign in [c for base in rounds for c in [base, base / 'sqlite', base / 'stores', base / 'devices', base / 'lean']]:
         for path in sorted(campaign.glob('*/case.json')):
             if path.parent.name.startswith('worker-'):
                 continue

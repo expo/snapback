@@ -1,5 +1,5 @@
 // @ref LLP 3000.007#20.24.1 — the actual web wasm device retries an interrupted reference predicate.
-// @ref LLP 3000.007#20.24.6 — held groups reserve logical prefix probes on the web too.
+// @ref LLP 3000.007#20.24.7 — held groups reserve logical prefix probes on the web too.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
