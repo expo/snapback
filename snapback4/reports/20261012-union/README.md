@@ -17,3 +17,14 @@ join metadata or partition scope. This is a red campaign, not a pass.
 Revision 7's two new epoch regressions pass on both real stores at both page
 sizes, and fail with revision-6 partition code restored. Full quality
 results and commit pointers are in the worktree-root WORKSTREAM-REPORT.md.
+
+
+The ordinary `run` campaign also completed: seed 0, 100,000 cases, four
+workers, 5,070,908 executions. Repeat, declaration rewrites and all other
+applicable rewrite/meter checks agree except seven commutation cases with
+`rewrite-commute--metered--E_OVERFLOW`. Both sides return the same i53
+overflow, but the meter differs by one step on the retained shrunk case.
+`run/report.json` and the shrunk case are verbatim; the new filesystem ticket
+`issues/20261012-quarry-difftest-commuted-overflow-meters-differ.md` records
+it. The reproducer has no writes and its only table is online-only, so no
+UNION path executes. This campaign also exits red.
