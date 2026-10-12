@@ -475,9 +475,41 @@ def membershipDocsReordered : Schema := { tables := [
     read := .or (.eq (self "owner") .viewer)
       (.probe "members" [("principal", .viewer), ("parent", self "parent")]) }] }
 
+/-- Fixed named equalities beyond the unique key remain part of the witness;
+the unique columns need only be present once. -/
+def membershipDocsExtraEquality : Schema := { tables := [
+  { name := "members", cols := [c "parent", c "principal", c "role"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent", c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" [("parent", self "parent"), ("principal", .viewer), ("role", .lit (T "member"))]) }] }
+
+/-- Repeated copies of one party use one static descriptor, as the compiler
+deduplicates party columns before enforcing the eight-descriptor limit. -/
+def membershipDocsRepeatedParty : Schema := { tables := [
+  { name := "members", cols := [c "parent", c "principal"]
+    uniques := [["parent", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent", c "at"]
+    read := List.foldr Rule.or
+      (.probe "members" [("parent", self "parent"), ("principal", .viewer)])
+      (List.replicate 7 (.eq (self "owner") .viewer)) }] }
+
 def membershipDocStore : Store := mkStore [
   ("members", [mkRow "m1" [("parent", T "p1"), ("principal", I "alice")],
                mkRow "m2" [("parent", T "p2"), ("principal", I "alice")]]),
+  ("documents", [mkRow "d1" [("owner", I "alice"), ("parent", T "p0"), ("at", N 1)],
+                 mkRow "d2" [("owner", I "bob"), ("parent", T "p9"), ("at", N 2)],
+                 mkRow "d3" [("owner", I "alice"), ("parent", T "p1"), ("at", N 3)],
+                 mkRow "d4" [("owner", I "bob"), ("parent", T "p1"), ("at", N 4)],
+                 mkRow "d5" [("owner", I "bob"), ("parent", T "p2"), ("at", N 5)]])]
+
+def membershipExtraStore : Store := mkStore [
+  ("members", [mkRow "m1" [("parent", T "p1"), ("principal", I "alice"), ("role", T "member")],
+               mkRow "m2" [("parent", T "p2"), ("principal", I "alice"), ("role", T "guest")]]),
   ("documents", [mkRow "d1" [("owner", I "alice"), ("parent", T "p0"), ("at", N 1)],
                  mkRow "d2" [("owner", I "bob"), ("parent", T "p9"), ("at", N 2)],
                  mkRow "d3" [("owner", I "alice"), ("parent", T "p1"), ("at", N 3)],
@@ -541,6 +573,18 @@ def merged : List Example := [
   { name := "page-owner-membership-reordered-named-key"
     source := "LLP 3000.036.001 §14: a named membership key resolves against its unique columns independent of authored order"
     case := { schema := membershipDocsReordered, store := membershipDocStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-extra-named-equality"
+    source := "LLP 3000.036.001 §14: fixed named equalities may follow the full unique membership key"
+    case := { schema := membershipDocsExtraEquality, store := membershipExtraStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-repeated-party"
+    source := "LLP 3000.036.001 §14: repeated copies of one owner party consume one static descriptor"
+    case := { schema := membershipDocsRepeatedParty, store := membershipDocStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },

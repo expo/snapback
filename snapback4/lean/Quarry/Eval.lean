@@ -335,8 +335,7 @@ def membershipEligible (sch : Schema) (t : String) (key : List (String × Term))
     let columns := key.map (·.1)
     let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
     let exactUnique := columns.eraseDups.length == columns.length && td.uniques.any fun unique =>
-      unique.eraseDups.length == unique.length && unique.length == columns.length
-        && unique.all columns.contains
+      unique.eraseDups.length == unique.length && unique.all columns.contains
     exactUnique
       && td.caps.any (fun cap => cap.max ≤ 8192 && cap.columns.all fun c => fixed.any (·.1 == c))
       && td.read.byForm fixed
@@ -348,12 +347,16 @@ system lane fit the ordinary eight-descriptor limit. -/
 def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch) := do
   let leaves ← r.accessLeaves
   let topOr := match r with | .or _ _ => true | _ => false
-  let party := leaves.any fun b => match b with | .party _ => true | _ => false
-  let membership := leaves.any fun b => match b with | .membership _ _ => true | _ => false
+  let parties := leaves.filterMap fun b => match b with | .party c => some c | _ => none
+  let memberships := leaves.filter fun b => match b with | .membership _ _ => true | _ => false
+  let party := !parties.isEmpty
+  let membership := !memberships.isEmpty
   let eligible := leaves.all fun b => match b with
     | .party _ => true
     | .membership t key => membershipEligible sch t key
-  if topOr && party && membership && eligible && leaves.length + 1 ≤ 8 then some leaves else none
+  if topOr && party && membership && eligible
+      && parties.eraseDups.length + memberships.length + 1 ≤ 8
+  then some leaves else none
 
 /-- A capped owner-or-membership shape is reserved for PAGE even when one of
 its stricter eligibility checks declines. This mirrors the compiler's fallback
@@ -498,7 +501,9 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     let case3 := if !guards then false else match membershipRule with
       | some leaves =>
         let bases := alts.getD [[]]
-        bases.length * leaves.length + 1 ≤ 8
+        let parties := leaves.filterMap fun leaf => match leaf with | .party c => some c | _ => none
+        let memberships := leaves.filter fun leaf => match leaf with | .membership _ _ => true | _ => false
+        bases.length * (parties.eraseDups.length + memberships.length) + 1 ≤ 8
           && !(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
           && bases.all fun a => leaves.all fun leaf => match leaf with
             | .party c => c != "id" && !order.contains c
