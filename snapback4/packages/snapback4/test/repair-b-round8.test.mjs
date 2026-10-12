@@ -9,6 +9,7 @@ test("publication notifies watches even when its following state read fails; ret
   const requests = [];
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "engine_info": return { ok: {format:1,version:"0.4.24",capabilities:["sync-generation-v1"]} };
       case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };

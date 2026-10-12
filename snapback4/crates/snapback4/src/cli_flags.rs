@@ -1,5 +1,5 @@
 //! Validate the complete command before any project, store or host work.
-const SWITCHES: &[&str] = &["help", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
+const SWITCHES: &[&str] = &["help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
 
 fn allowed(verb: &str) -> &'static str {
     match verb {
@@ -8,8 +8,8 @@ fn allowed(verb: &str) -> &'static str {
         "device" => "engine-info",
         "types" => "json",
         "dev" => "port bind no-watch fresh memory replay hold-effects hold-schedules clock-offset resume-clock trace-empty verbose i-understand-cleartext long-waits long-waits-per-principal claim-waits",
-        "deploy" => "check restore-dormant allow-feed-adoption allow-destructive",
-        "rollback" => "check to allow-feed-adoption allow-destructive",
+        "deploy" => "verbose json restore-dormant allow-feed-adoption allow-destructive",
+        "rollback" => "verbose json check to allow-feed-adoption allow-destructive",
         "prune" => "allow-destructive json",
         "releases" => "after items-after event json",
         "serve" => "clock-offset resume-clock now replay port bind worker i-understand-cleartext long-waits long-waits-per-principal claim-waits",
@@ -23,7 +23,7 @@ fn allowed(verb: &str) -> &'static str {
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
         "doctor" => "url latency reset json instance release",
-        "witness" => "as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project",
+        "witness" => "initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project",
         _ => "",
     }
 }

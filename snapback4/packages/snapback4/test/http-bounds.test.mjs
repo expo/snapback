@@ -53,7 +53,8 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
   child.stdout.on("data", (data) => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:(\d+)(?=\r?\n)/)?.[0]; });
   child.stderr.on("data", (data) => { log += data; });
   const sockets = new Set();
-  const headers = { "x-snapback-persona": "alice" };
+  const engine = await processDevice({binary,dir:directory}).engineInfo();
+  const headers = { "x-snapback-persona": "alice", "x-snapback-device": JSON.stringify(engine) };
   const post = (path, body) => fetch(url + path, { method: "POST", headers, body, signal: AbortSignal.timeout(hangBudget()) });
   const ping = async () => {
     const response = await post("/q/ping", "{}");
@@ -95,7 +96,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const admitted = await fetch(url + "/probe", { headers, signal: AbortSignal.timeout(hangBudget()) });
       assert.equal(admitted.status, 200);
       const body = await admitted.json();
-      assert.deepEqual(body, { ok: true, seq: 0, store_id: body.store_id, viewer: "dev:alice" });
+      assert.deepEqual(body, { ok: true, seq: 0, store_id: body.store_id, viewer: "dev:alice", generation: 1 });
       assert.match(body.store_id, /^[0-9a-f]{32}$/);
     });
     await t.test("catalog, generated API, native module, and change activity refuse anonymous callers", async () => {
@@ -256,7 +257,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port), readableHighWaterMark: 1024 });
       sockets.add(socket);
       await once(socket, "connect");
-      socket.write('POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 12\r\n\r\n{"limit":38}');
+      socket.write(`POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nx-snapback-device: ${JSON.stringify(engine)}\r\nContent-Length: 12\r\n\r\n{"limit":38}`);
       await once(socket, "readable");
       socket.pause();
       try {

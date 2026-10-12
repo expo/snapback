@@ -311,7 +311,7 @@ for (const tier of ["online", "web", "native"]) {
     await until(async () => (await client.write(id))?.state === "sent");
     assert.equal(f.attempts.length, 2); assert.deepEqual(f.attempts[1], f.attempts[0]);
     const receipt = { state: "sent", id, seq: f.replies[0].seq, replayed: true };
-    assert.deepEqual(f.replies[1], { ...receipt, store_id: f.replies[0].store_id, head: f.replies[0].seq }); assert.deepEqual(await client.write(id), receipt);
+    assert.deepEqual(f.replies[1], { ...receipt, store_id: f.replies[0].store_id, head: f.replies[0].seq, generation: 1 }); assert.deepEqual(await client.write(id), receipt);
     assert.equal((await f.post("/q/receipts", { args: {} })).data.length, 1);
     // A new client recovers the original receipt by resending the same input.
     await client.close(); const reopened = await f.open();
@@ -407,7 +407,7 @@ test("W6b identity forms advertise and enforce the guest choice", { timeout: han
   for (const [form, guests, password] of [["use identity", true, true], ["use identity guests", true, false], ["use identity password", false, true]]) {
     const f = await fixture(t, true, `${form}\n`);
     const config = await (await fetch(f.url + "/auth/config")).json();
-    assert.deepEqual(config, { guests, password });
+    assert.deepEqual(config, { guests, password, generation: 1 });
     const visitor = await guest(f.url);
     assert.equal(visitor.ok, guests, JSON.stringify(visitor));
     if (guests) assert.equal(visitor.session.kind, "guest");
@@ -482,7 +482,7 @@ for (const tier of ["online", "process-device"]) for (const queued of [false, tr
     assert.deepEqual(replies[0].result.n, 43);
     assert.equal(replies[0].replayed, undefined);
     const receipt = { state: "sent", id: initial.id, seq: replies[0].seq, replayed: true };
-    assert.deepEqual(replies[1], { ...receipt, store_id: replies[0].store_id, head: replies[0].seq }, "the real HTTP server withholds historical values");
+    assert.deepEqual(replies[1], { ...receipt, store_id: replies[0].store_id, head: replies[0].seq, generation: 1 }, "the real HTTP server withholds historical values");
     assert.equal(attempts.length, 2);
     assert.deepEqual(attempts[1], attempts[0], "retry preserves id, arguments and predicted ids");
     const rows = await f.post("/q/receipts", { args: {} });

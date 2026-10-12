@@ -7,7 +7,7 @@
 //! the server verifies against the bytes; it is only ever served as an
 //! attachment under `nosniff` and a sandboxing CSP.
 
-use crate::serve::{Shared, cors, lock, producing_engine, principal_of, refusal_json, respond};
+use crate::serve::{Shared, cors, producing_engine, principal_of, refusal_json, respond};
 use serde_json::json;
 use snapback4_core::error::Refusal;
 use std::io::{self, Read as _, Seek, SeekFrom};
@@ -70,14 +70,14 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     if intent.is_some() && expected_store.is_none() { return respond(request,400,json!({"denied":Refusal::new("E_INPUT","input","intent uploads require store_id from the identified backend")})); }
     let stored = (|| {
         if let Some(expected) = expected_store {
-            if lock(&shared.engine).store().meta("store_id")?.as_ref() != Some(expected) {
+            if producing_engine(shared).store().meta("store_id")?.as_ref() != Some(expected) {
                 return Err(snapback4_core::RuntimeError::Structural { code: "E_STORE_REPLACED", message: "upload intent belongs to another backend store".into() });
             }
         }
         if let Some(id) = intent {
-            if let Some(asset) = lock(&shared.engine).asset_intent(&principal, id, &fingerprint)? { return Ok(asset); }
+            if let Some(asset) = producing_engine(shared).asset_intent(&principal, id, &fingerprint)? { return Ok(asset); }
         }
-        let placement=if let Some(id)=intent {Some(lock(&shared.engine).asset_declaration(&principal,id)?.ok_or_else(||snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"declare this intent's immutable placement before sending its bytes".into()} )?)}else{None};
+        let placement=if let Some(id)=intent {Some(producing_engine(shared).asset_declaration(&principal,id)?.ok_or_else(||snapback4_core::RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"declare this intent's immutable placement before sending its bytes".into()} )?)}else{None};
         let upload = match &file {
             // @ref LLP 3000.038#2 — the declared type is verified against the bytes before admission.
             Some(name) => {
@@ -94,7 +94,7 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
         let upload = upload.write(&body)?;
         // Logout while disk I/O was in flight cannot publish a new asset.
         principal_of(&request, shared).map_err(|_| snapback4_core::RuntimeError::Auth("sign in again".into()))?;
-        let mut engine = lock(&shared.engine);
+        let mut engine = producing_engine(shared);
         crate::release_requests::stamp(engine.generation());
         if let Some(expected) = expected_store {
             if engine.store().meta("store_id")?.as_ref() != Some(expected) { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"upload store changed during disk write".into()}); }
@@ -125,7 +125,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
-    let granted = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.asset_access_request(&principal, id, shared.now(), range_requested)};
+    let granted = {let mut engine=producing_engine(shared);crate::release_requests::stamp(engine.generation());engine.asset_access_request(&principal, id, shared.now(), range_requested)};
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -205,7 +205,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     // @ref LLP 3000.019#3.7 — finish before reader disposal and one-view bookkeeping.
     let delivered = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
     if grant.once && delivered.is_ok() {
-        if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, shared.now()) {
+        if let Err(error) = producing_engine(shared).record_asset_view(&principal, id, shared.now()) {
             snapback4_core::diagnostic!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
         }
     }
@@ -292,7 +292,7 @@ pub fn cancel(request: Request, id: &str, shared: &Shared) {
         return respond(request, 400, json!({"denied":Refusal::new("E_INPUT","input","invalid upload intent id")}));
     }
     let params = crate::serve::query_params(request.url());
-    let mut engine = lock(&shared.engine);
+    let mut engine = producing_engine(shared);
     let result = if params.get("store_id") != engine.store().meta("store_id").ok().flatten().as_ref() {
         Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"cancellation belongs to another backend store".into()})
     } else { engine.cancel_asset_intent(&principal,id) };
@@ -310,7 +310,7 @@ pub fn finish(request: Request, id: &str, body: Vec<u8>, shared: &Shared) {
         let name = payload.get("op").and_then(serde_json::Value::as_str).ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs op".into()))?;
         let args = payload.get("args").ok_or_else(|| snapback4_core::RuntimeError::Input("finalization needs args".into()))?;
         let why: Refusal = serde_json::from_value(payload.get("why").cloned().unwrap_or_default()).map_err(|e| snapback4_core::RuntimeError::Input(e.to_string()))?;
-        let mut engine = lock(&shared.engine);
+        let mut engine = producing_engine(shared);
         if params.get("store_id") != engine.store().meta("store_id")?.as_ref() { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"finalization belongs to another backend store".into()}); }
         engine.finish_asset_intent(&principal,id,name,args,&why)
     })();
@@ -321,7 +321,7 @@ pub fn finish(request: Request, id: &str, body: Vec<u8>, shared: &Shared) {
 pub fn intents(request: Request, shared: &Shared) {
     let principal = match principal_of(&request,shared) { Ok(p)=>p.0,Err(why)=>return respond(request,401,json!({"denied":refusal_json(&why)})) };
     let params=crate::serve::query_params(request.url());
-    let mut engine=lock(&shared.engine);
+    let mut engine=producing_engine(shared);
     let result=(|| {
         if params.get("store_id") != engine.store().meta("store_id")?.as_ref() { return Err(snapback4_core::RuntimeError::Structural {code:"E_STORE_REPLACED",message:"intent inventory requires the current backend store_id".into()}); }
         let after=params.get("after").map(String::as_str).unwrap_or("");
@@ -347,7 +347,7 @@ pub fn declare(request:Request,id:&str,body:Vec<u8>,shared:&Shared){
         let file=payload.get("file").map(|f|snapback4_core::assets::sanitize_name(f["name"].as_str().unwrap_or("")));
         let declared=payload.get("file").and_then(|f|snapback4_core::assets::declared_type(f["type"].as_str()));
         let fingerprint=snapback4_core::value::digest(&(digest,file,declared));
-        let mut engine=lock(&shared.engine);
+        let mut engine=producing_engine(shared);
         if params.get("store_id")!=engine.store().meta("store_id")?.as_ref(){return Err(snapback4_core::RuntimeError::Structural{code:"E_STORE_REPLACED",message:"declaration belongs to another backend store".into()});}
         engine.declare_asset_intent(&principal,id,&fingerprint,placement)
     })();

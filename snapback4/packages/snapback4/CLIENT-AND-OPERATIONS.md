@@ -1572,6 +1572,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useLink()`, `useSession()`, `useNow(deadline?)` | `"online" \| "offline" \| "signed-out"`; `Session \| null`; server time in ms |
 | `useAcquired()`, `useAcquisition()` | whether the device holds its first snapshot; acquisition progress |
 | `useAsset(id)` | `AssetState`: `empty`, `loading`, `ready` (`url`, a file's `name`), `denied` or `error` (`why`) |
+| `useUpload(op, argument, id?)` | durable capture, typed upload progress, retry and cancellation; see OFFLINE-UPLOADS.md |
 | `useSaveAsset()` | `{ save(id, name?), saving, why }`: a file saved on demand, through the browser's download |
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
@@ -3947,3 +3948,24 @@ even when their rows remain; historical commit stamps can outlive deleted rows. 
 complete recipe and detection scope. Inspection failures print "unavailable" and
 leave dev startup running; ordinary store admission still applies. No row image
 is inspected. Restarting resets time, not written rows.
+
+### Durable media capture
+
+A local device owns captured bytes and the placing mutation across offline/reload.
+`useUpload` exposes that same custody in React. See [OFFLINE-UPLOADS.md](./OFFLINE-UPLOADS.md) for states and limits.
+
+```tsx
+import { useUpload } from "snapback4/react";
+import { hasUploads, uploadAndPlace, blobArrayBuffer } from "snapback4/local";
+import type { Client } from "snapback4/contract";
+import { api } from "../snapback/generated/api.ts";
+
+export async function capturePhoto(client: Client, photo: Blob) {
+  const bytes = new Uint8Array(await blobArrayBuffer(photo));
+  if (hasUploads(client)) return uploadAndPlace(client, api.sendPhoto, { conversationId: "c" }, bytes, { argument: "photo" });
+}
+export function PhotoCapture({ photo }: { photo: Blob }) {
+  const upload = useUpload(api.sendPhoto, "photo");
+  return <button disabled={!upload.available} onClick={() => upload.uploadAndPlace({ conversationId: "c" }, photo)}>{upload.state?.state ?? "Send photo"}</button>;
+}
+```

@@ -127,6 +127,7 @@ test("catch-up requests adopt the device transfer cursor", { timeout: hangBudget
   const requests = [];
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "engine_info": return { ok: {format:1,version:"0.4.24",capabilities:["sync-generation-v1"]} };
       case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };
@@ -173,6 +174,7 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: hangBu
   const requests = [];
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "engine_info": return { ok: {format:1,version:"0.4.24",capabilities:["sync-generation-v1"]} };
       case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };
@@ -234,6 +236,7 @@ test("generation adoption compares published identity during private acquisition
   const backend = () => ({ generation: serverGeneration, schema: { tables: {} }, programs: [] });
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "engine_info": return { ok: {format:1,version:"0.4.24",capabilities:["sync-generation-v1"]} };
       case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: { ...backend(), generation } };
       case "meta": return { ok: null };

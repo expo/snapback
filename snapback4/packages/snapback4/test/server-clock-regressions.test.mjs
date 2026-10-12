@@ -35,6 +35,7 @@ function fixture(t, tier) {
   const f = { offset: 120_000, revision: 0, offline: false, requests: 0, deviceReads: 0, meta: new Map(), outcome: undefined, serverOutcome: undefined };
   const core = { async close() {}, async call(request) {
     switch (request.op) {
+      case "engine_info": return { ok: {format:1,version:"0.4.24",capabilities:["sync-generation-v1"]} };
       case 'meta': return { ok: f.meta.get(request.key) ?? null };
       case 'set_meta': f.meta.set(request.key, request.value); return { ok: null };
       case 'backend': return { ok: backend };

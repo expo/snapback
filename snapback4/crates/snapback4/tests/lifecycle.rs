@@ -65,7 +65,7 @@ fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
     let deployed = Command::new(BIN).current_dir(&dir.0).args(["deploy", release])
         .env("XDG_RUNTIME_DIR", dir.0.join("different-runtime")).output().unwrap();
     assert!(deployed.status.success(), "{deployed:?}");
-    assert!(String::from_utf8_lossy(&deployed.stdout).contains("activated in the running server"), "{deployed:?}");
+    assert!(String::from_utf8_lossy(&deployed.stdout).contains("release 2 is current as generation 2"), "{deployed:?}");
     assert_eq!(post_as(host.port, "/q/version", json!({"args":{}}), &credential)["data"], 2);
     let rolled = dir.run(&["rollback", release]);
     assert!(rolled.status.success(), "{rolled:?}");

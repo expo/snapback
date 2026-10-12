@@ -58,8 +58,9 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   t.after(async()=>{for(const d of clients)await d.client.close();if(child.exitCode==null&&child.signalCode==null)child.kill();await exited;rmSync(dir,{recursive:true,force:true})});
   const deadline=performance.now() + hangBudget();
   while(!url){assert.equal(child.exitCode,null,log);assert.ok(performance.now()<deadline,log);await delay(20)}
+  const engine = await processDevice({binary,dir:join(dir,"identity")}).engineInfo();
   const post=async(path,body)=>{
-    const response=await fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"alice"},body:JSON.stringify(body)});
+    const response=await fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"alice","x-snapback-device":JSON.stringify(engine)},body:JSON.stringify(body)});
     assert.equal(response.status,200);return response.json();
   };
   const parents=Array.from({length:moves},(_,n)=>["p","q"].map(prefix=>({table:"posts",row:{id:prefix+n,body:"x".repeat(width)}}))).flat();
@@ -69,7 +70,7 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   for(const tier of ["sqlite","wasm"]){
     const opener=tier==="sqlite"?processDevice({binary,dir:join(dir,tier)}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});
     const d={tier,pages:[],core:null,client:null,offline:false,record:false};
-    d.client=await createLocalClient({url,persona:"alice",waitSeconds:1,device:{open:async(...args)=>d.core=await opener.open(...args)},fetch:async(input,init)=>{
+    d.client=await createLocalClient({url,persona:"alice",waitSeconds:1,device:{engineInfo:()=>opener.engineInfo(),open:async(...args)=>d.core=await opener.open(...args)},fetch:async(input,init)=>{
       if(new URL(input).pathname==="/changes")return parkedChanges(init.signal);
       if(d.offline)throw new TypeError("paused device");
       const response=await fetch(input,init);

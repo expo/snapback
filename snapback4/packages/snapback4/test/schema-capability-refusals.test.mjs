@@ -10,6 +10,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {server,binary} from './helpers/app-server.mjs';
+import {processDevice} from '../dist/native.js';
+const engine=await processDevice({binary,dir:process.cwd()}).engineInfo();
 import {fixtures} from './helpers/schema-capability-fixtures.mjs';
 
 function dump(path) {
@@ -29,7 +31,7 @@ function native(dir,path,backend,requests=[]) {
   return {...result,replies};
 }
 async function request(url,path,body) {
-  const response=await fetch(url+path,{method:body?'POST':'GET',headers:{'x-snapback-persona':'alice','content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+  const response=await fetch(url+path,{method:body?'POST':'GET',headers:{'x-snapback-persona':'alice','x-snapback-device':JSON.stringify(engine),'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
   const json=await response.json();assert.equal(response.status,200,JSON.stringify(json));return json;
 }
 

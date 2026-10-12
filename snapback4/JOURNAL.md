@@ -94053,3 +94053,14 @@ and their targets green on rerun. Later corrections were qualified by affected
 checks. Wasm repeats 675836 B gzip within unchanged 679918 B budget; package
 build and ref-check pass. Root WORKSTREAM-REPORT.md maps every item, commit,
 qualification and lane pointer. No push or publication.
+
+
+### 2026-10-12 — Integration 6: HAND, MEDIA and REL
+
+Merged HAND (75abfd97c7), MEDIA (769bd9d3f8), then REL (47591fff4a), each with --no-ff, over d0f387fc19. The bounded conflict reconstruction in fb3c07d096 restores files truncated by an initial resolution script; the final tree retains all three lanes and both journals/LLPs. The short per-user socket, 0700/0600 refusal policy, stale/live checks, total input deadline, shutdown join and long-path regressions are unchanged.
+
+Integration corrections: the shared flag validator admits rollback --check/--to latest and both release verbs' JSON/verbose modes, plus existing Expo witness export switches. Deploy --check is refused before work: REL's exact preview is rollback-only. MEDIA endpoints stamp their producing engine, including replay/declaration/cancel/finalize/inventory; a streamed declaration/hot-switch regression checks body and header generations. Unauthenticated 401 responses disclose no generation. Existing fixtures report their real or modeled device engine rather than bypassing handshake; old image-preservation assertions now require reacquisition on a changed generation, as REL's §9.1 specifies. The public API index and compiled media capture recipe cover both lanes.
+
+Delivery censuses regenerated from the merged source (213 selected awaits). Lean check: 54 theorem audits with standard axioms only, 53/53 examples, 7 oracle fixtures. Differential run: 20,000 sources and device seeds 0–999 have no signatures. Lean's 20,000 sources reproduce only four checked-in signatures: E_RULE/NOT_FOUND (ordinary/prelude) and next/no-next (first/continuation).
+
+Wasm measurement now stamps the same optimized artifact as the shipped build. Locked Linux artifact: 2,260,490 B raw, 686,901 B gzip, 520,058 B brotli. Budget 687,401 B = measurement + 500 B headroom; combined handshake/media device additions are retained. MEDIA's JSON fingerprint uses owned envelope values, preserving the existing serializer-family policy. No per-feature attribution, macOS wasm measurement or runtime ceiling increase. Complete Rust/client/native qualification and independent review dispositions are recorded in the Integration 6 report. No origin push or publication.

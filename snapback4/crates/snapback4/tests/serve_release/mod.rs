@@ -582,3 +582,24 @@ fn upload_preparation_refusal_stamps_the_generation_after_streamed_intake() {
     let data=body(&reply);assert_eq!(data["denied"]["code"],"E_ASSET_TOO_LARGE","{reply}");assert_eq!(data["generation"],3,"{reply}");
     assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 3\r\n"),"{reply}");
 }
+
+#[test]
+fn media_declaration_stamps_the_generation_after_streamed_intake() {
+    let directory = ReaderTestDirectory::new();
+    let host = directory.host();
+    let store_id = lock(&host.shared.engine).store().meta("store_id").unwrap().unwrap();
+    let payload = serde_json::json!({"digest":"a".repeat(64),"placement":{"op":"place","args":{},"argument":"asset"},"padding":"x".repeat(2048)}).to_string();
+    let mut socket = TcpStream::connect(host.address).unwrap();
+    socket.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let header = format!("POST /assets/intent/intake-media/declare?store_id={store_id} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Type: application/json\r\nContent-Length: {}\r\nExpect: 100-continue\r\n\r\n", payload.len());
+    socket.write_all(header.as_bytes()).unwrap();
+    let mut interim = Vec::new(); let mut byte = [0];
+    while !interim.ends_with(b"\r\n\r\n") { socket.read_exact(&mut byte).unwrap(); interim.push(byte[0]); }
+    assert!(String::from_utf8_lossy(&interim).contains("100 Continue"));
+    let changed = READER_SCHEMA.replace("return 1", "return 2");
+    let switched = release::apply(&host.shared, &directory.0, candidate(&directory.0, 2, &changed, None, 0)).unwrap();
+    socket.write_all(payload.as_bytes()).unwrap();
+    let mut reply = String::new(); socket.read_to_string(&mut reply).unwrap();
+    assert_eq!(body(&reply)["generation"], switched["generation"], "{reply}");
+    assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 2\r\n"), "{reply}");
+}

@@ -682,7 +682,7 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     let refused = status >= 400 || body.refused();
     trace::mark("encode_start");
     let mut bytes = JsonBuffer(Vec::new());
-    let generation = body.generation().or_else(crate::release_requests::reply_generation).or_else(|| shared.map(|s| *lock(&s.generation)));
+    let generation = if status == 401 { None } else { body.generation().or_else(crate::release_requests::reply_generation).or_else(|| shared.map(|s| *lock(&s.generation))) };
     crate::release_requests::executed();
     let encoded = serde_json::to_writer(&mut bytes, &body);
     // Append only to envelopes without a generation, without cloning row payloads.

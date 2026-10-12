@@ -21,17 +21,17 @@ type and `Ops` the handles' types; `RowOf<typeof api.op>`, `ArgsOf<…>` and `Re
 | Subpath | For | Functions and hooks | Main types |
 |---|---|---|---|
 | `snapback4/app` | the app object: identity, client lifetime, pending writes | `createApp` | `App`, `AppOptions`, `AppAuth`, `AuthState`, `Online` |
-| `snapback4/react` | React and React Native hooks | `AppProvider`, `useAuth`, `useClient`, `useViewer`, `useSignedInViewer`, `usePersonaApp`, `useSession`, `useQuery`, `usePage`, `useFollowing`, `useMutation`, `useAction`, `useAsset`, `useSaveAsset`, `useLink`, `useOnline`, `useNow`, `useAcquired`, `useAcquisition`, `usePendingWrite`, `usePendingWrites`, `usePendingItems`, `usePendingState`, `useSeen`, `useInspection`, `SnapbackProvider`; and the `snapback4/contract` guards | `UseQuery`, `UsePage`, `ReadHookOptions` (`{ keep, skip }`), `UseAction`, `UseMutation`, `WriteHook`, `MutationHook`, `Outcome`, `AssetState`, `PendingItem` |
+| `snapback4/react` | React and React Native hooks | `AppProvider`, `useAuth`, `useClient`, `useViewer`, `useSignedInViewer`, `usePersonaApp`, `useSession`, `useQuery`, `usePage`, `useFollowing`, `useMutation`, `useAction`, `useAsset`, `useSaveAsset`, `useUpload`, `useLink`, `useOnline`, `useNow`, `useAcquired`, `useAcquisition`, `usePendingWrite`, `usePendingWrites`, `usePendingItems`, `usePendingState`, `useSeen`, `useInspection`, `SnapbackProvider`; and the `snapback4/contract` guards | `UseQuery`, `UsePage`, `ReadHookOptions` (`{ keep, skip }`), `UseAction`, `UseMutation`, `WriteHook`, `MutationHook`, `Outcome`, `AssetState`, `PendingItem` |
 | `snapback4/contract` | reading answers: the types every tier shares | `matchRead`, `otherwiseAll` (one fallback for every state the call does not name; named handlers win in any order), `isReady`, `isLoading`, `isDenied`, `isFailed` (an outcome, a hook by its latest one, or an unknown value), `sentResult` (a write's fresh result, if any), `existence`, `readPresentation` | `Read`, `Ready`, `SettledRead`, `Refusal`, `Write`, `Outcome`, `PendingWrite`, `Query`, `Mutation`, `Action`, `RowOf`, `ArgsOf`, `ResultOf`, `Cursor`, `Principal`, `Client` |
 | `snapback4/client` | the online client without a device (scripts, tests, servers) | `createClient`, `mintId`, `idFrom`, `saveAsset` | `Client`, `ClientOptions`, `Session`, `Saved` |
 | `snapback4/web` | the device in the browser (wasm) | `webDevice`, `indexedDbPersistence`, `memoryPersistence` | `WebDeviceOptions`, `Persistence` |
-| `snapback4/local` | a local-first client over a device you open | `createLocalClient` | `LocalOptions`, `LocalClient`, `DeviceOpener` |
+| `snapback4/local` | a local-first client over a device you open | `createLocalClient`, `DeviceVersionError`, `uploadAndPlace`, `hasUploads`, `blobArrayBuffer` | `LocalOptions`, `LocalClient`, `DeviceOpener` |
 | `snapback4/native` | the device as a process, from Node | `processDevice` | `ProcessDeviceOptions` |
 | `snapback4/auth` | sign-in and session storage | `guest`, `signup`, `login`, `logout`, `logoutAll`, `refreshSession`, `restoreSession`, `keepSession`, `forgetSession`, `narrowSession`, `memorySessionStore`, `localStorageSessionStore`, `defaultSessionStore`, `sessionKey` | `Session`, `SignIn`, `SessionStore` |
 | `snapback4/mock` | a labelled in-memory mock for screens without a server | `createMockClient`, `mockId`, `page` | `MockClient`, `MockOptions` |
 | `snapback4/inspection` | read-pressure inspection | `inspect` | `ReadInspection`, `PressureCounts` |
 
-Expo: `snapback4-expo` exports `nativeDevice` and `nativeAvailable` (pass `device: nativeDevice` to
+Expo: `snapback4-expo` exports `nativeDevice`, `nativeAvailable` and `saveAsset` (pass `device: nativeDevice` to
 `createApp`); `snapback4-expo/witness` has `smokeOrigin` for simulator proofs (`guide witness`).
 
 ## Server and tooling subpaths

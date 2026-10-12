@@ -727,7 +727,7 @@ query extras():
       await releasePost(url, headers, '/m/repairStatus', { item: id }, 'v2-repair');
       run('rollback', deployment);
       const current = JSON.parse(run('releases', deployment)); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 3);
-      const stale = await (await fetch(url + '/sync', { method: 'POST', headers, body: JSON.stringify({ generation: oldGeneration, from: 0, limit: 100, after: null, stream: false, pending: [] }) })).json(); assert.equal(stale.denied.code, 'E_SYNC_GENERATION');
+      const stale = await (await fetch(url + '/sync', { method: 'POST', headers: {...headers,'x-snapback-device':JSON.stringify(await processDevice({binary,dir:process.cwd()}).engineInfo())}, body: JSON.stringify({ generation: oldGeneration, from: 0, limit: 100, after: null, stream: false, pending: [] }) })).json(); assert.equal(stale.denied.code, 'E_SYNC_GENERATION');
       await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {}); assert.ok(local.data.every(row => !Object.hasOwn(row, 'extra')));
       assert.equal((await releasePost(url, headers, '/m/edit', { item: id, body: 'old write' }, 'v1-edit')).state, 'sent');
       assert.equal((await releasePost(url, headers, '/m/remove', { item: gone }, 'v1-delete')).state, 'sent');

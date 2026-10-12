@@ -55,15 +55,17 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
     assert.ok(legacy.schema.tables['$recount:unread']);
     assert.ok(legacy.schema.tables['$basis:unread']);
     assert.equal(Object.keys(legacy.schema.tables).length, Object.keys(backend.schema.tables).length + 2);
-    await t.test('native adoption still preserves acquisition with synthesized work tables', async () => {
+    await t.test('native generation adoption reacquires synthesized work tables', async () => {
       ok(await native.call(snapshot));
       assert.equal(nativeMeta(boundary), 'whole');
       ok(await native.call({ op: 'adopt', backend: next }));
       const state = ok(await native.call({ op: 'sync_state', capture: false }));
-      assert.equal(state.acquired, true);
+      assert.equal(state.acquired, false);
       assert.equal(state.generation, next.generation);
       assert.equal(state.backend_required, false);
-      assert.equal(nativeMeta(boundary), 'whole');
+      assert.equal(nativeMeta(boundary), undefined);
+      assert.equal(ok(await native.call(unread)).denied?.code, 'E_PREDICT');
+      ok(await native.call({...snapshot, page:{...snapshot.page,generation:next.generation}}));
       const reply = ok(await native.call(unread));
       assert.equal(reply.complete, true);
       assert.equal(reply.data, 2);
@@ -123,24 +125,21 @@ async function legacyWorkAdoption(t, directory, publicBackend) {
       try {
         if (mode === 'adopt') invoke(device, { op: 'adopt', backend: successor });
         const state = invoke(device, { op: 'sync_state', capture: false });
-        assert.equal(state.acquired, !addedPublicTables);
+        assert.equal(state.acquired, false);
         assert.equal(state.generation, next.generation);
         assert.equal(state.backend_required, false);
         const reply = invoke(device, addedPublicTables
           ? { op: 'query', name: 'newRows', viewer: 'dev:bob', args: {}, now: 1 }
           : unread);
-        if (addedPublicTables) {
+        {
           assert.equal(reply.denied?.code, 'E_PREDICT', JSON.stringify(reply));
           assert.equal(Object.hasOwn(reply, 'data'), false);
           assert.equal(Object.hasOwn(reply, 'complete'), false);
-        } else {
-          assert.equal(reply.complete, true);
-          assert.equal(reply.data, 2);
         }
         const saved = folded([...kept, ...JSON.parse(device.drain())]);
         const meta = key => new Map(saved).get(JSON.stringify(['m', key]));
-        assert.equal(meta(boundary), addedPublicTables ? undefined : 'whole');
-        assert.deepEqual(saved.filter(([key]) => JSON.parse(key)[0] === 'r'), folded(kept).filter(([key]) => JSON.parse(key)[0] === 'r'));
+        assert.equal(meta(boundary), undefined);
+        assert.deepEqual(saved.filter(([key]) => JSON.parse(key)[0] === 'r'), []);
         const fresh = new WebDevice(JSON.stringify(successor), '[]');
         try {
           const freshIdentity = JSON.parse(fresh.drain()).find(change => change.k === 'device:backend-identity').v;

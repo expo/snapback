@@ -38,7 +38,8 @@ query one(id: items):
   return items[id]
 `;
 const id = i => `row-${String(i).padStart(2, "0")}`;
-const headers = { "x-snapback-persona": "alice" };
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
+const headers = { "x-snapback-persona": "alice", "x-snapback-device": JSON.stringify(engine) };
 async function until(check, message) { return awaitState(check, message); }
 
 function parkedChanges(signal) {

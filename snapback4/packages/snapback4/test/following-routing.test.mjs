@@ -21,6 +21,7 @@ for (const scenario of ["server", "offline", "pending", "transport recovered"]) 
     const core = {
       async call(request) {
         switch (request.op) {
+          case "engine_info": return { ok: {format:1,version:"0.4.24",capabilities:["sync-generation-v1"]} };
           case "backend": return { ok: backend };
           case "state": return { ok: { watermark: 0, generation: 1 } };
           case "sync_state": return { ok: { receipt_outcomes: true, outbox_status: true, acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], send_revision: 0 } };

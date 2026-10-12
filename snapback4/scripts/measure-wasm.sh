@@ -36,6 +36,7 @@ if [ "$(gzip -9 -c < "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -
 # Compare identical gzip headers; temporary filenames must not buy bytes.
 node "$optimizer" --code-folding --duplicate-function-elimination --dce --vacuum --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/fold.wasm" "$wasm"
 if [ "$(gzip -9 -c < "$out/fold.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then optimized=true; mv "$out/fold.wasm" "$wasm"; else rm "$out/fold.wasm"; fi
+node scripts/stamp-device.mjs "$wasm"
 sizes() { printf '{"raw":%d,"gzip":%d,"brotli":%d}' "$(wc -c < "$1")" "$(gzip -9 -c "$1" | wc -c)" "$(brotli -c -q 11 "$1" | wc -c)"; }
 over=$(( $(gzip -9 -c "$wasm" | wc -c) - budget ))
 if [ "$over" -lt 0 ]; then over=0; fi

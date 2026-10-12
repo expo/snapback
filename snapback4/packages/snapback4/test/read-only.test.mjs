@@ -167,6 +167,7 @@ test('legacy full session restores offline and rejects a read successor before p
   const session={...full(),expiresAt:Date.now()+7*86400_000},store=alphabetStore([[sessionKey(url),JSON.stringify(session)]]);let opens=0;
   const backend={generation:1,schema:{tables:{}},programs:[]};
   const client=await createLocalClient({url,sessionStore:store,fetch:async input=>{if(new URL(input).pathname==='/auth/refresh')return Response.json({session:{...session,token:'ro.forged',scope:'full'}});throw Error('offline');},device:{async open(){opens++;return {async close(){},async call({op}){
+    if(op==='engine_info')return {ok:{format:1,version:'0.4.24',capabilities:['sync-generation-v1']}};
     if(op==='sync_state')return {ok:{acquired:true,backend_required:false,store_id:null,watermark:0,generation:1,send_revision:0,restore_watermark:0,restore_images_at:0,receipt_outcomes:true,outbox_status:true,adoption_capture:{},pending_ids:[]}};
     if(op==='state')return {ok:{watermark:0,generation:1,native:null}};
     if(op==='backend')return {ok:backend};if(op==='meta')return {ok:null};if(op==='queued')return {ok:[]};return {ok:true};
