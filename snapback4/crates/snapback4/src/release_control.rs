@@ -12,7 +12,7 @@ use std::{
     fs,
     io::{self, Read, Write},
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const INPUT: usize = 4096;
@@ -108,7 +108,7 @@ fn socket_entry(path: &Path) -> io::Result<fs::Metadata> {
     let m = fs::symlink_metadata(path)?;
     if !m.file_type().is_socket()
         || m.uid() != unsafe { libc::geteuid() }
-        || m.permissions().mode() & 0o777 != 0o600
+        || m.permissions().mode() & 0o7777 != 0o600
     {
         return Err(io::Error::other(
             "release control must be a same-owner 0600 socket, never a symlink or regular file",
@@ -158,6 +158,31 @@ fn address(dir: &Path, create: bool) -> io::Result<PathBuf> {
         "{}.sock",
         crate::native::digest(canonical.as_os_str().as_bytes())
     )))
+}
+
+// @ref LLP 3000.000.000#51-path-independent-control-address — a total input deadline bounds shutdown even when a peer keeps sending bytes.
+#[cfg(unix)]
+fn input(stream: &mut UnixStream, timeout: Duration) -> io::Result<Vec<u8>> {
+    let deadline = Instant::now() + timeout;
+    let mut bytes = Vec::new();
+    let mut buffer = [0; INPUT + 1];
+    while bytes.len() <= INPUT {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "release control input deadline exceeded",
+            ));
+        }
+        stream.set_read_timeout(Some(remaining))?;
+        match stream.read(&mut buffer[..INPUT + 1 - bytes.len()]) {
+            Ok(0) => break,
+            Ok(n) => bytes.extend_from_slice(&buffer[..n]),
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(bytes)
 }
 
 /// Only called while the exclusive database sidecar is held, so stale socket
@@ -220,16 +245,9 @@ impl Listener {
         let result = (|| -> Result<Value, String> {
             peer(&stream).map_err(|e| e.to_string())?;
             stream
-                .set_read_timeout(Some(Duration::from_secs(5)))
-                .map_err(|e| e.to_string())?;
-            stream
                 .set_write_timeout(Some(Duration::from_secs(5)))
                 .map_err(|e| e.to_string())?;
-            let mut bytes = Vec::new();
-            (&mut *stream)
-                .take((INPUT + 1) as u64)
-                .read_to_end(&mut bytes)
-                .map_err(|e| e.to_string())?;
+            let bytes = input(stream, Duration::from_secs(5)).map_err(|e| e.to_string())?;
             if bytes.len() > INPUT {
                 return Err("release control command exceeds 4096 bytes".into());
             }
@@ -408,22 +426,49 @@ mod tests {
             fs::metadata(&path).unwrap().permissions().mode() & 0o777,
             0o600
         );
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o666)).unwrap();
-        assert!(
-            request(
-                &dir.0,
-                Command::Status {
-                    after: 0,
-                    items_after: None,
-                    event: None
-                }
-            )
-            .unwrap_err()
-            .contains("0600 socket")
-        );
+        for mode in [0o666, 0o1600] {
+            fs::set_permissions(&path, fs::Permissions::from_mode(mode)).unwrap();
+            assert!(
+                request(
+                    &dir.0,
+                    Command::Status {
+                        after: 0,
+                        items_after: None,
+                        event: None
+                    }
+                )
+                .unwrap_err()
+                .contains("0600 socket")
+            );
+        }
         drop(listener);
         assert!(!path.exists());
     }
+    #[test]
+    fn input_deadline_expires_while_the_peer_keeps_sending() {
+        let (mut reader, mut writer) = UnixStream::pair().unwrap();
+        let task = std::thread::spawn(move || {
+            while writer.write_all(b" ").is_ok() {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        });
+        let started = Instant::now();
+        let error = input(&mut reader, Duration::from_millis(300)).unwrap_err();
+        assert!(
+            matches!(
+                error.kind(),
+                io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+            ),
+            "{error}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "input deadline reset on each read"
+        );
+        drop(reader);
+        task.join().unwrap();
+    }
+
     #[test]
     fn runtime_directory_refuses_permissions_symlinks_files_and_wrong_owner() {
         let dir = Directory::new(false);

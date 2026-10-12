@@ -437,9 +437,16 @@ fn dev_and_serve_report_signals_without_a_configured_worker() {
                 let mut stream = std::os::unix::net::UnixStream::connect(control_socket(&release)).unwrap();
                 stream.write_all(b"{\"identity\":").unwrap();
                 std::thread::sleep(Duration::from_millis(100));
-                Some(stream)
+                Some(std::thread::spawn(move || {
+                    // Keep resetting an idle timeout until the host closes.
+                    // Shutdown must enforce the total input deadline instead.
+                    while stream.write_all(b" ").is_ok() {
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                }))
             } else { None };
             let status = host.signal(signal);
+            if let Some(sender) = _control { sender.join().unwrap(); }
             // Serve now also joins its private release-control transport.
             if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) {
                 assert_eq!(status.code(), Some(128 + signal));
