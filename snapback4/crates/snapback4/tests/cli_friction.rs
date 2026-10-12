@@ -652,3 +652,45 @@ fn the_acceptance_recipe_reads_both_refusal_envelopes_and_web_shell_names_its_wr
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("web-shell is the npm wrapper's verb") && stderr.contains("node_modules/.bin/snapback4 web-shell dist") && !stderr.contains("unknown verb"), "{stderr}");
 }
+
+#[test]
+fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
+    let project = Project::new("use identity password\nquery alive():\n  return true\n");
+    for bad in ["junk", "65536", "-1", "0-2", "20-10", "1-2-3", ""] {
+        let output = project.run(&["serve", "missing-release", "--port", bad]);
+        assert!(!output.status.success(), "{bad}: {}", text(&output));
+        assert!(text(&output).contains("E_INPUT: serve --port"), "{bad}: {}", text(&output));
+        assert!(!project.0.join("missing-release").exists(), "invalid input must not create a deployment");
+    }
+    assert!(text(&project.run(&["rollback", "--help"])).contains("--allow-destructive"));
+    let output = project.run(&["deploy", "deployment"]);
+    assert!(output.status.success(), "{}", text(&output));
+    for port in ["0".to_owned(), {
+        let held = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let p = held.local_addr().unwrap().port();
+        format!("{p}-{p}")
+    }] {
+        let mut child = Command::new(BIN).current_dir(&project.0)
+            .args(["serve", "deployment", "--port", &port])
+            .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        let mut line = String::new();
+        BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let mut server = Dev(child);
+        let url = line.trim();
+        assert!(url.starts_with("http://127.0.0.1:"), "{line:?}");
+        let actual: u16 = url.rsplit(':').next().unwrap().parse().unwrap();
+        assert_ne!(actual, 0);
+        if port != "0" { assert_eq!(port, format!("{actual}-{actual}")); }
+        let mut logs = BufReader::new(server.0.stderr.take().unwrap());
+        loop {
+            let mut line = String::new();
+            assert!(logs.read_line(&mut line).unwrap() > 0, "missing ready line");
+            if line.contains("SNAPBACK4_READY") {
+                assert!(line.contains("verb=serve") && line.contains(&format!("url={url}")), "{line}");
+                break;
+            }
+        }
+        assert_eq!(http(url, "GET", "/schema", None, "").0, 401);
+        drop(server);
+    }
+}

@@ -141,6 +141,7 @@ pub fn rollback(options: &Options) -> i32 {
 }
 
 pub fn serve_release(options: &Options) -> Result<(), String> {
+    let requested_port = crate::port_flag::parse("serve", options.flags.get("port").map(String::as_str))?;
     let bind = release_bind(options)?;
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| std::env::var(name).ok())?;
     let dir = directory(options)?;
@@ -176,9 +177,9 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     }
     #[cfg(not(unix))]
     return Err("serving shared releases requires a filesystem supporting symbolic links".into());
-    let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
+    let (port, listener) = crate::port_flag::listen("serve", requested_port, bind, None)?;
     let worker = options.flags.get("worker").map(|path| Path::new(path).canonicalize().map_err(|e| format!("--worker {path}: {e}"))).transpose()?;
-    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker, owner: std::sync::Arc::new(owner) }, &bind.to_string(), None, capacity)
+    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker, owner: std::sync::Arc::new(owner) }, &bind.to_string(), listener, capacity)
 }
 
 pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {

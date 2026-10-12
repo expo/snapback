@@ -92635,3 +92635,13 @@ File assets and the pinned-parent page guard each landed within their own
 branch's budget; together the Linux web device measures 651,704 B gzip,
 264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
 the reason in `metrics/wasm-budget.json`.
+
+## 2026-10-12 — OPS: production ports and rollback help (wave 8 DT3, DT1b)
+
+Continued the untracked shared port-parser draft left by the previous session.
+Both listening verbs now parse N, 0 and inclusive A-B ranges, with E_INPUT for
+invalid input. Serve validates before creating deployment state and holds the
+chosen loopback range listener through startup. Its existing real-URL and
+SNAPBACK4_READY output is covered by a release subprocess regression. Rollback
+help lists both adoption flags; no adoption or rollback behavior changed.
+Validation: port-filtered binary and cli_friction tests passed (15 and 6 tests).
