@@ -488,9 +488,12 @@ impl Merge {
         hash.update(b"branch-merge-v1\0");
         hash.update((self.lanes.len() as u64).to_be_bytes());
         for lane in &self.lanes {
-            hash.update([u8::from(lane.grant())]);
             hash.update((lane.scan.index.len() as u64).to_be_bytes());
             hash.update(lane.scan.index.as_bytes());
+            // Keep the published static branch-merge-v1 bytes in their
+            // original order. New PAGE identity is appended only for its new
+            // descriptors, so an existing static cursor keeps resuming.
+            hash.update([u8::from(lane.grant())]);
             if lane.membership() {
                 hash.update(MEMBERSHIP_LANE.as_bytes());
             } else if lane.system() {

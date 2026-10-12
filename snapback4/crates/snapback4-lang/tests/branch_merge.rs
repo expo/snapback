@@ -772,6 +772,12 @@ fn repeated_long_index_names_have_a_bounded_cursor_descriptor() {
     let token = first.next.as_ref().expect("two matches need a cursor");
     let position = snapback4_core::cursor::decode_cursor(e.schema(), token).unwrap();
     assert_eq!(position.index.len(), 68);
+    // Frozen from the pre-PAGE branch-merge-v1 encoder. PAGE appends identity
+    // only for its new descriptors; it cannot reorder these published bytes.
+    assert_eq!(position.index, "$or:d2047ec0a012672024a8556c48743283d672a9a5254a10d51d4a4488d88e9b88");
+    let resumed = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::String(token.clone()))]))).unwrap();
+    assert_eq!(ids(&resumed.data), vec!["c1"]);
+    assert!(resumed.complete && resumed.next.is_none());
     let (got, complete) = walk(&mut e, "mine", "alice", &[]);
     assert_eq!(got, vec!["c2", "c1"]);
     assert!(complete.into_iter().all(|c| c));
