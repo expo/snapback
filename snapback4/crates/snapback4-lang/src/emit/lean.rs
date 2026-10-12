@@ -814,8 +814,8 @@ impl<'a> Scope<'a> {
 
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
-        if nonportable_owner_membership_page(self.module, read) {
-            return no("page-membership-key-bound", print());
+        if let Some(reason) = owner_membership_physical_issue(self.module, read) {
+            return no(reason, print());
         }
         match &read.range {
             None if read.filter.is_none() && !read.keys.is_empty() => {
@@ -1013,20 +1013,15 @@ fn model_total_unique(table: &Table, index: &ast::IndexDecl) -> bool {
 }
 
 /// The physical index the native planner can reuse for a requested lane.
-/// Equality-prefix components may be permuted, while the order suffix stays
-/// exact. A total declared unique already identifies the row and therefore
-/// omits the synthesized trailing `id` component.
+/// Its components must have the planner's exact sorted-prefix order. A total
+/// declared unique already identifies the row and therefore omits the
+/// synthesized trailing `id` component.
 // @ref LLP 3000.036.001#14 — the pre-oracle physical gate prices the native-compatible declared PAGE lane.
-fn model_declared_index<'a>(module: &'a LeanModule, table: &Table, columns: &[String], pins: usize) -> Option<&'a ast::IndexDecl> {
-    let decl = module.surface_tables.iter().find(|decl| decl.name == table.name)?;
-    decl.indexes.iter().filter(|index| index.is_plain()).find(|index| {
-        if index.columns == columns { return true }
-        if !model_total_unique(table, index) || columns.last().map(String::as_str) != Some("id")
-            || index.columns.len() + 1 != columns.len() || pins > index.columns.len() { return false }
-        let physical_pins = index.columns[..pins].iter().collect::<BTreeSet<_>>();
-        let requested_pins = columns[..pins].iter().collect::<BTreeSet<_>>();
-        physical_pins == requested_pins && index.columns[pins..] == columns[pins..columns.len() - 1]
-    })
+fn model_declared_indexes<'a>(module: &'a LeanModule, table: &Table, columns: &[String]) -> Vec<&'a ast::IndexDecl> {
+    let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return Vec::new() };
+    decl.indexes.iter().filter(|index| index.is_plain() && (index.columns == columns
+        || model_total_unique(table, index) && columns.last().map(String::as_str) == Some("id")
+            && index.columns == columns[..columns.len() - 1])).collect()
 }
 
 fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String], declared: Option<&ast::IndexDecl>) -> bool {
@@ -1044,12 +1039,18 @@ fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String]
     table.name.len().saturating_add(generated) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES
 }
 
-fn model_plain_index_fits(module: &LeanModule, table: &Table, columns: &[String], pins: usize) -> bool {
-    let declared = model_declared_index(module, table, columns, pins);
-    let physical = declared.map_or(columns, |index| index.columns.as_slice());
-    physical.len() <= 8 && model_index_label_fits(module, table, physical, declared) && physical.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ModelIndexFit { Fits, Nonportable, Ambiguous }
+
+fn model_plain_index_fit(module: &LeanModule, table: &Table, columns: &[String]) -> ModelIndexFit {
+    let declared = model_declared_indexes(module, table, columns);
+    if declared.len() > 1 { return ModelIndexFit::Ambiguous }
+    let selected = declared.first().copied();
+    let physical = selected.map_or(columns, |index| index.columns.as_slice());
+    let fits = physical.len() <= 8 && model_index_label_fits(module, table, physical, selected) && physical.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
         bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
-    }) <= PORTABLE_KEY_BYTES
+    }) <= PORTABLE_KEY_BYTES;
+    if fits { ModelIndexFit::Fits } else { ModelIndexFit::Nonportable }
 }
 
 fn model_independent(expression: &Expr) -> bool {
@@ -1129,7 +1130,7 @@ fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
 }
 
 /// The source key and target parent column of one capped membership leaf.
-fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, usize, String)> {
+fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, String)> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
     let source = module.tables.iter().find(|table| table.name == read.table)?;
@@ -1159,18 +1160,17 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     if !bounded { return None }
     fixed.sort();
     fixed.dedup();
-    let pins = fixed.len();
     let mut source_key = fixed;
     if !source_key.contains(&source_parent) { source_key.push(source_parent); }
     if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
-    Some((source.name.clone(), source_key, pins, target_parent))
+    Some((source.name.clone(), source_key, target_parent))
 }
 
-fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bool {
-    if read.range.is_none() || !read.keys.is_empty() { return false }
-    let Some(target) = module.tables.iter().find(|table| table.name == read.table) else { return false };
-    let Some(decl) = module.surface_tables.iter().find(|table| table.name == read.table) else { return false };
-    let Some(rule) = decl.rules.iter().find(|rule| rule.effect == Effect::Read && rule.bindings.is_empty()).map(|rule| &rule.value) else { return false };
+fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
+    if read.range.is_none() || !read.keys.is_empty() { return None }
+    let target = module.tables.iter().find(|table| table.name == read.table)?;
+    let decl = module.surface_tables.iter().find(|table| table.name == read.table)?;
+    let rule = decl.rules.iter().find(|rule| rule.effect == Effect::Read && rule.bindings.is_empty()).map(|rule| &rule.value)?;
     let mut leaves = Vec::new();
     flatten_or(rule, &mut leaves);
     let mut parties = Vec::new();
@@ -1178,22 +1178,26 @@ fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bo
     for leaf in leaves {
         if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
         else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
-        else { return false; }
+        else { return None; }
     }
-    if parties.is_empty() || memberships.is_empty() { return false }
-    if memberships.iter().any(|(source, columns, pins, _)| module.tables.iter().find(|table| table.name == *source)
-        .is_none_or(|table| !model_plain_index_fits(module, table, columns, *pins))) { return true }
+    if parties.is_empty() || memberships.is_empty() { return None }
+    let mut fits = Vec::new();
+    for (source, columns, _) in &memberships {
+        let Some(table) = module.tables.iter().find(|table| table.name == *source) else { return Some("page-membership-key-bound") };
+        fits.push(model_plain_index_fit(module, table, columns));
+    }
     let (system_pins, branches) = model_page_pins(target, read);
-    let system_pin_count = system_pins.len();
-    if !model_plain_index_fits(module, target, &model_lane_columns(system_pins, &read.order_keys), system_pin_count) { return true }
-    branches.into_iter().any(|branch| {
-        parties.iter().chain(memberships.iter().map(|(_, _, _, parent)| parent)).any(|prefix| {
+    fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys)));
+    for branch in branches {
+        for prefix in parties.iter().chain(memberships.iter().map(|(_, _, parent)| parent)) {
             let mut pins = branch.clone();
             if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
-            let pin_count = pins.len();
-            !model_plain_index_fits(module, target, &model_lane_columns(pins, &read.order_keys), pin_count)
-        })
-    })
+            fits.push(model_plain_index_fit(module, target, &model_lane_columns(pins, &read.order_keys)));
+        }
+    }
+    if fits.contains(&ModelIndexFit::Ambiguous) { Some("page-membership-index-selection") }
+    else if fits.contains(&ModelIndexFit::Nonportable) { Some("page-membership-key-bound") }
+    else { None }
 }
 
 /// A returned page whose `where` holds both a guard and an argument-presence

@@ -193,6 +193,29 @@ fn total_unique_membership_index_elides_the_physical_id_suffix() {
 }
 
 #[test]
+fn membership_indexes_require_the_native_sorted_prefix_order() {
+    let parent_column = "p".repeat(480);
+    let source = format!("table memberships:\n  {parent_column}: text <=40\n  principal: principal\n  a: int\n  unique pair: {parent_column}, principal\n  unique perm: principal, a, {parent_column}\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[{parent_column} = .parent, principal = viewer, a = 0]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().all(|merge| !merge.branches()));
+    assert_eq!(lean::module(&source).unwrap().program("run").unwrap_err().reason,
+        "page-membership-key-bound");
+}
+
+#[test]
+fn ambiguous_membership_physical_indexes_stop_before_the_oracle() {
+    let source = "table memberships:\n  parent: text <=40\n  principal: principal\n  unique short: principal, parent\n  by full: principal, parent, id\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().all(|merge| !merge.branches()));
+    assert_eq!(lean::module(source).unwrap().program("run").unwrap_err().reason,
+        "page-membership-index-selection");
+}
+
+#[test]
 fn fixed_membership_id_is_not_a_physical_prefix() {
     let parent_column = "p".repeat(480);
     let oversized = format!("table memberships:
