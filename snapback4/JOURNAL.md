@@ -94081,3 +94081,23 @@ The full Rust pass found stale guide projections and two frontend fixtures that 
 
 
 Integration 6 final requested Rust command completed. Its five initially failed scopes are all qualified after affected repairs: CLI unit 411 passing/five existing ignored; lifecycle 28; frontend regressions 40; guide 119; simulator review corrections 32. The simulator's development asset-narrowing test now expects REL's aggregated E_ADOPT while retaining its generation and unreleased-home rollback checks. All other full-command targets passed. Client evidence maps all 379 files to successful qualification, with original failed runs retained. Mac full CLI qualification plus its repaired 26-test flag scope and xcframework/Expo compile are archived. Root inventories/guide/ref checks and final stamped wasm/Lean/differential evidence are in the Integration 6 report; no origin push/publication.
+
+
+### 2026-10-13 — MACFIX: macOS publication client fences and worker paths
+
+The commissioned repair resolves deploy/serve deployment aliases before
+ownership and worker setup, and resolves the serving release root. Worker cwd
+and SNAPBACK_PROJECT_DIR now agree under default Darwin /var/folders paths
+and explicit Linux deployment symlinks. The old 0.2.33 fence continues testing
+capability bytes/codecs and store-1 fixtures; retained release stores must
+instead fail the precise release-store version gate. The fixture now also
+uses HAND's current wire handshake, checks its metadata separately from the
+exact 3100-byte program pin, and selects doctor stores through supported flags.
+Successful opener bookkeeping is snapshotted before refused adoption;
+logical state, main SQLite bytes and release files are compared independently
+of transient WAL/SHM residue. LLP 3000.022 §14.3 and 3000.000.000 §§2/5.1
+record the boundaries and final Muse/Codex READY reviews at e9150bd171.
+Targeted default-TMPDIR Mac runs passed all 10 schema and 82 worker tests;
+Linux worker rerun passed 82, affected Rust checks passed, and guide passed
+119. Whole-publication qualification remains separate; this change publishes
+nothing and does not raise a budget.
