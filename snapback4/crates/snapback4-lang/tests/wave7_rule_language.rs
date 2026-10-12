@@ -198,3 +198,92 @@ fn a_whole_table_total_prints_a_grouped_view_that_compiles_and_counts_every_row(
         assert!(worker.as_ref().map_or(true, |(_, data)| *data != Value::Int(value)), "a worker does not read the whole total: {worker:?}");
     }
 }
+
+// ---- 17.3: a page the server refuses for a private field is refused by `check` (lane 098) ----
+
+const VISITS: &str = "table caseworkers:
+  principal: principal
+  unique principal
+  read <- .principal = viewer or exists caseworkers[viewer]
+  online only
+table visits:
+  child: text 1..80
+  at: time
+  fosterParent: principal
+  caseworker: principal
+  notes: text <=200 default '' written by .caseworker
+  immutable fosterParent, caseworker
+  read <- exists caseworkers[viewer] or .fosterParent = viewer
+  insert <- exists caseworkers[viewer]
+  cap 500 by fosterParent
+  online only
+";
+
+fn visit_rows() -> Rows {
+    vec![
+        ("caseworkers", vec![("id", id("k1")), ("principal", id("cas"))]),
+        ("visits", vec![("id", id("v1")), ("child", text("Ann")), ("at", Value::Int(1)), ("fosterParent", id("fay")), ("caseworker", id("cas")), ("notes", text("ok"))]),
+        ("visits", vec![("id", id("v2")), ("child", text("Ben")), ("at", Value::Int(2)), ("fosterParent", id("gus")), ("caseworker", id("cas")), ("notes", text("ok"))]),
+    ]
+}
+
+#[test]
+fn a_scan_over_private_fields_the_read_rule_does_not_decide_is_refused_at_check_as_at_run_time() {
+    let pages = [
+        "query all(c: cursor ?):\n  if exists caseworkers[viewer]:\n    return visits last 50 by .at after c\n  return visits where .fosterParent = viewer last 50 by .at after c\n",
+        "query mine():\n  require exists caseworkers[viewer] else NOT_STAFF\n  return visits where .caseworker = viewer first 50 by .at\n",
+    ];
+    for page in pages {
+        let source = format!("{VISITS}{page}");
+        let b = bound(&source);
+        let d = problem(&b, "E_FIELD_AUTHORITY").unwrap_or_else(|| panic!("{source}\n{:#?}", b.diagnostics));
+        assert!(d.message.contains("visits.notes (written by .caseworker) is private") && d.message.contains("scope this read to a uniformly readable audience"), "{d}");
+        assert!(d.message.contains("role guard"), "the guard is named as not scoping it: {d}");
+        assert!(d.rewrite.contains("visits where .fosterParent = viewer") && d.rewrite.contains("readable by audience"), "{d}");
+        // The runtime agrees: the same program with the field readable by audience compiles and
+        // reads; made private again in the bound schema (past the check), every caller is refused,
+        // the guard's holder included.
+        let open = source.replace("written by .caseworker", "written by .caseworker readable by audience");
+        let name = page.strip_prefix("query ").unwrap().split('(').next().unwrap();
+        let pairs: &[(&str, Value)] = if page.contains("cursor") { &[("c", Value::Null)] } else { &[] };
+        assert!(query(&mut engine(&open, visit_rows()), name, "cas", pairs).is_ok(), "readable by audience scopes it");
+        let mut b = clean(&open);
+        b.schema.tables.get_mut("visits").unwrap().written_by.get_mut("notes").unwrap().audience = false;
+        let mut private = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        private.seed(visit_rows().into_iter().map(|(table, fields)| (table.to_owned(), object(fields)))).unwrap();
+        assert_eq!(query(&mut private, name, "cas", pairs).err().as_deref(), Some("E_FIELD_AUTHORITY"), "the guard's holder reaches the scan and the server refuses it, as check did");
+    }
+}
+
+#[test]
+fn a_pinned_or_split_private_field_page_compiles_and_reads() {
+    // The rewrite's pin: the foster parent's own page.
+    let pinned = format!("{VISITS}query mine(c: cursor ?):\n  return visits where .fosterParent = viewer last 50 by .at after c\n");
+    let mut e = engine(&pinned, visit_rows());
+    let (complete, data) = query(&mut e, "mine", "fay", &[("c", Value::Null)]).unwrap();
+    assert!(complete && data.as_array().unwrap().len() == 1, "{data:?}");
+    // The rewrite's split: the notes in their own table, read by key; the staff page scans no private field.
+    let split = VISITS.replace("  notes: text <=200 default '' written by .caseworker\n", "")
+        + "table visitNotes:\n  visit: visits\n  caseworker: principal\n  notes: text <=200\n  unique visit\n  immutable visit, caseworker\n  read <- .caseworker = viewer\n  insert <- .caseworker = viewer\n  update <- .caseworker = viewer\n  online only\n"
+        + "query all(c: cursor ?):\n  if exists caseworkers[viewer]:\n    return visits last 50 by .at after c\n  return visits where .fosterParent = viewer last 50 by .at after c\nquery note(v: visits):\n  return visitNotes[visit = v]\n";
+    let rows = || -> Rows { visit_rows().into_iter().map(|(t, mut fields)| { fields.retain(|(k, _)| *k != "notes"); (t, fields) }).chain([("visitNotes", vec![("id", id("n1")), ("visit", id("v1")), ("caseworker", id("cas")), ("notes", text("ok"))])]).collect() };
+    let mut e = engine(&split, rows());
+    let (complete, data) = query(&mut e, "all", "cas", &[("c", Value::Null)]).unwrap();
+    assert!(complete && data.as_array().unwrap().len() == 2, "staff read every visit: {data:?}");
+    let (_, note) = query(&mut e, "note", "cas", &[("v", id("v1"))]).unwrap();
+    assert_eq!(note.field("notes").ok(), Some(&text("ok")));
+}
+
+/// Every farm schema: the scans `check` now refuses (each would refuse at run time).
+#[test]
+fn farm_private_scans() {
+    let mut hits = 0;
+    for (label, sources) in farm() {
+        let b = compile(&sources);
+        for d in b.diagnostics.iter().filter(|d| d.code == "E_FIELD_AUTHORITY" && d.message.contains("scope this read")) {
+            hits += 1;
+            println!("{label}\n  {d}\n");
+        }
+    }
+    println!("E_FIELD_AUTHORITY private scans: {hits}");
+}

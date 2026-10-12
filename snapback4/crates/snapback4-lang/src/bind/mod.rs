@@ -31,6 +31,7 @@ mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
 mod delete_children;
+mod private_scans;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
@@ -204,6 +205,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
         }
     }
     ephemeral::programs(&catalog, &mut schema, &programs, &mut diagnostics);
+    private_scans::check(&catalog, &schema, &programs, &mut diagnostics);
     delivery::durability(&catalog, &schema, &mut diagnostics);
     // @ref LLP 3000.007#20 — predicts asserts the existing eligibility decision; it never changes residency.
     for doc in &catalog.documents {
