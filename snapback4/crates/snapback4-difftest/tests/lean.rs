@@ -78,6 +78,47 @@ fn model_built() -> bool {
     false
 }
 
+fn assert_membership_agreement(source: &str, membership: serde_json::Value) {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.branches()), "{source}");
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let rows: Vec<(String, serde_json::Value)> = vec![
+        ("memberships".into(), membership),
+        ("documents".into(), json!({"id":"d1","owner":"bob","parent":"p","at":1})),
+        ("documents".into(), json!({"id":"d2","owner":"bob","parent":"other","at":2})),
+    ];
+    let seeded = rows.iter().map(|(table, value)| {
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+        (table.clone(), row)
+    }).collect::<Vec<_>>();
+    engine.seed(seeded).unwrap();
+    let context = snapback4_core::Context::new(
+        "alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+    );
+    let actual = engine.query("run", context).unwrap();
+    let module = lean::module(source).unwrap();
+    let case = module.case(
+        "run",
+        module.store(&rows).unwrap(),
+        "alice",
+        module.tag_args("run", &json!({"c":null})).unwrap(),
+        None,
+    ).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(modeled["kind"], "answer", "{modeled}\n{source}");
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}\n{source}");
+    assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}\n{source}");
+    assert_eq!(lean::engine_value(&actual.data),
+        json!({"arr":[{"row":{"at":{"int":"1"},"id":{"id":"d1"},"owner":{"id":"bob"},"parent":{"text":"p"}}}]}));
+    assert!(actual.complete && actual.next.is_none(), "{actual:?}\n{source}");
+}
+
 #[test]
 fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     let mut supported = 0;
@@ -191,6 +232,32 @@ fn reordered_named_membership_key_agrees_with_the_model() {
     execute::compile(&source).unwrap();
     let checked = lean::compare(&case, &source).unwrap();
     assert!(matches!(checked.verdict, Verdict::Pass), "{:?}\n{source}", checked.verdict);
+}
+
+#[test]
+fn typed_positional_and_named_membership_keys_agree_with_the_engine() {
+    if !model_built() { return; }
+    let typed = "table memberships:\n  parent: text <=40\n  n: int\n  principal: principal\n  unique parent, principal\n  unique n, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[.parent, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    assert_membership_agreement(
+        typed,
+        json!({"id":"m","parent":"p","n":7,"principal":"alice"}),
+    );
+
+    // The named form remains unambiguous even when two keys have the same types.
+    let named = "table memberships:\n  parent: text <=40\n  alias: text <=40\n  principal: principal\n  unique parent, principal\n  unique alias, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    assert_membership_agreement(
+        named,
+        json!({"id":"m","parent":"p","alias":"other","principal":"alice"}),
+    );
+}
+
+#[test]
+fn same_typed_positional_membership_keys_are_rejected_before_the_oracle() {
+    let source = "table memberships:\n  parent: text <=40\n  alias: text <=40\n  principal: principal\n  unique parent, principal\n  unique alias, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[.parent, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_POSITIONAL_SCAN"),
+        "{:#?}", bound.diagnostics);
+    assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
 }
 
 #[test]
