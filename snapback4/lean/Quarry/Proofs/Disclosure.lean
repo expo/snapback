@@ -228,8 +228,8 @@ theorem cutScalar_not_ok {α : Type} {cx : Ctx} {rs : RS} {r : α × RS}
 
 /-- `exists domain` is true exactly when a visible row of the domain
 matches, whenever it answers (an undecided absence has no answer). -/
-theorem existsRead_eq {cx vw t ps filt rs d nx rs'} (p : Row → Bool) (hf : FiltIs filt p)
-    (h : (existsRead cx vw t ps filt).run rs = .ok ((d, nx), rs')) :
+theorem existsRead_eq {cx vw t ps filt fm rs d nx rs'} (p : Row → Bool) (hf : FiltIs filt p)
+    (h : (existsRead cx vw t ps filt fm).run rs = .ok ((d, nx), rs')) :
     d = .ofBool ((candidates vw t ps [] false none).any p) := by
   unfold existsRead at h
   obtain ⟨w, rs1, hw, h⟩ := sbind_ok h
@@ -258,9 +258,9 @@ theorem existsRead_eq {cx vw t ps filt rs d nx rs'} (p : Row → Bool) (hf : Fil
 3000.036 §15.12), and a complete one was decided: either the scan was
 decided for the caller, or the answer is `true` (a visible witness) and
 the request is incomplete. -/
-theorem existsRead_decided {cx vw t ps filt rs d nx rs'}
-    (h : (existsRead cx vw t ps filt).run rs = .ok ((d, nx), rs')) :
-    decided cx vw t ps = true ∨ (d = .ofBool true ∧ rs'.complete = false) := by
+theorem existsRead_decided {cx vw t ps filt fm rs d nx rs'}
+    (h : (existsRead cx vw t ps filt fm).run rs = .ok ((d, nx), rs')) :
+    (decided cx vw t ps || fm) = true ∨ (d = .ofBool true ∧ rs'.complete = false) := by
   unfold existsRead at h
   obtain ⟨w, rs1, hw, h⟩ := sbind_ok h
   split at h
@@ -269,7 +269,7 @@ theorem existsRead_decided {cx vw t ps filt rs d nx rs'}
     · split at h
       · rename_i hdec; exact .inl hdec
       · exact (undecidedScalar_not_ok h).elim
-    · cases hdec : decided cx vw t ps
+    · cases hdec : (decided cx vw t ps || fm)
       · obtain ⟨_, rs2, hm, h⟩ := sbind_ok h
         obtain ⟨hv, hrs⟩ := pure_ok h
         simp only [Prod.mk.injEq] at hv

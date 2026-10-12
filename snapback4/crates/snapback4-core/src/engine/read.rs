@@ -1230,7 +1230,9 @@ impl<'r> Runner<'r> {
         }
         if let Some(mark) = row_heap { self.meter.release_row_heap(mark, row_bytes); }
         // @ref LLP 3000.036.001#6 — a branch lane cut mid-read reports how far it examined (rule-visible rows only).
-        if let Some(frontier) = &mut self.scan_frontier { *frontier = last_rule_visible.clone().or_else(|| keys.last().cloned()); }
+        if let Some((table, index, frontier)) = &mut self.scan_frontier && *table == scan.table && *index == scan.index {
+            *frontier = last_rule_visible.clone().or_else(|| keys.last().cloned());
+        }
         // @ref LLP 3000.007#20.22 — a device page is complete by its acquisition boundary, carried on the wire, not by a count.
         // An existence probe is exempt (W13c): a held witness below the floor still proves existence.
         if self.device && !scan.existence && horizon.is_some() {
@@ -1393,8 +1395,13 @@ impl<'r> Runner<'r> {
         {
             let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
             crate::cursor::check_variant(&position, merge.variant)?;
-            position.check_descriptor(&first.scan.table, &descriptor, order, &suffix)
-                .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+            if let Err(error) = position.check_descriptor(&first.scan.table, &descriptor, order, &suffix) {
+                // As the lazy branch merge does: another plan's token of this table restarts the read.
+                if merge.branches() && position.table == first.scan.table {
+                    return Err(RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to another plan of this read; it now merges its branches (owner or another party): restart this read with a null cursor".into() });
+                }
+                return Err(RuntimeError::Input(format!("cursor: {error}")));
+            }
             self.record_shape_cursor(&merge.site, Some(token));
         }
         let mut candidates: Vec<(Vec<Value>, Value)> = Vec::new();

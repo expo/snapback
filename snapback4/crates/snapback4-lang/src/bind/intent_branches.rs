@@ -31,7 +31,11 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) 
     for (conjuncts, grant) in branches {
         let mut lane = read.clone();
         lane.filter = intent::conjunction(conjuncts);
-        candidate.plan_lane(tables, &mut lane);
+        // The grant lane is the read as written: plan it exactly as the
+        // single-index plan would, so the binding check's fallback to it is
+        // that plan (an order-column pin a guard needs stays a pin, LLP 3000.036
+        // §16.3); its order must still match the party lanes', or no merge.
+        if grant { candidate.read(tables, &mut lane, false); } else { candidate.plan_lane(tables, &mut lane); }
         if !grant && !decided(tables, &lane) { return None; }
         // Every lane resumes from one shared position: the same order columns
         // after its pins (lane planning never pins an order column).
@@ -234,17 +238,14 @@ fn has_focal_without_member(value: &Expr) -> bool {
 }
 
 /// A predicate whose evaluation never refuses: comparisons, `in` and boolean
-/// operators over row columns, arguments, literals and `viewer`. Arithmetic,
-/// assertions, calls and reads are left to the single-index plan.
+/// operators over row columns, arguments, literals and `viewer`. Arithmetic
+/// (even `now - 7d`, which overflows at the clock's bound), assertions, calls
+/// and reads are left to the single-index plan.
 fn total(value: &Expr) -> bool {
     match value {
         Expr::Literal { .. } | Expr::Name { .. } | Expr::Focal { .. } => true,
         Expr::Member { base, .. } => total(base),
         Expr::Unary { op, value, .. } => op == "not" && total(value),
-        // A time window (`now - 7d`): the server clock plus a literal far from the
-        // integer bounds, the same value for every row, never an overflow.
-        Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "+" | "-") => matches!(left.as_ref(), Expr::Name { name, .. } if name == "now")
-            && matches!(right.as_ref(), Expr::Literal { value: Literal::Number(n), .. } if n.parse::<i64>().is_ok_and(|n| n.unsigned_abs() <= 1 << 52)),
         Expr::Binary { op, left, right, .. } => matches!(op.as_str(), "=" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "in") && total(left) && total(right),
         Expr::Array { items, .. } => items.iter().all(total),
         _ => false,

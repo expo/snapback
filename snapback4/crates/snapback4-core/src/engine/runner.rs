@@ -153,9 +153,9 @@ pub struct Runner<'a> {
     pub(super) view_scan_active: bool,
     /// The grant verdict that admitted the branch-merge lane being read.
     pub(super) merge_grant: Option<super::expiry::Pending>,
-    /// Set by a branch merge around a lane's read: the key of the last
-    /// rule-visible candidate that read examined.
-    pub(super) scan_frontier: Option<Option<Vec<u8>>>,
+    /// Armed by a branch merge around a lane's read with the lane's table and
+    /// index: the key of the last rule-visible candidate that read examined.
+    pub(super) scan_frontier: Option<(String, String, Option<Vec<u8>>)>,
     pub(super) word_cursor: Option<(String, crate::cursor::CursorPosition)>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,

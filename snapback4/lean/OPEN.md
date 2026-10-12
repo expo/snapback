@@ -344,8 +344,12 @@ rule hides?**
   engine's merged page: complete for every caller (a grant holder reads the
   grant's branch), with `next` after a full page only when another *matching*
   row follows (C2). `parties_cover_view` proves the party branches miss no
-  readable row. Pages in helpers are never merged by the engine; the
-  generator puts none there.
+  readable row. A guard is usable as the core's `disclosing` says
+  (`Rule.disclosing`: a pinned column is an unknown value, nested `or`/`not`
+  disclose nothing); the grant lane counts toward the 8, and a guarded page
+  whose first order column is pinned is not merged. A helper's page is never
+  merged (`Ctx.inHelper`), as in the engine. `exists` over branches (case 1,
+  or case 2 without guards) is decided as well.
 - *Engine (observed):* agrees on `complete` for all 1,343 compared
   non-uniform pages (60,000-case run of 2026-10-08). A `count` or `sum` whose
   read rule its pins do not decide is refused at check (`E_QUARRY_BOUND`).

@@ -436,7 +436,20 @@ def merged : List Example := [
     case := { schema := tasks, store := taskStore, viewer := alice, args := [("c", .null)],
               program := query [.ret (.page "tasks" [] (some (.bin .gt (.dot "n") (int 1))) [] false 1 (some (.var "c")))] [p "c" true] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2}],"complete":true,"next":null}"# } ]
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2}],"complete":true,"next":null}"# },
+  { name := "page-in-helper-not-merged"
+    source := "LLP 3000.036.001 §2: a shared helper's page keeps the single-index plan, never complete under parties"
+    case := { schema := tasks, store := taskStore, viewer := alice,
+              helpers := [{ name := "mine", params := [], body := .page "tasks" [] none [] false 10 none }],
+              program := query [.ret (.call "mine" [])] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice","helper":null,"n":2},{"id":"k2","owner":"bob","helper":"alice","n":0}],"complete":false,"next":null}"# },
+  { name := "exists-parties-false"
+    source := "LLP 3000.036.001 §8: exists over parties is an or of decided existence reads, so it answers false"
+    case := { schema := tasks, store := taskStore, viewer := cps "erin",
+              program := query [.ret (.exists_ "tasks" [] (some (.or (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "helper") .viewer))))] }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# } ]
 
 /-- Every example. -/
 def all : List Example := examples ++ merged

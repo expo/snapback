@@ -31,6 +31,9 @@ structure Ctx where
   helpers : List Helper := []
   budget : Option Nat := none
   mutation : Bool := false
+  /-- Evaluating a helper's body: the engine never plans a helper's page as a
+  merge of its branches (LLP 3000.036.001 §2), so neither does the model. -/
+  inHelper : Bool := false
 
 /-- Request state: visible candidates examined so far, and whether every
 read so far was complete. -/
@@ -267,27 +270,40 @@ def Rule.parties (r : Rule) : Option (List String) :=
   | .or _ _ => r.partyLeaves.map List.eraseDups
   | _ => none
 
-def Term.asPin (pins : List (String × Expr)) : Term → Option Expr
+/-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its
+holder may read. A probe's target row must be readable by its own read rule
+given the probe's key (`byForm`), where a pinned row column is an unknown
+value that decides nothing; or the target's rule carries the same probe.
+Nested `or` and `not` disclose nothing. -/
+def Term.asKnown : Term → Option Expr
   | .viewer => some .viewer
   | .lit v => some (.lit (.s v))
-  | .col .self c => pinOf pins c
   | .col _ _ => none
 
-/-- Every probe's target row is readable by the probe's own key (`byForm` of
-the target's read rule), the page's pinned columns standing in for the row's. -/
-def Rule.probeTargetsReadable (sch : Schema) (pins : List (String × Expr)) : Rule → Bool
-  | .probe t key => match sch.table? t, key.mapM (fun p => (p.2.asPin pins).map (p.1, ·)) with
-    | some td, some kp => td.read.byForm kp
-    | _, _ => false
-  | .and a b | .or a b => a.probeTargetsReadable sch pins && b.probeTargetsReadable sch pins
-  | .not a => a.probeTargetsReadable sch pins
-  | _ => true
+def Rule.disclosing (sch : Schema) : Rule → Bool
+  | .allow => true
+  | .eq a b | .ne a b => [a, b].all fun t => match t with
+    | .viewer | .lit _ | .col .self _ => true
+    | _ => false
+  | .and a b => a.disclosing sch && b.disclosing sch
+  | .probe t key => match sch.table? t with
+    | some td =>
+      let known := key.filterMap fun p => match p.2 with
+        | .col .self _ => none
+        | term => some (p.1, term.asKnown)
+      match known.mapM (fun p => p.2.map (p.1, ·)) with
+      | some pins => td.read.byForm pins || td.read.disjuncts.any fun d => match d with
+          | .probe t' key' => t' == t && key'.all (fun k => key.any fun k2 => k.1 == k2.1 && k.2 == k2.2)
+          | _ => false
+      | none => false
+    | none => false
+  | _ => false
 
 /-- A page guard the engine evaluates once per caller (LLP 3000.036 §12.1,
 §16.3; `rules::covering_grant`): no `not`, every row column it reads pinned by
-the page (none, for a grant), and every probed row readable by its key. -/
+the page (none, for a grant), and disclosing. -/
 def Rule.usableGuard (sch : Schema) (pins : List (String × Expr)) (d : Rule) : Bool :=
-  d.selfCols.all (fun c => pins.any (·.1 == c)) && d.positive && d.probeTargetsReadable sch pins
+  d.selfCols.all (fun c => pins.any (·.1 == c)) && d.positive && d.disclosing sch
 
 def Rule.party? : Rule → Option String
   | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some c
@@ -295,10 +311,10 @@ def Rule.party? : Rule → Option String
 
 /-- Case 2's parties: a read rule of at least two disjuncts, each a party
 (`.col = viewer`) or a usable page guard, with at least one party. -/
-def Rule.branchParties (sch : Schema) (pins : List (String × Expr)) (r : Rule) : Option (List String) :=
+def Rule.branchParties (sch : Schema) (pins : List (String × Expr)) (guards : Bool) (r : Rule) : Option (List String) :=
   let ds := r.disjuncts
   let ps := (ds.filterMap Rule.party?).eraseDups
-  if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || d.usableGuard sch pins) then some ps else none
+  if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch pins)) then some ps else none
 
 /-- An alternative's eligible pin: not `id`, and on a nullable column only
 `viewer` (a branch never seeks a null the filter would reject). -/
@@ -317,7 +333,7 @@ def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String 
 /-- The branch rule of LLP 3000.036.001 §2 (cases 1 and 2; a grant branch is
 complete for its holders as `granted` is, and empty for everyone else). -/
 def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
-    (filter : Option Expr) (order : List String) : Bool :=
+    (filter : Option Expr) (order : List String) (guards : Bool := true) : Bool :=
   match sch.table? t with
   | none => false
   | some td =>
@@ -331,10 +347,19 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
         then some (as.map Expr.conjuncts) else none
       | _ => none
     let case1 := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
-    let case2 := match td.read.branchParties sch pins with
+    -- The grant lane is the read as written, planned as the single-index page
+    -- is: its prefix is the page's pins off the order (an equality on the
+    -- first order column would become a pin there and change its order, so
+    -- such a page is not merged), and it counts toward the 8 lanes.
+    let guardPins := pins.filter fun p => p.1 != "id" && !order.contains p.1
+    let case2 := match td.read.branchParties sch guardPins guards with
       | some ps =>
         let bases := alts.getD [[]]
-        ps.all (fun c => c != "id" && !order.contains c) && bases.length * ps.length ≤ 8
+        let guarded := td.read.disjuncts.any fun d => d.party?.isNone
+        ps.all (fun c => c != "id" && !order.contains c)
+          && bases.length * ps.length + (if guarded then 1 else 0) ≤ 8
+          && (!guarded || (!(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
+                && (guardPins.map (·.1)).eraseDups.length + order.length + 1 ≤ 8))
           && bases.all fun a => ps.all fun c => laneDecided td order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
     total && (case1 || case2)
@@ -424,13 +449,13 @@ grant decide the read rule, otherwise no answer, never `false` (OPEN C5). A
 cut cannot establish a negative answer (reads card). `exists t[key]` is a
 point read (`t[key] != null`, `Syntax.lean`), not this. -/
 def existsRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
-    (filt : Row → EM Bool) : EM (Value × Option Value) := do
+    (filt : Row → EM Bool) (fm : Bool := false) : EM (Value × Option Value) := do
   let w ← walk filt cx.budget 1 [] none (candidates vw t ps [] false none)
   if w.stop = .cut then cutScalar cx
   else if w.rows.isEmpty then
-    if decided cx vw t ps then return (.ofBool false, none) else undecidedScalar cx
+    if decided cx vw t ps || fm then return (.ofBool false, none) else undecidedScalar cx
   else do
-    markIf !(decided cx vw t ps)
+    markIf !(decided cx vw t ps || fm)
     return (.ofBool true, none)
 
 /-! ## Expressions -/
@@ -504,7 +529,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
         if h.params.length = vs.length then
           -- A helper body sees only its own parameters: each call is
           -- evaluated independently of the caller's locals and of other calls.
-          let (v, _) ← evalExpr fuel cx vw (h.params.zip (vs.map fun v => (v, none))) none h.body
+          let (v, _) ← evalExpr fuel { cx with inHelper := true } vw (h.params.zip (vs.map fun v => (v, none))) none h.body
           pure (v, none)
         else typeErr
     | .arr xs => do return (.arr (← evs xs), none)
@@ -522,7 +547,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       let formed := match cx.schema.table? t with
         | some td => decidedPins td pins
         | none => false
-      let merged := !formed && !cx.mutation && branchDecided cx.schema t pins f order
+      let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f order
       let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur (formed || merged) merged
       -- A cursorless page (no `after`) has no continuation: "A cursorless
       -- top-N answer has no `next`" (LLP 3000.027 §1; OPEN C9).
@@ -532,7 +557,13 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       countRead cx vw t ps (filt f)
     | .exists_ t pins f => do
       let ps ← evPins pins
-      existsRead cx vw t ps (filt f)
+      -- `exists` over branches is an `or` of decided existence reads, for
+      -- parties only (LLP 3000.036.001 §8); its pins' form decides it too.
+      let formed := match cx.schema.table? t with
+        | some td => decidedPins td pins
+        | none => false
+      let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f [] false
+      existsRead cx vw t ps (filt f) (formed || merged)
 
 /-! ## Statements -/
 

@@ -572,3 +572,69 @@ query cards(board: boards, c: cursor ?):
     let mut capped = engine(&hidden, rows());
     assert!(!walk(&mut capped, "cards", "ann", &board).1.iter().all(|c| *c));
 }
+
+// ---- round 2 (llp/reviews/3000.036.001-merged-pages.r2.*) ----
+
+/// GPT r2 #1: a guard the page's order-column pin feeds keeps the single-index
+/// plan with its guard, as in 0.4.23; the fallback is that plan, not a lane.
+#[test]
+fn an_order_column_pin_a_guard_needs_keeps_the_guarded_single_read() {
+    let source = "table boards:
+  owner: principal
+  immutable owner
+  read <- allow
+  online only
+table cards:
+  board: boards
+  author: principal
+  at: int
+  immutable board, author
+  read <- .author = viewer or exists boards[.board, owner = viewer]
+  insert <- .author = viewer
+  online only
+query cards(board: boards, c: cursor ?):
+  return cards where .board = board last 2 by .board after c
+";
+    let b = clean(source);
+    assert_eq!(branch_merges(&b, "cards"), vec![]);
+    let mut e = engine(source, vec![("boards", vec![("id", id("b1")), ("owner", id("olga"))]),
+        ("cards", vec![("id", id("k1")), ("board", id("b1")), ("author", id("ann")), ("at", Value::Int(1))]),
+        ("cards", vec![("id", id("k2")), ("board", id("b1")), ("author", id("bo")), ("at", Value::Int(2))])]);
+    let (rows, complete) = walk(&mut e, "cards", "olga", &[("board", id("b1"))]);
+    assert_eq!(rows.len(), 2);
+    assert!(complete.iter().all(|c| *c), "the owner's guarded page is complete: {complete:?}");
+}
+
+/// GPT r2 #3: clock arithmetic can overflow at the clock's bound, so a lane
+/// would evaluate it where the original's `or` skipped it: not total.
+#[test]
+fn clock_arithmetic_is_not_total() {
+    let source = format!("{TASKS}
+query soon(c: cursor ?):
+  return tasks where .owner = viewer or (.assignee = viewer and .at > now + 1) last 3 by .at after c
+");
+    let b = clean(&source);
+    assert_eq!(branch_merges(&b, "soon"), vec![]);
+}
+
+/// Muse r2 #1: a lane cut inside a run of filter rejects reports how far it
+/// examined, so the page continues past them instead of ending.
+#[test]
+fn a_cut_inside_filter_rejects_continues_from_the_frontier() {
+    let source = format!("{TASKS}
+query rare(c: cursor ?):
+  return tasks where (.owner = viewer or .assignee = viewer) and .title != 't' last 2 by .at after c
+");
+    // The owner lane opens first and is exhausted; the assignee lane, opened
+    // last, is cut inside its run of rejects.
+    let mut rows: Rows = (3..20).map(|n| ("tasks", vec![("id", Value::Id(format!("r{n:02}"))), ("owner", id("zed")), ("assignee", id("alice")), ("at", Value::Int(n)), ("title", Value::String(if n < 5 { "x" } else { "t" }.into()))])).collect();
+    rows.push(("tasks", vec![("id", id("r02")), ("owner", id("alice")), ("assignee", Value::Null), ("at", Value::Int(2)), ("title", Value::String("x".into()))]));
+    let mut e = engine(&source, rows);
+    e.set_ceilings(snapback4_core::Ceilings { examined: 6, ..Default::default() });
+    let first = e.query("rare", Context::new("alice", BTreeMap::from([("c".to_owned(), Value::Null)]))).unwrap();
+    assert!(!first.complete && ids(&first.data).is_empty(), "{first:?}");
+    let next = first.next.expect("the lane examined rows past the cursor: the page continues");
+    e.set_ceilings(Default::default());
+    let rest = e.query("rare", Context::new("alice", BTreeMap::from([("c".to_owned(), Value::String(next))]))).unwrap();
+    assert_eq!(ids(&rest.data), vec!["r04", "r03"]);
+}

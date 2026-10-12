@@ -167,9 +167,12 @@ impl Runner<'_> {
     /// Read a lane's next batch strictly after its position, recording how
     /// far it examined.
     fn fill_branch(&mut self, lane: &mut Lane, batch: usize) -> Result<(), RuntimeError> {
-        let prior = self.scan_frontier.replace(None);
+        // Arm the capture with the lane's own table and index: `scan_consumed`
+        // then records the last rule-visible candidate this read examined,
+        // filter rejects included (never a nested read's key).
+        let prior = self.scan_frontier.replace((lane.scan.table.clone(), lane.scan.index.clone(), None));
         let rows = self.read_branch(lane, batch);
-        let examined = std::mem::replace(&mut self.scan_frontier, prior).flatten();
+        let examined = std::mem::replace(&mut self.scan_frontier, prior).and_then(|(_, _, key)| key);
         let rows = rows?;
         let capped = self.read_capped();
         lane.done = rows.len() < batch && !capped;
