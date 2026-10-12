@@ -117,6 +117,19 @@ A failing refusal prints the layer that refused under the FAIL line, as `snapbac
 rule clause and its line, the `unique` or `cap` clause a hidden row filled, or the program's own
 `require`/`!` line. That evidence is for you; the refusal a client sees never names the clause.
 
+### Refusal order
+
+| Stage (in execution order) | Refusal |
+|---|---|
+| Argument names, wire types and declared bounds | `E_INPUT`; before program statements |
+| Each `!` lookup as reached | Hidden/missing: `NOT_FOUND` (or written `else`); later lines do not run |
+| Each `require` as reached | Its written code; lookups and requires run in source order |
+| Write target and table write rule | Missing/hidden refused target: `NOT_FOUND`; readable refused target: `E_RULE` |
+| Unique, then cap, then immutable | Written unique code or `E_CONSTRAINT`; hidden unique clash: `E_RULE`; cap: `E_CONSTRAINT` (hidden sequence occupant: `E_RULE`) |
+| After the final statement | `after insert` obligation: `E_CONSTRAINT` |
+
+N_FIXTURE_ARGUMENT_DRIFT means a fixture case no longer fits its operation signature. Update its arguments and run snapback4 test. Saved `$answers` are checked at run time.
+
 ### Hidden rows refuse before your own code
 
 A lookup is a read. `p = pets[pet] ! else NOT_FOUND` sees only rows the viewer's read rule admits,
@@ -238,18 +251,7 @@ for (const [name, scenario] of [["alice adds a card", async () => {
 The same `stopChild` stops a frontend server: spawn `node_modules/.bin/vite` (not `npx vite`) and
 strip ANSI colors before matching its `Local:` line.
 
-Every route answers JSON; read the field for the route (`guide wire` has the rest):
-
-| Request | HTTP | Body | Read |
-|---|---|---|---|
-| `POST /q/<query>` answered | 200 | `{data, complete, cut, next, seq, tables, viewer}` | `body.data`: a list, a row, a shape, or a scalar (a keyed view read such as `totals[owner]` is just the number) |
-| `POST /q/<query>` refused | 200 | `{denied: {code, message, site?, rule?}}` | `body.denied.code` |
-| `POST /m/<mutation>` sent | 200 | `{state: "sent", id, seq, result}` | `body.result`: what the mutation returns (an inserted row, so its id is `body.result.id`); top-level `id` is the write id you sent, `null` without one |
-| `POST /m/<mutation>` refused | 200 | `{state: "failed", id, why: {code, message, site?, rule?}, current?}` | `body.why.code`: `E_RULE`, `NOT_FOUND`, `E_CONSTRAINT`, your `require`/`unique` code, `E_INPUT` for a value checked while running |
-| a request that does not decode (bad JSON type, unknown argument) | 400 | `{denied: {code: "E_INPUT"}}` | `body.denied.code` |
-| an undeclared persona, no credential | 401 | `{denied: {code: "E_AUTH"}}` | `body.denied.code` |
-| `POST /seed` | 200 | `{seeded: N}`, or `{denied}` with nothing written | `body.seeded` |
-| `POST /dev/reset` | 200 | `{reset: true, seeded: N, storeId, …}`, or `{denied}` with nothing reset | `body.reset` |
+Every route answers JSON; `guide wire --section envelopes` has the wire/client envelope table.
 
 A `unique ... else CODE` refuses with your code; without one, a clash is `E_CONSTRAINT` naming the index.
 `/seed` takes a JSON array, writes as the system and
@@ -257,3 +259,43 @@ skips rules, with fixture-row semantics (defaults, sequences); seed parents and 
 It is an upsert by `id`: a reseed updates mutable columns, and changing an `immutable` one refuses
 `E_CONSTRAINT` (use a new id, `POST /dev/reset`, or restart with `--memory`). Personas, `/seed` and `/dev/reset` exist only under `dev`,
 and a persona must be declared in `use personas` (an outsider is 401 `E_AUTH`).
+
+## Browser proof: the exported app writes
+
+Run `npm run build:web`, then `snapback4 witness web dist --as alice --mutation add --args '{"title":"Browser proof"}'`.
+Password accounts: `--email proof@example.test --password-env PROOF_PASSWORD`
+(sign up first on an existing backend); `--url URL` selects that backend. Without it the
+witness owns a fresh `dev --memory` and uses the signup form for password accounts. Set `SNAPBACK4_CHROMIUM` if Chromium is
+not found. Starters register their SDK client; custom apps call
+`registerWebWitness(app, api)` from `snapback4/witness-web`, active only under
+`?witness=web`. This proves exported app/authenticated SDK integration; test
+its composer UI separately. Fresh browser/storage and a fresh default backend
+make runs repeatable; `--url` repeats use a stable write id, never reset.
+
+Never wait for `networkidle`: live pages hold a long poll. Navigate with
+`domcontentloaded`, wait for the control, and assert `sent` before cross-device
+reads. A predicted row or `pending` is not a server commit. Spawn servers
+directly via `resolveBinary()` or `node_modules/.bin/vite`, never via `npx`;
+stop only your children (recipe above). Rebuild the Expo web export when
+`EXPO_PUBLIC_SNAPBACK_URL` changes: starter `build:web` uses
+`expo export --platform web --clear`. Both starters accept runtime `?api=URL`.
+
+## Authoring and proof refusals
+
+N_FIXTURE_ARGUMENT_DRIFT means a fixture case no longer fits its operation signature. Update its arguments and run snapback4 test.
+
+E_WITNESS_BROWSER means no usable headless Chromium executable. Set SNAPBACK4_CHROMIUM.
+
+E_WITNESS_AUTH means the exported app did not sign in. Check the persona or credentials and register its client.
+
+E_WITNESS_MUTATION means no matching mutation was registered. Pass --mutation with a generated API name.
+
+E_WITNESS_ARGUMENT means an argument needs application values. Pass --args with valid values.
+
+E_WITNESS_EXPORT means the export has no index.html. Run build:web first.
+
+E_WITNESS_READY means the app could not open its write custody. Repair the reported schema or storage refusal.
+
+E_WITNESS_SENT means the write failed, stayed pending or timed out. Inspect the refusal; pending is not success.
+
+E_WITNESS_WEB means the browser proof could not complete. Check the export, browser and application.

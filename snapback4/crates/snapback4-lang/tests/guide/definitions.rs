@@ -137,6 +137,17 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_NO_PRODUCTION_WRITER", "no production insert path can bootstrap this table"),
+    ("N_FIXTURE_ARGUMENT_DRIFT", "a fixture case no longer fits its operation signature"),
+    ("E_UPGRADE", "the package-manager upgrade did not complete"),
+    ("E_WITNESS_BROWSER", "no usable headless Chromium executable"),
+    ("E_WITNESS_AUTH", "the exported app did not sign in"),
+    ("E_WITNESS_MUTATION", "no matching mutation was registered"),
+    ("E_WITNESS_ARGUMENT", "an argument needs application values"),
+    ("E_WITNESS_EXPORT", "the export has no index.html"),
+    ("E_WITNESS_READY", "the app could not open its write custody"),
+    ("E_WITNESS_SENT", "the write failed, stayed pending or timed out"),
+    ("E_WITNESS_WEB", "the browser proof could not complete"),
     ("E_REDUNDANT_RULE", "E_REDUNDANT_RULE means an aggregate read rule repeats its parent's rule"),
     ("N_CONDITIONAL_COMPLETE", "N_CONDITIONAL_COMPLETE means a readable pinned-parent guard decides the page"),
     ("E_FOLLOWING_INPUT", "rejects invalid opening arguments or a protocol envelope"),

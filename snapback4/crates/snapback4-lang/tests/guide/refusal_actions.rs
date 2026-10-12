@@ -2,6 +2,17 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_NO_PRODUCTION_WRITER", &["Add a service-seat insert mutation"]),
+    ("N_FIXTURE_ARGUMENT_DRIFT", &["Update its arguments and run snapback4 test"]),
+    ("E_UPGRADE", &["Repair the package-manager or registry error and rerun upgrade"]),
+    ("E_WITNESS_BROWSER", &["Set SNAPBACK4_CHROMIUM"]),
+    ("E_WITNESS_AUTH", &["Check the persona or credentials and register its client"]),
+    ("E_WITNESS_MUTATION", &["Pass --mutation with a generated API name"]),
+    ("E_WITNESS_ARGUMENT", &["Pass --args with valid values"]),
+    ("E_WITNESS_EXPORT", &["Run build:web first"]),
+    ("E_WITNESS_READY", &["Repair the reported schema or storage refusal"]),
+    ("E_WITNESS_SENT", &["Inspect the refusal; pending is not success"]),
+    ("E_WITNESS_WEB", &["Check the export, browser and application"]),
     ("E_REDUNDANT_RULE", &["Omit the entire read line", "making the total public would widen it"]),
     ("N_CONDITIONAL_COMPLETE", &["Guard the parent branch with keyed require/if", "update expect: \"capped\" cases"]),
     ("E_FOLLOWING_INPUT", &["the SDK owns tokens and fresh revisions"]),

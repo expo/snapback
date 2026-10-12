@@ -41,6 +41,7 @@ Expo: `snapback4-expo` exports `nativeDevice` and `nativeAvailable` (pass `devic
 | `snapback4/worker` | a worker performing emitted effects (`guide effects`) | `runWorker`, `runGeneratedEffects`, `listEffects`, `mintSession`, `revokeSessions`, `Retry`, `GiveUp` | `Effect`, `EffectHandler`, `WorkerOptions`, `Worker` |
 | `snapback4/server` | `use server` handlers: actions and routes (`guide actions`) | `startServer`, `ServerError`, `ParkStep` | `ServerOptions`, `ServerHandlers`, `RouteHandler`, `ServerContext` |
 | `snapback4/identity` | an OIDC sign-in adapter for `use server` | `oidcHandlers` | `OidcConfiguration`, `OidcSession` |
+| `snapback4/witness-web` | Exported browser proof registration | `registerWebWitness` | |
 | `snapback4/bin-path` | the platform binary, to spawn `dev` or `serve` without the Node wrapper | `resolveBinary` | |
 
 Each subpath's code and types ship under `node_modules/snapback4/dist/`: `snapback4/react` is `dist/react.js`

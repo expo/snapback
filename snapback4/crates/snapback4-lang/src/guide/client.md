@@ -45,6 +45,29 @@ Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitS
 ## Read boundaries
 `query(op, args)` settles ready/denied within 30 seconds including queues/approval. Admitted dependent writes: observed/failed or in complete predicted device answers. Unrelated writes pass; unknown intersects. Custody awaits events; loading/races before/after waits: four rounds; exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Offline: permitted predictions/data or immediate `E_OFFLINE`, including blockers. Refusals win; partial/stale permitted.
 
+## Password React and Expo
+
+Beside the persona form (`guide personas`), use this for `use identity password`:
+```tsx
+import { useState } from "react";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { AppProvider, useAuth } from "snapback4/react";
+const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
+export function PasswordApp() { return <AppProvider app={app}><Password /></AppProvider>; }
+function Password() {
+  const auth = useAuth(), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [why, setWhy] = useState("");
+  if (auth.state === "restoring") return <>Restoring…</>;
+  if (auth.state === "signed-in") return <>Signed in as {auth.viewer}</>;
+  const submit = async (signup: boolean) => { const r = await (signup ? auth.signup(email, password) : auth.login(email, password)); if (!r.ok) setWhy(r.why.message); };
+  return <><input aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} /><input aria-label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+    <button onClick={() => void submit(false)}>Sign in</button><button onClick={() => void submit(true)}>Sign up</button>{why}</>;
+}
+```
+SDK: `{ok:true, session}` / `{ok:false, why}`; wire: `{session}` / `{denied}`. Expo imports `Platform` and `* as SecureStore`:
+`sessionStore: Platform.OS === "web" ? localStorageSessionStore() : { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync }`.
+Synced web: `webDevice()`; native: `nativeDevice`; no-sync web: journal. `init --web`/`--expo` writes the form. REL owns the deploy checklist.
+
 ## React hooks
 `matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup.
 Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`/`usePersonaApp`; `{ skip: !id }` waits for arguments; `[add, remove].find(isFailed)?.last.why`; helpers take `Outcome | undefined` or `Read<unknown>` ([form](CLIENT-AND-OPERATIONS.md#status-components-and-a-form)).
@@ -64,6 +87,12 @@ Search: render `page.items`; `readPresentation(page.read)` supplies `pending` (l
 
 `app.online`/`useOnline()` (AppProvider): server query/observe, ephemeral mutate, act; no bearer/lifecycle; durable writes: app.mutate. `guide social`/`guide ephemeral`: snapshots/typing/quotes/bounded screens.
 
+## Generic read props and outcomes
+
+An empty complete list is `absent` only with `cut:null`, no continuation or blocking prediction. List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`.
+Narrow `write.state === "sent"` before `result` (omitted on replay); failed carries `why`; pending is not success.
+`useQuery` returns a live Read, without `refetch()`. For a one-shot refetch, `await client.query(...)` after `sent`.
+
 ## Row queries
 Share/paginate (`usePage` queries take `c: cursor ?` with `after c`); authorization remains dependent.
 Eight active; eight queued observation attempts start/turn; direct queries and timed presence refreshes use separate paths. Local budgets pause while queued, never replenish. Online evidence overtakes ≤8 times; occupied slots can withdraw.
@@ -81,33 +110,5 @@ Every milestone: `npm run export:ios`; proof in the background: `witness status 
 `guide receipts`: `useSeen(api.receiptFamilies.chat, { scope, through, active })` owns retries. SDK owns delivery reporting; screen owns visible `seen` reporting. Supply visible confirmed positions; separate retained history/live decorations.
 
 ## One-view photos
-Mount **above the list**; key: `JSON.stringify([backend, account, messageId, assetId])`. Open once; recycling/refetch preserves handles. Unmount/account change revokes late responses. Close on `absent`/denied/tombstone/changed-asset/deadline; deadlines run through loading.
-
-```tsx
-import { useEffect, useRef, useState } from "react";
-import { useClient, useNow, useQuery } from "snapback4/react";
-import { isReady, existence } from "snapback4/contract";
-import { api } from "../snapback/generated/api";
-export function OneView({ messageId, assetId }: { messageId: string; assetId: string }) {
-  const client = useClient(), row = useQuery(api.messagePhoto, { id: messageId });
-  const handle = useRef<{ revoke(): void } | null>(null), alive = useRef(false), deadline = useRef<number | null>(null);
-  const [started, setStarted] = useState(false), [url, setUrl] = useState<string | null>(null), [problem, setProblem] = useState("");
-  const opened = useRef(false);
-  if (isReady(row) && row.existence === "present") deadline.current = row.data.expiresAt;
-  const now = useNow(deadline.current);
-  const closed = existence(row) === "denied" || existence(row) === "absent" || (isReady(row) && row.existence === "present" && (row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);
-  const invalid = useRef(false); invalid.current ||= closed;
-  useEffect(() => { alive.current = true; return () => { alive.current = false; handle.current?.revoke(); }; }, []);
-  useEffect(() => { if (closed) { handle.current?.revoke(); handle.current = null; setUrl(null); } }, [closed]);
-  async function open() {
-    if (opened.current || invalid.current || (!isReady(row) || row.existence !== "present" || row.revalidating)) return;
-    opened.current = true; setStarted(true);
-    const result = await client.asset(assetId);
-    if ("denied" in result) { if (alive.current) setProblem(result.denied.message); return; }
-    if (!alive.current || invalid.current) { result.revoke(); return; }
-    handle.current = result; setUrl(result.url);
-  }
-  return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;
-}
-```
+[One-view photo recipe](CLIENT-AND-OPERATIONS.md): mount above the list; retain handles across refetch; account/unmount revokes late responses; absence/denial/deadline closes.
 `useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`).

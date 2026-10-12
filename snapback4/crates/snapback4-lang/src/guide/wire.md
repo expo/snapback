@@ -23,6 +23,21 @@ admits any name). `snapback4 serve` refuses personas. Everywhere else send `Auth
 each answering `{"session":{principal,kind,token,expiresAt}}`; a worker's token
 comes from `snapback4 token --service <name>`. Send one credential, not both.
 
+## Wire and client envelopes
+
+| Call | Success | Refusal / pending |
+|---|---|---|
+| `POST /m/<op>` | `{state:"sent", id?, seq, result, generation, store_id, head}`; inserted row: `result.id` | `{state:"failed", id?, why, current?, store_id, head}`; decode/auth/unknown-op failures can be `{denied}` |
+| `POST /q/<op>` | `{data, complete, cut, next, seq, tables, viewer, generation, store_id}`; list, row, shape or scalar | `{denied, complete:false, …}` or `{loading:true,data:null,complete:false,…}`; loading data is a placeholder, never an empty answer |
+| `POST /assets` raw bytes | `{asset:{id,type,bytes,width?,height?,duration?,name?}}`; `?as=file&name=…` for files | `{denied}`; pass `{id:asset.id}` to the mutation |
+| `await client.query(api.op, args)` | `Read<T>`: `{data, existence, complete, …}`; narrow with `isReady` | `{denied}`; one-shot reads settle or refuse; observers can also load |
+| `await client.mutate(api.op, args)` | `Write<T>`: `{state:"sent", id, seq, result?, …}` | `{state:"failed", id, why, …}` or `{state:"pending", id, …}`; pending is not success |
+
+SDK envelopes differ from raw HTTP. Check `loading` and `denied` before `data`; HTTP status alone is insufficient.
+An omitted mutation request id is omitted from its reply, never the inserted
+row id. Send an id once per intended write to retry safely; SDK clients mint
+it. Replays omit historical result/current; see the Operations contract below.
+
 ## Operations
 
 - `/q/<op>` with `{"args":{..}}` answers `{data, complete, cut, next, seq, tables, viewer}`
@@ -32,7 +47,7 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
 - `/m/<op>` with `{"id"?, "args":{..}}` answers `{state:"sent", id, seq, result}` or
   `{state:"failed", id, why, current?}`, both HTTP 200 (see Refusals for the
   status codes). `result` is what the mutation returns (an inserted row's id is
-  `result.id`); the top-level `id` is the write id you sent, `null` without one. With an `id` (a unique string the caller mints once per
+  `result.id`); the top-level `id` is the write id you sent, omitted without one. With an `id` (a unique string the caller mints once per
   intended write), a retry of the same call applies at most once and answers
   `replayed: true`; the same `id` with another operation or other arguments is
   `{state:"failed", why:{code:"E_ID_REUSED"}}`. Without an `id`, every POST is a

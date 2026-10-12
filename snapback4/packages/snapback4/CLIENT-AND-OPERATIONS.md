@@ -57,6 +57,24 @@ See the generated README for residency tables, horizon choices and the
 production offline-reopen journey; fixture residency remains
 `test --residency --fixture <directory> --as <principal>`.
 
+For a browser proof, register the application's own app and generated API
+(starters do this; the hook is active only under `?witness=web`):
+
+```ts
+import { registerWebWitness } from "snapback4/witness-web";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { api } from "../snapback/generated/api";
+const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
+registerWebWitness(app, api);
+```
+
+`npm run build:web && snapback4 witness web dist --as alice` proves the first
+mutation reaches `sent`; `--mutation NAME --args JSON` supplies application
+values. Password accounts use `--email EMAIL --password-env ENV_VAR`, with
+`--url URL` for an existing backend. See `guide testing` for lifecycle and
+idempotence limits; this proves SDK integration, not the composer's UI.
+
 ## 4. The client
 
 **Constructor compatibility:** ready `Read<T>` values now require `existence`. Readers keep `isReady`/`isLoading`/`isDenied`; custom clients and mocks must classify their published value as `present`, `absent` or `partial`. No wire field was added. See `guide client` for the rules and point-read narrowing.

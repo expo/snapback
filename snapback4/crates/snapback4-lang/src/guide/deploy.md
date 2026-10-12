@@ -14,27 +14,17 @@ See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 
 ## Upgrade
 
-`bun add snapback4@latest` upgrades the core package and its platform CLI.
-For Expo, use **one command**: `bun add snapback4@latest snapback4-expo@latest`.
-The adapter requires the exact core version, including the patch; `check`
-warns on stderr if installed versions differ (also with --json). Rebuild your native development/release app
-after changing the adapter (Expo Go uses the online tier). Commit the lockfile,
-run `bunx snapback4 check`, typecheck the app and run your acceptance tests.
-`snapback4 test` uses ./fixtures when present; `--fixture dir` overrides it.
+`snapback4 upgrade [version]` resolves once and exactly pins core and installed
+Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes;
+commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures;
+`--fixture dir` overrides it. REL owns the persona-to-password checklist.
 
 ## Deploy and password identity
 
 Add `use identity password` to your schema (the recipe below includes it).
 Deploy from the app directory; keep the deployment directory on durable storage:
 
-`serve --port N` accepts 0 for an allocated port or an inclusive range A-B,
-choosing its first free port. Invalid input refuses E_INPUT. Stdout's first
-line is the actual URL; stderr includes `SNAPBACK4_READY verb=serve … url=…`.
-Wait for readiness before requests. For a redeploy, run deploy on the same
-host while serve stays running, then verify a read and write with a real
-account. Its private owner socket serializes activation; failed validation
-keeps the current release. A dev or older unreachable owner requires stopping
-that owned process before retrying. See SERVER.md#release-lifecycle.
+`serve --port N` accepts 0 for an allocated port or an inclusive range A-B, choosing its first free port. Invalid input refuses E_INPUT. Stdout's first line is the actual URL; stderr includes `SNAPBACK4_READY verb=serve … url=…`. Wait for readiness before requests. For a redeploy, run deploy on the same host while serve stays running, then verify a read and write with a real account. Its private owner socket serializes activation; failed validation keeps the current release. A dev or older unreachable owner requires stopping that owned process before retrying. See SERVER.md#release-lifecycle.
 
 Layout: `releases/N/` holds each backend; `store.sqlite` holds rows, sessions,
 receipts and queues; `assets/` holds uploads; `releases.jsonl` records activation.
@@ -147,3 +137,9 @@ bodies; allow long polls without buffering or early timeouts. Non-loopback
 HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS.
 Identity rate keys use the socket peer, not forwarded headers. Serve refuses
 personas and dev doors even through a local proxy; see SERVER.md for capacity.
+
+## Authoring and proof refusals
+
+N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. Add a service-seat insert mutation.
+
+E_UPGRADE means the package-manager upgrade did not complete. Repair the package-manager or registry error and rerun upgrade.

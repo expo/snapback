@@ -1602,3 +1602,5 @@ fn guessed_section_words_land_on_one_section_even_in_another_card() {
 
 #[path = "guide/deploy.rs"]
 mod deploy;
+
+#[path = "guide/wave9_dx.rs"] mod wave9_dx;
