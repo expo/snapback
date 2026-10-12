@@ -539,9 +539,19 @@ fn scan_pin<'a>(schema: &Schema, scan: &'a snapback4_core::ir::Scan, column: &st
     None
 }
 
+fn definitely_non_null_pin(bound: &BoundProgram, value: &snapback4_core::ir::Expr) -> bool {
+    use snapback4_core::{Value, ir::{Expr, Input}};
+    match value {
+        Expr::Literal(value) => value != &Value::Null,
+        Expr::Input(Input::Viewer | Input::Now | Input::NewId | Input::ReadTime) => true,
+        Expr::Variable(name) => bound.program.args.get(name).is_some_and(|ty| !ty.is_optional()),
+        _ => false,
+    }
+}
+
 /// A branch merge over one capped group cannot leave rows behind when every
 /// branch pins the same group values and the cap fits both the page and meter.
-fn merged_group_complete(schema: &Schema, merge: &snapback4_core::ir::Merge) -> bool {
+fn merged_group_complete(schema: &Schema, bound: &BoundProgram, merge: &snapback4_core::ir::Merge) -> bool {
     if !merge.branches() || merge.lanes.is_empty() { return false; }
     let table = match schema.table(merge.table()) { Some(table) => table, None => return false };
     // System and grant lanes cover the other branches when they run. Every
@@ -558,6 +568,11 @@ fn merged_group_complete(schema: &Schema, merge: &snapback4_core::ir::Merge) -> 
             || u64::from(*max).saturating_mul(scans) > snapback4_core::Ceilings::default().examined { return false; }
         by.iter().all(|column| {
             let Some(first) = scan_pin(schema, &merge.lanes[0].scan, column) else { return false };
+            // `set null` rows belong to no parent group, so that reference's
+            // cap does not count them. Recover the per-parent bound only when
+            // the shared pin is statically known to be non-null.
+            if table.on_delete.get(column) == Some(&snapback4_core::schema::references::OnDelete::SetNull)
+                && !definitely_non_null_pin(bound, first) { return false; }
             merge.lanes[1..].iter().all(|lane| scan_pin(schema, &lane.scan, column) == Some(first))
         })
     })
@@ -678,7 +693,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             // same cap group. Quarry page takes are literals.
             // @ref LLP 3000.007#5.6 — a meter-cut page still needs continuation; a plain scan charges one examined unit per candidate.
             let group_complete = if let Some(merge_site) = &page.merge_site {
-                branch_merges.iter().find(|merge| &merge.site == merge_site).is_some_and(|merge| merged_group_complete(schema, merge))
+                branch_merges.iter().find(|merge| &merge.site == merge_site).is_some_and(|merge| merged_group_complete(schema, bound, merge))
             } else {
                 unique_bound::group_bound(schema, &page.table, &pinned).is_some_and(|n| {
                     u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
