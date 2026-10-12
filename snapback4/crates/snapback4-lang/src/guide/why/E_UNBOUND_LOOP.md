@@ -22,7 +22,7 @@ a query, or pin the deciding columns.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting; an aborting mutation page also costs one examined unit before the verdict.
 The pass is atomic and remains subject to 1,024 rows written per mutation.
 `check --cost` names the examined ceiling and, for expiring scans, the
-unswept-row backlog and atomic `E_BOUND` outcome. It never commits a partial pass after a budget abort.
+unswept-row backlog, which is store work off the meter. It never commits a partial pass after a budget abort.
 
 A bounded list loop that only reads, computes and emits may iterate a list
 column, an alias, a helper result or a filtered/shaped list from a page.

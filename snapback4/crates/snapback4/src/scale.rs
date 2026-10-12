@@ -71,7 +71,8 @@ pub(crate) struct Growth {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<String>,
     /// Rows a background sweep removes: retired Following entries or expired
-    /// rows. The read meter bounds them while the backlog lasts.
+    /// rows. Retired entries count on the read meter; expired rows are store
+    /// work bounded by the store guard (LLP 3000.007 §20.24.6).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub backlog: bool,
     pub site: String,
@@ -865,7 +866,7 @@ impl Analysis<'_> {
         }
         if let Some(m) = self.schema.maintain_for(name)
             && self.schema.table(&m.source).is_some_and(|t| t.is_expiring()) {
-            self.growth(site, format!("server: constant aggregate lookup plus unswept expired {} contributions in the group behind `{name}`; server expiry sweep: 1-second tick, at most 2,000 rows per pass; the examined meter bounds the backlog; device: live source recomputation still scans the held group", m.source),
+            self.growth(site, format!("server: constant aggregate lookup plus unswept expired {} contributions in the group behind `{name}`; server expiry sweep: 1-second tick, at most 2,000 rows per pass; the store guard, not the meter, bounds the backlog; device: live source recomputation still scans the held group", m.source),
                 "allow the server expiry sweep to drain the group backlog; live group size adds no server read work; use server fallback when the device cannot complete");
             self.rows(self.result.bounds.meters.examined);
         }
@@ -892,7 +893,7 @@ impl Analysis<'_> {
     }
 
     fn expiry_reason(table: &str, skipped: &str) -> String {
-        format!("expired {table} rows not yet swept, skipped {skipped} (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)")
+        format!("expired {table} rows not yet swept, skipped {skipped} (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the store guard, not the meter, bounds that work)")
     }
 
     fn scan_with_window(&mut self, scan: &Scan, times: u64, merged: bool, window: Option<String>) {

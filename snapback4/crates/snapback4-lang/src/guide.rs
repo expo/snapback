@@ -352,14 +352,14 @@ leaves local stores on the next sync. In development, `snapback4 clock advance 1
 runs that sweep immediately on the running `dev`; the deletion reaches both
 device stores through normal sync; devices also learn the advanced server time
 on their next response (guide clock).
-Mutation scans of expiring tables follow guide programs; unswept rows still
-cost examined work, and a backlog can refuse the whole write (why E_BOUND).
+The meter charges only rows live at the read's clock: an unswept expired row
+costs no meter on any store or device; its walk is store work (guide bounds).
 For receipt gaps in expiring messages, use `sequence by` and bounded unique
 ordinal probes: `guide sequences` has the compiled recipe and a row-keyed count.
 Disappearing messages are one field on
 insert; there is no purge job to write. An ordinary maintained `view` over an expiring table
-reads its physical total minus unswept expired contributions under the read
-meter through an internal group/expiry/source-id index. Live rows add no server
+reads its physical total minus unswept expired contributions through an
+internal group/expiry/source-id index, as store work off the meter. Live rows add no server
 read work. Devices still recompute live source contributions under their meter;
 partial source coverage or a cut cannot supply an exact aggregate. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
 exists at one rule-probe unit, regardless of expired sources. A rule equality

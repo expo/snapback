@@ -26,7 +26,7 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-For expiring server scans, `E_BOUND` includes unswept rows. For delivery
+Unswept expired rows never count toward `E_BOUND`. For delivery
 reports, `E_BOUND` is an ordinary non-retryable refusal: the SDK calls
 `onDeliveryRefused` once and parks the interval until the next start, which
 retries with a new id. There is no retry within the session. A committed report

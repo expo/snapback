@@ -125,6 +125,9 @@ fn snapshot(e: &mut Engine, after: Option<&str>) -> StreamPage {
 fn unavailable(value: &Json) { assert_eq!(value["ok"]["loading"], true, "{value}"); assert!(value["ok"].get("data").is_none(),"{value}"); }
 fn predicts(value: &Json) { assert!(value["ok"].get("predicted").is_some(),"{value}"); assert!(value["ok"].get("denied").is_none(),"{value}"); }
 fn refusal(value: &Json, code: &str) { assert_eq!(value["ok"]["denied"]["code"], code,"{value}"); }
+// @ref LLP 3000.007#20.5 — a supplied repost id under a reposts horizon is unproved,
+// so the insert's own refusal is the server's to report: the write queues.
+fn repost_refusal(value: &Json, reposts: &str) { refusal(value, if reposts.contains("last") { "E_PREDICT" } else { "FEED_POST_NOT_FOUND" }); }
 
 fn log_order() -> Json {
     let (mut e, backend) = common::compile(&source("sync public last 10 by .at","sync public"));
@@ -398,7 +401,7 @@ fn deferred() -> Json {
         if !page.more { break; }
     }
     assert_eq!(t.device.queued().unwrap()[0].observed_seq,Some(seq));
-    refusal(&t.predict("plainRepost",json!({"repostId":"r","postId":"p"})),"FEED_POST_NOT_FOUND");
+    repost_refusal(&t.predict("plainRepost",json!({"repostId":"r","postId":"p"})),"sync public last 10 by .at");
     assert!(t.device.store().raw_rows("feedPosts").is_empty());
     t.finish()
 }
@@ -411,7 +414,7 @@ fn transition_cases(posts: &str, reposts: &str) -> Json {
     repost(&mut e,"r","p","E");
     let mut t=Trace::new(&format!("held live/reply/removed and server unrepost: {posts}, {reposts}"),backend); t.acquire(&mut e);
     for p in ["reply","removed"] {
-        refusal(&t.predict("plainRepost",json!({"repostId":"next","postId":p})),"FEED_POST_NOT_FOUND");
+        repost_refusal(&t.predict("plainRepost",json!({"repostId":"next","postId":p})),reposts);
     }
     predicts(&t.predict("unrepost",json!({"postId":"p"})));
     assert_eq!(t.query("tombstone",json!({"eventId":"E"}))["ok"]["data"],true);
@@ -430,7 +433,7 @@ fn transition_cases(posts: &str, reposts: &str) -> Json {
     predicts(&t.predict("unrepost",json!({"postId":"p"})));
     t.withdraw();
     write(&mut e,"unrepost",&[("postId",id("p"))],&[]); t.sync(&mut e,1);
-    refusal(&t.predict("plainRepost",json!({"repostId":"another","postId":"p"})),"FEED_POST_NOT_FOUND");
+    repost_refusal(&t.predict("plainRepost",json!({"repostId":"another","postId":"p"})),reposts);
     t.finish()
 }
 

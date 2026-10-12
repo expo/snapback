@@ -166,23 +166,19 @@ pub fn nested_cursor(programs: &mut [snapback4_core::ir::Program], bytes: usize)
     });
 }
 
-// Sub-pair (ii): no extra expired word takes N=46 seeks; an extra word needs
-// N+1=47. This is the existing time-hidden existence bit from metered expired
-// work (LLP 3000 §7), not a new authorization channel. Compare whole envelopes.
+// Sub-pair (ii): an extra word held only by an expired, unswept row is store
+// work, never a seek on the meter, so both worlds take N=46 seeks and answer
+// identically: the time-hidden existence bit metered expired work used to
+// carry (LLP 3000 §7) is gone (LLP 3000.007 §20.24.6). Compare whole envelopes.
 pub fn assert_expired_boundary(a: &QueryOutcome, b: &QueryOutcome) {
-    assert_eq!((a.metered.index_entries, b.metered.index_entries), (46, 47));
+    assert_eq!((a.metered.index_entries, b.metered.index_entries), (46, 46));
     let a: Json = serde_json::from_slice(&viewer(a)).unwrap();
     let b: Json = serde_json::from_slice(&viewer(b)).unwrap();
     assert_eq!(a["complete"], true);
     assert_eq!(a["cut"], Json::Null);
     assert!(a["next"].is_string());
     assert_eq!(a["data"].as_array().unwrap().len(), 20);
-    let mut expected = a;
-    expected["data"] = json!([]);
-    expected["complete"] = json!(false);
-    expected["cut"] = json!("meter");
-    expected["next"] = Json::Null;
-    assert_eq!(b, expected, "all remaining production fields, including nextExpiry, agree");
+    assert_eq!(b, a, "all production fields, including nextExpiry, agree");
 }
 
 pub fn nested_predicate(programs: &mut [snapback4_core::ir::Program]) {

@@ -77,7 +77,8 @@ fn period_digest_and_viewer_inbox_agree_before_the_expiry_sweep() {
     let mut e = engine(&source());
     small(&mut e);
     let mut expected = Vec::new();
-    for (viewer, counts, examined) in [("alice", vec![1, 2], 11), ("bob", vec![0, 4, 2], 14), ("carol", vec![0, 0], 8)] {
+    // The unswept expired message costs no examined unit (LLP 3000.007 §20.24.6).
+    for (viewer, counts, examined) in [("alice", vec![1, 2], 10), ("bob", vec![0, 4, 2], 13), ("carol", vec![0, 0], 8)] {
         let read = e.query("inbox", Context::new(viewer, period(10_000, 20_000)).at(20_000)).unwrap();
         assert!(read.complete, "{viewer}: {read:?}");
         let rows = read.data.as_array().unwrap();
@@ -89,7 +90,8 @@ fn period_digest_and_viewer_inbox_agree_before_the_expiry_sweep() {
         println!("period inbox {viewer}: {counts:?}, examined={examined}");
     }
     // The retained 0.2.27 probe's inbox starts at zero, unlike its job.
-    for (viewer, counts, examined) in [("alice", vec![1, 2], 11), ("bob", vec![0, 4, 3], 15), ("carol", vec![0, 0], 9)] {
+    // The unswept expired message costs no examined unit (LLP 3000.007 §20.24.6).
+    for (viewer, counts, examined) in [("alice", vec![1, 2], 10), ("bob", vec![0, 4, 3], 14), ("carol", vec![0, 0], 9)] {
         let read = e.query("inbox", Context::new(viewer, period(0, 20_000)).at(20_000)).unwrap();
         assert_eq!(read.data.as_array().unwrap().iter().map(|row| row.field("unread").unwrap().as_int().unwrap()).collect::<Vec<_>>(), counts);
         assert_eq!(read.metered.examined, examined);

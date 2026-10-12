@@ -17,6 +17,10 @@ use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 use crate::rows::word_heap;
 
 use super::authorized_scan::AUTHORIZATION_WALK_LIMIT;
+/// Row-image bytes one execution may step over as expired, unswept rows.
+pub(super) const EXPIRED_STEP_GUARD: u64 = 256 << 20;
+/// The internal scratch one stepped-over expired row reserves, beside its key.
+const EXPIRED_STEP: u64 = 256;
 #[path = "word_merge.rs"]
 mod word_merge;
 #[cfg(feature = "server-search")]
@@ -251,6 +255,25 @@ impl<'r> Runner<'r> {
     /// than anyone: an expired row contributes to nothing.
     pub(super) fn expired(&self, table: &Table, row: &Value) -> bool {
         self.context.now.is_some_and(|now| table.expired(row, now))
+    }
+
+    /// Step over a fetched row that is expired at this run's clock but not yet
+    /// swept. It is the store's internal work: it never reaches the public
+    /// meter or the shared authorization walk, so a read meters the same on
+    /// every store and on a device that never received the row. The work is
+    /// bounded by its own guard: each stepped row reserves a fixed 256 bytes
+    /// of internal scratch plus its key, so one execution steps over at most
+    /// about a million such rows before it refuses E_STORE_MEMORY.
+    // @ref LLP 3000.007#20.24.6 — the public meter charges only rows live at the read's clock.
+    /// Returns whether `row` was expired (and so stepped over).
+    pub(super) fn step_expired(&mut self, table: &Table, row: &Value, key: &[u8]) -> Result<bool, RuntimeError> {
+        if !self.expired(table, row) { return Ok(false); }
+        let bytes = EXPIRED_STEP + key.len() as u64;
+        self.tx.refund(1);
+        self.expired_steps = self.expired_steps.saturating_add(bytes);
+        self.meter.scratch = self.meter.scratch.saturating_add(bytes);
+        if self.expired_steps <= EXPIRED_STEP_GUARD { return Ok(true); }
+        Err(word_heap::store_memory())
     }
 
     pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
@@ -844,6 +867,8 @@ impl<'r> Runner<'r> {
                 }
                 let Some((mut row, key)) = runner.tx.scan(allowance, &scan.table, &scan.index, prefix, &cursor, dir, 1)?.pop() else { return Ok(Vec::new()); };
                 cursor.after = crate::key::decode(&key).map(|key| key.into_iter().skip(prefix.len()).collect());
+                // @ref LLP 3000.007#20.24.6 — an expired candidate costs neither the meter nor this walk.
+                if runner.step_expired(table, &row, &key)? { continue; }
                 materialize_optional_fields(&mut row, table);
                 if let Some(row) = runner.authorize_image(&scan.table, row)? { return Ok(vec![(Some(row), key)]); }
                 *remaining -= 1;
@@ -1033,7 +1058,9 @@ impl<'r> Runner<'r> {
                 let (row, authority) = row.into_parts();
                 if transient { row_bytes += materialized; }
                 if self.expired(table, &row) {
-                    // Gone, whatever the rule says; it cost one examined row.
+                    // Every candidate source steps over expired rows before the
+                    // meter (§20.24.6), so none reaches this page.
+                    debug_assert!(false, "an expired candidate reached the page meter");
                     continue;
                 }
                 if private_page {

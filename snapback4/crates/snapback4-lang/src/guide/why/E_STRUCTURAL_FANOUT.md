@@ -38,12 +38,12 @@ constraint every writer obeys, or a readable availability audience if the
 product permits it; `guide writes` has a per-night booking example. A hidden
 unique collision stays E_RULE; only a readable collision can use its named code.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
-prints the examined ceiling and, for expiry, the unswept-row backlog and
-atomic `E_BOUND` outcome rather than a first-N-rows price.
+prints the examined ceiling and, for expiry, the unswept-row backlog (store
+work, off the meter) rather than a first-N-rows price.
 For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
 A program's prefix `exists` is a top-1 scan below the page: no cursor and no
-page overflow. Expired siblings still cost examined rows, and `matching` pays
+page overflow. Expired siblings cost no examined rows; `matching` pays
 word discovery. A positive held row proves existence on a device regardless of
 its horizon; only a negative answer past that horizon needs coverage. A
 query cut is an incomplete null; a mutation cut is `E_BOUND` with no write.

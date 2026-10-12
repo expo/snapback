@@ -320,12 +320,19 @@ impl StoreGuard {
     pub fn reserve(&mut self, meter: &mut crate::engine::InternalMeter<'_>, bytes: u64) -> Result<(), RuntimeError> {
         let used = meter.add_scratch(bytes).saturating_sub(self.start);
         if used <= self.limit { return Ok(()); }
-        Err(RuntimeError::Structural { code: "E_STORE_MEMORY", message: String::from("a store scan exceeded its memory guard (256 MiB on SQLite and Postgres, 64 MiB on the memory store); read a smaller page") })
+        Err(store_memory())
     }
     /// The encoded range copies a native store makes for its statement.
     pub fn range(&mut self, meter: &mut crate::engine::InternalMeter<'_>, copies: u64, prefix: &[Value], bounds: &Bounds) -> Result<(), RuntimeError> {
         self.reserve(meter, copies.saturating_mul(range_bytes(prefix, bounds)))
     }
+}
+
+/// A store guard's refusal; also a read's guard on unswept expired rows.
+#[cold]
+#[inline(never)]
+pub(crate) fn store_memory() -> RuntimeError {
+    RuntimeError::Structural { code: "E_STORE_MEMORY", message: String::from("a store scan exceeded its memory guard (256 MiB on SQLite and Postgres, 64 MiB on the memory store); read a smaller page") }
 }
 
 // A test may shrink every guard in its thread to reach it with small rows.

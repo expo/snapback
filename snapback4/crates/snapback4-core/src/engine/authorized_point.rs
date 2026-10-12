@@ -101,8 +101,14 @@ impl<'r> Runner<'r> {
         // decodes a full transient image; the streaming consumer retains only
         // its ordering key. Selection remains useful in the private decoder.
         if (self.context.is_system() || trusted && !table.is_expiring()) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
-            let rows = if metered {
-                self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?;
+            if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?; }
+            #[cfg(feature = "sqlite")]
+            let live = table.is_expiring();
+            // A web device never reads as the system, the only reader of an expiring table here.
+            #[cfg(not(feature = "sqlite"))]
+            let live = false;
+            let rows = if live { self.live_store_scan(name, index, prefix, bounds, dir, limit, metered)? }
+            else if metered {
                 self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?
             } else { self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,bounds,dir,limit))? };
             // @ref LLP 3000.007#20.24.5 — a device prices the server's image with the server's charge. Its
@@ -123,7 +129,7 @@ impl<'r> Runner<'r> {
         let mut cursor = bounds.clone();
         let mut out = Vec::with_capacity(limit);
         for _ in 0..limit {
-            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| {
+            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| loop {
                 #[cfg(not(feature = "server-search"))]
                 let selected = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?;
                 #[cfg(feature = "server-search")]
@@ -131,7 +137,9 @@ impl<'r> Runner<'r> {
                 let Some((row,key)) = selected.into_iter().next() else { return Ok(None); };
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
-                Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted)?,key)))
+                // @ref LLP 3000.007#20.24.6 — an expired, unswept candidate is never returned, counted or charged.
+                if runner.step_expired(table, &row, &key)? { continue; }
+                return Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted)?,key)));
             })?;
             let Some((row,key)) = candidate else { break; };
             // Only this sealed surviving projection can be priced on the caller ledger.
@@ -140,6 +148,32 @@ impl<'r> Runner<'r> {
                     + crate::rows::word_heap::key_decode(table.index(index).map_or(1,|i|i.components.len()+1),key.len()))?;
             }
             out.push((row,key));
+        }
+        Ok(out)
+    }
+
+    /// A system read of an expiring table takes the store path, so the store
+    /// would price every fetched entry. Peek at the next entries unpriced, step
+    /// over expired ones, and let the store price each run of live entries
+    /// exactly as it prices an ordinary page.
+    // @ref LLP 3000.007#20.24.6 — the public meter charges only rows live at the read's clock.
+    #[cfg_attr(not(feature = "sqlite"), allow(dead_code))]
+    fn live_store_scan(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let table = &self.schema.tables[name];
+        let mut cursor = bounds.clone();
+        let mut out = Vec::new();
+        while out.len() < limit {
+            let mut window = self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,&cursor,dir,limit - out.len()))?;
+            let live = window.iter().take_while(|(row, _)| !self.expired(table, row)).count();
+            let expired = window.drain(live..).next();
+            let rows = if metered && live > 0 {
+                self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,&cursor,dir,live,&mut runner.meter))?
+            } else { window };
+            let short = rows.len() < live;
+            out.extend(rows);
+            let Some((row, key)) = expired.filter(|_| !short) else { break };
+            self.step_expired(table, &row, &key)?;
+            cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
         }
         Ok(out)
     }

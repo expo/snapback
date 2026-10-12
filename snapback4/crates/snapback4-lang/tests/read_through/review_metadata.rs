@@ -304,14 +304,16 @@ pub fn authorized_expired_backlog_stays_metered(mut factory: impl FnMut(&str) ->
                 ordinary.0,
                 Ok(if denied { Value::Null } else { Value::Int(0) })
             );
-            // An occupied group adds Q's metered live seek after the backlog;
-            // a missing or denied group still stops at its point lookup.
-            assert_eq!(ordinary.1.examined, if denied || backlog == 0 { 1 } else { backlog + 2 });
+            // An occupied group adds Q's metered live seek; the backlog is store
+            // work (LLP 3000.007 §20.24.6). A missing or denied group still
+            // stops at its point lookup.
+            assert_eq!(ordinary.1.examined, if denied || backlog == 0 { 1 } else { 2 });
             let tight = Ceilings {
                 examined: 16,
                 ..Ceilings::default()
             };
-            let capped = !denied && backlog > 0;
+            // A backlog of 40 used to exceed this ceiling; it no longer cuts.
+            let capped = false;
             let context = ctx("bob", 200, &[("p", id("p"))]);
             if let Some(mut o) = e.query("total", context.clone(), tight) {
                 assert_eq!(o.complete, !capped, "{o:?}");

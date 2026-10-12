@@ -320,10 +320,16 @@ fn extrema_seek_skips_expired_rows_and_respects_filter_cuts() {
     expired.1 = Value::Row(fields.into());
     e.seed([expired, row("a", "alice", "m", None), row("b", "alice", "m", Some(1)), row("c", "alice", "m", Some(8))]).unwrap();
     assert_eq!(e.query("slowest", ctx("m")).unwrap().data, Value::Int(1));
-    e.set_ceilings(Ceilings { examined: 2, ..Ceilings::default() });
+    // @ref LLP 3000.007#20.24.6 — the expired row costs nothing: one examined unit
+    // reaches only the filtered-out row and cuts; two reach the answer.
+    e.set_ceilings(Ceilings { examined: 1, ..Ceilings::default() });
     let cut = e.query("filtered", ctx("m")).unwrap();
     assert!(!cut.complete);
     assert_eq!(cut.data, Value::Null);
+    e.set_ceilings(Ceilings { examined: 2, ..Ceilings::default() });
+    let answer = e.query("filtered", ctx("m")).unwrap();
+    assert!(answer.complete, "{answer:?}");
+    assert_eq!(answer.data, Value::Int(8));
 }
 
 #[test]

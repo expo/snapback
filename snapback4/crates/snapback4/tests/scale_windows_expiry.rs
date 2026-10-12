@@ -196,8 +196,10 @@ fn expiry_backlog_can_outlive_one_tick_and_remains_meter_bounded() {
     assert_eq!(engine.sweep_expired(NOW, 2_000).unwrap(), 2_000);
     let after = query(&mut engine, "messagesPage");
     assert!(after.data.as_array().unwrap().is_empty());
-    assert!(after.metered.examined > 0, "an old expired row remains after this pass");
-    assert!(after.metered.examined < before.metered.examined);
+    // @ref LLP 3000.007#20.24.6 — an old expired row remains after this pass, but the
+    // meter charges only live rows: the backlog is store work, the same before and after.
+    assert_eq!(after.metered, before.metered);
+    assert!(before.metered.examined <= 1, "{before:?}");
     for result in [&before, &after] { covered(&c, result); }
     assert_eq!(engine.sweep_expired(NOW + 1_000, 2_000).unwrap(), 1);
     println!("expiry examined: before={}, after first sweep={}", before.metered.examined, after.metered.examined);
@@ -242,7 +244,8 @@ fn expiring_aggregate_certificate_matches_live_population_and_backlog_measuremen
         ])));
         e.seed(rows).unwrap();
         let result=e.query("unread",Context::new("alice",BTreeMap::new()).at(100)).unwrap();
-        assert_eq!(result.metered.examined,backlog as u64+2);
+        // @ref LLP 3000.007#20.24.6 — the backlog is store work, off the meter.
+        assert_eq!(result.metered.examined,2);
         assert_eq!(result.data,Value::Int(live as i64)); assert!(result.complete);
         covered(&c,&result);
     }}

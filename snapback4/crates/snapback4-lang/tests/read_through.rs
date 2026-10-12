@@ -412,7 +412,8 @@ fn inherited_aggregate_cost_depends_on_backlog_not_live_population() {
             assert_eq!(result.data, Value::Int(live));
             assert!(result.complete, "{result:?}");
             assert_eq!(result.next_expiry, Some(500));
-            assert_eq!(result.metered.examined, backlog as u64 + 2, "{result:?}");
+            // @ref LLP 3000.007#20.24.6 — the backlog is store work, off the meter.
+            assert_eq!(result.metered.examined, 2, "{result:?}");
             let denied = e.query("total", context("bob", 200, &[("owner", id("alice"))])).unwrap();
             assert_eq!(denied.data, Value::Null);
             assert_eq!(denied.next_expiry, None);

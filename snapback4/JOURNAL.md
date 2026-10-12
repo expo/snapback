@@ -92408,3 +92408,58 @@ Rebased on main: the R2 security fix `b2036dd821` and the wasm budget raise.
 - **What was hard:** precision of the named exception. Every widening of the
   generator (preludes, `if` branches) found a new way for the "first write"
   to be ambiguous.
+
+## 2026-10-12 — Lane EX: the meter charges only live rows; a refusal after an unproved insert defers to the server
+
+Two findings of the widened generator (LLP 3000.035 §5.1), branch
+`sb4/device-meter-expiry`.
+
+- **Ruling A (Charlie, 2026-10-08), LLP 3000.007 §20.24.6.** The public meter
+  charges only rows live at the read's clock. The server's scans charged an
+  expired row the sweep had not removed (examined, then steps and heap), which
+  the device never received, so meters diverged and low ceilings cut on the
+  server where the device completed. Now `scan_authorized` (both paths, a
+  system read through a new `live_store_scan`), the private authorization walk,
+  the device's live recount and the server's maintained backlog read step over
+  expired rows before any public charge. `Runner::step_expired` prices them on
+  their own guard (256 B plus key per row, `E_STORE_MEMORY` past 256 MiB per
+  execution) and returns their unit of the 8,192-row walk. One engine change
+  covers SQLite, PostgreSQL, `MemoryRows` and both device stores.
+- **Defect B, LLP 3000.007 §20.5.** A device predicted an insert over a hidden
+  id or unique value, carried on, and refused locally later in the block
+  (`E_CONSTRAINT`, `NOT_FOUND`, `E_OVERFLOW`), a final code the server never
+  reports (it refuses `E_RULE` at the insert). Each authored plain device insert
+  now runs the upsert insert-arm proof on the device allowance; after an
+  unproved one, `predict` turns a later refusal into `E_PREDICT`, so the write
+  queues and the server's refusal is reported. Provable refusals stay final.
+- **Tests.** Four focused tests in `snapback4-difftest/tests/devices.rs` (server
+  against both device stores at every boundary of every dimension; a cut before
+  and after the sweep; the three refusal shapes queue; provable refusals stay
+  local); all fail on the old engine. About thirty tests pinned the old model
+  (expired rows charged, backlogs cutting reads or refusing `E_BOUND`, literal-id
+  inserts refusing locally) and now state the new contract; where a backlog was
+  only a device to force a cut, a rejected live row or a lower ceiling does it.
+- **Harness (main's widened generator).** `run-devices --seed 0 --cases 20000`:
+  0 read and 0 cut disagreements in 152,256 positions per store (the 14 expired-meter
+  signatures per store are gone); writes: 11 named unique-key outcomes per store
+  and 1 disagreement per store, the known insert beside an `upsert` branch
+  (outside the named condition, recorded in the GW follow-up); the three
+  `write-refused` signatures are gone. `run-stores --seed 0 --cases 5000` with a
+  private PostgreSQL 17 cluster: 0 disagreements (128,202 positions per prefetch
+  mode, 1,124 prelude, 3,964,936 SQLite repeats). The 30 retained device cases
+  replay as resolved regressions (`pass`, or `prediction-declined` for the
+  refusals).
+- **wasm.** 646,316 → 646,816 B gzip (+500; budget 646,816 unchanged, zero
+  headroom). The first spelling cost +2,363; compaction: a web device never reads
+  as the system, so `live_store_scan` is SQLite-only; the step price is a fixed
+  reservation, not a serialized row size; `device_work` split into non-generic
+  enter/leave halves (−157 across its instantiations); B reuses
+  `prove_upsert_insert` instead of a refactored proof; short messages.
+- **What was surprising:** the meter used to carry a time-hidden existence bit
+  (a word held only by an expired row cost a seek; a maintained backlog cost
+  observable examined work). The ruling closes it; the attack witness in
+  `expiring_mutations.rs` now shows the worlds agree even without the admission
+  guard.
+- **What was hard:** the collateral. Literal-id inserts into partitioned tables
+  are common in tests, so B changed the expected outcome of every such test
+  whose program refuses after the insert. The wasm budget had 500 B of room.

@@ -113,11 +113,13 @@ impl Runner<'_> {
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
+                bounds.after = crate::key::decode(&key)
+                    .map(|values| values.into_iter().skip(prefix.len()).collect());
+                // @ref LLP 3000.007#20.24.6 — an expired source row is stepped over, never charged.
+                if self.step_expired(source, &candidate, &key)? { continue; }
                 if !self.read_charge(MeterKind::Examined, 1)? {
                     break 'sources;
                 }
-                bounds.after = crate::key::decode(&key)
-                    .map(|values| values.into_iter().skip(prefix.len()).collect());
                 if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? {
                     break 'sources;
                 }

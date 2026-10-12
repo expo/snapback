@@ -541,11 +541,13 @@ fn a_capped_maintained_point_is_unavailable() {
     assert!(whole.complete);
     assert_eq!(whole.data, Value::Int(5));
     let mut ceilings = e.ceilings();
-    ceilings.examined = 3;
+    // The expired backlog is store work (LLP 3000.007 §20.24.6); the lookup and
+    // the live seek still need two units, and one cannot settle the count.
+    ceilings.examined = 1;
     e.set_ceilings(ceilings);
 
     let outcome = e.query("count", ctx().at(1000)).unwrap();
-    assert_eq!(outcome.data, Value::Null, "two expired contributions cannot settle the whole backlog: {outcome:?}");
+    assert_eq!(outcome.data, Value::Null, "an unfinished count has no value: {outcome:?}");
     assert!(!outcome.complete, "{outcome:?}");
     assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
 }
@@ -562,7 +564,8 @@ fn a_capped_maintained_scan_is_unavailable_without_a_cursor() {
     assert!(whole.complete);
     assert_eq!(whole.data.as_array().unwrap()[0].field("value"), Ok(&Value::Int(5)));
     let mut ceilings = e.ceilings();
-    ceilings.examined = 3;
+    // The expired backlog is store work (LLP 3000.007 §20.24.6); cut the page itself.
+    ceilings.examined = 1;
     e.set_ceilings(ceilings);
 
     let outcome = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();

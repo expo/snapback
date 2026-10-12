@@ -128,12 +128,13 @@ fn w12r1a_exhausted_count_projection_is_unavailable() {
         let live = engine.query(op, Context::new("bob", args(&[])).at(now)).unwrap();
         assert!(live.complete, "live population does not spend backlog examinations: {live:?}");
         assert_eq!(live.data.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(8192));
-        let cut = engine.query(op, Context::new("bob", args(&[])).at(now + 1)).unwrap();
-        assert!(!cut.complete);
-        assert_eq!(cut.data, Value::Null, "an unfinished count is unavailable, never a score: {cut:?}");
-        assert_eq!(cut.next, None);
-        assert_eq!(cut.metered.examined, 8193);
-        println!("W12R1a {op}: candidates=1; expired_backlog=8192; examined={}; data=null; complete=false", cut.metered.examined);
+        // @ref LLP 3000.007#20.24.6 — once every like expires, the unswept backlog is
+        // store work: the count completes over the live (empty) population.
+        let expired = engine.query(op, Context::new("bob", args(&[])).at(now + 1)).unwrap();
+        assert!(expired.complete, "{expired:?}");
+        assert!(expired.metered.examined < 8, "{expired:?}");
+        assert!(expired.data.as_array().unwrap().iter().all(|row| row.field("score").unwrap() == &Value::Int(0)), "{expired:?}");
+        println!("W12R1a {op}: candidates=1; expired_backlog=8192; examined={}; complete=true", expired.metered.examined);
     }
     // The scan fits, but even the first count lookup has no examined unit left.
     engine.set_ceilings(snapback4_core::meter::Ceilings { examined: 1, ..engine.ceilings() });

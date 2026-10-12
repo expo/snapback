@@ -73,7 +73,8 @@ fn w13c_hidden_prefix_worlds_are_identical_and_expired_only_is_false() {
             let expired = engine.query(op, Context::new("dev:alice", input("live")).at(100)).unwrap();
             assert_eq!(expired.data, Value::Bool(false));
             assert!(expired.complete);
-            assert_eq!(expired.metered.examined, 1);
+            // @ref LLP 3000.007#20.24.6 — the expired message costs no meter unit.
+            assert_eq!(expired.metered.examined, 0);
         }
         answers.push(world);
     }
@@ -131,7 +132,8 @@ fn w13c_rule_exists_keeps_one_probe_across_expired_siblings() {
 fn w13c_existence_cut_before_a_live_match_returns_no_scalar_on_a_capped_answer() {
     let mut engine = engine(PREFIX);
     engine.seed([member("r1", "dev:alice", 0), message("a", "r1", Value::Int(1)), message("b", "r1", Value::Int(1)), message("c", "r1", Value::Null)]).unwrap();
-    engine.set_ceilings(snapback4_core::Ceilings { examined: 2, ..Default::default() });
+    // The expired messages cost nothing (LLP 3000.007 §20.24.6); no unit is left for the live one.
+    engine.set_ceilings(snapback4_core::Ceilings { examined: 0, ..Default::default() });
     let answer = engine.query("hasMessages", Context::new("dev:alice", args(&[("roomId", id("r1"))])).at(100)).unwrap();
     assert_eq!(answer.data, Value::Null); // LLP 3000.013: an unfinished existence search has no verdict.
     assert!(!answer.complete && answer.next.is_none());

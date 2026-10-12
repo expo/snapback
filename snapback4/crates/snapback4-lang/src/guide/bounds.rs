@@ -342,18 +342,18 @@ sweep runs on a one-second maintenance tick and removes at most 2,000 rows
 per pass across tables. This is a cadence, not a maximum age or size of the
 backlog: a burst of 2,001 expirations leaves at least one row after a pass,
 and downtime, slow maintenance or a failed sweep can leave older rows.
-Reads remain metered and expired rows remain invisible on every host.
-For an admitted server mutation (guide programs), pages, prefix `exists` and
-`count` include this work and the scan-attempt charge under the examined
-ceiling. Even `first 1` can refuse `E_BOUND` with no write; shrinking its
-page cannot remove the backlog. For delivery reports, `E_BOUND` is an ordinary
+Expired rows remain invisible on every host, and the meter charges only rows
+live at the read's clock: stepping over unswept ones is store work, never
+examined, heap or steps, so a read meters the same before and after the sweep,
+on every store and on a device. A pathological backlog refuses `E_STORE_MEMORY`
+when its row images pass the store guard. For delivery reports, `E_BOUND` is an ordinary
 non-retryable refusal: the SDK calls `onDeliveryRefused` once and parks the
 interval until the next start, which retries with a new id. There is no retry
 within the session. A committed report that runs again is a no-op report
 (`why E_BOUND`, `guide receipts`).
 An operation says `class: backlog` only when cleanup explains all of its
-variable work: constant once the sweep catches up, and bounded by the read
-meter while a backlog lasts, so the certificate keeps the meter allowance.
+variable work: constant once the sweep catches up; while a backlog lasts the
+store guard bounds it, and the certificate keeps the meter allowance.
 Beside a residual filter, a per-row read rule or a window, an expiry scan
 stays `class: grows`, and its expiry site still says what cleanup removes. A
 page size and the sweep interval alone cannot certify a fixed cost. The paved

@@ -30,17 +30,16 @@ fn backlog_bound_sweeps_fresh_id_recovers_and_lost_response_replays() {
     e.load_trusted((1..=10000).map(|n|("messages".into(),row(n,1000)))
         .chain([10001,10002].map(|n|("messages".into(),row(n,9000))))).unwrap();
     e.load_trusted([("acknowledgements".into(),object([("id",id("ack")),("owner",id("alice")),("ordinal",Value::Int(0))]))]).unwrap();
-    let failed=e.mutate("natural",Some("failed-id"),natural_context()).unwrap();
-    assert!(matches!(&failed.state,WriteState::Failed{why,..} if why.code=="E_BOUND"),"{:?}",failed);
-    assert_eq!(failed.metered.rows_written,0);
-    let receipt=failed.receipt(Some("failed-id"));
-    let mut swept=0;
-    while swept<10000 { swept+=e.sweep_expired(2000,1024).unwrap(); }
-    let replay=e.mutate("natural",Some("failed-id"),natural_context()).unwrap();
-    assert!(replay.replayed);
-    assert_eq!(receipt,replay.receipt(Some("failed-id")));
+    // @ref LLP 3000.007#20.24.6 — the 10,000-row unswept backlog is store work: the
+    // write no longer refuses E_BOUND over it, and the sweep changes nothing it meters.
     let sent=e.mutate("natural",Some("fresh-id"),natural_context()).unwrap();
     assert!(matches!(sent.state,WriteState::Sent{result:Value::Int(10000),..}),"{:?}",sent);
+    assert!(sent.metered.examined<8,"{:?}",sent.metered);
+    let mut swept=0;
+    while swept<10000 { swept+=e.sweep_expired(2000,1024).unwrap(); }
+    let after_sweep=e.mutate("natural",Some("swept-id"),natural_context()).unwrap();
+    assert!(matches!(after_sweep.state,WriteState::Sent{result:Value::Int(10000),..}),"{:?}",after_sweep);
+    assert_eq!(after_sweep.metered.examined,sent.metered.examined);
     let lost_response=e.mutate("natural",Some("fresh-id"),natural_context().at(10000)).unwrap();
     assert!(lost_response.replayed);
     assert_eq!(lost_response.metered.examined,0);
@@ -49,7 +48,7 @@ fn backlog_bound_sweeps_fresh_id_recovers_and_lost_response_replays() {
     assert_eq!(sent.receipt(Some("fresh-id")),lost_response.receipt(Some("fresh-id")));
     let held=e.store_mut().transaction().unwrap().get("acknowledgements","ack").unwrap().unwrap();
     assert_eq!(held.field("ordinal").unwrap(),&Value::Int(10000));
-    println!("ER_PROTOTYPE {}",serde_json::json!({"failure":failed.reply(Some("failed-id")),"failed_meter":failed.metered,"replay":replay.reply(Some("failed-id")),"fresh":sent.reply(Some("fresh-id")),"fresh_meter":sent.metered}));
+    println!("ER_PROTOTYPE {}",serde_json::json!({"fresh":sent.reply(Some("fresh-id")),"fresh_meter":sent.metered,"swept_meter":after_sweep.metered}));
 
     // Normal mutation prediction never reaches even the first data fetch.
     let p=&b.programs.iter().find(|p|p.program.name=="natural").unwrap().program;
@@ -131,7 +130,9 @@ fn removing_only_the_expiry_guard_discloses_a_retained_ordinal() {
         let error=runner.run(p).unwrap_err();
         pair.push(serde_json::json!({"retained_ordinal":ordinal,"code":error.code(),"meter":runner.metered()}));
     }
-    assert_ne!(pair[0]["code"],pair[1]["code"],"counterexample stopped distinguishing the worlds: {pair:?}");
+    // @ref LLP 3000.007#20.24.6 — the expired target no longer costs a meter unit, so even
+    // without the admission guard the meter cannot tell the worlds apart; the guard stays.
+    assert_eq!((&pair[0]["code"],&pair[0]["meter"]),(&pair[1]["code"],&pair[1]["meter"]),"the meter distinguishes the worlds again: {pair:?}");
     println!("ER_COUNTEREXAMPLE {}",serde_json::json!(pair));
 }
 fn row(n: usize, expires: i64) -> Value {
@@ -323,13 +324,12 @@ fn delivered_backlog_then_full_slots_refuses_until_interval_can_be_recorded() {
     let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(engine.schema().table(table).unwrap(), &row).unwrap())).collect::<Vec<_>>();
     engine.load_trusted(rows).unwrap();
     let ctx = || Context::new("alice", [("conversation".into(),id("c")),("from".into(),Value::Int(10003)),("through".into(),Value::Int(10003))].into()).at(2000);
-    let bounded = engine.mutate("delivered", Some("backlog"), ctx()).unwrap();
-    assert!(matches!(&bounded.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"));
+    // @ref LLP 3000.007#20.24.6 — the unswept backlog no longer refuses E_BOUND; the full
+    // slots refuse at once, before and after the sweep, and never record false coverage.
+    let unswept = engine.mutate("delivered", Some("backlog"), ctx()).unwrap();
+    assert!(matches!(&unswept.state, WriteState::Failed { why, .. } if why.code == "RUNS_FULL"), "{:?}", unswept.state);
     let mut swept = 0;
     while swept < 10000 { swept += engine.sweep_expired(2000, 2000).unwrap(); }
-    let replay = engine.mutate("delivered", Some("backlog"), ctx()).unwrap();
-    assert!(replay.replayed);
-    assert_eq!(bounded.receipt(Some("backlog")), replay.receipt(Some("backlog")));
     let full = engine.mutate("delivered", Some("full"), ctx()).unwrap();
     assert!(matches!(&full.state, WriteState::Failed { why, .. } if why.code == "RUNS_FULL"), "{:?}", full.state);
     // In particular the computed prefix 10000 cannot commit on refusal.
@@ -424,14 +424,15 @@ fn assert_scalar_backlog_cut(name: &str, expected: Value) {
         {
             let p = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
             let before = rows.get("messages", "m2").unwrap();
-            // 1 cannot pass the expired candidate; 2 pays it but cannot reach
-            // the live row. The scan attempt itself also costs one examined.
-            for ceiling in [1, 2] {
-                let mut runner = Runner::new(rows, &b.schema, Context::new("alice", BTreeMap::new()).at(2000), Meter::new(Ceilings { examined: ceiling, ..Default::default() }, Cut::Abort), 0);
-                assert_eq!(runner.run(p).unwrap_err().code(), "E_BOUND", "{name}/{ceiling}");
-                assert_eq!(runner.metered().rows_written, 0);
-                assert_eq!(rows.get("messages", "m2").unwrap(), before);
-            }
+            // The scan attempt costs one examined; the expired candidate costs
+            // nothing (LLP 3000.007 §20.24.6), so 1 cannot reach the live row and
+            // refuses rather than answering, and 2 answers.
+            let mut runner = Runner::new(rows, &b.schema, Context::new("alice", BTreeMap::new()).at(2000), Meter::new(Ceilings { examined: 1, ..Default::default() }, Cut::Abort), 0);
+            assert_eq!(runner.run(p).unwrap_err().code(), "E_BOUND", "{name}");
+            assert_eq!(runner.metered().rows_written, 0);
+            assert_eq!(rows.get("messages", "m2").unwrap(), before);
+            let mut runner = Runner::new(rows, &b.schema, Context::new("alice", BTreeMap::new()).at(2000), Meter::new(Ceilings { examined: 2, ..Default::default() }, Cut::Abort), 0);
+            assert_eq!(runner.run(p).unwrap(), expected, "{name}: the expired candidate is free");
             let mut runner = Runner::new(rows, &b.schema, Context::new("alice", BTreeMap::new()).at(2000), Meter::new(Ceilings::default(), Cut::Abort), 0);
             assert_eq!(runner.run(p).unwrap(), expected);
         }

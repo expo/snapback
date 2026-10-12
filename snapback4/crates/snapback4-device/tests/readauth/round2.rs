@@ -180,8 +180,10 @@ mutation counterfactual(work: int):
                 "viewer":"alice", "now":100, "predictable":true
             }}));
             if state == "absent" && work == 8192 {
-                assert_eq!(reply["denied"]["code"], "E_BOUND", "{state}/{work}: {reply}");
-                assert!(d.queued().unwrap().is_empty());
+                // @ref LLP 3000.007#20.5 — the E_BOUND follows the unproved insert of 'probe':
+                // the write queues without a row for the server's verdict.
+                assert_eq!((reply["ok"]["predictable"].clone(), reply["ok"]["predicted"].clone()), (json!(false), json!([])), "{state}/{work}: {reply}");
+                assert_eq!(d.queued().unwrap().len(), 1);
             } else {
                 let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
                 assert_eq!(queued.predictable, state != "unknown", "{state}/{work}: {reply}");
@@ -297,12 +299,8 @@ fn mixed_probe_boundary<H: Host>(mut host: H) {
             let WriteState::Failed { why, .. } = server.state else { panic!("{server:?}") };
             assert_eq!(why.code, "E_BOUND");
         }
-        if reads == 8191 {
-            assert_eq!(reply["denied"]["code"], "E_BOUND", "{reply}");
-            assert!(device.queued().unwrap().is_empty());
-            assert!(device.store().raw_rows("notes").is_empty());
-            continue;
-        }
+        // @ref LLP 3000.007#20.5 — at 8,191 reads the E_BOUND follows the unproved insert of
+        // 'note', so it queues without a row like the physical-exhaustion cases.
         let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
         assert_eq!(queued.predictable, reads <= 8190, "{reads}: {queued:?}");
         if queued.predictable { assert_eq!(queued.predicted, ["notes/note"]); }
@@ -443,7 +441,9 @@ fn witness_fetch_budget<S: DeviceStore>(mut store: S) {
             tx.put("members", &backend.schema.tables["members"], &row, Some(&old)).unwrap();
             let result = local::predict(&counted, &backend.schema, program, context("alice", &[("work", Value::Int(1))]).at(198),
                 Ceilings { examined: 1 + u64::from(aggregate), heap_bytes: 32768, ..Ceilings::unbounded() });
-            assert!(matches!(result, Err(RuntimeError::Bound {kind:snapback4_core::error::MeterKind::HeapBytes,..})), "aggregate={aggregate}: {result:?}");
+            // The heap refusal follows the unproved insert of 'note', so it queues for the
+            // server's verdict (LLP 3000.007 §20.5) instead of refusing E_BOUND locally.
+            assert!(matches!(result, Err(RuntimeError::Prediction(_))), "aggregate={aggregate}: {result:?}");
             tx.rollback_to("heap").unwrap();
         }
         tx.rollback().unwrap();
