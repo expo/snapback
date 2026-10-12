@@ -380,7 +380,9 @@ fn bind_union_windows(info: &TableInfo, sync: &SyncDecl, arms: Vec<Audience>) ->
     let windows: Vec<Option<Horizon>> = match &sync.horizon {
         None => arms.iter().map(|_| None).collect(),
         Some((last, SyncOrder::Index(by))) => {
-            let order = info.indexes.iter().find(|index| &index.name == by).map(|index| index.columns.iter().filter(|column| column.as_str() != "id").map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")).filter(|order| !order.is_empty()).unwrap_or_else(|| ".at".into());
+            // The repair orders by what the named index orders by, without any arm's group columns (round 4, GPT finding 3).
+            let grouped: Vec<String> = arms.iter().flat_map(Audience::columns).collect();
+            let order = info.indexes.iter().find(|index| &index.name == by).map(|index| index.columns.iter().filter(|column| column.as_str() != "id" && !grouped.contains(column)).map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")).filter(|order| !order.is_empty()).unwrap_or_else(|| ".id".into());
             return Err(sync_error(&sync.site, format!("a union's window names its order by columns: each arm keeps its newest {last} rows through its own index, and one named index ({by}) cannot lead with every arm's columns"),
                 format!("last {last} by {order}  -- in place of `last {last} by {by}`")).guide("sync"));
         }

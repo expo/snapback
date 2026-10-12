@@ -974,6 +974,28 @@ fn real_device(b: &Backend, engine: &mut Engine, principal: &str) -> Real {
     device
 }
 
+/// A device that has applied only its snapshot's first page: the rest of
+/// the snapshot, and its catch-up, come after the next write (round 4, GPT:
+/// commits between snapshot pages and between arms).
+fn split_device(b: &Backend, engine: &mut Engine, principal: &str) -> (Real, Option<String>) {
+    let backend = snapback4_device::device::Backend { generation: engine.generation(), schema: b.schema.public_projection(), programs: b.programs.clone() };
+    let mut device = snapback4_device::device::Device::open_store(snapback4_device::memory::MemoryStore::new(), Some(backend)).unwrap();
+    let (page, next) = snapshot_page(engine, principal, None);
+    let page: snapback4_device::device::StreamPage = serde_json::from_value(page).unwrap();
+    device.apply(&page, true).unwrap();
+    (device, next)
+}
+
+fn finish(engine: &mut Engine, device: &mut Real, principal: &str, mut after: Option<String>) {
+    while let Some(cursor) = after.take() {
+        let (page, next) = snapshot_page(engine, principal, Some(cursor));
+        let page: snapback4_device::device::StreamPage = serde_json::from_value(page).unwrap();
+        device.apply(&page, false).unwrap();
+        after = next;
+    }
+    follow(engine, device, principal);
+}
+
 fn follow(engine: &mut Engine, device: &mut Real, principal: &str) {
     for _ in 0..64 {
         let (watermark, _) = device.state().unwrap();
@@ -1006,7 +1028,7 @@ fn check_real(b: &Backend, engine: &mut Engine, device: &mut Real, viewer: &str,
                     errs.push(format!("a device page claims complete and differs from the server [{at}: device {} server {}]", wire::to_json(&local.data), wire::to_json(&server.data)));
                 }
                 // A carried windowed device may legitimately defer after deletions.
-                if must && !certified && (b.world.newest.is_none() || label != "followed") {
+                if must && !certified && (b.world.newest.is_none() || label == "fresh" || label == "root") {
                     errs.push(format!("a device page the viewer's partition covers is not certified [{at}: complete {} unknown {unknown}]", local.complete));
                 }
             }
@@ -1030,11 +1052,13 @@ fn visit(b: &Backend, path: &mut Vec<Op>, parent: &PathState, depth: usize, repo
     let mut engine = b.fresh();
     // Real devices that acquired at the root follow every write.
     let mut followers: Vec<(&'static str, Real)> = PRINCIPALS.iter().map(|p| (*p, real_device(b, &mut engine, p))).collect();
+    let mut split: Vec<(&'static str, Real, Option<String>)> = PRINCIPALS.iter().map(|p| { let (device, next) = split_device(b, &mut engine, p); (*p, device, next) }).collect();
     for (step, op) in path[..path.len() - 1].iter().enumerate() {
         if run(&mut engine, op, step, &format!("s{step}")).ok().flatten().is_none() {
             return report.fail(path, format!("a replayed write did not commit again [{op:?}]"));
         }
         for (p, device) in &mut followers { follow(&mut engine, device, p); }
+        for (p, device, next) in &mut split { finish(&mut engine, device, p, next.take()); }
     }
     let before = b.tables(&engine);
     let last = path.last().unwrap().clone();
@@ -1058,6 +1082,10 @@ fn visit(b: &Backend, path: &mut Vec<Op>, parent: &PathState, depth: usize, repo
     }
     let mut state = parent.clone();
     for e in check_node(b, &mut engine, head, &after, &mut state) { report.fail(path, e); }
+    for (p, device, next) in &mut split {
+        finish(&mut engine, device, p, next.take());
+        for e in check_real(b, &mut engine, device, p, &after, "split", report) { report.fail(path, e); }
+    }
     for (p, device) in &mut followers {
         follow(&mut engine, device, p);
         for e in check_real(b, &mut engine, device, p, &after, "followed", report) { report.fail(path, e); }
@@ -1351,4 +1379,36 @@ fn a_renewal_inside_the_acquiring_commit_reads_nothing_of_that_commit() {
             if !page.more { break; }
         }
     }
+}
+
+/// Round 4 (GPT finding 1): the audience epoch's identity includes how stored
+/// membership images are read, so changing a group column's default (which
+/// decides the group an old row names) starts a new epoch.
+#[test]
+fn a_changed_membership_default_is_a_new_audience() {
+    let source = |default: &str| format!("table members:\n  team: text <=5 default '{default}'\n  principal: principal\n  unique team, principal\n  immutable team, principal\n  read <- exists members[.team, viewer]\n  insert <- exists members[.team, viewer]\n  sync\ntable notes:\n  owner: principal\n  team: text <=5\n  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer\n  sync\n");
+    let (one, _) = compiled(&source("g1"));
+    let (two, _) = compiled(&source("g2"));
+    let changed = snapback4_core::partition::changed_group_audiences(Some(&one), &two);
+    assert!(changed.contains(&"notes".to_owned()) && changed.contains(&"members".to_owned()), "{changed:?}");
+    assert!(snapback4_core::partition::changed_group_audiences(Some(&one), &one).is_empty());
+}
+
+/// Round 4 (GPT finding 2): a scope logged under an earlier audience is not
+/// streamed under a new one. Alice leaves t1 under owner-or-team; the union
+/// is retargeted to an empty-group roster; a stream from before the leave
+/// carries no `tasks` scope of the old width the current device would refuse.
+#[test]
+fn a_scope_of_an_earlier_audience_is_not_streamed() {
+    let union = compiled(TEAMS);
+    let roster = compiled(&format!("{}\ntable staff:\n  principal: principal\n  unique principal\n  read <- exists staff[viewer]\n  insert <- exists staff[viewer]\n  sync\n",
+        TEAMS.replace("  read <- .owner = viewer or exists members[.team, viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n", "  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer and exists members[.team, viewer]\n")));
+    let mut engine = Engine::memory(union.0.clone(), union.1.clone()).unwrap();
+    engine.seed(teams_seed()).unwrap();
+    mutate(&mut engine, ALICE, "leave", &[("team", id("t1"))], 1);
+    engine.adopt(roster.0.clone(), roster.1.clone()).unwrap();
+    let page = engine.stream_at(ALICE, 0, 1_000, NOW).unwrap();
+    assert!(page.events.iter().all(|event| !(event.table == "tasks" && event.kind == "scope")), "{:?}", page.events);
+    // The members table kept its audience: its own scope still streams.
+    assert!(page.events.iter().any(|event| event.table == "members" && event.kind == "scope"), "{:?}", page.events);
 }

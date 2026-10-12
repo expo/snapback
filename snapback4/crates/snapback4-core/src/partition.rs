@@ -818,12 +818,19 @@ fn audience_epochs(tx: &dyn PartitionRows, schema: &Schema) -> Result<BTreeMap<S
 // @ref LLP 3000.036.000.000#9 — an audience epoch, so a scope logged under an earlier audience never closes a group the current one grants.
 pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Vec<String> {
     let Some(previous) = previous else { return Vec::new() };
-    let key = |schema: &Schema, name: &str| -> Option<(String, Vec<String>, Vec<String>, String)> {
+    // The identity includes how stored images are interpreted: a column's
+    // type and default decide which group an old row names (round 4, GPT
+    // finding 1), so a changed default is a new audience too.
+    let key = |schema: &Schema, name: &str| -> Option<String> {
         let table = schema.table(name)?;
         let sync = table.sync.as_ref()?;
         let Audience::Target { table: target, prefix, .. } = &sync.audience else { return None };
         let binding = audience_binding(schema, name, table, sync).ok()?;
-        Some((target.clone(), prefix.clone(), binding.columns, binding.principal))
+        let target_table = schema.table(target)?;
+        let reading = |owner: &Table, column: &String| (column.clone(), owner.columns.get(column).cloned(), owner.defaults.get(column).cloned());
+        let content: Vec<_> = prefix.iter().map(|column| reading(table, column)).collect();
+        let members: Vec<_> = binding.columns.iter().chain([&binding.principal]).map(|column| reading(target_table, column)).collect();
+        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, target_table.expire, table.through.as_ref().map(|t| &t.identity)])))
     };
     schema.synced().filter(|(_, _, sync)| matches!(sync.audience, Audience::Target { .. }))
         .filter(|(name, _, _)| key(schema, name) != key(previous, name))
@@ -999,6 +1006,10 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
             }
         }
     }
+    // @ref LLP 3000.036.000.000#9 — round 4 (GPT finding 2): a scope logged under an earlier audience is not this audience's revocation.
+    let epochs = audience_epochs(tx, schema)?;
+    events.retain(|event| event.kind != "scope" || schema.table(&event.table).and_then(|table| table.sync.as_ref())
+        .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. })) && event.seq >= epochs.get(&event.table).copied().unwrap_or(0));
     union_scopes(schema, principal, &mut events);
     Ok(StreamPage { images_at: Some(head), acquisitions, events, watermark: next, more, joined })
 }
@@ -1085,9 +1096,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     let certified = delivery_counts(&mut aggregate, schema, &page)?;
     for mut event in page {
         if event.kind != "join" {
-            // @ref LLP 3000.036.000.000#4.2 — R1: a del of a row in two of the viewer's partitions is decided at serve time, as every put is.
-            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)
-                || table.sync.as_ref().is_some_and(|sync| sync.is_union() || movable_group(table, sync))) {
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)) {
                 if let Some(row) = reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
                     if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
                         event.kind = "put".into();
@@ -1096,6 +1105,15 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                 }
                 out.push(event);
                 continue;
+            }
+            // @ref LLP 3000.036.000.000#4.2 — R1: a del of a row in two of the viewer's partitions is decided at serve time; a readable row becomes a put served exactly as every put is (re-fetched, a row-keyed view recomputed, re-checked, projected).
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.sync.as_ref().is_some_and(|sync| sync.is_union() || movable_group(table, sync))) {
+                let readable = match reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
+                    Some(row) => reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)?,
+                    None => false,
+                };
+                if !readable { out.push(event); continue; }
+                event.kind = "put".into();
             }
             if event.kind == "put" {
                 event.data = if schema.table(&event.table).is_some() { reader.metered_scan(|reader, allowance| reader.fetch(allowance, &event.table, &event.id))? } else { None };

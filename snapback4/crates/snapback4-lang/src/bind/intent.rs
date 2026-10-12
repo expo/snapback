@@ -328,7 +328,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     if !grouped.is_empty() {
                         let kept: Vec<String> = order.iter().filter(|column| !grouped.contains(column)).cloned().collect();
                         let rewrite = if kept.is_empty() { "last N by .at  -- order the window by a column no arm groups by".to_owned() } else { format!("last {last} by {}", SyncOrder::Columns(kept)) };
-                        requests.errors.push(crate::diag::syntax_with(&sync.site,
+                        requests.errors.push(crate::diag::sync_error(&sync.site,
                             format!("a union's window orders each arm's own group; it cannot order by {}, which an arm groups by", SyncOrder::Columns(grouped.into_iter().cloned().collect())), rewrite).guide("sharing"));
                         continue;
                     }

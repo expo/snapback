@@ -199,7 +199,7 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     // order by an arm's group column (round 3, GPT finding 2).
     let collide = staff.replace("  tenant: principal\n", "  tenant: principal\n  at: time\n").replace("  insert <- .tenant = viewer\n  sync\n", "  insert <- .tenant = viewer\n  sync last 1 by .tenant, .at\n");
     let refused = compile(&collide);
-    assert!(refused.diagnostics.iter().any(|d| d.message.contains("an arm groups by") && d.rewrite.starts_with("last 1 by .at")), "{:?}", refused.diagnostics);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.message.contains("an arm groups by") && d.rewrite.starts_with("last 1 by .at")), "{:?}", refused.diagnostics);
     // A union window gives each arm its own window index, leading with its columns.
     let windowed = clean(&two.replace("  sync\n", "  at: time\n  sync last 50 by .at\n").replace("  read <-", "  at2: time ?\n  read <-"));
     let table = &windowed.schema.tables["orders"];
@@ -218,7 +218,9 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     }
     // A named window index cannot lead with both arms: the rewrite is the column form.
     let named = refusal(&two.replace("  sync\n", "  at: time\n  by byAt: customer, at, id\n  sync last 50 by byAt\n"));
-    assert!(named.rewrite.starts_with("last 50 by .customer, .at"), "{named:?}");
+    assert!(named.rewrite.starts_with("last 50 by .at  --"), "{named:?}");
+    // The repair compiles (round 4, GPT finding 3).
+    clean(&two.replace("  sync\n", "  at: time\n  by byAt: customer, at, id\n  sync last 50 by .at\n"));
     // A branch with an extra condition is not a whole audience.
     let partial = refusal(&two.replace("read <- .customer = viewer or .seller = viewer", "read <- .customer = viewer or (.seller = viewer and .customer = .seller)"));
     assert!(partial.message.contains("do not make private rows public") && partial.rewrite.contains("is not") && partial.rewrite.contains("`.customer = viewer`"), "{partial:?}");
