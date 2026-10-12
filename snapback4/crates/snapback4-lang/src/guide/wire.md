@@ -43,7 +43,7 @@ comes from `snapback4 token --service <name>`. Send one credential, not both.
   server sniffs JPEG, PNG, WebP or MP4 and ignores `Content-Type`), as the uploader, answers
   `{asset: {id, type, bytes, width, height, duration}}`, or `{denied}`: `E_ASSET_TYPE` (other
   bytes), `E_ASSET_TOO_LARGE`, 400 for an empty body, 401 `E_AUTH`, 413 past 64 MiB. Pass the
-  asset to a mutation's `image`/`video` argument as `{"id": "<asset id>"}`; `GET /assets/<id>`
+  asset to a mutation's `image`/`video`/`file` argument as `{"id": "<asset id>"}`; `GET /assets/<id>`
   returns the bytes to a viewer the row's read rule admits, else 404 `E_ASSET_UNKNOWN`.
   `curl -X POST $U/assets -H 'x-snapback-persona: alice' --data-binary @receipt.png`
 - A job is not a client call (E_OP): a schedule fires it, and in dev
@@ -168,6 +168,23 @@ A refusal is `{code, family, message, site?, rule?, rewrite?, guide?}`, and
 local refusal for the same mistake, before anything is sent; the wire's code is
 `E_ID_REUSED`.
 
-The full reference, including the rest of `/assets` (one-view images, ranges), the rest of `/auth`, worker and action
+## Uploads and downloads
+
+`POST /assets` takes the raw bytes as the body and answers `{"asset":{id,type,bytes,…}}`
+or `{denied}`; a mutation then places `{"id": …}` in its `image`, `video` or `file`
+argument. An image or video is sniffed from its bytes. A document for a `file`
+column adds `?as=file&name=<percent-encoded filename>` and declares its type,
+which the server checks against the bytes (`guide assets`, "Files"):
+
+```sh
+curl -s -X POST "$U/assets?as=file&name=March%20receipt.pdf" -H 'x-snapback-persona: alice' -H 'Content-Type: application/pdf' --data-binary @receipt.pdf
+# {"asset":{"id":"…","type":"application/pdf","bytes":48213,"name":"March receipt.pdf","width":null,"height":null,"duration":null}}
+curl -s -OJ "$U/assets/<id>" -H 'x-snapback-persona: alice'   # Content-Disposition: attachment names the file
+```
+
+`GET /assets/<id>` is 404 E_ASSET_UNKNOWN when hidden or gone; a file always
+arrives as an attachment, and `Range` works on ordinary assets.
+
+The full reference, including the rest of `/auth`, worker and action
 doors, and clock headers, is "The wire" in CLIENT-AND-OPERATIONS.md §5, which
 ships in the package beside README.md.

@@ -251,17 +251,29 @@ export interface Observed<T> {
 }
 
 /** An upload the server recorded: the facts it established, and the id a
- * row's `image`/`video` column takes (`{ id }` is enough; the server fills
- * the rest on the row). */
+ * row's `image`/`video`/`file` column takes (`{ id }` is enough; the server
+ * fills the rest on the row). */
 export interface Asset {
   readonly id: string;
+  /** The sniffed media type; for a file, the declared type the bytes matched. */
   readonly type: string;
   readonly bytes: number;
-  /** Present for images, null for video. */
+  /** Present for images, null for video and files. */
   readonly width: number | null;
   readonly height: number | null;
-  /** Milliseconds, for video; null for images. */
+  /** Milliseconds, for video; null for images and files. */
   readonly duration: number | null;
+  /** A file's sanitized filename; absent for images and video. */
+  readonly name?: string;
+}
+
+/** `upload(bytes, { file: {} })` sends a document for a `file` column
+ * (LLP 3000.038): `type` is its declared media type, checked against the
+ * bytes, and `name` the filename a download offers. A `File`/`Blob` supplies
+ * its own when they are omitted. Without `file`, `upload` is the image/video
+ * upload. */
+export interface UploadOptions {
+  readonly file?: { readonly type?: string; readonly name?: string };
 }
 
 export type Uploaded = { readonly ok: true; readonly asset: Asset } | { readonly ok: false; readonly why: Refusal };
@@ -270,7 +282,9 @@ export type Uploaded = { readonly ok: true; readonly asset: Asset } | { readonly
  * URL to put in `src`, and `revoke()` when the screen is done with it. A
  * one-view photo comes back `denied` with `E_ASSET_VIEWED` the second time. */
 export type AssetRead =
-  | { readonly url: string; readonly type: string; readonly bytes: number; readonly revoke: () => void }
+  | { readonly url: string; readonly type: string; readonly bytes: number; readonly revoke: () => void;
+      /** A file's filename (from `Content-Disposition`); absent for media. */
+      readonly name?: string }
   | { readonly denied: Refusal };
 
 /** The whole client, as a screen sees it. Everything else is `why`. */
@@ -320,9 +334,10 @@ export interface Client {
   /** Invalidate the pending-write list; read pendingWrites() again. */
   onPendingWrites(notify: () => void): () => void;
   act<A, R>(op: Action<A, R>, args: A, options?: ActOptions): Promise<Act<R>>;
-  /** Send the bytes of a photo or video; place `asset.id` in a mutation's
-   * `image`/`video` argument. Online only: an upload waits for no link. */
-  upload(bytes: Blob | ArrayBuffer | Uint8Array): Promise<Uploaded>;
+  /** Send the bytes of a photo or video (or, with `{ file }`, a document);
+   * place `asset.id` in a mutation's `image`/`video`/`file` argument.
+   * Online only: an upload waits for no link. */
+  upload(bytes: Blob | ArrayBuffer | Uint8Array, options?: UploadOptions): Promise<Uploaded>;
   /** The bytes of an asset a row the viewer may read holds, as a blob URL. */
   asset(id: string): Promise<AssetRead>;
   /** Where the bytes are and the headers that fetch them, for native image

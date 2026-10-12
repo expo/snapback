@@ -410,11 +410,17 @@ fn result_assets(tx: &crate::store::Tx<'_>, spec: &ActionSpec, result: &Json) ->
                 }
                 true
             }
-            ArgType::Image { max, .. } | ArgType::Video { max } => {
+            ArgType::Image { .. } | ArgType::Video { .. } | ArgType::File { .. } => {
                 let fields = value.as_object().expect("validated asset");
                 let id = fields["id"].as_str().expect("validated asset id");
                 let Some(asset) = tx.asset(id)? else { return Ok(false) };
-                let wanted = if matches!(kind, ArgType::Image { .. }) { AssetKind::Image } else { AssetKind::Video };
+                let (wanted, max, types) = match kind {
+                    ArgType::Image { max } => (AssetKind::Image, max, &[][..]),
+                    ArgType::Video { max } => (AssetKind::Video, max, &[][..]),
+                    ArgType::File { max, types } => (AssetKind::File, max, &types[..]),
+                    _ => unreachable!("an asset argument"),
+                };
+                if wanted == AssetKind::File && !crate::assets::file_accepts(types, &asset.content_type) { return Ok(false); }
                 let facts = crate::wire::to_json(&asset.column_value());
                 // Do not expand the handler's result with facts it did not
                 // return. Supplied facts must equal the server's metadata;

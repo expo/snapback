@@ -33,7 +33,7 @@ answers with your code, and the table's sync line (or `online only`) says
 whose device holds it. `guide refusals` gives the order the checks run in.
 
 On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
-deadline (`guide sealed`); roster tables and probe keys (`guide rosters`).
+deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts").
 
 ## Roles: admin, staff and members
 

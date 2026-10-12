@@ -1,6 +1,9 @@
 //! Assets (LLP 1006, carried into Snapback 4): an upload is bytes the server
 //! sniffs — JPEG, PNG, WebP, MP4 — and records once, under the uploader; a
 //! row column of type `image`/`video` then claims it: one asset, one home.
+//! A `file` upload (LLP 3000.038) declares its media type and filename; the
+//! server verifies the declaration against the bytes and serves it only as
+//! an attachment.
 //! Serving the bytes is authorized by the home row's read rule, so what a
 //! viewer may read, they may see, and what is deleted, cleared or expired is
 //! no longer served. `image ... once` records one view per principal.
@@ -128,6 +131,7 @@ impl AssetSweep {
 pub enum AssetKind {
     Image,
     Video,
+    File,
 }
 
 impl AssetKind {
@@ -135,6 +139,7 @@ impl AssetKind {
         match self {
             Self::Image => "image",
             Self::Video => "video",
+            Self::File => "file",
         }
     }
 }
@@ -167,6 +172,9 @@ pub struct Asset {
     /// Set when its home let go of it: the bytes are no longer served and
     /// the sweep removes them.
     pub released_at: Option<i64>,
+    /// A file's sanitized filename (`sanitize_name`); None for media.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 impl Asset {
@@ -174,6 +182,15 @@ impl Asset {
     /// established, never the client's word for them.
     pub fn column_value(&self) -> Value {
         let int = |value: Option<u64>| value.map(|v| Value::Int(v as i64)).unwrap_or(Value::Null);
+        if self.kind == AssetKind::File {
+            // @ref LLP 3000.038#1 — a file's facts are its type, size and name; it has no media facts.
+            return Value::Map(BTreeMap::from([
+                ("id".to_owned(), Value::Id(self.id.clone())),
+                ("type".to_owned(), Value::String(self.content_type.clone())),
+                ("bytes".to_owned(), Value::Int(self.bytes as i64)),
+                ("name".to_owned(), self.name.clone().map(Value::String).unwrap_or(Value::Null)),
+            ]).into());
+        }
         // Every fact is a key, null when the kind has none: `.duration` on
         // an image reads null, never a missing field.
         let fields = BTreeMap::from([
@@ -190,6 +207,124 @@ impl Asset {
 
 /// The fact keys every asset value carries.
 pub const FACTS: [&str; 5] = ["type", "bytes", "width", "height", "duration"];
+/// The fact keys every file value carries.
+pub const FILE_FACTS: [&str; 3] = ["type", "bytes", "name"];
+
+/// The media types a `file` column may accept: each is one Snapback can
+/// verify against the bytes (`verify_file`). None is script-bearing: HTML,
+/// SVG, XML and JavaScript are never stored as files (LLP 3000.038 §2).
+pub const FILE_TYPES: &[&str] = &[
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "text/markdown",
+    "application/json",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+    "application/zip",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+
+/// The longest stored filename, in UTF-8 bytes.
+pub const MAX_NAME_BYTES: usize = 255;
+
+/// Whether a file column with this allow-list (empty: the default, every
+/// verifiable type) accepts `content_type`.
+pub fn file_accepts(types: &[String], content_type: &str) -> bool {
+    if types.is_empty() { FILE_TYPES.contains(&content_type) } else { types.iter().any(|t| t == content_type) }
+}
+
+/// Why a type cannot be listed on a file column, or None when it can.
+pub fn file_type_refusal(content_type: &str) -> Option<String> {
+    if FILE_TYPES.contains(&content_type) { return None; }
+    let scripted = ["text/html", "application/xhtml+xml", "image/svg+xml", "text/xml", "application/xml", "text/javascript", "application/javascript", "application/ecmascript"];
+    let lowered = content_type.to_ascii_lowercase();
+    let known = FILE_TYPES.iter().map(|t| format!("'{t}'")).collect::<Vec<_>>().join(", ");
+    Some(if scripted.contains(&lowered.as_str()) || lowered.ends_with("+xml") {
+        format!("'{content_type}' can carry script that a browser runs; Snapback never stores it as a file — accept it as 'text/plain' or inside 'application/zip'. Verifiable types: {known}")
+    } else if lowered != content_type && FILE_TYPES.contains(&lowered.as_str()) {
+        format!("media types are lowercase: write '{lowered}'")
+    } else {
+        format!("Snapback cannot verify '{content_type}' against the bytes. Verifiable types: {known}")
+    })
+}
+
+/// The declared type of a file upload as a canonical media type essence:
+/// parameters dropped, lowercase, `None` when absent or octet-stream.
+pub fn declared_type(header: Option<&str>) -> Option<String> {
+    let essence = header?.split(';').next()?.trim().to_ascii_lowercase();
+    (!essence.is_empty() && essence != "application/octet-stream").then_some(essence)
+}
+
+/// Check that `bytes` are what `declared` says (or, with no declaration,
+/// name a binary type by its magic number), returning the canonical type.
+/// This is a type check, not a safety scan (LLP 3000.038 §2).
+// @ref LLP 3000.038#2 — declared plus sniffed: a mismatch refuses, text is never inferred.
+pub fn verify_file(bytes: &[u8], declared: Option<&str>) -> Result<&'static str, RuntimeError> {
+    let refuse = |message: String| RuntimeError::Asset { code: "E_ASSET_TYPE", message };
+    let sniffed = magic_type(bytes);
+    let Some(declared) = declared else {
+        return sniffed.ok_or_else(|| refuse("declare the file's media type in Content-Type: only PDF, PNG, JPEG, WebP, GIF and zip are recognized without one".into()));
+    };
+    let Some(canonical) = FILE_TYPES.iter().copied().find(|t| *t == declared) else {
+        return Err(refuse(file_type_refusal(declared).unwrap_or_default()));
+    };
+    let matches = match canonical {
+        "text/plain" | "text/csv" | "text/markdown" => text(bytes).is_some(),
+        "application/json" => text(bytes).is_some_and(|text| serde_json::from_str::<serde::de::IgnoredAny>(text).is_ok()),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        | "application/vnd.openxmlformats-officedocument.presentationml.presentation" => sniffed == Some("application/zip"),
+        other => sniffed == Some(other),
+    };
+    if !matches {
+        let found = sniffed.map(|t| format!("the bytes are {t}")).unwrap_or_else(|| "the bytes do not match it".into());
+        return Err(refuse(format!("the upload declares {canonical}, but {found}; declare the file's real type")));
+    }
+    Ok(canonical)
+}
+
+fn magic_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"%PDF-") { return Some("application/pdf"); }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") { return Some("image/gif"); }
+    if bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06") { return Some("application/zip"); }
+    match sniff_header(bytes) {
+        Ok(Sniffed { kind: AssetKind::Image, content_type, .. }) => Some(content_type),
+        _ => None,
+    }
+}
+
+/// UTF-8 text with no NUL byte; a leading byte-order mark is allowed.
+fn text(bytes: &[u8]) -> Option<&str> {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
+    if bytes.contains(&0) { return None; }
+    std::str::from_utf8(bytes).ok()
+}
+
+/// The stored form of an uploader's filename (LLP 3000.038 §4): its last
+/// path segment, without control or bidirectional-override characters,
+/// trimmed, at most 255 bytes, `file` when nothing remains.
+pub fn sanitize_name(name: &str) -> String {
+    let segment = name.rsplit(['/', '\\']).next().unwrap_or("");
+    let cleaned: String = segment.chars().filter(|c| !c.is_control() && !matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}' | '\u{061C}')).collect();
+    let trimmed = cleaned.trim().trim_start_matches('.').trim_start();
+    let mut end = trimmed.len().min(MAX_NAME_BYTES);
+    while !trimmed.is_char_boundary(end) { end -= 1; }
+    let bounded = trimmed[..end].trim_end();
+    if bounded.is_empty() { "file".into() } else { bounded.into() }
+}
+
+/// `Content-Disposition` for a stored filename: always an attachment, an
+/// ASCII fallback plus the exact name in RFC 8187 form.
+pub fn attachment_disposition(name: &str) -> String {
+    let fallback: String = name.chars().map(|c| if c.is_ascii_graphic() && !matches!(c, '"' | '\\' | '/' | ';' | '%') || c == ' ' { c } else { '_' }).collect();
+    let encoded: String = name.bytes().map(|b| if b.is_ascii_alphanumeric() || b"!#$&+-.^_`|~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
+    format!("attachment; filename=\"{fallback}\"; filename*=UTF-8''{encoded}")
+}
 
 /// The asset id a column value names, if it is an asset value.
 pub fn asset_id(value: Option<&Value>) -> Option<&str> {
@@ -435,6 +570,59 @@ mod tests {
     }
 
     #[test]
+    fn files_are_declared_and_sniffed() {
+        assert_eq!(verify_file(b"%PDF-1.7\n", Some("application/pdf")).unwrap(), "application/pdf");
+        assert_eq!(verify_file(b"%PDF-1.7\n", None).unwrap(), "application/pdf");
+        // A spoofed PDF: the declaration does not match the bytes.
+        assert!(matches!(verify_file(b"<html><script>alert(1)</script>", Some("application/pdf")), Err(RuntimeError::Asset { code: "E_ASSET_TYPE", .. })));
+        // A PNG declared as a PDF names what the bytes are.
+        let png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01";
+        let RuntimeError::Asset { message, .. } = verify_file(png, Some("application/pdf")).unwrap_err() else { panic!() };
+        assert!(message.contains("image/png"), "{message}");
+        assert_eq!(verify_file(png, Some("image/png")).unwrap(), "image/png");
+        // HTML is never a verifiable type; as text it is text.
+        assert!(verify_file(b"<html></html>", Some("text/html")).is_err());
+        assert!(verify_file(b"<svg/>", Some("image/svg+xml")).is_err());
+        assert_eq!(verify_file(b"<html></html>", Some("text/plain")).unwrap(), "text/plain");
+        // Text is never inferred, and must be UTF-8 without NUL.
+        assert!(verify_file(b"hello", None).is_err());
+        assert!(verify_file(b"a\0b", Some("text/plain")).is_err());
+        assert!(verify_file(b"\xff\xfe", Some("text/csv")).is_err());
+        assert_eq!(verify_file(b"\xEF\xBB\xBFa,b\n", Some("text/csv")).unwrap(), "text/csv");
+        assert_eq!(verify_file(b"{\"a\":1}", Some("application/json")).unwrap(), "application/json");
+        assert!(verify_file(b"{\"a\":", Some("application/json")).is_err());
+        assert_eq!(verify_file(b"PK\x03\x04rest", Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document")).unwrap(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert!(verify_file(b"%PDF-1.4", Some("application/zip")).is_err());
+        assert_eq!(declared_type(Some("Application/PDF; charset=binary")).as_deref(), Some("application/pdf"));
+        assert_eq!(declared_type(Some("application/octet-stream")), None);
+    }
+
+    #[test]
+    fn filenames_are_one_safe_segment() {
+        assert_eq!(sanitize_name("../../etc/passwd"), "passwd");
+        assert_eq!(sanitize_name("C:\\Users\\me\\receipt.pdf"), "receipt.pdf");
+        assert_eq!(sanitize_name("invoice\u{202E}fdp.exe"), "invoicefdp.exe");
+        assert_eq!(sanitize_name("a\nb\r\0c.txt"), "abc.txt");
+        assert_eq!(sanitize_name("  .hidden  "), "hidden");
+        assert_eq!(sanitize_name(".."), "file");
+        assert_eq!(sanitize_name(""), "file");
+        let long = "é".repeat(200);
+        let kept = sanitize_name(&long);
+        assert!(kept.len() <= MAX_NAME_BYTES && kept.chars().all(|c| c == 'é'));
+        assert_eq!(attachment_disposition("Résumé \"final\".pdf"), "attachment; filename=\"R_sum_ _final_.pdf\"; filename*=UTF-8''R%C3%A9sum%C3%A9%20%22final%22.pdf");
+    }
+
+    #[test]
+    fn file_types_refuse_script_bearing_types() {
+        assert!(file_type_refusal("application/pdf").is_none());
+        assert!(file_type_refusal("text/html").unwrap().contains("script"));
+        assert!(file_type_refusal("image/svg+xml").unwrap().contains("script"));
+        assert!(file_type_refusal("Application/PDF").unwrap().contains("lowercase"));
+        assert!(file_accepts(&[], "text/csv"));
+        assert!(!file_accepts(&["application/pdf".into()], "text/csv"));
+    }
+
+    #[test]
     fn other_bytes_are_refused() {
         assert!(matches!(sniff(b"hello"), Err(RuntimeError::Asset { code: "E_ASSET_TYPE", .. })));
         assert!(matches!(sniff(b"GIF89a"), Err(RuntimeError::Asset { .. })));
@@ -449,7 +637,7 @@ use super::*;
 use crate::store::{Store, Tx};
 use rusqlite::{Connection, OptionalExtension, params};
 
-const COLUMNS: &str = "id, owner, kind, content_type, bytes, width, height, duration, created_at, home_table, home_id, home_column, released_at";
+const COLUMNS: &str = "id, owner, kind, content_type, bytes, width, height, duration, created_at, home_table, home_id, home_column, released_at, name";
 
 fn read_asset(row: &rusqlite::Row<'_>) -> rusqlite::Result<Asset> {
     let kind: String = row.get(2)?;
@@ -457,7 +645,7 @@ fn read_asset(row: &rusqlite::Row<'_>) -> rusqlite::Result<Asset> {
     Ok(Asset {
         id: row.get(0)?,
         owner: row.get(1)?,
-        kind: if kind == "video" { AssetKind::Video } else { AssetKind::Image },
+        kind: match kind.as_str() { "video" => AssetKind::Video, "file" => AssetKind::File, _ => AssetKind::Image },
         content_type: row.get(3)?,
         bytes: row.get::<_, i64>(4)? as u64,
         width: row.get::<_, Option<i64>>(5)?.map(|w| w as u32),
@@ -469,6 +657,7 @@ fn read_asset(row: &rusqlite::Row<'_>) -> rusqlite::Result<Asset> {
             _ => None,
         },
         released_at: row.get(12)?,
+        name: row.get(13)?,
     })
 }
 
@@ -492,8 +681,8 @@ fn find(conn: &Connection, id: &str) -> Result<Option<Asset>, RuntimeError> {
 
     fn record(conn: &Connection, asset: &Asset) -> Result<(), RuntimeError> {
         conn.execute(
-            &format!("INSERT INTO _assets({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, NULL)"),
-            params![asset.id, asset.owner, asset.kind.word(), asset.content_type, asset.bytes as i64, asset.width.map(i64::from), asset.height.map(i64::from), asset.duration.map(|d| d as i64), asset.created_at],
+            &format!("INSERT INTO _assets({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, NULL, ?10)"),
+            params![asset.id, asset.owner, asset.kind.word(), asset.content_type, asset.bytes as i64, asset.width.map(i64::from), asset.height.map(i64::from), asset.duration.map(|d| d as i64), asset.created_at, asset.name],
         )?;
         Ok(())
     }

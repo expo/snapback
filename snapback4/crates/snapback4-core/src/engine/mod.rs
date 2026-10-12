@@ -343,6 +343,10 @@ pub struct AssetGrant {
     pub bytes: u64,
     /// One view: never cache it anywhere.
     pub once: bool,
+    /// `File` is served only as an attachment (LLP 3000.038 §5).
+    pub kind: AssetKind,
+    /// A file's stored filename.
+    pub name: Option<String>,
 }
 
 #[cfg(feature = "sqlite")]
@@ -698,9 +702,55 @@ impl Engine {
             return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("the {} is {} bytes; the largest {} column takes {ceiling}", sniffed.kind.word(),
                     byte_count, sniffed.kind.word()) });
         }
-        let id = crate::ids::mint(now, &mut self.entropy)?;
-        let path = self.store.asset_path(&id);
-        let asset = Asset { id, owner: owner.to_owned(), kind: sniffed.kind, content_type: sniffed.content_type.to_owned(), bytes: byte_count, width: sniffed.width, height: sniffed.height, duration: sniffed.duration, created_at: now, home: None, released_at: None };
+        self.stage_upload(Asset { id: String::new(), owner: owner.to_owned(), kind: sniffed.kind, content_type: sniffed.content_type.to_owned(), bytes: byte_count, width: sniffed.width, height: sniffed.height, duration: sniffed.duration, created_at: now, home: None, released_at: None, name: None })
+    }
+
+    /// Record a file upload under `owner`: `declared` checked against the
+    /// bytes (LLP 3000.038 §2), the name sanitized, bounded by the largest
+    /// file column that accepts the type.
+    pub fn store_file(&mut self, owner: &str, bytes: &[u8], declared: Option<&str>, name: &str, now: i64) -> Result<Asset, RuntimeError> {
+        let content_type = assets::verify_file(bytes, declared)?;
+        let upload = self.prepare_file(owner, content_type, name, bytes.len() as u64, now)?;
+        let upload = upload.write(bytes)?;
+        self.finish_asset(upload)
+    }
+
+    /// The most bytes any `file` column of this schema takes: the host reads
+    /// a file upload's body up to this bound (LLP 3000.038 §3). None when the
+    /// schema has no file column.
+    pub fn file_upload_ceiling(&self) -> Option<u32> {
+        self.schema.tables.values().flat_map(|table| table.columns.values())
+            .filter_map(|kind| match asset_columns::leaf(kind) { ColumnType::File { max, .. } => Some(*max), _ => None })
+            .max()
+    }
+
+    /// Admit a verified file upload, as `prepare_asset` admits media.
+    // @ref LLP 3000.038#3 — column-less admission: some file column must accept the type, and the largest such bound applies.
+    pub fn prepare_file(&mut self, owner: &str, content_type: &str, name: &str, byte_count: u64, now: i64) -> Result<assets::Upload, RuntimeError> {
+        let files: Vec<(u32, &[String])> = self.schema.tables.values().flat_map(|table| table.columns.values())
+            .filter_map(|kind| match asset_columns::leaf(kind) { ColumnType::File { max, types } => Some((*max, &types[..])), _ => None })
+            .collect();
+        if files.is_empty() {
+            return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: "no column of this backend takes a file; declare one (`doc: file <=10000000`)".into() });
+        }
+        let Some(ceiling) = files.iter().filter(|(_, types)| assets::file_accepts(types, content_type)).map(|(max, _)| *max).max() else {
+            let mut accepted: Vec<&str> = files.iter().flat_map(|(_, types)| if types.is_empty() { assets::FILE_TYPES.to_vec() } else { types.iter().map(String::as_str).collect() }).collect();
+            accepted.sort_unstable();
+            accepted.dedup();
+            return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("no file column of this backend accepts {content_type}; they accept {}", accepted.join(", ")) });
+        };
+        if byte_count > u64::from(ceiling) {
+            return Err(RuntimeError::Asset { code: "E_ASSET_TOO_LARGE", message: format!("the file is {byte_count} bytes; the largest file column accepting {content_type} takes {ceiling}") });
+        }
+        if byte_count == 0 {
+            return Err(RuntimeError::Asset { code: "E_ASSET_TYPE", message: "the upload is empty: POST the file's bytes as the body".into() });
+        }
+        self.stage_upload(Asset { id: String::new(), owner: owner.to_owned(), kind: AssetKind::File, content_type: content_type.to_owned(), bytes: byte_count, width: None, height: None, duration: None, created_at: now, home: None, released_at: None, name: Some(assets::sanitize_name(name)) })
+    }
+
+    fn stage_upload(&mut self, mut asset: Asset) -> Result<assets::Upload, RuntimeError> {
+        asset.id = crate::ids::mint(asset.created_at, &mut self.entropy)?;
+        let path = self.store.asset_path(&asset.id);
         Ok(assets::Upload {
             asset,
             path,
@@ -759,7 +809,7 @@ impl Engine {
         }
         // @ref LLP 3000.019#3.5 — a delayed download cannot confer custody in a replacement store.
         let store_id = tx.meta("store_id")?.ok_or_else(unknown)?;
-        let grant = |once: bool| AssetGrant { store_id: store_id.clone(), home: asset.home.clone(), path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
+        let grant = |once: bool| AssetGrant { store_id: store_id.clone(), home: asset.home.clone(), path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once, kind: asset.kind, name: asset.name.clone() };
         let Some((table_name, row_id, column)) = &asset.home else {
             if asset.owner == principal {
                 tx.rollback()?;
@@ -1147,13 +1197,19 @@ impl Engine {
                 crate::ir::ArgType::Optional(inner) => inner.as_ref(),
                 other => other,
             };
-            if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. }) {
+            if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. } | crate::ir::ArgType::File { .. }) {
                 continue;
             }
             let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue };
             if let Some(asset) = tx.asset(&id)?
                 && (asset.owner == viewer || context.is_system())
             {
+                // @ref LLP 3000.038#3 — a file argument never reads an image's facts, nor an image argument a file's.
+                if (asset.kind == AssetKind::File) != matches!(inner, crate::ir::ArgType::File { .. }) {
+                    let wanted = if matches!(inner, crate::ir::ArgType::File { .. }) { "a file" } else { "an image or video" };
+                    let error = RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{name} takes {wanted} and {id} is {}; upload it as {wanted}", asset.kind.word()) };
+                    return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
+                }
                 context.args.insert(name.clone(), asset.column_value());
             }
         }

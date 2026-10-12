@@ -7,6 +7,7 @@ import { pendingItemsSource } from "./react-pending-items.ts";
 export type { PendingItem, PendingIntent, IntentPhase, PendingItemsOptions, PendingStateOptions } from "./pending-items.ts";
 import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
+import { saveAsset, type Saved } from "./files.ts";
 import { assetWaiting, assetWaitDelay, readAsset, type AssetProgressDetail, type AssetStage, type AssetWaiting } from "./asset-progress.ts";
 export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // The React arm: one provider and hooks over the client card.
@@ -513,7 +514,7 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, read);
 }
 
-export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting?: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
+export type AssetState = { readonly status: "empty" } | { readonly status: "loading"; readonly waiting?: AssetWaiting } | { readonly status: "ready"; readonly url: string; readonly type: string; readonly name?: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
 
 /** The bytes of an asset a row the viewer may read holds, fetched under
  * the viewer's credentials as a blob URL for `src`. Revoked when the id
@@ -573,7 +574,7 @@ export function useAsset(id: string | null | undefined): AssetState {
           if ("url" in result) result.revoke();
           return;
         }
-        publish("url" in result ? { status: "ready", url: result.url, type: result.type }
+        publish("url" in result ? { status: "ready", url: result.url, type: result.type, ...(result.name === undefined ? {} : { name: result.name }) }
           : { status: assetError(result.denied) ? "error" : "denied", why: result.denied });
       } catch (error) {
         read = null;
@@ -616,6 +617,27 @@ export function useAsset(id: string | null | undefined): AssetState {
   if (!id) return { status: "empty" };
   if (signedOut) return { status: "denied", why: { code: "E_AUTH", family: "auth", message: "Sign in before loading an asset.", rewrite: "read the asset's home row with the signed-in client, then pass its asset id to useAsset", guide: "assets" } };
   return resolved?.owner === owner && resolved.lifetime.live ? resolved.state : { status: "loading", waiting: assetWaiting("scheduled", owner.since) };
+}
+
+/** Save a document on demand (LLP 3000.038): `save(id, name?)` fetches the
+ * file under the viewer's credentials and hands it to the browser as a
+ * download named `name` (default: the file's own name), so a list of files
+ * fetches nothing until a button asks. `saving` is true while a save runs;
+ * `why` keeps the last refusal. Browser only, like `saveAsset`. */
+export function useSaveAsset(): { readonly save: (id: string, name?: string) => Promise<Saved>; readonly saving: boolean; readonly why: Refusal | null } {
+  const client = useClient();
+  const [state, setState] = useState<{ readonly running: number; readonly why: Refusal | null }>({ running: 0, why: null });
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const save = useCallback(async (id: string, name?: string) => {
+    setState(previous => ({ running: previous.running + 1, why: null }));
+    let saved: Saved;
+    try { saved = await saveAsset(client, id, name); }
+    catch (error) { saved = { ok: false, why: { code: "E_CLIENT", family: "client", message: `the file could not be saved: ${error instanceof Error ? error.message : String(error)}` } }; }
+    if (mounted.current) setState(previous => ({ running: previous.running - 1, why: saved.ok ? previous.why : saved.why }));
+    return saved;
+  }, [client]);
+  return { save, saving: state.running > 0, why: state.why };
 }
 
 /** Opt-in development overlay data; disabled means no timer or inspection work. */

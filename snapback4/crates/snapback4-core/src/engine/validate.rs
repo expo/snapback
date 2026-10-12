@@ -153,7 +153,7 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
         (ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }, Some(Value::Id(_))) => true,
         (ColumnType::Text { max }, Some(Value::String(text))) => text.chars().count() <= *max as usize,
         (ColumnType::Bytes { max }, Some(Value::Bytes(bytes))) => bytes.len() <= *max as usize,
-        (ColumnType::Image { .. } | ColumnType::Video { .. }, Some(Value::Map(fields))) => fields.get("id").is_some_and(|id| matches!(id, Value::Id(_))),
+        (ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. }, Some(Value::Map(fields))) => fields.get("id").is_some_and(|id| matches!(id, Value::Id(_))),
         (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
         (ColumnType::Int | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. }, Some(Value::Int(value))) => (I53_MIN..=I53_MAX).contains(value),
         (ColumnType::Bool, Some(Value::Bool(_))) => true,

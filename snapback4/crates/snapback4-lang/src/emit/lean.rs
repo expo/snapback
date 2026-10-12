@@ -109,7 +109,7 @@ impl Kind {
             TypeKind::Money { .. } => return no("type-money", "money"),
             TypeKind::Json { .. } => return no("type-json", "json"),
             TypeKind::Bytes { .. } => return no("type-bytes", "bytes"),
-            TypeKind::Image { .. } | TypeKind::Video { .. } => return no("type-asset", "an asset type"),
+            TypeKind::Image { .. } | TypeKind::Video { .. } | TypeKind::File { .. } => return no("type-asset", "an asset type"),
             TypeKind::Enum { .. } => return no("type-enum", "an enum"),
             TypeKind::List { .. } => return no("type-list", "a list"),
         })

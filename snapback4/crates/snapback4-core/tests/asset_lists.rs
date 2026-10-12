@@ -25,7 +25,7 @@ mutation edit(post: posts, photos: {kind}):
 fn upload(engine: &Engine, id: &str, owner: &str, kind: AssetKind, bytes: u64) {
     engine.store().record_asset(&Asset { id:id.into(), owner:owner.into(), kind,
         content_type:if kind == AssetKind::Image {"image/png"} else {"video/mp4"}.into(), bytes,
-        width:Some(640), height:Some(480), duration:None, created_at:0, home:None, released_at:None }).unwrap();
+        width:Some(640), height:Some(480), duration:None, created_at:0, home:None, released_at: None, name: None }).unwrap();
 }
 fn asset(id: &str) -> Value { Value::Map(BTreeMap::from([("id".into(),Value::Id(id.into()))]).into()) }
 fn list(ids: &[&str]) -> Value { Value::Array(ids.iter().map(|id| asset(id)).collect()) }

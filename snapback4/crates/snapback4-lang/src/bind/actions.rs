@@ -67,7 +67,7 @@ fn validate_type(ty: &ScalarType, catalog: &Catalog, site: &Site, result: bool) 
     match &ty.kind {
         TypeKind::Cursor if result => return Err(bad("an action result cannot contain a query cursor")),
         TypeKind::Text { min, max, .. } if *max == 0 || min.is_some_and(|min| min > *max) => return Err(bad("text needs a positive maximum at least as large as its minimum")),
-        TypeKind::Json { max } | TypeKind::Bytes { max } | TypeKind::Image { max, .. } | TypeKind::Video { max } if *max == 0 => return Err(bad("a bounded type needs a positive maximum")),
+        TypeKind::Json { max } | TypeKind::Bytes { max } | TypeKind::Image { max, .. } | TypeKind::Video { max } | TypeKind::File { max, .. } if *max == 0 => return Err(bad("a bounded type needs a positive maximum")),
         TypeKind::Ref { table } if !catalog.tables.contains_key(table) => return Err(bad("an action type references an unknown table")),
         TypeKind::List { item, max, .. } => {
             if *max == 0 { return Err(bad("a list needs a positive maximum")); }

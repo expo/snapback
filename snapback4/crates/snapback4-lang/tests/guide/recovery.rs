@@ -75,7 +75,7 @@ table photos:
 mutation place(id: photos, photo: image <=1000):
   return upsert photos[id] { photo }
 "#);
-    let asset = Asset { id: "upload".into(), owner: "alice".into(), kind: AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None };
+    let asset = Asset { id: "upload".into(), owner: "alice".into(), kind: AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None, name: None };
     e.store().record_asset(&asset).unwrap();
     assert!(e.asset_access("alice", &asset.id, 0).is_ok(), "unplaced uploads allow owner preview");
     assert_eq!(e.asset_access("bob", &asset.id, 0).unwrap_err().code(), "E_ASSET_UNKNOWN");

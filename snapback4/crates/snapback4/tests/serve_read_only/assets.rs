@@ -13,7 +13,7 @@ pub(super) fn seed(h: &Host) {
     let mut e=lock(&h.shared.engine);
     let mut rows: Vec<(String,Value)>=Vec::new();
     for (id,reader,until,once) in [("ordinary","member:bob",Value::Null,false),("once","member:bob",Value::Null,true),("hidden","other",Value::Null,true),("expired","member:bob",Value::Int(NOW-1),true),("released","member:bob",Value::Null,true)] {
-        e.store().record_asset(&Asset{id:id.into(),owner:snapback4_core::SYSTEM_PRINCIPAL.into(),kind:AssetKind::Image,content_type:"image/png".into(),bytes:24,width:Some(1),height:Some(1),duration:None,created_at:NOW,home:None,released_at:None}).unwrap();
+        e.store().record_asset(&Asset{id:id.into(),owner:snapback4_core::SYSTEM_PRINCIPAL.into(),kind:AssetKind::Image,content_type:"image/png".into(),bytes:24,width:Some(1),height:Some(1),duration:None,created_at:NOW,home:None,released_at: None, name: None}).unwrap();
         std::fs::create_dir_all(e.store().asset_path(id).parent().unwrap()).unwrap();
         std::fs::write(e.store().asset_path(id), b"012345678901234567890123").unwrap();
         let asset=e.store().asset(id).unwrap().unwrap().column_value();

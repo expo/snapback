@@ -72,7 +72,7 @@ pub fn values(kind: &ColumnType) -> Vec<Json> {
         ColumnType::Enum { variants } => variants.iter().map(|v| json!(v)).collect(),
         ColumnType::Bytes { max } => vec![json!(""), json!("ff".repeat(*max as usize))],
         ColumnType::Json { .. } => vec![json!({}), json!({"value":true})],
-        ColumnType::Image { .. } | ColumnType::Video { .. } => {
+        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::File { .. } => {
             vec![json!({"id":"asset-zero"}), json!({"id":"asset-max"})]
         }
     }

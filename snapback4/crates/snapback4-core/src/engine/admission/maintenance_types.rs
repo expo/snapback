@@ -405,6 +405,7 @@ fn column_type(column: &crate::schema::ColumnType) -> Type {
         ColumnType::List { of, .. } | ColumnType::ListRange { of, .. } => column_type(of).list(),
         ColumnType::Json { .. } => Type::Unknown,
         ColumnType::Image { .. } | ColumnType::Video { .. } => asset_type(),
+        ColumnType::File { .. } => file_type(),
         _ => Type::Scalar,
     }
 }
@@ -415,11 +416,16 @@ fn argument_type(argument: &ArgType) -> Type {
         ArgType::List { of, .. } | ArgType::ListRange { of, .. } => of.as_deref().map(argument_type).unwrap_or(Type::Unknown).list(),
         ArgType::Json { .. } => Type::Unknown,
         ArgType::Image { .. } | ArgType::Video { .. } => asset_type(),
+        ArgType::File { .. } => file_type(),
         _ => Type::Scalar,
     }
 }
 fn asset_type() -> Type {
     Type::Object(["id", "width", "height", "duration", "bytes", "type"].map(|name| (name.into(), Type::Scalar)).into())
+}
+
+fn file_type() -> Type {
+    Type::Object(["id", "bytes", "type", "name"].map(|name| (name.into(), Type::Scalar)).into())
 }
 
 #[cfg(test)]
