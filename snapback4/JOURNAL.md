@@ -92628,3 +92628,10 @@ The same writing page builds to 274,853 B (88,485 B gzip) with no wasm, against
 (`scripts/measure-online-writes.mjs`). Persona apps and a durable online head
 floor are deferred. The number moved from 3000.038, which four lanes claimed
 the same night.
+
+## 2026-10-12 — 0.4.23: the wasm budget rises 764 B for the integrated device
+
+File assets and the pinned-parent page guard each landed within their own
+branch's budget; together the Linux web device measures 651,704 B gzip,
+264 B over 651,440. The budget is now 652,204 B (measurement + 500 B), with
+the reason in `metrics/wasm-budget.json`.
