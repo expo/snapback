@@ -41,6 +41,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
     // Lock order is engine then controller. Authentication is checked again at
     // the same engine incarnation that owns the source read transaction.
     let mut engine = lock(&shared.engine);
+    crate::release_requests::stamp(engine.generation());
     if let Err(r) = mutation_authority(&request, shared, &engine, &principal) {
         drop(engine);
         return respond_timed(request, shared, 401, json!({"denied":refusal_json(&r)}));
@@ -161,6 +162,7 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
         answer.unwrap_or_else(|e| json!({"phase":"refused","code":e.refusal().code}).to_string());
     // Do not parse/re-encode a pinned response or attach a fresh store counter.
     let mut response = Response::from_string(bytes);
+    if let Some(header)=crate::serve::generation_header(){response.add_header(header);}
     response.add_header(Header::from_bytes("Content-Type", "application/json").unwrap());
     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
     for header in cors(&request).into_iter().chain(latency::header()) {

@@ -437,22 +437,19 @@ schedule checkpointDaily every 1d: checkpoint
   assert.deepEqual(restoredBeforeActivation.durable._outbox, before.durable._outbox);
   assert.deepEqual(recoveryState(backup), before, "the backup itself is never served or modified");
   // Reuse the existing activation verbs at the recovered location: widening
-  // is permitted; a destructive candidate refuses; rollback changes source,
+  // is permitted; narrowing retains rows; rollback changes source,
   // while rows written after the backup remain rows of the recovered store.
   writeFileSync(schema, recoverySource.replaceAll("text <=100", "text <=200"));
   run("deploy", restored);
   await serve(restored, async (url) => {
     assert.equal((await post(url, originalHeaders, "/m/add", { id: "restored-new", args: { body: "restored only" } })).state, "sent");
   });
-  const beforeRefusal = recoveryState(restored);
   writeFileSync(schema, recoverySource.replaceAll("text <=100", "text <=4"));
-  const refused = invoke("deploy", restored);
-  assert.equal(refused.status, 1);
-  assert.match(refused.stderr, /E_ADOPT/);
-  assert.deepEqual(recoveryState(restored), beforeRefusal);
-  run("rollback", restored);
+  run("deploy", restored);
+  assert.equal(state(join(restored,"store.sqlite")).rows.length,0);
+  run("rollback", restored,"--to","1");
   assert.equal(state(join(restored, "store.sqlite")).metadata.release, "1");
-  assert.equal(state(join(restored, "store.sqlite")).metadata.generation, "3");
+  assert.equal(state(join(restored, "store.sqlite")).metadata.generation, "4");
   await serve(restored, async (url) => {
     const rows = await post(url, originalHeaders, "/q/q", { args: {} });
     assert.deepEqual(rows.data.map((row) => row.body).sort(), ["at backup", "restored only"]);
@@ -723,11 +720,13 @@ query extras():
       await client.sync(); let local = await client.query({ kind: 'query', name: 'all' }, {}); assert.equal(local.data.find(row => row.id === id).extra, 42);
       const oldGeneration = JSON.parse(run('releases', deployment)).generation;
       await releasePost(url, headers, '/m/newStatus', { item: id }, 'v2-new-status');
-      const refused = invoke('rollback', deployment); assert.equal(refused.status, 1); assert.match(refused.stderr, /E_ADOPT/); assert.ok(refused.stderr.includes(id)); assert.match(refused.stderr, /1 affected rows/); assert.match(refused.stderr, /new/);
-      assert.equal(JSON.parse(run('releases', deployment)).release, 2);
+      run('rollback', deployment); await client.sync();
+      assert.ok((await client.query({kind:'query',name:'all'},{})).data.every(row=>row.id!==id));
+      run('rollback',deployment,'--to','2'); await client.sync();
+      assert.equal((await client.query({kind:'query',name:'all'},{})).data.find(row=>row.id===id).status,'new');
       await releasePost(url, headers, '/m/repairStatus', { item: id }, 'v2-repair');
       run('rollback', deployment);
-      const current = JSON.parse(run('releases', deployment)); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 1);
+      const current = JSON.parse(run('releases', deployment)); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 3);
       const stale = await (await fetch(url + '/sync', { method: 'POST', headers, body: JSON.stringify({ generation: oldGeneration, from: 0, limit: 100, after: null, stream: false, pending: [] }) })).json(); assert.equal(stale.denied.code, 'E_SYNC_GENERATION');
       await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {}); assert.ok(local.data.every(row => !Object.hasOwn(row, 'extra')));
       assert.equal((await releasePost(url, headers, '/m/edit', { item: id, body: 'old write' }, 'v1-edit')).state, 'sent');
@@ -741,7 +740,7 @@ query extras():
       assert.equal(local.data.find(row => row.id === newRow.result.id).extra, 7); assert.ok(local.data.every(row => row.id !== gone));
       assert.deepEqual((await releasePost(url, headers, '/q/extras')).data.map(row => row.n), [45]);
       // Failed hot narrowing leaves this generation and the connected client usable.
-      writeFileSync(schema, second.replaceAll('text <=100', 'text <=4'));
+      writeFileSync(schema, second.replace('  body: text', '  mustBackfill: int\n  body: text').replace("{body: 'kept'}","{body: 'kept', mustBackfill: 1}"));
       const before = JSON.parse(run('releases', deployment)); const failed = await invokeAsync(app, 'deploy', deployment); assert.equal(failed.status, 1); assert.match(failed.stderr, /E_ADOPT/);
       const after = JSON.parse(run('releases', deployment)); assert.equal(after.release, before.release); assert.equal(after.generation, before.generation); assert.equal(after.revision, before.revision);
       assert.equal((await releasePost(url, headers, '/q/all')).data.find(row => row.id === id).extra, 42);
@@ -851,4 +850,139 @@ test('owned serve death before hot commit and after commit recovers database aut
     const after=await(await fetch(url+'/q/q',{method:'POST',headers,body:'{"args":{}}'})).json();assert.equal(after.data,2);
     const rows=state(join(deployment,'store.sqlite')).rows;assert.equal(rows.length,1);assert.match(rows[0].data,/kept/);
   });
+});
+
+test('REL identical source is a no-op; latest and exact previews never activate', {timeout:hangBudget(3)}, async(t)=>{
+  const {deployment,schema,run}=fixture(t);
+  assert.match(run('rollback','--help'),/dormant per row/);
+  const first=run('deploy',deployment);assert.match(first,/release 1 is current as generation 1/);
+  assert.equal(first.trim().split('\n').length,1);
+  const before=JSON.parse(run('releases',deployment));
+  assert.match(run('deploy',deployment),/unchanged; release 1 stays current/);
+  assert.deepEqual(JSON.parse(run('releases',deployment)),before);
+  writeFileSync(schema,source.replace('return 1','return 2'));
+  run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    const saved=state(join(deployment,'store.sqlite'));
+    assert.match(run('rollback',deployment,'--to','1','--check'),/preview: release 1 would be current/);
+    assert.match(run('check','--store',join(deployment,'store.sqlite'),'--release','1'),/live release unchanged/);
+    assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
+    assert.equal((await releasePost(url,headers,'/q/q')).data,2);
+    assert.match(run('rollback',deployment,'--to','1'),/release 1 is current as generation 3/);
+    const status=JSON.parse(run('releases',deployment));assert.equal(status.release,1);assert.equal(status.latest,2);
+    const selected=JSON.parse(run('releases',deployment,'latest'));assert.equal(selected.release,1);assert.equal(selected.selected.release,2);assert.equal(selected.selected.current,false);assert.equal(typeof selected.selected.digest,'string');
+    assert.equal(JSON.parse(run('releases',deployment,'1')).selected.current,true);
+    assert.match(run('rollback',deployment,'--to','latest'),/release 2 is current as generation 4/);
+    assert.equal((await releasePost(url,headers,'/q/q')).data,2);
+  });
+});
+
+test('REL 16 concurrent callers remain request-safe over six hot switch pairs', {timeout:hangBudget(4)}, async(t)=>{
+  const {app,deployment,schema,run}=fixture(t);
+  const v1=source+`mutation echo(v: enum('old')):\n  return v\n`;
+  const v2=v1.replace('return 1','return 2').replace("enum('old')","enum('old','new')")+`query newOnly():\n  return 9\nmutation newMutation():\n  return 9\n`;
+  writeFileSync(schema,v1);run('deploy',deployment);
+  writeFileSync(schema,v2);run('deploy',deployment);run('rollback',deployment,'--to','1');
+  await serve(deployment,async(url,headers)=>{
+    let stopped=false,replies=0;
+    const callers=Array.from({length:16},(_,lane)=>(async()=>{
+      for(let n=0;!stopped || n<12;n++) {
+        const route=n%4===0?'/q/q':n%4===1?'/q/newOnly':n%4===2?'/m/newMutation':'/m/echo';
+        const response=await fetch(url+route,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({args:route==='/m/echo'?{v:'new'}:{},...(route.startsWith('/m/')?{id:`stress-${lane}-${n}`}:{})}),signal:AbortSignal.timeout(hangBudget())});
+        const body=await response.json();replies++;
+        assert.notEqual(response.status,500,JSON.stringify(body));
+        assert.equal(body.loading,undefined,JSON.stringify(body));
+        assert.ok(Number.isSafeInteger(body.generation),JSON.stringify(body));
+        assert.equal(Number(response.headers.get('x-snapback-generation')),body.generation);
+        assert.notEqual(body.denied?.code,'E_GENERATION');assert.notEqual(body.why?.code,'E_GENERATION');
+        if(route==='/q/q') {assert.equal(response.status,200);assert.equal(body.data,body.generation%2===1?1:2);}
+        if(body.denied?.code==='E_OP') {assert.equal(response.status,404);assert.equal(body.state,undefined);}
+        if(route==='/m/echo' && body.generation%2===1) {assert.equal(response.status,200);assert.equal(body.state,'failed');assert.equal(body.why?.code,'E_INPUT');assert.equal(body.denied,undefined);}
+        if(body.why?.code==='E_INPUT') {assert.equal(response.status,200);assert.equal(body.state,'failed');}
+      }
+    })());
+    try {
+      for(let pair=0;pair<6;pair++) {
+        for(const release of ['2','1']) {
+          const switched=await invokeAsync(app,'rollback',deployment,'--to',release);
+          assert.equal(switched.status,0,switched.stderr);assert.match(switched.stdout,/is current as generation/);
+          const reply=await releasePost(url,headers,'/q/q');assert.equal(reply.data,Number(release));
+        }
+      }
+    } finally {stopped=true;await Promise.all(callers);}
+    assert.ok(replies>=192,`only ${replies} stress replies`);
+    t.diagnostic(`${replies} HTTP replies across 12 hot activations`);
+  });
+});
+
+
+test('REL mutation decoding and many-item previews report complete plans', {timeout:hangBudget(3)}, async(t)=>{
+  const {deployment,schema,run}=fixture(t);
+  const first=(source.replace('  read <- allow','  read <- allow\n  update <- allow').replace('  body: text',"  status: enum('old') default 'old'\n  body: text")+`mutation echo(v: enum('old')):
+  return v
+query input(n: int):
+  return n
+`).replaceAll('items','values');
+  writeFileSync(schema,first);run('deploy',deployment);
+  const columns=Array.from({length:20},(_,n)=>`  spare${n}: bool default false`).join('\n');
+  const second=first.replace('  body: text',columns+'\n  body: text').replaceAll("enum('old')","enum('old','new')")+`mutation setStatus(item: values):
+  update values[item] {status:'new'}
+`;
+  writeFileSync(schema,second);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    for(const args of [{},[],{n:'bad'}]) {
+      const response=await fetch(url+'/q/input',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({args})});
+      const reply=await response.json();assert.equal(response.status,400,JSON.stringify(reply));assert.equal(reply.denied.code,'E_INPUT');
+      assert.equal(reply.generation,2);assert.equal(Number(response.headers.get('x-snapback-generation')),2);
+    }
+    const added=await releasePost(url,headers,'/m/add',{},'large-plan-add');assert.equal(added.state,'sent');
+    assert.equal((await releasePost(url,headers,'/m/setStatus',{item:added.result.id},'narrow-held')).state,'sent');
+    const required=second.replace('  body: text','  mustBackfill: int\n  body: text').replace("{body: 'kept'}","{body: 'kept', mustBackfill: 1}");
+    writeFileSync(schema,required);
+    const failure=spawnSync(binary,['deploy',deployment],{cwd:dirname(dirname(schema)),encoding:'utf8',timeout:hangBudget()});
+    assert.equal(failure.status,1);assert.match(failure.stderr,/E_ADOPT/);
+    const inspect=failure.stderr.match(/inspect: snapback4 sql "([^"]+)"/);assert.ok(inspect,failure.stderr);
+    run('sql',inspect[1],'--release',deployment,'--json');
+    const saved=state(join(deployment,'store.sqlite'));
+    const plan=run('rollback',deployment,'--to','1','--check');
+    assert.match(plan,/1 dormant narrowed rows/);assert.match(plan,/rows:values/);
+    for(const flags of [[],['--verbose']]) {
+      const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
+      assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
+      assert.equal(structured.plan.generation,3);
+      assert.ok(structured.plan.items.some(item=>item.key==='rows:values' && item.rows===1));
+    }
+    const checked=JSON.parse(run('check','--store',join(deployment,'store.sqlite'),'--release','1','--json'));
+    assert.equal(checked.preview,true);assert.ok(checked.steps.length>0);
+    assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
+    run('rollback',deployment,'--to','1');
+    for(const args of [{v:'new'},{v:7},{v:'old',extra:true}]) {
+      const response=await fetch(url+'/m/echo',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({id:'decode-'+JSON.stringify(args),args})});
+      const reply=await response.json();assert.equal(response.status,200);assert.equal(reply.state,'failed');assert.equal(reply.why.code,'E_INPUT');assert.equal(reply.denied,undefined);assert.equal(reply.generation,3);
+    }
+  });
+});
+
+
+test('REL minimum-text widening warns in both deploy and rollback directions', {timeout:hangBudget(2)}, (t)=>{
+  const {deployment,schema,invoke,run}=fixture(t);
+  const code=(min)=>`table codes:
+  code: text ${min}..12
+  public
+`;
+  writeFileSync(schema,code(6));run('deploy',deployment);
+  writeFileSync(schema,code(4));
+  const widened=invoke('deploy',deployment);assert.equal(widened.status,0);assert.match(widened.stderr,/WARNING rollback compatibility: codes.code/);
+  writeFileSync(schema,code(8));run('deploy',deployment);
+  const rolled=invoke('rollback',deployment,'--to','2');assert.equal(rolled.status,0);assert.match(rolled.stderr,/WARNING rollback compatibility: codes.code/);
+  const media=(bound,types)=>`table documents:
+  photo: image <=${bound} ?
+  files: [file <=${bound} (${types})] <=4
+  public
+`;
+  writeFileSync(schema,media(10,"'application/pdf'"));run('deploy',deployment);
+  writeFileSync(schema,media(1000,"'application/pdf','text/plain'"));
+  const assets=invoke('deploy',deployment);assert.equal(assets.status,0);assert.match(assets.stderr,/documents.photo/);assert.match(assets.stderr,/documents.files/);
+  writeFileSync(schema,media(5,"'application/pdf'"));run('deploy',deployment);
+  const assetRollback=invoke('rollback',deployment,'--to','5');assert.equal(assetRollback.status,0);assert.match(assetRollback.stderr,/documents.photo/);assert.match(assetRollback.stderr,/documents.files/);
 });

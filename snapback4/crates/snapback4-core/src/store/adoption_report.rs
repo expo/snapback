@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 #[derive(Default, Debug)]
 pub struct AdoptionReport {
+    pub changes:Vec<String>,
     pub phases: Vec<(&'static str, Duration)>,
     /// Nested attribution, not additional time to add to `phases`.
     pub details: Vec<(String, Duration)>,
@@ -18,6 +19,12 @@ pub struct ViewBuild {
 }
 
 impl AdoptionReport {
+    pub fn compact(&self)->String {
+        let elapsed:Duration=self.phases.iter().map(|(_,d)|*d).sum();
+        let mut changes=self.changes.iter().take(5).cloned().collect::<Vec<_>>();
+        if self.changes.len()>5 {changes.push(format!("{} more changes",self.changes.len()-5));}
+        format!("{}; {:.1} ms",if changes.is_empty(){"adopted".into()}else{changes.join(", ")},elapsed.as_secs_f64()*1000.0)
+    }
     pub fn summary(&self) -> String {
         let report = self;
         let mut out = String::new();

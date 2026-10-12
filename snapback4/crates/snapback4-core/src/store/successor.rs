@@ -112,6 +112,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                         match constraint {
                             Constraint::Cap { by, max } if by.iter().any(|c| c == column) => {
                                 let values: Vec<_> = by.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
+                                if table.cap_exempts_null(by) && values.contains(&Value::Null) {continue;}
                                 let count = groups.entry((format!("cap:{}", canonical_json(by)), key::encode(&values))).or_default();
                                 *count += 1;
                                 fits &= *count <= u64::from(*max);
@@ -138,6 +139,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                     for constraint in &table.constraints {
                         if let Constraint::Cap { by, max } = constraint {
                             let values: Vec<_> = by.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
+                                if table.cap_exempts_null(by) && values.contains(&Value::Null) {continue;}
                             let count = groups.entry((canonical_json(by), key::encode(&values))).or_default();
                             *count += 1;
                             fits &= *count <= u64::from(*max);

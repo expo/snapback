@@ -77,7 +77,7 @@ fn check_child_retirement_and_rewrite_advice_is_read_only_with_live_and_stopped_
             (format!("{source}\ntable unrelated:\n  public\n"), false),
         ] {
             p.source(&candidate);
-            for flags in [vec!["check"], vec!["check", "--json"]] {
+            for flags in [vec!["check", "--verbose"], vec!["check", "--json"]] {
                 let output = p.run(&flags);
                 assert!(output.status.success(), "{output:?}");
                 let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));

@@ -88,7 +88,7 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
     drop(bytes);
     if Instant::now() >= deadline || shared.now() >= deadline_ms { return unavailable(request); }
     let (mut run, principal) = if route.service.is_some() {
-        let authority = lock(&shared.engine).route_service_generation(name, &contract);
+        let authority = {let engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_service_generation(name, &contract)};
         let generation = match authority {
             Ok((_, generation)) => generation, Err(_) => return unavailable(request),
         };
@@ -112,13 +112,13 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
             }
         };
         drop(guard);
-        let collected = lock(&shared.engine).route_request_at(name, &contract, &id, &principal, shared.now());
+        let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request_at(name, &contract, &id, &principal, shared.now())};
         match collected { Ok(run) => (run, principal), Err(_) => return unavailable(request) }
     } else {
         let principal = match principal(&request, shared) { Ok(p) => p, Err(why) => return respond_with_cors(request, 401, json!({ "denied": why }), false) };
         let mut context = Context::new(&principal, BTreeMap::new()).at(shared.now());
         if let Ok(token) = crate::auth::bearer_token(&request) { context = context.with_session(token); }
-        let admitted = lock(&shared.engine).request_session_route(name, &contract, &envelope, context);
+        let admitted = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.request_session_route(name, &contract, &envelope, context)};
         match admitted { Ok((run, _)) => (run, principal), Err(error) => return respond_with_cors(request, if error.refusal().family == "auth" { 401 } else { 503 }, json!({ "denied": error.refusal() }), false) }
     };
     shared.durable_committed(&lock(&shared.engine));
@@ -128,7 +128,7 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         }
         // Recheck even an immediately settled replay: revocation and adoption
         // must not turn a retained response into a new authority grant.
-        let collected = lock(&shared.engine).route_request_at(name, &contract, &run.id, &principal, shared.now());
+        let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request_at(name, &contract, &run.id, &principal, shared.now())};
         run = match collected {
             Ok(run) => run, Err(_) => return unavailable(request),
         };
@@ -144,6 +144,7 @@ fn completed(request: Request, run: &ActionRequest) {
     let Ok(bytes) = response.validate() else { return unavailable(request); };
     if response.status >= 500 { return unavailable(request); }
     let mut output = Response::from_data(bytes).with_status_code(response.status);
+    if let Some(header)=crate::serve::generation_header(){output.add_header(header);}
     for (name, value) in response.headers {
         let Ok(header) = Header::from_bytes(name, value) else { return unavailable(request); };
         output.add_header(header);

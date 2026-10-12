@@ -206,8 +206,12 @@ fn column_change(old: &ColumnType, new: &ColumnType) -> Change {
         // Optional becoming required narrows; required becoming optional widens.
         (ColumnType::Optional(a), b) => worse(Change::Narrowing, column_change(a, b)),
         (a, ColumnType::Optional(b)) => worse(Change::Additive, column_change(a, b)),
-        (ColumnType::Text { max: a }, ColumnType::Text { max: b }) | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b }) | (ColumnType::Json { max_bytes: a }, ColumnType::Json { max_bytes: b }) => {
+        (ColumnType::Text { max: a }, ColumnType::Text { max: b }) | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b }) | (ColumnType::Json { max_bytes: a }, ColumnType::Json { max_bytes: b }) | (ColumnType::Image { max:a,.. },ColumnType::Image {max:b,..}) | (ColumnType::Video { max:a },ColumnType::Video {max:b}) => {
             if b >= a { Change::Additive } else { Change::Narrowing }
+        }
+        // @ref LLP 3000.000.000#92-exact-preview-and-operator-vocabulary — widening asset bounds/allow-lists has the same rollback advisory as enum/text widening.
+        (ColumnType::File {max:a,types:at},ColumnType::File {max:b,types:bt})=>{
+            if b>=a && crate::assets::FILE_TYPES.iter().all(|t|!crate::assets::file_accepts(at,t) || crate::assets::file_accepts(bt,t)) {Change::Additive} else {Change::Narrowing}
         }
         // @ref LLP 3000.040#16-schema-evolution — a wider int range applies in place; a tighter one is checked against every stored row.
         (ColumnType::IntRange { .. }, ColumnType::Int) => Change::Additive,

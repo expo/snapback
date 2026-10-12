@@ -1,5 +1,5 @@
 //! The CLI's local service-seat door. This capability never comes from a bearer session.
-use super::{Shared, single_header, authority_host, lock, respond_with_cors};
+use super::{Shared, single_header, authority_host, producing_engine, respond_with_cors};
 use snapback4_core::{error::Refusal, identity::{self, Session}};
 use std::{io::{self, Read, Seek, SeekFrom, Write}, net::TcpStream, path::{Path, PathBuf}, time::Duration};
 use serde_json::{Value as Json, json};
@@ -108,7 +108,7 @@ pub(super) fn handle(mut request: Request, shared: &Shared) {
     let result = {
         // Use the same writer and identity routine as offline minting. Sample
         // wall time as the offline CLI does, independent of dev's test clock.
-        let engine = lock(&shared.engine);
+        let engine = producing_engine(shared);
         shared.owner.as_ref().expect("authorized owner").path().and_then(|_| {
             identity::service_session(engine.store(), &mint.service, snapback4_core::now_ms(), mint.days)
         })

@@ -55,7 +55,7 @@ fn guard_barriers_replay_and_http_parity() {
         let before = snapshot(&h);
         let response = h.request(method, path, &read, "{}");
         assert_eq!(status(&response), 403, "{method} {path}: {response}");
-        if method != "HEAD" { assert_eq!(body(&response), json!({"denied": body(&response)["denied"]})); assert_eq!(body(&response)["denied"]["code"], "E_READ_ONLY"); }
+        if method != "HEAD" { assert_eq!(body(&response), json!({"denied": body(&response)["denied"],"generation":1})); assert_eq!(body(&response)["denied"]["code"], "E_READ_ONLY"); }
         assert_eq!(snapshot(&h), before);
     }
     let before = snapshot(&h);
@@ -91,7 +91,7 @@ fn guard_barriers_replay_and_http_parity() {
     assert_eq!(body(&h.request("POST","/probe?scope=1",FULL,"{}"))["scope"],"full");
     for method in ["GET", "POST"] {
         let legacy = body(&h.request(method, "/probe", FULL, "{}"));
-        assert_eq!(legacy, json!({"ok":true, "store_id":legacy["store_id"], "seq":legacy["seq"], "viewer":"member:bob"}));
+        assert_eq!(legacy, json!({"ok":true, "store_id":legacy["store_id"], "seq":legacy["seq"], "viewer":"member:bob","generation":1}));
     }
     assert_eq!(status(&h.request("GET","/schema",&read,"")),200);
 }

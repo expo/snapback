@@ -141,7 +141,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         Err(why) => return failed(request, why),
     };
     {
-        let mut engine = lock(&shared.engine);
+        let mut engine = producing_engine(shared);
         let preflight = mutation_authority(&request, shared, &engine, &principal)
             .and_then(|()| intent_store(&engine, &payload))
             .and_then(|()| {
@@ -230,7 +230,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     #[cfg(test)]
     test_work(&shared.mutation_wait);
     let (reader, sites) = {
-        let engine = lock(&shared.engine);
+        let engine = producing_engine(shared);
         // @ref LLP 3000.019#3.6 — ephemeral writes also lose authority while queued for adoption.
         if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
             return failed(request, why);
@@ -259,7 +259,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         Err(_) => {
             #[cfg(test)]
             test_work(&shared.mutation_wait);
-            let mut engine = lock(&shared.engine);
+            let mut engine = producing_engine(shared);
             if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
             mutation_authority(&request, shared, &engine, &principal)
                 .and_then(|()| intent_store(&engine, &payload))

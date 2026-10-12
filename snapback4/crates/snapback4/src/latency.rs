@@ -281,12 +281,13 @@ pub(crate) fn header() -> Option<Header> {
 }
 
 /// Classify only the envelope; user data and synced row values are never walked.
-pub(crate) trait Reply: Serialize { fn refused(&self) -> bool { false } }
+pub(crate) trait Reply: Serialize { fn refused(&self) -> bool { false } fn generation(&self)->Option<u64>{None} }
 impl Reply for Value {
+    fn generation(&self)->Option<u64>{self.get("generation").and_then(Value::as_u64)}
     fn refused(&self) -> bool { self.get("denied").is_some_and(|v| !v.is_null()) || self.get("state").and_then(Value::as_str) == Some("failed") }
 }
-impl Reply for crate::sync_wire::SnapshotReply {}
-impl Reply for crate::sync_wire::StreamReply {}
+impl Reply for crate::sync_wire::SnapshotReply {fn generation(&self)->Option<u64>{Some(self.generation)}}
+impl Reply for crate::sync_wire::StreamReply {fn generation(&self)->Option<u64>{Some(self.generation)}}
 
 pub(super) fn endpoint(request: Request, shared: &Shared, reset: bool) {
     if reset && !shared.personas {

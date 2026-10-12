@@ -70,6 +70,7 @@ Output:
   --residency  what a device holds; with --fixture and --as, measured on that data
   --fix        apply mechanical source repairs (for example // comments to --)
   --store p    judge adoption against another store file
+  --release N  with --store, preview immutable release N (or latest) without activation
 
 snapback4 why <CODE> explains any problem or note; snapback4 why <op> one
 operation's cost. Exit 0 ok (notes or not), 1 problems, 2 cannot run.";

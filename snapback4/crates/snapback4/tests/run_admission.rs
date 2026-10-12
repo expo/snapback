@@ -239,8 +239,10 @@ fn cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock() {
 fn shared_releases(p: &Project) -> (PathBuf, PathBuf, PathBuf) {
     let a = p.0.join("release-a");
     let b = p.0.join("release-b");
+    let source=fs::read_to_string(p.0.join("snapback/schema.q")).unwrap();
     for dir in [&a, &b] {
-        for _ in 0..2 {
+        for n in 0..2 {
+            fs::write(p.0.join("snapback/schema.q"),format!("{source}\n-- immutable fixture release {n}\n")).unwrap();
             let out = p.run(&["deploy", dir.to_str().unwrap()]);
             assert!(out.status.success(), "{out:?}");
         }
@@ -286,9 +288,11 @@ fn release_database_symlinks_share_one_announced_owner_for_all_writers() {
         assert!(fs::read_to_string(&lock).unwrap().contains(&address));
         assert_owner_refusal(&p, &["serve", second, "--port", "0"], &address);
         // Hot activation uses this deployment's immutable source, despite the external database.
+        let current_source=fs::read_to_string(p.0.join("snapback/schema.q")).unwrap();
+        fs::write(p.0.join("snapback/schema.q"),format!("{current_source}\n-- changed hot owner fixture\n")).unwrap();
         let deployed = p.run(&["deploy", first]);
         assert!(deployed.status.success(), "{deployed:?}");
-        assert!(String::from_utf8_lossy(&deployed.stdout).contains("activated in the running server"), "{deployed:?}");
+        assert!(String::from_utf8_lossy(&deployed.stdout).contains("is current as generation"), "{deployed:?}");
         let rolled = p.run(&["rollback", first, "--to", "2"]);
         assert!(rolled.status.success(), "{rolled:?}");
         // Another deployment sharing the database must not activate its unrelated source through this owner.

@@ -1,7 +1,6 @@
 # Deploy: upgrade, real accounts and schema evolution
 
-Deploy into the running serve process without restarting it. A release is
-immutable source over one durable store; production admits bearer tokens.
+A release is immutable source over one durable store. Deploy from the app directory:
 
 ```sh
 bunx snapback4 check
@@ -10,39 +9,20 @@ bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
 
-See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
-
 ## Upgrade
-
-`bun add snapback4@latest` upgrades the core package and its platform CLI.
-For Expo, use **one command**: `bun add snapback4@latest snapback4-expo@latest`.
-The adapter requires the exact core version, including the patch; `check`
-warns on stderr if installed versions differ (also with --json). Rebuild your native development/release app
-after changing the adapter (Expo Go uses the online tier). Commit the lockfile,
-run `bunx snapback4 check`, typecheck the app and run your acceptance tests.
-`snapback4 test` uses ./fixtures when present; `--fixture dir` overrides it.
+`bun add snapback4@latest` upgrades core and its platform CLI. Expo needs one
+command: `bun add snapback4@latest snapback4-expo@latest`, with matching exact
+versions including patch. Check warns on installed version skew. Rebuild native
+apps after adapter upgrades; Expo Go uses the online tier. Commit the lockfile,
+check, typecheck and run acceptance tests. Test defaults to ./fixtures when present.
 
 ## Deploy and password identity
 
-Add `use identity password` to your schema (the recipe below includes it).
-Deploy from the app directory; keep the deployment directory on durable storage:
-
-`serve --port N` accepts 0 for an allocated port or an inclusive range A-B,
-choosing its first free port. Invalid input refuses E_INPUT. Stdout's first
-line is the actual URL; stderr includes `SNAPBACK4_READY verb=serve … url=…`.
-Wait for readiness before requests. For a redeploy, run deploy on the same
-host while serve stays running, then verify a read and write with a real
-account. Its private owner socket serializes activation; failed validation
-keeps the current release. A dev or older unreachable owner requires stopping
-that owned process before retrying. See SERVER.md#release-lifecycle.
-
-Layout: `releases/N/` holds each backend; `store.sqlite` holds rows, sessions,
-receipts and queues; `assets/` holds uploads; `releases.jsonl` records activation.
-`current` is a **text file containing a release number**, not a symlink. The
-database's release metadata is authoritative; the file is a convenience copy.
-Back up the whole directory with the server and external workers stopped;
-include SQLite sidecars, assets and releases. See CLIENT-AND-OPERATIONS.md §6
-for the tested stopped-backup/restore procedure and external-effect caveats.
+Add `use identity password`. Serve admits bearer sessions; personas are 401 and
+/seed and dev doors are 403, including through local proxies. Signup creates an
+account, not a privileged role. See guide client for SDK session-store examples;
+guide auth/headless has executable account setup. HTTP auth returns session or
+denied; the SDK signup/login from `snapback4/auth` returns ok/why.
 
 ```sh
 U=http://127.0.0.1:4400
@@ -53,21 +33,21 @@ curl -s "$U/auth/login" -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.test","password":"replace-with-a-private-password"}'
 ```
 
-For an executable headless account-seeding recipe, open `guide auth` or `guide headless`.
-Use `signup`/`login` from `snapback4/auth` in the app; keep the returned
-session in its session store and send `Authorization: Bearer <token>`.
-Read the `session` or `denied` body (guide wire): wrong credentials and a
-disabled identity method are 401 E_AUTH. A production persona is 401;
-`/seed` and other development doors are 403. Signup creates an account,
-not an admin. Sessions survive ordinary restarts and deployments of the same
-store until expiry or revocation. A reset/replaced store requires sign-in again;
-never deploy by deleting the store to make adoption pass.
+Keep the session and send `Authorization: Bearer <token>`. Wrong credentials or
+a disabled identity method are 401 E_AUTH. Sessions survive ordinary deployments
+and restarts until expiry/revocation; a replaced/reset store requires sign-in again.
+Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B;
+stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness.
+
+Layout: releases/N/ holds source; store.sqlite holds data, sessions and queues;
+assets/ holds uploads. The database owns current release/history; current is a
+text convenience copy and releases.jsonl a convenience ledger. Back up the whole
+directory, including sidecars/assets/releases, with serve and external workers
+stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
 
 ## First admin: a service seat
 
-Grant the signed-up account's principal through an operator seat. This recipe
-permits ops and existing admins to insert grants, with no public first-user race:
-
+Provision roles through an operator seat, with no public first-user race:
 ```quarry
 use identity password
 table admins:
@@ -93,58 +73,70 @@ curl -s "$U/m/grantAdmin" -H "Authorization: Bearer $TOKEN" \
 unset TOKEN
 ```
 
-Mint on the server host, against the same store. Token stdout is just the token;
-prose is stderr. Protect the token as an operator credential. A repeated grant
-hits the unique key; this insert-only recipe never takes upsert's update path.
-Add revoke/update rules deliberately if your application needs them.
+Mint locally against the same store. Token stdout is only the credential; prose
+is stderr. Protect it. A repeat grant hits uniqueness; add revocation deliberately.
 
 ## Migrations and adoption
 
-Optional columns, new tables/operations, non-unique indexes, wider text bounds
-and additional enum values are additive. A new required column needs a
-**literal default** for existing rows: `archived: bool default false` above
-fills missing values without rewriting old rows. A new required `default now`
-or `default viewer` needs an empty table.
+Optional/defaulted columns, new tables/ops, non-unique indexes and wider types
+are additive. Required new fields need a literal default or explicit backfill;
+default now/viewer cannot invent historical values. Dev check/adoption refuses
+incompatible values with E_ADOPT. Release type narrowing instead retains each row
+whose present values cannot fit. Unique/cap conflicts still refuse atomically;
+repair active rows, or restore through a widened non-unique bridge, repair, then
+reinstate constraints. Prefer expand → migrate → contract for client compatibility.
 
-Run `snapback4 check --store ./deployment/store.sqlite` before deployment.
-Without a store, check only compiles. Tightening text, removing enum values,
-making a column required, unique indexes or stronger constraints need every
-existing row to fit. Adoption refuses E_ADOPT when they do not; repair data
-through authorized mutations under the old schema, then retry. For example,
-adding 'archived' to status is safe; removing it after rows use it refuses.
-Removed storage becomes dormant; name reuse needs `--restore-dormant`.
-`--allow-destructive` on deploy/rollback does not prune or bypass validation.
-Prefer expand → migrate data → contract, keeping old clients compatible.
+## Rollback after widening, restore and prune
 
-## Rollback, restore and prune
+```sh
+bunx snapback4 rollback ./deployment --to 1 --check
+bunx snapback4 check --store ./deployment/store.sqlite --release 1
+bunx snapback4 rollback ./deployment --to 1
+bunx snapback4 releases ./deployment latest
+bunx snapback4 rollback ./deployment --to latest
+```
 
-Run `snapback4 rollback ./deployment` while serve stays running. It selects
-an earlier immutable release; `rollback ./deployment --to N` also selects a
-newer release to roll forward. This adopts source into today's rows, sessions
-and effects. Removed tables, columns and indexes become dormant, inaccessible
-to programs and sync. Restoring retained names with fresh source requires
-`deploy ./deployment --restore-dormant`; rollback selects restoration explicitly.
-Narrowed enums, references and uniqueness still require valid existing data.
-Only the active release's referential actions run; deleting a dormant child's
-parent invalidates restoration instead of applying the retired cascade/restrict.
-Devices re-acquire their partitions on a changed generation; queued writes are
-rechecked under the active program. `--allow-feed-adoption` permits the explicit
-feed adoption step. Inspect `snapback4 releases ./deployment` after an ambiguous
-reply. `snapback4 prune ./deployment` previews retained storage;
-`prune ./deployment --allow-destructive` permanently drops all dormant storage.
-There is no automatic collector. See [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle)
-for validation repairs, dormant assets, crash recovery and activation fencing.
+Preview runs exact adoption on a private disk snapshot and removes it, without
+activating; disk/time scales with the store, and later writes can change the plan.
+Release is immutable source, latest the highest complete source even after rollback,
+and generation a monotone identity; releases N/latest inspects source. Identical source is a no-op.
+Deploy/rollback return after serve switches: `release N is current as generation G`.
+In-flight one-shot operations finish in their generation; no settle sleep is needed.
+Default adoption is one measured receipt; --verbose/--json includes phases/cache
+advice. N_ADOPTION_PAUSE appears above one second. A dev/older unreachable owner
+requires stopping that owned process before retrying; failed adoption keeps current.
+
+Widened enum values, or short codes a loose release wrote, become dormant rows
+when selected types cannot hold them; compatible forward restores exact values.
+Reference dependents also leave the active population. Rules, counts, maintained
+views and reacquired sync partitions see only active rows. Point reads/updates/
+deletes see absent rows; dormant ids stay reserved. Nominal reference values stay
+legal, as for other missing ids; require/read-through decides live-target admission.
+Dormant rows occupy no cap/unique slots, so older writes can require a bridge repair.
+Removed tables/columns/indexes also stay dormant. Fresh-source name reuse needs
+--restore-dormant; rollback selects restoration explicitly. Old active updates keep
+dormant cells; active deletion removes them. Only active referential actions run:
+parent deletion invalidates dormant lifetimes. Narrowed rows with invalid visible
+references stay dormant; whole-table/column restoration retains its E_ADOPT barrier.
+Prune previews counts/bytes/sample ids; `prune ./deployment --allow-destructive`
+permanently drops all dormant storage. No age collector or implicit pruning exists.
+Deploy/rollback --allow-destructive bypasses neither validation nor retention.
+--allow-feed-adoption permits the explicit feed launch. Inspect releases after an
+ambiguous reply. Details: [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
+
+Check business compatibility separately: old payment code may accept payment while
+a new review row is dormant. Pause that workflow or deploy a bridge preserving its
+checks. Old source cannot supply absent product logic. An absent operation returns
+404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments
+return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
+
+## Persona transition checklist
+1. Add password identity and signup/login UI; persist the real session.
+2. Map each persona role to real account principals through the trusted seat recipe.
+3. Give profiles a production write path and authorized directory; expose no credentials.
+4. Provide invitations or explicit principal sharing; test expiry, revocation and outsiders.
+5. Bootstrap every required table without fixtures/seed. DX owns first-writer notes and password starters (guide start/client).
+6. Prove real-account writes, role checks, sign-out and rollback on durable storage behind TLS.
 
 ## Inspection, proxies and TLS
 
-`snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json`
-returns positional rows under `columns`; `--json-objects` returns object rows
-with direct boolean columns as true/false. Schema-qualified relations, recursive
-or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can
-show expired stored rows; it is an operator tool, not an app query surface.
-Bind loopback behind a TLS proxy. Forward Authorization and preserve response
-bodies; allow long polls without buffering or early timeouts. Non-loopback
-HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS.
-Identity rate keys use the socket peer, not forwarded headers. Serve refuses
-personas and dev doors even through a local proxy; see SERVER.md for capacity.
-For the `--json-objects` envelope fields, see `snapback4 sql --help`.

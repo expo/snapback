@@ -59,7 +59,7 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "an action takes { id, args }") })) };
     let Some(id) = payload.get("id").and_then(Json::as_str) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "mint an id on the client and reuse it when retrying this action") })); };
     let admitted = {
-        let mut engine = lock(&shared.engine);
+        let mut engine = producing_engine(shared);
         if let Err(why) = intent_store(&engine, &payload) {
             let metadata = response_head(&mut engine);
             drop(engine);
@@ -94,7 +94,7 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
         }
         // The caller's session may expire or be revoked while the handler runs.
         if let Err(why) = principal_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
-        run = match lock(&shared.engine).action_request_at(id, &principal, shared.now()) { Ok(run) => run, Err(error) => return respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })) };
+        run = match producing_engine(shared).action_request_at(id, &principal, shared.now()) { Ok(run) => run, Err(error) => return respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })) };
     }
     if let Err(why) = principal_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
     respond(request, if matches!(run.state.as_str(), "done" | "failed" | "parked") { 200 } else { 202 }, outcome(&run, replayed));
@@ -126,7 +126,7 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
     let deadline = Instant::now() + Duration::from_secs(payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25));
     loop {
         let (worker, claimed) = {
-            let mut engine = lock(&shared.engine);
+            let mut engine = producing_engine(shared);
             let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
             let claimed = match &names {
                 Some(names) => engine.claim_action_set(&worker, names, limit, lease, session, shared.now()),
@@ -149,7 +149,7 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
 pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/actions/").and_then(|path| path.strip_suffix("/cancel")).and_then(decode_id) {
         let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({ "denied": why })) };
-        let answer = lock(&shared.engine).cancel_action(&id, &principal, shared.now());
+        let answer = producing_engine(shared).cancel_action(&id, &principal, shared.now());
         return match answer {
             Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
             Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
@@ -160,7 +160,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "settlement takes { result } or { error, retry }") })) };
     if let Some(tail) = path.strip_prefix("/actions/") {
         if let Some(id) = tail.strip_suffix("/status").and_then(decode_id) {
-            let answer = lock(&shared.engine).action_status(&id, &worker, &token, shared.now());
+            let answer = producing_engine(shared).action_status(&id, &worker, &token, shared.now());
             return match answer {
                 Ok(run) => respond(request, 200, json!({ "invocation": { "id": run.id, "attempt": run.attempt, "deadline": run.deadline, "cancelled": run.cancelled, "state": run.state, "errorCode": run.error_code } })),
                 Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
@@ -174,7 +174,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
                         return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "a step begin requires input and a step done requires result (null is explicit)") }));
                     }
                     let answer = {
-                        let mut engine = lock(&shared.engine);
+                        let mut engine = producing_engine(shared);
                         match verb {
                             "begin" => engine.begin_action_step(&id, &worker, &token, &name, payload.get("input").unwrap_or(&Json::Null), payload.get("reconcile").and_then(Json::as_bool).unwrap_or(false), shared.now()).map(|step| json!({ "step": step })),
                             "done" => engine.complete_action_step(&id, &worker, &token, &name, payload.get("result").unwrap_or(&Json::Null), shared.now()).map(|step| json!({ "ok": true, "step": step })),
@@ -215,7 +215,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
             if !retry && code.is_some() { ActionSettled::Refused { code: code.unwrap(), error } } else { ActionSettled::Failed { error, retry } }
         };
     let Some(id) = decode_id(id) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "the action id must be percent-encoded UTF-8") })); };
-    let answer = lock(&shared.engine).settle_action(&id, &worker, &token, settled, shared.now());
+    let answer = producing_engine(shared).settle_action(&id, &worker, &token, settled, shared.now());
     match answer {
         Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
         Err(error) => { let why = failure(&error); respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); }

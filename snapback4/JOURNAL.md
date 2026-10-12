@@ -93784,30 +93784,42 @@ Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
 zero errors and zero unchecked. The tracked worktree is committed without push.
 
 
-## 2026-10-12 — MEDIA wave 9: durable upload-and-place
+### 2026-10-12 — Wave 9 REL second round: retained type narrowing and request admission
 
-Fix #16 (NA9/E4): a selected byte copy, immutable placement metadata and its
-stable intent id commit in one device outbox value. The wasm/IndexedDB and
-SQLite/Expo hosts share admission, dependency and cancellation semantics.
-Server declarations bind exact bytes/metadata and placement before byte
-transport; dedup receipts, pinned custody and bounded owner recovery close
-lost replies, long offline intervals and device-storage loss. Typed React and
-Expo APIs use the guarded public app client. WAV/MP3/FLAC are sniffed files;
-Expo save presents authorized bytes through the native share/save sheet.
-The child contract is LLP 3000.038.000; Exact implements its adapter side.
+Amended LLP 3000.000.000 §9: incompatible present authoritative values become
+per-row dormant storage on selection, with closed reference-dependent visibility,
+restoration of historical defaults/lifetimes and active-population cache rebuilds.
+No fallback grammar is introduced; hidden rows are the declared policy. Both
+device stores replace images/acquisition on changed generation while preserving
+outbox custody, since an additive literal default can restore an incompatible
+historical cell. HAND owns the shipped-device compatibility floor; DX owns the
+client/evolution guide pointer.
 
-The locked Linux web artifact is 2,265,521 B raw / 686,826 B gzip. Its budget
-becomes 687,326 B, preserving the inherited 500 B platform allowance (+7,408 B
-versus the old cap). The new device dependency, quota, identity and state code
-needs these bytes; no global interpreter resource ceiling changes. This is a
-whole-artifact comparison to the recorded integration baseline, with no fresh
-control rebuild or macOS measurement claimed. The workstream report records
-qualification; the iOS sheet itself needs a macOS/native witness.
+Release HTTP one-shot requests hold a fair admission lease through lookup,
+decoding and execution/result capture, released before network output. Replies
+carry the executing generation in their envelope/header. Added coherent snapshot
+preview, latest/no-op selection, executable SQL inspection, widening advisories,
+compact adoption output and the deploy password checklist. SERVER lifecycle and
+guide deploy are REL-owned. Independent reviews exposed restoration, reference
+lifetime, expiry, exact asset pruning and audit edge cases; each correction has
+regression coverage. Final qualification and verdicts are recorded in the root
+WORKSTREAM-REPORT.md and verbatim llp/reviews artifacts. No push/publication.
 
-MEDIA final custody qualification supersedes the candidate above: the locked
-Linux artifact measures 2,270,687 B raw / 689,337 B gzip after terminal/live
-ownership validation, unresolved-ACK fencing and bounded input admission. Set
-689,837 B = measurement + the inherited 500 B platform allowance; the increase
-against the integration cap 679,918 B is 9,919 B. This remains a whole-artifact
-comparison to the recorded baseline, without a fresh control rebuild or macOS
-measurement. Interpreter resource ceilings remain unchanged.
+
+### 2026-10-12 — Wave 9 REL final qualification
+
+Final implementation a16a54518e has both Muse and fresh gpt-6.1-sol READY on
+round thirteen, reviewing the same unchanged implementation and release amendment.
+Verbatim/provenance records are under llp/reviews/3000.000.000-rel-round13-*.
+Scoped results: 43 retained-storage regressions, 400 serving tests (5 existing
+ignores), 19 CLI friction + 27 lifecycle + 28 run-admission, 110 repair_b,
+129 client generation/release/reset (1 existing skip), 119 guide, and 19 asset-list
++ 6 file-asset + 28 corpus tests pass. Both device stores' adoption and release
+traces pass. Hot activation stress repeatedly covers 16 callers and 12 switches.
+The full requested four-package no-fail-fast battery completed 229 targets with
+3950 passes, four reported failures and 27 ignores; its four failures were the
+watchdog timing case plus obsolete help/image-retention assertions, all addressed
+and their targets green on rerun. Later corrections were qualified by affected
+checks. Wasm repeats 675836 B gzip within unchanged 679918 B budget; package
+build and ref-check pass. Root WORKSTREAM-REPORT.md maps every item, commit,
+qualification and lane pointer. No push or publication.

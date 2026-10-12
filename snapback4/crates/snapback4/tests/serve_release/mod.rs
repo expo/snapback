@@ -499,3 +499,86 @@ fn crash_between_commit_and_publication_recovers_dormant_data_from_database() {
         &snapback4_core::Value::Int(42)
     );
 }
+
+#[test]
+fn following_reply_stamps_the_engine_selected_after_request_intake() {
+    let directory=ReaderTestDirectory::new();let host=directory.host();
+    let (entered,waiting)=mpsc::channel();
+    let barrier=Arc::new((Mutex::new(false),Condvar::new()));
+    let stalled=barrier.clone();
+    *lock(&host.shared.request_work)=Some(Arc::new(move||{
+        entered.send(()).unwrap();
+        let (state,wake)=&*stalled;
+        let mut ready=lock(state);
+        while !*ready {ready=wake.wait(ready).unwrap();}
+    }));
+    let address=host.address;
+    let task=thread::spawn(move||exchange(address,"POST /following/version HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 11\r\n\r\n{\"args\":{}}"));
+    waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+    let command=candidate(&directory.0,2,&READER_SCHEMA.replace("return 1","return 2"),None,0);
+    let switched=release::apply(&host.shared,&directory.0,command).unwrap();assert_eq!(switched["generation"],2);
+    *lock(&barrier.0)=true;barrier.1.notify_all();
+    let reply=task.join().unwrap();
+    assert_eq!(body(&reply)["generation"],2,"{reply}");
+    assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 2\r\n"),"{reply}");
+}
+
+#[test]
+fn action_reply_stamps_admission_after_switch_during_request_intake() {
+    let directory=ReaderTestDirectory::new();let host=directory.host();
+    let first=format!("use server\n{READER_SCHEMA}\naction work() returns {{ n: int }} <- allow\n");
+    release::apply(&host.shared,&directory.0,candidate(&directory.0,2,&first,None,0)).unwrap();
+    let (entered,waiting)=mpsc::channel();let barrier=Arc::new((Mutex::new(false),Condvar::new()));let stalled=barrier.clone();
+    *lock(&host.shared.request_work)=Some(Arc::new(move||{
+        entered.send(()).unwrap();let (state,wake)=&*stalled;let mut ready=lock(state);
+        while !*ready {ready=wake.wait(ready).unwrap();}
+    }));
+    let address=host.address;let payload="{\"id\":\"intake-action\",\"args\":{\"n\":2}}";
+    let wire=format!("POST /a/work?wait=0 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}",payload.len());
+    let task=thread::spawn(move||exchange(address,&wire));waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+    let next=first.replace("action work()", "action work(n: int)");
+    let switched=release::apply(&host.shared,&directory.0,candidate(&directory.0,3,&next,Some(2),1)).unwrap();assert_eq!(switched["generation"],3);
+    *lock(&barrier.0)=true;barrier.1.notify_all();let reply=task.join().unwrap();
+    assert_eq!(body(&reply)["state"],"pending","{reply}");assert_eq!(body(&reply)["generation"],3,"{reply}");
+    assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 3\r\n"),"{reply}");
+}
+
+#[test]
+fn authentication_and_metadata_stamp_the_engine_after_intake_switch() {
+    for route in ["/auth/guest","/auth/config","/probe"] {
+        let directory=ReaderTestDirectory::new();let host=directory.host();
+        let (entered,waiting)=mpsc::channel();let barrier=Arc::new((Mutex::new(false),Condvar::new()));let stalled=barrier.clone();
+        *lock(&host.shared.request_work)=Some(Arc::new(move||{
+            entered.send(()).unwrap();let (state,wake)=&*stalled;let mut ready=lock(state);
+            while !*ready {ready=wake.wait(ready).unwrap();}
+        }));
+        let address=host.address;let payload=serde_json::json!({"padding":"x".repeat(2048)}).to_string();
+        let method=if route=="/auth/guest" {"POST"} else {"GET"};
+        let wire=format!("{method} {route} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}",payload.len());
+        let task=thread::spawn(move||exchange(address,&wire));waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+        let changed=READER_SCHEMA.replace("return 1","return 2");
+        release::apply(&host.shared,&directory.0,candidate(&directory.0,2,&changed,None,0)).unwrap();
+        *lock(&barrier.0)=true;barrier.1.notify_all();let reply=task.join().unwrap();let data=body(&reply);
+        assert!(reply.starts_with("HTTP/1.1 200"),"{route}: {reply}");assert_eq!(data["generation"],2,"{route}: {reply}");
+        assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 2\r\n"),"{route}: {reply}");
+        if route=="/auth/guest" {assert!(data["session"].is_object(),"{reply}");}
+    }
+}
+
+#[test]
+fn upload_preparation_refusal_stamps_the_generation_after_streamed_intake() {
+    let directory=ReaderTestDirectory::new();let host=directory.host();
+    let wide=format!("{READER_SCHEMA}\ntable documents:\n  blob: file <=10000 ('text/plain') ?\n  public\n");
+    release::apply(&host.shared,&directory.0,candidate(&directory.0,2,&wide,None,0)).unwrap();
+    let mut socket=TcpStream::connect(host.address).unwrap();socket.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let header="POST /assets?as=file&name=note.txt HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Type: text/plain\r\nContent-Length: 2048\r\nExpect: 100-continue\r\n\r\n";
+    socket.write_all(header.as_bytes()).unwrap();
+    let mut interim=Vec::new();let mut byte=[0];
+    while !interim.ends_with(b"\r\n\r\n") {socket.read_exact(&mut byte).unwrap();interim.push(byte[0]);}
+    assert!(String::from_utf8_lossy(&interim).contains("100 Continue"));
+    let narrow=wide.replace("file <=10000","file <=10");
+    release::apply(&host.shared,&directory.0,candidate(&directory.0,3,&narrow,Some(2),1)).unwrap();
+    socket.write_all(&vec![b'x';2048]).unwrap();let mut reply=String::new();socket.read_to_string(&mut reply).unwrap();
+    let data=body(&reply);assert_eq!(data["denied"]["code"],"E_ASSET_TOO_LARGE","{reply}");assert_eq!(data["generation"],3,"{reply}");
+    assert!(reply.to_ascii_lowercase().contains("x-snapback-generation: 3\r\n"),"{reply}");
+}

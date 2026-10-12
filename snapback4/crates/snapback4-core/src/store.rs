@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 
 mod activation;
 pub(crate) mod dormant;
+mod narrowed;
 pub(crate) mod release_history;
 mod adopt_refusals;
 #[cfg(test)]
@@ -113,7 +114,7 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let tx = conn.transaction()?;
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
-        if version != STORE_VERSION && version != dormant::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
         tx.rollback()?;
@@ -253,7 +254,7 @@ impl Store {
             if server { Self::initialize_change_evidence(&opened)?; }
         }
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
-        if version != STORE_VERSION && version != dormant::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
         let identity = activation::identity(&opened)?;
         opened.commit()?;
@@ -615,6 +616,7 @@ impl<'a> Tx<'a> {
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
+        narrowed::check_write(self,table_name,table,row,old)?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);

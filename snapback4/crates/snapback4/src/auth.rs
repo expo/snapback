@@ -226,26 +226,20 @@ fn perform(
     password: &str,
     scope: identity::SessionScope,
 ) -> Result<Outcome, RuntimeError> {
-    let enabled = || {
-        let auth = shared.bound.lock().unwrap().schema.auth.clone();
-        if (path == "/auth/guest" && !auth.guests)
-            || (matches!(path, "/auth/signup" | "/auth/login") && !auth.password)
-        {
-            Err(RuntimeError::Auth(
-                "this identity method is not enabled in schema.q".into(),
-            ))
-        } else {
-            Ok(())
-        }
+    let enabled = |engine:&snapback4_core::Engine| {
+        let auth=&engine.schema().auth;
+        if (path=="/auth/guest" && !auth.guests) || (matches!(path,"/auth/signup"|"/auth/login") && !auth.password) {
+            Err(RuntimeError::Auth("this identity method is not enabled in schema.q".into()))
+        } else {Ok(())}
     };
-    enabled()?;
+    enabled(&crate::serve::producing_engine(shared))?;
     match path {
         "/auth/signup" => {
             #[cfg(test)]
             crate::serve::test_work(&shared.auth_work);
             let prepared = identity::prepare_signup(email, password)?;
-            enabled()?;
-            let engine = shared.engine.lock().unwrap();
+            let engine = crate::serve::producing_engine(shared);
+            enabled(&engine)?;
             identity::finish_signup_scoped(
                 engine.store(),
                 prepared,
@@ -258,14 +252,15 @@ fn perform(
         "/auth/login" => {
             identity::password_bound(password)?;
             let found = {
-                let engine = shared.engine.lock().unwrap();
+                let engine = crate::serve::producing_engine(shared);
+                enabled(&engine)?;
                 identity::credential(engine.store(), email)?
             };
             #[cfg(test)]
             crate::serve::test_work(&shared.auth_work);
             identity::verify_password(found.as_ref(), password)?;
-            enabled()?;
-            let engine = shared.engine.lock().unwrap();
+            let engine = crate::serve::producing_engine(shared);
+            enabled(&engine)?;
             identity::finish_login_scoped(
                 engine.store(),
                 found.expect("verified account"),
@@ -275,7 +270,8 @@ fn perform(
             .map(Outcome::Session)
         }
         "/auth/guest" => {
-            let engine = shared.engine.lock().unwrap();
+            let engine = crate::serve::producing_engine(shared);
+            enabled(&engine)?;
             identity::guest_scoped(
                 engine.store(),
                 shared.now(),
@@ -286,7 +282,7 @@ fn perform(
         }
         "/auth/narrow" => {
             let token = bearer_token(request)?;
-            let mut engine = shared.engine.lock().unwrap();
+            let mut engine = crate::serve::producing_engine(shared);
             let result = identity::narrow_session(engine.store_mut(), token, || identity::ServiceSample {
                 now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
             }).map(Outcome::Session);
@@ -294,7 +290,7 @@ fn perform(
         }
         "/auth/refresh" => {
             let token = bearer_token(request)?;
-            let engine = shared.engine.lock().unwrap();
+            let engine = crate::serve::producing_engine(shared);
             let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) };
             if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
                 return Ok(refused_bearer(request, shared, &engine, token));
@@ -322,12 +318,12 @@ fn perform(
                 Ok(principal) => principal,
                 Err(why) => return Ok(Outcome::Refused(why)),
             };
-            let engine = shared.engine.lock().unwrap();
+            let engine = crate::serve::producing_engine(shared);
             identity::revoke_principal(engine.store(), &principal.0).map(Outcome::LogoutAll)
         }
         _ => {
             let token = bearer_token(request)?;
-            let mut engine = shared.engine.lock().unwrap();
+            let mut engine = crate::serve::producing_engine(shared);
             let result = identity::logout_session(engine.store_mut(), token, || shared.now()).map(|()| Outcome::Logout);
             credential_result(request, shared, &engine, token, result)
         }

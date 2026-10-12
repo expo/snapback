@@ -13,7 +13,6 @@ fn reset_keys<H: Host>(h: &mut H, mode: &str) {
     let mut b = if mode.ends_with("keep") { compile(&SOURCE.replace("  n: int", "  n: int\n  added: int default 0")).1 } else { d.backend() };
     b.generation = d.backend().generation + 1;
     if mode.ends_with("drop") { b.schema.tables.clear(); b.programs.clear(); }
-    let guard = d.store().meta("device:declaration:published").unwrap();
     match mode {
         "clear" => d.clear_rows().unwrap(),
         "adopt-keep" | "adopt-drop" => d.adopt(b).unwrap(),
@@ -23,7 +22,7 @@ fn reset_keys<H: Host>(h: &mut H, mode: &str) {
     for key in ["device:deferred:cursor", "device:deferred:meta", "device:deferred:acks", "device:declaration:capture", "device:declaration:first-capture"] {
         assert_eq!(d.store().meta(key).unwrap(), None, "{mode}: {key}");
     }
-    assert_eq!(d.store().meta("device:declaration:published").unwrap(), if mode.ends_with("keep") { guard } else { None }, "{mode}");
+    assert_eq!(d.store().meta("device:declaration:published").unwrap(), None, "{mode}");
     let state = d.sync_state().unwrap();
     assert_eq!((state.watermark, state.transfer_watermark, state.snapshot_catchup), (0, 0, false));
     assert!(!d.publication_pending().unwrap());

@@ -663,7 +663,7 @@ fn serve_checks_port_input_and_prints_its_actual_listener_and_ready_line() {
         assert!(!project.0.join("missing-release").exists(), "invalid input must not create a deployment");
     }
     let help = text(&project.run(&["rollback", "--help"]));
-    assert!(help.contains("--to N") && help.contains("retain removed storage"), "{help}");
+    assert!(help.contains("--to N") && help.contains("dormant per row") && help.contains("--check"), "{help}");
     let output = project.run(&["deploy", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
     let record: serde_json::Value = serde_json::from_slice(&fs::read(project.0.join("deployment/releases/1/device-compatibility.json")).unwrap()).unwrap();

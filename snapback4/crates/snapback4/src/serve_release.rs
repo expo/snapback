@@ -112,6 +112,7 @@ pub(super) fn apply(
                 native_digest: prepared.installed.as_ref().map(|m| m.digest.clone()),
                 operation: if rollback { "rollback" } else { "deploy" }.into(),
             };
+            let _requests=shared.release_requests.write();
             let mut engine = lock(&shared.engine);
             lock(&shared.readers).begin_adoption(&bound);
             let generation = match engine.adopt_release(
@@ -151,7 +152,7 @@ pub(super) fn apply(
                 "snapback4 serve: release {release} activated without restart as generation {generation}"
             );
             Ok(
-                json!({"release":release,"generation":generation,"revision":expected_revision+1,"hot":true}),
+                json!({"release":release,"generation":generation,"revision":expected_revision+1,"hot":true,"adoption":engine.store().adoption_report.compact(),"details":engine.store().adoption_report.summary()}),
             )
         }
     }
