@@ -1093,25 +1093,27 @@ fn party_column<'a>(table: &Table, expression: &'a Expr) -> Option<&'a str> {
     table.col(column).is_some().then_some(column)
 }
 
-fn surface_probe_columns(decl: &ast::TableDecl, read: &ReadExpr) -> Option<Vec<String>> {
-    if read.keys.iter().all(|key| key.column.is_some()) && !read.keys.is_empty() {
-        return Some(read.keys.iter().filter_map(|key| key.column.clone()).collect());
+fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
+    match expression {
+        Expr::Name { name, .. } if name == "viewer" => Some(Kind::Id(IdSort::Principal)),
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => focal.col(name),
+        Expr::Literal { value, .. } => literal_scalar(value).ok()?.1,
+        Expr::Unary { op, value, .. } if op == "-"
+            && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }) => Some(Kind::Int),
+        _ => None,
     }
-    if read.keys.iter().any(|key| key.column.is_some()) { return None }
-    let candidates: Vec<_> = decl.indexes.iter().filter(|index| index.unique && index.is_plain()
-        && index.columns.len() == read.keys.len()
-        && read.index.as_ref().is_none_or(|chosen| chosen == &index.name)).collect();
-    let [index] = candidates.as_slice() else { return None };
-    Some(index.columns.clone())
 }
 
 /// The source key and target parent column of one capped membership leaf.
-fn membership_physical(module: &LeanModule, expression: &Expr) -> Option<(String, Vec<String>, String)> {
+fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, String)> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
-    let source_decl = module.surface_tables.iter().find(|table| table.name == read.table)?;
     let source = module.tables.iter().find(|table| table.name == read.table)?;
-    let columns = surface_probe_columns(source_decl, read)?;
+    let kinds = read.keys.iter().map(|key| membership_probe_kind(focal, &key.value)).collect::<Vec<_>>();
+    // Resolve from surface-declared unique keys and surface expression types,
+    // independently of whatever plan the Rust binder selected. `Table::uniques`
+    // deliberately excludes synthesized indexes.
+    let columns = resolve_key(source, &read.keys, &kinds).ok()?;
     let mut fixed = Vec::new();
     let mut target = None;
     for (key, column) in read.keys.iter().zip(&columns) {
@@ -1145,7 +1147,7 @@ fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bo
     let mut memberships = Vec::new();
     for leaf in leaves {
         if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
-        else if let Some(membership) = membership_physical(module, leaf) { memberships.push(membership); }
+        else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
         else { return false; }
     }
     if parties.is_empty() || memberships.is_empty() { return false }

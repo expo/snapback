@@ -156,10 +156,12 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
 
 #[test]
 fn oversized_membership_keys_stop_before_model_comparison() {
-    let source = "table memberships:
+    let source = |probe: &str| format!("table memberships:
   parent: text <=435
+  n: int
   principal: principal
   unique parent, principal
+  unique n, principal
   cap 16 by principal
   read <- .principal = viewer
   online only
@@ -167,14 +169,17 @@ table documents:
   owner: principal
   parent: text <=435
   at: int
-  read <- .owner = viewer or exists memberships[.parent, viewer]
+  read <- .owner = viewer or exists memberships[{probe}]
   online only
 query run(c: cursor ?):
   return documents last 2 by .at after c
-";
-    execute::compile(source).unwrap();
-    let module = lean::module(source).unwrap();
-    assert_eq!(module.program("run").unwrap_err().reason, "page-membership-key-bound");
+");
+    for probe in [".parent, viewer", "parent = .parent, principal = viewer"] {
+        let source = source(probe);
+        execute::compile(&source).unwrap();
+        let module = lean::module(&source).unwrap();
+        assert_eq!(module.program("run").unwrap_err().reason, "page-membership-key-bound", "{probe}");
+    }
 }
 
 #[test]
