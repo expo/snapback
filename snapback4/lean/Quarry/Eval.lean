@@ -1,4 +1,5 @@
 import Quarry.Store
+import Quarry.Calendar
 
 /-!
 # The big-step evaluator
@@ -87,6 +88,16 @@ def binop (op : BinOp) (a b : Value) : EM Value :=
     if x.rank = y.rank && x != .null then pure (.ofBool (ordered op (x.cmp y)))
     else typeErr
   | _, _, _ => typeErr
+
+/-- A calendar builtin over unbounded integers; the caller checks i53. A
+non-positive period or an offset outside `[0, period)` is unreachable from a
+checked program. -/
+def calApply : CalFn → Int → Option Int
+  | .period ms off, t => if 0 < ms ∧ 0 ≤ off ∧ off < ms then some (Calendar.periodOrdinal t ms off) else none
+  | .month, t => some (Calendar.monthOf t)
+  | .year, t => some (Calendar.yearOf t)
+  | .monthStart, m => some (Calendar.monthStart m)
+  | .yearStart, y => some (Calendar.yearStart y)
 
 def asBool : Value → EM Bool
   | .s (.bool b) => pure b
@@ -289,6 +300,15 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
           let (v, _) ← evalExpr fuel cx vw (h.params.zip (vs.map fun v => (v, none))) none h.body
           pure (v, none)
         else typeErr
+    | .cal f a => do
+      let (v, _) ← ev a
+      match v, calApply f with
+      -- `monthStart` and `yearStart` leave i53 only at the extreme ordinals:
+      -- `E_OVERFLOW`, never a wrong instant (LLP 3000.040 §2.2).
+      | .s (.int n), g => match g n with
+        | some r => return (← checkI53 r, none)
+        | none => typeErr
+      | _, _ => typeErr
     | .arr xs => do return (.arr (← evs xs), none)
     | .record fs => do
       let vs ← fs.mapM fun p => do return (p.1, (← ev p.2).1)

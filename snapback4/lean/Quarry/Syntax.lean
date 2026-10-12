@@ -91,6 +91,17 @@ inductive BinOp where
   | eq | ne | lt | le | gt | ge
   deriving Repr, DecidableEq
 
+/-- The calendar builtins (LLP 3000.040 §2.2, the time card): `day(t)`,
+`hour(t)` and `bucket(t, P, O)` are `period P O`; `month`, `year`,
+`monthStart` and `yearStart` take one int (a time, or an ordinal). -/
+inductive CalFn where
+  | period (ms off : Int)
+  | month
+  | year
+  | monthStart
+  | yearStart
+  deriving Repr, DecidableEq
+
 inductive Expr where
   | lit (v : Value)
   | var (x : String)
@@ -113,6 +124,8 @@ inductive Expr where
   | cond (c a b : Expr)
   /-- A pure helper call `f(args)`. -/
   | call (f : String) (args : List Expr)
+  /-- A calendar builtin over one int. -/
+  | cal (f : CalFn) (a : Expr)
   | arr (xs : List Expr)
   | record (fs : List (String × Expr))
   /-- `t[c = e, …]`: a point read by id or a unique key. -/
