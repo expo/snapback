@@ -183,6 +183,16 @@ query run(c: cursor ?):
 }
 
 #[test]
+fn total_unique_membership_index_elides_the_physical_id_suffix() {
+    if !model_built() { return; }
+    let source = "table memberships:\n  parent: text <=435\n  principal: principal\n  unique parent, principal\n  unique principal, parent\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: text <=435\n  at: int\n  read <- .owner = viewer or exists memberships[.parent, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 2 by .at after c\n";
+    assert_membership_agreement(
+        source,
+        json!({"id":"m","parent":"p","principal":"alice"}),
+    );
+}
+
+#[test]
 fn fixed_membership_id_is_not_a_physical_prefix() {
     let parent_column = "p".repeat(480);
     let oversized = format!("table memberships:
@@ -387,6 +397,54 @@ fn id_caps_and_uncapped_memberships_agree_with_the_model() {
     check("  cap 1 by id\n", "", false);
     check("", "", false);
     check("", " where .parent = 'p1'", true);
+}
+
+#[test]
+fn fixed_id_caps_reserve_all_older_page_classifiers() {
+    if !model_built() { return; }
+    let filters = [
+        "",
+        " where .bucket = 0",
+        " where (.owner = viewer and .bucket = 0) or (.owner = viewer and .bucket = 1)",
+    ];
+    for filter in filters {
+        let source = format!("table memberships:\n  parent: text <=40\n  principal: principal\n  unique parent, principal\n  cap 1 by id\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  bucket: int\n  at: int\n  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents{filter} last 10 by .at after c\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().all(|merge| !merge.branches()), "{source}");
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let rows: Vec<(String, serde_json::Value)> = vec![
+            ("memberships".into(), json!({"id":"m1","parent":"p1","principal":"alice"})),
+            ("documents".into(), json!({"id":"d1","owner":"alice","parent":"p0","bucket":0,"at":1})),
+            ("documents".into(), json!({"id":"d2","owner":"alice","parent":"p0","bucket":1,"at":2})),
+        ];
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let actual = engine.query("run", snapback4_core::Context::new(
+            "alice",
+            [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+        )).unwrap();
+        let module = lean::module(&source).unwrap();
+        let case = module.case(
+            "run",
+            module.store(&rows).unwrap(),
+            "alice",
+            module.tag_args("run", &json!({"c":null})).unwrap(),
+            None,
+        ).unwrap();
+        let modeled = lean::ask(&case).unwrap();
+        assert_eq!(modeled["kind"], "answer", "{modeled}\n{source}");
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}\n{source}");
+        assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}\n{source}");
+        assert!(!actual.complete, "{actual:?}\n{source}");
+    }
 }
 
 #[test]

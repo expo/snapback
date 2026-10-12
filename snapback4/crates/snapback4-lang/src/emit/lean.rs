@@ -1007,9 +1007,31 @@ fn model_title(value: &str) -> String {
     chars.next().map(|first| first.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default()
 }
 
-fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String]) -> bool {
+fn model_total_unique(table: &Table, index: &ast::IndexDecl) -> bool {
+    index.unique && index.is_plain() && index.columns.iter().all(|column| column == "id"
+        || table.cols.iter().find(|candidate| candidate.name == *column).is_some_and(|candidate| !candidate.nullable))
+}
+
+/// The physical index the native planner can reuse for a requested lane.
+/// Equality-prefix components may be permuted, while the order suffix stays
+/// exact. A total declared unique already identifies the row and therefore
+/// omits the synthesized trailing `id` component.
+// @ref LLP 3000.036.001#14 — the pre-oracle physical gate prices the native-compatible declared PAGE lane.
+fn model_declared_index<'a>(module: &'a LeanModule, table: &Table, columns: &[String], pins: usize) -> Option<&'a ast::IndexDecl> {
+    let decl = module.surface_tables.iter().find(|decl| decl.name == table.name)?;
+    decl.indexes.iter().filter(|index| index.is_plain()).find(|index| {
+        if index.columns == columns { return true }
+        if !model_total_unique(table, index) || columns.last().map(String::as_str) != Some("id")
+            || index.columns.len() + 1 != columns.len() || pins > index.columns.len() { return false }
+        let physical_pins = index.columns[..pins].iter().collect::<BTreeSet<_>>();
+        let requested_pins = columns[..pins].iter().collect::<BTreeSet<_>>();
+        physical_pins == requested_pins && index.columns[pins..] == columns[pins..columns.len() - 1]
+    })
+}
+
+fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String], declared: Option<&ast::IndexDecl>) -> bool {
     let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return false };
-    if let Some(index) = decl.indexes.iter().filter(|index| index.is_plain() && index.columns == columns).min_by_key(|index| &index.name) {
+    if let Some(index) = declared.or_else(|| decl.indexes.iter().filter(|index| index.is_plain() && index.columns == columns).min_by_key(|index| &index.name)) {
         return table.name.len().saturating_add(index.name.len()) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES;
     }
     let mut components = columns.to_vec();
@@ -1022,8 +1044,10 @@ fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String]
     table.name.len().saturating_add(generated) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES
 }
 
-fn model_plain_index_fits(module: &LeanModule, table: &Table, columns: &[String]) -> bool {
-    columns.len() <= 8 && model_index_label_fits(module, table, columns) && columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+fn model_plain_index_fits(module: &LeanModule, table: &Table, columns: &[String], pins: usize) -> bool {
+    let declared = model_declared_index(module, table, columns, pins);
+    let physical = declared.map_or(columns, |index| index.columns.as_slice());
+    physical.len() <= 8 && model_index_label_fits(module, table, physical, declared) && physical.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
         bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
     }) <= PORTABLE_KEY_BYTES
 }
@@ -1105,7 +1129,7 @@ fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
 }
 
 /// The source key and target parent column of one capped membership leaf.
-fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, String)> {
+fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, usize, String)> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
     let source = module.tables.iter().find(|table| table.name == read.table)?;
@@ -1135,10 +1159,11 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     if !bounded { return None }
     fixed.sort();
     fixed.dedup();
+    let pins = fixed.len();
     let mut source_key = fixed;
     if !source_key.contains(&source_parent) { source_key.push(source_parent); }
     if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
-    Some((source.name.clone(), source_key, target_parent))
+    Some((source.name.clone(), source_key, pins, target_parent))
 }
 
 fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bool {
@@ -1156,15 +1181,17 @@ fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bo
         else { return false; }
     }
     if parties.is_empty() || memberships.is_empty() { return false }
-    if memberships.iter().any(|(source, columns, _)| module.tables.iter().find(|table| table.name == *source)
-        .is_none_or(|table| !model_plain_index_fits(module, table, columns))) { return true }
+    if memberships.iter().any(|(source, columns, pins, _)| module.tables.iter().find(|table| table.name == *source)
+        .is_none_or(|table| !model_plain_index_fits(module, table, columns, *pins))) { return true }
     let (system_pins, branches) = model_page_pins(target, read);
-    if !model_plain_index_fits(module, target, &model_lane_columns(system_pins, &read.order_keys)) { return true }
+    let system_pin_count = system_pins.len();
+    if !model_plain_index_fits(module, target, &model_lane_columns(system_pins, &read.order_keys), system_pin_count) { return true }
     branches.into_iter().any(|branch| {
-        parties.iter().chain(memberships.iter().map(|(_, _, parent)| parent)).any(|prefix| {
+        parties.iter().chain(memberships.iter().map(|(_, _, _, parent)| parent)).any(|prefix| {
             let mut pins = branch.clone();
             if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
-            !model_plain_index_fits(module, target, &model_lane_columns(pins, &read.order_keys))
+            let pin_count = pins.len();
+            !model_plain_index_fits(module, target, &model_lane_columns(pins, &read.order_keys), pin_count)
         })
     })
 }
