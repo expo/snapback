@@ -1040,7 +1040,7 @@ impl<'r> Runner<'r> {
             // establishes exhaustion; every new candidate must first fit.
             let fetched = if private_page {
                 self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
-            } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict == Some(true), #[cfg(feature = "server-search")] word.and_then(|word|word.selected.as_deref()))? };
+            } else { self.scan_authorized_prepaid(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict == Some(true), delivered, #[cfg(feature = "server-search")] word.and_then(|word|word.selected.as_deref()))? };
             if private_page && (metered_payload || transient || job_page || private_payload) {
                 self.meter.heap(word_heap::slots::<(Option<super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(fetched.len()))?;
                 for (row, key) in &fetched {

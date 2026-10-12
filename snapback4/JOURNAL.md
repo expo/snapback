@@ -93069,3 +93069,18 @@ group keep one pinned domain; online cases still draw the planner fallback.
 The final rebuilt web device is 661,531 B gzip (114 B below the 661,645 B base),
 within the unchanged 662,145 B budget. Exact results and deferrals are recorded
 in the CUT report; independent review artifacts remain verbatim in llp/reviews/.
+
+
+### 2026-10-12 — CUT provisional-candidate qualification correction
+
+The full requested Rust command found a duplicate logical reservation for
+provisional uniform-page candidates. The prefix now prepays their logical
+rule allowance, while every pending row still undergoes physical read-time
+authorization. Other scan consumers keep their previous admission. The existing
+memory/SQLite reading-probe regressions exposed the duplicate; they now compare
+each low-budget outcome with the server, including an explicit merge's two
+prefix verdicts. A two-provisional-row case asserts one prefix probe, complete,
+under a one-probe ceiling. This is shared admission, not skipped authority.
+The final web artifact measures 2,192,440 B raw / 661,536 B gzip, 109 B below
+the 661,645 B base and within the unchanged budget. Focused reviews and full
+qualification of this correction are recorded with the workstream evidence.
