@@ -176,3 +176,119 @@ mutation stale(owner: principal):
         bound.diagnostics
     );
 }
+
+#[test]
+fn a_side_effecting_compound_guard_cannot_recreate_authorization() {
+    let bound = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{SOURCE}
+fn revoke():
+  delete moderators[viewer]
+  return true
+mutation stale(owner: principal):
+  require owner = viewer else NOT_ALLOWED
+  require exists moderators[viewer] and revoke() else NOT_MODERATOR
+  return narrowCounts[owner] + 1
+"#
+        )
+        .into(),
+    )]);
+    assert!(
+        bound
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+        "{:#?}",
+        bound.diagnostics
+    );
+}
+
+#[test]
+fn a_job_is_system_only_outside_viewer_scopes() {
+    let bound = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{SOURCE}
+table profiles:
+  principal: principal
+  unique principal
+  read <- allow
+job inspect():
+  for profile in profiles:
+    systemValue = counts[profile.principal] + 1
+    as profile.principal:
+      otherValue = counts['dev:another'] + 1
+"#
+        )
+        .into(),
+    )]);
+    let errors: Vec<_> = bound
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "E_QUARRY_TYPE")
+        .collect();
+    assert_eq!(errors.len(), 1, "{:#?}", bound.diagnostics);
+    assert!(errors[0].message.contains("int ?"), "{}", errors[0]);
+}
+
+#[test]
+fn maintained_authorization_does_not_cross_viewer_boundaries() {
+    let entering = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{SOURCE}
+table profiles:
+  principal: principal
+  unique principal
+  read <- allow
+job inspect():
+  for profile in profiles:
+    require profile.principal = viewer else NOT_SYSTEM_PROFILE
+    as profile.principal:
+      entering = counts[profile.principal] + 1
+"#
+        )
+        .into(),
+    )]);
+    let errors: Vec<_> = entering
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "E_QUARRY_TYPE")
+        .collect();
+    assert_eq!(errors.len(), 1, "{:#?}", entering.diagnostics);
+    assert!(
+        errors.iter().all(|error| error.message.contains("int ?")),
+        "{errors:#?}"
+    );
+
+    let exiting = compile(&[(
+        "schema.q".into(),
+        format!(
+            r#"{SOURCE}
+table profiles:
+  principal: principal
+  unique principal
+  read <- allow
+job inspect():
+  for profile in profiles:
+    key = profile.principal
+    as profile.principal:
+      key = profile.principal
+      require key = viewer else NOT_PROFILE
+      admitted = counts[key] + 1
+    as 'dev:another':
+      exiting = counts[key] + 1
+"#
+        )
+        .into(),
+    )]);
+    let errors: Vec<_> = exiting
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "E_QUARRY_TYPE")
+        .collect();
+    assert_eq!(errors.len(), 1, "{:#?}", exiting.diagnostics);
+    assert!(errors[0].message.contains("int ?"), "{}", errors[0]);
+}

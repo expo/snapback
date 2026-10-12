@@ -17,7 +17,7 @@ impl Binder<'_> {
         read: &ReadExpr,
         ty: Ty,
     ) -> Ty {
-        if self.caller_kind == ProgramKind::Job
+        if (self.caller_kind == ProgramKind::Job && self.viewer_depth.is_none())
             || self
                 .schema
                 .table(&read.table)
