@@ -9,9 +9,20 @@ cancellation), jobs, schedules naming a job and service seats need no directive.
 
 `deploy <dir>` stages immutable source, validates the live data and selects a release.
 `rollback <dir>` selects the preceding immutable release; `rollback <dir> --to N`
-selects any existing release, including a deliberate roll forward. Both activate
+selects any existing release, including a deliberate roll forward (`--to latest` selects the highest complete
+source). `releases` exposes `release`, `latest` and `generation` separately. Both activate
 inside a running `serve` process without restarting it. A stopped deployment uses
-the same transaction offline.
+the same transaction offline. They return after the runtime switches and print
+`release N is current as generation G`. Identical packaged source is a no-op.
+Default adoption output is one measured receipt; --verbose/--json includes phases.
+
+`rollback <dir> --to N --check` and `check --store <dir>/store.sqlite --release N`
+run exact adoption on a private, disk-backed snapshot without activating. They
+report dormant populations and any E_ADOPT constraint/backfill refusal. The snapshot
+can require storage/time proportional to the database; later writes can change the
+plan. Deploy warns on widening; rollback warns when the target admits values the
+current source refuses. See guide deploy's rollback-after-widening recipe and its
+business-compatibility checklist: old code cannot enforce logic it never contained.
 
 ### Retained storage and roll forward
 
@@ -36,9 +47,23 @@ current rows. Rollback selects source; it does not rewind application writes.
   lack it. Deploy a bridge with that field optional or defaulted using
   `--restore-dormant`, backfill through a bridge mutation, then deploy the required
   definition. `default now` and `default viewer` never invent historical values.
-- An enum value in use refuses rollback with `E_ADOPT`: table/column, affected
-  count, up to five ids and values, and a repair/inspection command. Repair those
-  rows through the current release, then retry. A flag never coerces or hides them.
+- An enum/text/type value that cannot inhabit the selected release makes its
+  whole row dormant. Full original values restore on a compatible release. This
+  also handles a short code written by a looser old release on roll-forward.
+  Missing newly required fields still need backfill; no value is silently coerced.
+- Rows referencing those dormant rows become dormant too, including nested/list
+  references and authorization memberships. Counts, maintained views, cap occupancy,
+  indexes, application SQL and sync use only the active population. Changed
+  generations reacquire that population, with no retained dormant device authority.
+- Dormant ids stay reserved. Point lookups/updates/deletes see absent rows; inserts
+  cannot overwrite them (E_RULE, like a hidden live conflict). Nominal references
+  remain legal, as they are for nonexistent ids; require/read-through rules decide
+  live-target admission. New such references never grant dormant authority. Their other unique keys/caps do not reserve active slots.
+  An old write may therefore need duplicate repair before forward restoration.
+- Actual parent deletion invalidates dormant narrowed references. Those rows stay
+  dormant on forward rather than rebinding a reused parent id. Existing whole-table
+  or column restoration still refuses its invalid lifetime. Read-through capture
+  validation continues to protect the original audience/deadline.
 - A newly introduced unique index can refuse forward if older writes created
   duplicate keys. Restored references also refuse deleted/reused parents or changed
   read-through audience captures. Authoritative storage cannot become derived
@@ -68,8 +93,13 @@ storage already deleted by releases before this retention implementation.
 
 An executing writer completes before activation acquires the server's writer.
 A query already pinned to a SQLite snapshot can finish on its old generation.
-Unpinned old readers retry through the new factory; queued writes recheck generation
-and authority. Validation can pause writes; no process restart is required.
+One-shot release /q and /m requests hold a shared admission guard through lookup,
+decoding and execution; activation exclusively acquires it before its writer.
+Queued requests dispatch under the new release, without E_GENERATION or adoption
+loading images. Held polls and sync retain generation negotiation without blocking
+activation. Every JSON reply includes generation, preserving a pinned answer's
+value, with X-Snapback-Generation matching it. Unknown operations return 404 denied
+E_OP; arguments refused by a selected mutation return 200 failed E_INPUT. Validation can pause writes; no process restart is required.
 A refused adoption keeps the old backend serving. Native module compilation and
 worker source/environment validation happen before commit. A post-commit worker
 spawn failure reports degraded availability and retries; it does not undo activation.
@@ -78,7 +108,8 @@ Named workers switch their immutable release root and declaration set. An extern
 
 Every changed execution identity gets a fresh monotone generation, including
 rollback/forward and native-only wasm changes. Equal schema/program/module content
-retains its generation while the activation revision advances. Existing clients
+retains its generation unless the final active/dormant population changes, which
+requires replica replacement; the activation revision still advances. Existing clients
 learn the new backend, replace obsolete partitions and reacquire; old watermarks,
 late pages and late native module fetches cannot mix with the new generation.
 This includes union audiences and merged pages: all their acquired arms/scopes
@@ -110,9 +141,10 @@ do not automatically deploy another release.
 ### Inspecting history
 
 `releases <dir>` reports authoritative identity, worker status, activation/prune
-events and dormant storage. Follow `--after <event-id>` for history and
+events and dormant storage. Audit items include before/after/restored row counts
+and bounded prior/current samples, including partial restorations. Follow `--after <event-id>` for history and
 `--items-after <key>` for inventory pages, using the returned `items_after` value.
-Item keys distinguish tables, columns and indexes even when names coincide. `--event <id>` inspects the exact
+Item keys distinguish tables, narrowed row populations (`rows:<table>`), columns and indexes even when names coincide. `--event <id>` inspects the exact
 items recorded by an activation/prune. Continuation fields are explicit; history
 is never rewound. This inspection is read-only and works while `serve` is live.
 

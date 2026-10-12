@@ -6,7 +6,7 @@ use snapback4_lang::{Diagnostic, Site};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&String>) -> Result<(Vec<Diagnostic>, Vec<Diagnostic>), String> {
+pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&String>, detailed:bool) -> Result<(Vec<Diagnostic>, Vec<Diagnostic>), String> {
     let path = explicit.map(PathBuf::from).unwrap_or_else(|| project.store_path());
     if explicit.is_none() && !path.exists() { return Ok((Vec::new(), Vec::new())); }
     let mut store = Store::open_read_only(&path).map_err(|e| e.to_string())?;
@@ -55,7 +55,7 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
         Diagnostic::new(&site, "N_TIMELINE_ADOPT", format!("{}; dev will atomically start this feed now: all retained own events and newest 1,000 live events per current follow, no refill on removal; fresh repost ids, no recovered delivery history. Writes and syncs wait; devices reacquire", estimate.summary()),
             "dev adopts automatically; deploy requires --allow-feed-adoption. Use planned home in guide feeds to avoid the launch lock").guide("feeds")
     }).collect();
-    if let Some(pause) = pause {
+    if let Some(pause) = pause.filter(|p| detailed || p.seconds().1 > 1.0) {
         notes.push(Diagnostic::new(&Site::new("schema.q", 1, 1), "N_ADOPTION_PAUSE", pause.summary(),
             "plan this atomic activation's write pause; queries retain the predecessor snapshot; the adoption line reports measured phases after commit").guide("maintains"));
     }

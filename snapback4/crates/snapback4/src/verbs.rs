@@ -51,7 +51,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full"];
+            const SWITCHES: &[&str] = &["trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "check"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -207,6 +207,10 @@ fn emit_lean(file: &str) -> i32 {
 }
 
 pub fn check(options: &Options) -> i32 {
+    if options.flags.contains_key("store") && options.flags.contains_key("release") {
+        return releases::check_release(options);
+    }
+
     if let Some(file) = options.flags.get("emit-lean") {
         return emit_lean(file);
     }
@@ -223,7 +227,7 @@ pub fn check(options: &Options) -> i32 {
         return 1;
     }
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
-    match adoption::diagnostics(&project, &bound.schema, options.flags.get("store")) {
+    match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
         Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
     }
@@ -1331,6 +1335,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 
 mod releases;
+mod release_preview;
 pub use releases::{deploy, prune, releases, rollback, serve_release};
 pub(crate) use releases::release_bind;
 
