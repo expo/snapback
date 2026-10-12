@@ -93740,3 +93740,45 @@ requests are dispositioned without weakening safety or inventing new gates.
 The six actual responses (three rounds per family) are verbatim provenance
 artifacts in llp/reviews/. These verdicts concern code/design; full qualification
 is still running, with no author-acceptance or publication claim inferred.
+
+## 2026-10-12 — Integration 4 qualification completes
+
+The requested five-crate Rust command completes 362 captured summaries
+(including a nested subprocess case): 5,686 passed, 5 failed, 41 ignored,
+exit 101. Every failure has passing complete-target corrective evidence:
+core unit target 306/0/3, CLI friction 19/0/0, ownership/admission 28/0/0,
+and guide 119/0/0. The initial guide failure was the corrected introduction's
+example placement. Add three passing tests absent from the initial binaries
+(the active-reference rollback test and two emitter tests, final emitter 9/9).
+Qualified aggregate: **5,694 passed, zero failed, 41 declared ignores**.
+The initial command is not called green or rerun totals counted twice.
+
+All 372 regular client files complete: 7,194 passed, 5 failed, 56 skipped.
+Four codec census failures are repaired (complete 27/27 rerun). The previously
+observed export-background maintenance-drain timeout passes a single unchanged
+complete-file rerun: 70 passed, zero failed, 34 declared skips. The five nested
+identity-recipe fixture files are included in those 372 files. Qualified regular
+aggregate: 7,199 passed. The two serial models run their full 5,000 session
+sequences per tier and 3,000 online sequences, adding 81 passed.
+Qualified clients: **7,280 passed, zero failed, 56 declared skips**.
+
+Final Lean campaign: 20,000 generated/compiled, 51,024 executions, 213
+disagreements only in the four inherited C2/W4 signatures; the signature set
+is compared directly with Integration 3. Devices seeds 0–999 keep the same
+26 disagreements in 16 inherited signatures. Ordinary run stays 20,000 /
+1,096,857 executions / zero disagreements. No new signature or generator
+error, and no inherited disagreement is called green. Lean check remains
+53 examples, 54 audited standard-axiom theorems and 7 oracle fixtures.
+The new engine/oracle reference test and all seven Lean harness tests pass.
+
+Final strict wasm repeats 2,245,422 B raw / 679,418 B gzip; budget 679,918 B
+is measurement + 500 B. Client package build passes. Guide deploy prints
+150/150 lines (149 source); README is 319/320 and docs-budget passes.
+Census regeneration stays 718 entries / 409 mutations / 89 private write sites;
+await boundary is unchanged, web codec census scans 169 sources with no error.
+Both final blind families are READY. Evidence and exact accounting are in
+reports/20261012-integration4/quality-summary.json and its compressed logs.
+Final ref-check follows this entry. No push, publication or new root report file.
+
+Ref-check after the qualification entry passes: 541 LLP documents, 11,016 refs,
+zero errors and zero unchecked. The tracked worktree is committed without push.

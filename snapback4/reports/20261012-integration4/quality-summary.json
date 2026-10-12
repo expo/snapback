@@ -1,0 +1,261 @@
+{
+  "reviewed_implementation_commit": "aede1021ce",
+  "qualification_source_commit": "696638f454dd685c62fecdbdb1be0ef533b53504",
+  "status": "qualified with inherited oracle findings",
+  "merges": [
+    {
+      "branch": "sb4-ws-roll",
+      "commit": "2f38aaafec",
+      "parents": [
+        "7776122f3636642854e3f1ed60ca39bfff798e97",
+        "2cd327b05a19ad9a0c42f72c0e81007a06cc4226"
+      ]
+    },
+    {
+      "branch": "sb4-ws-cut",
+      "commit": "881bc6ffde",
+      "parents": [
+        "2f38aaafec15900626219bd9388b9493b6d4c757",
+        "bd6a303782c211ba1a4c02d3498e41dd7088f452"
+      ]
+    }
+  ],
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "rust": {
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "initial": {
+      "exit": 101,
+      "captured_summaries": 362,
+      "passed": 5686,
+      "failed": 5,
+      "ignored": 41,
+      "last_summary": [
+        0,
+        0,
+        0
+      ]
+    },
+    "corrected_complete_targets": {
+      "core-lib-final": [
+        306,
+        0,
+        3
+      ],
+      "owner-final": [
+        28,
+        0,
+        0
+      ],
+      "cli-final": [
+        19,
+        0,
+        0
+      ],
+      "guide-emitter-final": [
+        8,
+        0,
+        0
+      ],
+      "lean-emit-complete": [
+        9,
+        0,
+        0
+      ]
+    },
+    "additional_passed_tests": 3,
+    "qualified": {
+      "passed": 5694,
+      "failed": 0,
+      "ignored": 41
+    },
+    "accounting": "Initial captured Rust summaries (including one nested subprocess case), replacing all five failures with passing complete-target reruns, plus three tests absent from the initial binaries: selected active-reference rollback and two Lean emitter tests. Rerun totals are not added twice; the initial command is not claimed green."
+  },
+  "clients": {
+    "initial_regular": {
+      "files": 372,
+      "failed_files": 2,
+      "tests": 7255,
+      "pass": 7194,
+      "fail": 5,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    "codec_corrected": {
+      "files": 1,
+      "failed_files": 0,
+      "tests": 27,
+      "pass": 27,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "unchanged_export_rerun": {
+      "files": 1,
+      "failed_files": 0,
+      "tests": 104,
+      "pass": 70,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 34,
+      "todo": 0
+    },
+    "serial_models": {
+      "files": 2,
+      "failed_files": 0,
+      "tests": 81,
+      "pass": 81,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "qualified": {
+      "files": 374,
+      "passed": 7280,
+      "failed": 0,
+      "skipped": 56
+    },
+    "accounting": "372 regular files include five identity-recipe fixture files; two full-count serial model files add 81 passes. Initial four codec failures repaired and the one export timeout passes on one unchanged complete-file rerun. Each test counted once."
+  },
+  "lean_check": {
+    "examples": 53,
+    "theorems_audited": 54,
+    "oracle_fixtures": 7,
+    "axioms": "standard only"
+  },
+  "censuses": {
+    "authoring_entries": 718,
+    "mutation_occurrences": 409,
+    "private_write_sites": 89,
+    "authoring_regenerated_unchanged": true,
+    "delivery_await_regenerated_unchanged": true,
+    "web_reachable_rust_files": 169,
+    "sqlite_inline_exceptions": 9,
+    "codec_errors": 0,
+    "codec_note": "Removed the obsolete engine/mod.rs::activate exception after its SQLite-only module extraction; no new exception."
+  },
+  "docs": {
+    "guide_tests_passed": 119,
+    "deploy_source_lines": 149,
+    "deploy_printed_lines": 150,
+    "deploy_budget": 150,
+    "readme_lines": 319,
+    "readme_budget": 320,
+    "docs_budget_passed": true
+  },
+  "wasm": {
+    "raw_bytes": 2245422,
+    "gzip_bytes": 679418,
+    "budget": 679918,
+    "headroom": 500,
+    "delta_from_integration3": -229,
+    "host": "Linux",
+    "locked_binaryen": "132.0.0",
+    "measurement_repeated_identically": true,
+    "macos_measured": false,
+    "runtime_ceilings_changed": false
+  },
+  "reviews": {
+    "rounds": 3,
+    "final_verdicts": {
+      "gpt-6.1-sol high": "READY",
+      "muse-spark-1.3-contributor high": "READY"
+    },
+    "artifacts": "llp/reviews/3000.000.000-integration4.r[1-3].{gpt,muse}.md",
+    "verbatim": true
+  },
+  "difftest": {
+    "run": {
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 1096857,
+      "seconds": 93.491069953,
+      "generator_errors": {},
+      "runtime_refused_unexpected": {},
+      "disagreements": 0,
+      "signatures": [],
+      "new_signatures": [],
+      "exit": 0
+    },
+    "devices": {
+      "generated": 1000,
+      "compiled": 1000,
+      "executed": 32106,
+      "seconds": 33.775016773,
+      "generator_errors": {},
+      "runtime_refused_unexpected": {},
+      "disagreements": 26,
+      "signatures": [
+        "device-memory--examined-complete--data",
+        "device-memory--examined-data--data",
+        "device-memory--examined-metered-examined--data",
+        "device-memory--heap-bytes-metered-examined--data",
+        "device-memory--metered-examined--data",
+        "device-memory--output-bytes-metered-examined--data",
+        "device-memory--steps-metered-examined--data",
+        "device-memory--write-refused--E_CONSTRAINT",
+        "device-sqlite--examined-complete--data",
+        "device-sqlite--examined-data--data",
+        "device-sqlite--examined-metered-examined--data",
+        "device-sqlite--heap-bytes-metered-examined--data",
+        "device-sqlite--metered-examined--data",
+        "device-sqlite--output-bytes-metered-examined--data",
+        "device-sqlite--steps-metered-examined--data",
+        "device-sqlite--write-refused--E_CONSTRAINT"
+      ],
+      "new_signatures": [],
+      "exit": 1
+    },
+    "lean": {
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 51024,
+      "seconds": 31.965130967,
+      "generator_errors": {},
+      "runtime_refused_unexpected": {},
+      "disagreements": 213,
+      "signatures": [
+        "lean--code--E_RULE~NOT_FOUND",
+        "lean--continuation-next--next~no-next",
+        "lean--next--next~no-next",
+        "lean--prelude-code--E_RULE~NOT_FOUND"
+      ],
+      "new_signatures": [],
+      "exit": 1
+    }
+  },
+  "signature_baseline": "snapback4/reports/20261012-integration3/quality-summary.json",
+  "deferrals": [
+    "Existing unswept-expiry meter and unproved-prediction refusal device findings remain in the two 2026-10-08 tickets; no new signature.",
+    "Lean OPEN C2/W4 remains four inherited signatures; no new signature or model change.",
+    "Helper-returned member types the surface emitter cannot infer are explicitly unsupported (member-type); real engine behavior is covered for visible, hidden and missing targets."
+  ],
+  "new_tests": [
+    "retired newer-only cascade/restrict, deleted/reused parent restoration refusal and prune",
+    "selected keep/restrict when the reference remains active across rollback",
+    "both-store union/merged page re-acquisition, old-page generation refusal, membership removed while arm inactive",
+    "persona journal fixed-epoch capture across forward/backward dev generations and peer isolation",
+    "hot deployment through external store symlinks with unrelated alias exclusion",
+    "1000-seed Lean narrowing compiler regression",
+    "source reference point+field emitter and unknown helper member type",
+    "engine/actual-Lean-oracle visible, hidden and missing reference targets"
+  ],
+  "publication": {
+    "pushed": false,
+    "published": false,
+    "root_workstream_report_created": false
+  },
+  "ref_check": {
+    "passed": true,
+    "errors": 0,
+    "unchecked": 0,
+    "command": "./ref-check",
+    "log": "logs/ref-check-last.log.gz"
+  }
+}
