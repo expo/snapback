@@ -925,6 +925,43 @@ curl -s -D - -o taxi-copy.pdf "$U/assets/$id" -H 'x-snapback-persona: ana' | gre
 ```
 
 Seed `approvers` with `{"id":"a1","principal":"dev:ana"}` in a fixture.
+
+## Durable offline capture
+
+`useUpload` and `uploadAndPlace` commit a byte copy and its placing mutation
+together to the device outbox. For the API, Exact adapter contract, typed
+states, native save and WAV/MP3/FLAC file types, read the package's
+`OFFLINE-UPLOADS.md`. DX owns full starter/guide integration of this surface.
+
+`E_UPLOAD_DEVICE`: pass `webDevice()` or Expo's `nativeDevice` to `createApp`;
+the online-only client has no durable capture capability.
+
+`E_UPLOAD_BYTES`: select nonempty bytes of at most 64 MiB; capture copies the
+selected range before delivery.
+
+`E_UPLOAD_ARGUMENT`: omit one declared image/video/file mutation argument,
+name it in `argument`, and keep the other encoded args within 64 KiB.
+
+`E_UPLOAD_QUOTA`: unresolved device or pinned owner bytes exceed 128 MiB.
+Place or cancel earlier captures; `serverUploads()` finds abandoned pins.
+
+`E_UPLOAD_INTENT`: use the SDK's upload-and-place declaration and stable id;
+the device owns the original bytes, metadata, viewer and placing operation.
+
+`E_UPLOAD_PENDING`: placement waits for its uploaded asset facts to commit.
+Let the SDK deliver its dependency before sending the mutation.
+
+`E_UPLOAD_CANCELLED`: the server's cancellation tombstone proves the intent
+cannot place. Select a new id for a new capture.
+
+`E_UPLOAD_DISPATCHED`: placement dispatch was reserved or begun; recover its
+same-id outcome. Cancellation cannot manufacture failure for an unknown write.
+
+`E_ASSET_INTENT_REUSE`: retry the original bytes, metadata and placing input,
+or choose a new id. A declaration cannot be changed or reused for another row.
+
+`E_ASSET_INTENT_EXPIRED`: the original asset was collected after settlement;
+the same upload id cannot create another asset. Select a new capture/id.
 "##,
         "read-only" => include_str!("guide/read_only.md"),
         "client" => include_str!("guide/client.md"),

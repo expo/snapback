@@ -111,3 +111,5 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
 }
 ```
 `useAsset` revokes on unmount; once media cannot refetch (`E_ASSET_VIEWED`).
+
+Durable offline media and the Exact adapter contract: [OFFLINE-UPLOADS.md](../../../../packages/snapback4/OFFLINE-UPLOADS.md); DX owns full guide/starter integration.
