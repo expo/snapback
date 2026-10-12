@@ -92519,3 +92519,58 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — Workstream MERGE: owner-or-X lists are one complete query (LLP 3000.036.001)
+
+`tasks where .owner = viewer or .assignee = viewer last 50 by .at after c`,
+or `tasks last 50 by .at after c` under that read rule, or owner-or-staff,
+now reads as a lazy k-way merge of the branch index ranges and answers
+`complete`. Design, review dispositions and exclusions in LLP 3000.036.001;
+the blind GPT (`gpt-6.1-sol`) and Muse (`muse-spark-1.3-contributor`) reviews
+of the draft, both NOT READY, are in `llp/reviews/3000.036.001-*`.
+
+- **Plan.** `bind/intent_branches.rs` expands an undecided query page whose
+  total predicate has one `or` of deciding pins, or whose read rule is parties
+  and readable grants, into planned lanes marked `$or`/`$or:grant` (no new IR
+  field; digests unchanged). `program/views.rs` re-checks with the core's
+  `branch_merge_lazy` and `covering_grant`; a hidden-roster grant binds the
+  read as written.
+- **Run.** `engine/branch_merge.rs`: lanes over different indexes, one shared
+  position (order then `id`), de-duplication by id; a held grant reads its
+  lane alone, an unheld one nothing; a seat is decided on a device, a role
+  probe is unknown there. After a cut the page stops at the frontier every
+  lane examined and continues from it.
+- **Cursor.** Versions 4 (exclusive) and 5 (inclusive, for an unfinished first
+  shape) on version 3's layout, naming the branch set; another plan's token
+  restarts the read with `E_CURSOR_INDEX`; 0.4.22 refuses them by version and
+  runs the plan as an eager merge.
+- **Wasm.** 2,159,570 B raw / 653,674 B gzip on Linux, +5,002 B over the
+  base's 648,672; budget 654,174 B (measurement + 500 B), reason in
+  `metrics/wasm-budget.json`. Sharing version 3's token layout saved 646 B.
+- **Lean.** OPEN C8 is "decided": pins by form (`Rule.byForm`) or branches
+  (`branchDecided`); a merged page's `next` needs a matching row (C2);
+  `parties_cover_view`. 40 theorems audited, 35/35 examples.
+- **Evidence.** `run-lean` seeds 0–99,999: 1,979 disagreements, all known
+  signatures; 3,459 merged pages compared, the 10 that disagreed all on the
+  known prelude `E_RULE~NOT_FOUND`, none on a page. `run-devices` seeds
+  0–2,999: no new signature (197 merged branch pages; group-synced tables are
+  not drawn yet, see the ticket below). `run` seeds 0–19,999: 0
+  disagreements in every rewrite and meter oracle, 1,314 merged pages.
+  Suites: `snapback4-core`, `-device`, `-sim`, `-difftest`, `-lang`,
+  `snapback4 --test check`/`check_notes`, `lean/check.sh`, and the client's
+  `read-*`, `local-*` and `bounded-following` (286 pass, 1 skipped).
+- **Found, not caused.** The first device campaign that drew a group-synced
+  table found that a held group's pinned page meters one rule probe on the
+  server and none on a device, merged or not:
+  `issues/20261012-snapback4-device-group-page-rule-probe-meter.md`.
+- **Docs.** The staff console, the roles board and the private two-party list
+  are single queries; the N_NEVER_COMPLETE page and the reads card say when
+  the merge applies. The wave 1–6 farm tests whose shapes now merge assert the
+  merged page and keep the note machinery covered with arithmetic in the
+  predicate, which keeps one index.
+- **What felt good:** the engine already had the merge position and the
+  drain-cut idea; a second index per lane was mostly bookkeeping. The Lean
+  model's surface syntax kept the pin forms the engine decides by.
+- **What was hard:** with a page per lane, a cut can only land while lanes
+  open, so the drain-cut continuation never fired; the frontier replaced it.
+  And twenty farm tests pinned the old "never complete" on purpose.
