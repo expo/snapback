@@ -92519,3 +92519,44 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — Workstream LANG2: bounded ints, UTC calendar months, caps for small tables (LLP 3000.040)
+
+Three approved language additions, designed in LLP 3000.040 (one blind round:
+Codex `gpt-6.1-sol` and Muse `spark-1.3`, both NOT READY, folded in
+revision 1; reviews under `llp/reviews/3000.040-*`).
+
+- **Bounded ints.** `int 1..5`, `int 0..`, `int ..100` on columns, list
+  items and operation arguments (`IntRange`), one check in `validate::fits`,
+  so arguments, stored writes, defaults, fixtures and both device stores
+  refuse `E_INPUT: reviews.stars must be int 1..5, not the number 10`.
+  `check` refuses constants outside the range and bounded helper parameters;
+  `int <=N` prints `int ..N` (text's `<=N` starts at 0). Sums erase the
+  bound. Tightening is Narrowing, checked against stored rows. This reverses
+  LLP 3000.036 §15.7.
+- **Calendar months.** `month(t)` (months since 1970-01), `year(t)`,
+  `monthStart(m)`, `yearStart(y)` in `snapback4_core::calendar`; `month`/
+  `year` index and view keys; `every N months|years [at day D HH:MM]`
+  schedules anchored at 1970-01 with the existing coalescing rule. UTC only;
+  time zones deferred. The Lean model gained an independent calendar
+  (400/100/4/1-year decomposition) with `omega` proofs that each month and
+  year start brackets every time.
+- **Small-table caps.** `cap N` without `by` already worked (LLP 3000.007
+  §20.3); its refusal now reads `T holds at most N rows`, raising a cap is
+  Additive, and `guide indexes` has the lookup-table recipe.
+- **Oracles.** `run-lean` seeds 0–99,999: 68,428 supported, only the four
+  classified signatures (OPEN C2/W4); every calendar case agrees.
+  `run-devices` seeds 0–2,999: only signatures already in `cases/found`.
+  Negative controls (reverted): a February-start defect in `calendar.rs` was
+  caught by `run-lean` (`lean--data--int~int`), a device-only bound skip by
+  `run-devices` (`write-predicted-refused--admitted`).
+- **The wasm budget rises 6,647 B gzip** (648,672 → 655,319 B on Linux;
+  budget 655,819 = measurement + 500 B): the device validates int ranges and
+  evaluates the civil builtins and keys, so predictions refuse what the
+  server refuses. Reason in `metrics/wasm-budget.json`.
+
+- **What felt good:** every write path already funnels through `fits`, so a
+  bounded type needed one arm; the shared interpreter made device parity free.
+- **What was hard:** the guide's word and line budgets (the six familiar
+  cards at their 30% reduction, the language card at 825 lines) left room for
+  about twenty words; the detail went to the time, indexes and recipes cards.
