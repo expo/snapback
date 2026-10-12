@@ -626,7 +626,7 @@ for (const staged of [false, true]) for (const terminal of [false, true]) test(`
           assert.equal((await f.alice.mutate(mutation("touch"), { id: f.id })).state, "sent");
           const b = await device.open(name);
           try {
-            const reply = await fetch(f.url + "/sync", { method: "POST", headers: { "x-snapback-persona": "bob" }, body: JSON.stringify({ from: 0, limit: 100 }) });
+            const reply = await fetch(f.url + "/sync", { method: "POST", headers: { "x-snapback-persona": "bob", "x-snapback-device": JSON.stringify(await device.engineInfo()) }, body: JSON.stringify({ from: 0, limit: 100 }) });
             const page = await reply.json();
             assert.equal(page.snapshot, true); assert.equal(page.more, false);
             assert.equal(page.watermark, request.page.watermark + 1);

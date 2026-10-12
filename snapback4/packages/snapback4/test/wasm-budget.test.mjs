@@ -37,6 +37,7 @@ test('both shipped scripts use the budget helper; dirty measurements are explici
 appendFileSync(process.env.TOOLS_LOG, process.argv.slice(2).join(' ') + '\\n');
 if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === 'true') process.exit(1);
 `);
+    writeFileSync(path.join(root, 'scripts/stamp-device.mjs'), `import {appendFileSync} from 'node:fs'; appendFileSync(process.env.TOOLS_LOG, 'stamp\\n');`);
     stub('cargo', 'echo cargo >> "$TOOLS_LOG"');
     stub('wasm-bindgen', 'while [ "$1" != --out-dir ]; do shift; done\nshift\nmkdir -p "$1"\nprintf wasm > "$1/snapback4_device_bg.wasm"\nprintf glue > "$1/snapback4_device.js"');
     stub('wasm-opt', 'echo PATH-optimizer-called >> "$TOOLS_LOG"; exit 91');
@@ -69,6 +70,7 @@ const at = process.argv.indexOf('-o'); copyFileSync(process.argv[at + 2], proces
         const dirty = Boolean(dirtyPath);
         const result = run(dirtyPath);
         assert.match(readFileSync(log, 'utf8'), /cargo/);
+        assert.match(readFileSync(log, 'utf8'), /stamp/);
         if (name === 'build-wasm.sh') {
           // The budget is a ratchet: an overrun prints the size line and then fails the step.
           assert.notEqual(result.status, 0, 'an overrun must fail the wasm build step');

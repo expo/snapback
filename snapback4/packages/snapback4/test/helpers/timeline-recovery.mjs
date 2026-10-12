@@ -42,8 +42,9 @@ export async function recoverTimeline() {
   const devices=[];
   try {
     await until(()=>{assert.equal(server.exitCode,null,log);return url;},'server startup');
+    const engine=await processDevice({binary,dir:directory}).engineInfo();
     const request=async(path,body)=>{
-      const response=await fetch(url+path,{method:body===undefined?'GET':'POST',headers:{'x-snapback-persona':'author','content-type':'application/json'},signal:AbortSignal.timeout(hangBudget()),...(body===undefined?{}:{body:JSON.stringify(body)})});
+      const response=await fetch(url+path,{method:body===undefined?'GET':'POST',headers:{'x-snapback-persona':'author','x-snapback-device':JSON.stringify(engine),'content-type':'application/json'},signal:AbortSignal.timeout(hangBudget()),...(body===undefined?{}:{body:JSON.stringify(body)})});
       const text=await response.text();assert.equal(response.status,200,text);return {data:JSON.parse(text),bytes:Buffer.byteLength(text)};
     };
     const mutate=async(op,args={})=>{const {data}=await request('/m/'+op,{args});assert.equal(data.state,'sent',JSON.stringify(data));return data;};

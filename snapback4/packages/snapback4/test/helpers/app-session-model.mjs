@@ -48,6 +48,9 @@ async function run(commands, coverage = {}, tier = "online", audit = {}) {
       } };
     } };
   }) : [];
+  // Actual-engine preflight compiles each pinned opener before virtual host time.
+  // Compilation is outside the generated application/network interleaving.
+  if (tier === "local") await Promise.all(devices.map(device => device.engineInfo()));
   const clock = tier === "local" ? modelClock() : undefined;
   // Separate simulated backends must not share the package's per-URL lock
   // with background retirement from an earlier, already-checked sequence.

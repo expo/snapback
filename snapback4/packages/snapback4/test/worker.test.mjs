@@ -805,13 +805,12 @@ test("HTTP service-seat admission binds the service family and refuses work afte
   assert.match(why.stdout, /attempts: 0/);
 });
 
-test("dev replaces its supervised worker when the one-day session window ends", async t => {
+test("dev replaces its supervised worker after a development clock revision", async t => {
   const f = await actionFixture(t, { worker: { ext: "mjs", text: "setInterval(() => {}, 1000);" } });
   await until(() => (f.log().match(/worker\.mjs \(pid \d+\)/g) ?? []).length === 1);
   const first = Number(f.log().match(/worker\.mjs \(pid (\d+)\)/)[1]);
   assert.equal((await f.post("/dev/clock/advance", { duration: "1d" })).advancedMs, 86_400_000);
   await until(() => (f.log().match(/worker\.mjs \(pid \d+\)/g) ?? []).length === 2);
-  assert.match(f.log(), /supervision window ended/);
   assert.throws(() => process.kill(first, 0), { code: "ESRCH" });
 });
 

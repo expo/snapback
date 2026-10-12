@@ -79,7 +79,7 @@ test("write authority: /m replay keeps only execution identity after hidden writ
   assert.ok(Array.isArray(first.preserved) && first.preserved.every(t => typeof t === "string"));
   const replay = await f.request("/m/put", "bob", input);
   assert.match(first.store_id, /^[0-9a-f]{32}$/);
-  assert.deepEqual(replay, { state: "sent", id: "hidden", seq: first.seq, replayed: true, store_id: first.store_id, head: first.seq });
+  assert.deepEqual(replay, { state: "sent", id: "hidden", seq: first.seq, replayed: true, store_id: first.store_id, head: first.seq, generation: 1 });
   for (const [op, id] of [["put", "lost-result"], ["conditional", "lost-current"]]) {
     await f.seed();
     const original = await f.request(`/m/${op}`, "alice", { id, args: { key: "lookup" } }); // delivered to transport, dropped by app

@@ -8,11 +8,13 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { processDevice } from "../dist/native.js";
 import { createLocalClient } from "../dist/local.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const source = `use personas alice
 table notes:
@@ -50,7 +52,7 @@ async function fixture(t, durable = false) {
     child.stderr.on("data", (data) => { log += data; });
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not start");
   }
-  const headers = { "x-snapback-persona": "alice" };
+  const headers = { "x-snapback-persona": "alice", "x-snapback-device": JSON.stringify(engine) };
   const post = (path, body) => fetch(`${url}${path}`, { method: "POST", headers, body: JSON.stringify(body) }).then((r) => r.json());
   const seed = async (prefix, count) => { for (let n = 0; n < count; n++) assert.equal((await post("/seed", [{ table: "notes", row: { id: `${prefix}-${n}`, body: prefix } }])).seeded, 1); };
   async function open() {

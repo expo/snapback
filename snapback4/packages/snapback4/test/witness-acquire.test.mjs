@@ -75,7 +75,7 @@ test('acquire CLI refuses invalid arguments before connecting', async () => {
     ['--as', 'alice', '--url', 'http://user:secret@localhost'], ['--as', 'member:1'], ['--as', 'alice', '--args', '[]'],
     ['--as', 'alice', '--query', 'heldNotes', '--args', '{'], ['--as', 'alice', '--timeout', '-1']]) {
     const reply = await cli(args, tmpdir());
-    assert.notEqual(reply.status, 0, JSON.stringify(args)); assert.match(reply.stderr, /E_WITNESS_INPUT/);
+    assert.notEqual(reply.status, 0, JSON.stringify(args)); assert.match(reply.stderr, /E_INPUT|E_WITNESS_INPUT/);
   }
 });
 
@@ -108,7 +108,7 @@ test('acquire refuses unknown personas, mismatched bearer identity, unreachable 
     ['--as', 'alice', '--url', f.url, '--query', 'byOwner', '--args', '{"owner":7}'],
   ]) {
     const reply = await cli([...args, '--timeout', String(hangBudget(2) / 1000)], f.dir);
-    assert.notEqual(reply.status, 0); assert.match(reply.stderr, /E_AUTH|E_WITNESS_BACKEND|E_WITNESS_INPUT/);
+    assert.notEqual(reply.status, 0); assert.match(reply.stderr, /E_INPUT|E_AUTH|E_WITNESS_BACKEND|E_WITNESS_INPUT/);
   }
 });
 
@@ -262,7 +262,7 @@ test('echoed bearer and derived refusal text never reach stderr, JSON, text or r
 test('witness family usage advertises both commands and shares input diagnostics', async () => {
   for (const args of [['__family'], ['__family', 'ios', '--wat'], ['--wat']]) {
     const reply = await cli(args, tmpdir());
-    assert.notEqual(reply.status, 0); assert.match(reply.stderr, /E_WITNESS_INPUT/);
+    assert.notEqual(reply.status, 0); assert.match(reply.stderr, /E_INPUT|E_WITNESS_INPUT/);
     if (args.length === 1 && args[0] === '__family') { assert.match(reply.stderr, /witness acquire/); assert.match(reply.stderr, /witness ios/); }
   }
 });
@@ -527,7 +527,7 @@ test('acquire argument refusals omit values including equals bearers', async () 
     const result = await cli(args, dir);
     assertNoCredentials({ marker }, { stdout: result.stdout, stderr: result.stderr });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /E_WITNESS_INPUT/);
+    assert.match(result.stderr, /E_INPUT|E_WITNESS_INPUT/);
   }
 });
 
@@ -537,13 +537,13 @@ test('iOS argument refusals omit values including equals bearers', async () => {
     const result = await cli(['__family', 'ios', `--${flag}=${marker}`], dir);
     assertNoCredentials({ marker }, { stdout: result.stdout, stderr: result.stderr });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /E_WITNESS_INPUT/);
+    assert.match(result.stderr, /E_INPUT|E_WITNESS_INPUT/);
   }
   for (const args of [[marker], ['--token', marker], ['--token-file', marker], ['--port', marker], ['--timeout', marker], ['--bundle-id', marker, '--segment', '!']]) {
     const result = await cli(['__family', 'ios', ...args], dir);
     assertNoCredentials({ marker }, { stdout: result.stdout, stderr: result.stderr });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /E_WITNESS_INPUT/);
+    assert.match(result.stderr, /E_INPUT|E_WITNESS_INPUT/);
   }
 });
 
@@ -553,6 +553,6 @@ test('runtime refusals do not echo caller argument values in stderr', async t =>
   const reply = await cli(['--as', 'alice', '--url', f.url, '--query', marker,
     '--artifacts', join(f.dir, marker)], f.dir);
   assert.notEqual(reply.status, 0);
-  assert.match(reply.stderr, /E_WITNESS_INPUT/);
+  assert.match(reply.stderr, /E_INPUT|E_WITNESS_INPUT/);
   assertNoCredentials({ marker }, { stderr: reply.stderr });
 });

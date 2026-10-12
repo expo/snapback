@@ -1,3 +1,9 @@
+// Timer-controlled fixtures close real HTTP sockets before virtual deadlines advance.
+// Undici's pooled idle timers must not become part of the application's fake clock.
+const wireFetch = (input, init) => {
+  const headers = new Headers(init?.headers); headers.set("connection", "close");
+  return fetch(input, { ...init, headers });
+};
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — retired attempts release capacity and cannot publish late.
 import test from 'node:test';
@@ -35,17 +41,17 @@ const parked = signal => new Promise((_, reject) => {
 async function deviceFixture(t, tier, wrap) {
   const { url, dir } = await server(t, '', readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8'));
   const rows = Array.from({ length: 10 }, (_, slot) => ({ table: 'cards', row: { id: 'c' + slot, slot, owner: 'dev:alice', label: 'original' } }));
-  assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json())).seeded, 10);
+  assert.equal((await wireFetch(url + '/seed', { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json())).seeded, 10);
   const underlying = tier === 'process' ? processDevice({ binary, dir: join(dir, 'device') }) : webDevice({
     wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence(),
   });
   const client = await createLocalClient({ url, persona: 'alice', device: { async open(...args) {
     return wrap(await underlying.open(...args));
-  } }, fetch: (input, init) => new URL(input).pathname === '/changes' ? parked(init.signal) : fetch(input, init) });
+  } }, fetch: (input, init) => new URL(input).pathname === '/changes' ? parked(init.signal) : wireFetch(input, init) });
   t.after(() => client.close());
   await client.sync();
   const edit = async () => {
-    assert.equal((await fetch(url + '/m/edit', { method: 'POST', headers: { 'x-snapback-persona': 'alice' },
+    assert.equal((await wireFetch(url + '/m/edit', { method: 'POST', headers: { 'x-snapback-persona': 'alice' },
       body: JSON.stringify({ id: crypto.randomUUID(), args: { id: 'c0', label: 'changed' } }) }).then(r => r.json())).state, 'sent');
   };
   return { client, edit };
@@ -183,7 +189,7 @@ query remote(id: rows):
         throw Object.assign(Error('connection refused'), { code: 'ECONNREFUSED' });
       }
     }
-    return fetch(input, init);
+    return wireFetch(input, init);
   } };
   const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options,
     device: tier === 'process' ? processDevice({ binary, dir: join(dir, 'device') }) : webDevice({

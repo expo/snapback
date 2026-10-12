@@ -53,7 +53,7 @@ fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError>
     snapback4_core::json_codec::from_value(value).map_err(|e| RuntimeError::decode(e, RuntimeError::Input))
 }
 
-fn encoded<T: serde::Serialize>(value: &T) -> Result<Json, RuntimeError> { #[cfg(test)] OWNED_ENCODES.set(OWNED_ENCODES.get() + 1);
+pub(crate) fn encoded<T: serde::Serialize>(value: &T) -> Result<Json, RuntimeError> { #[cfg(test)] OWNED_ENCODES.set(OWNED_ENCODES.get() + 1);
     snapback4_core::json_codec::to_value(value).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 

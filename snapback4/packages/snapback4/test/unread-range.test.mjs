@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { initSync, WebDevice } from '../src/wasm/snapback4_device.js';
+import { processDevice } from "../dist/native.js";
 import { createLocalClient } from '../dist/local.js';
 import { defaultFetch as fetch } from '../dist/node-fetch.js';
 import { memoryPersistence, webDevice } from '../dist/web.js';
@@ -18,6 +19,7 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const source = readFileSync(join(root, 'crates/snapback4-device/tests/unread_range/schema.q'), 'utf8');
 const cases = JSON.parse(readFileSync(join(root, 'crates/snapback4-device/tests/unread_range/cases.json')));
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
 initSync({ module: wasm });
 const viewer = 'dev:bob';
@@ -43,7 +45,7 @@ async function serverFor(t, c) {
     child.stdout.on('data', b => { log += b; const found = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
-    const r = await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const r = await fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': persona, 'x-snapback-device': JSON.stringify(engine), 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const answer = await r.json(); assert.equal(r.status, 200, JSON.stringify(answer)); assert.ok(!answer.denied, JSON.stringify(answer)); return answer;
   };
   const backend = await (await fetch(url + '/schema', { headers: { 'x-snapback-persona': 'bob' } })).json();

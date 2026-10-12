@@ -15,6 +15,7 @@ import { processDevice } from "../dist/native.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
 const wasm = readFileSync(join(root, "packages/snapback4/dist/wasm/snapback4_device_bg.wasm"));
 const source = `use personas alice
 table notes:
@@ -27,7 +28,7 @@ mutation pendingAdd(body: text <=100):
 query all():
   return notes first 100 by byId
 `;
-const op = { kind: "query", name: "all" }, headers = { "x-snapback-persona": "alice" };
+const op = { kind: "query", name: "all" }, headers = { "x-snapback-persona": "alice", "x-snapback-device": JSON.stringify(engine) };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 async function until(check, message) { return awaitState(check, message); }

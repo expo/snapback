@@ -1,3 +1,9 @@
+// Timer-controlled fixtures close real HTTP sockets before virtual deadlines advance.
+// Undici's pooled idle timers must not become part of the application's fake clock.
+const wireFetch = (input, init) => {
+  const headers = new Headers(init?.headers); headers.set("connection", "close");
+  return fetch(input, { ...init, headers });
+};
 import { readyRead } from "../dist/read-existence.js";
 // A kept answer's live deadlines survive commits, unavailable reads and lingering.
 import test from "node:test";
@@ -53,7 +59,7 @@ for (const tier of ["wasm", "process"]) for (const deadline of ["row", "episode"
 
 async function fixture(t, tier) {
   const { url, dir } = await server(t, undefined, source);
-  const post = async (path, body) => (await fetch(url + path, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify(body) })).json();
+  const post = async (path, body) => (await wireFetch(url + path, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify(body) })).json();
   const deadline = Date.now() + 60_000;
   assert.equal((await post("/seed", [{ table: "secrets", row: { id: "private", body: "private answer", expiresAt: deadline } }])).seeded, 1);
   let wall = deadline - 3000, hold = false, mode = "held", reads = 0, failed = 0, target, committed = false, core, client;
@@ -82,7 +88,7 @@ async function fixture(t, tier) {
       const poll = Promise.withResolvers(); polls.push(poll);
       return Promise.race([poll.promise.then(json => Response.json(json)), parked(init.signal)]);
     }
-    const response = await fetch(input, init), json = await response.json();
+    const response = await wireFetch(input, init), json = await response.json();
     // No wall/server sampling: the test owns the two clock domains explicitly.
     return Response.json(tier === "online" && path.startsWith("/q/") ? await intercept(json) : json, { status: response.status });
   }) };

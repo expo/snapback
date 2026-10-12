@@ -121,12 +121,12 @@ impl<S: DeviceStore> Device<S> {
         let mut entry: Queued = decoded(&data)?;
         if entry.viewer != viewer { return Err(refused("E_AUTH", "upload intent belongs to another viewer")); }
         let upload = entry.upload.as_mut().ok_or_else(|| refused("E_UPLOAD_INTENT", "this write has no upload dependency"))?;
-        if (upload["state"] == "placing" && state != "cancelling") || (upload["state"] == "cancelling" && state!="cancelling") { tx.rollback()?; return snapback4_core::json_codec::to_value(&entry).map_err(|e| RuntimeError::Store(e.to_string())); }
+        if (upload["state"] == "placing" && state != "cancelling") || (upload["state"] == "cancelling" && state!="cancelling") { tx.rollback()?; return crate::call::encoded(&entry); }
         if !matches!(state, "queued" | "uploading" | "blocked" | "cancelling") { return Err(RuntimeError::Input("upload state is queued, uploading or blocked".into())); }
         if state == "cancelling" && entry.dispatch.is_some() { return Err(refused("E_UPLOAD_DISPATCHED", "placement dispatch already began; recover the existing receipt")); }
         upload["state"] = json!(state); upload["why"] = why.cloned().unwrap_or(Json::Null);
         predictions::enqueue(&tx, &entry)?; tx.commit()?;
-        snapback4_core::json_codec::to_value(&entry).map_err(|e| RuntimeError::Store(e.to_string()))
+        crate::call::encoded(&entry)
     }
     // @ref LLP 3000.038.000#3 — facts, dependency release and byte disposal share one commit.
     pub fn upload_ready(&mut self, id: &str, viewer: &str, store: &str, asset: &Json) -> Result<Json, RuntimeError> {
@@ -144,7 +144,7 @@ impl<S: DeviceStore> Device<S> {
         if upload["state"] == "placing" {
             if upload["asset"] != *asset { return Err(refused("E_ASSET_INTENT_REUSE", "intent already holds different upload facts")); }
             tx.rollback()?;
-            return snapback4_core::json_codec::to_value(&entry).map_err(|e| RuntimeError::Store(e.to_string()));
+            return crate::call::encoded(&entry);
         }
         let argument = string(upload, "argument")?.to_owned();
         let kind = self.programs.get(&entry.op).and_then(|p| p.args.get(&argument)).ok_or_else(|| refused("E_UPLOAD_ARGUMENT", "placing operation changed; discard this intent and select the file again"))?;
@@ -154,7 +154,7 @@ impl<S: DeviceStore> Device<S> {
         entry.args[&argument] = asset.clone();
         upload["asset"] = asset.clone(); upload["state"] = json!("placing"); upload["bytes"] = Json::Null; upload["why"] = Json::Null;
         predictions::enqueue(&tx, &entry)?; tx.commit()?;
-        snapback4_core::json_codec::to_value(&entry).map_err(|e| RuntimeError::Store(e.to_string()))
+        crate::call::encoded(&entry)
     }
 }
 

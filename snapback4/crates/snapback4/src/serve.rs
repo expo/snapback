@@ -606,7 +606,7 @@ pub(crate) fn trusted_dev_request(request: &Request, shared: &Shared) -> bool {
 pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock, X-Snapback-Generation").unwrap(),
         Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range, x-snapback-device").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
     ];
@@ -686,13 +686,13 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     crate::release_requests::executed();
     let encoded = serde_json::to_writer(&mut bytes, &body);
     // Append only to envelopes without a generation, without cloning row payloads.
-    if encoded.is_ok() && body.generation().is_none() && let Some(generation)=generation && bytes.0.last()==Some(&b'}') {
+    let stamped = if encoded.is_ok() && body.generation().is_none() && let Some(generation)=generation && bytes.0.last()==Some(&b'}') {
         bytes.0.pop();
         let separator=if bytes.0.len()>1 {","} else {""};
-        let _=write!(&mut bytes,"{separator}\"generation\":{generation}}}");
-    }
+        write!(&mut bytes,"{separator}\"generation\":{generation}}}")
+    } else { Ok(()) };
     drop(body);
-    let status = if encoded.is_err() {
+    let status = if encoded.is_err() || stamped.is_err() {
         bytes.0.clear();
         let refusal = Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values").guide("reads");
         // @ref LLP 3000.007.001#3.11 — generation discovery survives an undeliverable row page.

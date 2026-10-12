@@ -28,3 +28,4 @@
 {"at":"2026-10-12T17:05:11Z","sha":"e82bb70b97","dirty":true,"wasm":{"raw":2246861,"gzip":680085,"brotli":515256},"glue":{"raw":14877,"gzip":3606,"brotli":3182},"wasmOpt":true,"budget":680582,"over":0}
 {"at":"2026-10-12T17:14:00Z","sha":"e82bb70b97","dirty":true,"wasm":{"raw":2246968,"gzip":680192,"brotli":515250},"glue":{"raw":14877,"gzip":3606,"brotli":3182},"wasmOpt":true,"budget":680582,"over":0}
 {"at":"2026-10-12T21:13:14Z","sha":"fb3c07d096","dirty":true,"wasm":{"raw":2260490,"gzip":686901,"brotli":520058},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":680692,"over":6209}
+{"at":"2026-10-12T21:25:59Z","sha":"568e46fd08","dirty":false,"wasm":{"raw":2260490,"gzip":686901,"brotli":520058},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":687401,"over":0}

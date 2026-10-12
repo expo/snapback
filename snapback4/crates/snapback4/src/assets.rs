@@ -168,7 +168,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
         Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
         Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, content-disposition, x-snapback-asset-home").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, content-disposition, x-snapback-asset-home, x-snapback-generation").unwrap(),
     ];
     // @ref LLP 3000.038#5 — a file is always a download: never rendered inline, never sniffed, nothing active even if navigated to.
     if attachment {

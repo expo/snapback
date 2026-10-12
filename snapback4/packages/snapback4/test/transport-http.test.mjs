@@ -21,7 +21,8 @@ import { changeFeed } from "../dist/changes.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
-const headers = { "x-snapback-persona": "alice", "content-type": "application/json" };
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
+const headers = { "x-snapback-persona": "alice", "x-snapback-device": JSON.stringify(engine), "content-type": "application/json" };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check) { return awaitState(check); }
 const source = `use identity
@@ -116,7 +117,7 @@ test("sync request-line boundaries and a deliberate body ceiling", { timeout: ha
     const response = await raw(oldLine(ids) + "\r\nHost: localhost\r\nx-snapback-persona: alice\r\nConnection: close\r\n\r\n");
     assert.match(response, count === 232 ? /^HTTP\/1.1 404/ : /^HTTP\/1.1 400/, "the exact old boundary still belongs to the parser; POST bypasses it");
   }
-  const prefix = "POST /sync HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nOrigin: http://localhost:3000\r\nConnection: close\r\n";
+  const prefix = `POST /sync HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nx-snapback-device: ${JSON.stringify(engine)}\r\nOrigin: http://localhost:3000\r\nConnection: close\r\n`;
   const declared = await raw(prefix + `Content-Length: ${ceiling + 1}\r\nExpect: 100-continue\r\n\r\n`);
   const chunked = await raw(prefix + `Transfer-Encoding: chunked\r\n\r\n${(ceiling + 1).toString(16)}\r\n${" ".repeat(ceiling + 1)}\r\n0\r\n\r\n`);
   for (const answer of [declared, chunked]) {

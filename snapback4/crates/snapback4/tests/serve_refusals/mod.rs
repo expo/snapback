@@ -184,3 +184,24 @@ impl Host {
     }
 
 }
+
+#[test]
+fn generation_footer_overflow_returns_a_complete_bounded_refusal() {
+    let host = Host::new(true);
+    let server = Server::http("127.0.0.1:0").unwrap();
+    let address = server.server_addr().to_ip().unwrap();
+    let caller = thread::spawn(move || {
+        let mut socket = TcpStream::connect(address).unwrap();
+        write!(socket, "GET /footer HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").unwrap();
+        let mut reply = String::new(); socket.read_to_string(&mut reply).unwrap(); reply
+    });
+    let payload = json!({"data":"x".repeat((16 << 20) - 20)});
+    assert!(serde_json::to_vec(&payload).unwrap().len() <= 16 << 20);
+    respond_timed(server.recv().unwrap(), &host.shared, 200, payload);
+    let reply = caller.join().unwrap();
+    assert_eq!(status(&reply), 200);
+    let json = body(&reply);
+    assert_eq!(json["denied"]["code"], "E_BOUND");
+    assert_eq!(json["generation"], 1);
+    assert!(reply.len() < 4096, "overflow must replace the entire partial payload");
+}

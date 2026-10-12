@@ -116,7 +116,7 @@ query total():
   if (mutant === 'legacy-success') replace('writes.ts', 'if (!qualified) return known?.state === "sent" || (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") ? known : undefined;', '/* mutant: infer success from an unqualified sequence */');
   // Record the actual retry callback and entry into sync, without changing either.
   const localPath = path('local.ts');
-  const syncEntry = 'const network = new LocalNetwork(syncRound, () => partitionDenied?.code === "E_STORE_RESTORE", () => deliveryQueue?.available());';
+  const syncEntry = 'const network = new LocalNetwork(syncRound, () => versionBlocked() || partitionDenied?.code === "E_STORE_RESTORE", () => deliveryQueue?.available());';
   assert.ok((sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8')).includes(syncEntry), 'sync instrumentation must match the production entry');
   sourceOverrides[localPath] = (sourceOverrides[localPath] ?? readFileSync(localPath, 'utf8'))
     .replace('const settling = new Set<string>();', 'const settling = (globalThis as any).settlementOwners = new Set<string>();')

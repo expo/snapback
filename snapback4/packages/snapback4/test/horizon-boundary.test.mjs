@@ -9,11 +9,13 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { processDevice } from "../dist/native.js";
 import { createLocalClient } from "../dist/local.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
+const engine = await processDevice({binary,dir:tmpdir()}).engineInfo();
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const publicSource = readFileSync(join(root, "../benchmarks/runs/2026-09-17-snapback4-derived-probes/horizon-gap/snapback/schema.q"), "utf8");
 const groupSource = `use personas alice, bob
@@ -57,7 +59,7 @@ for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "c
     server.stdout.on("data", chunk => { log += chunk; const found = readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/); if (found) { clearTimeout(timer); resolve(found[0]); } });
   });
   const post = async (path, body, persona = "bob") => {
-    const reply = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify(body) });
+    const reply = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "x-snapback-device": JSON.stringify(engine), "content-type": "application/json" }, body: JSON.stringify(body) });
     const result = await reply.json(); assert.equal(reply.status, 200, JSON.stringify(result)); return result;
   };
   const prefix = group ? "m" : "p";
@@ -200,7 +202,7 @@ async function reviewServer(t, source = reviewSource) {
   });
   const post = async (path, body, persona = "bob") => {
     const started = Date.now();
-    const response = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "content-type": "application/json" }, body: JSON.stringify(body) });
+    const response = await fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona, "x-snapback-device": JSON.stringify(engine), "content-type": "application/json" }, body: JSON.stringify(body) });
     const result = await response.json(); assert.equal(response.status, 200, JSON.stringify(result)); assert.ok(!result.denied, JSON.stringify(result));
     if (path === "/sync") {
       assert.ok(Number.isSafeInteger(result.now), "sync carries its pinned clock");
