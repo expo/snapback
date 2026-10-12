@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:c90f75c97d9f337a8509765dae8aeb2d8ea1dd57d1c8
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Module projection identity:
-`sha256:60fe42257163552f1f90cc3c4a011fda463645b837de5fd8ce2bf333acc4ccb5`.
+`sha256:ceb585835adb7b48c46b7cfd7f1ca92ccda17cdd7893d8ca0f42131ab6480da6`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 

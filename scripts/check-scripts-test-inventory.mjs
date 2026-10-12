@@ -24,6 +24,11 @@ const ROOT_SCRIPTS_TEST_PATTERN = /^scripts\/[A-Za-z0-9._-]+\.test\.mjs$/u;
 
 export const SCRIPTS_TEST_INVENTORY = Object.freeze([
   {
+    file: 'scripts/caps.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'caps-fixtures' },
+  },
+  {
     file: 'scripts/binary-size-metrology.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'runtime-package-authority-fixtures' },

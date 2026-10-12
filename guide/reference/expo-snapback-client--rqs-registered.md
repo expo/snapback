@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:482f5b5d43c333758a4ff098673056048adc1d995977
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Module projection identity:
-`sha256:2366c055ad904932de3f79c099e0259076db46203aa3e801f9c9bed98a858642`.
+`sha256:abd91bd5fa94c68e5adf71adbcedfaf2f4aa1584513805b14bb3b6fbabf7c64b`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 

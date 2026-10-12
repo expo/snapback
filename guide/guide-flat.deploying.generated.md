@@ -14,6 +14,7 @@ examples: []
 status: current
 targets: [all]
 maturity: partial
+authoring-profiles: []
 reviewed: 2026-08-08
 reviewed-authorities-digest: sha256:b8d0b1c8db2169ff78afea78417374268e681164c440744c62ec88c7122a1297
 ---
@@ -863,6 +864,7 @@ examples: []
 status: current
 targets: [all]
 maturity: partial
+authoring-profiles: []
 reviewed: 2026-08-08
 reviewed-authorities-digest: sha256:6cb04e0ad71393216ec57d648a10ccc352a99e73955a5684e96ae8700caeef99
 ---

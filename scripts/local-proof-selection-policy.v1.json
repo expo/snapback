@@ -18,6 +18,7 @@
     "authoring-profile-branches",
     "package-test-inventory",
     "scripts-test-inventory",
+    "caps-fixtures",
     "security-gate-fixtures"
   ],
   "dependencyOverrides": {

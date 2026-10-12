@@ -102,7 +102,9 @@ function checkRawClientAccessorSweep() {
     const lineSeparator = line.indexOf(':', pathSeparator + 1);
     assert(pathSeparator > 0 && lineSeparator > pathSeparator, `unexpected git grep row: ${line}`);
     const path = line.slice(0, pathSeparator);
-    if (isRecordedBenchmarkEventsTranscript(path)) {
+    // Snapback 4 verification transcripts record a separate client's failures;
+    // they are evidence, like benchmark events, rather than authoring examples.
+    if (isRecordedBenchmarkEventsTranscript(path) || /^snapback4\/reports\/.*\.(?:log|txt)$/u.test(path)) {
       continue;
     }
     const sourceLine = line.slice(lineSeparator + 1);

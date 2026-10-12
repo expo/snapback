@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a15001b0c207ad439491aca12cdf9f4b24782ec21543
 # @expo/snapback-client/client-diagnostics
 
 Build-bound public API projection for `@expo/snapback-client/client-diagnostics`. Module projection identity:
-`sha256:082366644a6cf67c759d469f60e06a1ce052f9f2e27b3656256fb15987d2abd0`.
+`sha256:a9d1fc27342bd638a8e715bd8fe036735f9d70689167edd7adc0cdc754d72119`.
 Runtime parity condition:
 `import` → `packages/snapback-client/client-diagnostics.mjs`.
 

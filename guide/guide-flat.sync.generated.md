@@ -14,6 +14,7 @@ examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract,
 status: current
 targets: [local]
 maturity: partial
+authoring-profiles: [explicit]
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:338c67399ea095b570d16da2d3488c14296fd4f85bf279ed7cc2b66dbf576421
 ---

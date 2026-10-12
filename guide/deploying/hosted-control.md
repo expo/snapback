@@ -9,6 +9,7 @@ examples: []
 status: current
 targets: [all]
 maturity: partial
+authoring-profiles: []
 reviewed: 2026-08-08
 reviewed-authorities-digest: sha256:6cb04e0ad71393216ec57d648a10ccc352a99e73955a5684e96ae8700caeef99
 ---

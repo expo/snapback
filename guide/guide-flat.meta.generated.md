@@ -478,8 +478,8 @@ reviewed-authorities-digest: sha256:3200869a52a126396ca87b7944618d094f83d03b60a1
 
 <!-- @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses — witnesses, GAP rows, and the joined surfaces -->
 
-All author-facing capabilities. **GAP** rows are owned; shipped rows need a
-**witness**. The [surface map](./surface-map.md) checks routes and host-ops.
+Author-facing capabilities. **GAP** rows are owned; shipped rows need a
+**witness**. [Surface map](./surface-map.md) checks routes and host-ops.
 Owner: `ccheever`; label gaps `guide-gap`.
 
 ## Capabilities

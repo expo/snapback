@@ -422,6 +422,7 @@ run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # @ref LLP 0276#scripts — the Phase 0 scripts-test inventory is a cheap
 # fail-closed join between every root scripts/*.test.mjs file and its runner.
 run scripts-test-inventory -- node scripts/check-scripts-test-inventory.mjs
+run caps-fixtures -- node --test scripts/caps.test.mjs
 run diary-identity -- node scripts/check-diary-identity.mjs --strict
 # Root production dependencies include the published workspace closure. This
 # gate is deliberately independent of the separately selected admin-ui audit.

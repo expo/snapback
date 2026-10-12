@@ -50,8 +50,14 @@ const verify = exact('VerifyConfig', '@expo/snapback-cli/verify');
 for (const required of ['schemaVersion', 'backendDirectory', 'generatedDirectory', 'context', 'profiles']) {
   assert.ok(verify.members.some(({ name }) => name === required), `VerifyConfig must include ${required}`);
 }
-assert.match(verify.signature, /readonly profiles\?: readonly \{/u);
-assert.match(verify.signature, /run\(context: Readonly<Record<string, unknown>>\): Promise<Readonly<Record<string, unknown>>>/u);
+assert.match(verify.signature, /readonly profiles\?: readonly VerifyProfile\[\]/u);
+const profile = exact('VerifyProfile', '@expo/snapback-cli/verify');
+assert.match(profile.signature, /VerifyRunProfile \| VerifyCommandProfile/u);
+const runProfile = exact('VerifyRunProfile', '@expo/snapback-cli/verify');
+assert.match(runProfile.signature, /run\(context: Readonly<Record<string, unknown>>\): Promise<VerifyProfileOutcome> \| VerifyProfileOutcome/u);
+const profileOutcome = exact('VerifyProfileOutcome', '@expo/snapback-cli/verify');
+assert.match(profileOutcome.signature, /readonly ok: boolean/u);
+assert.match(profileOutcome.signature, /readonly context\?: VerifyIdentityContext/u);
 
 const hookFacts = ['QueryState', 'SnapbackOutboxState'].map((name) => exact(name, '@expo/snapback-react'));
 for (const fact of hookFacts) assert.equal(fact.runtime.kind, 'type-only');

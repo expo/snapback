@@ -3698,6 +3698,7 @@ examples: [packages/snapback-client/authority-transition-conformance.test.mjs, p
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-21
 reviewed-authorities-digest: sha256:147f274f197b8fb2e15b67c559278c0858f9505d608634b3e7acaf8d24da0fdf
 ---
@@ -5509,6 +5510,7 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
+authoring-profiles: [explicit]
 reviewed: 2026-08-22
 reviewed-authorities-digest: sha256:63d23e482aea60de8c68499c0859b310ae1b231463e358958c6118307eed5e84
 ---

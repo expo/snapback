@@ -37,6 +37,10 @@
       "reason": "environment",
       "detail": "SNAPBACK_ADMIN_DIST is a configuration/environment name with no proven diagnostic emission site."
     },
+    "SNAPBACK_ADMIN_INSPECT_FAILED": {
+      "reason": "reference-only",
+      "detail": "The old projection recorded this spelling only in packages/snapback-runtime-darwin-arm64/admin/assets/main-X2iEqDjD.js, a generated packaged admin bundle absent from the current authored production source. No current production emitter or receiver uses this spelling; regeneration removes the historical bundle-only reference."
+    },
     "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_DIR": {
       "reason": "environment",
       "detail": "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_DIR is a configuration/environment name with no proven diagnostic emission site."
@@ -457,6 +461,14 @@
       "reason": "test-only",
       "detail": "SNAPBACK_GUARD_FAILED occurs only in excluded test or classifier-fixture source."
     },
+    "SNAPBACK_GUIDE_MANIFEST_UNSUPPORTED": {
+      "reason": "reference-only",
+      "detail": "The old projection recorded this spelling only in packages/snapback-runtime-darwin-arm64/admin/assets/main-X2iEqDjD.js, a generated packaged admin bundle absent from the current authored production source. No current production emitter or receiver uses this spelling; regeneration removes the historical bundle-only reference."
+    },
+    "SNAPBACK_GUIDE_PAGE_UNKNOWN": {
+      "reason": "reference-only",
+      "detail": "The old projection recorded this spelling only in packages/snapback-runtime-darwin-arm64/admin/assets/main-X2iEqDjD.js, a generated packaged admin bundle absent from the current authored production source. No current production emitter or receiver uses this spelling; regeneration removes the historical bundle-only reference."
+    },
     "SNAPBACK_HANDLER_BACKEND": {
       "reason": "environment",
       "detail": "SNAPBACK_HANDLER_BACKEND is a configuration/environment name with no proven diagnostic emission site."
@@ -564,6 +576,10 @@
     "SNAPBACK_NETWORK_PROFILE_": {
       "reason": "prefix",
       "detail": "SNAPBACK_NETWORK_PROFILE_ is an incomplete diagnostic-family prefix, not a complete emitted code."
+    },
+    "SNAPBACK_NETWORK_PROFILE_UNAVAILABLE": {
+      "reason": "reference-only",
+      "detail": "The old projection recorded this spelling only in packages/snapback-runtime-darwin-arm64/admin/assets/main-X2iEqDjD.js, a generated packaged admin bundle absent from the current authored production source. No current production emitter or receiver uses this spelling; regeneration removes the historical bundle-only reference."
     },
     "SNAPBACK_OLD_FAILED": {
       "reason": "test-only",

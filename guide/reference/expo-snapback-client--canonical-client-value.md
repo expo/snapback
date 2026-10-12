@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:cffbb51ca9d3d316ee96ba9db82041d384fe5c98cb64
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Module projection identity:
-`sha256:bf7c2cc1ab48d1f20e2cff04b3353bbca879a30a4858cc0b9b5b8bb3c7349ecf`.
+`sha256:ea5701c5b00ca29b4eda696d22aa40382f2588e99aa86399d0e0478a76e34d67`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 

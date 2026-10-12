@@ -703,6 +703,7 @@ examples: [demos/browser-auth, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
+authoring-profiles: [explicit]
 reviewed: 2026-08-24
 reviewed-authorities-digest: sha256:12089a8cc4382df31b08a6200055e0b94b6871e10ded37491b52f814996b8365
 ---

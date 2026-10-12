@@ -93883,3 +93883,30 @@ to change its proven log-order refusal expectations was incorrect and reverted;
 the producer retains main's assertions. The two client models pass all 81 tests
 and fixture-wrapper tests pass 9/9. Complete qualification and round-two review
 disposition follow in a dated entry; no publication claim is made here.
+
+## 2026-10-12 — Integration 5: repair root inventory and Guide drift
+
+The commissioned repository-root checks expose inherited records outside the
+Snapback 4 fence. Repair them rather than bypassing the checks: register the
+existing caps fixture with a real canonical proof runner; migrate six changed
+legacy Guide pages to their already-surveyed authoring-profile declarations,
+retaining the immutable migration baseline; trim eight prose bytes from the
+capability index without raising its budget. Regenerate diagnostics, symbols,
+Guide manifest and flats after the fresh-tree dependency/cache bootstrap.
+
+Four removed diagnostics were recorded only in an old packaged Darwin admin
+bundle, with no current authored production emitter/receiver. Record their
+reference-only removal justifications in the existing checked ledger. The
+raw-asset-accessor sweep now treats Snapback 4 .log/.txt verification transcripts
+as recorded evidence alongside benchmark transcripts; active source and
+Markdown examples remain checked. The cold signature task follows the current
+named VerifyProfile union and resolves its callback/outcome through generated
+reference artifacts, retaining its prohibition on package-source reads.
+
+Root install/codegen bootstrap passes (hoisted Bun workspace linkage is needed
+for the legacy packages' implicit sibling imports; no package/lock change).
+The 51 root fixture tests pass. Root inventories pass: 365 package tests,
+35 script tests, 31 demos and catalog entries, 487 publication leaves,
+162 Guide pages and 1,937 snippets. Full check-guide passes all 22 checks;
+121 recorded freshness/GAP warnings remain warnings, not failures.
+No root runtime, package version or publication is changed.
