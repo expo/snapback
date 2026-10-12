@@ -3,8 +3,8 @@
 //! `{ title, body }` with `body: text ?` clears `body` whenever a client sends
 //! only the title (wave 7 lanes 047 090, both "silent data loss"). The note
 //! names the patch when the argument goes straight into a nullable column,
-//! beside at least one other field (an edit form, not a one-field setter whose
-//! null means "clear"), and nothing in the mutation tests the argument. An
+//! beside at least one other argument-supplied field (an edit form, not a
+//! one-field setter whose null means "clear", nor one stamped `editedAt: now`), and nothing in the mutation tests the argument. An
 //! `upsert` is not named: it replaces the caller's record (a vote and its
 //! optional note), and its insert arm writes the same null.
 // @ref LLP 3000.036#17.9 — omitted means null; the note points at `x ?? row.c` and a clear flag.
@@ -28,7 +28,9 @@ pub(super) fn notes(catalog: &Catalog) -> Vec<Diagnostic> {
         });
         for (op, table, keys, fields, site) in writes {
             let Some(info) = catalog.tables.get(&table) else { continue };
-            if fields.iter().any(|f| f.spread) || fields.iter().filter(|f| f.name != "id").count() < 2 { continue; }
+            // An edit form: at least two fields the client supplies (bare arguments), not a setter plus a stamp (`editedAt: now`).
+            let supplied = fields.iter().filter(|f| match &f.value { None => program.args.iter().any(|a| a.name == f.name), Some(Expr::Name { name, .. }) => program.args.iter().any(|a| &a.name == name), _ => false }).count();
+            if fields.iter().any(|f| f.spread) || supplied < 2 { continue; }
             let cleared: Vec<(&str, &str)> = fields.iter().filter_map(|field| {
                 let arg = match &field.value { None => field.name.as_str(), Some(Expr::Name { name, .. }) => name.as_str(), _ => return None };
                 (optional.contains(&arg) && info.columns.get(&field.name).is_some_and(|ty| ty.optional) && !tested.iter().any(|c| mentions(c, arg)))

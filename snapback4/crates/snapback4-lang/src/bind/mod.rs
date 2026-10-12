@@ -206,7 +206,6 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
         }
     }
     ephemeral::programs(&catalog, &mut schema, &programs, &mut diagnostics);
-    private_scans::check(&catalog, &schema, &programs, &mut diagnostics);
     delivery::durability(&catalog, &schema, &mut diagnostics);
     // @ref LLP 3000.007#20 — predicts asserts the existing eligibility decision; it never changes residency.
     for doc in &catalog.documents {
@@ -320,6 +319,9 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
         note.message = spell_internals_except(&note.message, &authored);
         note.rewrite = spell_internals_except(&note.rewrite, &authored);
     }
+    // Last, so the programs went through admission as before: a page the server
+    // always refuses is still a program the disclosure suites can run.
+    private_scans::check(&catalog, &schema, &programs, &mut diagnostics);
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
     Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
