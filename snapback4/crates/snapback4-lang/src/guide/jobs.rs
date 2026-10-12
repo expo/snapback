@@ -22,7 +22,7 @@ job remind(periodStart: time, periodEnd: time):
   for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
-schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
+schedule remindDaily every 1d at 08:00: remind          -- or: every 2m; every 1 month at day 1 09:00 (UTC months, days 1-28)
 ```
 
 **A job body is a sweep.** Put every write inside one top-level loop over a

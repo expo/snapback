@@ -52,6 +52,34 @@ returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.
 A bound row addresses itself: after `s = slots[slot] ! else NOT_FOUND`,
 `slots[s]` reads, updates and deletes that row, as `slots[s.id]` does.
 
+## Small lookup tables: `cap N`
+
+A table that stays small (categories, plans, tags) declares `cap N` with no
+`by`: at most N rows in the whole table. Every query may then read it whole,
+filtered or not, with no `first N` and no cursor:
+
+```quarry
+table categories:
+  name: text 1..40
+  unique name else CATEGORY_EXISTS
+  public 'shop categories'
+  insert <- allow
+  cap 50
+  sync public
+query categoryList():
+  return categories by .name
+mutation addCategory(name: text 1..40):
+  return insert categories { name }
+```
+
+The 51st insert refuses `E_CONSTRAINT: categories holds at most 50 rows`.
+A device predicts it when it holds the whole table (`sync public` with no
+horizon); otherwise the write queues for the server. A cap bounds a read only
+up to the 8,192-row examined ceiling, and other meters still apply. Adding or
+lowering a cap on a populated table checks the stored rows (`E_ADOPT`);
+raising one applies in place. On an expiring table the cap counts live rows.
+A table that can grow pages with `first N` and a cursor instead.
+
 ## Private lists: pin the audience
 
 A private page is `complete` only when its scan pins every column its read

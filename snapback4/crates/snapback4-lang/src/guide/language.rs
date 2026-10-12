@@ -75,7 +75,7 @@ table documents:
   sync last 500 by .id              -- infers the captured owner audience
 table rooms:
   name: text 1..80                    -- text <=N | text M..N, either with `format handle` or `format url`
-  ownerId: principal                  -- principal | id | <table> (a reference to its row) | int | time (milliseconds) | bool
+  ownerId: principal                  -- principal | id | <table> (a reference to its row) | int [M..N] | time (milliseconds) | bool
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
   tags: [text <=20] <=8               -- [T] 1..N inclusive; [T] <=N means 0..N
   parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique id
@@ -235,7 +235,7 @@ query daily(c: cursor ?):
 query today():
   return dailyPosts[viewer, day(now)]
 query calendar():
-  return { hour: hour(now), bucket: bucket(now, 2m) }
+  return { hour: hour(now), bucket: bucket(now, 2m), month: month(now), year: year(now), monthStarts: monthStart(month(now)) }
 query anchoredKeys():
   return { day: day(now, 8h), hour: hour(now, 30m), bucket: bucket(now, 1d, 8h) }
 query digestToday():
@@ -401,7 +401,7 @@ mutation post(bodies: [text <=500] <=10):
   for body in bodies:                                                -- a loop over a bounded list; `for row in page:` and `for i in range(0, 10):` are the other domains
     insert posts { authorId: viewer, body, score: 0, at: now }
   return count(bodies)
-mutation split(total: int, people: [principal] 1..8):
+mutation split(total: int 0.., people: [principal] 1..8):
   insert ledger { ownerId: viewer, amount: share(total, people, viewer), weight: 1, at: now }   -- share: one person's part of an amount split evenly, deterministically
 ```
 
@@ -419,6 +419,7 @@ job nightly(periodStart: time, periodEnd: time):                    -- system sw
     for i in range(0, 2):                                            -- int expressions, under the step meter
       update posts[id = p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
+schedule everyMonth every 1 month at day 1 09:00: nightly            -- UTC calendar months
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
 effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
@@ -552,8 +553,7 @@ is unavailable, including before `??`; devices need complete domain coverage.
 Rules precede comparisons. `exists` stops at a visible match; unknown domains
 cannot prove absence. See `guide reads`.
 
-`ys = xs + [value]`, `[a] + [b]` and `return xs + [value]` concatenate lists;
-item types join and bounds add.
+`ys = xs + [value]`, `[a] + [b]` and `return xs + [value]` concatenate lists; item types join and bounds add.
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
 
 `sha256` is for high-entropy capability tokens and content checksums. It hashes

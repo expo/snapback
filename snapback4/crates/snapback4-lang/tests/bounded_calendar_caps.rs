@@ -158,3 +158,54 @@ fn bound_and_cap_changes_classify_by_what_stored_rows_can_violate() {
     assert_eq!(change(&schema("int", "cap 9"), &schema("int", "cap 5")), Change::Narrowing);
     assert_eq!(change(&schema("int", none), &schema("int", "cap 5")), Change::Narrowing);
 }
+
+/// The recipes card's UTC monthly billing (LLP 3000.040 §6), end to end on the
+/// engine: a two-month outage bills both months once, a rerun bills nothing,
+/// and a backlog longer than one run's lookback converges.
+#[test]
+fn the_monthly_billing_recipe_catches_up_once() {
+    use snapback4_core::{Context, Engine, Value, value::object};
+    let card = snapback4_lang::guide::card("recipes").unwrap();
+    let block = snapback4_lang::guide::quarry(card).into_iter().find(|b| b.contains("job bill(")).unwrap();
+    let b = clean(&block);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([("plans".into(), object([("id", Value::Id("pro".into())), ("name", Value::String("Pro".into())), ("price", Value::Int(1_200))]))]).unwrap();
+    let month = |m: i64| snapback4_core::calendar::month_start(m).unwrap();
+    let nine = 9 * 3_600_000;
+    let at = |m: i64| month(m) + nine; // 09:00 on the 1st of month ordinal m
+    let oct = 681;
+    let sent = |o: snapback4_core::MutationOutcome| matches!(o.state, snapback4_core::WriteState::Sent { .. });
+    assert!(sent(e.mutate("subscribe", None, Context::new("alice", [("plan".to_owned(), Value::Id("pro".into()))].into()).at(month(oct) + 10 * 86_400_000)).unwrap()));
+    let invoices = |e: &Engine| {
+        let mut months: Vec<i64> = e.store().rows("invoices").unwrap().iter().map(|r| r.field("month").unwrap().as_int().unwrap()).collect();
+        months.sort();
+        months
+    };
+    let mut fire = |e: &mut Engine, now: i64| {
+        let fired = e.fire_schedules(now).unwrap();
+        while let Some(run) = e.run_job_chunk(now).unwrap() {
+            assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
+        }
+        fired
+    };
+    assert!(fire(&mut e, at(oct)).is_empty(), "a schedule first seen fires from its next boundary");
+    assert_eq!(fire(&mut e, at(oct + 1)), ["billing"]);
+    assert_eq!(invoices(&e), [oct]);
+    // Down through December and January: one coalesced run on February 1st bills both, once.
+    assert_eq!(fire(&mut e, at(oct + 4)), ["billing"]);
+    assert_eq!(invoices(&e), [oct, oct + 1, oct + 2, oct + 3]);
+    assert!(fire(&mut e, at(oct + 4) + 1).is_empty());
+    assert_eq!(invoices(&e), [oct, oct + 1, oct + 2, oct + 3]);
+    // A two-year backlog: twelve months a run, the oldest first, until caught up.
+    e.seed([("subscriptions".into(), object([("id", Value::Id("old".into())), ("owner", Value::Id("bob".into())), ("plan", Value::Id("pro".into())), ("startMonth", Value::Int(oct - 30)), ("billedThrough", Value::Int(oct - 31))]))]).unwrap();
+    let bob = |e: &Engine| e.store().rows("invoices").unwrap().iter().filter(|r| r.field("owner").unwrap() == &Value::Id("bob".into())).count();
+    fire(&mut e, at(oct + 5));
+    assert_eq!(bob(&e), 12);
+    fire(&mut e, at(oct + 6));
+    assert_eq!(bob(&e), 24);
+    fire(&mut e, at(oct + 7));
+    assert_eq!(bob(&e), 36);
+    fire(&mut e, at(oct + 8));
+    assert_eq!(bob(&e), 38, "oct-30 through oct+7: caught up");
+    assert!(e.store().rows("invoices").unwrap().iter().all(|r| r.field("amount").unwrap() == &Value::Int(1_200)));
+}

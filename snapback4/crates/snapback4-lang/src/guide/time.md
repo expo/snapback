@@ -1,7 +1,7 @@
 # Time: now, durations, calendar days and the dev clock
 
 A `time` is Unix milliseconds in UTC, and `now` is the writing host's clock.
-Durations are milliseconds too, and `day`, `hour` and `bucket` turn a time into a calendar number.
+Durations are milliseconds too; `day`, `hour`, `bucket`, `month` and `year` turn a time into a calendar number.
 
 ```quarry
 use personas alice, bob
@@ -40,6 +40,10 @@ query today():                            -- day: 20737; midnight: 1791676800000
 query pacificToday():                     -- days that start at 08:00 UTC: midnight at UTC-8, no DST
   return { day: day(now, 8h), starts: day(now, 8h) * 1d + 8h }
 
+query thisMonth():                        -- month: 681 (2026-10), year: 2026; [start, end) as times
+  m = month(now)
+  return { month: m, year: year(now), start: monthStart(m), end: monthStart(m + 1) }
+
 mutation addShift(title: text 1..80, startsAt: time, hours: int):
   require hours >= 1 and hours <= 24 else BAD_LENGTH 'A shift is 1 to 24 hours.'
   require startsAt >= now - 1d else IN_THE_PAST
@@ -57,8 +61,8 @@ mutation checkIn():
   `default now` stamps an omitted field the same way.
 - Duration literals: `500ms`, `30s`, `15m`, `24h`, `7d`. They are plain integers of milliseconds:
   `now + 1h`, `.endsAt - .startsAt` (elapsed ms), `hours * 1h`, `.at >= now - 7d`.
-- There are no time zones and no date type. Compute local wall-clock dates, weekdays and months in the
-  client from the millisecond number.
+- There are no time zones and no date type. Compute local wall-clock dates, weekdays and local months in
+  the client from the millisecond number; UTC months are `month(t)` below.
 
 ## Calendar numbers: day, hour, bucket
 
@@ -71,17 +75,29 @@ mutation checkIn():
   and in range filters (`.at >= day(now) * 1d` is "since midnight UTC").
 - A `time` column accepts any integer, so storing `day(now)` there type-checks and reads as January 1970.
   Store `day(now) * 1d`, or keep the day number in an `int` column.
-- There is no `month(t)` or `year(t)`: a calendar month has no fixed length, and `bucket(t, 30d)` is
-  not one. Keep the month the client computes in an `int` column (`202610`, from
-  `d.getUTCFullYear() * 100 + d.getUTCMonth() + 1`) and key or group by it (`unique person, month`,
-  `view … by .person, .month`). For a range, pass the month's first instant and the next month's as
-  `time` arguments (`.at >= start and .at < end`). When the key must match the clock, check the bounds
-  you were given: `require start <= now and now < end and end - start <= 31d else BAD_MONTH`.
+
+## Months and years (UTC)
+
+- `month(t)` counts months since 1970-01: 681 is 2026-10, -1 is 1969-12. Arithmetic is continuous:
+  `month(now) - 1` is last month, `month(.at) >= month(now) - 2` is the last three months.
+- `year(t)` is the calendar year (2026); `month(t) / 12 + 1970` equals it.
+- `monthStart(m)` and `yearStart(y)` are the first instants, as `time`s. A month is `[monthStart(m),
+  monthStart(m + 1))`; there is no `monthEnd`, because ranges are half-open. They refuse E_OVERFLOW only
+  beyond about ±285,000 years.
+- Keys and views take them like `day`: `unique person, month(at) else ALREADY_THIS_MONTH`,
+  `view … by .owner, month(.at)`, `checkins[viewer, month(now)]`.
+- In JS: `Date.UTC(1970, m)` is the month's start; `(d.getUTCFullYear() - 1970) * 12 + d.getUTCMonth()`
+  is the key.
+- Months and years are UTC; they take no offset. Local-time months (a time zone) are not available:
+  for a fixed-offset zone west of UTC, store the client's local month in an `int` column.
 
 ## Schedules and expiry
 
 - `schedule nightly every 1d at 03:00: digest` fires once per period of the server's clock, in UTC;
   periods are `every 2m`, `1h` or `1d [at HH:MM]` (`guide jobs`).
+- `schedule billing every 1 month at day 1 09:00: bill` fires on calendar months (UTC); `every 3 months`
+  fires in January, April, July and October, `every 1 year` in January. Days 1–28 only.
+  `month(periodStart)` is the month that just ended.
 - `expire at .expiresAt` ends a row's life at a time; a null time never expires (`guide expire`).
 - Catch-up: a schedule fires once per boundary, never twice. Boundaries it missed (the server was
   down, or `clock advance` jumped past them) coalesce into one run for the latest period once
