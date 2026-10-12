@@ -375,3 +375,71 @@ into one run for the latest period only. So a sweep over exactly
 closed, so one run catches up. Test with a running `dev`: `snapback4 clock
 advance 3h` reports `fired`, the period and `skippedPeriods` for each
 schedule (`guide time`, `guide jobs`).
+
+## Receipts: expense claims with a PDF or photo
+
+An employee files a claim with its receipt; approvers see every claim and
+decide it. The receipt is a `file` that accepts a PDF or a phone photo of
+the paper: the server checks each upload's declared type against its bytes,
+and the claim row's read rule decides who may download it (`guide assets`,
+"Files"). Claims and their decisions are server work: the table is online
+only, so nothing predicts.
+
+```quarry
+use personas alice, bob, ana
+
+table approvers:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+
+table claims:
+  owner: principal
+  title: text 1..120
+  cents: int
+  receipt: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')
+  decision: enum('approved', 'rejected') ?
+  at: time default now
+  read <- .owner = viewer or exists approvers[viewer]
+  insert <- .owner = viewer
+  update <- exists approvers[viewer]
+  online only
+
+query myClaims(c: cursor ?):
+  return claims where .owner = viewer last 50 by .at after c
+
+query allClaims(c: cursor ?):
+  require exists approvers[viewer] else NOT_APPROVER
+  return claims last 50 by .at after c
+
+mutation fileClaim(title: text 1..120, cents: int, receipt: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')):
+  require cents > 0 else BAD_AMOUNT
+  require receipt.bytes <= 5000000 or receipt.type = 'application/pdf' else PHOTO_TOO_LARGE 'Photos must be under 5 MB; scan to PDF instead.'
+  return insert claims { owner: viewer, title, cents, receipt }
+
+mutation decide(claim: claims, decision: enum('approved', 'rejected')):
+  require exists approvers[viewer] else NOT_APPROVER
+  row = claims[claim] ! else NOT_FOUND
+  require row.decision = null else ALREADY_DECIDED
+  update claims[claim] { decision }
+```
+
+The client uploads the picked file, then files the claim with its id:
+`const up = await client.upload(file, { file: {} })`, then
+`client.mutate(api.fileClaim, { title, cents, receipt: { id: up.asset.id } })`
+when `up.ok`. A download link calls `saveAsset(client, claim.receipt.id)`.
+A wrong or spoofed type is `E_ASSET_TYPE` at upload, before any claim exists.
+
+An acceptance script uploads real bytes as alice, places them, and checks
+that bob is refused and ana (an approver) is served an attachment:
+
+```sh
+U=http://127.0.0.1:4400
+id=$(curl -s -X POST "$U/assets?as=file&name=taxi.pdf" -H 'x-snapback-persona: alice' -H 'Content-Type: application/pdf' --data-binary @taxi.pdf | jq -r .asset.id)
+curl -s -X POST $U/m/fileClaim -H 'x-snapback-persona: alice' -d "{\"args\":{\"title\":\"Taxi\",\"cents\":2350,\"receipt\":{\"id\":\"$id\"}}}"
+curl -s -o /dev/null -w '%{http_code}\n' "$U/assets/$id" -H 'x-snapback-persona: bob'   # 404: bob cannot read the claim
+curl -s -D - -o taxi-copy.pdf "$U/assets/$id" -H 'x-snapback-persona: ana' | grep -i content-disposition
+```
+
+Seed `approvers` with `{"id":"a1","principal":"dev:ana"}` in a fixture.

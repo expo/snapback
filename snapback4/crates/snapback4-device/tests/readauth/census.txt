@@ -45,6 +45,8 @@ card/assets/1:sendClip | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | 
 card/assets/1:sendClip | eligible
 card/assets/1:sendPhotos | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/assets/1:sendPhotos | eligible
+card/assets/3:addReceipt | eligible
+card/assets/3:addReceipt | receipts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:addItem | eligible
 card/cheatsheet/1:addItem | items/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:addItem | openItems/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
@@ -421,6 +423,8 @@ card/recipes/4:cancel | eligible
 card/recipes/4:removeSlot | never
 card/recipes/5:host | never
 card/recipes/5:rsvp | never
+card/recipes/6:decide | never
+card/recipes/6:fileClaim | never
 card/refusals/1:checkin | never
 card/refusals/1:createRoom | eligible
 card/refusals/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

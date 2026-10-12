@@ -460,8 +460,8 @@ curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: applicati
 ```"##,
         "assets" => r##"# Assets: upload, place, serve
 
-Assets are uploaded images and videos attached to a row.
-That row's read rule controls who can fetch the bytes.
+Assets are uploaded images, videos and files (documents: "Files" below)
+attached to a row. That row's read rule controls who can fetch the bytes.
 
 ```quarry
 table clips:
@@ -698,7 +698,56 @@ A released or unreadable home reports `E_ASSET_UNKNOWN` on download;
 a fetch while offline without retained bytes reports `E_OFFLINE`; an already
 ready handle is not refetched just because the link drops. A loading profile
 has not supplied an asset id yet. One-view photos use the explicit-open viewer
-in `guide client`, never this automatically fetched avatar pattern."##,
+in `guide client`, never this automatically fetched avatar pattern.
+
+## Files: receipts, contracts and other documents
+
+A `file` column holds a document under the image contract: the uploader's
+until placed, one home, served by that row's read rule, released on delete,
+clear or expiry, swept when unclaimed. Nothing is transcoded or previewed.
+
+```quarry
+table receipts:
+  owner: principal
+  scan: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')
+  extras: [file <=2000000] <=4 ?           -- no list: every verifiable type
+  at: time
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  delete <- .owner = viewer
+  sync to .owner last 200 by .at
+
+mutation addReceipt(scan: file <=10000000 ('application/pdf', 'image/jpeg', 'image/png')):
+  require scan.bytes <= 5000000 else TOO_LARGE   -- scan.type, .bytes, .name: the server's facts
+  return insert receipts { owner: viewer, scan, at: now }
+```
+
+Verifiable types, the default list: `application/pdf`, `text/plain`,
+`text/csv`, `text/markdown`, `application/json`, `image/png`, `image/jpeg`,
+`image/webp`, `image/gif`, `application/zip` and the Office Open XML
+document, sheet and presentation types. HTML, SVG, XML and JavaScript are
+never files: `check` refuses them (upload such text as `text/plain`).
+`once` does not apply to a file.
+
+`client.upload(file, { file: {} })` posts `/assets?as=file&name=<name>`
+with the File's type as `Content-Type` (`{ file: { type, name } }`
+overrides). The server checks the declared type against the bytes (`%PDF-`,
+image and zip headers, UTF-8 text, parseable JSON); a mismatch, a type no
+file column accepts, or HTML/SVG is E_ASSET_TYPE. Undeclared, PDF, PNG,
+JPEG, WebP, GIF and zip are named by their bytes. The body is read only to
+the largest file column's bound (413 E_ASSET_TOO_LARGE); placement checks
+the column's list and bound. The reply and the row carry `{ id, type,
+bytes, name }`: the name keeps its last path segment, without control or
+bidi characters or leading dots, at most 255 bytes (`file` when empty).
+
+A file is only ever a download: `Content-Disposition: attachment` with its
+name, `nosniff`, a sandboxing CSP, text as `text/plain; charset=utf-8`;
+ranges work. `saveAsset(client, id)` (`snapback4/client`) or
+`useSaveAsset().save(id)` fetches it on a button press and saves it;
+`client.asset(id)` and `useAsset(id)` also return its `name`. Fixture rows
+may name a file cell (`{"scan":{"id":"r1","type":"application/pdf",
+"bytes":1234,"name":"r.pdf"}}`) but have no bytes behind it: an acceptance
+script uploads real bytes and places the returned id."##,
         "read-only" => include_str!("guide/read_only.md"),
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,
