@@ -93837,3 +93837,12 @@ the worktree baseline 2,245,422 / 679,351, the whole-artifact delta is
 +32,064 B raw / +10,110 B gzip. This supersedes the previous PAGE artifact
 measurement; no per-feature attribution, macOS measurement or runtime
 resource-ceiling change.
+
+PAGE nullable-witness qualification: the locked Linux web artifact after
+witness-specific null-parent discovery is 2,277,755 B raw / 689,580 B gzip.
+It passes the existing 689,645 B budget without another increase. Against
+the worktree baseline 2,245,422 / 679,351, the whole-artifact delta is
++32,333 B raw / +10,229 B gzip. This supersedes the prior PAGE measurement;
+no per-feature attribution, macOS measurement or runtime resource-ceiling
+change. Exact point-key nulls remain no-row; a null residual equality can
+carry an actual fixed-ID membership witness.
