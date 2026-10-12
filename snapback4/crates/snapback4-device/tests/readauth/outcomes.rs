@@ -50,12 +50,18 @@ fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:
     let expected_hidden:std::collections::BTreeSet<_>=if op=="edit" {
         ["messages/message".to_owned()].into()
     } else if op=="writeForms" {
-        q.predicted.iter().filter(|key|key.as_str()=="messages/message" || key.starts_with("reactions/") || key.starts_with("reactionCounts/")).cloned().collect()
+        q.predicted.iter().filter(|key|key.as_str()=="messages/message" || key.starts_with("reactions/")).cloned().collect()
     } else {
         raw.iter().filter(|(_,row)|row.field("readerId").is_ok_and(|value|value!=&id("alice"))).map(|(key,_)|key.clone()).collect()
     };
     assert_eq!(hidden_keys,expected_hidden,"{op}: {pending:?}");
-    assert_eq!(hidden_keys.len(),if op=="writeForms" {3}else{1});
+    assert_eq!(hidden_keys.len(),if op=="writeForms" {2}else{1});
+    if op=="writeForms" {
+        let aggregate:Vec<_>=pending.iter().filter(|(key,_)|key.starts_with("reactionCounts/")).collect();
+        assert_eq!(aggregate.len(),1,"{pending:?}");
+        assert!(aggregate[0].1["data"].as_object().is_some_and(|data|data.get("value")==Some(&Json::Null))
+            && aggregate[0].1["complete"]==Json::Bool(true),"authorized synthetic maintained points expose a nullable value: {pending:?}");
+    }
     for (key,result) in &pending {
         if let Some(row)=raw.get(key) {
             if !hidden_keys.contains(key) {assert_eq!(result["data"],wire::to_json(row));let table=key.split_once('/').unwrap().0;
@@ -90,6 +96,9 @@ fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:
                 // Left delivered history may retain its old body after a blind
                 // authorized server patch; it is never promoted from the overlay.
                 if key=="messages/message" {assert_eq!(out.data.field("body"),Ok(&Value::String("Old".into())));}
+                else if server.is_none() && d.schema().maintain_for(table).is_some() {
+                    assert!(out.complete && out.data.field("value")==Ok(&Value::Null),"settled synthetic maintained point {key}: {out:?}");
+                }
                 else {assert_eq!(Some(out.data),server,"settled {key}");}
             }
         }

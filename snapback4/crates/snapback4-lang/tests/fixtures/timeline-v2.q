@@ -36,9 +36,9 @@ maintain feed: timeline
   edges follows by followerId, followedId
 
 mutation post(postId: id, parentId: posts ?):
-  return insert posts { id: postId, authorId: viewer, parentId, at: now }
+  return insert posts { id: postId, authorId: viewer, parentId: (posts[parentId] ! else NOT_FOUND).id if parentId != null else null, at: now }
 mutation repost(postId: posts):
-  return insert reposts { actorId: viewer, postId, at: now } if absent
+  return insert reposts { actorId: viewer, postId: (posts[postId] ! else NOT_FOUND).id, at: now } if absent
 mutation unrepost(postId: posts):
   delete reposts[viewer, postId]
 mutation follow(actor: principal):

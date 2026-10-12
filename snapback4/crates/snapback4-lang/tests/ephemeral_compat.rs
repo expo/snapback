@@ -25,6 +25,84 @@ fn durable_schema_and_types_keep_base_bytes() {
     // with the round-0 compiler at e1d84ebe7, before merging ephemeral tables.
     let p1: BTreeMap<String, (String, String)> = serde_json::from_str(include_str!("fixtures/ephemeral-compat-p1.json")).unwrap();
     for (name, bytes) in p1 { assert!(expected.insert(name, bytes).is_none()); }
+    // Maintained point reads now expose authorization absence in their result
+    // type. This is the intentional API correction; the durable schema bytes
+    // and every unrelated generated type remain frozen below.
+    let types = &mut expected.get_mut("expiring-counts.q").unwrap().1;
+    for (old, new, count) in [
+        ("Result: number. runs:", "Result: number | null. runs:", 4),
+        ("Query<Record<string, never>, number>;", "Query<Record<string, never>, number | null>;", 2),
+        ("Query<{ day: number }, number>;", "Query<{ day: number }, number | null>;", 2),
+    ] {
+        assert_eq!(types.matches(old).count(), count);
+        *types = types.replace(old, new);
+    }
+    let types = &mut expected.get_mut("intent-issues.q").unwrap().1;
+    for (old, new) in [
+        (
+            "Result: { doing: number; done: number; todo: number }.",
+            "Result: { doing: number | null; done: number | null; todo: number | null }.",
+        ),
+        (
+            "Query<{ org: string }, { doing: number; done: number; todo: number }>;",
+            "Query<{ org: string }, { doing: number | null; done: number | null; todo: number | null }>;",
+        ),
+    ] {
+        assert_eq!(types.matches(old).count(), 1);
+        *types = types.replace(old, new);
+    }
+    let types = &mut expected.get_mut("read-through-clique.q").unwrap().1;
+    for (old, new) in [
+        ("Result: number. runs: device.", "Result: number | null. runs: device."),
+        ("Query<{ chat: string }, number>;", "Query<{ chat: string }, number | null>;"),
+    ] {
+        assert_eq!(types.matches(old).count(), 1);
+        *types = types.replace(old, new);
+    }
+    let types = &mut expected.get_mut("read-through-device.q").unwrap().1;
+    for (old, new) in [
+        ("Result: number. runs: device.", "Result: number | null. runs: device."),
+        ("Query<{ task: string }, number>;", "Query<{ task: string }, number | null>;"),
+    ] {
+        assert_eq!(types.matches(old).count(), 1);
+        *types = types.replace(old, new);
+    }
+    // Reference-typed mutation arguments now establish the referenced row
+    // before storing its id. Pin exactly the two new point-read sites and
+    // refusal codes while keeping every other timeline byte frozen.
+    let (record, types) = expected.get_mut("timeline-v2.q").unwrap();
+    let mut schema: serde_json::Value = serde_json::from_str(record).unwrap();
+    for (operation, site) in [
+        ("post", "schema.q:39:66 (posts[parentId])"),
+        ("repost", "schema.q:41:53 (posts[postId])"),
+    ] {
+        let operation = &mut schema["operations"][operation];
+        assert_eq!(operation["requires"], serde_json::json!([]));
+        operation["requires"] = serde_json::json!(["NOT_FOUND"]);
+        operation["sites"].as_array_mut().unwrap().insert(0, serde_json::json!({
+            "site": site,
+            "table": "posts",
+            "index": "byId",
+            "kind": "point",
+            "class": "held",
+            "reason": if site.contains("parentId") {
+                "point posts by byId: held, no horizon; selected byId (id = parentId); result: row or null; only declared unique key of this arity"
+            } else {
+                "point posts by byId: held, no horizon; selected byId (id = postId); result: row or null; only declared unique key of this arity"
+            },
+            "rewrite": "",
+        }));
+    }
+    *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap();
+    for args in [
+        "Arguments: { postId: string; parentId?: string | null }.",
+        "Arguments: { postId: string }.",
+    ] {
+        let old = format!("{args} Result:");
+        let at = types.find(&old).unwrap();
+        let end = types[at..].find("Require codes: none.").unwrap() + at;
+        types.replace_range(end..end + "Require codes: none.".len(), "Require codes: NOT_FOUND.");
+    }
     // QX extends prediction to read-through upserts (LLP 3000.007 §20.5).
     // Preserve every frozen byte except the removed blanket server site and
     // its operation verdict; the byId insert limitation remains unchanged.

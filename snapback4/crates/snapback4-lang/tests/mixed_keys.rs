@@ -191,11 +191,18 @@ fn mixed_write_targets_preserve_existing_named_target_admission() {
         let errors_a = errors(a);
         assert!(errors_a.iter().any(|d| d.0 == "E_QUARRY_WRITE_TESTS"));
         assert_eq!(errors_a, errors(b));
-        let supported = source.replace("  unique org, principal\n", "  unique org, principal\n  unique byOrgPrincipalRole: org, principal, role\n");
-        let a = checked(&supported);
-        let b = checked(&named(&supported));
+        // A write with residual tests remains refused. Exercise the supported
+        // full-key case with all three positional components, beside its fully
+        // named equivalent, after replacing the competing two-column key.
+        let keyed = source.replace("  unique org, principal\n", "  unique byOrgPrincipalRole: org, principal, role\n");
+        let positional = keyed
+            .replace("members[.org, viewer, role = 'admin']", "members[.org, viewer, 'admin']")
+            .replace("members[org, viewer, role = 'admin']", "members[org, viewer, 'admin']");
+        let named = named(&keyed);
+        let a = checked(&positional);
+        let b = checked(&named);
         assert_eq!(a.programs.last().unwrap().program, b.programs.last().unwrap().program);
-        let mut engines = [engine(&supported), engine(&named(&supported))];
+        let mut engines = [engine(&positional), engine(&named)];
         for e in &mut engines {
             e.seed([("members".into(), snapback4_core::value::object([("id", id("m")), ("org", id("org")), ("principal", id("alice")), ("role", Value::String("admin".into()))]))]).unwrap();
             let result = e.mutate("change", None, context("alice", "org", id("org"))).unwrap();
