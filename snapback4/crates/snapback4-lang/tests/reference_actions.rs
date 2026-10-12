@@ -508,6 +508,28 @@ fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
 }
 
 #[test]
+fn reference_argument_lookups_must_reach_each_write() {
+    let schema = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\n";
+    let notes = |body: &str, args: &str| {
+        let source = format!("{schema}mutation create(id: id, parent: parents{args}):\n{body}");
+        let bound = bound(&source);
+        assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+        bound.notes.iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").count()
+    };
+
+    assert_eq!(notes("  ignored = skip or checked(parent)\n  insert kids { id, parent }\n", ", skip: bool"), 1,
+        "a short-circuited helper is not a mandatory lookup");
+    assert_eq!(notes("  if check:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", check: bool"), 1,
+        "a one-sided direct lookup does not dominate the write");
+    assert_eq!(notes("  for check in checks:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", checks: [bool] <=2"), 1,
+        "a possibly empty loop does not prove a later lookup");
+    assert_eq!(notes("  insert kids { id, parent }\n  ignored = exists parents[parent]\n", ""), 1,
+        "a later lookup cannot suppress the earlier write's note");
+    assert_eq!(notes("  if check:\n    ignored = checked(parent)\n  else:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", check: bool"), 0,
+        "both fallthrough paths perform an exact target-id lookup");
+}
+
+#[test]
 fn check_names_the_delete_sites_the_default_changed() {
     let notes = |source: &str| snapback4_lang::compile(&[("schema.q".into(), source.into())]).notes.iter().filter(|n| n.code == "N_DELETE_RESTRICTED").map(|n| n.message.clone()).collect::<Vec<_>>();
     let source = "table parents:\n  read <- allow\n  delete <- allow\ntable kids:\n  parent: parents\n  read <- allow\nmutation drop(id: parents):\n  delete parents[id]\n";

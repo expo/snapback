@@ -233,6 +233,14 @@ table officers:
   principal: principal
   unique principal
   read <- .principal = viewer
+table hiddenBans:
+  principal: principal
+  unique principal
+  read <- deny
+table readableBans:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
 table inboxItems:
   meeting: meetings
   principal: principal
@@ -244,6 +252,12 @@ view chairedMeetingCounts: count meetings by .chair
   read <- .chair = viewer
   online only
 view inheritedCounts: count inboxItems by .meeting, .principal
+view hiddenUnbannedCounts: count meetings by .chair
+  read <- not exists hiddenBans[viewer]
+  online only
+view readableUnbannedCounts: count meetings by .chair
+  read <- not exists readableBans[viewer]
+  online only
 query bare(meeting: meetings):
   return recusalCounts[meeting]
 query guarded(meeting: meetings):
@@ -256,6 +270,12 @@ query selfAuthorized():
   return chairedMeetingCounts[viewer]
 query inheritedSelfAuthorized(meeting: meetings):
   return inheritedCounts[meeting, viewer]
+query hiddenAbsence(owner: principal):
+  require not exists hiddenBans[viewer] else BANNED
+  return hiddenUnbannedCounts[owner]
+query readableAbsence(owner: principal):
+  require not exists readableBans[viewer] else BANNED
+  return readableUnbannedCounts[owner]
 query rebound(a: principal, b: principal):
   key = a
   require key = viewer else NOT_OWNER
@@ -303,12 +323,13 @@ query stableLoop(a: principal, b: principal):
 "#;
     let b = bound(source);
     let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
-    assert_eq!(notes.len(), 7, "unrelated and stale requirements must not suppress the note: {:#?}", b.notes);
-    for name in ["bare", "unrelated", "rebound", "nestedReturn", "branchRebound", "loopRebound", "loopCarriedReturn"] {
+    assert_eq!(notes.len(), 8, "unrelated, stale, and visibility-only requirements must not suppress the note: {:#?}", b.notes);
+    for name in ["bare", "unrelated", "hiddenAbsence", "rebound", "nestedReturn", "branchRebound", "loopRebound", "loopCarriedReturn"] {
         assert!(notes.iter().any(|note| note.message.contains(&format!("query {name}"))), "{name}: {notes:#?}");
     }
     assert!(!notes.iter().any(|note| note.message.contains("query inheritedSelfAuthorized")), "{notes:#?}");
-    assert!(!notes.iter().any(|note| note.message.contains("query stableBranch") || note.message.contains("query stableLoop")), "{notes:#?}");
+    assert!(!notes.iter().any(|note| note.message.contains("query readableAbsence")
+        || note.message.contains("query stableBranch") || note.message.contains("query stableLoop")), "{notes:#?}");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|program| program.program)).unwrap();
     e.seed_at([
         ("meetings".into(), snapback4_core::value::object([("id", id("with")), ("chair", id("alice"))])),

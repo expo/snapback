@@ -25,7 +25,7 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
                 let expected = info.decl.rules.iter().find(|rule| rule.effect == Effect::Read)
                     .and_then(|rule| substituted_view_rule(maintain, rule, read));
                 if expected.as_ref().is_some_and(|expected| constant_bool(expected) == Some(true))
-                    || expected.as_ref().is_some_and(|expected| requirements.iter().any(|condition| canonical(condition.clone()) == canonical(expected.clone())))
+                    || expected.as_ref().is_some_and(|expected| requirements.iter().any(|condition| requirement_proves_raw_rule(schema, condition, expected)))
                     || read.range.is_some() || read.keys.len() != maintain.by.len()
                     || table.rules.read.is_uniformly_readable() || matches!(table.rules.read, RuleExpr::Deny)
                     || !seen.insert((program.site.file.clone(), program.name.clone(), read.table.clone())) {
@@ -38,6 +38,35 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
         }
     }
     notes
+}
+
+/// Program probes see only authorized rows, while a maintained rule evaluates
+/// its witness against raw rows. Positive existence is safe: a raw witness can
+/// only add rows. Absence is not — `not exists hidden[key]` can pass in the
+/// program and fail in the maintained rule for the same viewer and key.
+fn requirement_proves_raw_rule(schema: &Schema, condition: &Expr, expected: &Expr) -> bool {
+    canonical(condition.clone()) == canonical(expected.clone()) && raw_witness_monotone(schema, expected, true)
+}
+
+fn raw_witness_monotone(schema: &Schema, expression: &Expr, positive: bool) -> bool {
+    match expression {
+        Expr::Exists { read, .. } => positive
+            || super::program::maintain_types::program_absence_is_raw(schema, read),
+        Expr::Unary { op, value, .. } if op == "not" => raw_witness_monotone(schema, value, !positive),
+        Expr::Binary { op, left, right, .. } if matches!(op.as_str(), "and" | "or") => {
+            raw_witness_monotone(schema, left, positive) && raw_witness_monotone(schema, right, positive)
+        }
+        _ => !contains_exists(expression),
+    }
+}
+
+fn contains_exists(expression: &Expr) -> bool {
+    let mut expression = expression.clone();
+    let mut found = false;
+    super::intent_walk::expression(&mut expression, &mut |expr| {
+        if matches!(expr, Expr::Exists { .. }) { found = true; }
+    });
+    found
 }
 
 /// Visit returns with the requirements that still dominate them. Branches
