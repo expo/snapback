@@ -3,6 +3,7 @@
 use super::*;
 use crate::schema::{ColumnDefault, ColumnType, materialize_optional_fields};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 pub(crate) const VERSION: &str = "snapback4-release-store-2";
 
@@ -73,12 +74,50 @@ fn capture_refs(
     let mut refs = Vec::new();
     references(kind, value, &mut refs);
     for (parent, parent_id) in refs {
-        let parent_t = tx.num(&parent)?;
-        let invalid = tx.get(&parent, &parent_id)?.is_none();
-        tx.conn().execute(
-            "INSERT OR IGNORE INTO _dormant_refs VALUES(?1,?2,?3,?4,?5,?6)",
-            params![t, id, column, parent_t, parent_id, invalid],
+        add_reference(tx, t, id, column, &parent, &parent_id)?;
+    }
+    Ok(())
+}
+
+fn add_reference(
+    tx: &Tx<'_>,
+    t: i64,
+    id: &str,
+    column: &str,
+    parent: &str,
+    parent_id: &str,
+) -> Result<(), RuntimeError> {
+    let parent_t = tx.num(parent)?;
+    let invalid = tx.get(parent, parent_id)?.is_none()
+        && !tx.conn().query_row(
+            "SELECT EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1 AND id=?2)",
+            params![parent_t, parent_id],
+            |r| r.get::<_, bool>(0),
         )?;
+    tx.conn().execute(
+        "INSERT OR IGNORE INTO _dormant_refs VALUES(?1,?2,?3,?4,?5,?6)",
+        params![t, id, column, parent_t, parent_id, invalid],
+    )?;
+    Ok(())
+}
+fn capture_through_parent(
+    tx: &Tx<'_>,
+    name: &str,
+    table: &Table,
+    id: &str,
+    column: &str,
+    row: &Value,
+) -> Result<(), RuntimeError> {
+    if let Some(through) = &table.through {
+        if (through.fields.contains_key(column)
+            || matches!(
+                column,
+                crate::schema::through::PARENT_DEADLINE | crate::schema::through::DEADLINE
+            ))
+            && let Ok(Value::Id(parent_id)) = row.field(&through.reference)
+        {
+            add_reference(tx, tx.num(name)?, id, column, &through.parent, parent_id)?;
+        }
     }
     Ok(())
 }
@@ -174,9 +213,9 @@ pub(super) fn transition(
     next: &Schema,
     previous: Option<&Schema>,
     restore: bool,
-) -> Result<(), RuntimeError> {
+) -> Result<BTreeSet<String>, RuntimeError> {
     if !enabled(tx)? {
-        return Ok(());
+        return Ok(BTreeSet::new());
     }
     let whole: Vec<(String, String)> = tx
         .conn()
@@ -184,11 +223,15 @@ pub(super) fn transition(
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
         .collect::<Result<_, _>>()?;
     let mut restoring = Vec::new();
+    let mut retained_through = BTreeSet::new();
     for (name, text) in &whole {
         let old: Table =
             serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
         check_owner(tx, name, &old, next)?;
         if next.tables.contains_key(name) {
+            if old.through.is_some() {
+                retained_through.insert(name.clone());
+            }
             restoring.push((name.clone(), old));
         }
     }
@@ -196,6 +239,9 @@ pub(super) fn transition(
     let mut reuse: Vec<String> = restoring.iter().map(|(n, _)| n.clone()).collect();
     for (name, column, text) in &cells {
         if let Some(table) = next.table(name).filter(|t| t.columns.contains_key(column)) {
+            if column == crate::schema::through::PARENT_DEADLINE {
+                retained_through.insert(name.clone());
+            }
             let old: Column =
                 serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
             if old.authoritative && !authoritative(table, column) {
@@ -276,12 +322,14 @@ pub(super) fn transition(
                     for (column, kind) in &old.columns {
                         if let Ok(value) = row.field(column) {
                             capture_refs(tx, tx.num(name)?, id, column, kind, value)?;
+                            capture_through_parent(tx, name, old, id, column, &row)?;
                         }
                     }
                 } else {
                     for column in &removed {
                         if let Ok(value) = row.field(column) {
                             save_cell(tx, name, old, id, column, value, true)?;
+                            capture_through_parent(tx, name, old, id, column, &row)?;
                         }
                     }
                 }
@@ -377,6 +425,22 @@ pub(super) fn transition(
         })?;
     }
     check_references(tx, next)?;
+    // Restored rows have no predecessor indexes. Install the identity scan
+    // before the ordinary read-through barrier; preserve historical captures.
+    for (name, _) in &restoring {
+        let table = &next.tables[name];
+        let t = tx.num(name)?;
+        let index = tx.num(&format!("{name}.byId"))?;
+        super::activation::walk(tx, t, |id, row| {
+            for key in index_keys(&table.indexes["byId"], &row, id) {
+                tx.conn().execute(
+                    "INSERT OR REPLACE INTO i(ti,k,id) VALUES(?1,?2,?3)",
+                    params![index, key, id],
+                )?;
+            }
+            Ok(())
+        })?;
+    }
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         for column in table.columns.keys() {
@@ -400,7 +464,7 @@ pub(super) fn transition(
             )?;
         }
     }
-    Ok(())
+    Ok(retained_through)
 }
 
 fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
@@ -428,20 +492,60 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
             )));
         }
         if let Some(through) = &table.through {
-            let restored: bool = tx.conn().query_row(
-                "SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND column_name=?2)",
-                params![t, through.reference],
-                |r| r.get(0),
-            )?;
-            if restored {
+            {
                 let mut bad = super::adopt_refusals::Samples::default();
                 super::activation::walk(tx, t, |id, row| {
+                    let restored: bool = tx.conn().query_row(
+                        "SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2)",
+                        params![t, id],
+                        |r| r.get(0),
+                    )?;
+                    if !restored {
+                        return Ok(());
+                    }
+                    // The captured deadline belongs to one parent lifetime,
+                    // even if an older schema allowed retargeting the active ref.
+                    let parent_t = tx.num(&through.parent)?;
+                    let current = row
+                        .field(&through.reference)
+                        .ok()
+                        .and_then(|v| v.as_str().ok());
+                    let mut evidence=tx.conn().prepare("SELECT parent_t,parent_id,(SELECT name FROM _catalog WHERE num=parent_t) FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3")?;
+                    for edge in evidence.query_map(
+                        params![t, id, crate::schema::through::PARENT_DEADLINE],
+                        |r| {
+                            Ok((
+                                r.get::<_, i64>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, String>(2)?,
+                            ))
+                        },
+                    )? {
+                        let (old_table, old_id, old_name) = edge?;
+                        if old_table != parent_t || current != Some(old_id.as_str()) {
+                            bad.add(
+                                id,
+                                &format!(
+                                    "{}.{}: recorded {} [{}], current {} [{}]",
+                                    name,
+                                    through.reference,
+                                    old_name,
+                                    old_id,
+                                    through.parent,
+                                    current.unwrap_or("<missing>")
+                                ),
+                            );
+                            return Ok(());
+                        }
+                    }
                     if let Ok(Value::Id(parent_id)) = row.field(&through.reference) {
                         if let Some(parent) = tx.get(&through.parent, parent_id)? {
                             let parent =
                                 crate::schema::row_image(&parent, &next.tables[&through.parent]);
                             if through.fields.iter().any(|(capture, field)| {
-                                row.field(capture).ok() != parent.field(field).ok()
+                                row.field(capture)
+                                    .ok()
+                                    .is_some_and(|value| Some(value) != parent.field(field).ok())
                             }) {
                                 bad.add(id,&format!("{}.{} parent {parent_id}: captured audience/identity changed",name,through.reference));
                             }
@@ -451,7 +555,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
                 })?;
                 if bad.count > 0 {
                     return Err(refuse(format!(
-                        "table {name}: {}; restore cannot recapture a changed audience; restore its original parent audience or prune these dormant rows",
+                        "table {name}: {}; restore cannot rebind historical audience/deadline captures; restore the original parent reference and audience under the current release, then `snapback4 rollback <dir> --to N`, or explicitly `snapback4 prune <dir> --allow-destructive`",
                         bad.describe()
                     )));
                 }

@@ -3,6 +3,7 @@
 // @ref LLP 3000.000#implementation-follow-up — one atomic activation boundary
 
 use super::*;
+use std::collections::BTreeSet;
 use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
 use crate::value::digest;
@@ -175,17 +176,18 @@ impl Store {
             tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
             if tx.has_sequence_table()? { tx.conn().execute_batch("DELETE FROM _sequences;")?; }
         }
+        let mut retained_through=BTreeSet::new();
         if schema_changed && programs.is_some() && !reset {
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
             let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
-            super::dormant::transition(&tx,schema,previous.as_ref(),restore)?;
+            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore)?;
         }
         if schema_changed && programs.is_some() && !reset {
             let started = std::time::Instant::now();
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;
-            let shortened = crate::engine::through_activation::activate(&tx,schema,previous.as_ref(),now)?;
+            let shortened = crate::engine::through_activation::activate_retained(&tx,schema,previous.as_ref(),now,&retained_through)?;
             tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
             report.detail("read-through retirement", started);
         }

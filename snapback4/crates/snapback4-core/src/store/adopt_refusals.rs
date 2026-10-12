@@ -247,6 +247,47 @@ pub(super) fn detail(
     schema: &Schema,
     step: &crate::successor::Step,
 ) -> Result<String, RuntimeError> {
+    if let Some(position) = step
+        .path
+        .strip_prefix("maintains[")
+        .and_then(|s| s.strip_suffix(']'))
+        .and_then(|s| s.parse::<usize>().ok())
+    {
+        let maintain = &schema.maintains[position];
+        let source = &schema.tables[&maintain.source];
+        let mut samples = Samples::default();
+        super::activation::walk(tx, tx.num(&maintain.source)?, |id, row| {
+            let row = crate::schema::row_image(&row, source);
+            if maintain.selected(&row) {
+                let contribution = match &maintain.kind {
+                    crate::schema::MaintainKind::Sum { of } => format!(
+                        "{of}={}",
+                        row.field(of)
+                            .map(value_sample)
+                            .unwrap_or_else(|_| "<missing>".into())
+                    ),
+                    _ => "count=1".into(),
+                };
+                samples.add(
+                    id,
+                    &format!(
+                        "key {}; {contribution}",
+                        value_sample(&Value::Array(maintain.source_key(&row)))
+                    ),
+                );
+            }
+            Ok(())
+        })?;
+        return Ok(format!(
+            "{}; source table {}: {}; rewrite: repair source values through a bridge or remove/change the maintain, then `snapback4 deploy <dir> --restore-dormant`; inspect: snapback4 sql \"SELECT id,data FROM r WHERE t=(SELECT num FROM _catalog WHERE name='{}')\" --release <dir>",
+            step.message,
+            maintain.source,
+            samples
+                .describe()
+                .replace("affected rows", "selected source rows"),
+            maintain.source
+        ));
+    }
     let path: Vec<_> = step.path.split('.').collect();
     let Some(name) = path.get(1).filter(|_| path.first() == Some(&"tables")) else {
         return Ok(step.message.clone());
